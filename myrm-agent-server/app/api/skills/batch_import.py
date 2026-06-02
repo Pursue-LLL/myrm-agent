@@ -154,58 +154,75 @@ async def confirm_batch_import(
             logger.warning(f"Skill {item.name} failed security scan: {val_result.issues}")
             raise HTTPException(status_code=400, detail=f"安全扫描拦截: {item.name} 包含恶意代码 -> {val_result.issues}。本次批量导入已全量撤销保护。")
 
-    # Phase 2: 落盘与数据库更新
-    for item in request.items:
-        if item.resolution == "skip":
-            skipped_count += 1
-            continue
-            
-        skill_id = str(uuid.uuid4())
-        name = item.name
-        evolution_type = EvolutionType.FIX # default
-        parent_id = None
-        
-        if item.resolution == "replace" and item.existing_skill_id:
-            # 覆盖：更新原技能
-            skill_id = item.existing_skill_id
-            evolution_type = EvolutionType.DERIVED
-            parent_id = skill_id
-        elif item.resolution == "rename_cow":
-            name = f"{item.name}_copy"
-            evolution_type = EvolutionType.DERIVED
-            parent_id = item.existing_skill_id
-        
-        # 构建完整写入路径，Sandbox 模式中通常存储到 data_dir/skills
-        # SkillStore 会管理这个路径的物理落盘
-        path = str(store.db_path.parent / "skills" / skill_id / "SKILL.md")
-        
-        record = SkillRecord(
-            skill_id=skill_id,
-            name=name,
-            description=item.description,
-            content=item.content,
-            path=path,
-            lineage=SkillLineage(
-                evolution_type=evolution_type,
-                version=1,
-                parent_id=parent_id,
-                change_summary="Migrated via Hermes Batch Import",
-                created_by="human"
-            )
-        )
-        
-        # 物理落盘与DB记录更新，利用 UoW 或 store 内置的事务
+    # Phase 2: 落盘暂存与数据库更新 (防止脑裂脏写)
+    temp_files = []
+    try:
         import os
         from pathlib import Path
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(f"---\nname: {name}\ndescription: {item.description}\n---\n{item.content}")
+        
+        for item in request.items:
+            if item.resolution == "skip":
+                skipped_count += 1
+                continue
+                
+            skill_id = str(uuid.uuid4())
+            name = item.name
+            evolution_type = EvolutionType.FIX # default
+            parent_id = None
             
-        import asyncio
-        loop = asyncio.get_event_loop()
-        # save_skill is async
-        await store.save_skill(record)
-        imported_count += 1
+            if item.resolution == "replace" and item.existing_skill_id:
+                # 覆盖：更新原技能
+                skill_id = item.existing_skill_id
+                evolution_type = EvolutionType.DERIVED
+                parent_id = skill_id
+            elif item.resolution == "rename_cow":
+                name = f"{item.name}_copy"
+                evolution_type = EvolutionType.DERIVED
+                parent_id = item.existing_skill_id
+            
+            # 构建完整写入路径，Sandbox 模式中通常存储到 data_dir/skills
+            path = str(store.db_path.parent / "skills" / skill_id / "SKILL.md")
+            
+            record = SkillRecord(
+                skill_id=skill_id,
+                name=name,
+                description=item.description,
+                content=item.content,
+                path=path,
+                lineage=SkillLineage(
+                    evolution_type=evolution_type,
+                    version=1,
+                    parent_id=parent_id,
+                    change_summary="Migrated via Hermes Batch Import",
+                    created_by="human"
+                )
+            )
+            
+            # 先写入同名临时文件 .tmp，保证物理文件不被立刻破坏
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp_path = path + f".{uuid.uuid4().hex}.tmp"
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(f"---\nname: {name}\ndescription: {item.description}\n---\n{item.content}")
+            temp_files.append((tmp_path, path))
+            
+            # DB 写库，若失败将抛出异常，此时原有的 SKILL.md 安全无恙
+            await store.save_skill(record)
+            imported_count += 1
+            
+        # Phase 3: 全部 DB 提交成功后，在操作系统底层执行原子物理替换
+        for tmp_path, final_path in temp_files:
+            os.replace(tmp_path, final_path)
+            
+    except Exception as e:
+        # 回滚：全量清空本次产生的所有临时文件，拒绝脏写残留
+        import os
+        for tmp_path, _ in temp_files:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+        raise e
         
     return ConfirmImportResponse(
         imported_count=imported_count,

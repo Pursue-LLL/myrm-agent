@@ -25,7 +25,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath, { Options } from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
-import rehypeHeadingIds from './markdown-render-tools/rehypeHeadingIds';
+import rehypeHeadingIds from '../markdown-render-tools/rehypeHeadingIds';
 import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
 import LinkPopover from '@/components/ui/markdown-render-tools/LinkPopover';

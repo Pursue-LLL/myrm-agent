@@ -2,6 +2,9 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeRaw from 'rehype-raw';
 import { visit } from 'unist-util-visit';
 import { ListTree, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -36,26 +39,34 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, isStreaming, co
     // 为了避免在流式输出时频繁阻塞主线程，如果是流式状态，我们可以使用 requestIdleCallback 或 setTimeout
     const parseToc = () => {
       try {
-        const ast = unified().use(remarkParse).parse(content);
+        // 使用与 MarkdownContent 完全一致的解析管线 (直到 hast 阶段)
+        // 这样可以确保原生 HTML 标签 (如 <h1>) 也能被正确解析和分配索引
+        const processor = unified()
+          .use(remarkParse)
+          .use(remarkGfm)
+          .use(remarkRehype, { allowDangerousHtml: true })
+          .use(rehypeRaw);
+
+        const hast = processor.runSync(processor.parse(content));
         const newToc: TocItem[] = [];
         let index = 0;
 
-        visit(ast, 'heading', (node: any) => {
-          let text = '';
-          // 提取标题纯文本
-          visit(node, (child: any) => {
-            if (child.type === 'text' || child.type === 'inlineCode') {
-              text += child.value;
-            }
-          });
+        visit(hast, 'element', (node: any) => {
+          if (/^h[1-6]$/.test(node.tagName)) {
+            let text = '';
+            // 提取 hast 节点中的纯文本
+            visit(node, 'text', (textNode: any) => {
+              text += textNode.value;
+            });
 
-          newToc.push({
-            id: `toc-header-${index}`,
-            level: node.depth,
-            text: text.trim(),
-            index,
-          });
-          index++;
+            newToc.push({
+              id: `toc-header-${index}`,
+              level: parseInt(node.tagName.charAt(1), 10),
+              text: text.trim(),
+              index,
+            });
+            index++;
+          }
         });
 
         setToc(newToc);
@@ -186,8 +197,8 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, isStreaming, co
       </div>
 
       {/* 超大屏幕：右侧悬浮面板 */}
-      <div className="hidden 2xl:block absolute left-full top-0 ml-8 w-64 max-h-[80vh] overflow-y-auto sticky-toc-container z-10">
-        <div className="sticky top-24 bg-background/50 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-sm">
+      <div className="hidden 2xl:block absolute left-full top-0 bottom-0 ml-8 w-64 z-10 pointer-events-none">
+        <div className="sticky top-24 max-h-[80vh] overflow-y-auto bg-background/50 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-sm pointer-events-auto">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
             <ListTree className="w-4 h-4" />
             <span>{t('tableOfContents') || '目录'}</span>
