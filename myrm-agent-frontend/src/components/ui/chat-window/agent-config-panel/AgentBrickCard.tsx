@@ -4,7 +4,7 @@ import { AgentListItem, Agent } from '@/services/agent';
 import { cn } from '@/lib/utils/classnameUtils';
 import { ChevronRight, Wand2, Plug, FileText, Wrench, Loader2, Check } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
-import { AgentIcon } from '@/components/agent/agent-icons';
+import { AgentIcon, LucideAgentIcon } from '@/components/agent/agent-icons';
 import { parseAvatarUrl } from '@/lib/utils/avatar-utils';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
@@ -157,6 +157,8 @@ const AgentBrickCard = ({
         >
           {parsed?.type === 'icon' ? (
             <AgentIcon iconId={parsed.iconId} size="md" className="w-10 h-10" />
+          ) : parsed?.type === 'lucide' ? (
+            <LucideAgentIcon iconName={parsed.iconName} size="md" className="w-10 h-10 text-white" />
           ) : parsed?.type === 'image' ? (
             <img src={parsed.src} alt={agent.name} className="w-full h-full rounded-lg object-cover" />
           ) : parsed?.type === 'emoji' ? (

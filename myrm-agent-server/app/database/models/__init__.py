@@ -50,6 +50,7 @@ from .security import (
     SkillPermissionUsageLog,
     UserToolAllowlist,
 )
+from .vault_credential import VaultCredential
 from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
 from .skill_alert_rule import SkillAlertRule
 from .skill_optimization import (
@@ -118,6 +119,7 @@ __all__ = [
     "SecurityProfile",
     "SkillPermissionGrant",
     "SkillPermissionUsageLog",
+    "VaultCredential",
     # Skill
     "PendingEvolution",
     "PendingMigration",
