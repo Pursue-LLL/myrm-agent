@@ -1,0 +1,57 @@
+# Example Subagent Configuration Template
+# Copy this file to create your custom subagent configuration:
+# cp example.yaml.template my_agent.yaml
+
+# REQUIRED: Unique name for this subagent type (used in spawn_subagent_tool)
+name: my_custom_agent
+
+# REQUIRED: Short description (shown to LLM in tool description)
+description: "Brief description of what this agent does"
+
+# REQUIRED: List of allowed tools (whitelist)
+# Tool names must match pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+tools:
+  - tool_name_1
+  - tool_name_2
+
+# OPTIONAL: List of forbidden tools (blacklist)
+disallowed_tools: []
+
+# REQUIRED: System prompt for the subagent (minimum 10 characters)
+system_prompt: |
+  You are a specialized agent.
+  Your role is to...
+  
+  Be precise and efficient in your work.
+
+# Runtime configuration parameters (all optional, defaults shown)
+config:
+  # Maximum execution time in seconds
+  timeout_seconds: 120
+  
+  # Maximum number of parallel instances of this agent type
+  concurrency_limit: 5
+  
+  # Maximum LLM conversation turns
+  max_turns: 25
+  
+  # Number of retries on failure
+  max_retries: 3
+  
+  # Backoff seconds between retries (exponential)
+  retry_backoff_seconds: 2.0
+  
+  # Maximum nesting depth (0 = cannot spawn children, 1 = can spawn 1 level)
+  max_spawn_depth: 0
+  
+  # Token budget limit (null = unlimited)
+  budget_tokens: null
+  
+  # Result truncation limit in tokens (null = no truncation)
+  max_result_tokens: null
+
+# Notes:
+# - Save this file in configs/subagents/custom/ directory
+# - Restart application to load new configuration
+# - Custom configs override core configs with the same name
+# - See README.md for detailed documentation

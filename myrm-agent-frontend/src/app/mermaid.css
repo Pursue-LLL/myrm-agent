@@ -1,0 +1,25 @@
+/* Mermaid chart layout styles.
+   Colors are controlled by themeVariables in mermaid-theme.ts.
+   Typography is set via fontFamily in buildMermaidConfig. */
+.mermaid-container {
+  position: relative;
+  user-select: none;
+}
+
+.mermaid-chart {
+  will-change: transform;
+}
+
+.mermaid-container .group:hover .opacity-0 {
+  opacity: 1;
+}
+
+.mermaid-container.fixed {
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 768px) {
+  .mermaid-container {
+    margin: 0.75rem 0;
+  }
+}

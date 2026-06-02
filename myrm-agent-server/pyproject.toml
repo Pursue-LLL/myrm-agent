@@ -1,0 +1,160 @@
+[project]
+name = "MyrmAgentServer"
+version = "0.1.0"
+description = "MyrmAgent: Claw-class AI assistant backend with persistent agent capabilities, skills system, and multi-agent orchestration"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "MyrmAgent Contributors" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
+requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
+dependencies = [
+  # --- Web 框架 ---
+  "fastapi>=0.136.3",         # Web API 框架 (54 文件)
+  "uvicorn>=0.48.0",          # ASGI 服务器，本地单进程模式 (run.py)
+  # --- 数据与配置 ---
+  "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
+  "pydantic-settings>=2.14.1", # 统一配置管理 (BaseSettings + .env)
+  # --- HTTP & I/O ---
+  "httpx[socks]>=0.28.1", # HTTP 客户端 + SOCKS 代理 (130+ 文件)
+  "aiofiles>=25.1.0",     # 异步文件读写 (3 文件)
+  # --- AI & LLM ---
+  "litellm>=1.86.1",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "langchain>=1.3.2",      # Agent 工具/链定义 (70+ 文件)
+  "langchain-core>=1.4.0", # 消息类型/BaseTool (70+ 文件)
+  # --- Agent 框架 (闭源 wheel + compiled-core 平台包，PyPI；见 docker/read_harness_pypi_spec.py) ---
+  "myrm-agent-harness[file-parsers,memory-sqlite,web,fastapi,retrieval,qdrant,image-processing,compiled-core]==0.1.0rc1",
+  # --- 渠道 SDK ---
+  "discord-py[voice]>=2.7.1",  # Discord Gateway WebSocket + REST API + Voice
+  "lark-oapi>=1.6.6",          # Feishu/Lark SDK (WebSocket transport only)
+  "aiohttp>=3.13.5",           # Matrix channel + alert notifier HTTP client
+  # --- 语音处理 ---
+  "faster-whisper>=1.2.1",     # CTranslate2 Whisper 推理引擎（本地 STT）
+  # --- 图片处理 ---
+  "pillow>=12.2.0",    # 图片处理/压缩 (qrcode + media/service)
+  # --- 数据库 ---
+  "sqlalchemy>=2.0.50", # ORM 框架，SQLite (170+ 文件)
+  # --- 工具库 ---
+  "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
+  # --- 安全与展示 ---
+  "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
+  "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
+  # --- 定时任务与加密 ---
+  "apscheduler>=4.0.0a6,<4.1.0",        # 后台任务调度器 (lifecycle/schedulers.py)
+  "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)
+  "cryptography>=48.0.0",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
+  "edge-tts>=7.2.8",                    # TTS 文本转语音 (voice/tts.py)
+  # --- 事件循环 ---
+  "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
+  "pilk>=0.2.4",                        # Silk 音频编解码 (_ilink/silk.py)
+  "orjson>=3.11.9",                     # 高性能 JSON (sse_helpers + streaming + login)
+  "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
+  "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
+  "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
+  "websockets>=16.0",                   # WebSocket 通信 (11+ channels/voice)
+  "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
+]
+
+[project.optional-dependencies]
+advanced-tools = [
+  "myrm-agent-harness[retrieval]"
+]
+matrix-e2ee = [
+  "mautrix[encryption]>=0.21.0",
+]
+# 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
+# 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
+data-viz = [
+  "matplotlib>=3.9", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
+  "pandas>=2.2",     # 表格/时间序列数据处理（numpy 为 matplotlib/pandas 的硬依赖，自动引入）
+]
+
+[tool.uv]
+# index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+override-dependencies = [
+  "click>=8.4.1",
+  "patchright>=1.60.0",
+  "openai>=2.38.0",
+  "aiohttp>=3.13.5",
+  "opentelemetry-semantic-conventions>=0.61b0",
+  "websockets>=16.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=9.0.3",
+  "ruff>=0.15.14",
+  "pre-commit>=4.6.0",
+  "pytest-asyncio>=1.4.0",
+  "myrm-agent-harness[browser]", # 浏览器测试依赖
+  "langchain-openai>=1.2.2",     # LLM 集成测试依赖
+  "pytest-cov>=7.1.0",
+  "pytest-benchmark>=5.2.3",
+  "pytest-xdist>=3.8.0",         # 并行测试执行
+  "pytest-timeout>=2.4.0",       # 测试超时保护
+  "mypy>=2.1.0",
+  "blockbuster>=1.5.26",
+]
+
+# Sandbox 沙箱模式专属依赖（全部为延迟导入或 CLI 工具，本地模式不安装也不影响启动）
+sandbox = [
+  # --- 系统监控 ---
+  "prometheus-fastapi-instrumentator>=7.0.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
+  # --- ASGI 服务器 ---
+  "granian>=2.7.4", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+  # --- 限流 ---
+  "slowapi>=0.1.9",        # API 限流中间件 (limiter.py try/except, sandbox only)
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 130
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I"]
+ignore = ["B008", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-n auto --timeout=300"
+markers = [
+  "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
+  "e2e: End-to-end tests against running app (may require network or API keys)",
+  "allow_blocking_io: Opt out of the blockbuster blocking-IO gate for this test",
+]
+python_files = "test_*.py"
+import_mode = "importlib"
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::UserWarning:langsmith.schemas", # langsmith 的 Pydantic V1 兼容性警告
+  "ignore::Warning",
+]
+asyncio_default_fixture_loop_scope = "function"
+anyio_backends = ["asyncio"] # 只使用asyncio后端（项目不需要trio）
+asyncio_mode = "auto"
+
+# 日志配置：启用日志输出以便调试
+# log_cli = true            # 启用 pytest 的实时日志输出
+# log_cli_level = "WARNING" # 只显示 WARNING 及以上级别
+log_capture = false # 禁用日志捕获，避免测试失败时重复显示
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+explicit_package_bases = true
+files = ["app"]
+exclude = [
+  "app/database/models/",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.database.models.*"
+follow_imports = "silent"
+
+

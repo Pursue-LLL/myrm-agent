@@ -1,0 +1,528 @@
+'use client';
+
+import { useCallback, useMemo, useState, type SetStateAction } from 'react';
+import dynamic from 'next/dynamic';
+import { useTranslations } from 'next-intl';
+import { IconAlertTriangle, IconXCircle, IconAlertCircle } from '@/components/ui/icons/PremiumIcons';
+import { Navigation } from 'lucide-react';
+import SettingsSection from './SettingsSection';
+import { PolicySelector } from './DmPolicySelector';
+import { ChannelPolicyOverride } from './ChannelPolicyOverride';
+import { GroupManager, CHANNELS_WITH_GROUPS } from './GroupManager';
+import ChannelList, { buildChannelEntries } from './ChannelList';
+import type { ChannelIssue } from '@/services/channels';
+import type { WhatsAppCardProps } from './WhatsAppCard';
+import { Switch } from '@/components/ui/switch';
+import { useChannelsState } from './useChannelsState';
+import { CardSkeleton } from '../common/SettingsSkeleton';
+
+// 动态加载渠道卡片
+const WhatsAppCard = dynamic(() => import('./WhatsAppCard').then((mod) => mod.WhatsAppCard), {
+  loading: () => <CardSkeleton />,
+});
+const WeChatConfigCard = dynamic(() => import('./WeChatConfigCard').then((mod) => mod.WeChatConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const FeishuConfigCard = dynamic(() => import('./FeishuConfigCard').then((mod) => mod.FeishuConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const DingTalkConfigCard = dynamic(() => import('./DingTalkConfigCard').then((mod) => mod.DingTalkConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const SlackConfigCard = dynamic(() => import('./SlackConfigCard').then((mod) => mod.SlackConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const DiscordConfigCard = dynamic(() => import('./DiscordConfigCard').then((mod) => mod.DiscordConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const WeComConfigCard = dynamic(() => import('./WeComConfigCard').then((mod) => mod.WeComConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const WeComAiBotConfigCard = dynamic(() => import('./WeComAiBotConfigCard').then((mod) => mod.WeComAiBotConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const TeamsConfigCard = dynamic(() => import('./TeamsConfigCard').then((mod) => mod.TeamsConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const MatrixConfigCard = dynamic(() => import('./MatrixConfigCard').then((mod) => mod.MatrixConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const TelegramConfigCard = dynamic(() => import('./TelegramConfigCard').then((mod) => mod.TelegramConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const GoogleChatConfigCard = dynamic(() => import('./GoogleChatConfigCard').then((mod) => mod.GoogleChatConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const QQConfigCard = dynamic(() => import('./QQConfigCard').then((mod) => mod.QQConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const OneBotConfigCard = dynamic(() => import('./OneBotConfigCard').then((mod) => mod.OneBotConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const EmailConfigCard = dynamic(() => import('./EmailConfigCard').then((mod) => mod.EmailConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const VoiceConfigCard = dynamic(() => import('./VoiceConfigCard').then((mod) => mod.VoiceConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const SMSConfigCard = dynamic(() => import('./SMSConfigCard').then((mod) => mod.SMSConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const SignalConfigCard = dynamic(() => import('./SignalConfigCard').then((mod) => mod.SignalConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const LINEConfigCard = dynamic(() => import('./LINEConfigCard').then((mod) => mod.LINEConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const IMessageConfigCard = dynamic(() => import('./IMessageConfigCard').then((mod) => mod.IMessageConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const IRCConfigCard = dynamic(() => import('./IRCConfigCard').then((mod) => mod.IRCConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const ZaloConfigCard = dynamic(() => import('./ZaloConfigCard').then((mod) => mod.ZaloConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const MattermostConfigCard = dynamic(() => import('./MattermostConfigCard').then((mod) => mod.MattermostConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+
+// ─── Sub-components ──────────────────────────────────────────────────
+
+const SEVERITY_STYLES: Record<string, { bg: string; border: string; icon: typeof IconXCircle }> = {
+  error: { bg: 'bg-destructive/10', border: 'border-destructive/30', icon: IconXCircle },
+  warning: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: IconAlertTriangle },
+  info: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: IconAlertCircle },
+};
+
+type IssuePattern = [pattern: RegExp, key: string, prefixOnly?: boolean];
+
+const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
+  [/not configured/i, 'notConfigured'],
+  [/missing (configuration|credentials)/i, 'missingCredentials'],
+  [/authentication failed/i, 'authFailed'],
+  [/degraded (state|mode)/i, 'degradedMode'],
+  [/(error state|in ERROR)/i, 'errorState'],
+  [/must use HTTPS/i, 'webhookHttps'],
+  [/webhook.*(setup|set up) failed/i, 'webhookFailed'],
+  [/SDK.*not installed/i, 'sdkNotInstalled'],
+  [/token.*failed/i, 'tokenFailed'],
+  [/connection failed/i, 'connectionFailed'],
+  [/encryption not configured/i, 'encryptionNotConfigured'],
+  [/not logged in/i, 'notLoggedIn'],
+  [/^last error:\s*/i, 'lastError', true],
+];
+
+const ISSUE_FIX_PATTERNS: IssuePattern[] = [
+  [/configure in settings/i, 'fixConfigureInSettings'],
+  [/verify.*valid.*permissions/i, 'fixCheckCredentials'],
+  [/verify.*(token|password|secret)/i, 'fixVerifyToken'],
+  [/scan QR code to login/i, 'fixScanQrCode'],
+];
+
+function useIssueTranslator() {
+  const t = useTranslations('channels.issues');
+  return useCallback(
+    (text: string, patterns: IssuePattern[]) => {
+      for (const [pattern, key, prefixOnly] of patterns) {
+        if (!pattern.test(text)) continue;
+        if (prefixOnly) return `${t(key)} ${text.replace(pattern, '').trim()}`;
+        return t(key);
+      }
+      return text;
+    },
+    [t],
+  );
+}
+
+function ChannelIssueBanner({ issues }: { issues: ChannelIssue[] }) {
+  const translate = useIssueTranslator();
+  if (!issues.length) return null;
+  return (
+    <div className="space-y-2">
+      {issues.map((issue, i) => {
+        const style = SEVERITY_STYLES[issue.severity] ?? SEVERITY_STYLES.info;
+        const Icon = style.icon;
+        return (
+          <div
+            key={`${issue.kind}-${i}`}
+            className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${style.bg} ${style.border}`}
+          >
+            <Icon className="h-4 w-4 mt-0.5 shrink-0 text-current opacity-70" />
+            <div className="min-w-0 text-sm">
+              <span className="font-medium">{translate(issue.message, ISSUE_MESSAGE_PATTERNS)}</span>
+              {issue.fix && (
+                <p className="mt-0.5 text-muted-foreground text-xs">{translate(issue.fix, ISSUE_FIX_PATTERNS)}</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Channel auth-type classification ────────────────────────────────
+
+const QR_LOGIN_CHANNELS = new Set(['whatsapp', 'wechat']);
+const CONNECTION_CONFIG_CHANNELS = new Set(['onebot', 'irc']);
+
+function getChannelNotConfiguredKey(channel: string): string {
+  if (QR_LOGIN_CHANNELS.has(channel)) return 'channelNotConfiguredQr';
+  if (CONNECTION_CONFIG_CHANNELS.has(channel)) return 'channelNotConfiguredConnection';
+  return 'channelNotConfigured';
+}
+
+// ─── Credential guide ────────────────────────────────────────────────
+
+const CHANNELS_WITH_GUIDE = new Set([
+  'telegram',
+  'feishu',
+  'dingtalk',
+  'slack',
+  'discord',
+  'wecom',
+  'wecom_aibot',
+  'teams',
+  'matrix',
+  'googlechat',
+  'qq',
+  'email',
+  'signal',
+  'line',
+  'mattermost',
+]);
+
+const DEVELOPER_PORTAL_URLS: Record<string, string> = {
+  telegram: 'https://t.me/BotFather',
+  feishu: 'https://open.feishu.cn/app',
+  dingtalk: 'https://open-dev.dingtalk.com/',
+  slack: 'https://api.slack.com/apps',
+  discord: 'https://discord.com/developers/applications',
+  wecom: 'https://work.weixin.qq.com/wework_admin/frame#apps',
+  wecom_aibot: 'https://work.weixin.qq.com/wework_admin/frame#apps',
+  teams: 'https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps',
+  line: 'https://developers.line.biz/console/',
+  qq: 'https://q.qq.com/',
+  googlechat: 'https://console.cloud.google.com/',
+};
+
+function CredentialGuide({ channel, t }: { channel: string; t: (key: string) => string }) {
+  if (!CHANNELS_WITH_GUIDE.has(channel)) return null;
+  const guideKey = `credentialGuide${channel.charAt(0).toUpperCase()}${channel.slice(1).replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())}`;
+  const url = DEVELOPER_PORTAL_URLS[channel];
+  return (
+    <p className="text-xs text-muted-foreground/70 px-1">
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+          {t(guideKey)} ↗
+        </a>
+      ) : (
+        t(guideKey)
+      )}
+    </p>
+  );
+}
+
+// ─── Channel config renderer ─────────────────────────────────────────
+
+function ChannelConfigPanel({
+  channel,
+  waStatus,
+  waLoading,
+  onRefreshWa,
+  t,
+}: {
+  channel: string;
+  waStatus: WhatsAppCardProps['waStatus'];
+  waLoading: boolean;
+  onRefreshWa: () => void;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  switch (channel) {
+    case 'whatsapp':
+      return <WhatsAppCard waStatus={waStatus} loading={waLoading} onRefresh={onRefreshWa} t={t} />;
+    case 'wechat':
+      return <WeChatConfigCard />;
+    case 'feishu':
+      return <FeishuConfigCard />;
+    case 'dingtalk':
+      return <DingTalkConfigCard />;
+    case 'slack':
+      return <SlackConfigCard />;
+    case 'discord':
+      return <DiscordConfigCard />;
+    case 'wecom':
+      return <WeComConfigCard />;
+    case 'wecom_aibot':
+      return <WeComAiBotConfigCard />;
+    case 'teams':
+      return <TeamsConfigCard />;
+    case 'matrix':
+      return <MatrixConfigCard />;
+    case 'telegram':
+      return <TelegramConfigCard />;
+    case 'googlechat':
+      return <GoogleChatConfigCard />;
+    case 'qq':
+      return <QQConfigCard />;
+    case 'onebot':
+      return <OneBotConfigCard />;
+    case 'email':
+      return <EmailConfigCard />;
+    case 'voice':
+      return <VoiceConfigCard />;
+    case 'sms':
+      return <SMSConfigCard />;
+    case 'signal':
+      return <SignalConfigCard />;
+    case 'line':
+      return <LINEConfigCard />;
+    case 'imessage':
+      return <IMessageConfigCard />;
+    case 'irc':
+      return <IRCConfigCard />;
+    case 'zalo':
+      return <ZaloConfigCard />;
+    case 'mattermost':
+      return <MattermostConfigCard />;
+    default:
+      return null;
+  }
+}
+
+// ─── Main Section ────────────────────────────────────────────────────
+
+const CHANNEL_STORAGE_KEY = 'myrm-selected-channel';
+const DEFAULT_CHANNEL = 'whatsapp';
+
+export default function ChannelsSection() {
+  const t = useTranslations('channels');
+  const state = useChannelsState(t);
+  const channelEntries = buildChannelEntries(t);
+  const [selectedChannel, _setSelectedChannel] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_CHANNEL;
+    const stored = localStorage.getItem(CHANNEL_STORAGE_KEY);
+    return stored && channelEntries.some((e) => e.id === stored) ? stored : DEFAULT_CHANNEL;
+  });
+  const setSelectedChannel = useCallback((v: SetStateAction<string>) => {
+    _setSelectedChannel((prev) => {
+      const next = typeof v === 'function' ? v(prev) : v;
+      try {
+        localStorage.setItem(CHANNEL_STORAGE_KEY, next);
+      } catch {
+        /* quota exceeded */
+      }
+      return next;
+    });
+  }, []);
+
+  const groupCountByChannel = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const g of state.groups) {
+      counts[g.channel] = (counts[g.channel] ?? 0) + 1;
+    }
+    return counts;
+  }, [state.groups]);
+
+  const isChannelEffectivelyEnabled = useCallback(
+    (ch: string) => {
+      const status = state.channelStatuses[ch];
+      if (!status || status === 'disabled') return false;
+      if (ch === 'whatsapp') return !!state.waStatus?.connected;
+      if (QR_LOGIN_CHANNELS.has(ch)) {
+        return status === 'running' || status === 'running_idle';
+      }
+      return true;
+    },
+    [state.channelStatuses, state.waStatus?.connected],
+  );
+
+  const renderChannelDetail = useCallback(
+    (ch: string) => {
+      const status = state.channelStatuses[ch];
+      const effectivelyEnabled = isChannelEffectivelyEnabled(ch);
+
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-sm text-muted-foreground">
+              {!status
+                ? t(getChannelNotConfiguredKey(ch))
+                : status === 'disabled'
+                  ? t('channelDisabled')
+                  : !effectivelyEnabled
+                    ? t(getChannelNotConfiguredKey(ch))
+                    : t('channelEnabled')}
+            </span>
+            <Switch
+              checked={effectivelyEnabled}
+              onCheckedChange={(checked) => state.handleChannelToggle(ch, checked)}
+              disabled={!status || state.togglingChannel === ch}
+            />
+          </div>
+          <ChannelIssueBanner issues={state.channelIssues[ch] ?? []} />
+          <CredentialGuide channel={ch} t={t} />
+          {status !== 'disabled' && (
+            <ChannelConfigPanel
+              channel={ch}
+              waStatus={state.waStatus}
+              waLoading={state.waLoading}
+              onRefreshWa={() => state.fetchWhatsAppStatus(true)}
+              t={t}
+            />
+          )}
+          {CHANNELS_WITH_GROUPS.has(ch) && (
+            <GroupManager
+              groups={state.groups}
+              channelFilter={ch}
+              channelStatus={state.channelStatuses[ch]}
+              isChannelConnected={ch === 'whatsapp' ? state.waStatus?.connected : undefined}
+              loading={state.groupsLoading}
+              groupPolicy={state.channelOverrides[ch]?.groupPolicy ?? state.groupPolicy}
+              onToggle={state.handleGroupToggle}
+              onRefresh={state.handleGroupsRefresh}
+              refreshing={state.groupsRefreshing}
+              freeResponseChats={state.freeResponseChats}
+              onFreeResponseToggle={state.handleFreeResponseToggle}
+              t={t}
+            />
+          )}
+          <ChannelPolicyOverride
+            channel={ch}
+            globalDmPolicy={state.dmPolicy}
+            globalGroupPolicy={state.groupPolicy}
+            globalGroupTrigger={state.groupTrigger}
+            overrides={state.channelOverrides[ch]}
+            onOverride={state.handleChannelOverride}
+            pairings={state.pairings}
+            pairingsLoading={state.pairingsLoading}
+            onAddPairing={state.handleAddPairing}
+            onDeletePairing={state.handleDeletePairing}
+            onUpdatePairingStatus={state.handleUpdatePairingStatus}
+            onUpdatePairingDisplayName={state.handleUpdatePairingDisplayName}
+            saving={state.policySaving}
+            t={t}
+          />
+        </div>
+      );
+    },
+    [state, t, isChannelEffectivelyEnabled],
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Navigation className="h-5 w-5 text-muted-foreground" />
+        <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>
+      </div>
+      <p className="text-sm text-muted-foreground">{t('sectionDesc')}</p>
+
+      <SettingsSection title={t('channelConfigTitle')} description={t('channelConfigDesc')}>
+        <div className="flex flex-col lg:flex-row gap-6 lg:min-h-[400px]">
+          <div className="w-full lg:w-48 flex-shrink-0">
+            <ChannelList
+              channels={channelEntries}
+              selectedId={selectedChannel}
+              onSelect={setSelectedChannel}
+              statuses={state.channelStatuses}
+              activities={state.channelActivities}
+              issueCountByChannel={Object.fromEntries(
+                Object.entries(state.channelIssues).map(([k, v]) => [k, v.length]),
+              )}
+              groupCountByChannel={groupCountByChannel}
+              renderDetail={renderChannelDetail}
+              t={t}
+            />
+          </div>
+          <div className="hidden lg:block flex-1 min-w-0">{renderChannelDetail(selectedChannel)}</div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title={t('policyTitle')} description={t('policyDesc')} data-section="policy">
+        <PolicySelector
+          dmPolicy={state.dmPolicy}
+          groupPolicy={state.groupPolicy}
+          groupTrigger={state.groupTrigger}
+          onDmPolicyChange={state.handleDmPolicyChange}
+          onGroupPolicyChange={state.handleGroupPolicyChange}
+          onGroupTriggerChange={state.handleGroupTriggerChange}
+          saving={state.policySaving}
+          t={t}
+        />
+      </SettingsSection>
+
+      <SettingsSection title={t('reactionTitle')} description={t('reactionDesc')}>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { value: 'off', label: t('reactionOff'), desc: t('reactionOffDesc') },
+                { value: 'simple', label: t('reactionSimple'), desc: t('reactionSimpleDesc') },
+                { value: 'full', label: t('reactionFull'), desc: t('reactionFullDesc') },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => state.handleReactionLevelChange(opt.value)}
+                className={`flex flex-col items-center gap-1 rounded-lg border px-4 py-2 transition-all duration-200 ${
+                  state.reactionLevel === opt.value
+                    ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
+                    : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                }`}
+              >
+                <span className="text-sm font-medium">{opt.label}</span>
+                <span className="text-xs text-muted-foreground">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+
+          {state.reactionLevel === 'full' && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{t('processingEmojiLabel')}</p>
+              <div className="flex flex-wrap gap-2">
+                {['👀', '🤔', '⏳', '💭', '🧠', '✨'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => state.handleProcessingEmojiChange(emoji)}
+                    className={`h-10 w-10 rounded-lg border text-lg transition-all duration-200 ${
+                      state.processingEmoji === emoji
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
+                        : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {state.reactionLevel !== 'off' && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{t('completionEmojiLabel')}</p>
+              <div className="flex flex-wrap gap-2">
+                {['✅', '👍', '🎉', '✨', '💯', '🙌'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => state.handleCompletionEmojiChange(emoji)}
+                    className={`h-10 w-10 rounded-lg border text-lg transition-all duration-200 ${
+                      state.completionEmoji === emoji
+                        ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
+                        : 'border-border hover:border-primary/50 hover:bg-accent/50'
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}

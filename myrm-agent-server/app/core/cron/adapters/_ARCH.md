@@ -1,0 +1,40 @@
+# core/cron/adapters 模块架构
+
+
+---
+
+## 架构概述
+
+Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRunner / ResultDelivery 协议映射到应用层的具体实现（SQLAlchemy、Agent 管道、Channel Gateway）。`setup.py` 是唯一的组装入口。
+
+在 Agent-in-Sandbox 架构下，每个沙箱是单 Worker，CronScheduler 不使用分布式锁。
+
+---
+
+## 文件清单
+
+| 文件 | 职责 |
+|------|------|
+| `setup.py` | 组装入口：创建 CronScheduler + CronManager，注入所有适配器 |
+| `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD |
+| `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射 |
+| `sqlalchemy_aggregation.py` | Token 用量聚合查询 |
+| `python_condition.py` | PreFlightCondition 协议实现：SandboxedPythonCondition 在沙箱内安全执行前置探针脚本 |
+| `agent_runner.py` | JobRunner 协议实现：通过 Agent 管道执行 cron 任务。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止定时任务被 HITL 交互阻塞。当 CronJob.agent_id 存在时，通过 AgentProfileResolver 加载完整配置（含 `enabled_builtin_tools`、`auto_restore_domains`、`memory_decay_profile`），并通过 `resolve_builtin_tool_flags()` 统一映射 6 个工具 flag，解析 agent/cron/chat 绑定的 Shared Context 注入 `memory_shared_context_ids` |
+| `channel_delivery.py` | ResultDelivery 协议实现：IM 渠道投递 + Webhook |
+
+---
+
+## 依赖关系
+
+### 内部依赖
+- `myrm_agent_harness.toolkits.cron`：CronManager, CronScheduler, WebhookDelivery, 协议定义
+- `../../channels/`：ChannelGateway（channel_delivery 使用）
+- `../../channels/config_loader`：用户配置加载（agent_runner 使用）
+- `../../../ai_agents/`：AgentFactory（agent_runner 使用）
+- `../../../services/agent/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）
+- `../../../services/memory/shared_context`：Shared Context 绑定解析（agent_runner 使用）
+- `../../../database/`：CronJob / CronRun ORM
+
+### 外部依赖
+- `sqlalchemy`：ORM 操作

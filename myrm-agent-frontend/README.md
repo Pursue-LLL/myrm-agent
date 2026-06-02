@@ -1,0 +1,229 @@
+# MyrmAgent 前端
+
+> **许可**: **开源**仓库。提供 Web UI 配置与操作界面，对接 `myrm-agent-server` 后端。
+
+MyrmAgent 是一个 Claw-class AI 助手前端应用，提供现代化用户界面与持久化工作空间，支持多 Agent 协作、技能管理与工作自动化。
+
+## 技术栈
+
+- **框架**：Next.js 15 (App Router)
+- **UI 库**：React + TypeScript
+- **样式**：Tailwind CSS + shadcn/ui
+- **状态管理**：Zustand
+- **国际化**：next-intl
+- **包管理**：Bun
+
+## 功能特点
+
+- 🎨 **现代化 UI**：基于 shadcn/ui 的美观界面设计
+- 🏥 **系统诊断**：内置 System Doctor 仪表盘，支持健康指标跟踪与一键修复
+- 🌐 **多语言支持**：中英文双语界面
+- 🔐 **安全特性**：E2EE 加密敏感配置，OAuth 认证
+- 📱 **响应式设计**：完美适配桌面和移动设备
+- 🤖 **AI 对话**：支持多种 AI 模型和智能体
+- 🧠 **记忆系统**：个性化记忆功能（登录后可用）
+- 📚 **知识库**：文档管理和 RAG 检索（登录后可用）
+- ⚙️ **技能系统**：MCP 技能扩展支持
+- 🔄 **配置同步**：多设备配置同步
+
+## 快速开始
+
+### 环境要求
+
+- Node.js 18+
+- Bun (推荐) 或 npm/yarn/pnpm
+
+### 安装依赖
+
+```bash
+# 使用 Bun (推荐)
+bun install
+
+# 或使用 npm
+npm install
+```
+
+### 环境配置
+
+创建 `.env.local` 文件：
+
+```env
+# 后端 API 地址
+NEXT_PUBLIC_API_URL=http://localhost:8080
+
+# 其他配置...
+```
+
+### 启动开发服务器
+
+```bash
+# 使用 Bun
+bun run dev
+
+# 或使用 npm
+npm run dev
+```
+
+打开 [http://localhost:3000](http://localhost:3000) 查看应用。
+
+## 部署模式
+
+支持三种部署模式（通过环境变量 `NEXT_PUBLIC_DEPLOY_MODE` 配置）：
+
+### Tauri 模式（Desktop/WebUI）
+
+#### Desktop 子模式
+- 嵌入式 WebView，无独立 HTTP 服务器
+- 自动登录 `local_user`
+- 数据存储在本地 SQLite
+- 无需网络连接
+
+#### WebUI 子模式
+- **双进程架构**：
+  - **Next.js Standalone Server**（端口 `webui_port`, 默认 3000）：提供前端静态资源和 API 代理
+  - **Python FastAPI**：`run.py --webui` 默认 **25808**；独立 `uv run run.py` 默认 **8080**
+- **API 代理**：Next.js `rewrites` 将浏览器侧 `/api/v1/*` 转发到 FastAPI；开发时默认目标是 **8080**，与 `uv run run.py` 一致。若后端为 `--webui`（25808），在前端 `.env.local` 设置 `API_PORT=25808` 并重启 `bun run dev`
+- **访问方式**：
+  - 本地访问：`http://127.0.0.1:3000`（仅本机）
+  - 远程访问：`http://0.0.0.0:3000`（局域网/外网，需启用 `enable_remote_access`）
+- **数据和认证**：与 Desktop 子模式相同（本地 SQLite，自动登录）
+
+### Local 模式（CLI 开发/调试）
+
+- 本地 CLI 开发/调试模式，与 Tauri 共享相同的基础设施
+- 自动登录 `local_user`
+- 数据存储在本地 SQLite
+- API 请求指向 `http://127.0.0.1:8080`
+
+### Sandbox 模式
+
+- 必须 OAuth 登录
+- 数据存储在云端 PostgreSQL
+- 敏感配置使用 E2EE 加密
+- 支持多设备同步
+
+> Tauri 和 Local 统称"本地模式"，前端通过 `isLocalMode()` 判断。
+
+### 开发测试
+
+前端支持测试登录功能：
+
+1. 在设置页面点击"本次测试"按钮
+2. 或在浏览器控制台执行：
+   ```javascript
+   localStorage.setItem('auth_token', 'test-user-token-' + Date.now());
+   window.location.reload();
+   ```
+
+## 项目结构
+
+```
+src/
+├── app/                    # Next.js App Router 页面
+│   ├── (main)/            # 主页面路由组
+│   ├── health/            # 系统诊断页面
+│   ├── api/               # API 路由
+│   ├── globals.css        # 全局样式
+│   └── layout.tsx         # 根布局
+├── components/            # React 组件
+│   ├── common/           # 通用组件
+│   ├── ui/               # UI 组件库
+│   └── layout/           # 布局组件
+├── hooks/                # React Hooks
+├── lib/                  # 工具库
+├── locales/              # 国际化文件
+├── services/             # API 服务层
+├── store/                # Zustand 状态管理
+└── types/                # TypeScript 类型定义
+```
+
+## 开发指南
+
+### 代码规范
+
+- 使用 TypeScript 严格模式
+- 遵循 ESLint 配置
+- 使用 Prettier 格式化代码
+- 组件使用 PascalCase 命名
+- 文件使用 kebab-case 命名
+
+### 国际化
+
+项目支持中英文双语，所有用户可见文案都需要：
+
+1. 在 `src/locales/zh.json` 和 `src/locales/en.json` 中添加翻译
+2. 使用 `useTranslations` Hook 获取翻译
+
+```tsx
+import { useTranslations } from 'next-intl';
+
+function MyComponent() {
+  const t = useTranslations('common');
+  return <div>{t('hello')}</div>;
+}
+```
+
+### 认证状态
+
+前端使用 `isAuthenticated()` 函数检查用户是否已登录：
+
+```tsx
+import { isAuthenticated } from '@/lib/guest';
+
+function ProtectedComponent() {
+  if (!isAuthenticated()) {
+    return <LoginPrompt />;
+  }
+  return <ProtectedContent />;
+}
+```
+
+**注意**：本项目不支持访客模式。本地模式（Tauri/Local）自动登录 `local_user`，Sandbox 模式必须 OAuth 登录。
+
+## 构建和部署
+
+### 构建生产版本
+
+```bash
+bun run build
+```
+
+### 启动生产服务器
+
+```bash
+bun run start
+```
+
+### 部署到 Vercel
+
+```bash
+bun run vercel:deploy
+```
+
+## 故障排除
+
+### 常见问题
+
+1. **后端连接失败**
+   - 检查后端服务是否运行在 `http://localhost:8080`
+   - 检查 CORS 配置
+
+2. **样式不生效**
+   - 确保 Tailwind CSS 配置正确
+   - 检查 `globals.css` 是否正确导入
+
+3. **国际化不工作**
+   - 检查翻译文件语法
+   - 确认 `next-intl` 配置正确
+
+## 贡献指南
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 创建 Pull Request
+
+## 许可证
+
+本项目采用 MIT 许可证。

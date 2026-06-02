@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 日志
+*.log
+logs/
+
+# 上传的文件
+uploads/
+
+# 本地配置和敏感信息（不提交到 Git）
+.env
+.env.local
+.env.secrets
+.env.*.local
+.env.test
+
+# 缓存和工具产物
+.cache/
+.pytest_cache/
+.ruff_cache/
+.benchmarks/
+.coverage
+.coverage.*
+coverage*.json
+htmlcov/
+
+# 其他
+.DS_Store
+node_modules/
+.history/
+.cursor/
+
+temp-uploads/
+
+
+tests/output/
+tests/mineru_output/
+tests/tools/resources
+tests/e2e/screenshots/
+tests/ui/screenshots/
+
+# SQLite runtime artifacts
+*.db-shm
+*.db-wal
+
+.kiro/
+
+test.py
+
+# 临时开发文件（仅忽略包根目录下的临时脚本，不忽略 tests/**/test_*.py）
+fix_*.py
+/test_*.py
+inject.py
+routes_debug.txt
+
+# Playwright / manual UI debug artifacts at package root (regenerated locally)
+page_dump.html
+error_page_goal_mode.html
+chat_output*.txt
+health_tests.txt
+_real_scene*.py
+after_*.png
+budget_*.png
+diff_test_*.png
+error_screenshot_*.png
+expanded_error.png
+final_e2e_screenshot.png
+nav_error.png
+real_error_*.png
+
+# 测试用户数据目录
+default/
+test-user-id/
+user-*/
+~/
+
+# 临时目录和运行时数据
+data/
+!app/core/integrations/catalog/data/
+ppt_workspace/
+workspace/
+lobe-chat/
+tmp_home/
+data.db
+.event_logs/
+
+Antigravity-Manager/
+external_reference_project/
+
+# Backup and temp files
+*.bak
+
+# Security and Vault
+*.key
+
+# Local macOS Seatbelt profiles (contain machine-specific paths; do not commit)
+*.sb
+
+.myrm/
+
+# Legacy local eval/cache tree (replaced by .myrm/; do not commit)
+.myrm/

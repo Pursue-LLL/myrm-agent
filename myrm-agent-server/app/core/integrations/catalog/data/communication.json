@@ -1,0 +1,182 @@
+[
+  {
+    "id": "gmail",
+    "name": "Gmail",
+    "name_zh": "Gmail 邮箱",
+    "description": "Read, search, and send emails through your Gmail account",
+    "description_zh": "通过 Gmail 账户读取、搜索和发送邮件",
+    "icon": "gmail",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "gmail",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/gmail-mcp"
+      ],
+      "description": "Gmail - read, search, draft, send emails"
+    },
+    "auth": {
+      "type": "oauth2",
+      "help_url": "https://console.cloud.google.com/apis/credentials",
+      "help_text": "Create OAuth 2.0 credentials in Google Cloud Console with Gmail API enabled",
+      "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据并启用 Gmail API"
+    },
+    "tags": [
+      "email",
+      "google",
+      "inbox",
+      "messages"
+    ],
+    "website": "https://gmail.com"
+  },
+  {
+    "id": "slack",
+    "name": "Slack",
+    "name_zh": "Slack",
+    "description": "Access Slack channels, messages, and workspace information",
+    "description_zh": "访问 Slack 频道、消息和工作区信息",
+    "icon": "slack",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "slack",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/slack-mcp"
+      ],
+      "description": "Slack - channels, messages, users, reactions, threads"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "SLACK_BOT_TOKEN",
+      "help_url": "https://api.slack.com/apps",
+      "help_text": "Create a Slack App, install to workspace, and copy the Bot User OAuth Token",
+      "help_text_zh": "创建 Slack App，安装到工作区，复制 Bot User OAuth Token"
+    },
+    "tags": [
+      "messaging",
+      "teams",
+      "channels",
+      "workspace"
+    ],
+    "website": "https://slack.com"
+  },
+  {
+    "id": "feishu",
+    "name": "Feishu / Lark",
+    "name_zh": "飞书",
+    "description": "Messaging, group chats, documents, calendars, and more via Feishu/Lark OpenAPI",
+    "description_zh": "通过飞书开放平台实现消息、群聊、文档、日历等自动化操作",
+    "icon": "feishu",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "lark-mcp",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@larksuiteoapi/lark-mcp",
+        "mcp",
+        "-a",
+        "{{app_id}}",
+        "-s",
+        "{{app_secret}}"
+      ],
+      "description": "Feishu/Lark - messaging, group chats, docs, calendar, contacts"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "{{app_id}}",
+          "label": "App ID",
+          "label_zh": "应用 ID",
+          "inject": "arg_placeholder"
+        },
+        {
+          "key": "{{app_secret}}",
+          "label": "App Secret",
+          "label_zh": "应用密钥",
+          "inject": "arg_placeholder"
+        }
+      ],
+      "help_url": "https://open.feishu.cn/app",
+      "help_text": "Create an app in Feishu Open Platform and copy App ID & App Secret. For user-identity APIs, run 'npx @larksuiteoapi/lark-mcp login' locally and add --oauth --token-mode user_access_token to MCP config.",
+      "help_text_zh": "在飞书开放平台创建应用，复制 App ID 和 App Secret。如需以用户身份调用 API，请在本地运行 npx @larksuiteoapi/lark-mcp login 并在 MCP 配置中添加 --oauth --token-mode user_access_token。"
+    },
+    "tags": [
+      "messaging",
+      "feishu",
+      "lark",
+      "docs",
+      "calendar",
+      "群聊",
+      "飞书",
+      "文档",
+      "日历"
+    ],
+    "website": "https://open.feishu.cn"
+  },
+  {
+    "id": "dingtalk",
+    "name": "DingTalk",
+    "name_zh": "钉钉",
+    "description": "Contacts, robot messaging, calendar, to-do, attendance, and more via DingTalk OpenAPI",
+    "description_zh": "通过钉钉开放平台实现通讯录、机器人消息、日历、待办、考勤等自动化操作",
+    "icon": "dingtalk",
+    "category": "communication",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "dingtalk-mcp",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "dingtalk-mcp"
+      ],
+      "env": {
+        "ACTIVE_PROFILES": "dingtalk-contacts,dingtalk-robot-send-message,dingtalk-calendar,dingtalk-tasks"
+      },
+      "description": "DingTalk - contacts, robot messaging, calendar, tasks, attendance"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "DINGTALK_Client_ID",
+          "label": "Client ID",
+          "label_zh": "应用 Client ID",
+          "inject": "env"
+        },
+        {
+          "key": "DINGTALK_Client_Secret",
+          "label": "Client Secret",
+          "label_zh": "应用 Client Secret",
+          "inject": "env"
+        }
+      ],
+      "help_url": "https://open-dev.dingtalk.com/fe/app",
+      "help_text": "Create an app in DingTalk Open Platform Developer Console, copy Client ID and Client Secret",
+      "help_text_zh": "在钉钉开放平台开发者后台创建应用，复制 Client ID 和 Client Secret"
+    },
+    "tags": [
+      "messaging",
+      "dingtalk",
+      "contacts",
+      "calendar",
+      "tasks",
+      "attendance",
+      "钉钉",
+      "通讯录",
+      "待办",
+      "考勤"
+    ],
+    "website": "https://open.dingtalk.com"
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "id": "github",
+    "name": "GitHub",
+    "name_zh": "GitHub",
+    "description": "Access repositories, issues, pull requests, and code on GitHub",
+    "description_zh": "访问 GitHub 上的仓库、Issue、Pull Request 和代码",
+    "icon": "github",
+    "category": "development",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "github",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "description": "GitHub - repositories, issues, PRs, code search, file operations"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "help_url": "https://github.com/settings/tokens",
+      "help_text": "Create a Personal Access Token at github.com/settings/tokens with repo scope",
+      "help_text_zh": "在 github.com/settings/tokens 创建具有 repo 权限的个人访问令牌"
+    },
+    "tags": ["git", "code", "repositories", "issues", "pull-requests"],
+    "website": "https://github.com"
+  },
+  {
+    "id": "gitlab",
+    "name": "GitLab",
+    "name_zh": "GitLab",
+    "description": "Access GitLab repositories, merge requests, and CI/CD pipelines",
+    "description_zh": "访问 GitLab 仓库、合并请求和 CI/CD 流水线",
+    "icon": "gitlab",
+    "category": "development",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "gitlab",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gitlab"],
+      "description": "GitLab - projects, merge requests, issues, CI/CD pipelines"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "GITLAB_PERSONAL_ACCESS_TOKEN",
+      "help_url": "https://gitlab.com/-/user_settings/personal_access_tokens",
+      "help_text": "Create a Personal Access Token with api scope in GitLab settings",
+      "help_text_zh": "在 GitLab 设置中创建具有 api 权限的个人访问令牌"
+    },
+    "tags": ["git", "code", "merge-requests", "ci-cd"],
+    "website": "https://gitlab.com"
+  },
+  {
+    "id": "sentry",
+    "name": "Sentry",
+    "name_zh": "Sentry",
+    "description": "Monitor errors and performance issues tracked in Sentry",
+    "description_zh": "监控 Sentry 中追踪的错误和性能问题",
+    "icon": "sentry",
+    "category": "development",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "sentry",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@sentry/mcp-server"],
+      "description": "Sentry error monitoring - issues, events, releases, performance"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "SENTRY_AUTH_TOKEN",
+      "help_url": "https://sentry.io/settings/account/api/auth-tokens/",
+      "help_text": "Create an auth token at sentry.io Settings → API → Auth Tokens",
+      "help_text_zh": "在 sentry.io 设置 → API → Auth Tokens 创建认证令牌"
+    },
+    "tags": ["monitoring", "errors", "debugging", "performance"],
+    "website": "https://sentry.io"
+  },
+  {
+    "id": "code-review-graph",
+    "name": "Code Review Graph",
+    "name_zh": "代码审查图谱",
+    "description": "Code intelligence MCP server with 28 tools for call graph, dead code detection, community analysis, execution flow, semantic search, and automated wiki generation",
+    "description_zh": "代码智能 MCP 服务器，28 个工具覆盖调用图、死代码检测、社区分析、执行流、语义搜索和自动 Wiki 生成",
+    "icon": "code-graph",
+    "category": "development",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "code-review-graph",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["code-review-graph"],
+      "description": "Code intelligence - call graphs, dead code, community detection, execution flow, semantic search, wiki"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "No API key required. Install via pip: pip install code-review-graph. Requires Python 3.10+",
+      "help_text_zh": "无需 API Key。通过 pip 安装：pip install code-review-graph，需要 Python 3.10+"
+    },
+    "tags": ["code-analysis", "call-graph", "dead-code", "code-intelligence", "tree-sitter", "semantic-search"],
+    "website": "https://github.com/AshwinSankar17/code-review-graph"
+  },
+  {
+    "id": "codegraph",
+    "name": "CodeGraph",
+    "name_zh": "CodeGraph",
+    "description": "Code knowledge graph MCP server with symbol indexing, call graph, FTS5 search, file watcher, and cross-language bridge for 10+ languages",
+    "description_zh": "代码知识图谱 MCP 服务器，支持符号索引、调用图、FTS5 全文搜索、文件监听、10+ 语言跨语言桥接",
+    "icon": "code-graph",
+    "category": "development",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "codegraph",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/codegraph-mcp"],
+      "description": "CodeGraph - code knowledge graph, symbol search, call paths, file watching"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "No API key required. Requires Node.js 18+",
+      "help_text_zh": "无需 API Key，需要 Node.js 18+"
+    },
+    "tags": ["code-analysis", "call-graph", "code-intelligence", "tree-sitter", "full-text-search"],
+    "website": "https://github.com/colbymchenry/codegraph"
+  }
+]

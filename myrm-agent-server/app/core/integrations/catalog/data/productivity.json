@@ -1,0 +1,105 @@
+[
+  {
+    "id": "notion",
+    "name": "Notion",
+    "name_zh": "Notion",
+    "description": "Connect your Notion workspace to read, create, and manage pages and databases",
+    "description_zh": "连接你的 Notion 工作区，读取、创建和管理页面与数据库",
+    "icon": "notion",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "notion",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "description": "Notion workspace integration - read, search, create pages and databases"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "OPENAPI_MCP_HEADERS",
+      "help_url": "https://www.notion.so/my-integrations",
+      "help_text": "Create an internal integration at notion.so/my-integrations and copy the token",
+      "help_text_zh": "在 notion.so/my-integrations 创建内部集成并复制令牌"
+    },
+    "tags": ["notes", "wiki", "database", "project-management"],
+    "website": "https://notion.so"
+  },
+  {
+    "id": "todoist",
+    "name": "Todoist",
+    "name_zh": "Todoist",
+    "description": "Manage tasks, projects, and reminders in Todoist",
+    "description_zh": "管理 Todoist 中的任务、项目和提醒",
+    "icon": "todoist",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "todoist",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@abhiz123/todoist-mcp-server"],
+      "description": "Todoist task management - create, update, complete tasks and projects"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "TODOIST_API_TOKEN",
+      "help_url": "https://todoist.com/app/settings/integrations/developer",
+      "help_text": "Go to Todoist Settings → Integrations → Developer and copy your API token",
+      "help_text_zh": "前往 Todoist 设置 → 集成 → 开发者，复制 API 令牌"
+    },
+    "tags": ["tasks", "todo", "reminders", "projects"],
+    "website": "https://todoist.com"
+  },
+  {
+    "id": "google_calendar",
+    "name": "Google Calendar",
+    "name_zh": "Google 日历",
+    "description": "View and manage your Google Calendar events and schedules",
+    "description_zh": "查看和管理你的 Google 日历事件和日程安排",
+    "icon": "google-calendar",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "google-calendar",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/google-calendar-mcp"],
+      "description": "Google Calendar - list, create, update, delete calendar events"
+    },
+    "auth": {
+      "type": "oauth2",
+      "help_url": "https://console.cloud.google.com/apis/credentials",
+      "help_text": "Create OAuth 2.0 credentials in Google Cloud Console, then authorize access",
+      "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据，然后授权访问"
+    },
+    "tags": ["calendar", "schedule", "events", "google"],
+    "website": "https://calendar.google.com"
+  },
+  {
+    "id": "linear",
+    "name": "Linear",
+    "name_zh": "Linear",
+    "description": "Manage issues, projects, and cycles in Linear",
+    "description_zh": "管理 Linear 中的问题、项目和迭代周期",
+    "icon": "linear",
+    "category": "productivity",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "linear",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@linear/mcp-server"],
+      "description": "Linear project management - issues, projects, cycles, teams"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "LINEAR_API_KEY",
+      "help_url": "https://linear.app/settings/api",
+      "help_text": "Go to Linear Settings → API and create a personal API key",
+      "help_text_zh": "前往 Linear 设置 → API，创建个人 API 密钥"
+    },
+    "tags": ["issues", "project-management", "agile", "sprint"],
+    "website": "https://linear.app"
+  }
+]

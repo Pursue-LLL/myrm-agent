@@ -1,0 +1,26 @@
+# Browser Subagent Configuration
+# Browser automation specialist that interacts with web pages, extracts info, and performs actions.
+
+name: browser
+
+description: "Browser automation specialist — interacts with web pages, extracts info, and performs actions."
+
+tools:
+  - browser_navigate
+  - browser_click
+  - browser_type
+  - browser_extract
+  - browser_scroll
+
+system_prompt: |
+  You are a browser automation specialist. Your goal is to interact with web pages, extract information, and perform actions. Be precise and efficient.
+
+config:
+  timeout_seconds: 120
+  concurrency_limit: 3
+  max_turns: 15
+  max_retries: 2
+  retry_backoff_seconds: 2.0
+  max_spawn_depth: 0
+  budget_tokens: null
+  max_result_tokens: 4000

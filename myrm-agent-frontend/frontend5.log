@@ -1,0 +1,15 @@
+$ bun run scripts/dev.ts
+🧹 Freeing port 3000 (myrm-agent-frontend only)...
+🔪 Killing process(es) on port 3000: 56965
+🚀 Starting Next.js on port 3000...
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.203.80.168:3000
+- Environments: .env.local
+✓ Ready in 321ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  · cpus: 4
+
+ HEAD / 200 in 2.3s (next.js: 1597ms, proxy.ts: 47ms, application-code: 690ms)
+🏁 Next.js exited with code: 0

@@ -1,0 +1,136 @@
+"""System API Integration Tests
+
+测试 /api/v1/system/doctor 端点，验证数据库和Harness探针能否真实返回正确健康报告。
+"""
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
+
+
+@pytest.mark.e2e
+def test_system_doctor_endpoint(client: TestClient):
+    """测试 /api/v1/system/doctor 能够返回聚合健康报告"""
+    response = client.get("/api/v1/health/doctor")
+
+    assert response.status_code == 200, f"Doctor check failed: {response.text}"
+
+    data = response.json()
+
+    # 验证响应结构
+    assert "server" in data
+    assert "harness" in data
+    assert "repair_actions" in data
+
+    server_reports = data["server"]
+    harness_reports = data["harness"]
+
+    # 验证 server 侧报告结构
+    assert isinstance(server_reports, list)
+    # Server层主要检查DLQ等业务组件,不再检查Database (已移至Harness层)
+
+    # 验证 harness 侧报告至少包含我们内置的几个核心探针
+    assert isinstance(harness_reports, list)
+    assert len(harness_reports) >= 3, "Harness reports should contain built-in probes"
+
+    component_names = [r["component_name"] for r in harness_reports]
+    assert (
+        "Network" in component_names or "check_network_health" in component_names
+    ), "Network/check_network_health probe should be registered"
+    assert (
+        "WorkspaceStorage" in component_names
+    ), "WorkspaceStorage probe should be registered"
+    assert (
+        "Database" in component_names
+    ), "Database probe should be registered in Harness layer"
+
+    # 验证 Database 报告在 Harness 层
+    db_report = next(
+        (r for r in harness_reports if r["component_name"] == "Database"), None
+    )
+    assert db_report is not None, "Database report is missing from harness reports"
+    assert db_report["status"] in ["pass", "fail"], "Database report status is invalid"
+
+    # 验证真实测试环境下的默认状态（通常应该是 pass，但也可能因特定环境抛出 fail，这符合真实探测预期）
+    for report in harness_reports:
+        assert report["status"] in ["pass", "fail", "warn"]
+        assert "message" in report
+        assert (
+            "detail" in report
+        ), f"Missing 'detail' field in report for {report['component_name']}"
+
+    # 验证 repair_actions 结构（列表，每个 action 有必需字段）
+    repair_actions = data["repair_actions"]
+    assert isinstance(repair_actions, list)
+    for action in repair_actions:
+        assert "action_id" in action
+        assert "title" in action
+        assert "executable" in action
+        assert "risk_level" in action
+        assert "reason" in action
+        assert "description" in action
+        assert "component" in action
+        assert "layer" in action
+        assert "scope" in action
+        assert "expected_effect" in action
+        assert "does_not_do" in action
+        assert isinstance(action["does_not_do"], list)
+        assert action["risk_level"] in ("low", "medium", "high")
+
+
+@pytest.mark.e2e
+def test_repair_action_execute_advisory_only(client: TestClient):
+    """Advisory-only repair actions should return not_executable."""
+    response = client.post(
+        "/api/v1/health/repair-actions/review_runtime_dependency/execute",
+        json={"dry_run": False, "confirm": True},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "not_executable"
+    assert data["changed"] is False
+    assert data["action_id"] == "review_runtime_dependency"
+
+
+@pytest.mark.e2e
+def test_repair_action_execute_invalid_action_id(client: TestClient):
+    """Invalid action_id should return 422."""
+    response = client.post(
+        "/api/v1/health/repair-actions/nonexistent_action/execute",
+        json={"dry_run": True, "confirm": False},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.e2e
+def test_repair_action_execute_workspace_storage_advisory(client: TestClient):
+    """REVIEW_WORKSPACE_STORAGE is advisory, should return not_executable."""
+    response = client.post(
+        "/api/v1/health/repair-actions/review_workspace_storage/execute",
+        json={"dry_run": False, "confirm": True},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "not_executable"
+
+
+@pytest.mark.e2e
+def test_doctor_response_layers_independent(client: TestClient):
+    """Server and harness reports should be independent lists."""
+    response = client.get("/api/v1/health/doctor")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["server"], list)
+    assert isinstance(data["harness"], list)
+    assert isinstance(data["repair_actions"], list)
+    server_components = {r["component_name"] for r in data["server"]}
+    harness_components = {r["component_name"] for r in data["harness"]}
+    assert not server_components.intersection(
+        harness_components
+    ), "Server and Harness should not share components"

@@ -1,0 +1,123 @@
+# Official Myrm Runtime Image — internal CI / monorepo build
+#
+# BUILD CONTEXT (required): monorepo repository root — must contain both
+# myrm-agent-harness/ and myrm-agent-server/ directories.
+#
+# Builds server + harness from source (private CI only).
+# Produces the same runtime image as the public wheel-based Dockerfile,
+# but does not require pre-built wheels.
+#
+#   docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
+
+# ============================================================================
+# Stage 1: Build harness production wheels (Nuitka core + stripped release)
+# ============================================================================
+FROM python:3.13-slim AS harness-wheels
+
+ENV PYTHONUNBUFFERED=1 \
+    UV_SYSTEM_PYTHON=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc patchelf ccache \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build/myrm-agent-harness
+
+COPY myrm-agent-harness/pyproject.toml myrm-agent-harness/uv.lock myrm-agent-harness/README.md ./
+COPY myrm-agent-harness/src ./src
+COPY myrm-agent-harness/harness_packaging ./harness_packaging
+COPY myrm-agent-harness/packages ./packages
+COPY myrm-agent-harness/scripts/build_core.py ./scripts/build_core.py
+COPY myrm-agent-harness/scripts/assemble_production.py ./scripts/assemble_production.py
+
+RUN uv sync --frozen --group build \
+    && .venv/bin/python scripts/assemble_production.py
+
+# ============================================================================
+# Stage 2: Build server venv with harness wheels (no harness source in venv)
+# ============================================================================
+FROM python:3.13-slim AS builder
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_COMPILE_BYTECODE=1
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc libolm-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY --from=harness-wheels /build/myrm-agent-harness/dist /wheels/dist
+COPY --from=harness-wheels /build/myrm-agent-harness/build/core/wheels /wheels/core
+
+COPY myrm-agent-server/pyproject.toml myrm-agent-server/uv.lock myrm-agent-server/
+COPY myrm-agent-server/app myrm-agent-server/app
+COPY myrm-agent-server/run.py myrm-agent-server/run.py
+COPY myrm-agent-server/docker/install_harness_wheels.sh myrm-agent-server/docker/install_harness_wheels.sh
+RUN chmod +x myrm-agent-server/docker/install_harness_wheels.sh
+
+WORKDIR /build/myrm-agent-server
+
+ENV PATCHRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv \
+    && uv sync --frozen --no-dev --all-extras --no-install-project --no-install-package myrm-agent-harness \
+    && ./docker/install_harness_wheels.sh /wheels/core /wheels/dist
+
+# ============================================================================
+# Stage 3: Runtime (identical to public Dockerfile)
+# ============================================================================
+FROM python:3.13-slim AS runtime
+
+LABEL maintainer="MyrmAgent"
+LABEL description="MyrmAgent Official Runtime - Server + compiled harness"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEPLOY_MODE=local \
+    PORT=25808 \
+    HOST=0.0.0.0 \
+    MPLBACKEND=Agg \
+    MATPLOTLIBRC=/opt/mpl-config/matplotlibrc \
+    MPLCONFIGDIR=/tmp/matplotlib
+
+RUN groupadd -r myrm && useradd -r -g myrm -m -d /home/myrm myrm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates xvfb x11vnc novnc websockify fluxbox \
+    fontconfig fonts-noto-cjk fonts-noto-color-emoji fonts-liberation \
+    && fc-cache -f \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /build/myrm-agent-server/.venv /app/.venv
+COPY --from=builder /build/myrm-agent-server/app /app/app
+COPY --from=builder /build/myrm-agent-server/run.py /app/run.py
+COPY myrm-agent-server/docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+COPY myrm-agent-server/docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
+
+RUN /app/.venv/bin/verify-harness-distribution --matplotlib-cjk \
+    && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib
+
+WORKDIR /app
+RUN mkdir -p /home/myrm/.myrm-agent && chown -R myrm:myrm /home/myrm /app
+
+USER myrm
+
+ENV PATH="/app/.venv/bin:$PATH" VIRTUAL_ENV="/app/.venv"
+
+EXPOSE 25808 6080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:25808/health || exit 1
+
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["python", "run.py", "--skip-port-check", "--host", "0.0.0.0", "--port", "25808"]

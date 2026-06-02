@@ -1,0 +1,151 @@
+groups:
+  - name: myrm_agent_alerts
+    interval: 30s
+    rules:
+      # === HTTP Layer Alerts ===
+      
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate detected"
+          description: "HTTP 5xx error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)"
+
+      - alert: HTTPResponseTimeTooHigh
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP p95 response time exceeds 10 seconds"
+          description: "HTTP p95 response time is {{ $value }}s (threshold: 10s)"
+
+      # === Agent Execution Alerts ===
+
+      - alert: AgentExecutionTimeout
+        expr: agent_execution_duration_seconds > 300
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent execution exceeds 5 minutes"
+          description: "Agent execution took {{ $value }}s (threshold: 300s)"
+
+      - alert: AgentExecutionFailureRateHigh
+        expr: |
+          (
+            sum(rate(agent_execution_total{status="failed"}[10m]))
+            /
+            sum(rate(agent_execution_total[10m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent execution failure rate exceeds 10%"
+          description: "Agent failure rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+      # === Tool Execution Alerts ===
+
+      - alert: ToolExecutionHighFailureRate
+        expr: |
+          (
+            sum(rate(agent_tool_calls_total{status="failed"}[5m])) by (tool_name)
+            /
+            sum(rate(agent_tool_calls_total[5m])) by (tool_name)
+          ) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tool {{ $labels.tool_name }} has high failure rate"
+          description: "Tool {{ $labels.tool_name }} failure rate is {{ $value | humanizePercentage }} (threshold: 20%)"
+
+      - alert: ToolExecutionTooSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(tool_execution_duration_seconds_bucket[5m])) by (le, tool_name)
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tool {{ $labels.tool_name }} p95 latency exceeds 30 seconds"
+          description: "Tool {{ $labels.tool_name }} p95 latency is {{ $value }}s"
+
+      # === Resource Alerts ===
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 2 * 1024 * 1024 * 1024  # 2GB
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanize1024 }}B (threshold: 2GB)"
+
+      - alert: NoRecentActivity
+        expr: |
+          (time() - max(http_requests_total) > 3600) 
+          and 
+          max(http_requests_total) > 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No HTTP requests in the last hour"
+          description: "Service may be idle or unreachable"
+
+      # === LLM Provider Alerts ===
+
+      - alert: LLMProviderDown
+        expr: |
+          sum(rate(http_requests_total{endpoint=~".*/llm/.*", status_code=~"5.."}[5m])) 
+          / 
+          sum(rate(http_requests_total{endpoint=~".*/llm/.*"}[5m])) 
+          > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM provider may be down or degraded"
+          description: "LLM API error rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+
+# === Alertmanager Routing Example ===
+# 
+# alertmanager.yml:
+# route:
+#   group_by: ['alertname', 'severity']
+#   group_wait: 10s
+#   group_interval: 10s
+#   repeat_interval: 12h
+#   receiver: 'default'
+#   routes:
+#     - match:
+#         severity: critical
+#       receiver: 'pagerduty'
+#     - match:
+#         severity: warning
+#       receiver: 'slack'
+#
+# receivers:
+#   - name: 'default'
+#     webhook_configs:
+#       - url: 'http://localhost:5001/webhook'
+#   - name: 'slack'
+#     slack_configs:
+#       - api_url: 'https://hooks.slack.com/services/XXX'
+#         channel: '#alerts'
+#   - name: 'pagerduty'
+#     pagerduty_configs:
+#       - service_key: 'XXX'

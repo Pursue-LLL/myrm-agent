@@ -1,0 +1,351 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest (POS: frontend API request helper)
+ *
+ * [OUTPUT]
+ * Memory API DTOs and request helpers for memory CRUD, export, health, rating, status, and taste summary.
+ *
+ * [POS]
+ * Frontend Memory API client. Owns typed HTTP contracts for user memory CRUD and lightweight memory governance.
+ */
+
+import { apiRequest } from '@/lib/api';
+
+// ==================== 类型定义 ====================
+
+export type MemoryType = 'profile' | 'semantic' | 'episodic' | 'procedural' | 'conversation' | 'claim' | 'task_digest';
+
+export type MemoryStatusType = 'active' | 'disabled' | 'archived';
+
+export type PendingMemoryStatus = 'pending' | 'approved' | 'rejected';
+
+export interface PendingMemory {
+  id: string;
+  user_id: string;
+  memory_type: MemoryType;
+  content: string;
+  extra_data?: Record<string, unknown>;
+  source_chat_id?: string;
+  source_message_id?: string;
+  status: PendingMemoryStatus;
+  created_at: string;
+  resolved_at?: string;
+}
+
+export interface Memory {
+  id: string;
+  memory_type: MemoryType;
+  content: string;
+  importance?: number;
+  confidence?: number;
+  status: MemoryStatusType;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, unknown>;
+  projected_category?: string;
+  projected_label?: string;
+  influence_explanation?: string;
+  key?: string;
+  value?: string;
+  trigger?: string;
+  action?: string;
+  reasoning?: string;
+  application?: string;
+  tool_name?: string;
+  tool_rule_priority?: 'critical' | 'high' | 'normal';
+  event_type?: string;
+  related_entities?: string[];
+  tags?: string[];
+  last_accessed_at?: string;
+  access_count?: number;
+  correction_of?: string;
+  source_error?: string;
+  source_chat_id?: string;
+  source_message_id?: string;
+}
+
+export interface MemoryPaginationInfo {
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface PendingMemoryListResponse {
+  items: PendingMemory[];
+  total: number;
+}
+
+export interface MemoryListResponse {
+  items: Memory[];
+  pagination: MemoryPaginationInfo;
+}
+
+export interface ApproveMemoryRequest {
+  edited_content?: string;
+}
+
+export interface BatchMemoryRequest {
+  memory_ids: string[];
+}
+
+export interface BatchMemoryResponse {
+  success_count: number;
+  failed_count: number;
+  failed_ids?: string[];
+}
+
+export interface UpdateMemoryRequest {
+  content?: string;
+  reasoning?: string;
+  application?: string;
+  importance?: number;
+}
+
+export interface MemorySearchResponse {
+  results: Memory[];
+  scores: number[];
+  query: string;
+  total: number;
+}
+
+export interface MemoryStatsResponse {
+  total_memories: number;
+  by_type: Record<MemoryType, number>;
+}
+
+export interface CreateMemoryRequest {
+  memory_type: MemoryType;
+  content: string;
+  importance?: number;
+  tags?: string[];
+  key?: string;
+  value?: string;
+  trigger?: string;
+  action?: string;
+  related_entities?: string[];
+}
+
+// ==================== API 函数 ====================
+
+export const createMemory = async (body: CreateMemoryRequest): Promise<Memory> => {
+  return apiRequest<Memory>('/memory/', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+export const getPendingMemories = async (userId?: string): Promise<PendingMemoryListResponse> => {
+  const params = new URLSearchParams();
+  if (userId) params.append('user_id', userId);
+  const qs = params.toString();
+  return apiRequest<PendingMemoryListResponse>(`/memory/pending${qs ? `?${qs}` : ''}`);
+};
+
+export const approveMemory = async (memoryId: string, editedContent?: string): Promise<void> => {
+  const body: ApproveMemoryRequest = {};
+  if (editedContent) body.edited_content = editedContent;
+  await apiRequest(`/memory/pending/${memoryId}/approve`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+};
+
+export const rejectMemory = async (memoryId: string): Promise<void> => {
+  await apiRequest(`/memory/pending/${memoryId}/reject`, { method: 'POST' });
+};
+
+export const batchApproveMemories = async (memoryIds: string[]): Promise<BatchMemoryResponse> => {
+  return apiRequest<BatchMemoryResponse>('/memory/pending/batch/approve', {
+    method: 'POST',
+    body: JSON.stringify({ memory_ids: memoryIds }),
+  });
+};
+
+export const batchRejectMemories = async (memoryIds: string[]): Promise<BatchMemoryResponse> => {
+  return apiRequest<BatchMemoryResponse>('/memory/pending/batch/reject', {
+    method: 'POST',
+    body: JSON.stringify({ memory_ids: memoryIds }),
+  });
+};
+
+export type MemorySortBy = 'created_at' | 'updated_at' | 'importance';
+export type MemorySortOrder = 'asc' | 'desc';
+
+export const getMemories = async (
+  params: {
+    type?: MemoryType;
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sortBy?: MemorySortBy;
+    sortOrder?: MemorySortOrder;
+  } = {},
+): Promise<MemoryListResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params.type) searchParams.append('type', params.type);
+  if (params.page) searchParams.append('page', params.page.toString());
+  if (params.pageSize) searchParams.append('page_size', params.pageSize.toString());
+  if (params.search) searchParams.append('search', params.search);
+  if (params.sortBy) searchParams.append('sort_by', params.sortBy);
+  if (params.sortOrder) searchParams.append('sort_order', params.sortOrder);
+  const qs = searchParams.toString();
+  return apiRequest<MemoryListResponse>(`/memory/${qs ? `?${qs}` : ''}`);
+};
+
+export const updateMemory = async (
+  memoryType: MemoryType,
+  memoryId: string,
+  updates: UpdateMemoryRequest,
+): Promise<Memory> => {
+  return apiRequest<Memory>(`/memory/${memoryType}/${memoryId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+};
+
+export const deleteMemory = async (memoryId: string, memoryType: MemoryType): Promise<void> => {
+  await apiRequest(`/memory/${memoryId}?memory_type=${memoryType}`, {
+    method: 'DELETE',
+  });
+};
+
+export const deleteAllMemories = async (memoryType?: MemoryType): Promise<{ deleted_count: number }> => {
+  const qs = memoryType ? `?memory_type=${memoryType}` : '';
+  return apiRequest(`/memory/all${qs}`, { method: 'DELETE' });
+};
+
+export const searchMemories = async (
+  query: string,
+  params: { memoryTypes?: MemoryType[]; limit?: number } = {},
+): Promise<MemorySearchResponse> => {
+  const searchParams = new URLSearchParams({ query });
+  if (params.memoryTypes?.length) {
+    searchParams.append('memory_types', params.memoryTypes.join(','));
+  }
+  if (params.limit) searchParams.append('limit', params.limit.toString());
+  return apiRequest<MemorySearchResponse>(`/memory/search?${searchParams}`);
+};
+
+export const getMemoryStats = async (): Promise<MemoryStatsResponse> => {
+  return apiRequest<MemoryStatsResponse>('/memory/stats');
+};
+
+export const getMemoryContext = async (): Promise<Record<string, unknown>> => {
+  return apiRequest<Record<string, unknown>>('/memory/context');
+};
+
+// ==================== 导出 ====================
+
+export interface MemoryExportResponse {
+  version: number;
+  data: Record<string, Record<string, unknown>[]>;
+  total_count: number;
+}
+
+export const exportMemories = async (): Promise<MemoryExportResponse> => {
+  return apiRequest<MemoryExportResponse>('/memory/export');
+};
+
+export interface RateMemoryResponse {
+  success: boolean;
+  memory_id: string;
+  score: number;
+}
+
+export const rateMemory = async (memoryId: string, score: number): Promise<RateMemoryResponse> => {
+  return apiRequest<RateMemoryResponse>(`/memory/${memoryId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ score }),
+  });
+};
+
+export interface TasteSummaryResponse {
+  style_keywords: string[];
+  preference_keywords: string[];
+  avoid_keywords: string[];
+  current_goals?: string[];
+  reply_style?: string;
+  technical_depth?: string;
+  proactivity?: string;
+  summary: string;
+  memory_count: number;
+}
+
+export const getTasteSummary = async (): Promise<TasteSummaryResponse> => {
+  return apiRequest<TasteSummaryResponse>('/memory/taste-summary');
+};
+
+export const updateMemoryStatus = async (memoryId: string, status: MemoryStatusType): Promise<Memory> => {
+  return apiRequest<Memory>(`/memory/${memoryId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+};
+
+// ==================== Memory Guardian ====================
+
+export interface MemoryHealthScore {
+  total: number;
+  dimensions: Record<string, number>;
+  suggestions: string[];
+  has_graph: boolean;
+}
+
+export interface MemoryGuardianStatus {
+  running: boolean;
+  last_run: number | null;
+  next_run: number | null;
+  healthy_interval_hours: number;
+  unhealthy_interval_hours: number;
+  health_threshold: number;
+  seconds_until_next: number | null;
+}
+
+export interface MemoryHealthResponse {
+  health: MemoryHealthScore;
+  guardian: MemoryGuardianStatus;
+}
+
+export interface MemoryMaintenanceTriggerResponse {
+  triggered: boolean;
+  health?: MemoryHealthScore;
+  error?: string;
+}
+
+export const getMemoryHealth = async (): Promise<MemoryHealthResponse> => {
+  return apiRequest<MemoryHealthResponse>('/memory/guardian/health');
+};
+
+export const triggerMemoryMaintenance = async (): Promise<MemoryMaintenanceTriggerResponse> => {
+  return apiRequest<MemoryMaintenanceTriggerResponse>('/memory/guardian/trigger', {
+    method: 'POST',
+  });
+};
+
+// ==================== Trash (Soft Delete) ====================
+
+export const getArchivedMemories = async (
+  params: { type?: MemoryType; page?: number; pageSize?: number } = {},
+): Promise<MemoryListResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params.type) searchParams.append('type', params.type);
+  if (params.page) searchParams.append('page', params.page.toString());
+  if (params.pageSize) searchParams.append('page_size', params.pageSize.toString());
+  const qs = searchParams.toString();
+  return apiRequest<MemoryListResponse>(`/memory/trash${qs ? `?${qs}` : ''}`);
+};
+
+export const restoreMemory = async (memoryId: string): Promise<Memory> => {
+  return apiRequest<Memory>(`/memory/trash/${memoryId}/restore`, {
+    method: 'POST',
+  });
+};
+
+export const purgeMemory = async (memoryId: string): Promise<void> => {
+  await apiRequest(`/memory/trash/${memoryId}/purge`, {
+    method: 'DELETE',
+  });
+};

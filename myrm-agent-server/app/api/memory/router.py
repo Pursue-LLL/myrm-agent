@@ -1,0 +1,40 @@
+"""Memory API router
+
+Main router that aggregates all memory-related endpoints.
+"""
+
+import logging
+
+from fastapi import APIRouter
+
+from app.api.memory.operations import (
+    archival,
+    backup,
+    backup_remote,
+    command_center,
+    crud,
+    guardian,
+    pending,
+    shared_context_health,
+    shared_context_history,
+    shared_context_migration,
+    shared_contexts,
+)
+
+logger = logging.getLogger(__name__)
+
+# Create main router
+router = APIRouter()
+
+# Include sub-routers
+router.include_router(command_center.router, tags=["memory-command-center"])
+router.include_router(pending.router, tags=["memory-pending"])
+router.include_router(shared_context_health.router, tags=["memory-shared-contexts"])
+router.include_router(shared_contexts.router, tags=["memory-shared-contexts"])
+router.include_router(shared_context_history.router, tags=["memory-shared-contexts"])
+router.include_router(shared_context_migration.router, tags=["memory-shared-contexts"])
+router.include_router(guardian.router, tags=["memory-guardian"])
+router.include_router(crud.router, tags=["memory-crud"])
+router.include_router(backup.router, tags=["memory-backup"])
+router.include_router(backup_remote.router, tags=["memory-backup-remote"])
+router.include_router(archival.router, tags=["memory-archival"])

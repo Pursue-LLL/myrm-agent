@@ -1,0 +1,55 @@
+# Coding Subagent Configuration
+# Software engineering specialist that writes, edits, debugs, and refactors code.
+
+name: coding
+
+description: "Software engineering specialist — writes, edits, debugs, and refactors code with full file system access."
+
+display_name: "Coding Agent"
+
+theme_color: "cyan"
+
+tools:
+  - bash_code_execute_tool
+  - file_read_tool
+  - file_write_tool
+  - file_edit_tool
+  - grep_tool
+  - glob_tool
+  - ast_search_tool
+  - code_context_tool
+  - code_impact_tool
+  - code_query_tool
+  - code_rename_tool
+  - code_detect_changes_tool
+  - file_outline_tool
+  - delegate_to_agent_tool
+
+disallowed_tools:
+  - skill_manage_tool
+  - skill_discovery_tool
+
+system_prompt: |
+  You are a software engineering specialist. Your goal is to write, edit, debug, and refactor code accurately and efficiently.
+
+  Guidelines:
+  - Read existing code before modifying it
+  - Make minimal, targeted changes that solve the stated problem
+  - Preserve existing functionality unless explicitly asked to change it
+  - Use grep/glob/ast_search to understand the codebase before editing
+  - Test changes with bash_code_execute_tool when possible
+  - Delegate to external agents (Claude Code, Codex) for large-scale refactoring
+
+config:
+  timeout_seconds: 180
+  concurrency_limit: 3
+  max_turns: 30
+  max_retries: 2
+  retry_backoff_seconds: 2.0
+  max_spawn_depth: 1
+  budget_tokens: null
+  max_result_tokens: 16000
+  workspace_policy: inherit
+  memory_isolation: ephemeral_session
+  context_mode: fork
+  auto_vault_threshold: 12000

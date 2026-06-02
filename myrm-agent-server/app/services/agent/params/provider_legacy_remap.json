@@ -1,0 +1,11 @@
+{
+  "google": "gemini",
+  "google_genai": "gemini",
+  "together": "together_ai",
+  "azure_openai": "azure",
+  "doubao": "volcengine",
+  "fireworks": "fireworks_ai",
+  "cohere": "cohere_chat",
+  "xiaomi": "xiaomi_mimo",
+  "qwen": "dashscope"
+}

@@ -1,0 +1,71 @@
+"""Memory CRUD handlers — re-exports domain modules for route binding."""
+
+from app.services.memory.operations.crud.import_archive import (
+    confirm_import_memories,
+    dry_run_import_memories,
+    dry_run_memory_archive,
+    dry_run_rollback_import_memories,
+    export_memories,
+    export_memory_archive,
+    import_memories,
+    rollback_import_memories,
+)
+from app.services.memory.operations.crud.list_write import (
+    correct_memory,
+    create_memory,
+    delete_all_memories,
+    delete_memory_by_id,
+    get_memory_context,
+    get_memory_stats,
+    list_memories_paginated,
+    rate_memory,
+    search_memories,
+    undo_consolidation,
+    update_memory,
+    update_memory_status,
+)
+from app.services.memory.operations.crud.preferences import (
+    forget_preference,
+    get_taste_summary,
+    list_preferences,
+    pin_preference,
+    unforget_preference,
+    unpin_preference,
+)
+from app.services.memory.operations.crud.trash import (
+    list_trash_memories,
+    purge_trashed_memory,
+    restore_trashed_memory,
+)
+
+__all__ = [
+    "list_memories_paginated",
+    "create_memory",
+    "update_memory",
+    "correct_memory",
+    "delete_all_memories",
+    "delete_memory_by_id",
+    "search_memories",
+    "get_memory_stats",
+    "get_memory_context",
+    "rate_memory",
+    "undo_consolidation",
+    "update_memory_status",
+    "list_trash_memories",
+    "restore_trashed_memory",
+    "purge_trashed_memory",
+    "export_memories",
+    "export_memory_archive",
+    "dry_run_memory_archive",
+    "import_memories",
+    "dry_run_import_memories",
+    "confirm_import_memories",
+    "dry_run_rollback_import_memories",
+    "rollback_import_memories",
+    "get_taste_summary",
+    "list_preferences",
+    "pin_preference",
+    "forget_preference",
+    "unpin_preference",
+    "unforget_preference",
+]

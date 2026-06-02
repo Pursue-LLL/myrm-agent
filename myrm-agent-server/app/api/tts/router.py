@@ -1,0 +1,149 @@
+"""Text-to-Speech API
+
+Provides synthesis endpoints for the web frontend:
+- /synthesize: Full synthesis (returns complete audio file)
+- /synthesize-stream: Streaming synthesis (chunked MP3 for low-latency playback)
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
+
+from app.api.dependencies import get_deploy_identity, verify_voice_enabled
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from app.channels.types import VoiceConfig
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(dependencies=[Depends(verify_voice_enabled)])
+
+_MAX_TEXT_LENGTH = 10000
+_VALID_PROVIDERS = frozenset({"openai", "elevenlabs", "fish_audio", "minimax", "edge"})
+
+
+class TTSRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=_MAX_TEXT_LENGTH)
+    provider: str | None = Field(None, description="Override TTS provider")
+    voice: str | None = Field(None, description="Override voice ID")
+
+
+@router.post("/synthesize")
+async def synthesize_text(
+    req: TTSRequest,
+    user_id: str = Depends(get_deploy_identity),
+) -> FileResponse:
+    """Synthesize text to speech (full file download)."""
+    voice_config = await _resolve_voice_config("sandbox", req)
+
+    from app.channels.voice.tts import synthesize
+
+    try:
+        audio_path = await synthesize(req.text, voice_config, output_format="mp3")
+    except Exception as exc:
+        logger.exception("TTS synthesis failed for sandbox user")
+        raise HTTPException(status_code=500, detail=f"TTS synthesis failed: {exc}") from exc
+
+    if not audio_path or not audio_path.exists():
+        raise HTTPException(status_code=422, detail="TTS synthesis returned no audio")
+
+    return FileResponse(
+        path=str(audio_path),
+        media_type="audio/mpeg",
+        filename="tts_output.mp3",
+        background=_cleanup_task(audio_path),
+    )
+
+
+@router.post("/synthesize-stream")
+async def synthesize_text_stream(
+    req: TTSRequest,
+    user_id: str = Depends(get_deploy_identity),
+) -> StreamingResponse:
+    """Stream-synthesize text to speech (chunked MP3 for low-latency playback)."""
+    voice_config = await _resolve_voice_config("sandbox", req)
+
+    from app.channels.voice.tts import synthesize_stream
+
+    async def _generate() -> AsyncGenerator[bytes, None]:
+        has_data = False
+        try:
+            async for chunk in synthesize_stream(req.text, voice_config):
+                has_data = True
+                yield chunk
+        except Exception:
+            logger.exception("TTS stream failed for sandbox user")
+
+        if not has_data:
+            logger.warning("TTS stream: no audio data produced for sandbox user")
+
+    return StreamingResponse(
+        _generate(),
+        media_type="audio/mpeg",
+        headers={
+            "Cache-Control": "no-cache",
+            "Transfer-Encoding": "chunked",
+        },
+    )
+
+
+async def _resolve_voice_config(user_id: str, req: TTSRequest) -> VoiceConfig:
+    """Load user VoiceConfig and apply request overrides."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import extract_voice_config
+
+    try:
+        configs = await load_user_configs()
+        voice_config = extract_voice_config(configs.voice_dict)
+    except Exception as exc:
+        logger.exception("Failed to load voice config for sandbox user")
+        raise HTTPException(
+            status_code=400,
+            detail="Voice config not found. Configure it in Settings > Voice.",
+        ) from exc
+
+    if not voice_config:
+        raise HTTPException(
+            status_code=400,
+            detail="Voice config not found. Configure it in Settings > Voice.",
+        )
+
+    if req.provider:
+        if req.provider not in _VALID_PROVIDERS:
+            raise HTTPException(status_code=400, detail=f"Invalid provider: {req.provider}")
+        voice_config = _override_config(voice_config, provider=req.provider, voice=req.voice)
+
+    return voice_config
+
+
+def _override_config(
+    base: VoiceConfig,
+    *,
+    provider: str | None = None,
+    voice: str | None = None,
+) -> VoiceConfig:
+    """Create a new VoiceConfig with overridden provider/voice (frozen dataclass)."""
+    from dataclasses import asdict
+
+    from app.channels.types import VoiceConfig
+
+    fields = asdict(base)
+    if provider:
+        fields["tts_provider"] = provider
+    if voice:
+        fields["tts_voice"] = voice
+    return VoiceConfig(**fields)
+
+
+def _cleanup_task(path: Path) -> BackgroundTask:
+    """Background task to delete temporary audio file after response."""
+    return BackgroundTask(path.unlink, missing_ok=True)

@@ -1,0 +1,73 @@
+[
+  {
+    "id": "google_drive",
+    "name": "Google Drive",
+    "name_zh": "Google Drive",
+    "description": "Access and manage files in your Google Drive",
+    "description_zh": "访问和管理 Google Drive 中的文件",
+    "icon": "google-drive",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "google-drive",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/google-drive-mcp"],
+      "description": "Google Drive - list, read, search files and folders"
+    },
+    "auth": {
+      "type": "oauth2",
+      "help_url": "https://console.cloud.google.com/apis/credentials",
+      "help_text": "Create OAuth 2.0 credentials in Google Cloud Console with Drive API enabled",
+      "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据并启用 Drive API"
+    },
+    "tags": ["files", "storage", "documents", "google"],
+    "website": "https://drive.google.com"
+  },
+  {
+    "id": "postgres",
+    "name": "PostgreSQL",
+    "name_zh": "PostgreSQL 数据库",
+    "description": "Query and explore your PostgreSQL databases",
+    "description_zh": "查询和探索你的 PostgreSQL 数据库",
+    "icon": "database",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "postgres",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "description": "PostgreSQL - query, describe tables, explore schema"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "POSTGRES_CONNECTION_STRING",
+      "help_text": "Provide your PostgreSQL connection string (e.g. postgresql://user:pass@host:5432/db)",
+      "help_text_zh": "提供你的 PostgreSQL 连接字符串（如 postgresql://user:pass@host:5432/db）"
+    },
+    "tags": ["database", "sql", "query", "tables"],
+    "website": "https://postgresql.org"
+  },
+  {
+    "id": "filesystem",
+    "name": "File System",
+    "name_zh": "本地文件系统",
+    "description": "Read, write, and manage files on the local filesystem",
+    "description_zh": "读取、写入和管理本地文件系统中的文件",
+    "icon": "folder",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "filesystem",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "description": "Local filesystem - read, write, list, search files"
+    },
+    "auth": {
+      "type": "none"
+    },
+    "tags": ["files", "local", "filesystem", "directory"]
+  }
+]

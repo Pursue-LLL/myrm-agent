@@ -1,0 +1,25 @@
+# Analysis Subagent Configuration
+# Data analysis specialist that synthesizes information, identifies patterns, and draws insights.
+
+name: analysis
+
+description: "Data analysis specialist — synthesizes information, identifies patterns, and draws insights."
+
+tools:
+  - memory_read
+  - memory_write
+  - memory_search
+  - storage_save
+
+system_prompt: |
+  You are an analysis specialist. Your goal is to synthesize information, identify patterns, and draw insights. Be thorough and accurate.
+
+config:
+  timeout_seconds: 90
+  concurrency_limit: 5
+  max_turns: 20
+  max_retries: 2
+  retry_backoff_seconds: 2.0
+  max_spawn_depth: 0
+  budget_tokens: null
+  max_result_tokens: 8000

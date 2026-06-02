@@ -1,0 +1,91 @@
+"""RetryHandler / UndoHandler implementations for IM /retry and /undo commands.
+
+[INPUT]
+- app.channels.protocols.turn_management::RetryHandler, RetryResult, UndoHandler, UndoResult
+- app.channels.types::InboundMessage
+- app.core.channel_bridge.agent_executor::resolve_session_key
+- app.core.channel_bridge.config_loader::load_user_configs
+- app.core.channel_bridge.config_parsers::extract_session_policy, session_policy_from_agent_dict
+- app.database.connection::get_session
+- app.services.chat.chat_service::ChatService
+
+[OUTPUT]
+- ChannelRetryHandler: RetryHandler 业务实现
+- ChannelUndoHandler: UndoHandler 业务实现
+
+[POS]
+将框架层的 RetryHandler / UndoHandler 协议映射到 ChatService 的
+retry_last_turn / undo_last_turn 方法。与 ChannelCompactHandler 对称设计。
+"""
+
+from __future__ import annotations
+
+from app.channels.protocols.turn_management import RetryResult, UndoResult
+from app.channels.types import InboundMessage, SessionPolicy
+from app.core.channel_bridge.agent_executor import resolve_session_key
+from app.core.channel_bridge.config_loader import load_user_configs
+from app.core.channel_bridge.config_parsers import (
+    extract_session_policy,
+    session_policy_from_agent_dict,
+)
+from app.database.connection import get_session
+from app.services.chat.chat_service import ChatService
+
+
+async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | None]:
+    """Resolve session key and agent_id, respecting per-agent session policy."""
+    configs = await load_user_configs()
+    session_policy = SessionPolicy()
+    if configs.personal_settings_dict:
+        session_policy = extract_session_policy(configs.personal_settings_dict)
+
+    from app.core.channel_bridge.compact_handler import ChannelCompactHandler
+
+    agent_id = await ChannelCompactHandler._resolve_bound_agent_id(msg)
+
+    if agent_id:
+        from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+        profile = await get_agent_profile_resolver().resolve(agent_id)
+        if profile and profile.session_policy and isinstance(profile.session_policy, dict):
+            session_policy = session_policy_from_agent_dict(profile.session_policy)
+
+    session_key = await resolve_session_key(msg, session_policy, agent_id=agent_id)
+    return session_key, agent_id
+
+
+class ChannelRetryHandler:
+    """Business-layer RetryHandler for /retry command."""
+
+    async def __call__(self, msg: InboundMessage) -> RetryResult:
+        session_key, _ = await _resolve_session_with_agent(msg)
+
+        async with get_session() as _db:
+            chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
+            if not chat:
+                return RetryResult(success=False)
+
+            svc_result = await ChatService.retry_last_turn(chat.id, "sandbox")
+            return RetryResult(
+                success=svc_result.success,
+                query=svc_result.query,
+                deleted_count=svc_result.deleted_count,
+            )
+
+
+class ChannelUndoHandler:
+    """Business-layer UndoHandler for /undo command."""
+
+    async def __call__(self, msg: InboundMessage) -> UndoResult:
+        session_key, _ = await _resolve_session_with_agent(msg)
+
+        async with get_session() as _db:
+            chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
+            if not chat:
+                return UndoResult(success=False)
+
+            svc_result = await ChatService.undo_last_turn(chat.id, "sandbox")
+            return UndoResult(
+                success=svc_result.success,
+                deleted_count=svc_result.deleted_count,
+            )

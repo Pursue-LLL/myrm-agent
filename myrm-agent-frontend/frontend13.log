@@ -1,0 +1,81 @@
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.203.80.168:3000
+- Environments: .env.local
+✓ Ready in 310ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  · cpus: 4
+
+ GET /settings 200 in 1042ms (next.js: 223ms, proxy.ts: 65ms, application-code: 754ms)
+ GET / 200 in 1748ms (next.js: 138ms, proxy.ts: 32ms, application-code: 1578ms)
+[browser] ⨯ unhandledRejection: ApiError: 无法连接到服务器，请检查服务是否启动
+    at fetchWithTimeout (src/lib/api.ts:215:13)
+    at async apiRequest (src/lib/api.ts:267:22)
+    at async getProjects (src/services/projects.ts:19:17)
+    at async fetchProjects (src/store/useProjectStore.ts:41:26)
+  213 |     }
+  214 |     if (error instanceof Error && error.message.includes('Failed to fetch')) {
+> 215 |       throw new ApiError(
+      |             ^
+  216 |         '无法连接到服务器，请检查服务是否启动',
+  217 |         50003,
+  218 |         [],
+[browser] 加载聊天历史失败: ApiError: 无法连接到服务器，请检查服务是否启动
+    at fetchWithTimeout (src/lib/api.ts:215:13)
+    at async apiRequest (src/lib/api.ts:267:22)
+    at async getChatHistory (src/services/chat.ts:48:17)
+    at async loadChatHistory (src/store/useChatStore.ts:517:28)
+  213 |     }
+  214 |     if (error instanceof Error && error.message.includes('Failed to fetch')) {
+> 215 |       throw new ApiError(
+      |             ^
+  216 |         '无法连接到服务器，请检查服务是否启动',
+  217 |         50003,
+  218 |         [], (src/store/useChatStore.ts:531:19)
+ GET /server/app/_global-error.html 404 in 996ms (next.js: 107ms, proxy.ts: 4ms, application-code: 885ms)
+[browser] 加载聊天历史失败: ApiError: 无法连接到服务器，请检查服务是否启动
+    at fetchWithTimeout (src/lib/api.ts:215:13)
+    at async apiRequest (src/lib/api.ts:267:22)
+    at async getChatHistory (src/services/chat.ts:48:17)
+    at async loadChatHistory (src/store/useChatStore.ts:517:28)
+  213 |     }
+  214 |     if (error instanceof Error && error.message.includes('Failed to fetch')) {
+> 215 |       throw new ApiError(
+      |             ^
+  216 |         '无法连接到服务器，请检查服务是否启动',
+  217 |         50003,
+  218 |         [], (src/store/useChatStore.ts:531:19)
+Failed to proxy http://127.0.0.1:8080/api/v1/background-tasks Error: connect ECONNREFUSED 127.0.0.1:8080
+    at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:8080) {
+  errno: -61,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 8080
+}
+Error: connect ECONNREFUSED 127.0.0.1:8080
+    at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:8080) {
+  errno: -61,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 8080
+}
+Failed to proxy http://127.0.0.1:8080/api/v1/config/onboarding/probe-local Error: connect ECONNREFUSED 127.0.0.1:8080
+    at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:8080) {
+  errno: -61,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 8080
+}
+Error: connect ECONNREFUSED 127.0.0.1:8080
+    at <unknown> (Error: connect ECONNREFUSED 127.0.0.1:8080) {
+  errno: -61,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 8080
+}
+[?25h

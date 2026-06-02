@@ -1,0 +1,168 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
+import BrandLogo from '@/components/ui/BrandLogo';
+import { cn } from '@/lib/utils/classnameUtils';
+
+const BOOT_SCREEN_STORAGE_KEY = 'myrm_boot_shown';
+
+const STEP_INTERVAL_MS = 120;
+const FADE_START_DELAY_MS = 340;
+const FADE_DURATION_MS = 400;
+
+interface BootScreenProps {
+  onComplete: () => void;
+}
+
+export function shouldShowBootScreen(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !sessionStorage.getItem(BOOT_SCREEN_STORAGE_KEY);
+}
+
+export function markBootScreenShown(): void {
+  try {
+    sessionStorage.setItem(BOOT_SCREEN_STORAGE_KEY, '1');
+  } catch {
+    // sessionStorage 不可用时静默失败
+  }
+}
+
+export default function BootScreen({ onComplete }: BootScreenProps) {
+  const t = useTranslations('boot');
+  const [visibleSteps, setVisibleSteps] = useState(0);
+  const [logoVisible, setLogoVisible] = useState(false);
+  const [titleVisible, setTitleVisible] = useState(false);
+  const [fadeOut, setFadeOut] = useState(false);
+  const completedRef = useRef(false);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const steps = [t('step.loadingTheme'), t('step.syncingSettings'), t('step.initServices'), t('step.ready')];
+
+  const finish = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    markBootScreenShown();
+    setFadeOut(true);
+    const fadeTimer = setTimeout(onComplete, FADE_DURATION_MS);
+    timersRef.current.push(fadeTimer);
+  }, [onComplete]);
+
+  useEffect(() => {
+    const timers = timersRef.current;
+
+    timers.push(setTimeout(() => setLogoVisible(true), 80));
+    timers.push(setTimeout(() => setTitleVisible(true), 300));
+
+    steps.forEach((_, i) => {
+      timers.push(setTimeout(() => setVisibleSteps(i + 1), 500 + i * STEP_INTERVAL_MS));
+    });
+
+    const autoFinishDelay = 500 + steps.length * STEP_INTERVAL_MS + FADE_START_DELAY_MS;
+    timers.push(setTimeout(finish, autoFinishDelay));
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') finish();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      timers.forEach(clearTimeout);
+      timersRef.current = [];
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      data-testid="boot-screen"
+      className={cn(
+        'fixed inset-0 z-50 flex flex-col items-center justify-center',
+        'bg-background select-none cursor-pointer',
+        'transition-opacity ease-out',
+        fadeOut ? 'opacity-0' : 'opacity-100',
+      )}
+      style={{ transitionDuration: `${FADE_DURATION_MS}ms` }}
+      onClick={finish}
+      role="presentation"
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-accent-warm/10 blur-3xl" />
+      </div>
+
+      <div className="relative flex flex-col items-center gap-3">
+        <div
+          className={cn(
+            'transition-all duration-500 ease-out',
+            logoVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-90',
+          )}
+        >
+          <BrandLogo size={56} priority className="w-12 h-12 sm:w-14 sm:h-14" />
+        </div>
+
+        <div
+          className={cn(
+            'text-lg sm:text-xl font-semibold transition-all duration-400 ease-out',
+            titleVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1',
+            visibleSteps >= steps.length ? 'brand-gradient-text' : 'text-foreground/80',
+          )}
+        >
+          {t('title')}
+        </div>
+      </div>
+
+      <div className="mt-8 w-[280px] sm:w-[320px] space-y-1.5 px-4">
+        {steps.slice(0, visibleSteps).map((step, i) => {
+          const isLast = i === steps.length - 1;
+          const isCurrent = i === visibleSteps - 1 && !isLast;
+
+          return (
+            <div
+              key={i}
+              className={cn(
+                'flex items-center gap-2 text-[13px] leading-relaxed transition-opacity duration-200',
+                isLast ? 'brand-gradient-text font-medium' : 'text-muted-foreground',
+              )}
+            >
+              {isCurrent ? (
+                <span className="w-3 h-3 flex items-center justify-center">
+                  <span
+                    className={cn(
+                      'w-1.5 h-1.5 rounded-full animate-pulse',
+                      i % 2 === 0 ? 'bg-primary' : 'bg-accent-warm',
+                    )}
+                  />
+                </span>
+              ) : (
+                <span className="w-3 h-3 flex items-center justify-center text-accent-warm">
+                  <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3">
+                    <path
+                      d="M3 8l3.5 3.5L13 5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              )}
+              <span>{step}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <div
+        className={cn(
+          'absolute bottom-6 text-[12px] text-muted-foreground/50',
+          'transition-opacity duration-300',
+          visibleSteps > 0 ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        {t('skipHint')}
+      </div>
+    </div>
+  );
+}

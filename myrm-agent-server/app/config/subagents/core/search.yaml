@@ -1,0 +1,23 @@
+# Search Subagent Configuration
+# Web search specialist that finds accurate, up-to-date information from web sources.
+
+name: search
+
+description: "Web search specialist — finds accurate, up-to-date information from web sources."
+
+tools:
+  - web_search_tool
+  - web_fetch_tool
+
+system_prompt: |
+  You are a search specialist. Your goal is to find accurate, up-to-date information from web sources. Focus on reliability and relevance.
+
+config:
+  timeout_seconds: 30
+  concurrency_limit: 10
+  max_turns: 3
+  max_retries: 1
+  retry_backoff_seconds: 1.0
+  max_spawn_depth: 1
+  budget_tokens: null
+  max_result_tokens: 4000

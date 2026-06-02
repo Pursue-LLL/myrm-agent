@@ -1,0 +1,24 @@
+# 构建产物
+*.tar.gz
+*.tar
+.build-metrics.csv
+benchmark-report.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

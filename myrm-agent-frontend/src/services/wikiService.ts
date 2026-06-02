@@ -1,0 +1,140 @@
+import { apiRequest } from '@/lib/api';
+
+export interface Concept {
+  name: string;
+  content: string;
+}
+
+export interface QueueStatus {
+  stats: Record<string, number>;
+  pending_items: Array<{
+    id: number;
+    source_path: string;
+    file_type: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+}
+
+export interface PendingEdit {
+  id: number;
+  concept_name: string;
+  proposed_content: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PendingEditsResponse {
+  stats: Record<string, number>;
+  pending_edits: PendingEdit[];
+}
+
+export interface OperationResult {
+  success: boolean;
+  message: string;
+}
+
+export interface ConceptListResponse {
+  concepts: string[];
+  total: number;
+  has_more: boolean;
+}
+
+export interface TreeNode {
+  id: string;
+  name: string;
+  is_dir: boolean;
+  children?: TreeNode[];
+}
+
+export const wikiService = {
+  // Tree
+  getTree: async (): Promise<TreeNode[]> => {
+    return apiRequest<TreeNode[]>('/wiki/tree');
+  },
+
+  createFolder: async (path: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>('/wiki/tree/folder', {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    });
+  },
+
+  moveNode: async (sourcePath: string, targetPath: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>('/wiki/tree/move', {
+      method: 'PUT',
+      body: JSON.stringify({ source_path: sourcePath, target_path: targetPath }),
+    });
+  },
+
+  deleteFolder: async (path: string): Promise<OperationResult> => {
+    const params = new URLSearchParams();
+    params.append('path', path);
+    return apiRequest<OperationResult>(`/wiki/tree/folder?${params.toString()}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Concepts
+  listConcepts: async (query?: string, limit: number = 100, offset: number = 0): Promise<ConceptListResponse> => {
+    const params = new URLSearchParams();
+    if (query) params.append('query', query);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+    return apiRequest<ConceptListResponse>(`/wiki/concepts?${params.toString()}`);
+  },
+
+  getConcept: async (name: string): Promise<Concept> => {
+    return apiRequest<Concept>(`/wiki/concepts/${encodeURIComponent(name)}`);
+  },
+
+  updateConcept: async (name: string, content: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(`/wiki/concepts/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  deleteConcept: async (name: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(`/wiki/concepts/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Queue
+  getQueueStatus: async (): Promise<QueueStatus> => {
+    return apiRequest<QueueStatus>('/wiki/queue');
+  },
+
+  cancelQueue: async (): Promise<OperationResult> => {
+    return apiRequest<OperationResult>('/wiki/queue/cancel', {
+      method: 'POST',
+    });
+  },
+
+  retryFailedQueue: async (): Promise<OperationResult> => {
+    return apiRequest<OperationResult>('/wiki/queue/retry', {
+      method: 'POST',
+    });
+  },
+
+  // Pending Edits (HITL)
+  getPendingEdits: async (): Promise<PendingEditsResponse> => {
+    return apiRequest<PendingEditsResponse>('/wiki/pending');
+  },
+
+  approveEdit: async (id: number, modifiedContent?: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(`/wiki/pending/${id}/approve`, {
+      method: 'POST',
+      body: modifiedContent !== undefined ? JSON.stringify({ modified_content: modifiedContent }) : undefined,
+    });
+  },
+
+  rejectEdit: async (id: number): Promise<OperationResult> => {
+    return apiRequest<OperationResult>(`/wiki/pending/${id}/reject`, {
+      method: 'POST',
+    });
+  },
+};

@@ -1,0 +1,92 @@
+{
+  "productName": "MyrmAgent",
+  "version": "0.1.0",
+  "identifier": "com.myrmagent.app",
+  "build": {
+    "beforeDevCommand": "cd ../../myrm-agent-frontend && bun run dev",
+    "beforeBuildCommand": "cd ../../myrm-agent-frontend && BUILD_MODE=tauri bun run build",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../../myrm-agent-frontend/.next/standalone/.next"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "externalBin": [
+      "binaries/myrmagent-backend",
+      "binaries/agent-runner",
+      "binaries/cloudflared"
+    ],
+    "copyright": "Copyright © 2026 MyrmAgent Team",
+    "category": "Productivity",
+    "shortDescription": "Persistent AI assistant for work automation",
+    "longDescription": "MyrmAgent is a Claw-class AI assistant that runs persistently on your device, helping you automate work with skills, memory, and multi-agent capabilities. All your data stays local.",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist",
+      "exceptionDomain": "",
+      "providerShortName": null
+    },
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
+      "tsp": false,
+      "nsis": {
+        "languages": ["English", "SimpChinese", "TradChinese", "Japanese", "Korean", "German"],
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.png",
+        "installMode": "perMachine"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MyrmAgent",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "scope": ["$HOME/**", "$APPDATA/**", "$LOCALAPPDATA/**", "$DOCUMENT/**", "$DOWNLOAD/**", "$PICTURE/**", "$DESKTOP/**"]
+      }
+    }
+  },
+  "plugins": {
+    "global-shortcut": {
+      "all": true
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "myrmagent"
+        ]
+      }
+    },
+    "fs": {
+      "scope": ["$HOME/**"]
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/Pursue-LLL/myrm-agent/releases/latest/download/latest.json"
+      ],
+      "pubkey": "UNSAFE_UPDATER_PUBKEY_PLACEHOLDER_GENERATE_BEFORE_RELEASE"
+    }
+  }
+}

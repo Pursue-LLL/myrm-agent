@@ -1,0 +1,19 @@
+# Shared matplotlib defaults — CJK-capable headless rendering.
+#
+# Single source of truth for both execution images: skill-sandbox (this build
+# context) and myrm-agent-server (COPYed from project root). Keeping one file
+# avoids config drift between the two images.
+#
+# Pairs with fonts-noto-cjk installed in the image so Chinese/Japanese/Korean
+# labels render as real glyphs instead of tofu boxes. DejaVu Sans is kept as the
+# trailing fallback, so environments without a CJK family degrade safely.
+#
+# Loaded via MATPLOTLIBRC=/opt/mpl-config/matplotlibrc, which points at this file
+# directly. That bypasses get_configdir()'s writability check, so the config still
+# loads on a read-only rootfs (MPLCONFIGDIR would fall back to a temp dir when not
+# writable and silently drop this config).
+
+backend: Agg
+font.family: sans-serif
+font.sans-serif: Noto Sans CJK SC, Noto Sans CJK JP, Noto Sans CJK KR, DejaVu Sans
+axes.unicode_minus: False

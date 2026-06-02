@@ -1,0 +1,109 @@
+# see https://docs.searxng.org/admin/settings/settings.html#settings-use-default-settings
+use_default_settings: true
+server:
+  # base_url is defined in the SEARXNG_BASE_URL environment variable, see .env and docker-compose.yml
+  secret_key: "2b014394a3778e5e382693f9a9c76a3c9b8cdb34f9b3f5598fca94792c862fc5"  # change this!
+  limiter: false  # rate limit the number of request on the instance, block some bots
+  image_proxy: true
+
+search:
+  formats:
+    - html
+    - json
+
+engines:
+  # --- General search engines ---
+  - name: google
+    engine: google
+    weight: 1.2
+
+  - name: duckduckgo
+    engine: duckduckgo
+    weight: 1.0
+
+  - name: bing
+    engine: bing
+    weight: 0.8
+
+  - name: baidu
+    engine: baidu
+    weight: 0.8
+
+  - name: sougou
+    engine: sougou
+    weight: 0.4
+
+  - name: 360search
+    engine: 360search
+    weight: 0.4
+
+  - name: quark
+    engine: quark
+    weight: 0.4
+
+  # --- Code & Developer engines (for CODE intent) ---
+  - name: github
+    engine: github
+    shortcut: gh
+    categories: it
+
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: st
+    categories: it
+
+  - name: npm
+    engine: npm
+    shortcut: npm
+    categories: it
+    disabled: false
+
+  - name: pypi
+    engine: pypi
+    shortcut: pypi
+    categories: it
+    disabled: false
+
+  # --- News engines (for NEWS intent) ---
+  - name: google news
+    engine: google_news
+    categories: news
+
+  - name: bing news
+    engine: bing_news
+    categories: news
+
+  # --- Academic engines (for ACADEMIC intent) ---
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    categories: science
+    timeout: 10
+
+  - name: google scholar
+    engine: google_scholar
+    shortcut: gs
+    categories: science
+
+  - name: semantic scholar
+    engine: semantic_scholar
+    shortcut: ss
+    categories: science
+
+  # --- Social media (for SOCIAL intent) ---
+  - name: reddit
+    engine: reddit
+    shortcut: rd
+    categories: social media
+    disabled: false
+
+  - name: hackernews
+    engine: hackernews
+    shortcut: hn
+    categories: social media
+    disabled: false
+
+ui:
+  static_use_hash: true
+# valkey:
+#   url: valkey://valkey:6379/0
