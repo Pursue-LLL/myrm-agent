@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Myrm CLI — WebUI lifecycle (OSS myrm-agent repo)
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# shellcheck source=lib/resolve_agent_root.sh
+source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
+resolve_agent_paths "${PROJECT_ROOT}"
+
+COMPOSE_FILE="${SERVER_DIR}/docker-compose.yaml"
+MYRM_PROCESS_PATTERN='[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.py'
+
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+BOLD='\033[1m'
+
+show_help() {
+    echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
+    echo "Usage: myrm <command>"
+    echo "  start | stop | status | update"
+    echo "  searxng start | stop | status"
+}
+
+require_docker() {
+    command -v docker &>/dev/null || { echo -e "${RED}Docker required${NC}"; exit 1; }
+    [[ -f "$COMPOSE_FILE" ]] || { echo -e "${RED}Missing compose file${NC}"; exit 1; }
+}
+
+searxng_start() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search up -d)
+    echo -e "${GREEN}SearXNG: http://127.0.0.1:8081${NC}"
+}
+
+searxng_stop() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search down)
+}
+
+searxng_status() {
+    require_docker
+    (cd "$SERVER_DIR" && docker compose --profile search ps)
+}
+
+cd "$PROJECT_ROOT"
+COMMAND=${1:-}
+SUBCMD=${2:-}
+
+case "$COMMAND" in
+    start)
+        cd "$SERVER_DIR"
+        export DEPLOY_MODE="local" WEBUI_MODE="true"
+        uv run run.py --webui
+        ;;
+    stop)
+        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN|[n]ext dev|[b]un run dev" | awk '{print $2}')
+        [[ -n "$pids" ]] && kill -9 $pids || true
+        ;;
+    status)
+        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN|[n]ext dev|[b]un run dev" | awk '{print $2}')
+        [[ -n "$pids" ]] && echo "Running: $pids" || echo "Not running"
+        ;;
+    update)
+        git pull --ff-only
+        (cd "$SERVER_DIR" && uv sync --all-extras)
+        (cd "$FRONTEND_DIR" && bun install)
+        ;;
+    searxng)
+        case "$SUBCMD" in
+            start) searxng_start ;;
+            stop) searxng_stop ;;
+            status) searxng_status ;;
+            *) show_help; exit 1 ;;
+        esac
+        ;;
+    ""|help|-h|--help) show_help ;;
+    *) show_help; exit 1 ;;
+esac

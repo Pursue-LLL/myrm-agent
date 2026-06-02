@@ -27,14 +27,12 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 ## 本地开发
 
 ```bash
-# Web UI
+bash scripts/install.sh    # 或 vortexai: bash scripts/install.sh（自动 init submodule）
+myrm start                 # WebUI → http://localhost:3000
+
+# 手动分进程
 cd myrm-agent-frontend && bun install && bun run dev
-
-# Backend (Tauri/local)
 cd myrm-agent-server && uv sync --all-extras && DEPLOY_MODE=tauri uv run run.py
-
-# Desktop (需先构建 frontend + sidecar)
-cd myrm-agent-desktop && bun run tauri dev
 ```
 
 ## 约束
