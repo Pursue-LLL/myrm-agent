@@ -11,7 +11,7 @@ import logging
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, BackgroundTasks
 from pydantic import BaseModel, Field
 
 from app.api.skills.evolution.helpers import _get_skill_store
@@ -67,6 +67,7 @@ class ConfirmImportResponse(BaseModel):
 
 @router.post("/preview", response_model=ImportPreviewResponse)
 async def preview_batch_import(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ) -> ImportPreviewResponse:
     """接收ZIP并返回带冲突标记的技能预览列表"""
@@ -142,6 +143,9 @@ async def preview_batch_import(
     # 持久化保存到暂存区，解决多文件丢失和前端 OOM 问题
     staging_manager.save_session(session_id, imported_skills)
         
+    # 异步触发全局垃圾回收，不阻塞当前请求
+    background_tasks.add_task(staging_manager._cleanup_expired_sessions_sync)
+    
     return ImportPreviewResponse(
         session_id=session_id,
         items=preview_items,
@@ -153,6 +157,7 @@ async def preview_batch_import(
 @router.post("/confirm", response_model=ConfirmImportResponse)
 async def confirm_batch_import(
     request: ConfirmImportRequest,
+    background_tasks: BackgroundTasks,
 ) -> ConfirmImportResponse:
     """确认导入策略并落盘"""
     store = _get_skill_store()
@@ -196,10 +201,13 @@ async def confirm_batch_import(
             staging_manager.cleanup_session(request.session_id)
             raise HTTPException(status_code=400, detail=f"安全拦截: {item.name} 包含恶意代码 -> {val_result.issues}。本次导入已撤销。")
 
-    # Phase 2: 落盘暂存与数据库更新 (全保真原子写入)
-    temp_files = []
+    # Phase 2: 蓝绿目录准备与收集 (全保真原子写入)
+    blue_green_tasks = []
+    records_to_save = []
     try:
         import os
+        import shutil
+        import yaml
         from pathlib import Path
         
         for item in request.items:
@@ -225,9 +233,12 @@ async def confirm_batch_import(
                 evolution_type = EvolutionType.DERIVED
                 parent_id = item.existing_skill_id
             
-            # 构建完整写入路径，Sandbox 模式中通常存储到 data_dir/skills/<uuid>
-            skill_dir = store.db_path.parent / "skills" / skill_id
-            skill_dir.mkdir(parents=True, exist_ok=True)
+            # 构建目标目录与临时目录
+            skills_root = store.db_path.parent / "skills"
+            skill_dir = skills_root / skill_id
+            tmp_dir = skills_root / f".{skill_id}.{uuid.uuid4().hex}.tmp"
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            
             path = str(skill_dir / "SKILL.md")
             
             record = SkillRecord(
@@ -244,43 +255,82 @@ async def confirm_batch_import(
                     created_by="human"
                 )
             )
+            records_to_save.append(record)
             
-            # 多文件全保真原子写入：为所有 file 生成 .tmp
+            # 多文件全保真原子写入：为所有 file 生成到 .tmp 目录
             for rel_path, file_content in skill.files.items():
-                if rel_path == "SKILL.md":
-                    # 对于 SKILL.md，我们要注入更新后的 name 和 description (Frontmatter)
-                    file_content = f"---\nname: {name}\ndescription: {item.description}\n---\n{skill.content}".encode("utf-8")
-                    
-                target_path = skill_dir / rel_path
+                target_path = tmp_dir / rel_path
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 
-                tmp_path = str(target_path) + f".{uuid.uuid4().hex}.tmp"
-                with open(tmp_path, "wb") as f:
+                if rel_path == "SKILL.md":
+                    # YAML 深度合并，保留其他 Hermes 元数据 (如 dependencies, version 等)
+                    new_metadata = dict(skill.metadata)
+                    new_metadata["name"] = name
+                    new_metadata["description"] = item.description
+                    # 生成合法 frontmatter
+                    fm_yaml = yaml.safe_dump(new_metadata, allow_unicode=True, sort_keys=False).strip()
+                    file_content = f"---\n{fm_yaml}\n---\n{skill.content}".encode("utf-8")
+                    
+                with open(target_path, "wb") as f:
                     f.write(file_content)
-                temp_files.append((tmp_path, str(target_path)))
             
-            # DB 写库，若失败将抛出异常
-            await store.save_skill(record)
+            # 记录蓝绿切换任务
+            blue_green_tasks.append({
+                "skill_dir": skill_dir,
+                "tmp_dir": tmp_dir,
+                "old_dir": skills_root / f".{skill_id}.{uuid.uuid4().hex}.old"
+            })
+            
             imported_count += 1
             
-        # Phase 3: 全部 DB 提交成功后，在操作系统底层执行原子物理替换
-        for tmp_path, final_path in temp_files:
-            os.replace(tmp_path, final_path)
+        # Phase 3: DB 批量写入，保证绝对的跨技能事务原子性
+        if records_to_save:
+            # Requires `save_skills_batch` on SkillStore which handles executemany in a single transaction
+            if hasattr(store, "save_skills_batch"):
+                await store.save_skills_batch(records_to_save)
+            else:
+                # Fallback for extreme cases, though we added save_skills_batch
+                for r in records_to_save:
+                    await store.save_skill(r)
+
+        # Phase 4: 全部 DB 提交成功后，在操作系统底层执行蓝绿目录原子替换
+        for task in blue_green_tasks:
+            s_dir = task["skill_dir"]
+            t_dir = task["tmp_dir"]
+            o_dir = task["old_dir"]
+            
+            # 1. 瞬间将老技能移走 (如果存在)
+            if s_dir.exists():
+                os.rename(s_dir, o_dir)
+            # 2. 瞬间让新技能顶替
+            os.rename(t_dir, s_dir)
+            # 3. 异步/安全删除老废弃技能 (防孤儿残留)
+            if o_dir.exists():
+                try:
+                    shutil.rmtree(o_dir, ignore_errors=True)
+                except Exception:
+                    pass
             
     except Exception as e:
-        # 回滚：全量清空本次产生的所有临时文件，拒绝脏写残留
-        import os
-        for tmp_path, _ in temp_files:
-            if os.path.exists(tmp_path):
-                try:
-                    os.remove(tmp_path)
-                except OSError:
-                    pass
+        # 回滚：此时 DB 未受污染（如果 save_skills_batch 报错了，整个事务已被 rollback）
+        # 全量清空本次产生的所有 tmp 目录，并尝试恢复 old（极端防卫）
+        import shutil
+        for task in blue_green_tasks:
+            try:
+                if task["tmp_dir"].exists():
+                    shutil.rmtree(task["tmp_dir"], ignore_errors=True)
+                # 极端情况下若 rename(tmp, s) 失败，尝试把 old 恢复回去
+                if not task["skill_dir"].exists() and task["old_dir"].exists():
+                    os.rename(task["old_dir"], task["skill_dir"])
+            except Exception:
+                pass
         staging_manager.cleanup_session(request.session_id)
         raise e
     finally:
         # 无论成功失败，都清理暂存区，保证磁盘 0 冗余
         staging_manager.cleanup_session(request.session_id)
+        # 异步触发全局垃圾回收，不阻塞当前请求
+        background_tasks.add_task(staging_manager._cleanup_expired_sessions_sync)
         
     return ConfirmImportResponse(
         imported_count=imported_count,

@@ -24,9 +24,8 @@ class SkillStagingManager:
     def __init__(self, base_dir: Path):
         self.staging_dir = base_dir / "staging"
         self.staging_dir.mkdir(parents=True, exist_ok=True)
-        self._cleanup_expired_sessions()
 
-    def _cleanup_expired_sessions(self) -> None:
+    def _cleanup_expired_sessions_sync(self) -> None:
         """后台清理超过 24 小时的无主暂存文件，防止磁盘被恶意耗尽"""
         import time
         now = time.time()

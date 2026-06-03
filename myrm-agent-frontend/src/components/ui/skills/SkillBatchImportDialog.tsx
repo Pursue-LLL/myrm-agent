@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Upload, X, File, Loader2, AlertCircle, CheckCircle2, ChevronRight, DownloadCloud, AlertTriangle } from 'lucide-react';
+import { Upload, File, Loader2, AlertCircle, CheckCircle2, DownloadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useDragDrop } from '@/hooks/useDragDrop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -12,8 +12,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/useToast';
-import { useSkillStore } from '@/store/skill';
-
 interface SkillBatchImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -284,7 +282,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                   </div>
                   
                   <div className="border rounded-xl divide-y bg-background overflow-hidden">
-                    {previewItems.map((item, idx) => (
+                    {previewItems.map((item) => (
                       <div key={item.virtual_id} className="p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center hover:bg-muted/50 transition-colors">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
