@@ -23,8 +23,13 @@ BOLD='\033[1m'
 show_help() {
     echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
     echo "Usage: myrm <command>"
-    echo "  start | stop | status | update"
+    echo "  setup              First-time deps (uv sync + bun install)"
+    echo "  start              Start WebUI backend (.venv python)"
+    echo "  stop | status | update"
     echo "  searxng start | stop | status"
+    echo ""
+    echo "Dev: after setup, run frontend in another terminal:"
+    echo "  cd myrm-agent-frontend && bun run dev"
 }
 
 require_docker() {
@@ -53,7 +58,13 @@ COMMAND=${1:-}
 SUBCMD=${2:-}
 
 case "$COMMAND" in
+    setup)
+        exec "${SCRIPT_DIR}/dev/setup.sh"
+        ;;
+
     start)
+        echo -e "${GREEN}🚀 Starting MyrmAgent backend (WebUI)...${NC}"
+        echo -e "${CYAN}ℹ️  Frontend (separate terminal): cd myrm-agent-frontend && bun run dev${NC}"
         start_myrm_server "$SERVER_DIR" --webui
         ;;
     stop)

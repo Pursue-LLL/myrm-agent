@@ -12,10 +12,12 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.sh` | Unix | `curl \| bash` 入口：clone → `install.sh` |
 | `install.ps1` | Windows | 同上（PowerShell 原生） |
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
-| `myrm` | Unix | `start` / `stop` / `status` / `update` / `searxng` |
+| `myrm` | Unix | `setup` / `start` / `stop` / `status` / `update` / `searxng` |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
+| `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：`uv sync` + `bun install`（PyPI harness） |
+| `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
 | `lib/resolve_agent_root.sh` | Unix | vortexai submodule 与 OSS 根路径解析 |
-| `lib/start_server.sh` | Unix | `myrm start`：优先 `.venv` python，再 `uv run` |
+| `lib/start_server.sh` | Unix | `myrm start` / `run_server`：优先 `.venv` python，再 `uv run` |
 
 ## 约束
 

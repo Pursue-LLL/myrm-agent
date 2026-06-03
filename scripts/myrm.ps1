@@ -32,8 +32,11 @@ function Resolve-AgentPaths {
 function Show-Help {
     Write-Host "MyrmAgent CLI" -ForegroundColor Cyan
     Write-Host "Usage: myrm <command>"
+    Write-Host "  setup              First-time deps (uv sync + bun install)"
     Write-Host "  start | stop | status | update"
     Write-Host "  searxng start | stop | status"
+    Write-Host ""
+    Write-Host "Dev: cd myrm-agent-frontend; bun run dev  (separate terminal)"
 }
 
 function Require-Docker {
@@ -82,7 +85,20 @@ Resolve-AgentPaths -Root $ProjectRoot
 $composeFile = Join-Path $ServerDir "docker-compose.yaml"
 
 switch ($Command) {
-    "start" { Start-Server }
+    "setup" {
+        $setup = Join-Path $ScriptDir "dev\setup.ps1"
+        if (-not (Test-Path $setup)) {
+            Write-Error "Missing $setup"
+            exit 1
+        }
+        & $setup
+        exit $LASTEXITCODE
+    }
+    "start" {
+        Write-Host "Starting MyrmAgent backend (WebUI)..."
+        Write-Host "Frontend (separate terminal): cd myrm-agent-frontend; bun run dev"
+        Start-Server
+    }
     "stop" {
         $procs = Get-MyrmProcesses
         if ($procs) {
