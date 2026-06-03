@@ -18,7 +18,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
 | `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：`uv sync` + `bun install`（PyPI harness） |
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
-| `lib/resolve_agent_root.sh` | Unix | vortexai submodule 与 OSS 根路径解析 |
+| `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
 
 ## 约束

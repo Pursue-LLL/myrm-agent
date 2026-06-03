@@ -16,14 +16,6 @@ type AuthConfigResponse = {
 
 type OAuthButtonsProps = {
   redirectPath?: string;
-  /** OAuth block before (above) or after (below) the email form */
-  placement?: 'above' | 'below';
-  /** Background class for the divider pill (match parent surface) */
-  dividerSurfaceClassName?: string;
-  /** Divider copy when placement is above (login vs register email form) */
-  emailDividerMode?: 'login' | 'register';
-  /** Hide email divider and show OAuth providers only */
-  oauthOnly?: boolean;
 };
 
 const providerStyles: Record<string, string> = {
@@ -35,13 +27,7 @@ const providerStyles: Record<string, string> = {
     'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10',
 };
 
-export default function OAuthButtons({
-  redirectPath = '/',
-  placement = 'below',
-  dividerSurfaceClassName = 'bg-card',
-  emailDividerMode = 'login',
-  oauthOnly = false,
-}: OAuthButtonsProps) {
+export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) {
   const cpBaseUrl = resolveCpBaseUrl();
   const t = useTranslations('auth.oauth');
   const [providers, setProviders] = useState<string[]>([]);
@@ -80,7 +66,7 @@ export default function OAuthButtons({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [cpBaseUrl]);
 
   const startOAuth = useCallback(
     (provider: string) => {
@@ -119,69 +105,30 @@ export default function OAuthButtons({
     );
   }
 
-  const showDivider = !oauthOnly;
-  const dividerLabel =
-    placement === 'above'
-      ? emailDividerMode === 'register'
-        ? t('dividerRegister')
-        : t('dividerEmail')
-      : t('divider');
-
-  const divider = showDivider ? (
-    <div className="relative py-1">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t border-border/70" />
-      </div>
-      <div className="relative flex justify-center text-[11px] uppercase tracking-[0.14em]">
-        <span className={cn('px-3 text-muted-foreground', dividerSurfaceClassName)}>{dividerLabel}</span>
-      </div>
-    </div>
-  ) : null;
-
-  const providerGrid = (
-    <div className="grid gap-2.5">
-        {providers.map((provider) => (
-          <Button
-            key={provider}
-            type="button"
-            variant="outline"
-            className={cn(
-              'w-full h-11 font-medium transition-all duration-200 shadow-sm',
-              providerStyles[provider] ?? providerStyles.google,
-            )}
-            disabled={pendingProvider !== null}
-            onClick={() => startOAuth(provider)}
-          >
-            {pendingProvider === provider ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <span className="inline-flex items-center justify-center gap-2.5">
-                <OAuthProviderIcon provider={provider} className="w-4 h-4 shrink-0" />
-                <span>{t(`provider.${provider}`, { default: `Continue with ${provider}` })}</span>
-              </span>
-            )}
-          </Button>
-        ))}
-    </div>
-  );
-
-  if (oauthOnly) {
-    return <div className="space-y-3">{providerGrid}</div>;
-  }
-
-  if (placement === 'above') {
-    return (
-      <div className="space-y-3">
-        {providerGrid}
-        {divider}
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-3 pt-1">
-      {divider}
-      {providerGrid}
+    <div className="grid gap-2.5">
+      {providers.map((provider) => (
+        <Button
+          key={provider}
+          type="button"
+          variant="outline"
+          className={cn(
+            'w-full h-11 font-medium transition-all duration-200 shadow-sm',
+            providerStyles[provider] ?? providerStyles.google,
+          )}
+          disabled={pendingProvider !== null}
+          onClick={() => startOAuth(provider)}
+        >
+          {pendingProvider === provider ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <span className="inline-flex items-center justify-center gap-2.5">
+              <OAuthProviderIcon provider={provider} className="w-4 h-4 shrink-0" />
+              <span>{t(`provider.${provider}`, { default: `Continue with ${provider}` })}</span>
+            </span>
+          )}
+        </Button>
+      ))}
     </div>
   );
 }

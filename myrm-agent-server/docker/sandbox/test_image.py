@@ -15,7 +15,7 @@ import pytest
 class TestImageFunctionality:
     """Test all pre-installed packages and tools."""
 
-    IMAGE = "open-perplexity/skill-sandbox:latest"
+    IMAGE = "myrm/skill-sandbox:latest"
 
     def run_in_container(self, command: str) -> tuple[int, str, str]:
         """Run command in container and return exit code, stdout, stderr."""
@@ -145,7 +145,7 @@ print('OK')
 class TestImageSecurity:
     """Test security configurations."""
 
-    IMAGE = "open-perplexity/skill-sandbox:latest"
+    IMAGE = "myrm/skill-sandbox:latest"
 
     def test_non_root_user(self) -> None:
         """Test container runs as non-root user."""
@@ -197,7 +197,7 @@ class TestImageSecurity:
 class TestImagePerformance:
     """Test performance metrics."""
 
-    IMAGE = "open-perplexity/skill-sandbox:latest"
+    IMAGE = "myrm/skill-sandbox:latest"
 
     def test_startup_time(self) -> None:
         """Test container startup time is acceptable."""
@@ -244,7 +244,7 @@ print('OK')
 class TestImageHealth:
     """Test health check functionality."""
 
-    IMAGE = "open-perplexity/skill-sandbox:latest"
+    IMAGE = "myrm/skill-sandbox:latest"
 
     def test_health_check_passes(self) -> None:
         """Test container health check passes (lightweight check)."""

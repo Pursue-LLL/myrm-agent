@@ -21,7 +21,7 @@ def test_uv_lock_harness_not_editable() -> None:
     )
     assert editable_harness is None, (
         "myrm-agent-server/uv.lock still pins myrm-agent-harness as editable. "
-        "Run scripts/ci/sync_server_lock_from_pypi.sh after PyPI publish."
+        "Bump myrm-agent-harness in pyproject.toml and refresh uv.lock after PyPI publish."
     )
 
 
@@ -35,5 +35,5 @@ def test_uv_lock_harness_has_registry_source() -> None:
     )
     assert registry_harness is not None, (
         "myrm-agent-server/uv.lock has no PyPI registry entry for myrm-agent-harness. "
-        "Run scripts/ci/sync_server_lock_from_pypi.sh after PyPI publish."
+        "Bump myrm-agent-harness in pyproject.toml and refresh uv.lock after PyPI publish."
     )

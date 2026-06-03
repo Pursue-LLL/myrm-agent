@@ -23,6 +23,7 @@ from myrm_agent_harness.agent.skills.packaging.validator import (
     MAX_SKILL_ZIP_SIZE,
     suggest_valid_skill_name,
 )
+from myrm_agent_harness.agent.skills.security.content_sanitizer import Redaction, content_sanitizer
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.paths import SKILL_METADATA_FILE
 
@@ -32,13 +33,15 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class UnpackResult:
-    """解包结果 (Server 业务层包装)"""
+class PackageResult:
+    """打包结果"""
 
     success: bool
-    skill_id: str | None = None
-    skill_name: str | None = None
+    zip_content: bytes | None
+    filename: str | None
     error: str | None = None
+    redactions: dict[str, list[Redaction]] | None = None  # filename -> list of redactions
+    is_safe: bool = True  # True if no redactions were needed or if they were applied and user confirmed
 
 
 class SkillPackagingService:
@@ -53,8 +56,14 @@ class SkillPackagingService:
         self._unpacker = SkillUnpacker()
         self._skills_svc = skills_svc or skills_service
 
-    async def package_skill(self, skill_id: str) -> PackageResult:
-        """从 Server 的 SkillsService 获取并打包已注册的技能"""
+    async def package_skill(self, skill_id: str, preview_only: bool = False, apply_redactions: bool = False) -> PackageResult:
+        """从 Server 的 SkillsService 获取并打包已注册的技能
+        
+        Args:
+            skill_id: 技能 ID
+            preview_only: 如果为 True，仅返回脱敏预览结果，不实际生成 ZIP
+            apply_redactions: 如果为 True，将脱敏后的内容写入 ZIP；否则写入原始内容（用户确认无误或忽略警告）
+        """
         try:
             skill = await self._skills_svc.get_skill(skill_id)
             if not skill:
@@ -65,14 +74,48 @@ class SkillPackagingService:
                 return PackageResult(success=False, zip_content=None, filename=None, error="技能没有文件")
 
             file_contents = {}
+            all_redactions = {}
+            is_safe = True
+
             for file_path in files:
                 if file_path == SKILL_METADATA_FILE:
                     continue
                 content = await self._skills_svc.get_skill_file(skill_id, file_path)
                 if content:
-                    file_contents[file_path] = content
+                    # Perform sanitization check
+                    sanitization_result = content_sanitizer.sanitize(content, file_path)
+                    
+                    if not sanitization_result.is_safe:
+                        is_safe = False
+                        all_redactions[file_path] = sanitization_result.redactions
+                    
+                    # Decide which content to pack
+                    if apply_redactions and not sanitization_result.is_safe:
+                        file_contents[file_path] = sanitization_result.sanitized_content
+                    else:
+                        file_contents[file_path] = content
 
-            return self._packer.package_files(skill.name, skill.version or "1.0.0", file_contents)
+            if preview_only:
+                return PackageResult(
+                    success=True,
+                    zip_content=None,
+                    filename=None,
+                    redactions=all_redactions if all_redactions else None,
+                    is_safe=is_safe
+                )
+
+            # Actual packaging
+            pack_result = self._packer.package_files(skill.name, skill.version or "1.0.0", file_contents)
+            
+            # Wrap the harness result to include redaction info
+            return PackageResult(
+                success=pack_result.success,
+                zip_content=pack_result.zip_content,
+                filename=pack_result.filename,
+                error=pack_result.error,
+                redactions=all_redactions if all_redactions else None,
+                is_safe=is_safe
+            )
 
         except Exception as e:
             logger.error(f"打包技能失败: {skill_id}, 错误: {e}")
@@ -109,7 +152,7 @@ class SkillPackagingService:
         self,
         zip_content: bytes,
         force: bool = False,
-    ) -> UnpackResult:
+    ) -> "UnpackResult":
         """解包并注册技能"""
         result = self._unpacker.unpack(zip_content)
         if not result.success or not result.skill_info or not result.files:
@@ -138,6 +181,14 @@ class SkillPackagingService:
             logger.error(f"Skill unpack failed: {e}")
             return UnpackResult(success=False, error=str(e))
 
+@dataclass
+class UnpackResult:
+    """解包结果 (Server 业务层包装)"""
+
+    success: bool
+    skill_id: str | None = None
+    skill_name: str | None = None
+    error: str | None = None
 
 skill_packaging_service = SkillPackagingService()
 

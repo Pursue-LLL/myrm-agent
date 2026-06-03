@@ -105,7 +105,7 @@ PLAYWRIGHT_RUN_WEBUI_E2E=1 bunx playwright test tests/e2e/webui-auth.spec.ts
 
 ### Sandbox 模式（控制平面 + 独立沙箱）
 
-- 仅用于 SaaS/企业：**Google OAuth** 登录（前端不展示邮箱注册/密码表单；`/auth/register` 重定向到 `/auth/login`），再代理进用户沙箱内的 server
+- 仅用于 SaaS/企业：**Google OAuth** 登录（无邮箱注册；旧 `/auth/register`、`/auth/verify-email` 由 Next 重定向到 `/auth/login`），再代理进用户沙箱内的 server
 - `NEXT_PUBLIC_DEPLOY_MODE=sandbox`
 - 需在控制平面配置 Google OAuth；未配置时登录页显示不可用提示
 - 数据存储在云端 PostgreSQL

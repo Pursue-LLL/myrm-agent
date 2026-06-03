@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS age;
 LOAD 'age';
 
 -- 设置搜索路径（包含 AGE 的 ag_catalog schema）
-ALTER DATABASE openperplexity SET search_path = ag_catalog, "$user", public;
+ALTER DATABASE myrmagent SET search_path = ag_catalog, "$user", public;
 
 -- 创建图（用于情景记忆）
 SELECT create_graph('episodic_memory');

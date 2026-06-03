@@ -1,9 +1,9 @@
-# Official Myrm Runtime Image — internal CI / monorepo build
+# Official Myrm Runtime Image — source-built harness wheels
 #
-# BUILD CONTEXT (required): monorepo repository root — must contain both
-# myrm-agent-harness/ and myrm-agent-server/ directories.
+# BUILD CONTEXT (required): directory that contains both
+# myrm-agent-harness/ and myrm-agent-server/ (sibling trees).
 #
-# Builds server + harness from source (private CI only).
+# Builds server + harness from source.
 # Produces the same runtime image as the public wheel-based Dockerfile,
 # but does not require pre-built wheels.
 #

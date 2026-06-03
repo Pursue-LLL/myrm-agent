@@ -191,16 +191,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50/50 via-background to-emerald-50/50 dark:from-background dark:via-background dark:to-background p-4">
-      <LocalLoginForm
-        username={username}
-        password={password}
-        loading={loading}
-        error={error}
-        failedAttempts={failedAttempts}
-        onPasswordChange={setPassword}
-        onSubmit={handleLocalSubmit}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* SaaS Style Decorative Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/20 blur-[120px] rounded-full opacity-50" />
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-500/10 blur-[100px] rounded-full opacity-40" />
+        <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-purple-500/10 blur-[100px] rounded-full opacity-30" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-background/80 backdrop-blur-2xl border border-white/10 dark:border-white/5 shadow-2xl rounded-3xl p-8 relative overflow-hidden ring-1 ring-black/5 dark:ring-white/5">
+          {/* Top highlight line */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          
+          <LocalLoginForm
+            username={username}
+            password={password}
+            loading={loading}
+            error={error}
+            failedAttempts={failedAttempts}
+            onPasswordChange={setPassword}
+            onSubmit={handleLocalSubmit}
+          />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-# Open Perplexity Skill Sandbox
+# Myrm Skill Sandbox
 
 统一的生产级 Docker 沙箱镜像：开发、测试、生产使用同一镜像。
 
@@ -77,15 +77,15 @@ cd myrm-agent-server/docker/sandbox
 
 ```bash
 # Python 包验证
-docker run --rm open-perplexity/skill-sandbox:latest \
+docker run --rm myrm/skill-sandbox:latest \
   python -c "import pandas, numpy; print('✅ OK')"
 
 # Node.js 包验证
-docker run --rm open-perplexity/skill-sandbox:latest \
+docker run --rm myrm/skill-sandbox:latest \
   node -e "require('pptxgenjs'); console.log('✅ OK')"
 
 # 深度健康检查（验证所有关键依赖）
-docker run --rm open-perplexity/skill-sandbox:latest deep-health-check
+docker run --rm myrm/skill-sandbox:latest deep-health-check
 ```
 
 ### 性能测量
@@ -350,7 +350,7 @@ uv lock
 4. 验证：
 
 ```bash
-docker run --rm open-perplexity/skill-sandbox:latest \
+docker run --rm myrm/skill-sandbox:latest \
   python -c "import new_package; print('✅ OK')"
 ```
 
@@ -361,16 +361,16 @@ docker run --rm open-perplexity/skill-sandbox:latest \
 ./build.sh v1.1.0
 
 # 推送到 Docker Hub（如果需要）
-docker push open-perplexity/skill-sandbox:v1.1.0
-docker push open-perplexity/skill-sandbox:latest
+docker push myrm/skill-sandbox:v1.1.0
+docker push myrm/skill-sandbox:latest
 ```
 
 ### 回滚
 
 ```bash
 # 切换到特定版本
-docker pull open-perplexity/skill-sandbox:v1.0.0
-docker tag open-perplexity/skill-sandbox:v1.0.0 open-perplexity/skill-sandbox:latest
+docker pull myrm/skill-sandbox:v1.0.0
+docker tag myrm/skill-sandbox:v1.0.0 myrm/skill-sandbox:latest
 ```
 
 ---
@@ -381,7 +381,7 @@ docker tag open-perplexity/skill-sandbox:v1.0.0 open-perplexity/skill-sandbox:la
 
 | 指标 | 命令 | 说明 |
 |------|------|------|
-| 镜像大小 | `docker images open-perplexity/skill-sandbox:latest` | 受预装包数量影响 |
+| 镜像大小 | `docker images myrm/skill-sandbox:latest` | 受预装包数量影响 |
 | 构建时间 | `time docker build -f Dockerfile .` | 完全无缓存 |
 | 启动时间 | `time docker run --rm <image> python -c "print('ok')"` | 容器创建到就绪 |
 | 内存占用 | `docker stats --no-stream <container_id>` | 空载内存 |
@@ -446,7 +446,7 @@ uv lock --upgrade
 # 原因：Python 运行时或 uv 工具不可用
 
 # 调试：手动运行健康检查
-docker run --rm open-perplexity/skill-sandbox:latest \
+docker run --rm myrm/skill-sandbox:latest \
   sh -c 'python -c "import sys; sys.exit(0)" && uv --version'
 ```
 
@@ -457,7 +457,7 @@ docker run --rm open-perplexity/skill-sandbox:latest \
 # 原因：使用了 ReadonlyRootfs
 
 # 解决：写入到 /tmp 或 /persistent 卷
-docker run --rm -v $(pwd)/data:/persistent open-perplexity/skill-sandbox:latest \
+docker run --rm -v $(pwd)/data:/persistent myrm/skill-sandbox:latest \
   python -c "open('/persistent/test.txt', 'w').write('ok')"
 ```
 
@@ -465,23 +465,23 @@ docker run --rm -v $(pwd)/data:/persistent open-perplexity/skill-sandbox:latest 
 
 ```bash
 # 进入容器 shell
-docker run --rm -it open-perplexity/skill-sandbox:latest bash
+docker run --rm -it myrm/skill-sandbox:latest bash
 
 # 检查已安装的包
-docker run --rm open-perplexity/skill-sandbox:latest \
+docker run --rm myrm/skill-sandbox:latest \
   uv pip list
 
 # 查看镜像层信息
-docker history open-perplexity/skill-sandbox:latest
+docker history myrm/skill-sandbox:latest
 
 # 运行深度健康检查（验证所有关键依赖）
-docker run --rm open-perplexity/skill-sandbox:latest deep-health-check
+docker run --rm myrm/skill-sandbox:latest deep-health-check
 
 # 检查容器的 seccomp 配置
 docker inspect <container_id> | jq '.[0].HostConfig.SecurityOpt'
 
 # 查看镜像详细分析（需要 dive 工具）
-dive open-perplexity/skill-sandbox:latest
+dive myrm/skill-sandbox:latest
 ```
 
 ---
@@ -495,5 +495,5 @@ dive open-perplexity/skill-sandbox:latest
 
 ---
 
-**维护者**: MyrmAgent Team  
+**联系**: MyrmAgent Team  
 **最后更新**: 2026-05-31

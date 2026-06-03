@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import time
+from pathlib import Path
 
 import pytest
 
@@ -245,7 +246,7 @@ class TestCodebaseAudit:
         for pattern in patterns:
             result = subprocess.run(
                 ["rg", pattern, "--type", "py", "--files-with-matches"],
-                cwd="/Users/yululiu/projects/AI/open-perplexity",
+                cwd=str(Path(__file__).resolve().parents[3]),
                 capture_output=True,
                 text=True,
             )

@@ -8,7 +8,7 @@ import logging
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
-from app.api.skills.schemas import SkillPackageInfoResponse, UploadSkillResponse
+from app.api.skills.schemas import PackagePreviewResponse, SkillPackageInfoResponse, UploadSkillResponse
 from app.core.skills.packaging import skill_packaging_service
 
 logger = logging.getLogger(__name__)
@@ -16,19 +16,55 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.get("/{skill_id}/preview", response_model=PackagePreviewResponse)
+async def preview_skill_package(
+    skill_id: str,
+) -> PackagePreviewResponse:
+    """Preview skill package before downloading to check for sensitive information.
+    
+    Args:
+        skill_id: Skill ID
+        
+    Returns:
+        Preview result including any redactions
+    """
+    result = await skill_packaging_service.package_skill(skill_id, preview_only=True)
+    
+    if not result.success:
+        raise HTTPException(status_code=404, detail=result.error)
+        
+    redactions_response = None
+    if result.redactions:
+        redactions_response = {
+            filename: [
+                {"line_number": r["line_number"], "original": r["original"], "redacted": r["redacted"], "reason": r["reason"]}
+                for r in file_redactions
+            ]
+            for filename, file_redactions in result.redactions.items()
+        }
+        
+    return PackagePreviewResponse(
+        success=result.success,
+        is_safe=result.is_safe,
+        error=result.error,
+        redactions=redactions_response
+    )
+
 @router.get("/{skill_id}/download")
 async def download_skill(
     skill_id: str,
+    apply_redactions: bool = Query(False, description="Whether to apply redactions to sensitive information"),
 ) -> Response:
     """Download skill as ZIP package
 
     Args:
         skill_id: Skill ID
+        apply_redactions: Whether to apply redactions to sensitive information
 
     Returns:
         ZIP file
     """
-    result = await skill_packaging_service.package_skill(skill_id)
+    result = await skill_packaging_service.package_skill(skill_id, apply_redactions=apply_redactions)
 
     if not result.success:
         raise HTTPException(status_code=404, detail=result.error)

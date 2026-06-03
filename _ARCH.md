@@ -14,7 +14,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 ## 模块依赖
 
-- **Harness**：`myrm-agent-server/pyproject.toml` 钉死 PyPI 版本；vortexai 联调可 `git submodule update` 拉 `myrm-agent-harness`
+- **Harness**：`pyproject.toml` + `uv.lock` 钉死 **PyPI** 版本（`myrm setup` / `uv sync`）
 - **Control Plane**：SaaS 场景对接独立闭源仓 `myrm-control-plane`（OAuth、沙箱、计费）
 - **Brand**：官网与文档在 `myrm-agent-brand`（`myrm-website` / `myrm-docs`）
 
@@ -31,8 +31,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 | macOS / Linux / Git Bash | `curl -fsSL https://myrmagent.ai/install.sh` then `bash` | `myrm start` |
 | Windows PowerShell | `irm https://myrmagent.ai/install.ps1` then `iex` | `myrm start` |
 
-- 仓库内：`bash scripts/install.sh` 或 `powershell -ExecutionPolicy Bypass -File scripts/install.ps1`
-- vortexai 开发壳：`scripts/install.sh` / `scripts/install.ps1` 会先 init `myrm-agent` submodule
+- 仓库内：`bash scripts/install.sh` 或 `powershell -ExecutionPolicy Bypass -File scripts/install.ps1`，或 `myrm setup`
 - 安装目录默认 `~/.myrm/myrm-agent`（`MYRM_INSTALL_DIR` 可覆盖）
 - WebUI：`http://localhost:3000`
 
@@ -42,11 +41,10 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 ```bash
 cd myrm-agent-frontend && bun install && bun run dev
-cd myrm-agent-server && uv sync --all-extras && DEPLOY_MODE=tauri uv run run.py
+myrm setup && myrm start
 ```
 
 ## 约束
 
 - 业务与 UI 代码在本仓；通用 Agent 框架能力不得下沉到 server
-- Harness 版本以 `uv.lock` + PyPI 为准，CI 校验见 vortexai `scripts/ci/check_harness_on_pypi.py`
-- 在 vortexai 中本目录为 **git submodule**；改代码后在本仓 commit/push，再回到 vortexai bump 指针
+- Harness 版本以 `uv.lock` + PyPI 为准；发布流水线在刷新 lock 前校验 PyPI 上包是否齐全

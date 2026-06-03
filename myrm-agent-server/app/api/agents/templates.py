@@ -4,6 +4,7 @@ Exposes endpoints to list and instantiate pre-configured agent templates (YAML s
 import glob
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict
 
 import yaml
@@ -23,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-PREBUILT_AGENTS_DIR = "/Users/yululiu/projects/AI/open-perplexity/myrm-agent-server/assets/prebuilt_agents"
+_PREBUILT_AGENTS_ROOT = Path(__file__).resolve().parents[3]
+PREBUILT_AGENTS_DIR = str(_PREBUILT_AGENTS_ROOT / "assets" / "prebuilt_agents")
 
 
 class TemplateListItem(BaseModel):

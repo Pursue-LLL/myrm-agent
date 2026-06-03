@@ -22,7 +22,7 @@ export default function SandboxLoginForm({ postAuthPath }: SandboxLoginFormProps
         <p className="text-sm text-muted-foreground leading-relaxed">{t('login.descriptionOAuthOnly')}</p>
       </header>
 
-      <OAuthButtons redirectPath={postAuthPath} oauthOnly />
+      <OAuthButtons redirectPath={postAuthPath} />
 
       <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground/80">
         {t('login.footerOAuthOnly')}

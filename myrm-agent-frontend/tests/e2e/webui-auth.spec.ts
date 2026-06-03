@@ -8,42 +8,43 @@ test.describe('WebUI local auth', () => {
     'Set PLAYWRIGHT_RUN_WEBUI_E2E=1 with backend on :8080 and frontend on :3000',
   );
 
-  test('setup -> login -> SSE flow', async ({ page, request }) => {
-    // 1. Generate setup token using loopback API
-    const tokenRes = await request.post(`${apiBase}/webui/auth/generate-setup-token`);
-    expect(tokenRes.ok()).toBeTruthy();
-    const tokenData = await tokenRes.json();
-    const tempToken = tokenData.temp_token;
+  test('setup or token login -> home and key routes', async ({ page, request }) => {
+    const adminPassword = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'Playwright1234!';
 
-    // 2. Visit setup page
-    await page.goto(`/auth/setup?token=${tempToken}`);
-    await expect(page.locator('text=Admin Setup')).toBeVisible();
+    const statusRes = await request.get(`${apiBase}/webui/auth/status`);
+    expect(statusRes.ok()).toBeTruthy();
+    const status = (await statusRes.json()) as { is_setup_done: boolean };
 
-    // 3. Fill setup form
-    await page.fill('input[type="password"]', 'playwright1234');
-    await page.fill('input[name="confirmPassword"]', 'playwright1234');
-    await page.click('button[type="submit"]');
+    if (!status.is_setup_done) {
+      const tokenRes = await request.post(`${apiBase}/webui/auth/generate-setup-token`);
+      expect(tokenRes.ok()).toBeTruthy();
+      const { temp_token: tempToken } = (await tokenRes.json()) as { temp_token: string };
 
-    // Wait for setup to complete, which should set the cookie and redirect to login or home
-    await page.waitForURL('**/');
-    
-    // 4. Force navigation to login to test login flow
-    await page.request.post(`${apiBase}/webui/auth/logout`);
-    
-    // Open login page
-    await page.goto('/auth/login');
-    await expect(page.locator('input[type="password"]')).toBeVisible();
+      await page.goto(`/auth/setup?token=${tempToken}`);
+      await expect(page.getByRole('heading', { name: /Set Up Admin Account|设置管理员账户/ })).toBeVisible();
 
-    // 5. Fill login form
-    await page.fill('input[type="password"]', 'playwright1234');
-    await page.click('button[type="submit"]');
+      await page.getByPlaceholder(/Enter your password|输入您的密码/).first().fill(adminPassword);
+      await page.getByPlaceholder(/Re-enter your password|重新输入您的密码/).fill(adminPassword);
+      await page.getByRole('button', { name: /Set [Pp]assword|设置密码/ }).click();
 
-    // Should redirect to home
-    await page.waitForURL('**/');
+      await page.waitForURL((url) => !url.pathname.includes('/auth/setup'), { timeout: 15_000 });
+    } else {
+      await request.post(`${apiBase}/webui/auth/logout`);
 
-    // 6. Verify SSE API call can be made (using credentials: include)
-    // We do this by checking if the UI can load without getting 401s on chat API
-    // (Assuming the main page calls some status/history API that requires auth)
-    await expect(page.locator('text=MyrmAgent')).toBeVisible({ timeout: 10000 });
+      const tokenRes = await request.post(`${apiBase}/webui/auth/generate-setup-token`);
+      expect(tokenRes.ok()).toBeTruthy();
+      const { temp_token: tempToken } = (await tokenRes.json()) as { temp_token: string };
+
+      await page.goto(`/auth/login?token=${encodeURIComponent(tempToken)}`);
+      await page.waitForURL((url) => url.pathname === '/' || url.pathname === '', { timeout: 30_000 });
+    }
+
+    await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
+
+    const routes = ['/settings', '/health', '/agents', '/workspace'];
+    for (const path of routes) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
+    }
   });
 });

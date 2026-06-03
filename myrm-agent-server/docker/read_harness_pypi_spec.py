@@ -8,7 +8,7 @@
 - stdout: full pip install spec string (e.g. myrm-agent-harness[...,compiled-core]==0.1.0rc1)
 
 [POS]
-Shared harness PyPI pin parser for Docker builder and install_harness_dev.sh.
+Shared harness PyPI pin parser for Docker builder and server install scripts.
 """
 
 from __future__ import annotations

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # 从环境变量获取配置，支持多个repo用逗号分隔
 GITHUB_TOKEN = _settings.services.github_token.get_secret_value()
-DEFAULT_REPO = "yululiu/AI-open-perplexity"
+DEFAULT_REPO = "Pursue-LLL/myrm-agent"
 
 router = APIRouter(prefix="/security", tags=["security"])
 

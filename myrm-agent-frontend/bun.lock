@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "open-perplexity",
+      "name": "myrm-agent-frontend",
       "dependencies": {
         "@codesandbox/sandpack-react": "^2.20.0",
         "@codesandbox/sandpack-themes": "^2.0.21",

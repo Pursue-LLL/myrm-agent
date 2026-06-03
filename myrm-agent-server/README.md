@@ -75,21 +75,17 @@ cp .env.example .env
 # LLM 配置通过前端页面设置，无需在 .env 中配置
 ```
 
-3. **安装 Harness 与 Server 依赖**
+3. **安装依赖（Harness 来自 PyPI）**
 
-一条命令自动判断环境（在 open-perplexity 根目录）：
+本仓库为开源产品仓，**Harness 仅通过 PyPI 安装**（见 `pyproject.toml` / `uv.lock`）。
 
 ```bash
-./scripts/dev/install_harness_dev.sh
+# 在 myrm-agent 根目录（推荐）
+myrm setup
+
+# 或仅 server 目录
+cd myrm-agent-server && uv sync --all-extras
 ```
-
-| 场景 | 自动选择 |
-|------|----------|
-| monorepo 有 `myrm-agent-harness/` | **editable**（本地实时改代码） |
-| `MYRM_HARNESS_DEPLOY=1` | **source**（当前平台 prod-like wheel） |
-| CI / 仅 clone server、无 harness | **pypi**（PyPI 冻结锁） |
-
-显式覆盖：`MYRM_HARNESS_INSTALL_MODE=pypi|source|editable`
 
 4. **安装浏览器运行时（可选）**
 
@@ -101,16 +97,11 @@ python -m patchright install chromium
 5. **启动服务**
 
 ```bash
-# 推荐：自动选择 venv / uv，并打印 Harness 安装形态（editable vs PyPI）
-# 在 open-perplexity 根目录：
-./scripts/dev/run_server.sh
+myrm dev      # 仅后端 :8080
+myrm start    # 后端 + 前端 → http://localhost:3000
 
 # 或在 myrm-agent-server 目录：
-.venv/bin/python run.py   # editable 开发后同上
-python run.py             # 需已激活/选对解释器
-
-# 直接使用 uvicorn（仅用于调试）
-python -m app.main
+.venv/bin/python run.py
 ```
 
 ## API 文档
@@ -537,7 +528,7 @@ uv run deploy.py sandbox
 
 ```bash
 # PostgreSQL 备份
-docker exec postgres pg_dump -U openperplexity openperplexity > backup.sql
+docker exec postgres pg_dump -U myrmagent myrmagent > backup.sql
 
 # Qdrant 备份
 # 数据在 Docker volume: qdrant-data

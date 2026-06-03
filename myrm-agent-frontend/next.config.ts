@@ -54,10 +54,13 @@ if (SENTRY_ENABLED) {
 // 注意：Tauri 模式现在也使用 standalone，以支持动态路由和 API 路由
 // (isTauriBuild is defined above for Serwist)
 
+const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
+
 const nextConfig: NextConfig = {
   turbopack: {
+    root: frontendRoot,
     resolveAlias: {
-      '#locales': path.join(path.dirname(fileURLToPath(import.meta.url)), 'locales'),
+      '#locales': path.join(frontendRoot, 'locales'),
     },
   },
 
@@ -161,6 +164,14 @@ const nextConfig: NextConfig = {
   
   // API proxy: forward /api/v1/* to the Python FastAPI backend.
   // API_HOST defaults to localhost; set to Docker service name (e.g. "backend") for container builds.
+  async redirects() {
+    return [
+      { source: '/auth/register', destination: '/auth/login', permanent: false },
+      { source: '/auth/verify-email', destination: '/auth/login', permanent: false },
+      { source: '/chat', destination: '/', permanent: false },
+    ];
+  },
+
   async rewrites() {
     const apiHost = process.env.API_HOST || '127.0.0.1';
     // Default matches `uv run run.py` (PORT=8080). WebUI mode (`run.py --webui`) uses 25808 — set API_PORT in .env.local.
@@ -177,11 +188,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  /** `/chat` must not hit `[chatId]` as id=`chat` (missing session → 404). Config redirect is reliable in dev + prod. */
-  async redirects() {
-    return [{ source: '/chat', destination: '/', permanent: false }];
-  },
-  
   // Enable Cross-Origin Isolation for advanced features (SharedArrayBuffer support)
   // Using 'credentialless' instead of 'require-corp' to allow loading external CDN resources
   // in HTML artifact previews while still maintaining cross-origin isolation

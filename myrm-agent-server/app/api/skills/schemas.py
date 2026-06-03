@@ -145,6 +145,23 @@ class SkillPackageInfoResponse(BaseModel):
     validation_errors: list[str]
 
 
+class RedactionResponse(BaseModel):
+    """A single redaction for frontend diff preview."""
+    
+    line_number: int
+    original: str
+    redacted: str
+    reason: str
+
+class PackagePreviewResponse(BaseModel):
+    """Preview of skill packaging, including any redactions."""
+    
+    success: bool
+    is_safe: bool
+    error: str | None = None
+    redactions: dict[str, list[RedactionResponse]] | None = None
+
+
 class UploadSkillResponse(BaseModel):
     success: bool
     skill_id: str | None

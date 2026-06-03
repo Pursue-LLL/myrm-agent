@@ -107,7 +107,7 @@ jobs:
 
       - name: Build Docker sandbox image
         run: |
-          cd docker/sandbox && docker build -t open-perplexity/skill-sandbox:latest -f Dockerfile .
+          cd docker/sandbox && docker build -t myrm/skill-sandbox:latest -f Dockerfile .
         continue-on-error: true
 
       - name: Startup Performance Test

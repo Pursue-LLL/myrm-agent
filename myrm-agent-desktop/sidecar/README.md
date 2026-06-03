@@ -55,6 +55,6 @@ python build.py
 
 - Python 3.13+ + PyInstaller（Backend Sidecar）
 - Bun >= 1.1（Agent Runner 编译）
-- Harness：默认经 `scripts/dev/install_harness_dev.sh` 从 [PyPI](https://pypi.org/project/myrm-agent-harness/) 安装；本地 harness 开发可设 `MYRM_HARNESS_INSTALL_MODE=source` 或 `MYRM_HARNESS_EDITABLE=1`
+- Harness：经 `uv sync` / `myrm setup` 从 [PyPI](https://pypi.org/project/myrm-agent-harness/) 安装（编译 wheel）
 - 所有 FastAPI 后端依赖（自动打包）
 - Agent Runner 依赖由 `bun install` 自动安装

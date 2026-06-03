@@ -1,7 +1,7 @@
 [project]
 name = "skill-sandbox"
 version = "1.0.0"
-description = "Open Perplexity Skill Sandbox: Production-grade unified runtime environment"
+description = "Myrm Skill Sandbox: production-grade unified runtime environment"
 requires-python = ">=3.13"
 
 dependencies = [

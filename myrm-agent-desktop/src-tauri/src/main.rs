@@ -293,12 +293,12 @@ async fn start_backend_with_config(
         // 在开发模式下，使用编译时环境变量获取 Cargo 项目目录
         let tauri_dir = std::env::var("CARGO_MANIFEST_DIR")
             .unwrap_or_else(|_| ".".to_string());
-        // src-tauri -> open-perplexity-desktop -> open-perplexity (project root)
+        // src-tauri -> myrm-agent-desktop -> myrm-agent (product root)
         let project_root = std::path::Path::new(&tauri_dir)
-            .parent()  // -> open-perplexity-desktop
-            .and_then(|p| p.parent())  // -> open-perplexity
+            .parent()  // -> myrm-agent-desktop
+            .and_then(|p| p.parent())  // -> myrm-agent
             .ok_or("Failed to get project root")?;
-        let server_root = project_root.join("open-perplexity-server");
+        let server_root = project_root.join("myrm-agent-server");
         let run_script = server_root.join("run.py");
         
         if !run_script.exists() {
@@ -495,7 +495,7 @@ async fn start_frontend(
             .parent()
             .and_then(|p| p.parent())
             .ok_or("Failed to get project root")?;
-        project_root.join("open-perplexity-frontend/.next/standalone")
+        project_root.join("myrm-agent-frontend/.next/standalone")
     } else {
         // 生产模式：使用打包的 frontend
         app.path()

@@ -2,9 +2,7 @@
 export const STANDALONE_PATHS = [
   '/pricing',
   '/auth/login',
-  '/auth/register',
   '/auth/setup',
-  '/auth/verify-email',
   '/auth/oauth/callback',
   '/auth/mcp-callback',
   '/payment/success',
@@ -19,9 +17,7 @@ export function isStandalonePath(pathname: string): boolean {
 export const SAAS_PUBLIC_PATHS = [
   '/pricing',
   '/auth/login',
-  '/auth/register',
   '/auth/setup',
-  '/auth/verify-email',
   '/auth/oauth/callback',
   '/auth/mcp-callback',
   '/payment/success',

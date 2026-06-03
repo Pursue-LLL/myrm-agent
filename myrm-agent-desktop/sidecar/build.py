@@ -21,7 +21,6 @@ HARNESS_ROOT = Path(
         PROJECT_ROOT.parent / "myrm-agent-harness",
     )
 )
-INSTALL_SCRIPT = PROJECT_ROOT / "scripts" / "dev" / "install_harness_dev.sh"
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 
 SYSTEM = platform.system().lower()
@@ -93,19 +92,18 @@ def ensure_production_harness_wheels() -> None:
         _install_harness_from_source_build()
         return
 
-    if not INSTALL_SCRIPT.exists():
-        raise FileNotFoundError(f"Harness install script not found: {INSTALL_SCRIPT}")
-
-    print("\nInstalling harness from PyPI (via install_harness_dev.sh)...")
-    env = os.environ.copy()
-    env.setdefault("MYRM_HARNESS_INSTALL_MODE", "pypi")
-    env["MYRM_SERVER_ROOT"] = str(SERVER_ROOT)
-    subprocess.run(
-        ["bash", str(INSTALL_SCRIPT)],
-        cwd=PROJECT_ROOT,
-        check=True,
-        env=env,
-    )
+    print("\nInstalling server + harness from PyPI (uv sync --frozen)...")
+    sync_args = [
+        "uv",
+        "sync",
+        "--frozen",
+        "--all-extras",
+        "--group",
+        "dev",
+        "--no-extra",
+        "matrix-e2ee",
+    ]
+    subprocess.run(sync_args, cwd=SERVER_ROOT, check=True)
 
 
 def _server_python() -> Path:

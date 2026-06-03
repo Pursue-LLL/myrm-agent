@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Resolve AGENT_ROOT for vortexai (submodule) vs myrm-agent OSS bundle layouts.
+# Resolve AGENT_ROOT for nested (parent/myrm-agent) vs standalone myrm-agent layouts.
 # Usage: source this file, then: resolve_agent_paths "/path/to/repo/root"
 
 resolve_agent_paths() {
@@ -11,8 +11,8 @@ resolve_agent_paths() {
     AGENT_ROOT="${project_root}"
   else
     echo "ERROR: myrm-agent-server not found under ${project_root}" >&2
-    echo "  vortexai: run git submodule update --init myrm-agent" >&2
-    echo "  OSS: clone https://github.com/Pursue-LLL/myrm-agent.git" >&2
+    echo "  Nested layout: ensure myrm-agent/ contains myrm-agent-server/run.py" >&2
+    echo "  Standalone: clone https://github.com/Pursue-LLL/myrm-agent.git" >&2
     return 1
   fi
 

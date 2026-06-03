@@ -4,7 +4,7 @@
 
 set -e
 
-IMAGE_NAME="${1:-open-perplexity/skill-sandbox:latest}"
+IMAGE_NAME="${1:-myrm/skill-sandbox:latest}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPORT_FILE="${SCRIPT_DIR}/benchmark-report.txt"
 

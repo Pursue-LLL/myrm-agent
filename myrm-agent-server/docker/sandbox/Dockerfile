@@ -1,4 +1,4 @@
-# Open Perplexity Skill Sandbox v1.3.0
+# Myrm Skill Sandbox v1.3.0
 # 统一的生产级沙箱镜像：开发、测试、生产使用同一镜像
 #
 # 设计原则：

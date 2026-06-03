@@ -1,6 +1,6 @@
 # [INPUT]
 # - Git, network (uv/bun installers)
-# - resolve_agent_root layout (POS: OSS vs vortexai submodule paths)
+# - resolve_agent_root layout (standalone vs parent/myrm-agent nested paths)
 #
 # [OUTPUT]
 # - Installs uv/bun, syncs server, builds frontend, registers myrm.cmd

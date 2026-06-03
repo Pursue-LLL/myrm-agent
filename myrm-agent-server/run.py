@@ -34,7 +34,7 @@ _mode = get_distribution_mode()
 _mode_labels: dict[DistributionMode, str] = {
     DistributionMode.SOURCE: "editable/源码 (本地开发)",
     DistributionMode.COMPILED: "PyPI 编译包 (接近生产)",
-    DistributionMode.INCOMPLETE: "不完整 — 请运行 install_harness_dev.sh",
+    DistributionMode.INCOMPLETE: "不完整 — 请在仓库根目录运行 myrm setup 或 cd myrm-agent-server && uv sync",
 }
 print(f"📦 Harness 安装形态: {_mode_labels.get(_mode, _mode.value)}")
 

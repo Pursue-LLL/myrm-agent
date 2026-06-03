@@ -14,7 +14,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_NAME="open-perplexity/skill-sandbox"
+IMAGE_NAME="myrm/skill-sandbox"
 IMAGE_TAG="${1:-latest}"
 PLATFORMS="${2:-linux/amd64}"
 
