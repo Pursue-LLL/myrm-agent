@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Myrm CLI — WebUI lifecycle (OSS myrm-agent repo)
+# Myrm CLI — product lifecycle (OSS) + maintainer harness/submodules (monorepo).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+MAINTAINER_DIR="${SCRIPT_DIR}/maintainer"
 # shellcheck source=lib/resolve_agent_root.sh
 source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
+# shellcheck source=lib/resolve_monorepo_root.sh
+source "${SCRIPT_DIR}/lib/resolve_monorepo_root.sh"
 # shellcheck source=lib/start_server.sh
 source "${SCRIPT_DIR}/lib/start_server.sh"
 resolve_agent_paths "${PROJECT_ROOT}"
@@ -15,10 +18,13 @@ MYRM_PROCESS_PATTERN='[m]yrm-agent-server/run.py|[m]yrm-agent-server/.venv.*run.
 
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
-YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 BOLD='\033[1m'
+
+_is_monorepo() {
+  resolve_monorepo_root "${PROJECT_ROOT}" >/dev/null 2>&1
+}
 
 show_help() {
     echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
@@ -28,6 +34,11 @@ show_help() {
     echo "  start    Backend + frontend (:8080 + :3000)"
     echo "  stop | status | update"
     echo "  searxng start | stop | status"
+    if _is_monorepo; then
+        echo "  submodules       Init/sync vortexai submodules"
+    fi
+    echo "  harness install  Harness into server venv (auto: editable or PyPI)"
+    echo "  harness sync-lock  Refresh uv.lock from PyPI (after harness publish)"
 }
 
 require_docker() {
@@ -51,12 +62,32 @@ searxng_status() {
     (cd "$SERVER_DIR" && docker compose --profile search ps)
 }
 
+_run_harness() {
+    local sub="${1:-install}"
+    shift || true
+    case "${sub}" in
+        install)
+            exec "${MAINTAINER_DIR}/install_harness_dev.sh" "$@"
+            ;;
+        sync-lock)
+            exec "${MAINTAINER_DIR}/sync_harness_lock.sh" "$@"
+            ;;
+        *)
+            echo "Usage: myrm harness install | sync-lock" >&2
+            exit 1
+            ;;
+    esac
+}
+
 cd "$PROJECT_ROOT"
 COMMAND=${1:-}
 shift || true
 
 case "$COMMAND" in
     setup)
+        if _is_monorepo; then
+            exec "${MAINTAINER_DIR}/setup.sh"
+        fi
         exec "${SCRIPT_DIR}/dev/setup.sh"
         ;;
 
@@ -99,6 +130,17 @@ case "$COMMAND" in
             status) searxng_status ;;
             *) show_help; exit 1 ;;
         esac
+        ;;
+    submodules)
+        MONOREPO_ROOT="$(resolve_monorepo_root "${PROJECT_ROOT}")" || {
+            echo "submodules requires vortexai monorepo (.gitmodules at parent)." >&2
+            exit 1
+        }
+        export MYRM_MONOREPO_ROOT="${MONOREPO_ROOT}"
+        exec "${MAINTAINER_DIR}/init_submodules.sh"
+        ;;
+    harness)
+        _run_harness "$@"
         ;;
     ""|help|-h|--help) show_help ;;
     *) show_help; exit 1 ;;

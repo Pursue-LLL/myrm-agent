@@ -2160,8 +2160,25 @@
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."
         }
-      },
-      "upload": {
+    "export": {
+      "title": "Export Skill: {name}",
+      "description": "Review content before exporting. Sensitive information will be redacted automatically.",
+      "scanning": "Scanning for sensitive information...",
+      "safeTitle": "Safe to Export",
+      "safeDescription": "No sensitive information (API keys, absolute paths) detected in this skill.",
+      "warningTitle": "Sensitive Information Detected",
+      "warningDescription": "We found potentially sensitive information. It is highly recommended to export the redacted version.",
+      "diffPreview": "Redaction Preview",
+      "cancel": "Cancel",
+      "exportOriginal": "Export Original (Unsafe)",
+      "exportRedacted": "Export Redacted (Safe)",
+      "export": "Export",
+      "previewFailed": "Failed to preview skill",
+      "exportSuccess": "Skill exported successfully",
+      "exportFailed": "Failed to export skill"
+    }
+  },
+  "upload": {
         "title": "Upload Custom Skill",
         "dropzone": "Drag and drop archive here, or click to select",
         "dropzoneHint": "Supports .zip or .skill format",

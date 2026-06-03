@@ -479,6 +479,8 @@ MIGRATION_STATEMENTS: list[str] = [
     # Block cycling diagnostic: tracks how many times an agent has blocked a task
     "ALTER TABLE kanban_tasks ADD COLUMN block_cycle_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE chats ADD COLUMN is_incognito BOOLEAN DEFAULT 0 NOT NULL;",
+    # Project workspace path for multi-agent collaboration
+    "ALTER TABLE projects ADD COLUMN workspace_path VARCHAR(1024)",
 ]
 
 # 创建索引的SQL语句列表

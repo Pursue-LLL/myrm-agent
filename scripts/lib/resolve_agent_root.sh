@@ -11,7 +11,7 @@ resolve_agent_paths() {
     AGENT_ROOT="${project_root}"
   else
     echo "ERROR: myrm-agent-server not found under ${project_root}" >&2
-    echo "  Nested layout: ensure myrm-agent/ contains myrm-agent-server/run.py" >&2
+    echo "  Monorepo: run ./myrm from vortexai root (git submodule update --init myrm-agent)" >&2
     echo "  Standalone: clone https://github.com/Pursue-LLL/myrm-agent.git" >&2
     return 1
   fi

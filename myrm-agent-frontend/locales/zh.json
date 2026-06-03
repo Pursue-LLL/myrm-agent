@@ -2160,8 +2160,25 @@
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
         }
-      },
-      "upload": {
+    "export": {
+      "title": "导出技能: {name}",
+      "description": "在导出前预览内容。敏感信息将被自动脱敏。",
+      "scanning": "正在扫描敏感信息...",
+      "safeTitle": "可以安全导出",
+      "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
+      "warningTitle": "检测到敏感信息",
+      "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
+      "diffPreview": "脱敏预览",
+      "cancel": "取消",
+      "exportOriginal": "导出原版 (不安全)",
+      "exportRedacted": "导出脱敏版 (安全)",
+      "export": "导出",
+      "previewFailed": "预览技能失败",
+      "exportSuccess": "技能导出成功",
+      "exportFailed": "导出技能失败"
+    }
+  },
+  "upload": {
         "title": "上传自定义技能",
         "dropzone": "拖拽压缩包到此处，或点击选择",
         "dropzoneHint": "支持 .zip 或 .skill 格式",
