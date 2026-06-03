@@ -7000,9 +7000,7 @@
     },
     "register": {
       "title": "创建账号",
-      "titleOAuthOnly": "开始使用",
       "description": "验证邮箱后即可使用免费云沙箱",
-      "descriptionOAuthOnly": "使用 Google 继续即可创建工作区，无需单独邮箱注册。",
       "labelEmail": "邮箱",
       "placeholderEmail": "you@company.com",
       "labelDisplayName": "显示名称",

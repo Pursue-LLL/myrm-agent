@@ -6977,9 +6977,7 @@
     },
     "register": {
       "title": "Create your account",
-      "titleOAuthOnly": "Get started",
       "description": "Start with a free cloud sandbox after email verification",
-      "descriptionOAuthOnly": "Continue with Google to create your workspace. No separate email signup.",
       "labelEmail": "Email",
       "placeholderEmail": "you@company.com",
       "labelDisplayName": "Display name",
