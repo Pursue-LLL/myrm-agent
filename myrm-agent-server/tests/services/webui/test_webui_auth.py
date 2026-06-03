@@ -147,18 +147,20 @@ async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
         from app.services.webui.session import parse_session_value
         assert parse_session_value(cookie) is None
 
-@pytest.mark.asyncio
-async def test_https_secure_cookie() -> None:
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="https://testserver") as client:
-        # Generate token directly to bypass loopback check for simplicity, or just test auth_service
-        from fastapi import Response
+def test_https_secure_cookie() -> None:
+    from fastapi import Response
+    from app.services.webui.auth_service import webui_auth_service
 
-        from app.services.webui.auth_service import webui_auth_service
-        class MockRequest:
-            url = type('URL', (), {'scheme': 'https'})()
-            headers = {}
-        resp = Response()
-        webui_auth_service.attach_session_cookie(resp, "admin", request=MockRequest())
-        cookie_header = resp.headers.get("set-cookie")
-        assert "Secure" in cookie_header
+    class MockURL:
+        scheme = 'https'
+
+    class MockRequest:
+        url = MockURL()
+        headers = {}
+        client = None
+
+    resp = Response()
+    webui_auth_service.attach_session_cookie(resp, "admin", request=MockRequest())
+    cookie_header = resp.headers.get("set-cookie")
+    assert cookie_header is not None
+    assert "Secure" in cookie_header

@@ -48,7 +48,7 @@ class SkillStagingManager:
                 pickle.dump(skills, f)
         except Exception as e:
             logger.error(f"Failed to save staging session {session_id}: {e}")
-            raise RuntimeError("暂存区写入失败，请检查磁盘空间或权限。")
+            raise RuntimeError("暂存区写入失败，请检查磁盘空间或权限。") from e
 
     def load_session(self, session_id: str) -> List[HermesImportedSkill]:
         """加载暂存会话数据"""
@@ -62,7 +62,7 @@ class SkillStagingManager:
             return skills
         except Exception as e:
             logger.error(f"Failed to load staging session {session_id}: {e}")
-            raise RuntimeError("暂存区读取失败，会话可能已损坏。")
+            raise RuntimeError("暂存区读取失败，会话可能已损坏。") from e
 
     def cleanup_session(self, session_id: str) -> None:
         """清理已完成的会话，防止垃圾堆积"""

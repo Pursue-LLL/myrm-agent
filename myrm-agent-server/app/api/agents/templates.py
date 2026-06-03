@@ -98,7 +98,7 @@ async def list_templates(request: Request) -> JSONResponse:
                 
         return success_response(data=templates)
     except Exception as e:
-        raise internal_error(operation="List templates", exception=e)
+        raise internal_error(operation="List templates", exception=e) from e
 
 
 @router.post("/instantiate-template/{template_id}", response_model=StandardSuccessResponse)
@@ -140,7 +140,7 @@ async def instantiate_template(
                 raise HTTPException(
                     status_code=500,
                     detail=f"Failed to enable required skill '{skill_id}'. Agent creation aborted."
-                )
+                ) from e
 
         # 3. Create the agent
         accept_lang = request.headers.get("Accept-Language", "en")
@@ -176,4 +176,4 @@ async def instantiate_template(
     except HTTPException:
         raise
     except Exception as e:
-        raise internal_error(operation="Instantiate template", exception=e)
+        raise internal_error(operation="Instantiate template", exception=e) from e

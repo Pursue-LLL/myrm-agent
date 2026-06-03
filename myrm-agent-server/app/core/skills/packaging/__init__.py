@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.packaging import (
-    PackageResult,
     SkillPackageInfo,
     SkillPacker,
     SkillUnpacker,

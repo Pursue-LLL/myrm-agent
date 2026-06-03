@@ -4102,6 +4102,7 @@
       "jitTeamOff": "Single Agent (no team)",
       "jitTeamPlaceholder": "No virtual team",
       "jitInheritMemory": "Inherit parent conversation memory (Fork Context)",
+      "templateMarket": "Template Market",
       "blueprints": {
         "research_squad": "Deep Research Squad (Multi-Agent)",
         "code_audit_squad": "Code Red Team Audit (Multi-Agent)"

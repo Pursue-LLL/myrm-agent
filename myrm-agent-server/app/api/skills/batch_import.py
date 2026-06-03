@@ -85,7 +85,7 @@ async def preview_batch_import(
         imported_skills = parser.parse_zip(zip_bytes)
     except Exception as e:
         logger.error(f"Failed to parse ZIP: {e}")
-        raise HTTPException(status_code=400, detail=f"解析压缩包失败，防爆防护触发或格式错误: {e}")
+        raise HTTPException(status_code=400, detail=f"解析压缩包失败，防爆防护触发或格式错误: {e}") from e
         
     if not imported_skills:
         return ImportPreviewResponse(session_id="", items=[], total_found=0, total_conflicts=0)
@@ -166,7 +166,7 @@ async def confirm_batch_import(
     try:
         imported_skills = staging_manager.load_session(request.session_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     
     # 引入安全扫描器
     try:

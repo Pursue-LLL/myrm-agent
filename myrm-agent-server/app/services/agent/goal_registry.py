@@ -279,27 +279,25 @@ class ServerGoalManager(GoalManager):
         try:
             llm_kwargs = await build_platform_litellm_kwargs()
             
-            # --- System-Level Visual Injection & Adaptive Multimodal Trigger ---
+            # Multimodal evaluation: Attempt to inject visual proof from active GUI sessions
             screenshot_b64 = None
             if getattr(self, "session_id", None):
                 from app.services.agent.gateway import get_agent_gateway
                 gateway = get_agent_gateway()
                 
-                # Check if there is an active browser session for this session
+                # Retrieve active browser session for the current chat
                 browser_session = gateway.get_active_browser_session(self.session_id)
                 if browser_session is not None:
                     try:
-                        # Extract the latest screenshot from the browser session
                         screenshot_b64 = await browser_session.extract_screenshot(scale=1.0)
                     except Exception as e:
                         logger.warning("Failed to extract browser screenshot for semantic evaluation: %s", e)
                 
                 if not screenshot_b64:
-                    # Check if there is an active desktop session as fallback
+                    # Fallback to desktop session if no browser screenshot
                     desktop_session = gateway.get_active_desktop_session(self.session_id)
                     if desktop_session is not None:
                         try:
-                            # DesktopSession.take_screenshot() returns an ActionResult with base64
                             action_result = await desktop_session.take_screenshot()
                             if action_result and action_result.success and action_result.screenshot_base64:
                                 screenshot_b64 = action_result.screenshot_base64
@@ -311,7 +309,7 @@ class ServerGoalManager(GoalManager):
             ]
 
             if screenshot_b64:
-                # Multimodal Fallback: Inject the screenshot as visual proof
+                # Inject the screenshot as visual proof
                 messages.append({
                     "role": "user",
                     "content": [
@@ -324,7 +322,7 @@ class ServerGoalManager(GoalManager):
                 })
                 logger.info("Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation.")
             else:
-                # Text-only evaluation
+                # Text-only evaluation fallback
                 messages.append({"role": "user", "content": content})
 
             response = await acompletion(

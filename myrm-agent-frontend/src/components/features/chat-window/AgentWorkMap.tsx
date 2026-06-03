@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { useSubagentStore } from '@/store/chat/useSubagentStore';
+import useChatStore from '@/store/useChatStore';
 import { Bot, CheckCircle2, CircleDashed, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/primitives/badge';
@@ -121,9 +122,28 @@ const nodeTypes = {
 
 export const AgentWorkMap = () => {
   const fissionTopology = useSubagentStore((state) => state.fissionTopology);
+  const setFissionTopology = useSubagentStore((state) => state.setFissionTopology);
+  const chatId = useChatStore((state) => state.chatId);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Fetch initial topology on mount
+  useEffect(() => {
+    if (chatId) {
+      import('@/services/chat').then(({ getFissionTopology }) => {
+        getFissionTopology(chatId).then((topology) => {
+          if (topology) {
+            setFissionTopology({
+              fission_id: topology.fission_id,
+              nodes: topology.nodes,
+              total_cost_usd: topology.total_cost_usd,
+            });
+          }
+        });
+      });
+    }
+  }, [chatId, setFissionTopology]);
 
   useEffect(() => {
     if (!fissionTopology) {

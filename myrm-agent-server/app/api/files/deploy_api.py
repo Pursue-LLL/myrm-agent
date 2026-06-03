@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from typing import Any, Dict
 
@@ -76,7 +77,7 @@ async def deploy_artifact(
             
     except Exception as e:
         logger.error(f"Failed to read artifact files: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}") from e
 
     # 3. Deploy using VercelClient
     client = VercelClient(token=request.token)
@@ -100,7 +101,7 @@ async def deploy_artifact(
         logger.error(f"Deployment failed: {e}")
         artifact.deployment_status = "ERROR"
         await db.commit()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.websocket("/{artifact_id}/deploy/status/{deployment_id}")
 async def deployment_status_ws(
@@ -123,6 +124,10 @@ async def deployment_status_ws(
     except asyncio.TimeoutError:
         logger.warning(f"WebSocket auth timeout for deployment {deployment_id}")
         await websocket.close(code=1008, reason="Auth timeout")
+        return
+    except json.JSONDecodeError as e:
+        logger.warning(f"WebSocket auth JSON decode error: {e}")
+        await websocket.close(code=1003, reason="Unsupported Data: Invalid JSON")
         return
     except Exception as e:
         logger.warning(f"WebSocket auth error: {e}")
@@ -152,5 +157,5 @@ async def deployment_status_ws(
     finally:
         try:
             await websocket.close()
-        except:
+        except Exception:
             pass

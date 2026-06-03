@@ -4123,6 +4123,7 @@
       "jitTeamOff": "单 Agent (无下属团队)",
       "jitTeamPlaceholder": "不使用虚拟团队",
       "jitInheritMemory": "继承父级对话记忆 (Fork Context)",
+      "templateMarket": "模板市场",
       "blueprints": {
         "research_squad": "深度调研小队 (多智能体)",
         "code_audit_squad": "代码红队审查 (多智能体)"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -23,6 +23,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
   const [deployUrl, setDeployUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
+  const isIntentionalClose = useRef(false);
 
   // Load token from local storage on mount
   useEffect(() => {
@@ -44,6 +45,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
     setStatus('DEPLOYING');
     setLogs(['Initiating deployment...']);
     setErrorMsg('');
+    isIntentionalClose.current = false;
 
     try {
       // 1. Call POST /api/v1/artifacts/{id}/deploy
@@ -90,10 +92,12 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         if (currentStatus === 'READY') {
           setStatus('SUCCESS');
           setDeployUrl(statusData.url);
+          isIntentionalClose.current = true;
           ws.close();
         } else if (currentStatus === 'ERROR' || currentStatus === 'CANCELED') {
           setStatus('ERROR');
           setErrorMsg(`Deployment ${currentStatus.toLowerCase()}`);
+          isIntentionalClose.current = true;
           ws.close();
         }
       };
@@ -101,7 +105,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
       ws.onclose = (event) => {
         // If the connection closes unexpectedly while still deploying
         setStatus((currentStatus) => {
-          if (currentStatus === 'DEPLOYING') {
+          if (currentStatus === 'DEPLOYING' && !isIntentionalClose.current) {
             setErrorMsg('Network connection lost. Please refresh to check deployment status.');
             return 'ERROR';
           }
