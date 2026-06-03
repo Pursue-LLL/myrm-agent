@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # shellcheck source=lib/resolve_agent_root.sh
 source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
+# shellcheck source=lib/start_server.sh
+source "${SCRIPT_DIR}/lib/start_server.sh"
 resolve_agent_paths "${PROJECT_ROOT}"
 
 COMPOSE_FILE="${SERVER_DIR}/docker-compose.yaml"
@@ -52,9 +54,7 @@ SUBCMD=${2:-}
 
 case "$COMMAND" in
     start)
-        cd "$SERVER_DIR"
-        export DEPLOY_MODE="local" WEBUI_MODE="true"
-        uv run run.py --webui
+        start_myrm_server "$SERVER_DIR" --webui
         ;;
     stop)
         pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN|[n]ext dev|[b]un run dev" | awk '{print $2}')
@@ -67,7 +67,7 @@ case "$COMMAND" in
     update)
         git pull --ff-only
         (cd "$SERVER_DIR" && uv sync --all-extras)
-        (cd "$FRONTEND_DIR" && bun install)
+        (cd "$FRONTEND_DIR" && bun install && bun run build)
         ;;
     searxng)
         case "$SUBCMD" in

@@ -26,12 +26,21 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 ## 本地开发
 
-```bash
-curl -fsSL https://myrmagent.ai/install.sh | bash   # 一键安装
-# 或 bash scripts/install.sh（vortexai 开发壳会先 init submodule）
-myrm start                 # WebUI → http://localhost:3000
+| 平台 | 一键安装 | 启动 |
+|------|----------|------|
+| macOS / Linux / Git Bash | `curl -fsSL https://myrmagent.ai/install.sh` then `bash` | `myrm start` |
+| Windows PowerShell | `irm https://myrmagent.ai/install.ps1` then `iex` | `myrm start` |
 
-# 手动分进程
+- 仓库内：`bash scripts/install.sh` 或 `powershell -ExecutionPolicy Bypass -File scripts/install.ps1`
+- vortexai 开发壳：`scripts/install.sh` / `scripts/install.ps1` 会先 init `myrm-agent` submodule
+- 安装目录默认 `~/.myrm/myrm-agent`（`MYRM_INSTALL_DIR` 可覆盖）
+- WebUI：`http://localhost:3000`
+
+脚本清单见 [scripts/_ARCH.md](scripts/_ARCH.md)。
+
+手动分进程：
+
+```bash
 cd myrm-agent-frontend && bun install && bun run dev
 cd myrm-agent-server && uv sync --all-extras && DEPLOY_MODE=tauri uv run run.py
 ```

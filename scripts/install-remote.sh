@@ -5,6 +5,10 @@
 #   curl -fsSL https://myrmagent.ai/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/Pursue-LLL/myrm-agent/main/scripts/install-remote.sh | bash
 #
+# Windows (PowerShell):
+#   irm https://myrmagent.ai/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/Pursue-LLL/myrm-agent/main/scripts/install-remote.ps1 | iex
+#
 # Clones (or updates) this repo, then runs scripts/install.sh.
 # ============================================================================
 

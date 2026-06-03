@@ -2,6 +2,7 @@
 # ============================================================================
 # MyrmAgent installer (OSS bundle: myrm-agent-server + frontend + desktop)
 # Run from myrm-agent repo root via: bash scripts/install.sh
+# Windows (PowerShell): scripts/install.ps1 or irm https://myrmagent.ai/install.ps1 | iex
 # ============================================================================
 
 set -e
@@ -58,7 +59,12 @@ detect_os() {
     case "$OS" in
         darwin) OS="macos" ;;
         linux)  OS="linux" ;;
-        *) log_error "Unsupported OS: $OS"; exit 1 ;;
+        mingw*|msys*|cygwin*|*_nt-*) OS="windows" ;;
+        *)
+            log_error "Unsupported OS: $OS"
+            log_error "Windows (PowerShell): irm https://myrmagent.ai/install.ps1 | iex"
+            exit 1
+            ;;
     esac
     log_success "Detected OS: $OS"
 }
@@ -83,6 +89,24 @@ install_package_managers() {
     fi
 }
 
+verify_harness_install() {
+    local py=""
+    if [[ -x "${SERVER_DIR}/.venv/bin/python" ]]; then
+        py="${SERVER_DIR}/.venv/bin/python"
+    elif [[ -x "${SERVER_DIR}/.venv/Scripts/python.exe" ]]; then
+        py="${SERVER_DIR}/.venv/Scripts/python.exe"
+    fi
+    if [[ -z "${py}" ]]; then
+        log_error "Missing .venv python after uv sync."
+        exit 1
+    fi
+    if ! "${py}" -c "from myrm_agent_harness._distribution import assert_distribution_ready; assert_distribution_ready()"; then
+        log_error "Harness distribution check failed. Ensure PyPI has myrm-agent-harness-core for this platform."
+        exit 1
+    fi
+    log_success "Harness distribution OK."
+}
+
 setup_backend() {
     log_info "Backend (${SERVER_DIR}) ..."
     cd "${SERVER_DIR}"
@@ -92,6 +116,7 @@ setup_backend() {
         log_error "Backend dependency sync failed."
         exit 1
     fi
+    verify_harness_install
     log_info "Optional native extras ..."
     if ! uv pip install -e ".[advanced-tools]"; then
         log_warn "Advanced native extras failed; core server still usable."
@@ -145,7 +170,11 @@ main() {
     detect_os
     install_package_managers
     setup_backend
-    setup_frontend
+    if [[ "${MYRM_INSTALL_SKIP_FRONTEND:-0}" != "1" ]]; then
+        setup_frontend
+    else
+        log_info "Skipping frontend (MYRM_INSTALL_SKIP_FRONTEND=1)."
+    fi
     setup_cli
     try_start_searxng
     echo -e "\n${GREEN}${BOLD}Install complete.${NC}"

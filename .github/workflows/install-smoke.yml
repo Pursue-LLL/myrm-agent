@@ -1,0 +1,37 @@
+name: Install smoke
+
+on:
+  push:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/install-smoke.yml'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/install-smoke.yml'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+
+jobs:
+  smoke-unix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install (backend only)
+        env:
+          MYRM_INSTALL_SKIP_FRONTEND: '1'
+        run: bash scripts/install.sh
+
+  smoke-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install (backend only)
+        shell: pwsh
+        env:
+          MYRM_INSTALL_SKIP_FRONTEND: '1'
+        run: ./scripts/install.ps1
