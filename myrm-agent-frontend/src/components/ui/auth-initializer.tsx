@@ -17,7 +17,7 @@
 import { useEffect, useRef } from 'react';
 import useAuthStore from '@/store/useAuthStore';
 import AuthCallback from './auth-callback';
-import { isTauriRuntime, isLocalMode } from '@/lib/deploy-mode';
+import { isTauriRuntime, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
 
 const AUTH_PATHS = ['/auth/login', '/auth/setup'];
@@ -39,7 +39,12 @@ function installFetchInterceptor(): () => void {
   window.fetch = async function interceptedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const response = await originalFetch.call(window, input, init);
 
-    if (response.status === 401 && !redirecting && !isAuthPage()) {
+    if (
+      shouldRedirectToLoginOnAuthFailure() &&
+      response.status === 401 &&
+      !redirecting &&
+      !isAuthPage()
+    ) {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url.includes('/api/') && !url.includes('/api/proxy-models') && !url.includes('/api/models-dev')) {
         redirecting = true;

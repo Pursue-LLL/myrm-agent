@@ -2663,6 +2663,25 @@
         "apiPort": "API port (FastAPI)",
         "apiPortDesc": "Internal API service port"
       },
+      "webuiAccess": {
+        "title": "WebUI access password",
+        "description": "Change the admin password or disable password protection. Disabling allows LAN devices to access without a password.",
+        "notConfiguredHint": "No admin password yet. Copy the link below and complete setup in your browser.",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "changePassword": "Change password",
+        "disableProtection": "Disable password protection",
+        "copySetupLink": "Copy first-time setup link",
+        "passwordMismatch": "New passwords do not match",
+        "passwordChanged": "Password updated",
+        "passwordChangeFailed": "Failed to change password",
+        "currentPasswordRequired": "Enter your current password",
+        "protectionDisabled": "Password protection disabled",
+        "disableFailed": "Failed to disable protection",
+        "setupLinkCopied": "Setup link copied",
+        "setupLinkFailed": "Failed to generate setup link"
+      },
       "access": {
         "title": "Access URLs",
         "disabled": "WebUI mode is disabled",
@@ -6917,6 +6936,7 @@
     "login": {
       "title": "Welcome Back",
       "description": "Sign in to access your WebUI",
+      "descriptionLocal": "Enter the admin password you set during first-time setup",
       "labelAccount": "Account",
       "labelPassword": "Password",
       "placeholderPassword": "Enter your password",

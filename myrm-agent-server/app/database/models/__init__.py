@@ -50,7 +50,6 @@ from .security import (
     SkillPermissionUsageLog,
     UserToolAllowlist,
 )
-from .vault_credential import VaultCredential
 from .skill import ExperienceLedgerEvent, PendingEvolution, PendingMigration
 from .skill_alert_rule import SkillAlertRule
 from .skill_optimization import (
@@ -63,6 +62,8 @@ from .skill_optimization import (
     SkillQualityHistory,
     SkillVersionModel,
 )
+from .vault_credential import VaultCredential
+from .fission import FissionTaskRecord
 
 __all__ = [
     "Base",
@@ -154,4 +155,6 @@ __all__ = [
     "Artifact",
     "ArtifactVersion",
     "ArtifactAuditLog",
+    # Fission
+    "FissionTaskRecord",
 ]

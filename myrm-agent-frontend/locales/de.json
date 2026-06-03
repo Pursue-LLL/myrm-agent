@@ -1901,6 +1901,25 @@
         "restartRequired": "Restart Required",
         "restartRequiredDesc": "Configuration changes will take effect after restarting the application"
       },
+      "webuiAccess": {
+        "title": "WebUI-Zugangspasswort",
+        "description": "Ändern Sie das Admin-Passwort oder deaktivieren Sie den Passwortschutz. Bei Deaktivierung können LAN-Geräte ohne Passwort zugreifen.",
+        "notConfiguredHint": "Noch kein Admin-Passwort. Kopieren Sie den Link unten und schließen Sie die Einrichtung im Browser ab.",
+        "currentPassword": "Aktuelles Passwort",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort bestätigen",
+        "changePassword": "Passwort ändern",
+        "disableProtection": "Passwortschutz deaktivieren",
+        "copySetupLink": "Setup-Link kopieren",
+        "passwordMismatch": "Die neuen Passwörter stimmen nicht überein",
+        "passwordChanged": "Passwort aktualisiert",
+        "passwordChangeFailed": "Passwort konnte nicht geändert werden",
+        "currentPasswordRequired": "Geben Sie Ihr aktuelles Passwort ein",
+        "protectionDisabled": "Passwortschutz deaktiviert",
+        "disableFailed": "Fehler beim Deaktivieren des Schutzes",
+        "setupLinkCopied": "Setup-Link kopiert",
+        "setupLinkFailed": "Setup-Link konnte nicht generiert werden"
+      },
       "access": {
         "title": "Access URLs",
         "disabled": "WebUI mode is disabled",
@@ -3943,6 +3962,7 @@
     "login": {
       "title": "Welcome Back",
       "description": "Sign in to access your WebUI",
+      "descriptionLocal": "Geben Sie das bei der Ersteinrichtung festgelegte Admin-Passwort ein",
       "labelAccount": "Account",
       "labelPassword": "Password",
       "placeholderPassword": "Enter your password",

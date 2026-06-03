@@ -86,18 +86,27 @@ npm run dev
 - **访问方式**：
   - 本地访问：`http://127.0.0.1:3000`（仅本机）
   - 远程访问：`http://0.0.0.0:3000`（局域网/外网，需启用 `enable_remote_access`）
-- **数据和认证**：与 Desktop 子模式相同（本地 SQLite，自动登录）
+- **数据和认证**：本地回环访问默认自动登录；开启 **Remote + 需要密码** 时走 `/auth/setup` 自设 admin 密码
 
-### Local 模式（CLI 开发/调试）
+### Local 模式（本机 WebUI 开发）
 
-- 本地 CLI 开发/调试模式，与 Tauri 共享相同的基础设施
-- 自动登录 `local_user`
-- 数据存储在本地 SQLite
-- API 请求指向 `http://127.0.0.1:8080`
+- 与 Tauri 共享本地 SQLite 与 `local_user` API 身份
+- `NEXT_PUBLIC_DEPLOY_MODE=local`，API 经 Next rewrites 到 `http://127.0.0.1:8080`（或 `API_PORT`）
+- **勿** 使用 `NEXT_PUBLIC_DEPLOY_MODE=sandbox` 联调本地后端，否则会一直跳转「欢迎回来」登录页（CP 认证与 WebUI admin 密码是两套体系）
 
-### Sandbox 模式
+#### WebUI 认证 E2E（可选）
 
-- 必须 OAuth 登录
+后端 `uv run run.py` + 前端 `bun run dev` 启动后：
+
+```bash
+PLAYWRIGHT_RUN_WEBUI_E2E=1 bunx playwright test tests/e2e/webui-auth.spec.ts
+```
+- 本机开发勿用 `sandbox` 构建，否则会误走 CP 登录与 Cookie 门禁
+
+### Sandbox 模式（控制平面 + 独立沙箱）
+
+- 仅用于 SaaS/企业：CP 邮箱/OAuth 登录，再代理进用户沙箱内的 server
+- `NEXT_PUBLIC_DEPLOY_MODE=sandbox`
 - 数据存储在云端 PostgreSQL
 - 敏感配置使用 E2EE 加密
 - 支持多设备同步

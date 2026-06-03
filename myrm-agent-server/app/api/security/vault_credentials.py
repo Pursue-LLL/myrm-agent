@@ -1,7 +1,6 @@
 """Vault Credentials CRUD API."""
 
 import logging
-from typing import Sequence
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -54,7 +53,7 @@ async def list_credentials() -> list[VaultCredentialResponse]:
         return [VaultCredentialResponse.from_orm(c) for c in creds]
     except Exception as e:
         logger.error(f"Failed to list vault credentials: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
 @router.post("", response_model=VaultCredentialResponse, status_code=status.HTTP_201_CREATED)
@@ -80,7 +79,7 @@ async def create_credential(req: VaultCredentialCreate) -> VaultCredentialRespon
         raise
     except Exception as e:
         logger.error(f"Failed to create vault credential: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
 @router.put("/{label}", response_model=VaultCredentialResponse)
@@ -103,7 +102,7 @@ async def update_credential(label: str, req: VaultCredentialUpdate) -> VaultCred
         raise
     except Exception as e:
         logger.error(f"Failed to update vault credential '{label}': {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
 @router.delete("/{label}", status_code=status.HTTP_204_NO_CONTENT)
@@ -118,4 +117,4 @@ async def delete_credential(label: str) -> None:
         raise
     except Exception as e:
         logger.error(f"Failed to delete vault credential '{label}': {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e

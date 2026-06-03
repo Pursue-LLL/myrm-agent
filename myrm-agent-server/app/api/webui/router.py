@@ -9,36 +9,14 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
 
+from app.api.webui.auth_routes import router as webui_auth_router
 from app.config.settings import settings
 from app.services.webui.qrcode import generate_qrcode_image
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webui", tags=["webui"])
-
-
-class AuthStatusResponse(BaseModel):
-    is_setup_done: bool
-    is_authenticated: bool
-    user_id: str
-    username: str
-    role: str
-
-
-@router.get("/auth/status")
-async def get_auth_status() -> AuthStatusResponse:
-    """Local mode auth status endpoint.
-
-    Returns local user info so the frontend doesn't get a 404.
-    Sandbox mode auth is handled by the control plane, not here.
-    """
-    return AuthStatusResponse(
-        is_setup_done=True,
-        is_authenticated=True,
-        user_id="local-user",
-        username="Local User",
-        role="admin",
-    )
+router.include_router(webui_auth_router)
 
 
 @router.get("/qrcode.png")

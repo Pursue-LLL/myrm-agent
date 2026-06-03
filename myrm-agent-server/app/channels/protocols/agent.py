@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         InboundMessage,
         OutboundMessage,
         ProgressUpdate,
+        FissionTopologyUpdate,
         TopicContext,
     )
 
@@ -55,7 +56,7 @@ class AgentExecutor(Protocol):
         cancel_token: CancellationToken | None = None,
         steering_token: SteeringToken | None = None,
         topic_context: TopicContext | None = None,
-    ) -> AsyncGenerator[ProgressUpdate | OutboundMessage]:
+    ) -> AsyncGenerator[ProgressUpdate | FissionTopologyUpdate | OutboundMessage]:
         """Stream agent execution progress and final result.
 
         Args:

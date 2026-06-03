@@ -733,11 +733,14 @@ async def build_general_agent(
     ]
 
     if _should_enable_subagent_tools():
+        logger.warning("Subagent tools are enabled. Adding SubagentManagementExtension.")
         subagent_ext = SubagentManagementExtension(
             jit_subagents=agent_wrapper.jit_subagents,
             subagent_ids=agent_wrapper.subagent_ids or [],
         )
         extensions.insert(-1, subagent_ext)
+    else:
+        logger.warning("Subagent tools are NOT enabled. Skipping SubagentManagementExtension.")
 
     for ext in extensions:
         agent.register_extension(ext)

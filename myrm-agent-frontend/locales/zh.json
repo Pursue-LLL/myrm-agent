@@ -2663,6 +2663,25 @@
         "apiPort": "API 端口 (FastAPI)",
         "apiPortDesc": "内部 API 服务端口"
       },
+      "webuiAccess": {
+        "title": "WebUI 访问密码",
+        "description": "修改管理员密码或关闭密码保护。关闭后同一局域网设备可无密码访问，请谨慎操作。",
+        "notConfiguredHint": "尚未设置管理员密码。复制下方链接，在浏览器中完成首次设置。",
+        "currentPassword": "当前密码",
+        "newPassword": "新密码",
+        "confirmPassword": "确认新密码",
+        "changePassword": "修改密码",
+        "disableProtection": "关闭密码保护",
+        "copySetupLink": "复制首次设置链接",
+        "passwordMismatch": "两次输入的新密码不一致",
+        "passwordChanged": "密码已更新",
+        "passwordChangeFailed": "修改密码失败",
+        "currentPasswordRequired": "请输入当前密码",
+        "protectionDisabled": "已关闭密码保护",
+        "disableFailed": "关闭密码保护失败",
+        "setupLinkCopied": "设置链接已复制",
+        "setupLinkFailed": "无法生成设置链接"
+      },
       "access": {
         "title": "访问地址",
         "disabled": "WebUI 模式未启用",
@@ -6940,6 +6959,7 @@
     "login": {
       "title": "欢迎回来",
       "description": "登录以访问您的 WebUI",
+      "descriptionLocal": "输入您首次设置的管理员密码以访问本机 WebUI",
       "labelAccount": "账户",
       "labelPassword": "密码",
       "placeholderPassword": "输入您的密码",

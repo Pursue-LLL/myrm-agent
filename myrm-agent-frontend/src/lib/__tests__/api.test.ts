@@ -1,6 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { fetchWithTimeout } from '../api';
 
+vi.mock('@/lib/deploy-mode', () => ({
+  getApiBaseUrl: () => 'http://127.0.0.1:8080/api/v1',
+  getBackendBaseUrl: () => 'http://127.0.0.1:8080',
+  shouldRedirectToLoginOnAuthFailure: () => true,
+}));
+
 describe('fetchWithTimeout Global Auth Interceptor', () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;

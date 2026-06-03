@@ -22,9 +22,21 @@ from app.startup.uvicorn_runner import start_with_uvicorn
 init_environment()
 
 # Fail closed when production harness wheels are incomplete (passes in editable dev)
-from myrm_agent_harness._distribution import assert_distribution_ready  # noqa: E402
+from myrm_agent_harness._distribution import (  # noqa: E402
+    DistributionMode,
+    assert_distribution_ready,
+    get_distribution_mode,
+)
 
 assert_distribution_ready()
+
+_mode = get_distribution_mode()
+_mode_labels: dict[DistributionMode, str] = {
+    DistributionMode.SOURCE: "editable/源码 (本地开发)",
+    DistributionMode.COMPILED: "PyPI 编译包 (接近生产)",
+    DistributionMode.INCOMPLETE: "不完整 — 请运行 install_harness_dev.sh",
+}
+print(f"📦 Harness 安装形态: {_mode_labels.get(_mode, _mode.value)}")
 
 # 配置校验与迁移
 run_config_check()

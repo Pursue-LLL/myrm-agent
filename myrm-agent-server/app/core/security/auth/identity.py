@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - resolve_identity, resolve_identity_from_http_scope, resolve_identity_from_ws_scope
+- webui_session auth_source when local API protection is enabled
 
 [POS]
 Single identity resolver consumed by HTTP AuthMiddleware and WsAuthMiddleware.
@@ -159,7 +160,17 @@ def resolve_identity(
                 user_id = SANDBOX_FALLBACK_USER_ID
                 auth_source = "loopback"
     elif caps.allows_local_skills:
-        if loopback or private_net:
+        from app.services.webui.access_policy import (
+            local_api_requires_session,
+            resolve_webui_session_username,
+        )
+
+        session_user = resolve_webui_session_username(headers)
+        protected = local_api_requires_session()
+        if session_user and protected:
+            user_id = LOCAL_USER_ID
+            auth_source = "webui_session"
+        elif loopback or (private_net and not protected):
             user_id = LOCAL_USER_ID
             auth_source = "loopback"
         elif caps.requires_api_key_auth:

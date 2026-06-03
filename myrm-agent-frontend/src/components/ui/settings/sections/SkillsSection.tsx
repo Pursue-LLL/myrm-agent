@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconRefresh,
@@ -121,8 +121,6 @@ const SkillsSection = memo(() => {
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isBatchImportOpen, setIsBatchImportOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const handleExport = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -144,33 +142,6 @@ const SkillsSection = memo(() => {
       setIsSyncing(false);
     }
   }, [user?.id, t]);
-
-  const handleImport = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!user?.id || !e.target.files?.length) return;
-      const file = e.target.files[0];
-      try {
-        setIsSyncing(true);
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`/api/v1/skills/import`, {
-          method: 'POST',
-          body: formData,
-        });
-        if (!res.ok) throw new Error('Import failed');
-        const data = await res.json();
-        toast({ title: data.message || t('installed.importSuccess') || 'Import success' });
-        fetchLocalSkills();
-        fetchUserSkillConfig(true);
-      } catch {
-        toast({ title: t('installed.importFailed') || 'Import failed', variant: 'destructive' });
-      } finally {
-        setIsSyncing(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
-    },
-    [user?.id, fetchLocalSkills, fetchUserSkillConfig, t],
-  );
 
   useEffect(() => {
     fetchMarketSkills();

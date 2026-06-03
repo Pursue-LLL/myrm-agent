@@ -45,7 +45,10 @@ class WsAuthMiddleware:
             await self.app(scope, receive, send)
             return
 
-        if caps.requires_strict_ws_auth and not identity.loopback:
+        from app.services.webui.access_policy import local_api_requires_session
+
+        local_ws_gate = caps.allows_local_skills and local_api_requires_session()
+        if (caps.requires_strict_ws_auth or local_ws_gate) and not identity.loopback:
             log_auth_event(
                 AuthEventType.AUTH_FAILURE,
                 identity.client_ip,

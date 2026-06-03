@@ -29,6 +29,8 @@ import LockedUseCard from './LockedUseCard';
 import MemoryMonitorCard from './MemoryMonitorCard';
 import { DoctorDashboard } from '../../health/DoctorDashboard';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
+import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
 
 /**
  * 系统设置 Section
@@ -164,7 +166,32 @@ const AccessCard = memo<{
 
   const accessEnabled = config.enableWebUIMode || (!isTauriRuntime() && isLocalMode());
   const webuiPort = resolveWebuiPort(config);
-  const passwordProtectionEnabled = isTauriRuntime() ? config.requirePassword : true;
+  const [serverRequirePassword, setServerRequirePassword] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (isTauriRuntime() || !accessEnabled) {
+      return;
+    }
+    let cancelled = false;
+    void fetchWebuiProtection()
+      .then((cfg) => {
+        if (!cancelled) {
+          setServerRequirePassword(cfg.require_password);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setServerRequirePassword(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessEnabled]);
+
+  const passwordProtectionEnabled = isTauriRuntime()
+    ? config.requirePassword
+    : (serverRequirePassword ?? config.requirePassword);
   const {
     status: tunnelStatus,
     starting: isTunnelStarting,
@@ -532,6 +559,19 @@ const SystemSection = memo(() => {
   }, [config, loading]);
 
   useEffect(() => {
+    if (!isLocal || loading) {
+      return;
+    }
+    void fetchWebuiProtection()
+      .then((cfg) => {
+        setLocalConfig((prev) => ({ ...prev, requirePassword: cfg.require_password }));
+      })
+      .catch(() => {
+        /* server may be offline during dev */
+      });
+  }, [isLocal, loading]);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || loading) {
       return;
     }
@@ -552,6 +592,20 @@ const SystemSection = memo(() => {
     setIsDirty(true);
   };
 
+  const handleRequirePasswordToggle = async () => {
+    const next = !localConfig.requirePassword;
+    handleChange('requirePassword', next);
+    if (!isLocal) {
+      return;
+    }
+    try {
+      await updateWebuiProtection(next);
+    } catch (err) {
+      handleChange('requirePassword', !next);
+      toast.error(err instanceof Error ? err.message : t('saveFailed'));
+    }
+  };
+
   const guardSave = useCallback(async (): Promise<boolean> => {
     try {
       await saveConfig(localConfig);
@@ -568,6 +622,9 @@ const SystemSection = memo(() => {
     setIsSaving(true);
     try {
       await saveConfig(localConfig);
+      if (isLocal) {
+        await updateWebuiProtection(localConfig.requirePassword);
+      }
 
       if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
         try {
@@ -800,10 +857,11 @@ const SystemSection = memo(() => {
                   <p className="text-xs text-muted-foreground">{t('config.requirePasswordDesc')}</p>
                 </div>
                 <button
-                  onClick={() => handleChange('requirePassword', !localConfig.requirePassword)}
+                  type="button"
+                  onClick={() => void handleRequirePasswordToggle()}
                   className={cn(
                     'relative w-12 h-6 rounded-full transition-colors',
-                    localConfig.requirePassword ? 'bg-indigo-500' : 'bg-white/10',
+                    localConfig.requirePassword ? 'bg-primary' : 'bg-muted',
                   )}
                 >
                   <div
@@ -814,6 +872,8 @@ const SystemSection = memo(() => {
                   />
                 </button>
               </div>
+
+              {isLocal && <WebuiAccessSecurityPanel />}
             </>
           )}
 

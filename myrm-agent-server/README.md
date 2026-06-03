@@ -77,19 +77,19 @@ cp .env.example .env
 
 3. **安装 Harness 与 Server 依赖**
 
-默认从 PyPI 安装（无需 clone 私有源码）：
+一条命令自动判断环境（在 open-perplexity 根目录）：
 
 ```bash
-# 在 open-perplexity 根目录
 ./scripts/dev/install_harness_dev.sh
 ```
 
-Harness 框架开发（需私有仓 clone，与 server 同级目录）：
+| 场景 | 自动选择 |
+|------|----------|
+| monorepo 有 `myrm-agent-harness/` | **editable**（本地实时改代码） |
+| `MYRM_HARNESS_DEPLOY=1` | **source**（当前平台 prod-like wheel） |
+| CI / 仅 clone server、无 harness | **pypi**（PyPI 冻结锁） |
 
-```bash
-git clone git@github.com:Pursue-LLL/myrm-agent-harness.git myrm-agent-harness
-MYRM_HARNESS_EDITABLE=1 ./scripts/dev/install_harness_dev.sh
-```
+显式覆盖：`MYRM_HARNESS_INSTALL_MODE=pypi|source|editable`
 
 4. **安装浏览器运行时（可选）**
 
@@ -101,10 +101,13 @@ python -m patchright install chromium
 5. **启动服务**
 
 ```bash
-# 自动选择启动方式（推荐）
-python run.py
-# - 本地模式：使用 uvicorn（单进程）
-# - Sandbox 模式：默认 uvicorn（沙箱内嵌入式 DB 需单进程）
+# 推荐：自动选择 venv / uv，并打印 Harness 安装形态（editable vs PyPI）
+# 在 open-perplexity 根目录：
+./scripts/dev/run_server.sh
+
+# 或在 myrm-agent-server 目录：
+.venv/bin/python run.py   # editable 开发后同上
+python run.py             # 需已激活/选对解释器
 
 # 直接使用 uvicorn（仅用于调试）
 python -m app.main

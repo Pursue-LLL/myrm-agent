@@ -522,6 +522,31 @@ class ProgressUpdate:
 
 
 @dataclass(frozen=True, slots=True)
+class FissionTopologyNode:
+    """Represents a single subagent node in a Fission topology map."""
+
+    node_id: str
+    agent_type: str
+    objective: str
+    status: str  # "pending", "running", "completed", "failed", "paused"
+    error: str | None = None
+    cost_usd: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class FissionTopologyUpdate:
+    """A structured update for a Swarm Fission topology map.
+
+    Yielded by AgentExecutor.execute_stream() when subagents spawn, update status, or complete.
+    Consumed by Frontend GUI to render a React Flow DAG representing the parallel task execution.
+    """
+
+    fission_id: str
+    nodes: tuple[FissionTopologyNode, ...]
+    total_cost_usd: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class StreamingText:
     """Accumulated streaming text snapshot emitted during answer generation.
 

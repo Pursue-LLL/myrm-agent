@@ -1,27 +1,27 @@
 # webui 服务模块
 
-
----
-
 ## 架构概述
 
-WebUI 辅助服务包，只保留二维码、URL 组装和本机地址解析等纯展示能力。身份认证、临时 Token、用户管理已移出该包。
+WebUI 辅助服务：二维码/URL 组装，以及**本地/远程单机**下的浏览器会话认证（admin 密码 + httpOnly Cookie）。
 
----
+认证由控制平面处理的 **Sandbox 部署**不在此包实现。
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `qrcode.py` | ✅ 核心 | 二维码生成与 WebUI 访问 URL 组装：ASCII 终端展示、PNG 图片输出、URL 拼装辅助。 |
-| `__init__.py` | ✅ 包标记 | 仅声明包，不再导出旧认证对象。 |
+| 文件 | 职责 |
+|------|------|
+| `qrcode.py` | 二维码与访问 URL |
+| `admin_store.py` | `~/.myrm/webui/admin.json` 管理员凭据 |
+| `passwords.py` | scrypt 密码哈希 |
+| `temp_token.py` | 首次 setup 临时令牌（含 `WEBUI_SETUP_TOKEN`） |
+| `session.py` | 签名会话 Cookie `myrm_webui_session`；`rotate_session_signing_key` 改密后失效旧 Cookie |
+| `auth_service.py` | 认证状态解析、setup/login/logout |
+| `access_policy.py` | API 是否要求 WebUI 会话 + Cookie 解析 |
+| `protection_store.py` | `require_password` GUI 开关持久化 |
+| `pending_setup_store.py` | setup token 磁盘 TTL |
 
----
+## HTTP 路由
 
-## 依赖关系
+见 `app/api/webui/auth_routes.py`（挂载在 `/webui` 前缀下）。
 
-### 内部依赖
-- `app.config.settings`：WebUI 端口与二维码尺寸配置
-
-### 外部依赖
-- `myrm_agent_harness.utils.get_local_ip`：本机 IP 解析
+LAN 开启密码保护时，`access_policy.local_api_requires_session()` 同时约束 HTTP（`identity`）与 WebSocket（`WsAuthMiddleware`）。

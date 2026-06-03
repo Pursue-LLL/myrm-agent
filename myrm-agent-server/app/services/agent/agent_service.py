@@ -375,7 +375,8 @@ class AgentService:
                 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
                 from app.config.settings import settings
-                store = SkillStore(db_path=settings.database.state_dir / "skills.db")
+                from pathlib import Path
+                store = SkillStore(db_path=Path(settings.database.state_dir) / "skills.db")
                 deleted_count = await store.delete_skills_by_agent(agent_id)
                 if deleted_count > 0:
                     logger.info("Cascade deleted %d scoped skills for agent %s", deleted_count, agent_id)

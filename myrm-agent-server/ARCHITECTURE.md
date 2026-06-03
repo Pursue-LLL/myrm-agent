@@ -144,6 +144,7 @@
 - **CP 注入契约**：`myrm-control-plane/.../sandbox_env.py` 在 `create_container` 时注入 [S] 密钥；`tests/unit/test_sandbox_env.py` 与 `validate_for_sandbox()` 双向对齐。
 - **部署能力注册表**：`app/platform_utils/deployment_capabilities.py` — 启动时构建语义能力位，替代散落的 `is_sandbox()` 分支。
 - **单租户认证**：`app/middleware/auth.py` — local 回环 / sandbox CP HMAC 验签（`cp_proxy.py`）→ `SANDBOX_API_KEY` → 回环 / WebUI Remote `SANDBOX_API_KEY`。
+- **WebUI 浏览器登录**（仅 local/remote 产品路径）：`app/api/webui/auth_routes.py` + `app/services/webui/auth_service.py` — admin 密码 + `myrm_webui_session` Cookie；与 CP 邮箱登录（sandbox 前端构建）分离。
 
 - **禁止**：server `app/` 运行时读取 `BASIC_*`/`LITE_*`/隐式 searxng fallback。
 - **Subagent 超时**：唯一来源 `app/config/subagents/*.yaml`（无 env policy 覆盖层）。

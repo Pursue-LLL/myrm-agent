@@ -12,13 +12,13 @@
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
-import { getApiBaseUrl, getBackendBaseUrl } from '@/lib/deploy-mode';
+import { getApiBaseUrl, getBackendBaseUrl, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
 function redirectToLoginAfterAuthFailure(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !shouldRedirectToLoginOnAuthFailure()) return;
   clearAuthToken();
   if (!window.location.pathname.startsWith(AUTH_LOGIN_PATH)) {
     window.location.href = AUTH_LOGIN_PATH;

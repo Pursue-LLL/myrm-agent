@@ -1900,6 +1900,25 @@
         "restartRequired": "Restart Required",
         "restartRequiredDesc": "Configuration changes will take effect after restarting the application"
       },
+      "webuiAccess": {
+        "title": "WebUI 액세스 비밀번호",
+        "description": "관리자 비밀번호를 변경하거나 비밀번호 보호를 비활성화합니다. 비활성화하면 LAN 장치가 비밀번호 없이 액세스할 수 있습니다.",
+        "notConfiguredHint": "아직 관리자 비밀번호가 없습니다. 아래 링크를 복사하여 브라우저에서 설정을 완료하세요.",
+        "currentPassword": "현재 비밀번호",
+        "newPassword": "새 비밀번호",
+        "confirmPassword": "새 비밀번호 확인",
+        "changePassword": "비밀번호 변경",
+        "disableProtection": "비밀번호 보호 비활성화",
+        "copySetupLink": "초기 설정 링크 복사",
+        "passwordMismatch": "새 비밀번호가 일치하지 않습니다",
+        "passwordChanged": "비밀번호가 업데이트되었습니다",
+        "passwordChangeFailed": "비밀번호 변경 실패",
+        "currentPasswordRequired": "현재 비밀번호를 입력하세요",
+        "protectionDisabled": "비밀번호 보호가 비활성화되었습니다",
+        "disableFailed": "보호를 비활성화하지 못했습니다",
+        "setupLinkCopied": "설정 링크가 복사되었습니다",
+        "setupLinkFailed": "설정 링크 생성 실패"
+      },
       "access": {
         "title": "Access URLs",
         "disabled": "WebUI mode is disabled",
@@ -3942,6 +3961,7 @@
     "login": {
       "title": "Welcome Back",
       "description": "Sign in to access your WebUI",
+      "descriptionLocal": "초기 설정 시 설정한 관리자 비밀번호를 입력하세요",
       "labelAccount": "Account",
       "labelPassword": "Password",
       "placeholderPassword": "Enter your password",

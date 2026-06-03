@@ -73,6 +73,8 @@ data-viz = [
 
 [tool.uv]
 # index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+# 不在此限制 environments：需保留 win32 锁分支供 Windows 部署/CI。
+# macOS 本地开发若 PyPI 未就绪，用 MYRM_HARNESS_EDITABLE=1 + ./scripts/dev/run_server.sh，勿依赖 uv run 解析 harness。
 override-dependencies = [
   "click>=8.4.1",
   "patchright>=1.60.0",

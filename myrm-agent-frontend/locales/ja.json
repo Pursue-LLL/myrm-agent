@@ -1901,6 +1901,25 @@
         "restartRequired": "Restart Required",
         "restartRequiredDesc": "Configuration changes will take effect after restarting the application"
       },
+      "webuiAccess": {
+        "title": "WebUIアクセスパスワード",
+        "description": "管理者パスワードを変更するか、パスワード保護を無効にします。無効にすると、LAN内のデバイスはパスワードなしでアクセスできます。",
+        "notConfiguredHint": "まだ管理者パスワードがありません。以下のリンクをコピーしてブラウザで設定を完了してください。",
+        "currentPassword": "現在のパスワード",
+        "newPassword": "新しいパスワード",
+        "confirmPassword": "新しいパスワード（確認）",
+        "changePassword": "パスワードを変更",
+        "disableProtection": "パスワード保護を無効にする",
+        "copySetupLink": "初回設定リンクをコピー",
+        "passwordMismatch": "新しいパスワードが一致しません",
+        "passwordChanged": "パスワードが更新されました",
+        "passwordChangeFailed": "パスワードの変更に失敗しました",
+        "currentPasswordRequired": "現在のパスワードを入力してください",
+        "protectionDisabled": "パスワード保護が無効になりました",
+        "disableFailed": "保護の無効化に失敗しました",
+        "setupLinkCopied": "設定リンクをコピーしました",
+        "setupLinkFailed": "設定リンクの生成に失敗しました"
+      },
       "access": {
         "title": "Access URLs",
         "disabled": "WebUI mode is disabled",
@@ -3943,6 +3962,7 @@
     "login": {
       "title": "Welcome Back",
       "description": "Sign in to access your WebUI",
+      "descriptionLocal": "初回設定時に設定した管理者パスワードを入力してください",
       "labelAccount": "Account",
       "labelPassword": "Password",
       "placeholderPassword": "Enter your password",

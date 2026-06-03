@@ -12,7 +12,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `public_paths.py` | ✅ 核心 | 无需 SANDBOX_API_KEY 的路径前缀/精确匹配 | ✅ |
+| `public_paths.py` | ✅ 核心 | 无需 API Key 的路径前缀（含 `/webui/auth/` 浏览器登录） | ✅ |
 | `identity.py` | ✅ 核心 | HTTP/WS 共享身份解析（CP HMAC 验签 → API Key → 回环） | ✅ |
 | `cp_proxy.py` | ✅ 核心 | CP 反代 HMAC-SHA256 验签（`INTERNAL_SERVICE_KEY`） | ✅ |
 

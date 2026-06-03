@@ -166,6 +166,11 @@ export function isSandboxAuthBuild(): boolean {
   return process.env.NEXT_PUBLIC_DEPLOY_MODE === 'sandbox';
 }
 
+/** Redirect to /auth/login only for hosted sandbox builds (CP auth), not local/tauri. */
+export function shouldRedirectToLoginOnAuthFailure(): boolean {
+  return isSandboxAuthBuild();
+}
+
 /**
  * 检查是否启用了开发者模式覆盖
  */
