@@ -27,7 +27,8 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 ## 本地开发
 
 ```bash
-bash scripts/install.sh    # 或 vortexai: bash scripts/install.sh（自动 init submodule）
+curl -fsSL https://myrmagent.ai/install.sh | bash   # 一键安装
+# 或 bash scripts/install.sh（vortexai 开发壳会先 init submodule）
 myrm start                 # WebUI → http://localhost:3000
 
 # 手动分进程
