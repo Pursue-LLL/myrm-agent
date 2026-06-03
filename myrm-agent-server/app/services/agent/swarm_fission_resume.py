@@ -16,7 +16,7 @@ points from duplicating execute_swarm_fission + Command(resume) wiring.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable
 
 from myrm_agent_harness.agent.parallel.config import resolve_max_parallel_fission
 
@@ -29,7 +29,7 @@ async def execute_swarm_fission_for_agent(
     fission_payload: dict[str, object],
     *,
     max_concurrent: int | None = None,
-    on_progress: Callable[[int, str, dict[str, object] | None], Awaitable[None]] | None = None,
+    on_progress: Callable[[int, str, dict[str, object] | None], Any] | None = None,
 ) -> dict[str, object]:
     from myrm_agent_harness.agent.parallel.fission import execute_swarm_fission
 
@@ -145,8 +145,8 @@ async def stream_with_swarm_fission_resume(
         fission_id = str(uuid.uuid4())
         fission_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
 
-        async def _fission_on_progress(index: int, status: str, res: dict[str, object] | None) -> None:
-            await fission_queue.put({"index": index, "status": status, "res": res})
+        async def _fission_on_progress(idx: int, status: str, res: dict[str, object] | None) -> None:
+            await fission_queue.put({"index": idx, "status": status, "res": res})
 
         task_items = _task_items_from_payload(fission_payload)
         nodes_state: dict[int, dict[str, object]] = {}

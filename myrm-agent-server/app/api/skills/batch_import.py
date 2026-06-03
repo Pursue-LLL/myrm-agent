@@ -190,8 +190,8 @@ async def confirm_batch_import(
         try:
             skill_idx = int(item.virtual_id.split("_")[1])
             skill = imported_skills[skill_idx]
-        except (IndexError, ValueError, KeyError):
-            raise HTTPException(status_code=400, detail="非法的 virtual_id")
+        except (IndexError, ValueError, KeyError) as e:
+            raise HTTPException(status_code=400, detail="非法的 virtual_id") from e
             
         val_result = validator.validate_skill(f"---\nname: {item.name}\ndescription: {item.description}\n---\n{skill.content}")
         if not val_result.passed:

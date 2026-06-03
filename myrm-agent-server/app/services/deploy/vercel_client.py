@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict
 
 import httpx
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,12 @@ class VercelClient:
             "Content-Type": "application/json",
         }
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(httpx.RequestError),
+        reraise=True
+    )
     async def deploy(self, project_name: str, files: Dict[str, str]) -> Dict[str, Any]:
         """
         Deploy files to Vercel.
@@ -70,6 +77,12 @@ class VercelClient:
                 "status": data.get("readyState", "INITIALIZING")
             }
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(httpx.RequestError),
+        reraise=True
+    )
     async def get_deployment_status(self, deployment_id: str) -> Dict[str, Any]:
         """Get the status of a deployment."""
         url = f"{self.BASE_URL}/v13/deployments/{deployment_id}"

@@ -55,6 +55,7 @@ dependencies = [
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
   "websockets>=16.0",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
+  "tenacity",
 ]
 
 [project.optional-dependencies]

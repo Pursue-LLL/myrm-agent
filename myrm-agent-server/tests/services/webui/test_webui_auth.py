@@ -141,6 +141,7 @@ async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
 
         # Try to use old cookie, should now be unauthenticated
         status_after = await client.get("/webui/auth/status", cookies={"myrm_webui_session": cookie})
+        assert status_after.status_code == 401
         # because the old cookie's signature is invalid, it won't resolve user.
         # It's local mode by default, so if not remote, loopback might bypass. 
         # But let's check session parsing directly.
