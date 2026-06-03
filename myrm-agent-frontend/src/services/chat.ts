@@ -819,3 +819,21 @@ export const handoffChat = async (chatId: string, targetChannel: string): Promis
   });
   return res.data;
 };
+
+// ── Fission Topology ─────────────────────────────────────────────
+
+export interface FissionTopologyResponse {
+  fission_id: string;
+  nodes: import('@/store/chat/types').FissionTopologyNode[];
+  total_cost_usd: number;
+}
+
+export const getFissionTopology = async (chatId: string): Promise<FissionTopologyResponse | null> => {
+  try {
+    const res = await apiRequest<{ data: FissionTopologyResponse | null }>(`/chats/${chatId}/fission`);
+    return res?.data || null;
+  } catch (error) {
+    console.error('Failed to fetch fission topology:', error);
+    return null;
+  }
+};

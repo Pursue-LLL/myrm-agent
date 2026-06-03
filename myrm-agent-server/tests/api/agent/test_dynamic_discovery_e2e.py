@@ -1,9 +1,11 @@
-import os
 import json
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection, check_e2e_errors
+from tests.api.agent.utils import check_e2e_errors, get_model_selection
+
 
 @pytest.mark.e2e
 @pytest.mark.skipif(

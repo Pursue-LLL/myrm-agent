@@ -372,10 +372,11 @@ class AgentService:
         if success:
             # 级联清理所有该 Agent 的专属技能 (Orphan Skill GC)
             try:
+                from pathlib import Path
+
                 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
                 from app.config.settings import settings
-                from pathlib import Path
                 store = SkillStore(db_path=Path(settings.database.state_dir) / "skills.db")
                 deleted_count = await store.delete_skills_by_agent(agent_id)
                 if deleted_count > 0:

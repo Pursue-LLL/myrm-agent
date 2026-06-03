@@ -12,9 +12,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.sh` | Unix | `curl \| bash` 入口：clone → `install.sh` |
 | `install.ps1` | Windows | 同上（PowerShell 原生） |
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
-| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status` / `update` / `searxng` / `harness` / `submodules` |
-| `maintainer/` | Unix | Monorepo + harness 供应链（见 `maintainer/_ARCH.md`） |
-| `lib/resolve_monorepo_root.sh` | Unix | vortexai 壳根路径（`MYRM_MONOREPO_ROOT` 或父级 `.gitmodules`） |
+| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status` / `update` / `searxng`（PyPI harness） |
 | `dev/dev.sh` | Unix | `myrm dev`：仅后端 :8080 |
 | `dev/start.sh` | Unix | `myrm start`：后端 :8080 + 前端 `bun run dev` :3000 |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |

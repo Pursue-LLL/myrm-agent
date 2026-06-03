@@ -2159,8 +2159,8 @@
         "empty": {
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
-        }
-    "export": {
+        },
+        "export": {
       "title": "导出技能: {name}",
       "description": "在导出前预览内容。敏感信息将被自动脱敏。",
       "scanning": "正在扫描敏感信息...",
@@ -2176,8 +2176,8 @@
       "previewFailed": "预览技能失败",
       "exportSuccess": "技能导出成功",
       "exportFailed": "导出技能失败"
-    }
-  },
+        }
+      },
   "upload": {
         "title": "上传自定义技能",
         "dropzone": "拖拽压缩包到此处，或点击选择",

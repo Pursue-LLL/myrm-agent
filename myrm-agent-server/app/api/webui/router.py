@@ -7,7 +7,6 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from myrm_agent_harness.utils import get_local_ip
-from pydantic import BaseModel
 
 from app.api.webui.auth_routes import router as webui_auth_router
 from app.config.settings import settings

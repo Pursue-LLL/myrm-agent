@@ -2159,8 +2159,8 @@
         "empty": {
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."
-        }
-    "export": {
+        },
+        "export": {
       "title": "Export Skill: {name}",
       "description": "Review content before exporting. Sensitive information will be redacted automatically.",
       "scanning": "Scanning for sensitive information...",
@@ -2176,8 +2176,8 @@
       "previewFailed": "Failed to preview skill",
       "exportSuccess": "Skill exported successfully",
       "exportFailed": "Failed to export skill"
-    }
-  },
+        }
+      },
   "upload": {
         "title": "Upload Custom Skill",
         "dropzone": "Drag and drop archive here, or click to select",

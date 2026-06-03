@@ -41,10 +41,32 @@ test.describe('WebUI local auth', () => {
 
     await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
 
-    const routes = ['/settings', '/health', '/agents', '/workspace'];
-    for (const path of routes) {
+    const protectedRoutes = [
+      '/',
+      '/chat',
+      '/health',
+      '/settings',
+      '/settings/preferences',
+      '/agents',
+      '/workspace',
+      '/library',
+      '/brain',
+      '/eval-lab',
+      '/growth',
+      '/audit',
+      '/security',
+      '/artifacts',
+      '/batch-optimization',
+      '/skill-optimization',
+    ];
+
+    for (const path of protectedRoutes) {
       await page.goto(path);
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
     }
+
+    await page.goto('/auth/login');
+    await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
   });
 });

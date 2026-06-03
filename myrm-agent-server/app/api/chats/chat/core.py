@@ -6,6 +6,7 @@ from math import ceil
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.utils.errors import internal_error, not_found_error, validation_error
@@ -19,6 +20,7 @@ from app.database.dto import (
     PaginatedResponse,
     PaginationMeta,
 )
+from app.database.models.fission import FissionTaskRecord
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
 from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
@@ -368,3 +370,33 @@ async def update_chat_recall_exclusion(
         raise
     except Exception as e:
         raise internal_error(operation="Update chat recall exclusion", exception=e) from e
+
+@router.get("/{chat_id}/fission", response_model=StandardSuccessResponse)
+async def get_fission_topology(
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Get the latest Fission Topology state for the given chat."""
+    try:
+        # Find the most recent fission record for this chat
+        result = await db.execute(
+            select(FissionTaskRecord)
+            .where(FissionTaskRecord.chat_id == chat_id)
+            .order_by(FissionTaskRecord.updated_at.desc())
+            .limit(1)
+        )
+        record = result.scalar_one_or_none()
+        
+        if not record:
+            # Not found is ok, just return null
+            return success_response(data=None)
+            
+        data = {
+            "fission_id": record.fission_id,
+            "nodes": record.nodes,
+            "total_cost_usd": record.total_cost_usd
+        }
+        
+        return success_response(data=data)
+    except Exception as e:
+        raise internal_error(operation="Get Fission Topology", exception=e) from e

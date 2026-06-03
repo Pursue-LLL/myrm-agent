@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +11,8 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
 from app.database.connection import get_db
-from app.database.models.artifact import Artifact, ArtifactVersion
+from app.database.models.artifact import Artifact
 from app.services.deploy.vercel_client import VercelClient
-from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +107,28 @@ async def deployment_status_ws(
     websocket: WebSocket,
     artifact_id: str,
     deployment_id: str,
-    token: str, # Passed as query param
 ):
-    """WebSocket endpoint to stream deployment status."""
+    """WebSocket endpoint to stream deployment status.
+    Requires first message to be JSON payload: {"type": "auth", "token": "..."}
+    """
     await websocket.accept()
+    
+    # 1. Wait for auth payload
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
+        if not isinstance(auth_msg, dict) or auth_msg.get("type") != "auth" or not auth_msg.get("token"):
+            await websocket.close(code=1008, reason="Invalid auth payload")
+            return
+        token = auth_msg["token"]
+    except asyncio.TimeoutError:
+        logger.warning(f"WebSocket auth timeout for deployment {deployment_id}")
+        await websocket.close(code=1008, reason="Auth timeout")
+        return
+    except Exception as e:
+        logger.warning(f"WebSocket auth error: {e}")
+        await websocket.close(code=1008, reason="Auth failed")
+        return
+
     client = VercelClient(token=token)
     
     try:

@@ -11,7 +11,6 @@ from httpx import ASGITransport, AsyncClient
 from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
 from app.main import app
-from app.services.webui import admin_store, session
 from app.services.webui.passwords import hash_password, verify_password
 from app.services.webui.temp_token import temp_token_service
 
@@ -109,3 +108,57 @@ async def test_token_exchange_requires_admin(tmp_path: Path) -> None:
             json={"temp_token": token},
         )
         assert response.status_code == 401
+
+@pytest.mark.asyncio
+async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
+    token = temp_token_service.generate_token()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        # Setup admin
+        await client.post(
+            "/webui/auth/setup",
+            json={"temp_token": token, "username": "admin", "password": "Str0ng!Pass"},
+        )
+        # Login to get cookie
+        login = await client.post(
+            "/webui/auth/login",
+            json={"username": "admin", "password": "Str0ng!Pass"},
+        )
+        cookie = login.cookies.get("myrm_webui_session")
+        assert cookie
+
+        # Use cookie to access protected route (status should show authenticated)
+        status_before = await client.get("/webui/auth/status", cookies={"myrm_webui_session": cookie})
+        assert status_before.json()["is_authenticated"] is True
+
+        # Change password (rotates session key)
+        change_pw = await client.post(
+            "/webui/auth/change-password",
+            json={"current_password": "Str0ng!Pass", "new_password": "NewStr0ng!Pass"},
+            cookies={"myrm_webui_session": cookie},
+        )
+        assert change_pw.status_code == 200
+
+        # Try to use old cookie, should now be unauthenticated
+        status_after = await client.get("/webui/auth/status", cookies={"myrm_webui_session": cookie})
+        # because the old cookie's signature is invalid, it won't resolve user.
+        # It's local mode by default, so if not remote, loopback might bypass. 
+        # But let's check session parsing directly.
+        from app.services.webui.session import parse_session_value
+        assert parse_session_value(cookie) is None
+
+@pytest.mark.asyncio
+async def test_https_secure_cookie() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://testserver") as client:
+        # Generate token directly to bypass loopback check for simplicity, or just test auth_service
+        from fastapi import Response
+
+        from app.services.webui.auth_service import webui_auth_service
+        class MockRequest:
+            url = type('URL', (), {'scheme': 'https'})()
+            headers = {}
+        resp = Response()
+        webui_auth_service.attach_session_cookie(resp, "admin", request=MockRequest())
+        cookie_header = resp.headers.get("set-cookie")
+        assert "Secure" in cookie_header

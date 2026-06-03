@@ -16,6 +16,7 @@ from .chat import Chat, ConversationFork, Message, OfflineDurableTask
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
+from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
 from .media import BatchImageJob, MediaLibrary
 from .memory import (
@@ -63,7 +64,6 @@ from .skill_optimization import (
     SkillVersionModel,
 )
 from .vault_credential import VaultCredential
-from .fission import FissionTaskRecord
 
 __all__ = [
     "Base",

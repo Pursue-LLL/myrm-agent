@@ -6,15 +6,11 @@
 
 from __future__ import annotations
 
-import io
 import logging
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, BackgroundTasks
-from pydantic import BaseModel, Field
-
-from app.api.skills.evolution.helpers import _get_skill_store
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from myrm_agent_harness.agent.skills.discovery.installers.batch_installer import (
     HermesBatchParser,
 )
@@ -23,6 +19,9 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
+from pydantic import BaseModel
+
+from app.api.skills.evolution.helpers import _get_skill_store
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +97,12 @@ async def preview_batch_import(
     staging_manager = SkillStagingManager(store.db_path.parent)
     
     try:
-        from app.api.skills.optimization.security import SkillSecurityValidator
         from app.api.skills.optimization.config import SecurityConfig
+        from app.api.skills.optimization.security import SkillSecurityValidator
         validator = SkillSecurityValidator(config=SecurityConfig())
     except ImportError:
-        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
         from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
+        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
         validator = SkillSecurityValidator(config=SecurityConfig())
         
     existing_skills = store.list_skills()
@@ -171,13 +170,13 @@ async def confirm_batch_import(
     
     # 引入安全扫描器
     try:
-        from app.api.skills.optimization.security import SkillSecurityValidator
         from app.api.skills.optimization.config import SecurityConfig
+        from app.api.skills.optimization.security import SkillSecurityValidator
         validator = SkillSecurityValidator(config=SecurityConfig())
     except ImportError:
         # Fallback to harness if imported there
-        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
         from myrm_agent_harness.agent.skills.optimization.config import SecurityConfig
+        from myrm_agent_harness.agent.skills.optimization.security import SkillSecurityValidator
         validator = SkillSecurityValidator(config=SecurityConfig())
     
     imported_count = 0
@@ -207,8 +206,8 @@ async def confirm_batch_import(
     try:
         import os
         import shutil
+
         import yaml
-        from pathlib import Path
         
         for item in request.items:
             if item.resolution == "skip":

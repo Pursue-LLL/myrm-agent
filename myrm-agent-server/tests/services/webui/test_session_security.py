@@ -10,8 +10,7 @@ from app.config.settings import settings
 from app.main import app
 from app.services.webui import admin_store
 from app.services.webui.passwords import hash_password
-from app.services.webui.session import SESSION_COOKIE_NAME, create_session_value, parse_session_value
-from app.services.webui.session import rotate_session_signing_key
+from app.services.webui.session import SESSION_COOKIE_NAME, create_session_value, parse_session_value, rotate_session_signing_key
 
 
 @pytest.fixture(autouse=True)

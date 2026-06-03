@@ -46,3 +46,30 @@ def test_ws_middleware_rejects_unauthenticated_lan_upgrade() -> None:
     from app.services.webui.access_policy import local_api_requires_session
 
     assert local_api_requires_session() is True
+
+@pytest.mark.asyncio
+async def test_ws_middleware_rejects_unauthenticated_lan_upgrade_403() -> None:
+    scope = {
+        "type": "websocket",
+        "path": "/api/v1/voice/ws",
+        "client": ("192.168.1.88", 54321),
+        "headers": [],
+        "state": {},
+    }
+    
+    middleware = WsAuthMiddleware(app=None) # type: ignore
+    
+    sent_messages = []
+    async def mock_send(msg: dict) -> None:
+        sent_messages.append(msg)
+        
+    async def mock_receive() -> dict:
+        return {}
+        
+    await middleware(scope, mock_receive, mock_send)
+    
+    assert len(sent_messages) == 2
+    assert sent_messages[0]["type"] == "websocket.http.response.start"
+    assert sent_messages[0]["status"] == 403
+    assert sent_messages[1]["type"] == "websocket.http.response.body"
+    assert sent_messages[1]["body"] == b"Unauthorized"

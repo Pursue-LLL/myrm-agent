@@ -122,6 +122,7 @@ async def import_memories(
 async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImportDryRunResponse:
     """Preview memory import mapping and bind the review result server-side."""
 
+    from app.services.memory.import_adapters import resolve_competitor_import_source
     from app.services.migration.competitor_migration_types import (
         CompetitorMigrationOptions,
         build_lane_previews,
@@ -139,7 +140,6 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         has_api_keys,
     )
     from app.services.migration.competitor_secrets_importer import competitor_providers_configured
-    from app.services.memory.import_adapters import resolve_competitor_import_source
 
     pending_skills: list[dict[str, object]] = []
     coverage_items: list[dict[str, str]] = []

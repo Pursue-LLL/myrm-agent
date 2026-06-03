@@ -38,6 +38,7 @@ class ProjectService:
                     "name": p.name,
                     "color": p.color,
                     "sortOrder": p.sort_order,
+                    "workspacePath": p.workspace_path,
                     "createdAt": p.created_at.isoformat() if p.created_at else None,
                     "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
                 }
@@ -51,11 +52,16 @@ class ProjectService:
             count_result = await db.execute(count_stmt)
             count = count_result.scalar_one()
 
+            project_id = uuid4().hex[:12]
+            # Default workspace path for the project
+            workspace_path = f"/persistent/workspace/project_{project_id}"
+
             project = Project(
-                id=uuid4().hex[:12],
+                id=project_id,
                 name=name.strip(),
                 color=color or PROJECT_COLORS[count % len(PROJECT_COLORS)],
                 sort_order=count,
+                workspace_path=workspace_path,
             )
             db.add(project)
             await db.commit()
@@ -65,12 +71,13 @@ class ProjectService:
                 "name": project.name,
                 "color": project.color,
                 "sortOrder": project.sort_order,
+                "workspacePath": project.workspace_path,
                 "createdAt": project.created_at.isoformat() if project.created_at else None,
                 "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
             }
 
     @staticmethod
-    async def update_project(project_id: str, name: str | None = None, color: str | None = None) -> dict[str, object] | None:
+    async def update_project(project_id: str, name: str | None = None, color: str | None = None, workspace_path: str | None = None) -> dict[str, object] | None:
         async with get_session() as db:
             stmt = select(Project).where(Project.id == project_id)
             result = await db.execute(stmt)
@@ -82,6 +89,8 @@ class ProjectService:
                 project.name = name.strip()
             if color is not None:
                 project.color = color
+            if workspace_path is not None:
+                project.workspace_path = workspace_path
 
             await db.commit()
             await db.refresh(project)
@@ -90,6 +99,7 @@ class ProjectService:
                 "name": project.name,
                 "color": project.color,
                 "sortOrder": project.sort_order,
+                "workspacePath": project.workspace_path,
                 "createdAt": project.created_at.isoformat() if project.created_at else None,
                 "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
             }

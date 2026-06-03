@@ -94,13 +94,14 @@ async def stream_with_swarm_fission_resume(
 ) -> AsyncGenerator[dict[str, object], None]:
     """Run parallel sub-tasks when swarm_fission is emitted, then resume the parent agent."""
     import asyncio
-    import uuid
     import logging
+    import uuid
+
     from langgraph.types import Command
-    
-    from app.database.session import async_session_maker
-    from app.database.repositories.fission_repo import FissionRepository
+
     from app.channels.types.messages import FissionTopologyNode, FissionTopologyUpdate
+    from app.database.repositories.fission_repo import FissionRepository
+    from app.platform_utils import get_session_factory
 
     logger = logging.getLogger(__name__)
     query_input = initial_query
@@ -166,7 +167,7 @@ async def stream_with_swarm_fission_resume(
                     chat_id_from_agent = agent._current_chat_id
                 agent_id = agent.id if hasattr(agent, "id") else "default_agent"
                 
-                async with async_session_maker() as db:
+                async with get_session_factory()() as db:
                     await FissionRepository.create_or_update_record(
                         db,
                         fission_id=fission_id,

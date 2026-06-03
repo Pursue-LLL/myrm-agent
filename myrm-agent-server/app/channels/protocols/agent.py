@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
     from app.channels.types import (
+        FissionTopologyUpdate,
         InboundMessage,
         OutboundMessage,
         ProgressUpdate,
-        FissionTopologyUpdate,
         TopicContext,
     )
 

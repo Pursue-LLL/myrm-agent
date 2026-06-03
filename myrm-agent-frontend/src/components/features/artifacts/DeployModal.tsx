@@ -72,9 +72,14 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
       // 2. Connect to WebSocket for status updates
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsHost = getApiUrl('').replace(/^https?:\/\//, '');
-      const wsUrl = `${wsProtocol}//${wsHost}/api/v1/artifacts/${artifact.id}/deploy/status/${deploymentId}?token=${encodeURIComponent(token)}`;
+      const wsUrl = `${wsProtocol}//${wsHost}/api/v1/artifacts/${artifact.id}/deploy/status/${deploymentId}`;
       
       const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        // Send auth payload as first message to avoid token in URL logs
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      };
 
       ws.onmessage = (event) => {
         const statusData = JSON.parse(event.data);
@@ -93,10 +98,19 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         }
       };
 
+      ws.onclose = (event) => {
+        // If the connection closes unexpectedly while still deploying
+        setStatus((currentStatus) => {
+          if (currentStatus === 'DEPLOYING') {
+            setErrorMsg('Network connection lost. Please refresh to check deployment status.');
+            return 'ERROR';
+          }
+          return currentStatus;
+        });
+      };
+
       ws.onerror = () => {
         setLogs((prev) => [...prev, 'WebSocket connection error']);
-        // If WS fails, we might still be deploying, but let's show an error for now
-        // In a production app, we would fallback to polling
       };
 
     } catch (error: unknown) {
