@@ -24,6 +24,7 @@
 | `ws_evolution.py` | ✅ 核心 | WebSocket 接口，负责向前端实时推送新的 EvolutionProposal |
 | `sync.py` | ✅ 核心 | 统一数据同步协议（导出/导入本地技能 ZIP 包，包含底层强制静默安全扫描，解决端到端数据孤岛问题） |
 | `batch_import.py` | ✅ 核心 | 批量导入协议（针对 Hermes 协议和 ZIP 归档的批量技能解压、冲突检测、安全扫描与落盘） |
+| `_staging.py` | ✅ 辅助 | 批量导入的持久化暂存区 (Persistent Staging Area / Claim Check) 管理，实现大文件安全异步流转与原子写 |
 | `instances.py` | ✅ 核心 | 多实例 CRUD API 路由（状态管理已下沉至 `core/skills/state_manager_instance.py`） |
 | `config_version.py` | ✅ 辅助 | Re-export wrapper（单一来源：`core/skills/config_version.py`） |
 | `local.py` | ✅ 核心 | 本地技能管理（上传、安装、卸载） |

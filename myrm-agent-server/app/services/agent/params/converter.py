@@ -468,10 +468,15 @@ async def convert_to_general_agent_params(
                             resolved.model,
                         )
 
-            if resolved.agent_type == "team" and agent_subagent_ids:
+            is_dynamic_team = resolved.agent_type == "team" and resolved.built_in
+            if resolved.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
                 from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
-                leader_protocol = await build_leader_protocol_prompt(agent_subagent_ids)
+                leader_protocol = await build_leader_protocol_prompt(
+                    agent_subagent_ids or [],
+                    leader_id=request.agent_id,
+                    dynamic_discovery=is_dynamic_team,
+                )
                 user_instructions = (
                     f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
                 )
@@ -685,6 +690,31 @@ async def convert_to_general_agent_params(
                 mention_tokens,
                 len(mention_warnings),
             )
+
+    if request.mentioned_agent_ids:
+        try:
+            from app.services.agent.agent_service import AgentService
+            mentioned_names = []
+            for aid in request.mentioned_agent_ids:
+                agent = await AgentService.get_agent_by_id(aid)
+                if agent and agent.display_name:
+                    mentioned_names.append(agent.display_name)
+            
+            if mentioned_names:
+                names_str = ", ".join(mentioned_names)
+                directive = (
+                    f"\n\n[System Directive: 用户显式要求了以下专家参与本次任务：{names_str}。"
+                    "你必须使用 delegate_task 工具将相关工作委派给他们，严禁你自己直接执行他们的专业工作！"
+                    "请根据用户的自然语言逻辑安排他们的执行顺序。]"
+                )
+                if isinstance(final_query, str):
+                    final_query = f"{final_query}{directive}"
+                elif isinstance(final_query, list):
+                    next_query = list(final_query)
+                    next_query.append({"type": "text", "text": directive})
+                    final_query = next_query
+        except Exception as e:
+            logger.warning("Failed to inject mentioned agents directive: %s", e)
 
     declared_caps = set()
     if security_config_dict and isinstance(security_config_dict.get("capabilities"), list):

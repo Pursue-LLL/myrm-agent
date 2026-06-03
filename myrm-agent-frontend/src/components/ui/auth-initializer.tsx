@@ -64,8 +64,8 @@ async function handleTauriRemoteSetup(): Promise<void> {
   if (!isTauriRuntime() || isAuthPage()) return;
 
   try {
-    const { getApiUrl } = await import('@/lib/api');
-    const res = await fetch(getApiUrl('/webui/auth/status'), { credentials: 'include' });
+    const { getWebuiUrl } = await import('@/lib/api');
+    const res = await fetch(getWebuiUrl('/auth/status'), { credentials: 'include' });
     if (!res.ok) return;
 
     const status = await res.json();

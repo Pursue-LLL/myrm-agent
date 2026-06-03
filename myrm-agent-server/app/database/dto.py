@@ -418,6 +418,7 @@ class AgentBase(BaseModel):
     personality_style: PersonalityStyleLiteral = Field(default="professional", description="Personality style preset")
     memory_decay_profile: MemoryDecayProfileLiteral = Field(default="normal", description="Memory forgetting decay speed")
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type: individual or team (leader)")
+    allow_discovery: bool = Field(default=True, description="是否允许被主Agent通过动态名册发现并委派")
     subagent_ids: list[str] = Field(default=[], description="可委托的子智能体 ID 列表")
     max_iterations: int | None = Field(None, description="最大迭代次数（None=使用系统默认值）", ge=5, le=500)
     workspace_policy: WorkspacePolicyLiteral = Field(
@@ -493,6 +494,7 @@ class AgentUpdate(BaseModel):
     personality_style: PersonalityStyleLiteral | None = Field(None, description="Personality style preset")
     memory_decay_profile: MemoryDecayProfileLiteral | None = Field(None, description="Memory forgetting decay speed")
     agent_type: AgentTypeLiteral | None = Field(None, description="Agent type: individual or team (leader)")
+    allow_discovery: bool | None = Field(None, description="是否允许被主Agent通过动态名册发现并委派")
     subagent_ids: list[str] | None = Field(None, description="可委托的子智能体 ID 列表")
     max_iterations: int | None = Field(None, description="最大迭代次数（None=不修改）", ge=5, le=500)
     workspace_policy: WorkspacePolicyLiteral | None = Field(

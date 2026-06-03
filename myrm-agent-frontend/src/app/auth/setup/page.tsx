@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import { getWebuiUrl } from '@/lib/api';
 
 interface PasswordRequirement {
   label: string;
@@ -110,7 +111,7 @@ export default function SetupPasswordPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/webui/auth/setup`, {
+      const response = await fetch(getWebuiUrl('/auth/setup'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

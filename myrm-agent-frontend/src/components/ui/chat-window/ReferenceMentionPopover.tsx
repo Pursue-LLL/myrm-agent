@@ -148,35 +148,61 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
             ) : (
               results.map((file, index) => {
                 const isSpecial = file.source === 'special';
+                const isAgent = file.source === 'agent';
                 const isSelected = index === selectedIndex;
                 const title = file.basename || file.label;
                 const subtitle = file.directory || file.description || file.relative_path || '';
-                const Icon = isSpecial ? IconGlow : getFileIcon(title);
+                const Icon = isAgent ? undefined : (isSpecial ? IconGlow : getFileIcon(title));
+
+                const prevFile = index > 0 ? results[index - 1] : null;
+                const isFirstAgent = isAgent && (!prevFile || prevFile.source !== 'agent');
+                const isFirstContext = !isAgent && (!prevFile || prevFile.source === 'agent');
+
                 return (
-                  <button
-                    key={`${file.reference_type}:${file.relative_path ?? file.file_id ?? file.label}`}
-                    data-mention-item
-                    type="button"
-                    className={cn(
-                      'flex items-center gap-3 w-full px-3 py-2 text-left transition-colors',
-                      'hover:bg-accent/50',
-                      isSelected && 'bg-accent',
-                      isSpecial && 'bg-primary/5',
-                    )}
-                    onClick={() => onSelect(file)}
-                    onMouseEnter={() => {}}
-                  >
-                    <Icon className={cn('w-4 h-4 shrink-0', isSpecial ? 'text-primary/70' : 'text-muted-foreground')} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {isSpecial ? title : highlightMatch(title, file.match_ranges)}
+                  <React.Fragment key={`${file.reference_type}:${file.relative_path ?? file.file_id ?? file.label}`}>
+                    {isFirstAgent && (
+                      <div className="px-3 py-1.5 text-xs font-semibold text-primary/80 bg-primary/5 uppercase tracking-wider mt-1 first:mt-0">
+                        {t('agentsCategory') || '召唤智能体 (Agents)'}
                       </div>
-                      <div className="text-xs text-muted-foreground/70 truncate">{subtitle}</div>
-                    </div>
-                    {file.size !== null && (
-                      <span className="text-[10px] text-muted-foreground/50 shrink-0">{formatSize(file.size)}</span>
                     )}
-                  </button>
+                    {isFirstContext && (
+                      <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/30 uppercase tracking-wider mt-1 first:mt-0">
+                        {t('contextCategory') || '引入上下文 (Context)'}
+                      </div>
+                    )}
+                    <button
+                      data-mention-item
+                      type="button"
+                      className={cn(
+                        'flex items-center gap-3 w-full px-3 py-2 text-left transition-colors',
+                        'hover:bg-accent/50',
+                        isSelected && 'bg-accent',
+                        isSpecial && 'bg-primary/5',
+                        isAgent && 'bg-primary/10 hover:bg-primary/20'
+                      )}
+                      onClick={() => onSelect(file)}
+                      onMouseEnter={() => {}}
+                    >
+                      {isAgent && file.avatar_url ? (
+                        <img src={file.avatar_url} alt={title} className="w-5 h-5 rounded-full shrink-0 object-cover border border-primary/20" />
+                      ) : isAgent ? (
+                        <div className="w-5 h-5 rounded-full shrink-0 bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                          {title.charAt(0).toUpperCase()}
+                        </div>
+                      ) : (
+                        Icon && <Icon className={cn('w-4 h-4 shrink-0', isSpecial ? 'text-primary/70' : 'text-muted-foreground')} />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className={cn("text-sm truncate", isAgent ? "font-bold text-primary" : "font-medium")}>
+                          {isSpecial ? title : highlightMatch(title, file.match_ranges)}
+                        </div>
+                        <div className="text-xs text-muted-foreground/70 truncate">{subtitle}</div>
+                      </div>
+                      {file.size !== null && (
+                        <span className="text-[10px] text-muted-foreground/50 shrink-0">{formatSize(file.size)}</span>
+                      )}
+                    </button>
+                  </React.Fragment>
                 );
               })
             )}

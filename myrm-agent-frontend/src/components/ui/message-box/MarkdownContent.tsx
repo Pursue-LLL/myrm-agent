@@ -236,7 +236,7 @@ const MarkdownContent = React.memo(
       >
         <ReactMarkdown
           remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm]} // 用于 渲染 解析后的 AST 内容
-          rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, rehypeHeadingIds]} // 将 AST 转换为最终的 HTML 结构
+          rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
           components={components}
           allowedElements={[
             // 允许渲染的元素

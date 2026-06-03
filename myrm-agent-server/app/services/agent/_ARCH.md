@@ -78,6 +78,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 - `subagent_ids`
 - `security_overrides`
 - `personality_style`
+- `allow_discovery`（是否允许被其他智能体动态发现并委派）
 - `max_iterations`
 - `workspace_policy`
 - `memory_policy`

@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { suggestReferences, type ReferenceSuggestion } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import useAgentStore from '@/store/useAgentStore';
 import type { MentionReference } from '@/store/chat/types';
 
 interface ReferenceMentionState {
@@ -154,6 +155,10 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
   const requestSeqRef = useRef(0);
 
   useEffect(() => {
+    void useAgentStore.getState().fetchAgents(1, 100, false);
+  }, []);
+
+  useEffect(() => {
     const mention = extractMentionQuery(inputMessage, cursorPosition);
     if (!mention) {
       setState((prev) => (prev.isOpen ? { ...prev, isOpen: false, results: [], selectedIndex: 0 } : prev));
@@ -183,14 +188,62 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
         if (requestSeqRef.current !== requestSeq) return;
         const serverResults = folderMode ? data.results : data.results.filter((item) => item.source !== 'special');
+        
+        let agentResults: ReferenceSuggestion[] = [];
+        if (!folderMode) {
+          const agents = useAgentStore.getState().agents;
+          agentResults = agents
+            .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
+            .map(a => ({
+              source: 'agent',
+              reference_type: 'agent',
+              kind: 'agent',
+              label: a.name,
+              basename: a.name,
+              directory: a.description || 'Agent',
+              relative_path: null,
+              file_id: a.id,
+              description: a.description || null,
+              size: null,
+              score_tier: 'prefix',
+              score: 2000,
+              match_ranges: [],
+              avatar_url: a.avatar_url
+            }));
+        }
+
         setState((prev) => ({
           ...prev,
-          results: folderMode ? serverResults : [...specialResults, ...serverResults],
+          results: folderMode ? serverResults : [...agentResults, ...specialResults, ...serverResults],
           selectedIndex: 0,
         }));
       } catch {
         if (requestSeqRef.current !== requestSeq) return;
-        setState((prev) => ({ ...prev, results: specialResults, selectedIndex: 0 }));
+
+        let agentResults: ReferenceSuggestion[] = [];
+        if (!folderMode) {
+          const agents = useAgentStore.getState().agents;
+          agentResults = agents
+            .filter(a => !query || a.name.toLowerCase().includes(query.toLowerCase()))
+            .map(a => ({
+              source: 'agent',
+              reference_type: 'agent',
+              kind: 'agent',
+              label: a.name,
+              basename: a.name,
+              directory: a.description || 'Agent',
+              relative_path: null,
+              file_id: a.id,
+              description: a.description || null,
+              size: null,
+              score_tier: 'prefix',
+              score: 2000,
+              match_ranges: [],
+              avatar_url: a.avatar_url
+            }));
+        }
+
+        setState((prev) => ({ ...prev, results: [...agentResults, ...specialResults], selectedIndex: 0 }));
       }
     }, DEBOUNCE_MS);
 

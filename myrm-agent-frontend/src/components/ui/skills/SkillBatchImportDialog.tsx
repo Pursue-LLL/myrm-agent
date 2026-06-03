@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Upload, X, File, Loader2, AlertCircle, CheckCircle2, ChevronRight, DownloadCloud } from 'lucide-react';
+import { Upload, X, File, Loader2, AlertCircle, CheckCircle2, ChevronRight, DownloadCloud, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useDragDrop } from '@/hooks/useDragDrop';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -24,10 +24,10 @@ interface PreviewItem {
   virtual_id: string;
   name: string;
   description: string;
-  content: string;
   conflict_type: 'none' | 'conflict';
   existing_skill_id: string | null;
   resolution: 'replace' | 'rename_cow' | 'skip' | 'new';
+  security_issues?: string | null;
 }
 
 const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: SkillBatchImportDialogProps) => {
@@ -39,6 +39,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
   const [isImporting, setIsImporting] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [totalFound, setTotalFound] = useState(0);
   const [totalConflicts, setTotalConflicts] = useState(0);
 
@@ -46,6 +47,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
     setFile(null);
     setParseError(null);
     setPreviewItems([]);
+    setSessionId(null);
     setTotalFound(0);
     setTotalConflicts(0);
     setIsParsing(false);
@@ -90,6 +92,7 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
         const data = await res.json();
         setTotalFound(data.total_found);
         setTotalConflicts(data.total_conflicts);
+        setSessionId(data.session_id);
         
         const items: PreviewItem[] = data.items.map((item: any) => ({
           ...item,
@@ -133,11 +136,11 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
     try {
       setIsImporting(true);
       const payload = {
+        session_id: sessionId,
         items: previewItems.map(item => ({
           virtual_id: item.virtual_id,
           name: item.name,
           description: item.description,
-          content: item.content,
           resolution: item.resolution,
           existing_skill_id: item.existing_skill_id
         }))
@@ -291,8 +294,18 @@ const SkillBatchImportDialog = memo(({ open, onOpenChange, onImportComplete }: S
                             ) : (
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 dark:text-green-400">新增 / New</Badge>
                             )}
+                            {item.security_issues && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20 flex items-center gap-1" title={item.security_issues}>
+                                <AlertCircle className="w-3 h-3" /> 安全警告 / Security Risk
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+                          {item.security_issues && (
+                            <p className="text-[11px] text-destructive mt-1 line-clamp-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> {item.security_issues}
+                            </p>
+                          )}
                         </div>
                         
                         <div className="shrink-0 w-full sm:w-[180px]">

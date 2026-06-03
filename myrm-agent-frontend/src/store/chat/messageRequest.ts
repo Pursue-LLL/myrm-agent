@@ -557,8 +557,13 @@ export const createMessageRequest = async (
     ...(() => {
       const references = mergeMentionReferences(state.mentionReferences, extractInlineMentionReferences(input));
       if (references.length === 0) return {};
-      return {
-        mention_references: references.map((reference) => ({
+      
+      const fileReferences = references.filter(r => r.type !== 'agent');
+      const agentReferences = references.filter(r => r.type === 'agent');
+      
+      const payload: Record<string, any> = {};
+      if (fileReferences.length > 0) {
+        payload.mention_references = fileReferences.map((reference) => ({
           type: reference.type,
           path: reference.path,
           file_id: reference.fileId,
@@ -566,8 +571,12 @@ export const createMessageRequest = async (
           label: reference.label,
           start_line: reference.startLine,
           end_line: reference.endLine,
-        })),
-      };
+        }));
+      }
+      if (agentReferences.length > 0) {
+        payload.mentioned_agent_ids = agentReferences.map(r => r.fileId).filter(Boolean);
+      }
+      return payload;
     })(),
   };
 

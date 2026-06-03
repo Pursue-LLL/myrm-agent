@@ -68,7 +68,12 @@ export default function SingleApprovalCard({ request, onResolve, isLoading }: Si
     return {
       base64: viewData.screenshotBase64,
       mimeType: viewData.mimeType,
-      bbox: targetRef.bbox,
+      bbox: {
+        x: targetRef.bbox.viewport_x ?? targetRef.bbox.x,
+        y: targetRef.bbox.viewport_y ?? targetRef.bbox.y,
+        width: targetRef.bbox.width,
+        height: targetRef.bbox.height,
+      },
       viewportWidth: viewData.viewportWidth,
       viewportHeight: viewData.viewportHeight,
     };

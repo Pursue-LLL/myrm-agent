@@ -11,6 +11,7 @@ import {
   IconPalette,
   IconBrain,
 } from '@/components/ui/icons/PremiumIcons';
+import { Switch } from '@/components/ui/switch';
 import {
   Anchor,
   Cat,
@@ -54,12 +55,14 @@ interface AgentBasicInfoTabProps {
   description: string;
   personalityStyle: string;
   promptMode: 'full' | 'lean' | 'naked';
+  allowDiscovery: boolean;
   suggestionPrompts: string[];
   readonly?: boolean;
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onPersonalityChange: (value: string) => void;
   onPromptModeChange: (value: 'full' | 'lean' | 'naked') => void;
+  onAllowDiscoveryChange: (value: boolean) => void;
   onSuggestionPromptsChange: (value: string[]) => void;
 }
 
@@ -74,12 +77,14 @@ export function AgentBasicInfoTab({
   description,
   personalityStyle,
   promptMode,
+  allowDiscovery,
   suggestionPrompts,
   readonly: isReadonly = false,
   onNameChange,
   onDescriptionChange,
   onPersonalityChange,
   onPromptModeChange,
+  onAllowDiscoveryChange,
   onSuggestionPromptsChange,
 }: AgentBasicInfoTabProps) {
   const t = useTranslations();
@@ -203,6 +208,20 @@ export function AgentBasicInfoTab({
               {suggestionPrompts.length}/{MAX_SUGGESTION_PROMPTS}
             </p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-foreground">{t('agent.allowDiscovery.title', { fallback: '允许被其他智能体发现并委派 (Allow Discovery)' })}</label>
+              <p className="text-xs text-muted-foreground">{t('agent.allowDiscovery.description', { fallback: '开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。' })}</p>
+            </div>
+            <Switch
+              checked={allowDiscovery}
+              onCheckedChange={onAllowDiscoveryChange}
+              disabled={isReadonly}
+            />
+          </div>
         </div>
 
         <div className="space-y-2">

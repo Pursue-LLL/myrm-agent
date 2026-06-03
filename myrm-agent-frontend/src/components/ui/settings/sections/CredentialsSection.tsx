@@ -10,7 +10,7 @@ import { toast } from '@/hooks/useToast';
 import SettingsSection from './SettingsSection';
 import { cn } from '@/lib/utils';
 import { localizeReactNode } from '@/lib/utils/localeText';
-import { uploadCredential, listCredentials, deleteCredential, type CredentialFile } from '@/services/credentials';
+import { uploadCredential, listCredentials, deleteCredential, type CredentialFile, listVaultCredentials, createVaultCredential, updateVaultCredential, deleteVaultCredential, type VaultCredential } from '@/services/credentials';
 import { countProviderTrees } from '@/services/integrationMemory';
 import { useSkillStore } from '@/store/skill';
 import { apiRequest } from '@/lib/api';
@@ -69,7 +69,17 @@ const CredentialsSection = memo(() => {
   const { marketSkills, localSkills } = useSkillStore();
 
   const [credentials, setCredentials] = useState<CredentialFile[]>([]);
+  const [vaultCredentials, setVaultCredentials] = useState<VaultCredential[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVaultLoading, setIsVaultLoading] = useState(true);
+  
+  const [vaultModalOpen, setVaultModalOpen] = useState(false);
+  const [editingVaultCred, setEditingVaultCred] = useState<VaultCredential | null>(null);
+  const [vaultLabel, setVaultLabel] = useState('');
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [vaultTotp, setVaultTotp] = useState('');
+  const [vaultDesc, setVaultDesc] = useState('');
+  const [deleteVaultTarget, setDeleteVaultTarget] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFilename, setUploadingFilename] = useState<string | null>(null);
@@ -160,10 +170,70 @@ const CredentialsSection = memo(() => {
     }
   }, [t]);
 
+  const loadVaultCredentials = useCallback(async () => {
+    try {
+      setIsVaultLoading(true);
+      const creds = await listVaultCredentials();
+      setVaultCredentials(creds);
+    } catch (error) {
+      console.error('Failed to load vault credentials:', error);
+    } finally {
+      setIsVaultLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadCredentials();
+    loadVaultCredentials();
     fetchOauthCreds();
-  }, [loadCredentials, fetchOauthCreds]);
+  }, [loadCredentials, loadVaultCredentials, fetchOauthCreds]);
+
+  const handleSaveVaultCredential = async () => {
+    if (!vaultLabel.trim()) {
+      toast({ title: 'Label is required', variant: 'destructive' });
+      return;
+    }
+    if (!vaultPassword.trim() && !vaultTotp.trim()) {
+      toast({ title: 'Password or TOTP seed is required', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      if (editingVaultCred) {
+        await updateVaultCredential(editingVaultCred.label, {
+          password: vaultPassword || undefined,
+          totp_seed: vaultTotp || undefined,
+          description: vaultDesc || undefined,
+        });
+        toast({ title: 'Vault credential updated' });
+      } else {
+        await createVaultCredential({
+          label: vaultLabel.trim(),
+          password: vaultPassword || undefined,
+          totp_seed: vaultTotp || undefined,
+          description: vaultDesc || undefined,
+        });
+        toast({ title: 'Vault credential created' });
+      }
+      setVaultModalOpen(false);
+      loadVaultCredentials();
+    } catch (e: any) {
+      toast({ title: e.message || 'Failed to save vault credential', variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteVaultConfirm = async () => {
+    if (!deleteVaultTarget) return;
+    try {
+      await deleteVaultCredential(deleteVaultTarget);
+      toast({ title: 'Vault credential deleted' });
+      loadVaultCredentials();
+    } catch (e: any) {
+      toast({ title: e.message || 'Failed to delete vault credential', variant: 'destructive' });
+    } finally {
+      setDeleteVaultTarget(null);
+    }
+  };
 
   const handleUpload = useCallback(
     async (targetFilename: string) => {
@@ -248,41 +318,126 @@ const CredentialsSection = memo(() => {
       <input ref={fileInputRef} type="file" className="hidden" aria-label="Credential file input" />
 
       <div className="space-y-6">
-        {missingCredentials.length > 0 && (
-          <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4">
-            <div className="flex items-start gap-3">
-              <IconAlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="font-medium text-amber-500 mb-2">{t('missingTitle')}</h3>
-                <div className="space-y-2">
-                  {missingCredentials.map((filename) => (
-                    <div key={filename} className="flex items-center justify-between p-2 rounded bg-background/50">
-                      <span className="text-sm font-mono">{filename}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUpload(filename)}
-                        disabled={isUploading && uploadingFilename === filename}
-                      >
-                        <IconUpload className="h-4 w-4 mr-2" />
-                        {t('upload')}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Form Credentials Vault Section */}
         <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium flex items-center gap-2">
+              <IconCheckCircle className="h-5 w-5 text-primary" />
+              Form Credentials Vault (Zero-Disk)
+              <Badge variant="secondary" className="ml-auto">
+                {vaultCredentials.length}
+              </Badge>
+            </h3>
+            <Button size="sm" onClick={() => {
+              setEditingVaultCred(null);
+              setVaultLabel('');
+              setVaultPassword('');
+              setVaultTotp('');
+              setVaultDesc('');
+              setVaultModalOpen(true);
+            }}>
+              + Add Credential
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Securely store passwords and TOTP seeds for browser/desktop automation. Secrets are encrypted and never exposed to the LLM context.
+          </p>
+
+          {isVaultLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg border">
+                  <div className="h-10 w-10 rounded bg-muted animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : vaultCredentials.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">No form credentials stored.</div>
+          ) : (
+            <div className="space-y-2">
+              {vaultCredentials.map((cred) => (
+                <div
+                  key={cred.id}
+                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-mono text-sm font-medium">{cred.label}</div>
+                      {cred.has_password && <Badge variant="outline" className="text-xs">Password</Badge>}
+                      {cred.has_totp_seed && <Badge variant="outline" className="text-xs">TOTP</Badge>}
+                    </div>
+                    {cred.description && <div className="text-xs text-muted-foreground mt-1">{cred.description}</div>}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingVaultCred(cred);
+                        setVaultLabel(cred.label);
+                        setVaultPassword(''); // Don't show existing password
+                        setVaultTotp(''); // Don't show existing TOTP
+                        setVaultDesc(cred.description || '');
+                        setVaultModalOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setDeleteVaultTarget(cred.label)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-500/10"
+                    >
+                      <IconTrash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border pt-6">
           <h3 className="font-medium mb-3 flex items-center gap-2">
             <IconCheckCircle className="h-5 w-5 text-green-500" />
-            {t('uploadedTitle')}
+            {t('uploadedTitle')} (Files)
             <Badge variant="secondary" className="ml-auto">
               {credentials.length}
             </Badge>
           </h3>
+
+          {missingCredentials.length > 0 && (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <IconAlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-medium text-amber-500 mb-2">{t('missingTitle')}</h3>
+                  <div className="space-y-2">
+                    {missingCredentials.map((filename) => (
+                      <div key={filename} className="flex items-center justify-between p-2 rounded bg-background/50">
+                        <span className="text-sm font-mono">{filename}</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpload(filename)}
+                          disabled={isUploading && uploadingFilename === filename}
+                        >
+                          <IconUpload className="h-4 w-4 mr-2" />
+                          {t('upload')}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="space-y-2">
@@ -549,6 +704,111 @@ const CredentialsSection = memo(() => {
         variant="destructive"
         onConfirm={handleDeleteConfirm}
       />
+
+      <ConfirmDialog
+        open={!!deleteVaultTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteVaultTarget(null);
+        }}
+        title="Delete Vault Credential"
+        description={`Are you sure you want to delete the credential "${deleteVaultTarget}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleDeleteVaultConfirm}
+      />
+
+      {/* Vault Credential Modal */}
+      {vaultModalOpen && (
+        <Dialog
+          open={vaultModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setVaultModalOpen(false);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md bg-card border border-border">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">
+                {editingVaultCred ? 'Edit Vault Credential' : 'Add Vault Credential'}
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Store passwords and TOTP seeds securely. They will never be exposed to the LLM context.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="vaultLabel" className="text-foreground">
+                  Label (Unique ID for LLM to use)
+                </Label>
+                <Input
+                  id="vaultLabel"
+                  type="text"
+                  placeholder="e.g. github-personal"
+                  value={vaultLabel}
+                  onChange={(e) => setVaultLabel(e.target.value)}
+                  disabled={!!editingVaultCred}
+                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="vaultPassword" className="text-foreground">
+                  Password {editingVaultCred && '(Leave blank to keep existing)'}
+                </Label>
+                <Input
+                  id="vaultPassword"
+                  type="password"
+                  placeholder="Enter password"
+                  value={vaultPassword}
+                  onChange={(e) => setVaultPassword(e.target.value)}
+                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="vaultTotp" className="text-foreground">
+                  TOTP Seed {editingVaultCred && '(Leave blank to keep existing)'}
+                </Label>
+                <Input
+                  id="vaultTotp"
+                  type="password"
+                  placeholder="e.g. JBSWY3DPEHPK3PXP"
+                  value={vaultTotp}
+                  onChange={(e) => setVaultTotp(e.target.value)}
+                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="vaultDesc" className="text-foreground">
+                  Description (Optional)
+                </Label>
+                <Input
+                  id="vaultDesc"
+                  type="text"
+                  placeholder="What is this credential for?"
+                  value={vaultDesc}
+                  onChange={(e) => setVaultDesc(e.target.value)}
+                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setVaultModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveVaultCredential}>Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Disconnect OAuth Confirm Dialog */}
       {disconnectConfirmTarget && (

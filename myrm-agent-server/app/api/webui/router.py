@@ -371,6 +371,8 @@ async def get_browser_snapshot() -> JSONResponse:
                             "height": info.bbox.height,
                             "centerX": info.bbox.centerX,
                             "centerY": info.bbox.centerY,
+                            "viewport_x": info.bbox.viewport_x,
+                            "viewport_y": info.bbox.viewport_y,
                             "viewport_width": info.bbox.viewport_width,
                             "viewport_height": info.bbox.viewport_height,
                         }

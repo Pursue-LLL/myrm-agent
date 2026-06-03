@@ -526,6 +526,7 @@ const MessageBox = ({
 
             <MessageToc 
               content={parsedMessage} 
+              messageId={message.messageId}
               isStreaming={isLast && loading} 
               containerRef={markdownRef} 
             />

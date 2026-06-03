@@ -351,7 +351,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 <div className="flex sm:hidden flex-row items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setIsMobileSheetOpen(true)}
+                    onClick={() => { handleSubmit(); setIsMobileSheetOpen(true); }}
                     className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
                     aria-label={chatT('input.expandToolbar')}
                     data-testid="sendbox-mobile-plus-btn"

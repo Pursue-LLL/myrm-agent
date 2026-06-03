@@ -18,11 +18,12 @@ export interface TocItem {
 
 interface MessageTocProps {
   content: string;
+  messageId: string;
   isStreaming?: boolean;
   containerRef: React.RefObject<HTMLElement>;
 }
 
-export const MessageToc: React.FC<MessageTocProps> = ({ content, isStreaming, containerRef }) => {
+export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isStreaming, containerRef }) => {
   const [toc, setToc] = useState<TocItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -60,7 +61,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, isStreaming, co
             });
 
             newToc.push({
-              id: `toc-header-${index}`,
+              id: `toc-${messageId}-${index}`,
               level: parseInt(node.tagName.charAt(1), 10),
               text: text.trim(),
               index,
@@ -82,7 +83,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, isStreaming, co
     } else {
       parseToc();
     }
-  }, [content, isStreaming]);
+  }, [content, isStreaming, messageId]);
 
   // 2. 滚动同步 (Scroll Sync)
   useEffect(() => {

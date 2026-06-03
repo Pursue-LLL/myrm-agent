@@ -16,6 +16,7 @@ import { isSandboxAuthBuild } from '@/lib/deploy-mode';
 import { getAuthToken } from '@/lib/guest';
 import { readAuthRedirectParam } from '@/lib/auth-redirect';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
+import { getWebuiUrl } from '@/lib/api';
 import useAuthStore from '@/store/useAuthStore';
 
 export default function LoginPage() {
@@ -48,7 +49,7 @@ export default function LoginPage() {
 
   const checkAuth = useCallback(async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/webui/auth/status`, {
+      const response = await fetch(getWebuiUrl('/auth/status'), {
         credentials: 'include',
       });
       if (response.ok) {
@@ -77,7 +78,7 @@ export default function LoginPage() {
     async (token: string) => {
       setAutoLoginInProgress(true);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/webui/auth/token-exchange`, {
+        const response = await fetch(getWebuiUrl('/auth/token-exchange'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -159,7 +160,7 @@ export default function LoginPage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/webui/auth/login`, {
+      const response = await fetch(getWebuiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

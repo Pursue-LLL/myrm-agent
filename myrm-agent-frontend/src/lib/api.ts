@@ -38,6 +38,19 @@ export const getApiUrl = (endpoint: string): string => {
 };
 
 /**
+ * WebUI 路由挂载在后端 `/webui`（非 `/api/v1`）。
+ * 本地开发经 Next rewrites 代理；沙箱/远程使用 BACKEND_BASE_URL。
+ */
+export const getWebuiUrl = (endpoint: string): string => {
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const webuiPath = path.startsWith('/webui') ? path : `/webui${path}`;
+  if (BACKEND_BASE_URL) {
+    return `${BACKEND_BASE_URL}${webuiPath}`;
+  }
+  return webuiPath;
+};
+
+/**
  * 获取 WebSocket URL（将 http(s) 转换为 ws(s)）
  */
 export const getWsUrl = (endpoint: string): string => {

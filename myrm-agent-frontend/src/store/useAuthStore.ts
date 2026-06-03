@@ -17,7 +17,7 @@ import {
   clearAuthToken,
 } from '@/lib/guest';
 import { parseCpAuthTokenUserId } from '@/lib/auth-cp-token';
-import { BACKEND_BASE_URL } from '@/lib/api';
+import { getWebuiUrl } from '@/lib/api';
 
 interface User {
   id: string;
@@ -108,7 +108,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
     };
 
     try {
-      const res = await fetch(`${BACKEND_BASE_URL}/webui/auth/status`, {
+      const res = await fetch(getWebuiUrl('/auth/status'), {
         credentials: 'include',
       });
       if (res.ok) {
@@ -212,7 +212,7 @@ const useAuthStore = create<AuthState>((set, get) => ({
    */
   logout: async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/webui/auth/logout`, {
+      await fetch(getWebuiUrl('/auth/logout'), {
         method: 'POST',
         credentials: 'include',
       });

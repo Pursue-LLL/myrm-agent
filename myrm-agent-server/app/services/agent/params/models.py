@@ -163,6 +163,7 @@ class AgentRequest(BaseModel):
     quote: str | None = None
 
     mention_references: list[MentionReferenceRequest] | None = None
+    mentioned_agent_ids: list[str] | None = Field(default=None, description="Explicitly @ mentioned agent IDs")
     archive_restore_actions: list[ArchiveRestoreActionRequest] | None = None
     engine_params: dict[str, object] | None = None
 

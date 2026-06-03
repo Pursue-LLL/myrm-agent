@@ -118,8 +118,11 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // Personality 风格
   const [personalityStyle, setPersonalityStyle] = useState<string>(DEFAULT_PERSONALITY_STYLE);
 
-  // Prompt Mode
+  // 提示模式
   const [promptMode, setPromptMode] = useState<'full' | 'lean' | 'naked'>('full');
+
+  // 可发现性
+  const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
 
   // 对话框状态
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -157,6 +160,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     suggestionPrompts: [] as string[],
     sessionPolicy: null as AgentSessionPolicy | null,
     notifyTargets: [] as import('@/services/agent').NotifyTarget[],
+    allowDiscovery: true,
   });
 
   // 检测变更
@@ -194,6 +198,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       memoryDecayProfile !== originalData.memoryDecayProfile ||
       sessionPolicyChanged ||
       notifyChanged ||
+      allowDiscovery !== originalData.allowDiscovery ||
       maxIterations !== originalData.maxIterations ||
       !arraysEqual(suggestionPrompts, originalData.suggestionPrompts);
     setHasChanges(changed);
@@ -275,6 +280,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setPersonalityStyle(data.personality_style || DEFAULT_PERSONALITY_STYLE);
       setPromptMode(data.prompt_mode || 'full');
       setMaxIterations(data.max_iterations ?? null);
+      setAllowDiscovery(data.allow_discovery ?? true);
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
       setEngineParams(data.engine_params ?? null);
       setOpenapiServices((data.openapi_services as OpenAPIServiceConfig[]) || []);
@@ -296,6 +302,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         securityOverrides: data.security_overrides ?? null,
         personalityStyle: data.personality_style || DEFAULT_PERSONALITY_STYLE,
         promptMode: data.prompt_mode || 'full',
+        allowDiscovery: data.allow_discovery ?? true,
         maxIterations: data.max_iterations ?? null,
         memoryDecayProfile: data.memory_decay_profile || 'normal',
         engineParams: data.engine_params ?? null,
@@ -383,6 +390,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           security_overrides: securityOverrides,
           prompt_mode: promptMode,
           personality_style: personalityStyle,
+          allow_discovery: allowDiscovery,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : undefined,
           max_iterations: maxIterations,
           memory_decay_profile: memoryDecayProfile,
@@ -412,6 +420,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           security_overrides: securityOverrides,
           prompt_mode: promptMode,
           personality_style: personalityStyle,
+          allow_discovery: allowDiscovery,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : [],
           max_iterations: maxIterations,
           memory_decay_profile: memoryDecayProfile,
@@ -445,6 +454,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           modelSelection,
           securityOverrides,
           personalityStyle,
+          allowDiscovery,
           promptMode,
           maxIterations,
           memoryDecayProfile,
@@ -581,9 +591,12 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // Personality
     personalityStyle,
     setPersonalityStyle,
-    // Prompt Mode
+    // 提示模式
     promptMode,
     setPromptMode,
+    // 可发现性
+    allowDiscovery,
+    setAllowDiscovery,
     // 迭代次数
     maxIterations,
     setMaxIterations,

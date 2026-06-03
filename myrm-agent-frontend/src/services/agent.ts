@@ -102,6 +102,7 @@ export interface Agent {
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
+  allow_discovery?: boolean;
   snapshot_count?: number;
   snapshot_saved?: boolean;
   created_at: string;
@@ -152,6 +153,7 @@ export interface AgentCreate {
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
+  allow_discovery?: boolean;
 }
 
 export interface AgentUpdate {
@@ -184,6 +186,7 @@ export interface AgentUpdate {
   command_bindings?: CommandBindingConfig[] | null;
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
+  allow_discovery?: boolean;
 }
 
 export interface AgentListResponse {

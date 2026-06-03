@@ -49,3 +49,60 @@ export async function deleteCredential(filename: string): Promise<void> {
     method: 'DELETE',
   });
 }
+
+export interface VaultCredential {
+  id: string;
+  label: string;
+  description?: string;
+  has_password: boolean;
+  has_totp_seed: boolean;
+}
+
+export interface VaultCredentialCreate {
+  label: string;
+  password?: string;
+  totp_seed?: string;
+  description?: string;
+}
+
+export interface VaultCredentialUpdate {
+  password?: string;
+  totp_seed?: string;
+  description?: string;
+}
+
+/**
+ * List all vault credentials
+ */
+export async function listVaultCredentials(): Promise<VaultCredential[]> {
+  return await apiRequest<VaultCredential[]>('/security/vault-credentials');
+}
+
+/**
+ * Create vault credential
+ */
+export async function createVaultCredential(data: VaultCredentialCreate): Promise<VaultCredential> {
+  return await apiRequest<VaultCredential>('/security/vault-credentials', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update vault credential
+ */
+export async function updateVaultCredential(label: string, data: VaultCredentialUpdate): Promise<VaultCredential> {
+  return await apiRequest<VaultCredential>(`/security/vault-credentials/${encodeURIComponent(label)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete vault credential
+ */
+export async function deleteVaultCredential(label: string): Promise<void> {
+  await apiRequest(`/security/vault-credentials/${encodeURIComponent(label)}`, {
+    method: 'DELETE',
+  });
+}

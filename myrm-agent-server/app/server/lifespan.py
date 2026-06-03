@@ -414,6 +414,13 @@ async def _phase_1b_parallel() -> None:
                 "[Startup] Failed to initialize DynamicLLMSecurityReviewer: %s", e
             )
 
+    async def _init_vault_credentials_task() -> None:
+        from app.services.security.vault_credential_service import VaultCredentialService
+        try:
+            service = VaultCredentialService()
+            await service.sync_all_to_vault()
+        except Exception as e:
+            logger.error("[Startup] Failed to sync Vault Credentials: %s", e)
 
     results = await asyncio.gather(
         _init_subagent_configs(),
@@ -430,6 +437,7 @@ async def _phase_1b_parallel() -> None:
         _init_builtin_agents(),
         _init_harness_bridge_task(),
         _init_security_reviewer_task(),
+        _init_vault_credentials_task(),
         return_exceptions=True,
     )
 
@@ -448,6 +456,7 @@ async def _phase_1b_parallel() -> None:
         "Built-in agents",
         "Harness event bridge",
         "Security reviewer",
+        "Vault credentials",
     ]
     for label, result in zip(_labels, results, strict=True):
         if isinstance(result, Exception):

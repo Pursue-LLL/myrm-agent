@@ -56,31 +56,71 @@ class RosterEntry:
     description: str
 
 
-async def _resolve_roster(subagent_ids: list[str]) -> list[RosterEntry]:
-    """Resolve subagent_ids into roster entries with display names and descriptions."""
-    if not subagent_ids:
-        return []
-
+async def _resolve_roster(
+    subagent_ids: list[str],
+    leader_id: str | None = None,
+    dynamic_discovery: bool = False,
+) -> list[RosterEntry]:
+    """Resolve subagent_ids into roster entries, optionally adding dynamic discovered agents."""
     import asyncio
 
     from app.services.agent.agent_service import AgentService
 
-    async def _fetch_one(agent_id: str) -> RosterEntry | None:
-        try:
-            profile = await AgentService.get_agent_by_id(agent_id)
-            if profile:
-                return RosterEntry(
-                    agent_id=agent_id,
-                    display_name=profile.display_name or agent_id,
-                    description=profile.description or "No description",
-                )
-            logger.warning("Team member '%s' not found, skipping", agent_id)
-        except Exception as e:
-            logger.warning("Failed to resolve team member '%s': %s", agent_id, e)
-        return None
+    entries_dict: dict[str, RosterEntry] = {}
 
-    results = await asyncio.gather(*[_fetch_one(aid) for aid in subagent_ids])
-    return [r for r in results if r is not None]
+    if subagent_ids:
+        async def _fetch_one(agent_id: str) -> RosterEntry | None:
+            try:
+                profile = await AgentService.get_agent_by_id(agent_id)
+                if profile:
+                    return RosterEntry(
+                        agent_id=agent_id,
+                        display_name=profile.display_name or agent_id,
+                        description=profile.description or "No description",
+                    )
+                logger.warning("Team member '%s' not found, skipping", agent_id)
+            except Exception as e:
+                logger.warning("Failed to resolve team member '%s': %s", agent_id, e)
+            return None
+
+        results = await asyncio.gather(*[_fetch_one(aid) for aid in subagent_ids])
+        for r in results:
+            if r is not None and r.agent_id != leader_id:
+                entries_dict[r.agent_id] = r
+
+    if dynamic_discovery:
+        try:
+            profiles, _ = await AgentService.get_agent_list(page=1, page_size=50)
+            added_dynamic = 0
+            for profile in profiles:
+                if added_dynamic >= 15:
+                    break
+                if profile.id == leader_id:
+                    continue
+                if profile.id in entries_dict:
+                    continue
+                
+                allow_discovery = True
+                if profile.metadata and "allow_discovery" in profile.metadata:
+                    allow_discovery = bool(profile.metadata["allow_discovery"])
+                
+                if not allow_discovery:
+                    continue
+                    
+                desc = (profile.description or "").strip()
+                if not desc:
+                    continue
+                    
+                entries_dict[profile.id] = RosterEntry(
+                    agent_id=profile.id,
+                    display_name=profile.display_name or profile.id,
+                    description=desc,
+                )
+                added_dynamic += 1
+        except Exception as e:
+            logger.warning("Failed to discover dynamic agents: %s", e)
+
+    return list(entries_dict.values())
 
 
 def _format_roster(entries: list[RosterEntry]) -> str:
@@ -97,12 +137,19 @@ def _format_roster(entries: list[RosterEntry]) -> str:
 
 async def build_leader_protocol_prompt(
     subagent_ids: list[str],
+    leader_id: str | None = None,
+    dynamic_discovery: bool = False,
 ) -> str:
     """Build the Leader Operating Protocol prompt for a team-type agent.
 
     Resolves subagent_ids into a roster with names/descriptions,
+    optionally discovering custom agents dynamically,
     then renders the protocol template.
     """
-    roster_entries = await _resolve_roster(subagent_ids)
+    roster_entries = await _resolve_roster(
+        subagent_ids, 
+        leader_id=leader_id, 
+        dynamic_discovery=dynamic_discovery
+    )
     roster_text = _format_roster(roster_entries)
     return _LEADER_PROTOCOL_TEMPLATE.format(roster=roster_text)
