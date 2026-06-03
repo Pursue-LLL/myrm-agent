@@ -178,7 +178,15 @@ async def prevalidate_archive_restore_actions(request: AgentRequest) -> None:
         chat = await ChatService.get_chat_metadata(request.chat_id)
         if chat:
             chat_loaded = True
-            if chat.workspace_dir:
+            
+            if chat.project_id:
+                from app.services.project.project_service import ProjectService
+                project = await ProjectService.get_project(chat.project_id)
+                if project and project.workspace_path:
+                    chat_workspace_dir = project.workspace_path
+                    db_had_workspace = True
+            
+            if not chat_workspace_dir and chat.workspace_dir:
                 chat_workspace_dir = chat.workspace_dir
                 db_had_workspace = True
     except Exception as exc:
@@ -629,7 +637,15 @@ async def convert_to_general_agent_params(
                     jit_subagents = chat.ephemeral_subagents
                 if chat.task_adaptive_digest:
                     task_adaptive_digest = chat.task_adaptive_digest
-                if chat.workspace_dir:
+                
+                if chat.project_id:
+                    from app.services.project.project_service import ProjectService
+                    project = await ProjectService.get_project(chat.project_id)
+                    if project and project.workspace_path:
+                        chat_workspace_dir = project.workspace_path
+                        db_had_workspace = True
+                
+                if not chat_workspace_dir and chat.workspace_dir:
                     chat_workspace_dir = chat.workspace_dir
                     db_had_workspace = True
         except Exception as e:

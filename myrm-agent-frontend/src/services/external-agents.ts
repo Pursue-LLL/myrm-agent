@@ -28,7 +28,7 @@ export interface ExternalAgentAuthStatus {
 }
 
 export interface ExternalAgentAuthEvent {
-  type: 'status' | 'prompt' | 'success' | 'error';
+  type: 'status' | 'prompt' | 'success' | 'error' | 'progress';
   message: string;
   url?: string;
   code?: string;
@@ -46,6 +46,52 @@ export async function getExternalAgentAuthStatus(): Promise<ExternalAgentAuthSta
     silent: true,
   });
   return res.backends ?? [];
+}
+
+export async function* streamExternalAgentInstall(
+  backend: string
+): AsyncGenerator<ExternalAgentAuthEvent, void, unknown> {
+  const response = await fetchWithTimeout(`/external-agents/install/${backend}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'text/event-stream',
+    },
+    timeout: 300000, // 5 minutes for installation
+  });
+
+  if (!response.body) {
+    throw new Error('No response body');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          try {
+            const event = JSON.parse(data) as ExternalAgentAuthEvent;
+            yield event;
+          } catch (e) {
+            console.error('Failed to parse SSE event:', data, e);
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 /** Persist a credential blob captured elsewhere (universal fallback). */

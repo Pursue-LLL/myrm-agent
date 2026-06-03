@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict
 
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,7 @@ class VercelClient:
                 logger.error(f"Vercel deployment failed: {response.status_code} - {error_msg}")
                 raise Exception(f"Vercel deployment failed: {error_msg}")
                 
+            # httpx response.json() is synchronous
             data = response.json()
             return {
                 "deployment_id": data.get("id"),
@@ -92,6 +93,7 @@ class VercelClient:
             if response.status_code >= 400:
                 raise Exception(f"Failed to get deployment status: {response.text}")
                 
+            # httpx response.json() is synchronous
             data = response.json()
             return {
                 "id": data.get("id"),

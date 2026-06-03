@@ -267,6 +267,18 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
 
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
+              {artifact.deployment_status === 'READY' && artifact.deployment_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(artifact.deployment_url, '_blank')}
+                  className="text-green-600 dark:text-green-500 border-green-200 dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
+                >
+                  <Globe className="w-4 h-4 mr-1.5" />
+                  已部署: {new URL(artifact.deployment_url).hostname}
+                  <ExternalLink className="w-3 h-3 ml-1.5 opacity-50" />
+                </Button>
+              )}
               {(isHtml || artifact.type === 'code') && (
                 <Button variant="outline" size="sm" onClick={() => setDeployModalOpen(true)} className="text-primary border-primary hover:bg-primary/10">
                   <Globe className="w-4 h-4 mr-1.5" />

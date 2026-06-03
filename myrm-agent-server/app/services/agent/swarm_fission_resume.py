@@ -16,7 +16,7 @@ points from duplicating execute_swarm_fission + Command(resume) wiring.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable
+from typing import TYPE_CHECKING, Any
 
 from myrm_agent_harness.agent.parallel.config import resolve_max_parallel_fission
 
@@ -145,8 +145,8 @@ async def stream_with_swarm_fission_resume(
         fission_id = str(uuid.uuid4())
         fission_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
 
-        async def _fission_on_progress(idx: int, status: str, res: dict[str, object] | None) -> None:
-            await fission_queue.put({"index": idx, "status": status, "res": res})
+        async def _fission_on_progress(idx: int, status: str, res: dict[str, object] | None, queue: asyncio.Queue[dict[str, object]] = fission_queue) -> None:
+            await queue.put({"index": idx, "status": status, "res": res})
 
         task_items = _task_items_from_payload(fission_payload)
         nodes_state: dict[int, dict[str, object]] = {}
@@ -160,7 +160,7 @@ async def stream_with_swarm_fission_resume(
                 "cost_usd": 0.0
             }
             
-        async def _save_to_db() -> None:
+        async def _save_to_db(fid: str = fission_id, nstate: dict[int, dict[str, object]] = nodes_state) -> None:
             try:
                 chat_id_from_agent = "default"
                 if hasattr(agent, "_current_chat_id") and agent._current_chat_id:
@@ -170,10 +170,10 @@ async def stream_with_swarm_fission_resume(
                 async with get_session_factory()() as db:
                     await FissionRepository.create_or_update_record(
                         db,
-                        fission_id=fission_id,
+                        fission_id=fid,
                         chat_id=chat_id_from_agent,
                         agent_id=agent_id,
-                        nodes=list(nodes_state.values()),
+                        nodes=list(nstate.values()),
                         total_cost_usd=0.0,
                     )
             except Exception as e:

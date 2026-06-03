@@ -21,6 +21,7 @@ import {
   importExternalAgentCredential,
   logoutExternalAgent,
   streamExternalAgentLogin,
+  streamExternalAgentInstall,
   type ExternalAgentAuthEvent,
   type ExternalAgentAuthStatus,
 } from '@/services/external-agents';
@@ -31,6 +32,76 @@ function newSessionId(): string {
   }
   return `login-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+interface InstallDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  command: string;
+  onInstalled: () => void;
+}
+
+const InstallDialog = memo(({ open, onOpenChange, command, onInstalled }: InstallDialogProps) => {
+  const t = useTranslations('settings.developer.externalAgents');
+  const [events, setEvents] = useState<ExternalAgentAuthEvent[]>([]);
+  const [installing, setInstalling] = useState(false);
+
+  const handleInstall = useCallback(async () => {
+    setInstalling(true);
+    setEvents([]);
+    try {
+      for await (const event of streamExternalAgentInstall(command)) {
+        setEvents((prev) => [...prev, event]);
+        if (event.type === 'success') {
+          toast.success(t('installSuccess'));
+          setTimeout(() => {
+            onOpenChange(false);
+            onInstalled();
+          }, 1500);
+        } else if (event.type === 'error') {
+          toast.error(event.message);
+        }
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Installation failed');
+    } finally {
+      setInstalling(false);
+    }
+  }, [command, onOpenChange, onInstalled, t]);
+
+  // Auto-start installation when opened
+  useEffect(() => {
+    if (open) {
+      handleInstall();
+    }
+  }, [open, handleInstall]);
+
+  return (
+    <Dialog open={open} onOpenChange={(val) => !installing && onOpenChange(val)}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{t('installing', { backend: command })}</DialogTitle>
+          <DialogDescription>{t('installingDesc')}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-4">
+          <div className="bg-muted text-muted-foreground flex max-h-[200px] flex-col gap-1 overflow-y-auto rounded-md p-4 font-mono text-xs">
+            {events.map((ev, i) => (
+              <div key={i} className={ev.type === 'error' ? 'text-destructive' : ev.type === 'success' ? 'text-green-500' : ''}>
+                {ev.message}
+              </div>
+            ))}
+            {installing && (
+              <div className="flex items-center gap-2 text-blue-400">
+                <IconLoader className="h-3 w-3 animate-spin" />
+                <span>{t('installInProgress')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+});
+InstallDialog.displayName = 'InstallDialog';
 
 interface LoginDialogProps {
   open: boolean;
@@ -237,6 +308,7 @@ interface AuthControlsProps {
 const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthControlsProps) => {
   const t = useTranslations('settings.developer.externalAgents');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = useCallback(async () => {
@@ -254,6 +326,22 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
   }, [status, t, onChanged]);
 
   if (!status) return null;
+
+  if (!status.installed) {
+    return (
+      <>
+        <Button variant="outline" size="sm" onClick={() => setInstallDialogOpen(true)}>
+          {t('install')}
+        </Button>
+        <InstallDialog
+          open={installDialogOpen}
+          onOpenChange={setInstallDialogOpen}
+          command={status.backend}
+          onInstalled={onChanged}
+        />
+      </>
+    );
+  }
 
   return (
     <>
