@@ -150,16 +150,9 @@ if __name__ == "__main__":
     )
 
     if args.webui:
-        print(
-            "💡 Standalone WebUI — embedded Next may start on :3000. "
-            "Split dev: omit --webui (port 8080) + `bun run dev` in myrm-agent-frontend."
-        )
+        print("💡 WebUI mode — or use: myrm start")
     else:
-        print(
-            "💡 Dev — open http://localhost:3000 after "
-            "`cd myrm-agent-frontend && bun run dev` "
-            f"(Next proxies API → http://127.0.0.1:{port})"
-        )
+        print(f"💡 Backend :{port} — UI: myrm start  or  bun run dev → http://localhost:3000")
 
     if _should_use_granian():
         start_with_granian(

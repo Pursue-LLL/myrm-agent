@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Loading03Icon, Mail01Icon, AlertCircleIcon } from 'hugeicons-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
+import SandboxAuthLayout from '@/components/auth/SandboxAuthLayout';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import useAuthStore from '@/store/useAuthStore';
 
@@ -42,10 +42,7 @@ export default function VerifyEmailPage() {
         if (data.token) {
           const userId = typeof data.user_id === 'string' ? data.user_id : undefined;
           const email = typeof data.email === 'string' ? data.email : '';
-          await login(
-            data.token,
-            userId ? { id: userId, email } : undefined,
-          );
+          await login(data.token, userId ? { id: userId, email } : undefined);
         }
         setStatus('success');
         setMessage(t('success'));
@@ -59,28 +56,28 @@ export default function VerifyEmailPage() {
     }
 
     void verify();
-  }, [token, t, router, login]);
+  }, [token, t, login]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-background to-primary-50 dark:from-gray-900 dark:via-background dark:to-gray-900 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mb-2">
-            {status === 'loading' && <Loading03Icon className="w-6 h-6 animate-spin text-primary-600" />}
-            {status === 'success' && <Mail01Icon className="w-6 h-6 text-emerald-600" />}
-            {status === 'error' && <AlertCircleIcon className="w-6 h-6 text-destructive" />}
-          </div>
-          <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
-          <CardDescription>{message || t('description')}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          {status === 'error' && (
-            <Button variant="outline" onClick={() => router.push('/auth/login')}>
-              {t('backToLogin')}
-            </Button>
+    <SandboxAuthLayout>
+      <div className="space-y-6 text-center py-2">
+        <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+          {status === 'loading' && <Loader2 className="w-6 h-6 animate-spin text-primary" />}
+          {status === 'error' && <AlertCircle className="w-6 h-6 text-destructive" />}
+          {status === 'success' && (
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_color-mix(in_srgb,#10b981_50%,transparent)]" />
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+        <header className="space-y-2">
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">{message || t('description')}</p>
+        </header>
+        {status === 'error' && (
+          <Button variant="outline" className="w-full h-11" onClick={() => router.push('/auth/login')}>
+            {t('backToLogin')}
+          </Button>
+        )}
+      </div>
+    </SandboxAuthLayout>
   );
 }

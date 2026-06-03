@@ -32,5 +32,5 @@ bun install
 
 echo ""
 echo "✅ Setup complete."
-echo "  myrm dev && cd myrm-agent-frontend && bun run dev"
-echo "  (Foreground backend: myrm start | All-in-one: myrm start --standalone)"
+echo "  myrm dev    # backend :8080 only"
+echo "  myrm start  # backend + frontend → http://localhost:3000"

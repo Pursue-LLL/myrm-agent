@@ -646,7 +646,10 @@ class ChannelAgentExecutor:
             ):
                 event_type = event.get("type", "")
 
-                if event_type == "tasks_steps":
+                if event_type == "fission_topology":
+                    yield event["data"]
+
+                elif event_type == "tasks_steps":
                     step_key = str(event.get("step_key", ""))
                     label = step_to_label(step_key, event)
                     if label:

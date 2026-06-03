@@ -4347,9 +4347,9 @@
       "title": "Failed to load configuration",
       "description": "Unable to connect to the service. Please check if the backend is running and try again.",
       "retry": "Retry",
-      "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start (:8080), then bun run dev. Ensure .env.local has API_PORT=8080.",
-      "hintSplitDev": "Backend OK: http://{host}:{port} (split_dev). Set API_PORT={proxyPort} in .env.local, then open http://localhost:3000",
-      "hintStandalone": "Backend OK: http://{host}:{port} (standalone). Set API_PORT={proxyPort} in .env.local, or use the embedded frontend."
+      "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start. Ensure .env.local has API_PORT=8080.",
+      "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
+      "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
     }
   },
   "chat": {
@@ -6938,8 +6938,20 @@
     },
     "login": {
       "title": "Welcome Back",
+      "titleSaas": "Sign in",
       "description": "Sign in to access your WebUI",
+      "descriptionOAuthOnly": "Sign in with Google to open your cloud workspace. New accounts are created on first sign-in.",
+      "footerOAuthOnly": "We use Google OAuth only — no email password on this deployment.",
       "descriptionLocal": "Enter the admin password you set during first-time setup",
+      "brandHeadline": "Your AI work partner",
+      "brandTagline": "Orchestrate agents, run tools, and ship work from one workspace.",
+      "featureAgents": "Multi-agent workflows with skills and MCP tools",
+      "featureSync": "History and settings synced across devices",
+      "featureSecure": "Google OAuth sign-in backed by the control plane",
+      "brandFooter": "MyrmAgent · Cloud workspace",
+      "footerTrust": "Credentials are verified by the control plane; we never store plain-text passwords.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "labelAccount": "Account",
       "labelPassword": "Password",
       "placeholderPassword": "Enter your password",
@@ -6965,7 +6977,9 @@
     },
     "register": {
       "title": "Create your account",
+      "titleOAuthOnly": "Get started",
       "description": "Start with a free cloud sandbox after email verification",
+      "descriptionOAuthOnly": "Continue with Google to create your workspace. No separate email signup.",
       "labelEmail": "Email",
       "placeholderEmail": "you@company.com",
       "labelDisplayName": "Display name",
@@ -6992,13 +7006,15 @@
       "failed": "Sign-in failed",
       "missingToken": "Missing OAuth credentials. Please try again.",
       "divider": "Or continue with",
+      "dividerEmail": "Or sign in with email",
+      "dividerRegister": "Or sign up with email",
       "provider": {
         "google": "Continue with Google",
         "github": "Continue with GitHub",
         "oidc": "Continue with SSO"
       },
       "backToLogin": "Back to sign in",
-      "unavailableHint": "Social sign-in is unavailable. Verify control plane OAuth settings and NEXT_PUBLIC_CP_BASE_URL, or use email sign-in below."
+      "unavailableHint": "Google sign-in is unavailable. Verify control plane Google OAuth settings and NEXT_PUBLIC_CP_BASE_URL."
     }
   },
   "migration": {

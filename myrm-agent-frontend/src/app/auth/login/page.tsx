@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Card } from '@/components/primitives/card';
+import SandboxAuthLayout from '@/components/auth/SandboxAuthLayout';
 import { AUTH_SESSION_COOKIE, clearAuthSessionCookie } from '@/lib/auth-cookie';
 import { isSandboxAuthBuild } from '@/lib/deploy-mode';
 import { getAuthToken } from '@/lib/guest';
@@ -183,11 +184,9 @@ export default function LoginPage() {
 
   if (sandbox) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-background to-primary-50 dark:from-background dark:via-background dark:to-background p-4">
-        <Card className="w-full max-w-md shadow-2xl border-border/60">
-          <SandboxLoginForm postAuthPath={postAuthPath} />
-        </Card>
-      </div>
+      <SandboxAuthLayout>
+        <SandboxLoginForm postAuthPath={postAuthPath} />
+      </SandboxAuthLayout>
     );
   }
 

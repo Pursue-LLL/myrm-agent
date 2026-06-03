@@ -23,14 +23,11 @@ BOLD='\033[1m'
 show_help() {
     echo -e "${CYAN}${BOLD}MyrmAgent CLI${NC}"
     echo "Usage: myrm <command>"
-    echo "  setup              First-time deps (uv sync + bun install)"
-    echo "  dev                Backend :8080 in background + health wait"
-    echo "  start              Dev backend :8080 (foreground)"
-    echo "  start --standalone  All-in-one WebUI :25808"
+    echo "  setup    First-time install"
+    echo "  dev      Backend only (:8080)"
+    echo "  start    Backend + frontend (:8080 + :3000)"
     echo "  stop | status | update"
     echo "  searxng start | stop | status"
-    echo ""
-    echo "Quick dev: myrm dev && cd myrm-agent-frontend && bun run dev"
 }
 
 require_docker() {
@@ -68,22 +65,15 @@ case "$COMMAND" in
         ;;
 
     start)
-        start_args=()
-        for arg in "$@"; do
-            case "$arg" in
-                --standalone|--webui) start_args+=(--webui) ;;
-            esac
-        done
-        if [[ ${#start_args[@]} -gt 0 ]]; then
-            echo -e "${GREEN}🚀 Starting standalone WebUI (backend :25808)...${NC}"
-            start_myrm_server "$SERVER_DIR" "${start_args[@]}"
-        else
-            echo -e "${GREEN}🚀 Starting dev backend (http://127.0.0.1:8080)${NC}"
-            echo -e "${CYAN}ℹ️  Frontend: cd myrm-agent-frontend && bun run dev  →  http://localhost:3000${NC}"
-            start_myrm_server "$SERVER_DIR"
-        fi
+        exec "${SCRIPT_DIR}/dev/start.sh"
         ;;
+
     stop)
+        if [[ -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid" ]]; then
+            fe_pid="$(cat "${FRONTEND_DIR}/.myrm-dev-frontend.pid")"
+            kill "${fe_pid}" 2>/dev/null || true
+            rm -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid"
+        fi
         if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
             dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"
             kill "${dev_pid}" 2>/dev/null || true

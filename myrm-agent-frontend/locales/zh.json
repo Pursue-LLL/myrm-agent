@@ -4368,9 +4368,9 @@
       "title": "配置加载失败",
       "description": "无法连接到服务，请检查后端是否正常运行后重试。",
       "retry": "重试",
-      "hintUnreachable": "后端未响应。请先运行：myrm dev 或 myrm start（:8080），再 bun run dev。确认 .env.local 含 API_PORT=8080。",
-      "hintSplitDev": "后端已就绪：http://{host}:{port}（split_dev）。Next 代理应指向 API_PORT={proxyPort}；然后访问 http://localhost:3000",
-      "hintStandalone": "后端已就绪：http://{host}:{port}（standalone）。请在 .env.local 设置 API_PORT={proxyPort}，或使用内置前端。"
+      "hintUnreachable": "后端未响应。请运行 myrm dev 或 myrm start，并确认 .env.local 含 API_PORT=8080。",
+      "hintSplitDev": "后端已就绪 http://{host}:{port}。请运行 myrm start，或 bun run dev 后打开 http://localhost:3000（API_PORT={proxyPort}）",
+      "hintStandalone": "后端已就绪 http://{host}:{port}。请运行 myrm start，或设置 .env.local 的 API_PORT={proxyPort}"
     }
   },
   "chat": {
@@ -6961,8 +6961,20 @@
     },
     "login": {
       "title": "欢迎回来",
+      "titleSaas": "登录",
       "description": "登录以访问您的 WebUI",
+      "descriptionOAuthOnly": "使用 Google 登录云端工作区，首次登录将自动创建账号。",
+      "footerOAuthOnly": "当前部署仅支持 Google 登录，不提供邮箱密码注册。",
       "descriptionLocal": "输入您首次设置的管理员密码以访问本机 WebUI",
+      "brandHeadline": "你的 AI 工作搭档",
+      "brandTagline": "在同一工作区编排智能体、调用工具、推进任务。",
+      "featureAgents": "多智能体工作流，支持技能与 MCP 工具",
+      "featureSync": "对话与配置跨设备同步",
+      "featureSecure": "控制平面托管的 Google OAuth 登录",
+      "brandFooter": "MyrmAgent · 云端工作区",
+      "footerTrust": "凭据由控制平面校验，密码不以明文存储。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
       "labelAccount": "账户",
       "labelPassword": "密码",
       "placeholderPassword": "输入您的密码",
@@ -6988,7 +7000,9 @@
     },
     "register": {
       "title": "创建账号",
+      "titleOAuthOnly": "开始使用",
       "description": "验证邮箱后即可使用免费云沙箱",
+      "descriptionOAuthOnly": "使用 Google 继续即可创建工作区，无需单独邮箱注册。",
       "labelEmail": "邮箱",
       "placeholderEmail": "you@company.com",
       "labelDisplayName": "显示名称",
@@ -7015,13 +7029,15 @@
       "failed": "登录失败",
       "missingToken": "缺少 OAuth 凭证，请重试。",
       "divider": "或使用以下方式继续",
+      "dividerEmail": "或使用邮箱登录",
+      "dividerRegister": "或使用邮箱注册",
       "provider": {
         "google": "使用 Google 登录",
         "github": "使用 GitHub 登录",
         "oidc": "使用企业 SSO 登录"
       },
       "backToLogin": "返回登录",
-      "unavailableHint": "社交登录暂不可用。请检查控制平面 OAuth 配置与 NEXT_PUBLIC_CP_BASE_URL，或改用下方邮箱登录。"
+      "unavailableHint": "Google 登录暂不可用。请检查控制平面 Google OAuth 配置与 NEXT_PUBLIC_CP_BASE_URL。"
     }
   },
   "migration": {

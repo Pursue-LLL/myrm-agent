@@ -93,8 +93,16 @@ async def stream_with_swarm_fission_resume(
     max_concurrent: int | None = None,
 ) -> AsyncGenerator[dict[str, object], None]:
     """Run parallel sub-tasks when swarm_fission is emitted, then resume the parent agent."""
+    import asyncio
+    import uuid
+    import logging
     from langgraph.types import Command
+    
+    from app.database.session import async_session_maker
+    from app.database.repositories.fission_repo import FissionRepository
+    from app.channels.types.messages import FissionTopologyNode, FissionTopologyUpdate
 
+    logger = logging.getLogger(__name__)
     query_input = initial_query
     effective_concurrent = resolve_max_parallel_fission(max_concurrent)
 
@@ -132,12 +140,102 @@ async def stream_with_swarm_fission_resume(
 
         if not is_yielded_for_fission or fission_payload is None:
             break
+            
+        fission_id = str(uuid.uuid4())
+        fission_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
 
-        fission_result = await execute_swarm_fission_for_agent(
-            agent,
-            fission_payload,
-            max_concurrent=effective_concurrent,
+        async def _fission_on_progress(index: int, status: str, res: dict[str, object] | None) -> None:
+            await fission_queue.put({"index": index, "status": status, "res": res})
+
+        task_items = _task_items_from_payload(fission_payload)
+        nodes_state: dict[int, dict[str, object]] = {}
+        for item in task_items:
+            nodes_state[item["task_index"]] = {
+                "node_id": f"node_{item['task_index']}",
+                "agent_type": item["agent_type"],
+                "objective": item["text"],
+                "status": "pending",
+                "error": None,
+                "cost_usd": 0.0
+            }
+            
+        async def _save_to_db() -> None:
+            try:
+                chat_id_from_agent = "default"
+                if hasattr(agent, "_current_chat_id") and agent._current_chat_id:
+                    chat_id_from_agent = agent._current_chat_id
+                agent_id = agent.id if hasattr(agent, "id") else "default_agent"
+                
+                async with async_session_maker() as db:
+                    await FissionRepository.create_or_update_record(
+                        db,
+                        fission_id=fission_id,
+                        chat_id=chat_id_from_agent,
+                        agent_id=agent_id,
+                        nodes=list(nodes_state.values()),
+                        total_cost_usd=0.0,
+                    )
+            except Exception as e:
+                logger.error("Failed to persist fission state to DB: %s", e)
+                
+        await _save_to_db()
+
+        fission_task = asyncio.create_task(
+            execute_swarm_fission_for_agent(
+                agent,
+                fission_payload,
+                max_concurrent=effective_concurrent,
+                on_progress=_fission_on_progress,
+            )
         )
+
+        while not fission_task.done() or not fission_queue.empty():
+            try:
+                # Wait for queue items or task completion
+                get_task = asyncio.create_task(fission_queue.get())
+                done, pending = await asyncio.wait(
+                    [get_task, fission_task],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                
+                # If we didn't consume get_task, cancel it
+                if get_task in pending:
+                    get_task.cancel()
+                
+                # Process all items currently in queue
+                needs_db_sync = False
+                while not fission_queue.empty():
+                    progress = fission_queue.get_nowait()
+                    idx = int(progress.get("index", -1))
+                    if idx in nodes_state:
+                        nodes_state[idx]["status"] = progress.get("status", "running")
+                        res_info = progress.get("res")
+                        if isinstance(res_info, dict):
+                            if "error" in res_info:
+                                nodes_state[idx]["error"] = str(res_info["error"])
+                    needs_db_sync = True
+                
+                if needs_db_sync:
+                    await _save_to_db()
+                    
+                    # Yield topology update out to the channel bridge
+                    nodes_tuple = tuple(FissionTopologyNode(**n) for n in nodes_state.values())
+                    topo_update = FissionTopologyUpdate(
+                        fission_id=fission_id,
+                        nodes=nodes_tuple,
+                        total_cost_usd=0.0
+                    )
+                    yield {"type": "fission_topology", "data": topo_update}
+                    
+            except Exception as e:
+                logger.error("Error processing fission queue: %s", e)
+                break
+
+        fission_result = fission_task.result()
+        
+        # Ensure final state is saved
+        await _save_to_db()
+
         task_count = _task_count_from_payload(fission_payload)
         completed_count = int(fission_result.get("completed_count") or 0)
         failed_count = int(fission_result.get("failed_count") or 0)
@@ -158,7 +256,6 @@ async def stream_with_swarm_fission_resume(
             if failed_count == 0
             else f"{completed_count}/{task_count} completed, {failed_count} failed"
         )
-        task_items = _task_items_from_payload(fission_payload)
         yield {
             "type": "tasks_steps",
             "step_key": "swarm_fission",

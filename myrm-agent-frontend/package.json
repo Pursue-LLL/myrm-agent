@@ -135,6 +135,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.4",
+    "@playwright/test": "1.60.0",
     "@serwist/cli": "^9.5.11",
     "@shadcn/ui": "^0.0.4",
     "@tailwindcss/postcss": "^4.2.4",

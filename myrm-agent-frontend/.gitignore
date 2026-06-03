@@ -21,6 +21,10 @@
 # production
 /build
 
+# myrm start (local dev)
+.myrm-dev-frontend.pid
+.myrm-dev-frontend.log
+
 # misc
 .DS_Store
 *.pem

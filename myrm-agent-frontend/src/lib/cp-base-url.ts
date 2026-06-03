@@ -1,5 +1,5 @@
 /**
- * Control plane REST base URL for SaaS auth (register, login, OAuth).
+ * Control plane REST base URL for SaaS auth (OAuth, legacy email verify API).
  * Prefer page hostname so browser calls stay on localhost (not 127.0.0.1) for CORS/cookies.
  */
 export function resolveCpBaseUrl(): string {

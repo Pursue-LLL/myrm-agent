@@ -32,14 +32,11 @@ function Resolve-AgentPaths {
 function Show-Help {
     Write-Host "MyrmAgent CLI" -ForegroundColor Cyan
     Write-Host "Usage: myrm <command>"
-    Write-Host "  setup              First-time deps (uv sync + bun install)"
-    Write-Host "  dev                Backend :8080 in background"
-    Write-Host "  start              Dev backend :8080 (foreground)"
-    Write-Host "  start -Standalone  All-in-one WebUI :25808"
+    Write-Host "  setup    First-time install"
+    Write-Host "  dev      Backend only (:8080)"
+    Write-Host "  start    Backend + frontend (:8080 + :3000)"
     Write-Host "  stop | status | update"
     Write-Host "  searxng start | stop | status"
-    Write-Host ""
-    Write-Host "Typical dev: myrm start; cd myrm-agent-frontend; bun run dev"
 }
 
 function Require-Docker {
@@ -65,34 +62,6 @@ function Get-MyrmProcesses {
         }
 }
 
-function Start-Server {
-    param([switch]$Standalone)
-
-    Set-Location $ServerDir
-    $env:DEPLOY_MODE = "local"
-    $runArgs = @()
-    if ($Standalone) {
-        $runArgs += "--webui"
-    }
-    else {
-        $env:HOST = "127.0.0.1"
-        $env:PORT = "8080"
-    }
-    $venvPy = Join-Path $ServerDir ".venv\Scripts\python.exe"
-    if (Test-Path $venvPy) {
-        Write-Host "Starting server via $venvPy"
-        & $venvPy run.py @runArgs
-        exit $LASTEXITCODE
-    }
-    if (Get-Command uv -ErrorAction SilentlyContinue) {
-        Write-Host "Starting server via uv run --no-sync run.py"
-        uv run --no-sync run.py @runArgs
-        exit $LASTEXITCODE
-    }
-    Write-Error "No .venv python or uv found. Re-run scripts/install.ps1"
-    exit 1
-}
-
 Resolve-AgentPaths -Root $ProjectRoot
 $composeFile = Join-Path $ServerDir "docker-compose.yaml"
 
@@ -113,18 +82,24 @@ switch ($Command) {
         exit $LASTEXITCODE
     }
     "start" {
-        $standalone = ($SubCommand -in @("--standalone", "--webui", "-Standalone"))
-        if ($standalone) {
-            Write-Host "Starting standalone WebUI (backend :25808)..."
-            Start-Server -Standalone
-        }
-        else {
-            Write-Host "Starting dev backend (http://127.0.0.1:8080)..."
-            Write-Host "Frontend: cd myrm-agent-frontend; bun run dev  ->  http://localhost:3000"
-            Start-Server
-        }
+        $start = Join-Path $ScriptDir "dev\start.ps1"
+        if (-not (Test-Path $start)) { Write-Error "Missing $start"; exit 1 }
+        & $start
+        exit $LASTEXITCODE
     }
     "stop" {
+        $fpid = Join-Path $FrontendDir ".myrm-dev-frontend.pid"
+        if (Test-Path $fpid) {
+            $fp = Get-Content $fpid -ErrorAction SilentlyContinue
+            if ($fp) { Stop-Process -Id $fp -Force -ErrorAction SilentlyContinue }
+            Remove-Item $fpid -Force -ErrorAction SilentlyContinue
+        }
+        $bpid = Join-Path $ServerDir ".myrm-dev-backend.pid"
+        if (Test-Path $bpid) {
+            $bp = Get-Content $bpid -ErrorAction SilentlyContinue
+            if ($bp) { Stop-Process -Id $bp -Force -ErrorAction SilentlyContinue }
+            Remove-Item $bpid -Force -ErrorAction SilentlyContinue
+        }
         $procs = Get-MyrmProcesses
         if ($procs) {
             $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

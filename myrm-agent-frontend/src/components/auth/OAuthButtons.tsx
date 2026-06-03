@@ -16,6 +16,14 @@ type AuthConfigResponse = {
 
 type OAuthButtonsProps = {
   redirectPath?: string;
+  /** OAuth block before (above) or after (below) the email form */
+  placement?: 'above' | 'below';
+  /** Background class for the divider pill (match parent surface) */
+  dividerSurfaceClassName?: string;
+  /** Divider copy when placement is above (login vs register email form) */
+  emailDividerMode?: 'login' | 'register';
+  /** Hide email divider and show OAuth providers only */
+  oauthOnly?: boolean;
 };
 
 const providerStyles: Record<string, string> = {
@@ -27,7 +35,13 @@ const providerStyles: Record<string, string> = {
     'border-primary/30 bg-primary/5 hover:bg-primary/10 dark:border-primary/40 dark:bg-primary/10',
 };
 
-export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) {
+export default function OAuthButtons({
+  redirectPath = '/',
+  placement = 'below',
+  dividerSurfaceClassName = 'bg-card',
+  emailDividerMode = 'login',
+  oauthOnly = false,
+}: OAuthButtonsProps) {
   const cpBaseUrl = resolveCpBaseUrl();
   const t = useTranslations('auth.oauth');
   const [providers, setProviders] = useState<string[]>([]);
@@ -105,17 +119,27 @@ export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) 
     );
   }
 
-  return (
-    <div className="space-y-3 pt-1">
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border/70" />
-        </div>
-        <div className="relative flex justify-center text-[11px] uppercase tracking-[0.14em]">
-          <span className="bg-card px-3 text-muted-foreground">{t('divider')}</span>
-        </div>
+  const showDivider = !oauthOnly;
+  const dividerLabel =
+    placement === 'above'
+      ? emailDividerMode === 'register'
+        ? t('dividerRegister')
+        : t('dividerEmail')
+      : t('divider');
+
+  const divider = showDivider ? (
+    <div className="relative py-1">
+      <div className="absolute inset-0 flex items-center">
+        <span className="w-full border-t border-border/70" />
       </div>
-      <div className="grid gap-2.5">
+      <div className="relative flex justify-center text-[11px] uppercase tracking-[0.14em]">
+        <span className={cn('px-3 text-muted-foreground', dividerSurfaceClassName)}>{dividerLabel}</span>
+      </div>
+    </div>
+  ) : null;
+
+  const providerGrid = (
+    <div className="grid gap-2.5">
         {providers.map((provider) => (
           <Button
             key={provider}
@@ -138,7 +162,26 @@ export default function OAuthButtons({ redirectPath = '/' }: OAuthButtonsProps) 
             )}
           </Button>
         ))}
+    </div>
+  );
+
+  if (oauthOnly) {
+    return <div className="space-y-3">{providerGrid}</div>;
+  }
+
+  if (placement === 'above') {
+    return (
+      <div className="space-y-3">
+        {providerGrid}
+        {divider}
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pt-1">
+      {divider}
+      {providerGrid}
     </div>
   );
 }
