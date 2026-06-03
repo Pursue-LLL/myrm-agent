@@ -50,6 +50,21 @@ export interface SubagentNode {
   teammate_messages?: TeammateMessageEntry[];
 }
 
+export interface FissionTopologyNode {
+  node_id: string;
+  agent_type: string;
+  objective: string;
+  status: string;
+  error?: string | null;
+  cost_usd?: number;
+}
+
+export interface FissionTopology {
+  fission_id: string;
+  nodes: FissionTopologyNode[];
+  total_cost_usd: number;
+}
+
 export interface SubagentStore {
   nodes: Record<string, SubagentNode>;
   fissionBatch: {
@@ -59,6 +74,7 @@ export interface SubagentStore {
     failed: number;
     partial: boolean;
   } | null;
+  fissionTopology: FissionTopology | null;
 
   // Actions
   upsertNode: (nodeUpdate: Partial<SubagentNode> & { task_id: string }) => void;
@@ -77,12 +93,14 @@ export interface SubagentStore {
       partial: boolean;
     } | null,
   ) => void;
+  setFissionTopology: (topology: FissionTopology | null) => void;
   clear: () => void;
 }
 
 export const useSubagentStore = create<SubagentStore>((set) => ({
   nodes: {},
   fissionBatch: null,
+  fissionTopology: null,
 
   upsertNode: (nodeUpdate) =>
     set((state) => {
@@ -198,7 +216,9 @@ export const useSubagentStore = create<SubagentStore>((set) => ({
 
   setFissionBatch: (batch) => set({ fissionBatch: batch }),
 
-  clear: () => set({ nodes: {}, fissionBatch: null }),
+  setFissionTopology: (topology) => set({ fissionTopology: topology }),
+
+  clear: () => set({ nodes: {}, fissionBatch: null, fissionTopology: null }),
 }));
 
 if (typeof window !== 'undefined') {

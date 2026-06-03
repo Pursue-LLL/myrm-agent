@@ -207,14 +207,37 @@ export interface UploadSkillResponse {
   error: string | null;
 }
 
+export interface RedactionResponse {
+  line_number: number;
+  original: string;
+  redacted: string;
+  reason: string;
+}
+
+export interface PackagePreviewResponse {
+  success: boolean;
+  is_safe: boolean;
+  error: string | null;
+  redactions: Record<string, RedactionResponse[]> | null;
+}
+
+/**
+ * 预览技能打包结果，检查是否有敏感信息
+ * @param skillId 技能 ID
+ */
+export async function previewSkillPackage(skillId: string): Promise<PackagePreviewResponse> {
+  return apiRequest<PackagePreviewResponse>(`${SKILLS_API_PREFIX}/${skillId}/preview`);
+}
+
 /**
  * 下载技能为 ZIP 包
  * @param skillId 技能 ID
+ * @param applyRedactions 是否应用脱敏
  */
-export async function downloadSkill(skillId: string): Promise<Blob> {
+export async function downloadSkill(skillId: string, applyRedactions: boolean = false): Promise<Blob> {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
-  const response = await fetch(`${API_BASE}${SKILLS_API_PREFIX}/${skillId}/download`, {
+  const response = await fetch(`${API_BASE}${SKILLS_API_PREFIX}/${skillId}/download?apply_redactions=${applyRedactions}`, {
     headers: {
       Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
     },

@@ -1,6 +1,6 @@
 # MyrmAgent 服务端架构
 
-> **许可**: **开源**仓库。单机业务编排层；底层 Agent 执行引擎来自闭源 `myrm-agent-harness`。
+> **许可**: MIT。单机业务编排与 API 层（本仓库）。
 
 > 🔄 **AI 自维护规则**（必读）：任何功能、架构、写法更新后，必须更新相关目录的子文档。
 
@@ -118,7 +118,7 @@
 - 它负责承接自定义智能体、聊天、知识库、Cron、渠道、审批体验等产品能力，但不负责多租户身份、沙箱池化、全局路由、配额聚合等控制平面职责。
 - 全面剥离多租户感知：API 路由、Query 及内部调用已彻底移除 `user_id` 依赖，作为纯粹的单租户应用在独立的 `MYRM_DATA_DIR` 中运行。
 
-因此，本层新增任何竞品借鉴项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至 `myrm-control-plane`。
+因此，本层新增任何竞品借鉴项前，都必须先确认：该能力究竟属于业务编排，还是应该下沉到 `myrm-agent-harness`、或上收至外部控制服务（SaaS 部署场景）。
 
 ### 代码智能（外部 MCP 集成）
 
@@ -141,7 +141,7 @@
 | **[S] 沙箱** | Control Plane 容器注入 / `.env.sandbox` | sandbox 进程 env | `CONTROL_PLANE_*`, `MYRM_MASTER_KEY`, `MYRM_PUBLIC_WIKI_VOLUMES` |
 
 - **环境变量清单**：`.env.example`（[P/O]）、`.env.sandbox.example`（[S]）、`.env.test.example`（[T]）为唯一权威索引；业务配置不得写入 `.env`。
-- **CP 注入契约**：`myrm-control-plane/.../sandbox_env.py` 在 `create_container` 时注入 [S] 密钥；`tests/unit/test_sandbox_env.py` 与 `validate_for_sandbox()` 双向对齐。
+- **[S] 注入契约**：沙箱创建时由控制服务注入环境变量；`tests/unit/test_sandbox_env.py` 与 `validate_for_sandbox()` 双向对齐。
 - **部署能力注册表**：`app/platform_utils/deployment_capabilities.py` — 启动时构建语义能力位，替代散落的 `is_sandbox()` 分支。
 - **单租户认证**：`app/middleware/auth.py` — local 回环 / sandbox CP HMAC 验签（`cp_proxy.py`）→ `SANDBOX_API_KEY` → 回环 / WebUI Remote `SANDBOX_API_KEY`。
 - **WebUI 浏览器登录**（仅 local/remote 产品路径）：`app/api/webui/auth_routes.py` + `app/services/webui/auth_service.py` — admin 密码 + `myrm_webui_session` Cookie；与 CP 邮箱登录（sandbox 前端构建）分离。

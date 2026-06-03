@@ -13,11 +13,7 @@ from patchright.async_api import BrowserContext, Page, async_playwright
 
 FRONTEND = os.environ.get("FRONTEND_URL", "http://127.0.0.1:3000").rstrip("/")
 BACKEND = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
-PLAYWRIGHT_ENV = {
-    **os.environ,
-    "PLAYWRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-    "PATCHRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-}
+PLAYWRIGHT_ENV = {**os.environ}
 
 MOCK_NO_SEARCH: dict[str, Any] = {
     "results": [],

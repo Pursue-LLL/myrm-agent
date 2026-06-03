@@ -1,6 +1,6 @@
 # MyrmAgent - AI Agent 后端服务
 
-> **许可**: **开源**仓库。单机业务编排层，引用闭源 `myrm-agent-harness` 作为底层 Agent 执行引擎。
+> **许可**: MIT。本仓为 Server 单机业务编排与 Web/Desktop 客户端的开源实现。
 
 MyrmAgent 是一个 Claw-class AI Agent 后端服务，提供持久化 Agent 能力、技能系统、多 Agent 协作、记忆与知识库等核心功能。基于 Myrm Agent Harness 框架构建，使用 FastAPI 和 LangGraph 实现。
 

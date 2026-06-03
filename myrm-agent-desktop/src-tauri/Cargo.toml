@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "MyrmAgent Desktop - Claw-class AI assistant for work automation"
 authors = ["MyrmAgent Team"]
 license = "MIT"
-repository = "https://github.com/myrmagent/myrmagent"
+repository = "https://github.com/Pursue-LLL/myrm-agent"
 edition = "2021"
 
 [build-dependencies]

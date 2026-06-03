@@ -59,11 +59,7 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=False, # Set to False so we can see what's happening if needed, but True is better for CI
-            env={
-                **os.environ,
-                "PLAYWRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-                "PATCHRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-            },
+            env={**os.environ},
         )
         context = await browser.new_context()
         page = await context.new_page()

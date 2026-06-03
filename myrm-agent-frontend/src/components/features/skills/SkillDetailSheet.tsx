@@ -29,6 +29,7 @@ import {
   Zap,
   ArrowUpCircle,
   Undo2,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/primitives/sheet';
@@ -62,6 +63,7 @@ import type { Skill, SkillTrap, SecurityScanSummary } from '@/store/skill/types'
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { IconAlertTriangle } from '@/components/features/icons/PremiumIcons';
+import SkillExportDialog from './SkillExportDialog';
 
 function stripYamlFrontmatter(content: string): string {
   const match = content.match(/^---\s*\n[\s\S]*?\n---\s*\n/);
@@ -113,6 +115,7 @@ const SkillDetailSheet = memo(
     const [isOptimizing, setIsOptimizing] = useState(false);
     const [isEvolutionLocked, setIsEvolutionLocked] = useState(false);
     const [isTogglingLock, setIsTogglingLock] = useState(false);
+    const [showExportDialog, setShowExportDialog] = useState(false);
 
     const [envVars, setEnvVars] = useState<Record<string, string>>({});
     const [envVarsDirty, setEnvVarsDirty] = useState(false);
@@ -713,6 +716,15 @@ const SkillDetailSheet = memo(
             {/* Footer actions */}
             <div className="p-4 border-t flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowExportDialog(true)}
+                  className="hidden sm:flex"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {t('export')}
+                </Button>
                 {showDeleteButton && (
                   <Button
                     variant="destructive"
@@ -867,7 +879,13 @@ const SkillDetailSheet = memo(
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+          </AlertDialog>
+
+        <SkillExportDialog
+          skill={skill}
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+        />
       </>
     );
   },

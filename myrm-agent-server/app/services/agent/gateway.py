@@ -168,8 +168,19 @@ class AgentGateway:
             return self._config.max_per_user
         return max(0, sem._value)
 
-    def get_active_browser_session(self) -> object | None:
-        """Get the BrowserSession from any currently active agent, if available."""
+    def get_active_browser_session(self, session_id: str | None = None) -> object | None:
+        """Get the BrowserSession from any currently active agent, if available.
+        
+        Args:
+            session_id: Optional chat/session ID to filter by.
+        """
+        if session_id:
+            info = self._session_info.get(session_id)
+            if not info or info.agent is None:
+                return None
+            agent = info.agent()
+            return getattr(agent, "_browser_session", None) if agent else None
+
         for info in self._session_info.values():
             if info.agent is None:
                 continue
@@ -181,8 +192,19 @@ class AgentGateway:
                 return session
         return None
 
-    def get_active_desktop_session(self) -> object | None:
-        """Get the DesktopSession from any currently active agent, if available."""
+    def get_active_desktop_session(self, session_id: str | None = None) -> object | None:
+        """Get the DesktopSession from any currently active agent, if available.
+        
+        Args:
+            session_id: Optional chat/session ID to filter by.
+        """
+        if session_id:
+            info = self._session_info.get(session_id)
+            if not info or info.agent is None:
+                return None
+            agent = info.agent()
+            return getattr(agent, "_desktop_session", None) if agent else None
+
         for info in self._session_info.values():
             if info.agent is None:
                 continue

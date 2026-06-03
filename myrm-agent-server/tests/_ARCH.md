@@ -14,6 +14,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/test_evolution_e2e.py` | E2E | 技能进化流（Learning Loop）全栈端到端测试（含沙箱隔离、SSE 事件驱动断言与 Playwright UI 验证） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server/frontend fixtures |
+| `benchmarks/bench_mcp_ptc_vs_direct.py` | 基准 | MCP PTC vs 直连 token/延迟对比；凭据仅来自 `.env.test` |
+| `fixtures/cp_proxy_signature_contract.json` | 辅助 | 控制服务反向代理 HMAC 契约向量（server 侧自包含） |
 
 ---
 

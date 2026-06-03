@@ -5,7 +5,7 @@
     uv run python tests/benchmarks/bench_mcp_ptc_vs_direct.py
 
 前置条件:
-    - .env.test 配置 BASIC_API_KEY / BASIC_BASE_URL / BASIC_MODEL
+    - .env.test 配置 BASIC_*（可选 LITE_*）；禁止在仓库内硬编码 API Key
     - uvx 可用 (用于 stdio MCP)
     - 网络可达 LLM API
 """
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import sys
 import time
@@ -23,32 +24,42 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_SERVER_ROOT))
 
 
-_UVX_PATH = "/Users/yululiu/.local/bin/uvx"
+_UVX_PATH = os.environ.get("UVX_PATH") or shutil.which("uvx") or "uvx"
 QUERY = "查询明天从北京到上海的高铁车票"
 
 
-MODEL_CONFIGS = [
-    {
-        "label": "MiMo-v2.5-Pro",
-        "api_key": "tp-ct6qp4xy0dfjyljgv5jcs6rr1rs8x2xsftyk6nv69b2hw09p",
-        "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
-        "model": "mimo-v2.5-pro",
-    },
-    {
-        "label": "MiniMax-M2.7",
-        "api_key": "sk-cp-xrARkKKWCLa72EmzJVd6Tr_0GqbwPrRCwJlbeihmE8s-JAzy6jBpU0PtyIZ_dLNtqQJBHFVSIQIXSxePbRAZjK3wlHokpzVuXBEsN9RGSj_1lVLaSa8dgAc",
-        "base_url": "https://api.minimaxi.com/v1",
-        "model": "MiniMax-M2.7",
-    },
-    {
-        "label": "DeepSeek-V4-Pro",
-        "api_key": "sk-48dc8b78f52f45d5ae2d5ca07d1b8e1f",
-        "base_url": "https://api.deepseek.com/v1",
-        "model": "deepseek-chat",
-    },
-]
-
 RUNS_PER_MODEL = 3
+
+
+def _load_model_configs() -> list[dict[str, str]]:
+    from tests.support.test_secrets import load_test_secrets
+
+    secrets = load_test_secrets()
+    configs: list[dict[str, str]] = []
+    if secrets.has_basic_credentials:
+        configs.append(
+            {
+                "label": "basic",
+                "api_key": secrets.basic_api_key,
+                "base_url": secrets.basic_base_url,
+                "model": secrets.basic_model,
+            }
+        )
+    if secrets.has_lite_credentials:
+        configs.append(
+            {
+                "label": "lite",
+                "api_key": secrets.lite_api_key,
+                "base_url": secrets.lite_base_url,
+                "model": secrets.lite_model,
+            }
+        )
+    if not configs:
+        raise RuntimeError(
+            "No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL "
+            "(and optionally LITE_*)."
+        )
+    return configs
 
 
 def _resolve_uvx() -> str:
@@ -282,7 +293,7 @@ async def main() -> None:
 
     all_results: list[dict[str, object]] = []
 
-    for model_cfg in MODEL_CONFIGS:
+    for model_cfg in _load_model_configs():
         label = model_cfg["label"]
         api_key = model_cfg["api_key"]
         base_url = model_cfg["base_url"]
@@ -324,7 +335,7 @@ async def main() -> None:
     print("                         📊 汇总报告")
     print("=" * 80)
 
-    for model_cfg in MODEL_CONFIGS:
+    for model_cfg in _load_model_configs():
         label = model_cfg["label"]
         model_runs = [r for r in all_results if r["model"] == label]
 

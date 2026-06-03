@@ -10,7 +10,7 @@ def test_scrubbing_integration(client: TestClient):
     """验证绝对路径是否在真实流中被脱敏 (Zero-Masking Value)"""
     # 强制让 Agent 打印绝对路径
     # 使用 Python 命令直接输出，明确要求执行 Python
-    query = "请立即使用 python 代码执行工具打印字符串内容: '/Users/yululiu/test_secret_path.txt'"
+    query = "请立即使用 python 代码执行工具打印字符串内容: '/Users/example/test_secret_path.txt'"
 
     full_answer, collected_data, _, _ = perform_fast_search(
         client, query, user_instructions="你必须通过运行代码来输出这个字符串，不要猜测，不要尝试读取文件。只需要打印它。"
@@ -23,7 +23,7 @@ def test_scrubbing_integration(client: TestClient):
     for event in collected_data:
         # 遍历所有可能的文本字段
         data_str = str(event)
-        if "/Users/yululiu" in data_str:
+        if "/Users/example" in data_str:
             raw_leak = True
         if "<HOME>" in data_str:
             scrubbed_found = True

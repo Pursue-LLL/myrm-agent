@@ -24,9 +24,10 @@ HARNESS_ROOT = Path(
 OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 
 SYSTEM = platform.system().lower()
+target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
+
 if SYSTEM == "darwin":
-    arch = platform.machine().lower()
-    if arch in ("arm64", "aarch64"):
+    if target_arch in ("arm64", "aarch64"):
         BINARY_NAME = "myrmagent-backend-aarch64-apple-darwin"
     else:
         BINARY_NAME = "myrmagent-backend-x86_64-apple-darwin"
@@ -197,9 +198,9 @@ def build_backend(*, skip_harness_install: bool = False):
 
 def _agent_runner_binary_name() -> str:
     """Determine agent-runner binary name for current platform (Tauri naming convention)."""
+    target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
     if SYSTEM == "darwin":
-        arch = platform.machine().lower()
-        suffix = "aarch64-apple-darwin" if arch in ("arm64", "aarch64") else "x86_64-apple-darwin"
+        suffix = "aarch64-apple-darwin" if target_arch in ("arm64", "aarch64") else "x86_64-apple-darwin"
     elif SYSTEM == "linux":
         suffix = "x86_64-unknown-linux-gnu"
     elif SYSTEM == "windows":
@@ -231,10 +232,16 @@ def build_agent_runner():
     binary_name = _agent_runner_binary_name()
     output_path = OUTPUT_DIR / binary_name
 
+    target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
+    bun_target = "bun-darwin-arm64" if target_arch in ("arm64", "aarch64") else "bun-darwin-x64"
+    if SYSTEM != "darwin":
+        bun_target = f"bun-{SYSTEM}-x64" # Default for linux/windows
+
     cmd = [
         "bun", "build",
         str(entrypoint),
         "--compile",
+        "--target", bun_target,
         "--minify",
         "--outfile", str(output_path),
     ]

@@ -76,7 +76,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 - `app/ai_agents/` 负责业务语义装配，决定哪些运行时信号应该下传给框架。
 - `myrm-agent-harness` 负责通用执行、压缩、记忆、工具编排等基础能力。
-- `myrm-control-plane` 负责调度与运行基础设施，不承载对话语义推断。
+- 外部控制服务负责调度与运行基础设施，不承载对话语义推断。
 
 ## DB 自定义 Agent 作为 Subagent 的契约
 

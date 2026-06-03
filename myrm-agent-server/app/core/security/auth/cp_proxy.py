@@ -1,4 +1,4 @@
-"""Verify HMAC-signed requests from myrm-control-plane reverse proxy.
+"""Verify HMAC-signed requests from the external control-service reverse proxy.
 
 [INPUT]
 - app.config.settings::internal_service_key (POS: INTERNAL_SERVICE_KEY env from CP injection)

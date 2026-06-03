@@ -454,6 +454,7 @@ export const AgentEventType = {
   DESKTOP_VIEW_UPDATE: 'desktop_view_update',
   PTC_NOTIFY: 'ptc_notify',
   TOOL_PROGRESS: 'tool_progress',
+  FISSION_TOPOLOGY: 'fission_topology',
 } as const;
 
 interface BaseAgentEvent {
@@ -1130,6 +1131,24 @@ export interface ToolProgressStreamEvent extends BaseAgentEvent {
   };
 }
 
+export interface FissionTopologyNode {
+  node_id: string;
+  agent_type: string;
+  objective: string;
+  status: string;
+  error?: string | null;
+  cost_usd?: number;
+}
+
+export interface FissionTopologyUpdateStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.FISSION_TOPOLOGY;
+  data: {
+    fission_id: string;
+    nodes: FissionTopologyNode[];
+    total_cost_usd: number;
+  };
+}
+
 export type AgentStreamEvent =
   | ClientActionStreamEvent
   | CatchupSnapshotStreamEvent
@@ -1186,7 +1205,8 @@ export type AgentStreamEvent =
   | ContextOverflowResetStreamEvent
   | ToolFallbackStreamEvent
   | ContextReferenceWarningStreamEvent
-  | GoalStatusStreamEvent;
+  | GoalStatusStreamEvent
+  | FissionTopologyUpdateStreamEvent;
 
 export type Message = {
   messageId: string;

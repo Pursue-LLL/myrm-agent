@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。Agent 执行引擎来自闭源 `myrm-agent-harness`（PyPI `compiled-core`）。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
 
 ## 目录清单
 
@@ -14,9 +14,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 ## 模块依赖
 
-- **Harness**：`pyproject.toml` + `uv.lock` 钉死 **PyPI** 版本（`myrm setup` / `uv sync`）
-- **Control Plane**：SaaS 场景对接独立闭源仓 `myrm-control-plane`（OAuth、沙箱、计费）
-- **Brand**：官网与文档在 `myrm-agent-brand`（`myrm-website` / `myrm-docs`）
+- **依赖**：`pyproject.toml` + `uv.lock` 钉死 PyPI 版本（`myrm setup` / `uv sync`）
 
 子模块详述：
 

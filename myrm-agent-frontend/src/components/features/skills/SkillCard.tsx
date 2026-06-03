@@ -20,6 +20,7 @@ import {
   Settings2,
   ArrowUpCircle,
   Undo2,
+  Download,
 } from 'lucide-react';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -89,6 +90,7 @@ interface SkillCardProps {
   onDelete?: (skill: Skill) => void;
   onLifecycleAction?: (skill: Skill, action: SkillLifecycleAction) => void;
   onManageInstances?: (skillName: string) => void;
+  onExport?: (skill: Skill) => void;
 }
 
 const SkillCard = memo(
@@ -101,6 +103,7 @@ const SkillCard = memo(
     onDelete,
     onLifecycleAction,
     onManageInstances,
+    onExport,
   }: SkillCardProps) => {
     const t = useTranslations('settings.skills');
     const status = useMemo(() => getSkillStatus(skill, isEnabled), [skill, isEnabled]);
@@ -133,6 +136,10 @@ const SkillCard = memo(
       },
       [onLifecycleAction, skill],
     );
+
+    const handleExport = useCallback(() => {
+      onExport?.(skill);
+    }, [onExport, skill]);
 
     return (
       <div
@@ -321,6 +328,12 @@ const SkillCard = memo(
                   <Info size={16} className="mr-2" />
                   {t('card.details')}
                 </DropdownMenuItem>
+                {onExport && (
+                  <DropdownMenuItem onClick={handleExport}>
+                    <Download size={16} className="mr-2" />
+                    {t('card.export')}
+                  </DropdownMenuItem>
+                )}
                 {onManageInstances && (
                   <DropdownMenuItem onClick={() => onManageInstances(skill.name)}>
                     <Settings2 size={16} className="mr-2" />

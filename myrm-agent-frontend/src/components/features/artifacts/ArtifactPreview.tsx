@@ -25,6 +25,8 @@ import { getStorageUrl } from '@/lib/api';
 import { getDownloadFilename } from './artifactUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
+import { DeployModal } from './DeployModal';
+
 // 动态导入 PDF 预览组件（包含 react-pdf 配置）
 const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {
   ssr: false,
@@ -155,6 +157,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
 
   // 加载文件内容
   useEffect(() => {
@@ -264,6 +267,12 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
 
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
+              {(isHtml || artifact.type === 'code') && (
+                <Button variant="outline" size="sm" onClick={() => setDeployModalOpen(true)} className="text-primary border-primary hover:bg-primary/10">
+                  <Globe className="w-4 h-4 mr-1.5" />
+                  Deploy to Web
+                </Button>
+              )}
               {canPreviewContent && (
                 <Button variant="ghost" size="sm" onClick={handleCopy} className="text-gray-600 dark:text-gray-400">
                   {copied ? (
@@ -336,6 +345,11 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
           ) : null}
         </div>
       </DialogContent>
+      <DeployModal 
+        artifact={artifact} 
+        open={deployModalOpen} 
+        onClose={() => setDeployModalOpen(false)} 
+      />
     </Dialog>
   );
 };

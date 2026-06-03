@@ -21,6 +21,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     color: Mapped[str] = mapped_column(String(20), nullable=False, default="#7cb9ff")
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    workspace_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

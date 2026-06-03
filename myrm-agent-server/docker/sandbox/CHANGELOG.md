@@ -21,7 +21,7 @@
 
 ### Control Plane 监控与质量提升 ⭐⭐⭐
 
-本次更新主要针对 myrm-control-plane，全面提升生产可用性。
+本次更新主要针对控制平面服务，全面提升生产可用性。
 
 #### **Prometheus Metrics 补充与修复**
 - **修复致命 Bug**：补充缺失的 metrics（`sandbox_pool_available`、`sandbox_pool_in_use`、`sandbox_orphan_containers_total`）

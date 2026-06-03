@@ -281,7 +281,7 @@ const AboutSection = memo(() => {
             icon={IconGlobe}
             title={t('links.github.title')}
             description={t('links.github.description')}
-            href="https://github.com/myrmagent/myrmagent"
+            href="https://github.com/Pursue-LLL/myrm-agent"
           />
           <LinkCard
             icon={IconBook}

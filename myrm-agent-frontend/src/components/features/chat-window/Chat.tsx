@@ -49,6 +49,7 @@ import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { ConversationJumpBar, MobileJumpBarSheet } from './ConversationJumpBar';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import AgentWorkMap from './AgentWorkMap';
 
 /**
  * 虚拟滚动开关
@@ -217,6 +218,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
         }}
       >
         <div className="mx-auto max-w-6xl w-full px-4 space-y-4" style={{ width: 'var(--message-input-width, 820px)' }}>
+          <AgentWorkMap />
           <div className="flex items-end gap-2">
             <CompanionWidget />
             <div className="flex-1 min-w-0">

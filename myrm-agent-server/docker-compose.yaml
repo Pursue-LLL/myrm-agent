@@ -106,8 +106,9 @@ services:
     build:
       context: ..
       dockerfile: myrm-agent-harness/Dockerfile
+      # Full-stack image build only: pass control-service sources via MYRM_CP_BUILD_CONTEXT
       additional_contexts:
-        control-plane: ../myrm-control-plane
+        control-plane: ${MYRM_CP_BUILD_CONTEXT:-}
     image: myrm-agent:latest
     command: ["echo", "Agent image built successfully"]
 

@@ -179,11 +179,7 @@ async def _assert_providers_visible_in_browser() -> None:
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(
             headless=True,
-            env={
-                **os.environ,
-                "PLAYWRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-                "PATCHRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-            },
+            env={**os.environ},
         )
         page = await browser.new_page()
         try:
@@ -205,11 +201,7 @@ async def _assert_budget_blocked_banner_in_browser() -> None:
     async with async_playwright() as playwright:
         browser = await playwright.chromium.launch(
             headless=True,
-            env={
-                **os.environ,
-                "PLAYWRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-                "PATCHRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-            },
+            env={**os.environ},
         )
         page = await browser.new_page()
         try:

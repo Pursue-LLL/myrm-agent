@@ -1360,6 +1360,20 @@ export const handleMessageStream = async (
     return { added, recievedMessage };
   }
 
+  if (data.type === AgentEventType.FISSION_TOPOLOGY) {
+    import('@/store/chat/useSubagentStore').then(({ useSubagentStore }) => {
+      const payload = data.data as any;
+      if (payload && payload.fission_id) {
+        useSubagentStore.getState().setFissionTopology({
+          fission_id: payload.fission_id,
+          nodes: payload.nodes || [],
+          total_cost_usd: payload.total_cost_usd || 0,
+        });
+      }
+    });
+    return { added, recievedMessage };
+  }
+
   if (data.type === AgentEventType.TEAMMATE_MESSAGE) {
     const chatId = useChatStore.getState().chatId;
     const payload = data.data as Record<string, string | number> | undefined;

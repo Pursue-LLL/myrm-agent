@@ -98,7 +98,7 @@ ThreadStore（线程生命周期管理）
 
 ### Sandbox（云端，Agent-in-Sandbox）
 
-- **运行方式**：`myrm-agent-server` 打包为 Docker 镜像，由 `myrm-control-plane` 管理
+- **运行方式**：`myrm-agent-server` 打包为 Docker 镜像，由外部控制服务管理
 - **架构**：`claw-server` 运行在 per-user 沙箱容器内，控制平面是独立服务
 - **数据库**：SQLite（`settings.database.sqlite_path`，默认 `{MYRM_DATA_DIR}/data.db`）
 - **向量库**：Qdrant embedded（`settings.database.qdrant_path`，默认 `{MYRM_DATA_DIR}/qdrant`）
@@ -113,14 +113,14 @@ ThreadStore（线程生命周期管理）
 
 ### 架构原则
 
-`myrm-agent-server` 是运行在沙箱容器**内部**的业务执行体。`myrm-control-plane` 是**独立部署的外部服务**，负责沙箱生命周期管理。两者完全解耦：
+`myrm-agent-server` 是运行在沙箱容器**内部**的业务执行体。控制服务是**独立部署的外部组件**，负责沙箱生命周期管理。两者完全解耦：
 
 - `claw-server` 不依赖、不导入、不感知控制平面的存在
 - 控制平面通过环境变量向 `claw-server` 注入配置（`DEPLOY_MODE`、`MYRM_DATA_DIR` 或 CP 卷挂载路径等）
 - 沙箱分配策略为 per-user（每用户一个持久化容器）
 
 ```
-[外部] myrm-control-plane（独立服务，独立仓库）
+[外部] 控制服务（独立部署）
   ├── 用户认证、任务队列、计费
   ├── 沙箱生命周期管理（create/sleep/wake/destroy）
   └── 为每个用户创建独立容器（per-user）
@@ -153,16 +153,16 @@ docker compose --profile sandbox build agent-image
 # 生成 myrm-agent:latest 镜像
 ```
 
-**2. 部署控制平面**（独立仓库 `myrm-control-plane`）：
+**2. 部署控制服务**（与 agent 镜像分开发布）：
 
-控制平面负责：
+控制服务负责：
 - 管理用户认证和任务队列
 - 为每个用户创建 `myrm-agent:latest` 容器 + per-user 持久化卷
 - 注入环境变量（`DEPLOY_MODE=sandbox`、`MYRM_DATA_DIR` 等）
 - 管理沙箱生命周期（sleep/wake/destroy）
 - Sleep 前自动备份持久化卷
 
-控制平面的部署文档见 `myrm-control-plane` 仓库。
+控制服务的部署与版本发布由运维侧单独维护（不在本仓库）。
 
 ### 控制平面与 claw-server 的通信方式
 
@@ -226,4 +226,4 @@ docker compose --profile sandbox build agent-image
 
 - `app/config/`：部署模式判断 (`DEPLOY_MODE`)
 - `langgraph.checkpoint.*`：checkpointer 实现（框架层提供）
-- **不依赖** `myrm-control-plane`（控制平面是独立服务）
+- **不依赖**外部控制服务（单机/local 模式可独立运行；sandbox 模式由控制服务托管容器）

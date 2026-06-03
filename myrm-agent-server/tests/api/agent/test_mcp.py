@@ -16,6 +16,7 @@
 
 import json
 import os
+import shutil
 import time
 import uuid
 from pathlib import Path
@@ -35,7 +36,7 @@ _MCP_12306_INDEX = (
     Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
 )
 
-_UVX_PATH = "/Users/yululiu/.local/bin/uvx"
+_UVX_PATH = os.environ.get("UVX_PATH") or shutil.which("uvx") or "uvx"
 
 _TEST_WALL_CLOCK_LIMIT = 300
 _STREAM_TIMEOUT = 300

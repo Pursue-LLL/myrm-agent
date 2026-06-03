@@ -32,6 +32,9 @@ class Artifact(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)  # Soft delete
+    deployment_url = Column(String(512), nullable=True)  # Public URL after deployment
+    deployment_project_id = Column(String(255), nullable=True)  # Vercel project ID
+    deployment_status = Column(String(50), nullable=True)  # e.g., DEPLOYING, READY, ERROR
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

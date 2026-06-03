@@ -1,0 +1,92 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-tauri:
+    name: Build on ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-apple-silicon
+            runner: macos-14
+            target_arch: arm64
+          - platform: macos-intel
+            runner: macos-13
+            target_arch: x86_64
+          - platform: windows
+            runner: windows-latest
+            target_arch: x86_64
+          - platform: linux
+            runner: ubuntu-22.04
+            target_arch: x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux only)
+        if: matrix.runner == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-apple-silicon' && 'aarch64-apple-darwin' || matrix.platform == 'macos-intel' && 'x86_64-apple-darwin' || '' }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=${{ matrix.target_arch }}" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent/myrm-agent-server
+          uv sync --frozen --all-extras --group dev --no-extra matrix-e2ee
+          cd ../myrm-agent-desktop/sidecar
+          python build.py
+        shell: bash
+
+      - name: Install frontend dependencies
+        run: |
+          cd myrm-agent/myrm-agent-frontend
+          bun install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: "myrm-agent/myrm-agent-desktop"
+          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
+          releaseName: "MyrmAgent v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.platform == 'macos-apple-silicon' && '--target aarch64-apple-darwin' || matrix.platform == 'macos-intel' && '--target x86_64-apple-darwin' || '' }}

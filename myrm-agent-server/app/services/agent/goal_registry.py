@@ -114,6 +114,10 @@ async def _resolve_shared_context_ids_for_goal(session_id: str) -> list[str]:
 class ServerGoalManager(GoalManager):
     """Server-side GoalManager that implements boundary methods like semantic evaluation."""
 
+    def __init__(self, storage_provider, session_id: str | None = None):
+        super().__init__(storage_provider)
+        self.session_id = session_id
+
     async def update_status(self, goal_id: str, status: "GoalStatus") -> "Goal":
         goal = await super().update_status(goal_id, status)
 
@@ -341,7 +345,7 @@ class GoalRegistry:
             if session_id not in cls._providers:
                 from app.platform_utils import get_storage_provider
 
-                cls._providers[session_id] = ServerGoalManager(get_storage_provider())
+                cls._providers[session_id] = ServerGoalManager(get_storage_provider(), session_id=session_id)
                 logger.debug("Created new goal provider: session_id=%s", session_id)
             return cls._providers[session_id]
 

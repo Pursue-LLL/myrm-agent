@@ -3331,7 +3331,7 @@
       "version": "版本",
       "introduction": {
         "title": "项目简介",
-        "description": "MyrmAgent 的核心产品（Server、Frontend、Desktop）采用开源许可，致力于为用户提供强大、灵活且可扩展的智能对话体验。Agent 执行引擎（Harness）与控制平面（Control Plane）为独立闭源组件。"
+        "description": "MyrmAgent 的核心产品（Server、Frontend、Desktop）采用 MIT 开源许可，致力于为用户提供强大、灵活且可扩展的智能对话体验。"
       },
       "features": {
         "powerful": {
@@ -3391,7 +3391,7 @@
       "license": {
         "title": "许可证与版权",
         "type": "MIT 许可证（核心产品）",
-        "description": "MyrmAgent 核心产品（Server、Frontend、Desktop）采用 MIT 许可证发布。Agent 执行引擎（Harness）与控制平面（Control Plane）为闭源组件，不在此许可范围内。",
+        "description": "本仓库中的 Server、Frontend、Desktop 组件采用 MIT 许可证发布。",
         "copyright": "© {year} MyrmAgent. 保留所有权利。"
       }
     },

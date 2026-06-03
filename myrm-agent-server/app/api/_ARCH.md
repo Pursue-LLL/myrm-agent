@@ -41,7 +41,7 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | 模块 | 路由前缀 | 职责 |
 |------|---------|------|
 | `projects/` | `/projects` | 项目管理（CRUD + 会话归属移动/批量移动） |
-| `files/` | `/files` | 文件管理（上传、静态服务、存储、加密） |
+| `files/` | `/files` | 文件管理（上传、静态服务、存储、加密、一键部署） |
 | `memory/` | `/memory` | 用户记忆管理（CRUD、待处理记忆；审批动作会写入 Experience Ledger） |
 | `cron/` | `/cron` | 定时任务管理（CRUD、暂停/恢复、触发、执行记录） |
 | `notifications/` | `/notifications` | 系统通知管理（列表查询、单条/全部已读、DLQ 重试、action_url 跳转、过期清理） |

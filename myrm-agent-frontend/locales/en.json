@@ -3292,7 +3292,7 @@
       "version": "Version",
       "introduction": {
         "title": "Introduction",
-        "description": "MyrmAgent's core product (Server, Frontend, Desktop) is open source, dedicated to providing users with a powerful, flexible, and extensible intelligent conversation experience. The Agent execution engine (Harness) and Control Plane are independent proprietary components."
+        "description": "MyrmAgent's core products (Server, Frontend, Desktop) are open source under the MIT License."
       },
       "features": {
         "powerful": {
@@ -3352,7 +3352,7 @@
       "license": {
         "title": "License & Copyright",
         "type": "MIT License (Core Product)",
-        "description": "MyrmAgent's core product (Server, Frontend, Desktop) is released under the MIT License. The Agent execution engine (Harness) and Control Plane are proprietary components not covered by this license.",
+        "description": "Server, Frontend, and Desktop in this repository are released under the MIT License.",
         "copyright": "© {year} MyrmAgent. All rights reserved."
       }
     },
@@ -10153,7 +10153,7 @@
     "version": "Version",
     "introduction": {
       "title": "Project Introduction",
-      "description": "MyrmAgent's core products (Server, Frontend, Desktop) are open-source, dedicated to providing users with powerful, flexible, and extensible intelligent conversation experiences. The Agent execution engine (Harness) and Control Plane are separate closed-source components."
+      "description": "MyrmAgent's core products (Server, Frontend, Desktop) are open source under the MIT License."
     },
     "features": {
       "powerful": {
@@ -10213,7 +10213,7 @@
     "license": {
       "title": "License & Copyright",
       "type": "MIT License (Core Products)",
-      "description": "MyrmAgent core products (Server, Frontend, Desktop) are released under the MIT License. The Agent execution engine (Harness) and Control Plane are closed-source components and are not covered by this license.",
+      "description": "Server, Frontend, and Desktop in this repository are released under the MIT License.",
       "copyright": "© {year} MyrmAgent. All rights reserved."
     }
   },

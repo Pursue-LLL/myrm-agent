@@ -42,11 +42,7 @@ async def test_ui_agent_text_and_image_strip(test_image: Path) -> None:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            env={
-                **os.environ,
-                "PLAYWRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-                "PATCHRIGHT_BROWSERS_PATH": "/Users/yululiu/Library/Caches/ms-playwright",
-            },
+            env={**os.environ},
         )
         page = await browser.new_page()
         await page.goto(_FRONTEND, wait_until="domcontentloaded", timeout=60_000)
