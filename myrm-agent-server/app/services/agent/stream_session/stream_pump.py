@@ -15,6 +15,32 @@ from app.services.agent.streaming_support.sse_helpers import error_sse
 logger = logging.getLogger(__name__)
 
 async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
+    from app.services.project.orchestrator import project_orchestrator
+    from app.schemas.streaming import SSEEnvelope
+
+    project_id = getattr(session.params, "project_id", None)
+    
+    if project_id and project_orchestrator.is_locked(project_id):
+        waiting_msg = SSEEnvelope.from_any({
+            "type": "status",
+            "messageId": session.params.message_id,
+            "step_key": "waiting_for_turn",
+            "status": "waiting",
+            "data": {"message": "Waiting for other agents in the project to finish..."}
+        }).to_sse_chunk()
+        await buffer.append(waiting_msg)
+        
+    if project_id:
+        await project_orchestrator.acquire(project_id)
+        
+        cleared_msg = SSEEnvelope.from_any({
+            "type": "status",
+            "messageId": session.params.message_id,
+            "step_key": "waiting_for_turn_clear",
+            "status": "success"
+        }).to_sse_chunk()
+        await buffer.append(cleared_msg)
+
     try:
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
@@ -25,6 +51,8 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         logger.error("Error pumping stream to buffer: %s", e, exc_info=True)
         await buffer.append(error_sse(f"Stream interrupted: {e}", session.params.message_id))
     finally:
+        if project_id:
+            project_orchestrator.release(project_id)
         await buffer.end_stream()
 
         # --- Offline Guardian Notification & Cleanup ---

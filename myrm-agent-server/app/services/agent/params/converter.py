@@ -769,6 +769,7 @@ async def convert_to_general_agent_params(
         message_id=request.message_id,
         chat_id=request.chat_id,
         agent_id=request.agent_id,
+        project_id=chat.project_id if chat_loaded and chat else None,
         query=final_query,
         chat_history=cast(ChatHistoryReq, chat_history),
         model_cfg=model_cfg,

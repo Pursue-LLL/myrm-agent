@@ -8,12 +8,10 @@ from app.database.models.artifact import Artifact, ArtifactVersion
 
 @pytest.fixture
 async def mock_artifact(db_session):
+    import uuid
     artifact = Artifact(
+        id=str(uuid.uuid4()),
         name="test-artifact",
-        type="html",
-        filename="index.html",
-        size=100,
-        content_type="text/html",
         is_deleted=False
     )
     db_session.add(artifact)
@@ -21,18 +19,19 @@ async def mock_artifact(db_session):
     await db_session.refresh(artifact)
     
     version = ArtifactVersion(
+        id=str(uuid.uuid4()),
         artifact_id=artifact.id,
-        version=1,
         vault_uri="test_uri",
-        size=100
+        sha256_hash="test_hash"
     )
     db_session.add(version)
     await db_session.commit()
+    await db_session.refresh(artifact)
     
     return artifact
 
 @pytest.mark.asyncio
-async def test_deploy_artifact_success(async_client: AsyncClient, mock_artifact, db_session):
+async def test_deploy_artifact_success(client, mock_artifact, db_session):
     # Mock Vault reading
     with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
         mock_vault_instance = mock_vault_class.return_value
@@ -56,10 +55,14 @@ async def test_deploy_artifact_success(async_client: AsyncClient, mock_artifact,
                     "status": "READY"
                 }
                 
-                response = await async_client.post(
-                    f"/api/v1/artifacts/{mock_artifact.id}/deploy",
-                    json={"token": "test_token"}
-                )
+                # Use async_client instead of sync client for async endpoint
+                from httpx import AsyncClient, ASGITransport
+                from app.main import app
+                async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+                    response = await ac.post(
+                        f"/api/v1/artifacts/{mock_artifact.id}/deploy",
+                        json={"token": "test_token"}
+                    )
                 
                 assert response.status_code == 200
                 data = response.json()
@@ -72,8 +75,8 @@ async def test_deploy_artifact_success(async_client: AsyncClient, mock_artifact,
                 assert mock_artifact.deployment_status == "READY"
 
 @pytest.mark.asyncio
-async def test_deploy_artifact_not_found(async_client: AsyncClient):
-    response = await async_client.post(
+async def test_deploy_artifact_not_found(client):
+    response = client.post(
         "/api/v1/artifacts/invalid-id/deploy",
         json={"token": "test_token"}
     )

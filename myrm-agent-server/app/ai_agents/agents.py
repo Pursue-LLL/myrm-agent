@@ -99,6 +99,7 @@ class GeneralAgentParams(BaseAgentParams):
     """General Agent参数"""
 
     agent_id: str | None = None
+    project_id: str | None = None
     subagent_ids: list[str] | None = None
     enable_memory: bool = True
     memory_require_confirmation: bool = False
