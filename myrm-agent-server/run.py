@@ -141,6 +141,26 @@ if __name__ == "__main__":
 
     print(f"🔧 配置: host={host}, port={port}")
 
+    from app.server.runtime_dev_info import set_runtime_listen
+
+    set_runtime_listen(
+        port=port,
+        host=host,
+        dev_mode="standalone_webui" if args.webui else "split_dev",
+    )
+
+    if args.webui:
+        print(
+            "💡 Standalone WebUI — embedded Next may start on :3000. "
+            "Split dev: omit --webui (port 8080) + `bun run dev` in myrm-agent-frontend."
+        )
+    else:
+        print(
+            "💡 Dev — open http://localhost:3000 after "
+            "`cd myrm-agent-frontend && bun run dev` "
+            f"(Next proxies API → http://127.0.0.1:{port})"
+        )
+
     if _should_use_granian():
         start_with_granian(
             host=host,

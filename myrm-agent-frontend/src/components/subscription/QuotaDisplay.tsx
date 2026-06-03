@@ -14,7 +14,7 @@ import {
   IconClock,
   IconWrench,
   IconHardDrive,
-} from '@/components/ui/icons/PremiumIcons';
+} from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useQuota, useSubscription } from '@/hooks/useSubscription';
 import { isSandbox } from '@/lib/deploy-mode';

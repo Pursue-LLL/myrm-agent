@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import ReactDiffViewer from 'react-diff-viewer';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/primitives/badge';
+import { Button } from '@/components/primitives/button';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+} from '@/components/primitives/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { useSkillVersions, type SkillVersionSummary } from '@/hooks/useSkillVersions';
 
 interface SkillVersionHistoryProps {

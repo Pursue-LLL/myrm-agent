@@ -1,4 +1,4 @@
-import GrowthDashboard from '@/components/ui/growth/GrowthDashboard';
+import GrowthDashboard from '@/components/features/growth/GrowthDashboard';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 

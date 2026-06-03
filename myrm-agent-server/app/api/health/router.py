@@ -51,11 +51,17 @@ async def health_check() -> dict[str, object]:
     Returns:
         dict: 包含状态信息和功能特性的字典
     """
+    from app.server.runtime_dev_info import get_runtime_dev_info
     from app.server.status import system_status
 
+    dev = get_runtime_dev_info()
     return {
         "status": "healthy",
         "message": "MyrmAgent backend is running",
+        "dev_mode": dev["dev_mode"],
+        "listen_port": dev["listen_port"],
+        "listen_host": dev["listen_host"],
+        "frontend_proxy_port": dev["frontend_proxy_port"],
         "features": {
             "websocket_enabled": True,
         },

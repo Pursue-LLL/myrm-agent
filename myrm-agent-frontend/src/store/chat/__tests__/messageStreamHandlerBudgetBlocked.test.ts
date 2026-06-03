@@ -9,7 +9,7 @@ vi.mock('@/lib/utils/toast', () => ({
   },
 }));
 
-vi.mock('@/utils/completionSound', () => ({
+vi.mock('@/lib/utils/completionSound', () => ({
   playCompletionSound: vi.fn(() => false),
 }));
 

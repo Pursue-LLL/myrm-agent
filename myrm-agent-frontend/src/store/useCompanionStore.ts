@@ -12,8 +12,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { CompanionStats, Hat, Mood, Rarity, Species } from '@/components/ui/companion/companionGenerator';
-import { getObserverLimits } from '@/components/ui/companion/companionGenerator';
+import type { CompanionStats, Hat, Mood, Rarity, Species } from '@/components/features/companion/companionGenerator';
+import { getObserverLimits } from '@/components/features/companion/companionGenerator';
 
 const OBSERVER_DEBOUNCE_MS = 3000;
 const MAX_DAILY_SNACKS = 3;

@@ -21,7 +21,7 @@ import { useTrayEvents } from '@/hooks/useTrayEvents';
 
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
 
-const CronPushPoller = lazy(() => import('@/components/ui/cron/CronPushPoller'));
+const CronPushPoller = lazy(() => import('@/components/features/cron/CronPushPoller'));
 
 /**
  * AppLayout - 应用主布局组件

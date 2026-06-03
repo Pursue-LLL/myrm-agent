@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
-import SettingsLayout from '@/components/ui/settings/SettingsLayout';
+import SettingsLayout from '@/components/features/settings/SettingsLayout';
 import { getTranslations } from 'next-intl/server';
 
 const SettingsLoading = () => (

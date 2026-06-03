@@ -33,10 +33,13 @@ function Show-Help {
     Write-Host "MyrmAgent CLI" -ForegroundColor Cyan
     Write-Host "Usage: myrm <command>"
     Write-Host "  setup              First-time deps (uv sync + bun install)"
-    Write-Host "  start | stop | status | update"
+    Write-Host "  dev                Backend :8080 in background"
+    Write-Host "  start              Dev backend :8080 (foreground)"
+    Write-Host "  start -Standalone  All-in-one WebUI :25808"
+    Write-Host "  stop | status | update"
     Write-Host "  searxng start | stop | status"
     Write-Host ""
-    Write-Host "Dev: cd myrm-agent-frontend; bun run dev  (separate terminal)"
+    Write-Host "Typical dev: myrm start; cd myrm-agent-frontend; bun run dev"
 }
 
 function Require-Docker {
@@ -63,18 +66,27 @@ function Get-MyrmProcesses {
 }
 
 function Start-Server {
+    param([switch]$Standalone)
+
     Set-Location $ServerDir
     $env:DEPLOY_MODE = "local"
-    $env:WEBUI_MODE = "true"
+    $runArgs = @()
+    if ($Standalone) {
+        $runArgs += "--webui"
+    }
+    else {
+        $env:HOST = "127.0.0.1"
+        $env:PORT = "8080"
+    }
     $venvPy = Join-Path $ServerDir ".venv\Scripts\python.exe"
     if (Test-Path $venvPy) {
         Write-Host "Starting server via $venvPy"
-        & $venvPy run.py --webui
+        & $venvPy run.py @runArgs
         exit $LASTEXITCODE
     }
     if (Get-Command uv -ErrorAction SilentlyContinue) {
-        Write-Host "Starting server via uv run run.py"
-        uv run run.py --webui
+        Write-Host "Starting server via uv run --no-sync run.py"
+        uv run --no-sync run.py @runArgs
         exit $LASTEXITCODE
     }
     Write-Error "No .venv python or uv found. Re-run scripts/install.ps1"
@@ -94,10 +106,23 @@ switch ($Command) {
         & $setup
         exit $LASTEXITCODE
     }
+    "dev" {
+        $dev = Join-Path $ScriptDir "dev\dev.ps1"
+        if (-not (Test-Path $dev)) { Write-Error "Missing $dev"; exit 1 }
+        & $dev
+        exit $LASTEXITCODE
+    }
     "start" {
-        Write-Host "Starting MyrmAgent backend (WebUI)..."
-        Write-Host "Frontend (separate terminal): cd myrm-agent-frontend; bun run dev"
-        Start-Server
+        $standalone = ($SubCommand -in @("--standalone", "--webui", "-Standalone"))
+        if ($standalone) {
+            Write-Host "Starting standalone WebUI (backend :25808)..."
+            Start-Server -Standalone
+        }
+        else {
+            Write-Host "Starting dev backend (http://127.0.0.1:8080)..."
+            Write-Host "Frontend: cd myrm-agent-frontend; bun run dev  ->  http://localhost:3000"
+            Start-Server
+        }
     }
     "stop" {
         $procs = Get-MyrmProcesses

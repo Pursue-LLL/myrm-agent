@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - src/components/ui/health/DoctorDashboard.tsx::DoctorDashboard (POS: 系统诊断看板主组件)
+ * - components/features/health/DoctorDashboard.tsx::DoctorDashboard (POS: 系统诊断看板主组件)
  *
  * [OUTPUT]
  * - HealthPage: 系统诊断的 Next.js 独立路由页面。
@@ -9,7 +9,7 @@
  * 页面级入口组件。提供独立的 /health 路由访问健康诊断面板体系。
  */
 import { getTranslations } from 'next-intl/server';
-import { DoctorDashboard } from '@/components/ui/health/DoctorDashboard';
+import { DoctorDashboard } from '@/components/features/health/DoctorDashboard';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

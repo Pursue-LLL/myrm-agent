@@ -31,8 +31,8 @@ import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { toast } from '@/lib/utils/toast';
-import { isAbsolutePath, normalizePath } from '@/utils/pathValidation';
-import { CLI_WORKING_DIRECTORY_STORAGE_KEY } from '@/components/ui/chat-window/agent-config-panel/constants';
+import { isAbsolutePath, normalizePath } from '@/lib/utils/pathValidation';
+import { CLI_WORKING_DIRECTORY_STORAGE_KEY } from '@/components/features/chat-window/agent-config-panel/constants';
 
 interface UseAgentGalleryParams {
   onSelectPreset: (agent: PresetAgent, workingDirectory?: string) => void;

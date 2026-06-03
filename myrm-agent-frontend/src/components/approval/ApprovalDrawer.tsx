@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useApprovalStore from '@/store/useApprovalStore';
-import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/primitives/drawer';
 import { PolymorphicApprovalCard } from './PolymorphicApprovalCard';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 import { toast } from '@/lib/utils/toast';
 import { API_BASE_URL } from '@/lib/api';
 

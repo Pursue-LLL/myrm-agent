@@ -24,27 +24,27 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import BrandLogo from '@/components/ui/BrandLogo';
+import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { FolderOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { SearchDialog, SearchTrigger } from '@/components/ui/search-dialog';
-import ChatHistoryList from '@/components/ui/sidebar/ChatHistoryList';
+import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
+import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
 import {
   CLIWorkspaceTree,
   CLIFilePreview,
   CLIContextMenu,
   useFileWatcher,
   useFilePreview,
-} from '@/components/ui/cli-visualization';
-import type { FileNode } from '@/components/ui/cli-visualization/CLIWorkspaceTree';
-import { WorkspaceFileBrowser, WorkspaceFilePreview, useWorkspaceFiles } from '@/components/ui/workspace-browser';
+} from '@/components/features/cli-visualization';
+import type { FileNode } from '@/components/features/cli-visualization/CLIWorkspaceTree';
+import { WorkspaceFileBrowser, WorkspaceFilePreview, useWorkspaceFiles } from '@/components/features/workspace-browser';
 import { useWorkingDirectory } from '@/store/useCLIAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
 import { isTauriEnvironment } from '@/lib/tauri';
-import { CatchupInbox } from '@/components/ui/chat-window/catchup/CatchupInbox';
-import SessionTrashPanel from '@/components/ui/chat-window/SessionTrashPanel';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { CatchupInbox } from '@/components/features/chat-window/catchup/CatchupInbox';
+import SessionTrashPanel from '@/components/features/chat-window/SessionTrashPanel';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { getTrashCount } from '@/services/chatTrash';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 

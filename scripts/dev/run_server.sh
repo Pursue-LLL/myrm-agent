@@ -2,8 +2,8 @@
 # Start myrm-agent-server without uv re-resolve when .venv exists.
 #
 # Usage (from myrm-agent repo root):
-#   ./scripts/dev/run_server.sh
-#   ./scripts/dev/run_server.sh --webui
+#   ./scripts/dev/run_server.sh              # dev API :8080 (pair with bun run dev)
+#   ./scripts/dev/run_server.sh --webui      # standalone WebUI :25808
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -8,11 +8,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Activity, AlertTriangle, Clock, Loader2, RefreshCw, ShieldX, TrendingDown } from 'lucide-react';
-import { IconGlow } from '@/components/ui/icons/PremiumIcons';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import { Badge } from '@/components/primitives/badge';
+import { Button } from '@/components/primitives/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { cn } from '@/lib/utils/classnameUtils';
 import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
 import {

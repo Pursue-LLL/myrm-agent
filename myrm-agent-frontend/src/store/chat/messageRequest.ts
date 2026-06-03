@@ -30,7 +30,7 @@ import {
 import useConfigStore from '../useConfigStore';
 import useProviderStore from '../useProviderStore';
 import useChatStore from '../useChatStore';
-import { getThinkingEffort } from '@/components/ui/message-input-actions/ThinkingIntensityButton';
+import { getThinkingEffort } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import useAuthStore from '../useAuthStore';
 import useRetrievalStore from '../useRetrievalStore';
 import useQuoteStore from '../useQuoteStore';
@@ -50,13 +50,13 @@ import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding'
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
-import { generateCompanion, getEnhancedPersonality, getTitle } from '@/components/ui/companion/companionGenerator';
+import { generateCompanion, getEnhancedPersonality, getTitle } from '@/components/features/companion/companionGenerator';
 import useCompanionStore from '../useCompanionStore';
 import { API_BASE_URL } from '@/lib/api';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import type { ChatState } from './types';
 
-import type { Rarity } from '@/components/ui/companion/companionGenerator';
+import type { Rarity } from '@/components/features/companion/companionGenerator';
 
 export interface ChatActionsState {
   chatId: string | undefined;

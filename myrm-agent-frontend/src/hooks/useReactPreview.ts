@@ -20,8 +20,8 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import { isValidReactCode, wrapCodeAsApp, detectOptionalDependencies } from '@/utils/reactCodeProcessor';
-import { PRESET_DEPENDENCIES } from '@/components/ui/artifacts/constants/reactPreviewConstants';
+import { isValidReactCode, wrapCodeAsApp, detectOptionalDependencies } from '@/lib/utils/reactCodeProcessor';
+import { PRESET_DEPENDENCIES } from '@/components/features/artifacts/constants/reactPreviewConstants';
 
 interface UseReactPreviewParams {
   code: string;

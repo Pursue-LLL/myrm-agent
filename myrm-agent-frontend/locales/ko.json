@@ -2678,7 +2678,10 @@
     "configLoadError": {
       "title": "구성을 불러오지 못했습니다",
       "description": "서비스에 연결할 수 없습니다. 백엔드가 실행 중인지 확인한 후 다시 시도해 주세요.",
-      "retry": "재시도"
+      "retry": "재시도",
+      "hintUnreachable": "백엔드에 연결할 수 없습니다. myrm dev 또는 myrm start(:8080) 후 bun run dev. .env.local에 API_PORT=8080.",
+      "hintSplitDev": "백엔드 OK: http://{host}:{port} (split_dev). .env.local API_PORT={proxyPort} → http://localhost:3000",
+      "hintStandalone": "백엔드 OK: http://{host}:{port} (standalone). API_PORT={proxyPort} 또는 내장 프론트엔드."
     }
   },
   "chat": {

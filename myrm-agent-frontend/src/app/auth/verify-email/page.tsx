@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loading03Icon, Mail01Icon, AlertCircleIcon } from 'hugeicons-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/primitives/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import useAuthStore from '@/store/useAuthStore';
 

@@ -130,7 +130,8 @@ external_reference_project/
 # Local macOS Seatbelt profiles (contain machine-specific paths; do not commit)
 *.sb
 
+.myrm-dev-backend.pid
+.myrm-dev-backend.log
 .myrm/
 
 # Legacy local eval/cache tree (replaced by .myrm/; do not commit)
-.myrm/

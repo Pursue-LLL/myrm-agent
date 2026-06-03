@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 
 interface WorkUnitBalanceBarProps {
   className?: string;

@@ -248,12 +248,10 @@ class WebuiAuthService:
         admin = load_admin()
         if admin is None:
             set_password_protection_enabled(False)
-            self.invalidate_all_sessions()
             return
         if not verify_password(password, admin.password_hash):
             raise ValueError("Invalid password")
         set_password_protection_enabled(False)
-        self.invalidate_all_sessions()
 
     def update_protection_enabled(self, *, enabled: bool) -> None:
         set_password_protection_enabled(enabled)

@@ -12,8 +12,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from '@/components/primitives/alert-dialog';
+import { Button } from '@/components/primitives/button';
 import { useBudgetExceededStore } from '@/store/useBudgetExceededStore';
 import { isSandbox } from '@/lib/deploy-mode';
 import useAuthStore from '@/store/useAuthStore';

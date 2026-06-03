@@ -3,7 +3,7 @@
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LogIn, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 
 export interface LocalLoginFormProps {
   username: string;
@@ -17,7 +17,7 @@ export interface LocalLoginFormProps {
 
 const LocalLoginForm = memo(
   ({
-    username,
+    username: _username,
     password,
     loading,
     error,

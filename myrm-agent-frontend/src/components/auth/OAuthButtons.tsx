@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/primitives/button';
+import { Alert, AlertDescription } from '@/components/primitives/alert';
 import { cn } from '@/lib/utils';
 import { OAuthProviderIcon } from '@/components/auth/oauth-provider-icons';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';

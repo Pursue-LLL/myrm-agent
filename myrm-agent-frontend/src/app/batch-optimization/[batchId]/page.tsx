@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
+import { Badge } from '@/components/primitives/badge';
 import { localizeReactNode } from '@/lib/utils/localeText';
 import { Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, Activity, FileText } from 'lucide-react';
 import { apiRequest } from '@/lib/api';

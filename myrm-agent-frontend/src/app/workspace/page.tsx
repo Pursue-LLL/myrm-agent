@@ -1,4 +1,4 @@
-import WorkspaceLayout from '@/components/ui/workspace/WorkspaceLayout';
+import WorkspaceLayout from '@/components/features/workspace/WorkspaceLayout';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 

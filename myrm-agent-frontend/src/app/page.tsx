@@ -1,4 +1,4 @@
-import ChatWindowNew from '@/components/ui/chat-window/ChatWindow';
+import ChatWindowNew from '@/components/features/chat-window/ChatWindow';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 

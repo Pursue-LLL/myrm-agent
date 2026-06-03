@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Suspense } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/primitives/button';
 
 function SuccessContent() {
   const searchParams = useSearchParams();

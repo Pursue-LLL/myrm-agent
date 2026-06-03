@@ -2679,7 +2679,10 @@
     "configLoadError": {
       "title": "Konfiguration konnte nicht geladen werden",
       "description": "Verbindung zum Service nicht möglich. Bitte prüfen Sie, ob das Backend läuft, und versuchen Sie es erneut.",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "hintUnreachable": "Backend nicht erreichbar. Ausführen: myrm dev oder myrm start (:8080), dann bun run dev. .env.local: API_PORT=8080.",
+      "hintSplitDev": "Backend OK: http://{host}:{port} (split_dev). API_PORT={proxyPort} in .env.local, dann http://localhost:3000",
+      "hintStandalone": "Backend OK: http://{host}:{port} (standalone). API_PORT={proxyPort} in .env.local oder eingebettetes Frontend."
     }
   },
   "chat": {

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/primitives/card';
 import { AUTH_SESSION_COOKIE, clearAuthSessionCookie } from '@/lib/auth-cookie';
 import { isSandboxAuthBuild } from '@/lib/deploy-mode';
 import { getAuthToken } from '@/lib/guest';

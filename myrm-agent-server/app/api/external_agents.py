@@ -105,7 +105,37 @@ async def external_agent_auth_status() -> dict[str, object]:
                 "needsCodeInput": profile.needs_code_input,
             }
         )
-    return {"backends": backends}
+        return {"backends": backends}
+
+
+@router.post("/install/{backend}")
+async def external_agent_install(backend: str) -> StreamingResponse:
+    """Install an external agent CLI into the isolated toolchain."""
+    from myrm_agent_harness.toolkits.acp.toolchains import IsolatedToolchainManager
+    
+    manager = IsolatedToolchainManager()
+    
+    async def event_stream() -> AsyncIterator[str]:
+        try:
+            async for msg in manager.install_backend(backend):
+                payload = {"type": "progress", "message": msg}
+                yield f"data: {json.dumps(payload)}\n\n"
+            
+            # After installation, force detector cache invalidation
+            from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
+            detector = BackendDetector()
+            detector.invalidate_cache()
+            
+            yield f"data: {json.dumps({'type': 'success', 'message': 'Installation complete'})}\n\n"
+        except Exception as exc:
+            logger.error("Installation failed", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/auth/login")

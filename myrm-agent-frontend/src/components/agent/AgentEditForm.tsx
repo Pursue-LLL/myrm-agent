@@ -6,10 +6,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import useSWR from 'swr';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { AgentIcon, AGENT_ICON_REGISTRY } from '@/components/agent/agent-icons';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -25,8 +25,8 @@ import {
   type ToolGatewayConfigDTO,
 } from '@/services/agent';
 import { Loader2, Upload, Users } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
+import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';

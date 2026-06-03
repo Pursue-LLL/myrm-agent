@@ -32,5 +32,5 @@ bun install
 
 echo ""
 echo "✅ Setup complete."
-echo "  Backend:  myrm start   (or ./scripts/dev/run_server.sh --webui)"
-echo "  Frontend: cd myrm-agent-frontend && bun run dev   (separate terminal)"
+echo "  myrm dev && cd myrm-agent-frontend && bun run dev"
+echo "  (Foreground backend: myrm start | All-in-one: myrm start --standalone)"

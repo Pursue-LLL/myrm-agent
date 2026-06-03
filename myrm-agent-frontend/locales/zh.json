@@ -4367,7 +4367,10 @@
     "configLoadError": {
       "title": "配置加载失败",
       "description": "无法连接到服务，请检查后端是否正常运行后重试。",
-      "retry": "重试"
+      "retry": "重试",
+      "hintUnreachable": "后端未响应。请先运行：myrm dev 或 myrm start（:8080），再 bun run dev。确认 .env.local 含 API_PORT=8080。",
+      "hintSplitDev": "后端已就绪：http://{host}:{port}（split_dev）。Next 代理应指向 API_PORT={proxyPort}；然后访问 http://localhost:3000",
+      "hintStandalone": "后端已就绪：http://{host}:{port}（standalone）。请在 .env.local 设置 API_PORT={proxyPort}，或使用内置前端。"
     }
   },
   "chat": {

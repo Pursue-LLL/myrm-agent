@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/primitives/card';
+import { Badge } from '@/components/primitives/badge';
+import { Button } from '@/components/primitives/button';
 import { useTranslations } from 'next-intl';
 import { CheckCircle2, XCircle, Clock, ShieldAlert, GitMerge } from 'lucide-react';
 

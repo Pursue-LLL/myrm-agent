@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GoalState, GoalStatus } from '@/components/ui/chat-window/goals/GoalStatusCard';
+import { GoalState, GoalStatus } from '@/components/features/chat-window/goals/GoalStatusCard';
 import { fetchWithTimeout } from '@/lib/api';
 
 export interface QueuedGoal {

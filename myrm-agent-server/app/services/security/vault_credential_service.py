@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Sequence
 
-from myrm_agent_harness.toolkits.security.credential_vault import CredentialEntry, get_global_credential_vault
+from myrm_agent_harness.toolkits.security.credential_vault import get_global_credential_vault
 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 from sqlalchemy import select
 
@@ -80,7 +80,7 @@ class VaultCredentialService:
 
         # Sync to global vault
         vault = get_global_credential_vault()
-        vault.add_credential(CredentialEntry(label=label, password=password, totp_seed=totp_seed))
+        vault.add_credential(label=label, password=password, totp_seed=totp_seed)
 
         return cred
 
@@ -123,6 +123,6 @@ class VaultCredentialService:
                 except Exception as e:
                     logger.error(f"Failed to decrypt TOTP seed for label '{cred.label}': {e}")
                     
-            vault.add_credential(CredentialEntry(label=cred.label, password=password, totp_seed=totp_seed))
+            vault.add_credential(label=cred.label, password=password, totp_seed=totp_seed)
             
         logger.info(f"Synced {len(creds)} credentials to the global CredentialVault.")

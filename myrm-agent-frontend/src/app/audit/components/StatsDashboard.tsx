@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Loader2, Activity, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/primitives/badge';
+import { Progress } from '@/components/primitives/progress';
 import { localizeReactNode } from '@/lib/utils/localeText';
 
 interface BashExecutionStats {

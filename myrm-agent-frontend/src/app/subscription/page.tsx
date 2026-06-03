@@ -12,10 +12,10 @@ import {
   IconShieldCheck,
   IconShieldAlert,
   IconCrown,
-} from '@/components/ui/icons/PremiumIcons';
+} from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import useAuthStore from '@/store/useAuthStore';
-import LoginPrompt from '@/components/ui/login-prompt';
+import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { BILLING_PLAN_CATALOG, TOPUP_WU_PER_USD, type BillingPlanKey } from '@/lib/billing-plans';
 import { type SubscriptionStatus, useSubscription } from '@/hooks/useSubscription';

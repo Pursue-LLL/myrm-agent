@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { SettingsTab } from '@/components/ui/settings/SettingsMenu';
+import type { SettingsTab } from '@/components/features/settings/SettingsMenu';
 
 type SaveFn = () => Promise<boolean>;
 

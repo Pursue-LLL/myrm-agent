@@ -2679,7 +2679,10 @@
     "configLoadError": {
       "title": "設定の読み込みに失敗しました",
       "description": "サービスに接続できません。バックエンドが稼働しているか確認して再試行してください。",
-      "retry": "再試行"
+      "retry": "再試行",
+      "hintUnreachable": "バックエンドに接続できません。myrm dev または myrm start (:8080) の後、bun run dev。.env.local に API_PORT=8080。",
+      "hintSplitDev": "バックエンド OK: http://{host}:{port} (split_dev)。.env.local で API_PORT={proxyPort} → http://localhost:3000",
+      "hintStandalone": "バックエンド OK: http://{host}:{port} (standalone)。API_PORT={proxyPort} または組み込みフロントエンド。"
     }
   },
   "chat": {

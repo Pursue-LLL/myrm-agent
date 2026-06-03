@@ -11,7 +11,7 @@ import { getAgent, createAgent, updateAgent, AgentCreate, AgentUpdate } from '@/
 import { AgentConfig, DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { toast } from '@/hooks/useToast';
 import { usePresetAgent } from '@/hooks/usePresetAgent';
-import type { ConfigCardType } from '@/components/ui/chat-window/agent-config-panel/AgentConfigCards';
+import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { createSaveConfigHandler } from './use-agent-config-panel/handlers';
 
 /**

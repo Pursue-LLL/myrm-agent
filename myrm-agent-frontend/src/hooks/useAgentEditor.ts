@@ -28,7 +28,7 @@ import {
   OpenAPIServiceConfig,
 } from '@/services/agent';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
-import { type ConfigCardType } from '@/components/ui/chat-window/agent-config-panel/AgentConfigCards';
+import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { useAgentResources } from './useAgentResources';
 
 /**

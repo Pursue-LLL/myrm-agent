@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import SettingsLayout from '@/components/ui/settings/SettingsLayout';
+import SettingsLayout from '@/components/features/settings/SettingsLayout';
 
 const SettingsLoading = () => (
   <div className="flex items-center justify-center min-h-[50vh]">

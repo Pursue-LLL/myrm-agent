@@ -3,9 +3,9 @@
 import React, { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import useSWR from 'swr';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Label } from '@/components/primitives/label';
 import { listSkills } from '@/services/skill';
 import type { CommandBindingConfig } from '@/services/agent';
 import { cn } from '@/lib/utils';

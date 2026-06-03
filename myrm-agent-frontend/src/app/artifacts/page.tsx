@@ -1,4 +1,4 @@
-import { ArtifactsCenter } from '@/components/ui/artifacts/ArtifactsCenter';
+import { ArtifactsCenter } from '@/components/features/artifacts/ArtifactsCenter';
 
 export default function ArtifactsPage() {
   return (

@@ -23,7 +23,7 @@ import { memo, useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Trash2, Pencil, MessageSquare, Search, Bot } from 'lucide-react';
-import BrandLogo from '@/components/ui/BrandLogo';
+import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { cn } from '@/lib/utils/classnameUtils';
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
@@ -36,7 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@/components/primitives/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +46,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/primitives/alert-dialog';
 import type { AgentListItem } from '@/services/agent';
 
 export interface AgentSidebarContentProps {

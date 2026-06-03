@@ -1,0 +1,149 @@
+'use client';
+
+/* eslint-disable @next/next/no-img-element */
+import React, { useState, useCallback, useEffect } from 'react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
+import { isTouchDevice as checkTouchDevice } from '@/lib/utils/deviceUtils';
+import { useTranslations } from 'next-intl';
+
+interface LinkPopoverProps {
+  url: string;
+  title?: string;
+  description?: string;
+  label?: string;
+  className?: string;
+  children?: React.ReactNode;
+}
+
+const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
+  ({ url, title, description, label, className, children }) => {
+    const t = useTranslations('common');
+    const [isTouch, setIsTouch] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+      const updateDeviceType = () => setIsTouch(checkTouchDevice());
+      updateDeviceType();
+      window.addEventListener('resize', updateDeviceType);
+      return () => window.removeEventListener('resize', updateDeviceType);
+    }, []);
+
+    const getDomain = (url: string) => {
+      try {
+        if (url === '#' || !url) return null;
+        return new URL(url).hostname.replace(/^www\./, '');
+      } catch {
+        return null;
+      }
+    };
+
+    const domain = getDomain(url);
+    const isValidUrl = url && url !== '#';
+    const faviconUrl = `https://s2.googleusercontent.com/s2/favicons?domain_url=${url}`;
+
+    const handlePopoverClick = useCallback(() => {
+      if (isValidUrl) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }, [isValidUrl, url]);
+
+    const handleTriggerClick = useCallback(
+      (e: React.MouseEvent) => {
+        if (isTouch) {
+          e.preventDefault();
+          setIsOpen(!isOpen);
+        }
+      },
+      [isTouch, isOpen],
+    );
+
+    const linkClassName = `bg-secondary px-1 rounded ml-1 no-underline text-xs text-black/70 dark:text-white/70 relative hover:bg-[#2a7f8e] hover:text-white transition-colors duration-200 ${className || ''}`;
+
+    const popoverContent = (
+      <div className="flex flex-col flex-1 min-h-0 cursor-pointer select-none" onClick={handlePopoverClick}>
+        {domain && (
+          <div className="flex items-center space-x-2 pb-2 mb-2 border-b border-border/50">
+            <div className="w-4 h-4 flex-shrink-0 rounded overflow-hidden bg-white border border-border/30 inline-block">
+              <img src={faviconUrl} width={16} height={16} alt="favicon" className="object-contain" loading="lazy" />
+            </div>
+            <span className="truncate font-medium text-xs text-muted-foreground">{domain}</span>
+          </div>
+        )}
+
+        {title && (
+          <div className="mb-2">
+            <h4 className="font-semibold text-foreground text-sm leading-tight">{title}</h4>
+          </div>
+        )}
+
+        {description && (
+          <div className="bg-muted/30 rounded-md p-2 mb-2">
+            <div
+              className="max-h-56 overflow-y-auto text-muted-foreground text-xs leading-relaxed font-normal overscroll-contain scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent"
+              onWheel={(e) => e.stopPropagation()}
+            >
+              {description}
+            </div>
+          </div>
+        )}
+
+        {isValidUrl && (
+          <div className="flex items-center justify-center gap-1 pt-1.5 border-t border-border/50">
+            <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+            <span className="text-xs text-primary font-medium hover:text-primary/70 transition-colors">
+              {t('clickToVisitLink')}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+
+    const triggerContent =
+      children ||
+      (isValidUrl ? (
+        <a
+          href={isTouch ? undefined : url}
+          target={isTouch ? undefined : '_blank'}
+          rel={isTouch ? undefined : 'noopener noreferrer'}
+          className={linkClassName}
+          onClick={handleTriggerClick}
+        >
+          {label}
+        </a>
+      ) : (
+        <span className={linkClassName} onClick={handleTriggerClick}>
+          {label}
+        </span>
+      ));
+
+    return (
+      <HoverCard
+        openDelay={isTouch ? 0 : 200}
+        open={isTouch ? isOpen : undefined}
+        onOpenChange={isTouch ? setIsOpen : undefined}
+      >
+        <HoverCardTrigger asChild>
+          {children ? (
+            <div className="inline-block cursor-pointer" onClick={handleTriggerClick}>
+              {children}
+            </div>
+          ) : (
+            triggerContent
+          )}
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80 max-w-[90vw] max-h-80 p-3 flex flex-col">{popoverContent}</HoverCardContent>
+      </HoverCard>
+    );
+  },
+);
+
+LinkPopover.displayName = 'LinkPopover';
+
+export default LinkPopover;

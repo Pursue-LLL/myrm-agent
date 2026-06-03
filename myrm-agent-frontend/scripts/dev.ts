@@ -1,9 +1,33 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
+import path from 'path';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
+
+const ENV_LOCAL = path.join(process.cwd(), '.env.local');
+const ENV_LOCAL_HEADER = '# Auto-managed by bun run dev — local split-dev defaults\n';
+
+function ensureDevEnvLocal(): void {
+  const apiLine = 'API_PORT=8080';
+  if (!fs.existsSync(ENV_LOCAL)) {
+    fs.writeFileSync(
+      ENV_LOCAL,
+      `${ENV_LOCAL_HEADER}${apiLine}\nNEXT_PUBLIC_DEPLOY_MODE=local\n`,
+      'utf8',
+    );
+    console.log(`📝 Created ${ENV_LOCAL} with ${apiLine}`);
+    return;
+  }
+  const content = fs.readFileSync(ENV_LOCAL, 'utf8');
+  if (!/\bAPI_PORT\s*=/.test(content)) {
+    fs.appendFileSync(ENV_LOCAL, `\n${apiLine}\n`, 'utf8');
+    console.log(`📝 Appended ${apiLine} to ${ENV_LOCAL}`);
+  }
+}
 
 const args = process.argv.slice(2);
 const clean = args.includes('--clean');
+
+ensureDevEnvLocal();
 
 if (clean) {
   console.log('🧹 Cleaning .next directory...');

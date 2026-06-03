@@ -3,7 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import AppLayout from '@/components/layout/AppLayout';
-import EvalLabDashboard from '@/components/ui/eval-lab/EvalLabDashboard';
+import EvalLabDashboard from '@/components/features/eval-lab/EvalLabDashboard';
 
 export default function EvalLabPage() {
   const t = useTranslations('evalLab');

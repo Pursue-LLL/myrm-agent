@@ -29,6 +29,7 @@ async def execute_swarm_fission_for_agent(
     fission_payload: dict[str, object],
     *,
     max_concurrent: int | None = None,
+    on_progress: Callable[[int, str, dict[str, object] | None], Awaitable[None]] | None = None,
 ) -> dict[str, object]:
     from myrm_agent_harness.agent.parallel.fission import execute_swarm_fission
 
@@ -36,6 +37,7 @@ async def execute_swarm_fission_for_agent(
         agent,
         fission_payload,
         max_concurrent=max_concurrent,
+        on_progress=on_progress,
     )
 
 

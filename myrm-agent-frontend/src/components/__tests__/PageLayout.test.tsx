@@ -11,7 +11,7 @@ vi.mock('../layout', () => ({
   AppLayout: ({ children }: { children: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
 }));
 
-vi.mock('../ui/boot-screen', () => ({
+vi.mock('../features/app-shell/boot-screen', () => ({
   __esModule: true,
   default: ({ onComplete }: { onComplete: () => void }) => (
     <div data-testid="boot-screen-mock">
@@ -24,7 +24,7 @@ vi.mock('../ui/boot-screen', () => ({
 }));
 
 import PageLayout from '../PageLayout';
-import { shouldShowBootScreen } from '../ui/boot-screen';
+import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
 
 const mockShouldShowBootScreen = vi.mocked(shouldShowBootScreen);
 

@@ -6,8 +6,8 @@ import { AgentAvatar } from './AgentAvatar';
 import { getBuiltinAgentName } from './builtin-agent-i18n';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Check } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { Button } from '@/components/primitives/button';
 
 export interface AgentProfile {
   id: string;

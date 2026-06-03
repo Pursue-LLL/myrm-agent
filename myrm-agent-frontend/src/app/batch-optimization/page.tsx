@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
 import { useLocale } from 'next-intl';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Textarea } from '@/components/primitives/textarea';
+import { Skeleton } from '@/components/primitives/skeleton';
+import { Badge } from '@/components/primitives/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import {
   Activity,
   AlertCircle,
@@ -29,8 +29,8 @@ import {
   WifiOff,
   XCircle,
 } from 'lucide-react';
-import { IconGlow } from '@/components/ui/icons/PremiumIcons';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import { apiRequest } from '@/lib/api';
 import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
 import { toast } from '@/hooks/useToast';

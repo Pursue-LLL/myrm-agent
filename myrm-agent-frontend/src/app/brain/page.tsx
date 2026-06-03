@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { wikiService, Concept, QueueStatus, PendingEditsResponse } from '@/services/wikiService';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/primitives/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/primitives/card';
 import { showApiError } from '@/lib/api';
 import { toast } from '@/hooks/useToast';
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from '@/components/primitives/textarea';
 import { Loader2, Check, X, RefreshCw, XCircle, BrainCircuit, FileText, Inbox, Activity, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/primitives/input';
 
 export default function BrainConsolePage() {
   // State

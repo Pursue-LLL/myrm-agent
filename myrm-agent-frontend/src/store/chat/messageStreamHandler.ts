@@ -50,10 +50,10 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useToolsSnapshotStore from '@/store/useToolsSnapshotStore';
 import useChatStore from '@/store/useChatStore';
 import { AdaptiveScheduler } from './adaptiveScheduler';
-import { playCompletionSound } from '@/utils/completionSound';
+import { playCompletionSound } from '@/lib/utils/completionSound';
 import useConfigStore from '@/store/useConfigStore';
 import type { SubagentStatus } from './useSubagentStore';
-import type { GoalState } from '@/components/ui/chat-window/goals/GoalStatusCard';
+import type { GoalState } from '@/components/features/chat-window/goals/GoalStatusCard';
 
 /** progressSteps file row mutated when merging FILE_DIFF */
 type ProgressFileItem = {

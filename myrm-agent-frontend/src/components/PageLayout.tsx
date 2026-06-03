@@ -3,10 +3,10 @@
 import React, { memo, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { AppLayout } from './layout';
-import { shouldShowBootScreen } from './ui/boot-screen';
+import { shouldShowBootScreen } from './features/app-shell/boot-screen';
 import { isStandalonePath } from '@/lib/marketing-paths';
 
-const BootScreen = lazy(() => import('./ui/boot-screen'));
+const BootScreen = lazy(() => import('./features/app-shell/boot-screen'));
 
 interface PageLayoutProps {
   children: React.ReactNode;

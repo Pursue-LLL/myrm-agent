@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 import { AiGenerativeIcon, AiNetworkIcon, InvestigationIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import useAuthStore from '@/store/useAuthStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -31,9 +31,9 @@ import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { preloadMonacoEditor } from '@/lib/utils/componentPreloader';
 import { useNavBadges } from '@/hooks/useNavBadges';
 
-import NotificationBell from '@/components/ui/notifications/NotificationBell';
-import BackgroundTasksPanel from '@/components/ui/background-tasks/BackgroundTasksPanel';
-import { IconTerminal, IconFileText } from '@/components/ui/icons/PremiumIcons';
+import NotificationBell from '@/components/features/notifications/NotificationBell';
+import BackgroundTasksPanel from '@/components/features/background-tasks/BackgroundTasksPanel';
+import { IconTerminal, IconFileText } from '@/components/features/icons/PremiumIcons';
 
 const isDev = process.env.NODE_ENV === 'development';
 type NavIconComponent = ComponentType<{ size?: number; className?: string }>;

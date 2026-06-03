@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale } from 'next-intl';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
 import AuditLogTable from './components/AuditLogTable';
 import StatsDashboard from './components/StatsDashboard';
 import { localizeReactNode } from '@/lib/utils/localeText';

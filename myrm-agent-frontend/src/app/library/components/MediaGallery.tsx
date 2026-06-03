@@ -15,9 +15,9 @@ import {
   Square,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/primitives/button';
+import { Input } from '@/components/primitives/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,7 +27,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@/components/primitives/alert-dialog';
 import { useToast } from '@/hooks/useToast';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import {

@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { MessageSquare, Clock } from 'lucide-react';
 import { ApprovalPayload, ApprovalToolCall } from '@/store/useApprovalStore';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/ui/lazy-monaco-editor';
+import { Button } from '@/components/primitives/button';
+import { Textarea } from '@/components/primitives/textarea';
+import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
 

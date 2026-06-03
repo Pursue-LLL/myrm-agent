@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, ShieldAlert } from 'lucide-react';
-import { IconGlow } from '@/components/ui/icons/PremiumIcons';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import SkillGrowthCaseCard from '@/components/ui/skills/SkillGrowthCaseCard';
-import SettingsSection from '@/components/ui/settings/sections/SettingsSection';
+import { IconGlow } from '@/components/features/icons/PremiumIcons';
+import { Badge } from '@/components/primitives/badge';
+import { Button } from '@/components/primitives/button';
+import { Skeleton } from '@/components/primitives/skeleton';
+import SkillGrowthCaseCard from '@/components/features/skills/SkillGrowthCaseCard';
+import SettingsSection from '@/components/features/settings/sections/SettingsSection';
 import { toast } from '@/hooks/useToast';
 import {
   approveSkillGrowthCase,

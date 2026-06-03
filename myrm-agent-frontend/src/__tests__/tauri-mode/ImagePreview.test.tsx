@@ -14,7 +14,7 @@ vi.mock('@/services/file-service', () => ({
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { ImagePreview } from '@/components/ui/file-preview/ImagePreview';
+import { ImagePreview } from '@/components/features/file-preview/ImagePreview';
 import type { File } from '@/store/useChatStore';
 import { readFileAsDataURL } from '@/services/file-service';
 
