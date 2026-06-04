@@ -1,0 +1,30 @@
+name: Server architecture gates
+
+on:
+  pull_request:
+    paths:
+      - 'myrm-agent-server/app/**'
+      - 'myrm-agent-server/tests/architecture/**'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
+      - '.github/workflows/server-architecture.yml'
+
+jobs:
+  architecture:
+    name: Harness contract & arch tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Run architecture gates
+        run: bash scripts/ci/run_architecture_gates.sh
