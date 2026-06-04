@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Chat from './Chat';
 import EmptyChat from './EmptyChat';
 import MessageListSkeleton from './MessageListSkeleton';
-import { Settings } from 'lucide-react';
+import { Settings, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import NextError from 'next/error';
 import useChatStore from '@/store/useChatStore';
@@ -220,7 +220,12 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       if (notification?.type === 'snapshot_created') {
         toast({
           title: '系统保护',
-          description: notification.message || '🛡️ 正在创建系统快照，保护您的代码',
+          description: (
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-green-500" />
+              <span>{notification.message || '正在创建系统快照，保护您的代码'}</span>
+            </div>
+          ),
           variant: 'default',
         });
       }

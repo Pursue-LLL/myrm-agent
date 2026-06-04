@@ -116,6 +116,7 @@ class AgentRequest(BaseModel):
     ephemeral_subagents: dict[str, object] | None = None
     task_adaptive_digest: dict[str, object] | None = None
     query: MultimodalQuery = ""
+    use_workflow: bool = False
     goal: GoalBudgetRequest | None = None
 
     model_selection: ModelSelection | None = None
