@@ -3630,7 +3630,8 @@
     "agent": "Agents",
     "history": "History",
     "evalLab": "Eval Lab",
-    "health": "System Doctor"
+    "health": "System Doctor",
+    "securityCenter": "Security Center"
   },
   "health": {
     "title": "System Doctor",
@@ -10784,6 +10785,9 @@
     "monitoredReposAdd": "Add repository",
     "monitoredReposSave": "Save repositories",
     "monitoredReposSaved": "Saved",
+    "monitoredReposInvalid": "Use owner/repo format (e.g. {example})",
+    "monitoredReposSyncFailed": "Failed to save to server. Check network and retry.",
+    "zeroAlertPrHint": "No alerts yet. Add monitored repositories above and configure GITHUB_TOKEN to surface Dependabot PRs.",
     "rateLimitColUser": "User ID",
     "rateLimitColResource": "Resource",
     "rateLimitColCurrent": "Current",

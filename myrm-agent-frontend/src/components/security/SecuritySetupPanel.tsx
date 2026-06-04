@@ -9,7 +9,7 @@ import type { SecuritySetupHints } from './types';
 
 const MAX_REPOS = 3;
 
-function normalizeRepoInput(raw: string): string | null {
+export function normalizeRepoInput(raw: string): string | null {
   const slug = raw.trim();
   if (!slug.includes('/')) return null;
   const [owner, name] = slug.split('/', 2);
@@ -23,6 +23,61 @@ interface SecuritySetupPanelProps {
   onCopyWebhookUrl: () => void;
 }
 
+function RepoEditor({
+  repoInputs,
+  setRepoInputs,
+  repoError,
+  saveMessage,
+  onSave,
+}: {
+  repoInputs: string[];
+  setRepoInputs: (value: string[]) => void;
+  repoError: string | null;
+  saveMessage: string | null;
+  onSave: () => void;
+}) {
+  const t = useTranslations('securityDashboard');
+
+  return (
+    <>
+      {repoInputs.map((value, index) => (
+        <input
+          key={index}
+          type="text"
+          value={value}
+          onChange={(e) => {
+            const next = [...repoInputs];
+            next[index] = e.target.value;
+            setRepoInputs(next);
+          }}
+          placeholder={t('monitoredReposPlaceholder')}
+          className="w-full px-3 py-2 text-sm rounded-lg border bg-background font-mono"
+        />
+      ))}
+      {repoInputs.length < MAX_REPOS && (
+        <button
+          type="button"
+          onClick={() => setRepoInputs([...repoInputs, ''])}
+          className="text-sm text-primary hover:underline"
+        >
+          {t('monitoredReposAdd')}
+        </button>
+      )}
+      {repoError && <p className="text-xs text-red-500">{repoError}</p>}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onSave}
+          className="px-3 py-2 text-sm rounded-lg border hover:bg-accent"
+        >
+          {t('monitoredReposSave')}
+        </button>
+        {saveMessage && <span className="text-xs text-green-600 dark:text-green-500">{saveMessage}</span>}
+      </div>
+    </>
+  );
+}
+
 export function SecuritySetupPanel({
   setupHints,
   urlCopied,
@@ -31,6 +86,8 @@ export function SecuritySetupPanel({
   const t = useTranslations('securityDashboard');
   const [repoInputs, setRepoInputs] = useState<string[]>(['']);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [repoError, setRepoError] = useState<string | null>(null);
+  const [configReady, setConfigReady] = useState(false);
 
   const loadRepos = useCallback(() => {
     const syncManager = getConfigSyncManager();
@@ -40,69 +97,121 @@ export function SecuritySetupPanel({
   }, []);
 
   useEffect(() => {
-    loadRepos();
+    let cancelled = false;
+
+    const init = async () => {
+      const syncManager = getConfigSyncManager();
+      if (!syncManager.isInitialized) {
+        try {
+          await syncManager.initialize();
+        } catch (err) {
+          console.error('Failed to initialize config for security dashboard:', err);
+        }
+      }
+      if (!cancelled) {
+        loadRepos();
+        setConfigReady(true);
+      }
+    };
+
+    void init();
     const syncManager = getConfigSyncManager();
-    return syncManager.subscribe('securityDashboardSettings', () => {
+    const unsubscribe = syncManager.subscribe('securityDashboardSettings', () => {
       loadRepos();
     });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [loadRepos]);
 
-  const saveRepos = () => {
+  const saveRepos = async () => {
+    setRepoError(null);
+    setSaveMessage(null);
     const seen = new Set<string>();
     const cleaned: string[] = [];
+    const invalid: string[] = [];
+
     for (const input of repoInputs) {
+      const trimmed = input.trim();
+      if (!trimmed) continue;
       const slug = normalizeRepoInput(input);
-      if (slug && !seen.has(slug)) {
+      if (!slug) {
+        invalid.push(trimmed);
+        continue;
+      }
+      if (!seen.has(slug)) {
         seen.add(slug);
         cleaned.push(slug);
       }
       if (cleaned.length >= MAX_REPOS) break;
     }
 
+    if (invalid.length > 0) {
+      setRepoError(t('monitoredReposInvalid', { example: 'my-org/my-app' }));
+      return;
+    }
+
     const syncManager = getConfigSyncManager();
     syncManager.set('securityDashboardSettings', { monitoredGithubRepos: cleaned });
-    setSaveMessage(t('monitoredReposSaved'));
-    setTimeout(() => setSaveMessage(null), 2500);
+
+    try {
+      const result = await syncManager.forceSync();
+      if (!result.success) {
+        setRepoError(t('monitoredReposSyncFailed'));
+        return;
+      }
+      setSaveMessage(t('monitoredReposSaved'));
+      setTimeout(() => setSaveMessage(null), 2500);
+    } catch (err) {
+      console.error('Failed to sync securityDashboardSettings:', err);
+      setRepoError(t('monitoredReposSyncFailed'));
+    }
   };
+
+  if (!configReady) {
+    return (
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 md:p-6">
+        <div className="h-6 w-48 rounded bg-muted animate-pulse" />
+      </div>
+    );
+  }
+
+  const repoBlock = (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">{t('monitoredReposTitle')}</h3>
+      <p className="text-xs text-muted-foreground">{t('monitoredReposHint')}</p>
+      <RepoEditor
+        repoInputs={repoInputs}
+        setRepoInputs={setRepoInputs}
+        repoError={repoError}
+        saveMessage={saveMessage}
+        onSave={saveRepos}
+      />
+    </div>
+  );
 
   if (!setupHints.isSandbox) {
     return (
       <div className="rounded-xl border border-border/60 bg-muted/20 p-4 md:p-6 space-y-4">
         <h2 className="text-lg font-semibold">{t('monitoredReposTitle')}</h2>
         <p className="text-sm text-muted-foreground">{t('monitoredReposHint')}</p>
-        {repoInputs.map((value, index) => (
-          <input
-            key={index}
-            type="text"
-            value={value}
-            onChange={(e) => {
-              const next = [...repoInputs];
-              next[index] = e.target.value;
-              setRepoInputs(next);
-            }}
-            placeholder={t('monitoredReposPlaceholder')}
-            className="w-full px-3 py-2 text-sm rounded-lg border bg-background font-mono"
-          />
-        ))}
-        {repoInputs.length < MAX_REPOS && (
-          <button
-            type="button"
-            onClick={() => setRepoInputs([...repoInputs, ''])}
-            className="text-sm text-primary hover:underline"
-          >
-            {t('monitoredReposAdd')}
-          </button>
+        <RepoEditor
+          repoInputs={repoInputs}
+          setRepoInputs={setRepoInputs}
+          repoError={repoError}
+          saveMessage={saveMessage}
+          onSave={saveRepos}
+        />
+        {!setupHints.githubTokenConfigured && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            {t('setupToken')}{' '}
+            <Link href="/settings/credentials" className="text-primary underline underline-offset-2">
+              {t('openSettingsCredentials')}
+            </Link>
+          </p>
         )}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={saveRepos}
-            className="px-4 py-2 text-sm rounded-lg border bg-primary text-primary-foreground hover:opacity-90"
-          >
-            {t('monitoredReposSave')}
-          </button>
-          {saveMessage && <span className="text-xs text-green-600">{saveMessage}</span>}
-        </div>
       </div>
     );
   }
@@ -144,44 +253,7 @@ export function SecuritySetupPanel({
           </Link>
         </p>
       )}
-
-      <div className="pt-2 border-t border-border/50 space-y-3">
-        <h3 className="text-sm font-semibold">{t('monitoredReposTitle')}</h3>
-        <p className="text-xs text-muted-foreground">{t('monitoredReposHint')}</p>
-        {repoInputs.map((value, index) => (
-          <input
-            key={index}
-            type="text"
-            value={value}
-            onChange={(e) => {
-              const next = [...repoInputs];
-              next[index] = e.target.value;
-              setRepoInputs(next);
-            }}
-            placeholder={t('monitoredReposPlaceholder')}
-            className="w-full px-3 py-2 text-sm rounded-lg border bg-background font-mono"
-          />
-        ))}
-        {repoInputs.length < MAX_REPOS && (
-          <button
-            type="button"
-            onClick={() => setRepoInputs([...repoInputs, ''])}
-            className="text-sm text-primary hover:underline"
-          >
-            {t('monitoredReposAdd')}
-          </button>
-        )}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={saveRepos}
-            className="px-3 py-2 text-sm rounded-lg border hover:bg-accent"
-          >
-            {t('monitoredReposSave')}
-          </button>
-          {saveMessage && <span className="text-xs text-green-600">{saveMessage}</span>}
-        </div>
-      </div>
+      <div className="pt-2 border-t border-border/50">{repoBlock}</div>
     </div>
   );
 }

@@ -212,12 +212,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     });
 
     const handleSystemNotification = (e: Event) => {
-      const customEvent = e as CustomEvent<{ session_id: string; notification: any }>;
-      const { session_id, notification } = customEvent.detail;
+      const customEvent = e as CustomEvent<{ data: any }>;
+      const notification = customEvent.detail.data;
+      const meta = notification?.meta_data || {};
       
-      if (session_id !== id) return;
-      
-      if (notification?.type === 'snapshot_created') {
+      // We don't have session_id in the global event directly, 
+      // but we can assume if the user is in this chat window, the snapshot is relevant
+      if (meta?.type === 'snapshot_created') {
         toast({
           title: '系统保护',
           description: (

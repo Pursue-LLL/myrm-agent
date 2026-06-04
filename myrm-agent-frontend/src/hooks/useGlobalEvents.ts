@@ -306,12 +306,19 @@ export function useGlobalEvents(): void {
           };
         }
 
-        toast.success(title, {
-          description: message,
-          duration: 10_000,
-          dismissible: true,
-          cancel: cancelObj,
-        });
+        // Dispatch a custom event so specific components (like ChatWindow) can handle it
+        window.dispatchEvent(new CustomEvent('system-notification', { detail: payload }));
+
+        // Only show global toast if it's not a snapshot_created event
+        // (snapshot_created is handled specifically by ChatWindow with a custom icon)
+        if (meta.type !== 'snapshot_created') {
+          toast.success(title, {
+            description: message,
+            duration: 10_000,
+            dismissible: true,
+            cancel: cancelObj,
+          });
+        }
       } else if (payload.type === 'memory_operation') {
         showMemoryOperationToasts(payload.data, { t, router });
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));

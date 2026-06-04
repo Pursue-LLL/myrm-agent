@@ -45,6 +45,10 @@ async def iter_agent_stream_chunks(
                 reference_model_cfgs=session.consensus_ref_model_cfgs,
                 aggregator_model_cfg=session.consensus_agg_model_cfg,
             )
+        elif session.request.use_workflow:
+            from app.services.agent.stream_session.stream_lane_factory import create_dynamic_workflow_stream
+            logger.info(f"🚀 Dynamic Workflow Engine activated for message_id={session.params.message_id}")
+            stream = create_dynamic_workflow_stream(session.params, session.cancel_token)
         elif (
             session.routing_tier == "simple"
             and session.request.blueprint_id is None

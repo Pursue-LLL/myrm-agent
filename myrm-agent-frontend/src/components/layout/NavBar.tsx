@@ -18,6 +18,7 @@ import {
   CreditCard,
   LayoutDashboard,
   TrendingUp,
+  Shield,
 } from 'lucide-react';
 import { AiGenerativeIcon, AiNetworkIcon, InvestigationIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -95,6 +96,7 @@ function NavBarInner({
     href?: string;
   }[] = [
     { id: 'health', icon: InvestigationIcon, label: t('nav.health'), href: '/health' },
+    { id: 'security-center', icon: Shield, label: t('nav.securityCenter'), href: '/security' },
     { id: 'growth', icon: TrendingUp, label: t('growthDashboard.title'), href: '/growth' },
     { id: 'skills', icon: Wand2, label: t('settings.menu.skills'), settingsTab: 'skills' },
     { id: 'mcp', icon: Plug, label: t('settings.menu.mcp'), settingsTab: 'mcp' },

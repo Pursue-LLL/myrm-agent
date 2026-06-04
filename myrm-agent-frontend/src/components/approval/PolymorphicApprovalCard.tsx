@@ -60,6 +60,48 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string }) {
   );
 }
 
+function getLanguageFromPath(filePath: string): string {
+  if (!filePath) return 'markdown';
+  const ext = filePath.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'js':
+    case 'jsx':
+      return 'javascript';
+    case 'ts':
+    case 'tsx':
+      return 'typescript';
+    case 'py':
+      return 'python';
+    case 'json':
+      return 'json';
+    case 'html':
+      return 'html';
+    case 'css':
+      return 'css';
+    case 'md':
+      return 'markdown';
+    case 'sh':
+    case 'bash':
+      return 'shell';
+    case 'yaml':
+    case 'yml':
+      return 'yaml';
+    case 'rs':
+      return 'rust';
+    case 'go':
+      return 'go';
+    case 'java':
+      return 'java';
+    case 'cpp':
+    case 'c':
+    case 'h':
+    case 'hpp':
+      return 'cpp';
+    default:
+      return 'plaintext';
+  }
+}
+
 export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: PolymorphicApprovalCardProps) {
   const t = useTranslations('toolApproval');
   const tNotifications = useTranslations('notifications');
@@ -95,18 +137,20 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 if (call.name === 'file_write' && typeof call.args === 'object' && call.args !== null) {
                   const args = call.args as Record<string, any>;
                   const content = args.content || args.file_content || args.text || '';
+                  const filePath = args.path || args.file_path || '';
+                  const language = getLanguageFromPath(filePath);
                   // We don't have original content here easily, but we can show the new content in a nice editor
                   // If we had original_content in args we could use DiffEditor. For now, just show the new content nicely.
                   return (
                     <div key={idx} className="rounded-lg border overflow-hidden">
                       <div className="bg-muted px-3 py-2 border-b font-mono text-xs text-primary flex items-center justify-between">
                         <span>{call.name}</span>
-                        <span className="text-muted-foreground truncate ml-2 max-w-[200px]">{args.path || args.file_path || ''}</span>
+                        <span className="text-muted-foreground truncate ml-2 max-w-[200px]" title={filePath}>{filePath}</span>
                       </div>
                       <div className="h-[300px]">
                         <Editor
                           height="100%"
-                          language="markdown" // Fallback language
+                          language={language}
                           theme={isDark ? 'vs-dark' : 'light'}
                           value={String(content)}
                           options={{

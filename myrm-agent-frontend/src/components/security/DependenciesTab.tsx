@@ -7,9 +7,10 @@ import type { SecurityDashboardData } from './types';
 
 interface DependenciesTabProps {
   data: SecurityDashboardData;
+  githubTokenConfigured?: boolean;
 }
 
-export function DependenciesTab({ data }: DependenciesTabProps) {
+export function DependenciesTab({ data, githubTokenConfigured = false }: DependenciesTabProps) {
   const t = useTranslations('securityDashboard');
 
   return (
@@ -88,12 +89,18 @@ export function DependenciesTab({ data }: DependenciesTabProps) {
           <GitPullRequest className="w-5 h-5" />
           {t('dependabotPrsTitle')} ({data.metrics.openDependabotPrs})
         </h2>
-        {data.recentPrs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-            <p>{t('allDepsUpToDate')}</p>
-          </div>
-        ) : (
+            {data.recentPrs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground space-y-2">
+                <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
+                <p>{t('allDepsUpToDate')}</p>
+                {data.recentAlerts.length === 0 && (
+                  <p className="text-xs max-w-md mx-auto">{t('zeroAlertPrHint')}</p>
+                )}
+                {!githubTokenConfigured && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t('setupToken')}</p>
+                )}
+              </div>
+            ) : (
           <div className="space-y-3">
             {data.recentPrs.map((pr) => (
               <div

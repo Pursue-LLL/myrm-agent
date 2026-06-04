@@ -3651,7 +3651,8 @@
     "agent": "智能体",
     "history": "历史",
     "evalLab": "评测实验室",
-    "health": "系统诊断"
+    "health": "系统诊断",
+    "securityCenter": "安全中心"
   },
   "health": {
     "title": "系统诊断",
@@ -10269,6 +10270,9 @@
     "monitoredReposAdd": "添加仓库",
     "monitoredReposSave": "保存仓库",
     "monitoredReposSaved": "已保存",
+    "monitoredReposInvalid": "请使用 owner/repo 格式（例如 {example}）",
+    "monitoredReposSyncFailed": "保存到服务器失败，请检查网络后重试。",
+    "zeroAlertPrHint": "暂无告警。请在上方配置监控仓库并设置 GITHUB_TOKEN，以展示 Dependabot PR。",
     "rateLimitColUser": "用户 ID",
     "rateLimitColResource": "资源",
     "rateLimitColCurrent": "当前",

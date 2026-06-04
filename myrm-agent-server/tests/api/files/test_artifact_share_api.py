@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -171,3 +172,156 @@ async def test_create_share_accepts_document_type_without_suffix(share_client, d
             json={"ttl_days": 7, "artifact_type": "document"},
         )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_create_share_artifact_not_found(share_client) -> None:
+    response = share_client.post(
+        f"/{uuid.uuid4()}/share-preview",
+        json={"ttl_days": 7, "artifact_type": "html"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_share_no_versions(share_client, db_session) -> None:
+    artifact = Artifact(id=str(uuid.uuid4()), name="index.html", is_deleted=False)
+    db_session.add(artifact)
+    await db_session.commit()
+    response = share_client.post(
+        f"/{artifact.id}/share-preview",
+        json={"ttl_days": 7, "artifact_type": "html"},
+    )
+    assert response.status_code == 400
+    assert "no versions" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_share_deleted_artifact(share_client, db_session) -> None:
+    artifact = Artifact(
+        id=str(uuid.uuid4()),
+        name="index.html",
+        is_deleted=True,
+    )
+    db_session.add(artifact)
+    await db_session.commit()
+    response = share_client.post(
+        f"/{artifact.id}/share-preview",
+        json={"ttl_days": 7, "artifact_type": "html"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_share_empty_files(share_client, html_artifact) -> None:
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, {}),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_create_share_ttl_out_of_range(share_client, html_artifact) -> None:
+    response = share_client.post(
+        f"/{html_artifact.id}/share-preview",
+        json={"ttl_days": 31, "artifact_type": "html"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_public_share_expired_token(share_client, html_artifact) -> None:
+    files = {
+        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    token = response.json()["token"]
+    claims = parse_artifact_share_token(token)
+    assert claims is not None
+    with patch(
+        "app.services.artifacts.share_token.time.time",
+        return_value=claims.exp + 1,
+    ):
+        expired = share_client.get(f"/public/artifact-share/{token}")
+    assert expired.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_public_share_nested_asset_path(share_client, html_artifact) -> None:
+    files = {
+        "index.html": DeployFile(
+            path="index.html",
+            content='<html><link rel="stylesheet" href="assets/styles.css"/></html>',
+            encoding="utf-8",
+        ),
+        "assets/styles.css": DeployFile(
+            path="assets/styles.css",
+            content=".x{color:red}",
+            encoding="utf-8",
+        ),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    token = response.json()["token"]
+    css = share_client.get(f"/public/artifact-share/{token}/assets/styles.css")
+    assert css.status_code == 200
+    assert "color:red" in css.text
+
+
+@pytest.mark.asyncio
+async def test_public_share_manifest_not_served(share_client, html_artifact) -> None:
+    files = {
+        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "styles.css": DeployFile(path="styles.css", content="body{}", encoding="utf-8"),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    token = response.json()["token"]
+    manifest = share_client.get(f"/public/artifact-share/{token}/manifest.json")
+    assert manifest.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_share_rejects_ambiguous_multi_html(share_client, html_artifact) -> None:
+    files = {
+        "a.html": DeployFile(path="a.html", content="<html/>", encoding="utf-8"),
+        "b.html": DeployFile(path="b.html", content="<html/>", encoding="utf-8"),
+    }
+    with patch(
+        "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        return_value=(html_artifact, files),
+    ):
+        response = share_client.post(
+            f"/{html_artifact.id}/share-preview",
+            json={"ttl_days": 7, "artifact_type": "html"},
+        )
+    assert response.status_code == 400

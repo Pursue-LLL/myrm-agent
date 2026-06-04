@@ -42,3 +42,13 @@ def test_share_token_round_trip_with_artifact_type() -> None:
     claims = parse_artifact_share_token(token)
     assert claims is not None
     assert claims.artifact_type == "document"
+
+
+def test_share_token_rejects_expired() -> None:
+    import time
+    from unittest.mock import patch
+
+    token, _ = create_artifact_share_token("art-1", "ver-1", ttl_seconds=60)
+    future = int(time.time()) + 120
+    with patch("app.services.artifacts.share_token.time.time", return_value=future):
+        assert parse_artifact_share_token(token) is None

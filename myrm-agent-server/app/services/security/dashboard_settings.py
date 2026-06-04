@@ -4,7 +4,7 @@
 
 [OUTPUT] load_monitored_github_repos: 最多 3 个 owner/repo 列表
 
-[POS] Security Center GitHub 补充数据源（P-B）。
+[POS] Security Center 用户配置的 GitHub 仓库列表（Omni-Config 读取）。
 """
 
 from __future__ import annotations
@@ -36,13 +36,17 @@ def parse_monitored_repos_from_value(raw: dict[str, object] | None) -> list[str]
     if not isinstance(repos_raw, list):
         return []
 
-    seen: set[str] = set()
+    seen_lower: set[str] = set()
     ordered: list[str] = []
     for item in repos_raw:
         slug = _normalize_repo_slug(item)
-        if slug and slug not in seen:
-            seen.add(slug)
-            ordered.append(slug)
+        if not slug:
+            continue
+        key = slug.lower()
+        if key in seen_lower:
+            continue
+        seen_lower.add(key)
+        ordered.append(slug)
         if len(ordered) >= _MAX_REPOS:
             break
     return ordered

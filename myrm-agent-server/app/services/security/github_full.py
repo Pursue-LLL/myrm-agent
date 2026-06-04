@@ -59,7 +59,12 @@ async def _fetch_github_list(endpoint: str, token: str | None) -> list[dict[str,
     return [{str(k): v for k, v in item.items()} for item in body if isinstance(item, dict)]
 
 
-async def build_github_dashboard(repo: str, token: str | None) -> SecurityDashboard:
+async def build_github_dashboard(
+    repo: str,
+    token: str | None,
+    *,
+    supplement_repos: list[str] | None = None,
+) -> SecurityDashboard:
     alerts_data = await _fetch_github_list(f"/repos/{repo}/code-scanning/alerts", token)
 
     critical_count = sum(
@@ -96,7 +101,8 @@ async def build_github_dashboard(repo: str, token: str | None) -> SecurityDashbo
         for alert in alerts_data[:10]
     ]
 
-    recent_prs, pr_metrics, sbom_available = await fetch_github_supplement([repo], token)
+    pr_repos = supplement_repos if supplement_repos else [repo]
+    recent_prs, pr_metrics, sbom_available = await fetch_github_supplement(pr_repos, token)
 
     return SecurityDashboard(
         metrics=SecurityMetrics(

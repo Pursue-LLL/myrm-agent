@@ -7,7 +7,7 @@
 
 [OUTPUT] build_security_dashboard / build_setup_hints
 
-[POS] SaaS 合并轴；`data_source=merged` 仅在有 GitHub 补充内容时设置（P-A）。
+[POS] 安全仪表盘合并构建。SaaS 用 CP 告警轴；`data_source=merged` 仅当 GitHub 补充有 PR/SBOM 数据。
 """
 
 from __future__ import annotations
@@ -106,9 +106,10 @@ async def build_security_dashboard() -> SecurityDashboard:
             data_source="control_plane",
         )
 
-    primary_repo = monitored_repos[0] if monitored_repos else _DEFAULT_REPO
+    repos = monitored_repos if monitored_repos else [_DEFAULT_REPO]
+    primary_repo = repos[0]
     try:
-        return await build_github_dashboard(primary_repo, token)
+        return await build_github_dashboard(primary_repo, token, supplement_repos=repos)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=exc.response.status_code,

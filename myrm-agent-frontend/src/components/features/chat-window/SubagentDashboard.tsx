@@ -172,11 +172,10 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   const hasChildren = !!node.children?.length;
 
   const handleJumpToApproval = useCallback(() => {
-    // Find the approval card in the DOM by task_id or just scroll to the bottom where the latest card usually is
-    // The approval card ID format is usually `approval-card-${approval_id}`.
-    // Since we don't have approval_id here, we can dispatch a custom event or find by data attribute
-    const card = document.querySelector(`[data-subagent-task-id="${node.task_id}"]`);
-    if (card) {
+    // Find all approval cards for this task and jump to the last one (the most recent)
+    const cards = document.querySelectorAll(`[data-subagent-task-id="${node.task_id}"]`);
+    if (cards && cards.length > 0) {
+      const card = cards[cards.length - 1];
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       // Add a brief highlight effect
       card.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'transition-all', 'duration-500');
@@ -222,7 +221,8 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                   {formatScope(node.control_scope, t)}
                 </span>
               )}
-              {node.budget?.cost_usd !== undefined && (
+              {node.budget?.cost_usd !== undefined && 
+               (typeof node.budget.cost_usd === 'number' || (typeof node.budget.cost_usd === 'string' && !isNaN(Number(node.budget.cost_usd)))) && (
                 <span className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
                   ${Number(node.budget.cost_usd).toFixed(3)}
                 </span>

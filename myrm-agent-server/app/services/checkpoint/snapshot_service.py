@@ -134,17 +134,19 @@ class SnapshotInterceptor(ExecutionInterceptor):
         """Emit a WebSocket event to the frontend to show the Snapshotting UI indicator."""
         try:
             from app.services.chat.chat_event_publisher import ChatEventPublisher
-            from app.database.models.chat import ChatEventKind
+            from app.services.event.app_event_bus import AppEventType
             
-            # Using SYSTEM_NOTIFICATION which is already supported by the frontend
+            # Using AppEventBus SYSTEM_NOTIFICATION which is handled by useGlobalEvents.ts
             await ChatEventPublisher.publish(
                 chat_id=chat_id,
-                kind=ChatEventKind.SYSTEM_NOTIFICATION,
+                kind=AppEventType.SYSTEM_NOTIFICATION, # type: ignore
                 data={
-                    "type": "snapshot_created", 
-                    "action": action_type, 
-                    "message": "Creating snapshot backup",
-                    "level": "info"
+                    "title": "系统保护",
+                    "message": "正在创建系统快照，保护您的代码",
+                    "meta_data": {
+                        "type": "snapshot_created", 
+                        "action": action_type,
+                    }
                 }
             )
             logger.info(f"SNAPSHOT_EVENT emitted for chat_id={chat_id}")

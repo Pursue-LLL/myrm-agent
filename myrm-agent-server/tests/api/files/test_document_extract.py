@@ -1,8 +1,4 @@
-"""Tests for document_extract module
-
-Tests _validate_extension, _parse_document (sync helpers that don't
-require FastAPI or DB), covering .docx, .xlsx, .xls, .pptx, .ppt.
-"""
+"""Tests for document_extract API helpers and content_extraction parsers."""
 
 from __future__ import annotations
 
@@ -12,8 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from app.api.files.document_extract import _parse_document, _validate_extension
+from app.api.files.document_extract import _validate_extension
 from app.core.utils.errors import StandardHTTPException
+from app.services.files.content_extraction import _parse_document
 
 
 class TestValidateExtension:
@@ -102,6 +99,6 @@ class TestParseDocument:
             os.unlink(tmp)
 
     @pytest.mark.asyncio
-    async def test_unsupported_extension_raises(self) -> None:
-        with pytest.raises(StandardHTTPException):
-            await _parse_document(Path("/tmp/fake.odt"), ".odt")
+    async def test_unsupported_extension_returns_empty(self) -> None:
+        result = await _parse_document(Path("/tmp/fake.odt"), ".odt")
+        assert result == ""
