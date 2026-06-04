@@ -25,9 +25,7 @@ dependencies = [
   "langchain-core>=1.4.0", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[file-parsers,web,fastapi,retrieval,qdrant,image-processing,compiled-core]==0.1.0rc1",
-  # --- 渠道 SDK ---
-  "discord-py[voice]>=2.7.1",  # Discord Gateway WebSocket + REST API + Voice
-  "lark-oapi>=1.6.8",          # Feishu/Lark SDK (WebSocket transport only)
+  # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.0",           # Matrix channel + alert notifier HTTP client
   # --- 语音处理 ---
   "faster-whisper>=1.2.1",     # CTranslate2 Whisper 推理引擎（本地 STT）
@@ -59,14 +57,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Discord + Feishu SDKs (app/channels/providers/discord/, feishu/); GUI lazy-install or --extra channels-sdk
+channels-sdk = [
+  "discord-py[voice]>=2.7.1",
+  "lark-oapi>=1.6.8",
+]
 # Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
 matrix = [
   "mautrix>=0.21.0",
   "aiohttp-socks>=0.11.0",
 ]
-matrix-e2ee = [
-  "mautrix[encryption]>=0.21.0",
-]
+# matrix-e2ee = [
+#   "mautrix[encryption]>=0.21.0",
+# ]
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [

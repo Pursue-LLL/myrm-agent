@@ -26,4 +26,5 @@ def test_registry_matrix_install_hint() -> None:
 
     specs = _all_specs()
     assert "uv sync --extra matrix" in _channel_install_hint("matrix", specs["matrix"])
-    assert _channel_install_hint("feishu", specs["feishu"]) == " (run: uv sync)"
+    assert "channels-sdk" in _channel_install_hint("feishu", specs["feishu"])
+    assert "channels-sdk" in _channel_install_hint("discord", specs["discord"])

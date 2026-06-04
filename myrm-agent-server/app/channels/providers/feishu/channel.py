@@ -540,8 +540,8 @@ class FeishuChannel(BaseChannel):
                     ChannelIssue(
                         kind=IssueKind.DEPENDENCY,
                         severity=IssueSeverity.ERROR,
-                        message="lark-oapi not installed. Run: uv sync",
-                        fix="uv sync",
+                        message="lark-oapi not installed. Run: uv sync --extra channels-sdk",
+                        fix="uv sync --extra channels-sdk",
                     )
                 )
         if self.health.last_error:

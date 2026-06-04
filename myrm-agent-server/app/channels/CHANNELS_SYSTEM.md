@@ -439,7 +439,8 @@ StreamCoordinator
 - Gateway 60s 周期调用 `channel.health_check()`
 - `ChannelHealth` 追踪连续成功/失败次数
 - `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺依赖时 `fix` 为 `uv sync` 或 `uv sync --extra matrix`（WebUI 设置页可一键安装或复制终端命令）
-- `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.lazy_deps`）
+- `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix`）
+- 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`；`myrm setup` / 官方镜像 `--all-extras` 已包含
 
 ---
 

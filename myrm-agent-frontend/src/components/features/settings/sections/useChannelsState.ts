@@ -27,6 +27,7 @@ import {
   updateEnabledGroups,
   listChannelStatuses,
   toggleChannel,
+  installChannelDependencies,
 } from '@/services/channels';
 
 interface ChannelStatusEntry {
@@ -307,6 +308,20 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     async (channelName: string, enabled: boolean) => {
       setTogglingChannel(channelName);
       try {
+        if (enabled) {
+          const pending = channelIssues[channelName] ?? [];
+          const needsInstall = pending.some(
+            (issue) =>
+              issue.kind === 'dependency' &&
+              typeof issue.fix === 'string' &&
+              issue.fix.startsWith('uv sync'),
+          );
+          if (needsInstall) {
+            await installChannelDependencies(channelName);
+            const statuses = await listChannelStatuses();
+            updateChannelStatusMaps(statuses);
+          }
+        }
         const result = await toggleChannel(channelName, enabled);
         const mappedStatus = result.status === 'running' && !result.connected ? 'running_idle' : result.status;
         setChannelStatuses((prev) => ({ ...prev, [channelName]: mappedStatus }));
@@ -322,7 +337,7 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
         setTogglingChannel(null);
       }
     },
-    [t, fetchWhatsAppStatus],
+    [t, fetchWhatsAppStatus, channelIssues, updateChannelStatusMaps],
   );
 
   // ─── Effects ───────────────────────────────────────────────────────

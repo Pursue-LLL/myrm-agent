@@ -188,6 +188,16 @@ async def toggle_channel(
     await db.commit()
 
     if body.enabled:
+        from app.services.channels.dependency_install import ensure_channel_dependencies_ready
+
+        pre_issues = channel_gateway.collect_all_issues().get(channel_name, [])
+        ready, detail = await asyncio.to_thread(
+            ensure_channel_dependencies_ready,
+            channel_name,
+            pre_issues,
+        )
+        if not ready:
+            raise HTTPException(status_code=409, detail=detail or "Channel dependencies not installed")
         await channel_gateway.enable_channel(channel_name)
     else:
         await channel_gateway.disable_channel(channel_name)

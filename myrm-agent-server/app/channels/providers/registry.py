@@ -54,6 +54,8 @@ logger = logging.getLogger(__name__)
 
 _CHANNEL_INSTALL_HINTS: dict[str, str] = {
     "matrix": "uv sync --extra matrix",
+    "discord": "uv sync --extra channels-sdk",
+    "feishu": "uv sync --extra channels-sdk",
 }
 
 
