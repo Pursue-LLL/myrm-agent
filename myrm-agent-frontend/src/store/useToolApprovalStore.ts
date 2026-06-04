@@ -1,28 +1,42 @@
 import { create } from 'zustand';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
+type BatchDecisionType = 'approve' | 'edit' | 'reject';
+
+export interface BatchApprovalDecision {
+  type: BatchDecisionType;
+  extra?: {
+    edited_args?: Record<string, unknown>;
+    feedback?: string;
+    allow_always?: boolean | { tool?: boolean; args?: boolean };
+    allow_domain?: boolean;
+  };
+}
+
 interface ToolApprovalState {
   queue: ToolApprovalRequest[];
-  // Set of messageIds that are currently being processed (either text approval sent or button clicked)
-  // Used to prevent dual submission (text + button) or redundant text sends
   processingMessageIds: Set<string>;
+  isResolving: boolean;
+  batchDecisions: Map<string, BatchApprovalDecision>;
 
   addRequest: (request: ToolApprovalRequest) => void;
   removeRequest: (requestId: string) => void;
   removeRequestsByMessageId: (messageId: string) => void;
   clearAll: () => void;
+  setResolving: (isResolving: boolean) => void;
+  setBatchDecision: (requestId: string, decision: BatchApprovalDecision) => void;
+  clearBatchDecisions: () => void;
 
-  // Mark a message as being processed (blocks text input)
   markProcessing: (messageId: string) => void;
-  // Unmark a message (releases the block)
   unmarkProcessing: (messageId: string) => void;
-  // Check if a message is currently being processed
   isProcessing: (messageId: string) => boolean;
 }
 
 const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
   queue: [],
   processingMessageIds: new Set(),
+  isResolving: false,
+  batchDecisions: new Map(),
 
   addRequest: (request) => set((state) => ({ queue: [...state.queue, request] })),
 
@@ -41,7 +55,22 @@ const useToolApprovalStore = create<ToolApprovalState>((set, get) => ({
       };
     }),
 
-  clearAll: () => set({ queue: [], processingMessageIds: new Set() }),
+  clearAll: () =>
+    set({
+      queue: [],
+      processingMessageIds: new Set(),
+      isResolving: false,
+      batchDecisions: new Map(),
+    }),
+
+  setResolving: (isResolving) => set({ isResolving }),
+  setBatchDecision: (requestId, decision) =>
+    set((state) => {
+      const next = new Map(state.batchDecisions);
+      next.set(requestId, decision);
+      return { batchDecisions: next };
+    }),
+  clearBatchDecisions: () => set({ batchDecisions: new Map() }),
 
   markProcessing: (messageId) =>
     set((state) => {

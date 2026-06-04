@@ -16,6 +16,8 @@ import BrowserSessionView from './approval/BrowserSessionView';
 import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
+import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -34,9 +36,17 @@ interface SingleApprovalCardProps {
     },
   ) => Promise<void>;
   isLoading: boolean;
+  hideVisualHighlight?: boolean;
+  compact?: boolean;
 }
 
-export default function SingleApprovalCard({ request, onResolve, isLoading }: SingleApprovalCardProps) {
+export default function SingleApprovalCard({
+  request,
+  onResolve,
+  isLoading,
+  hideVisualHighlight = false,
+  compact = false,
+}: SingleApprovalCardProps) {
   const t = useTranslations('toolApproval');
   const [mode, setMode] = useState<DialogMode>('default');
   const [editedArgs, setEditedArgs] = useState<Record<string, string>>({});
@@ -51,33 +61,10 @@ export default function SingleApprovalCard({ request, onResolve, isLoading }: Si
   const desktopViewData = useDesktopInspectorStore((s) => s.viewData);
   const browserViewData = useBrowserInspectorStore((s) => s.viewData);
 
-  const visualContext = useMemo(() => {
-    const isDesktop = request.toolName.startsWith('desktop_');
-    const isBrowser = request.toolName.startsWith('browser_');
-    if (!isDesktop && !isBrowser) return null;
-
-    const refStr = request.toolInput.ref || request.toolInput.element_id || request.toolInput.id;
-    if (typeof refStr !== 'string') return null;
-
-    const viewData = isDesktop ? desktopViewData : browserViewData;
-    if (!viewData || !viewData.screenshotBase64) return null;
-
-    const targetRef = viewData.refs[refStr];
-    if (!targetRef || !targetRef.bbox) return null;
-
-    return {
-      base64: viewData.screenshotBase64,
-      mimeType: viewData.mimeType,
-      bbox: {
-        x: targetRef.bbox.viewport_x ?? targetRef.bbox.x,
-        y: targetRef.bbox.viewport_y ?? targetRef.bbox.y,
-        width: targetRef.bbox.width,
-        height: targetRef.bbox.height,
-      },
-      viewportWidth: viewData.viewportWidth,
-      viewportHeight: viewData.viewportHeight,
-    };
-  }, [request.toolName, request.toolInput, desktopViewData, browserViewData]);
+  const visualContext = useMemo(
+    () => resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData),
+    [browserViewData, desktopViewData, request],
+  );
 
   const inputEntries = useMemo(() => Object.entries(request.toolInput).slice(0, 8), [request.toolInput]);
 
@@ -309,7 +296,7 @@ export default function SingleApprovalCard({ request, onResolve, isLoading }: Si
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className={`space-y-3 ${compact ? 'p-2' : 'rounded-lg border p-4'}`}>
       {isBrowserSession && browserSessionInfo ? (
         <BrowserSessionView
           action={browserSessionInfo.action}
@@ -362,23 +349,8 @@ export default function SingleApprovalCard({ request, onResolve, isLoading }: Si
             )}
           </div>
 
-          {visualContext && (
-            <div className="relative overflow-hidden rounded-md border bg-black mb-2" style={{ maxHeight: '300px' }}>
-              <img
-                src={`data:${visualContext.mimeType || 'image/jpeg'};base64,${visualContext.base64}`}
-                alt="Target context"
-                className="w-full h-auto object-contain opacity-80"
-              />
-              <div
-                className="absolute border-2 border-red-500 bg-red-500/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] transition-all animate-pulse pointer-events-none"
-                style={{
-                  left: `${(visualContext.bbox.x / visualContext.viewportWidth) * 100}%`,
-                  top: `${(visualContext.bbox.y / visualContext.viewportHeight) * 100}%`,
-                  width: `${(visualContext.bbox.width / visualContext.viewportWidth) * 100}%`,
-                  height: `${(visualContext.bbox.height / visualContext.viewportHeight) * 100}%`,
-                }}
-              />
-            </div>
+          {visualContext && !hideVisualHighlight && (
+            <VisualApprovalHighlight visualContext={visualContext} className="mb-2" />
           )}
 
           {request.reason && (

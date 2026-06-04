@@ -20,6 +20,7 @@ import { toast } from '@/hooks/useToast';
 import { useTranslations } from 'next-intl';
 import { PermissionDialog } from '@/components/features/cli-agent/PermissionDialog';
 import ToolApprovalDialog from './ToolApprovalDialog';
+import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
 import AgentInfoBanner from './AgentInfoBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
@@ -320,6 +321,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         {/* CLI Agent 权限对话框 */}
         <PermissionDialog />
         <ToolApprovalDialog />
+        <ToolApprovalExpiryWatcher />
 
         <div className="flex h-full w-full">
           {/* 主内容区域 - 工件弹窗采用 overlay 模式，不挤压聊天空间 */}
@@ -367,6 +369,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       {/* CLI Agent 权限对话框 */}
       <PermissionDialog />
       <ToolApprovalDialog />
+      <ToolApprovalExpiryWatcher />
       <EmptyChat />
       <SubagentDashboard />
       <LifeStatusCapsule currentSessionId={id || null} />

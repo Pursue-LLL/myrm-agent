@@ -47,6 +47,7 @@ import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
 import { FileMutationWarning } from './FileMutationWarning';
 import ToolImageGallery from './ToolImageGallery';
+import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 
@@ -444,6 +445,9 @@ const MessageBox = ({
         {message.progressSteps && message.progressSteps.length > 0 && (
           <ProgressSteps messageId={message.messageId} steps={message.progressSteps || []} loading={loading} />
         )}
+
+        {/* 可视化审批 Artifact（BBox 高亮截图卡片） */}
+        <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId} />
 
         {/* 工件 */}
         {message.artifacts && message.artifacts.length > 0 && (
