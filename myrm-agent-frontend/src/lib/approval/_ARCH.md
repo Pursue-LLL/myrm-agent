@@ -10,8 +10,10 @@
 | ---- | ---- |
 | `visualApprovalContext.ts` | 从 inspector snapshot + toolInput 解析 BBox 高亮上下文 |
 | `visualApprovalSurface.ts` | inline（聊天内嵌）vs modal（对话框）表面分区；batch 同 surface |
+| `visualApprovalRenderState.ts` | loading / ready / unavailable 渲染态解析 |
 | `approvalBulkGroups.ts` | bulk approve/reject 的分组（batchId / messageId） |
-| `resumeApprovalStream.ts` | 构建 decision payload 并通过 SSE resume 恢复执行 |
+| `approvalDecision.ts` | resume decision payload 构建 |
+| `resumeApprovalStream.ts` | 通过 SSE resume 恢复执行 |
 
 ## 依赖
 
