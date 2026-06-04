@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * ToolApprovalRequest, ToolCallInfo, CompletionStatus.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 工具审批与 CLI diff 预览契约。
  */
 
 import type { ActionMode } from './sessionConfig';

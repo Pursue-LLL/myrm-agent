@@ -1,15 +1,10 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * 重导出 types/ 下全部聊天域类型。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 聊天类型 barrel；由 ../types.ts 再导出。
  */
-
-export * from './builtinTools';
 export * from './builtinTools';
 export * from './sources';
 export * from './sessionConfig';

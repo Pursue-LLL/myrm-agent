@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./part1::AgentEventType, BaseAgentEvent (POS: SSE 事件类型前半段)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * FileDiff, Browser/Desktop view, ToolImageOutput 等 SSE 事件。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * SSE 事件类型末段。
  */
 
 import { AgentEventType } from './part1';

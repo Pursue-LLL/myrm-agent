@@ -1,12 +1,13 @@
 /**
  * [INPUT]
  * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./builtinTools::BuiltinToolId (POS: 内置工具 ID 常量)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * ActionMode, AgentConfig, SelectedModels, ModelSelection.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 会话级 Agent 与模式配置类型。
  */
 
 import type { SingleModelSelection } from '@/store/config/providerTypes';

@@ -1,12 +1,9 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * UIComponent, UIArtifact, UIActionEvent 等 A2UI 类型。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 交互式 UI 工件与组件白名单类型。
  */
 
 // ==================== 交互式 UI 类型定义 (A2UI 风格) ====================

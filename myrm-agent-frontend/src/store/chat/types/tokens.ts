@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./contextMetrics::CostStatus (POS: 成本与上下文预算指标类型)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * TokenUsage, TokenEconomicsSnapshot.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * Token 用量与经济学快照。
  */
 
 import type { CostStatus } from './contextMetrics';

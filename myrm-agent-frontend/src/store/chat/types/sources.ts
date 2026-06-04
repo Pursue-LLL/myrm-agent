@@ -1,12 +1,9 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * Source, MCPCallRecord, CitedMemoryReference, FileMutationFailure.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 消息引用来源与 citation 契约。
  */
 
 // 外部引用来源类型

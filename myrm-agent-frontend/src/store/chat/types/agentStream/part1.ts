@@ -1,12 +1,14 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ../artifacts::Artifact (POS: 聊天工件契约)
+ * ../sources::Source (POS: 消息引用来源与 citation 契约)
+ * ../tokens::TokenUsage (POS: Token 用量与经济学快照)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * AgentEventType, BaseAgentEvent, 核心 SSE 事件接口（消息/工具前半）。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * SSE 事件类型前半段；与后端 AgentEventType 对齐。
  */
 
 import type { Artifact } from '../artifacts';

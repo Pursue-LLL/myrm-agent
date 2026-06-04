@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./part1, ./part2, ./part3 导出的事件接口 (POS: SSE 分片)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * AgentStreamEvent 联合类型。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 全部 SSE 事件的 discriminated union。
  */
 
 import type { AgentCancelledStreamEvent } from './part1';

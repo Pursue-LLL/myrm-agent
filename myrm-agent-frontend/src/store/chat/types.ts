@@ -1,12 +1,9 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * 重导出 ./types/index 全部符号。
+ * 
  * [POS]
- * Re-exports from ./types/ — import from '@/store/chat/types' unchanged for callers.
+ * @/store/chat/types 稳定入口；实现位于 types/。
  */
 
 export * from './types/index';

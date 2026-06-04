@@ -1,12 +1,9 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * ArchiveRestoreAction, ArchiveRestoreBlockPayload, ArchiveRestoreResultPayload 等。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 归档恢复 SSE/进度条 payload 契约。
  */
 
 export interface ArchiveRestoreAction {

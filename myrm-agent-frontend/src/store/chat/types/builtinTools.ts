@@ -1,12 +1,9 @@
 /**
- * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * BuiltinToolId, BUILTIN_TOOL_IDS, DEFAULT_ENABLED_BUILTIN_TOOLS.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 内置工具 ID 常量。
  */
 
 // ---------------------------------------------------------------------------

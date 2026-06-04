@@ -2,26 +2,36 @@
 
 ## 架构概述
 
-聊天域 TypeScript 契约。`../types.ts` 仅 re-export 本目录，调用方路径 `@/store/chat/types` 不变。
+聊天域 TypeScript 契约。`../types.ts` 仅 re-export 本目录；调用方继续 `@/store/chat/types`。
 
-## 模块
+## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `builtinTools.ts` | 内置工具 ID 常量 |
-| `sources.ts` | 引用来源、记忆 citation、文件变更失败 |
-| `sessionConfig.ts` | ActionMode、AgentConfig、模型选择 |
-| `archiveRestore.ts` | 归档恢复 payload |
-| `progress.ts` | ProgressItem、RecoveryAction |
-| `contextMetrics.ts` | CostStatus、ContextBudget |
-| `tokens.ts` | TokenUsage、TokenEconomicsSnapshot |
-| `artifacts.ts` / `interactiveUi.ts` | 工件与 A2UI |
-| `toolApproval.ts` | 工具审批与 ToolCallInfo |
-| `agentStream/` | SSE 事件（part1–3 + union） |
-| `messages.ts` | Message、File、ChatHistory |
-| `chatState.ts` | ChatState 接口 |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `index.ts` | 核心 | 子模块 barrel | ✅ |
+| `builtinTools.ts` | 核心 | 内置工具 ID | ✅ |
+| `sources.ts` | 核心 | 引用来源 / citation | ✅ |
+| `sessionConfig.ts` | 核心 | Agent 与会话模式 | ✅ |
+| `archiveRestore.ts` | 辅助 | 归档恢复 payload | ✅ |
+| `progress.ts` | 核心 | ProgressItem 树 | ✅ |
+| `contextMetrics.ts` | 辅助 | Cost / context budget | ✅ |
+| `tokens.ts` | 辅助 | Token 用量快照 | ✅ |
+| `artifacts.ts` | 核心 | 工件实体 | ✅ |
+| `interactiveUi.ts` | 核心 | A2UI 组件 | ✅ |
+| `toolApproval.ts` | 核心 | 工具审批 | ✅ |
+| `agentStream/part1.ts` | 核心 | SSE 事件（前段） | ✅ |
+| `agentStream/part2.ts` | 核心 | SSE 事件（中段） | ✅ |
+| `agentStream/part3.ts` | 核心 | SSE 事件（末段） | ✅ |
+| `agentStream/union.ts` | 核心 | `AgentStreamEvent` union | ✅ |
+| `messages.ts` | 核心 | `Message` / 历史 / @mention | ✅ |
+| `chatState.ts` | 核心 | `ChatState` + actions | ✅ |
+
+## 依赖
+
+- `@/store/config/providerTypes` — 模型选择
+- `@/components/features/chat-window/goals/GoalStatusCard` — `GoalStatusPayload.status`（`part2.ts`）
 
 ## 约束
 
-- 新类型按域加入对应文件，禁止再膨胀单文件 >500 行。
-- `agentStream/part2.ts` 引用 `GoalStatusCard` 类型，保持与 goals UI 同步。
+- 单文件不超过 500 行；新增类型写入对应域文件。
+- `messageStream/types.ts` 为本目录外的流 handler 专用类型，勿合并进此包。

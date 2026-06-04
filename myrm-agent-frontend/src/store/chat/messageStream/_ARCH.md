@@ -25,7 +25,8 @@
 
 ## 依赖
 
-- `../types.ts` — 事件与消息类型
+- `../types/`（`../types.ts` barrel）— `AgentStreamEvent`、`Message` 等
+- `./types.ts` — `StreamHandlerState` / `StreamHandlerActions`（本目录专用）
 - `../messageUtils.ts`, `../memoryCitationUtils.ts`, `../archiveRestoreActions.ts`
 
 ## 入口

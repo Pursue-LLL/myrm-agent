@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./archiveRestore::* (POS: 归档恢复 SSE/进度条 payload 契约)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * RecoveryAction, ProgressItem.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 聊天进度步骤树节点类型。
  */
 
 import type {

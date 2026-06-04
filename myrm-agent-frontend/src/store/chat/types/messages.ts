@@ -1,12 +1,12 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * 多模块 Message 字段依赖（artifacts, tokens, agentStream 等）
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * Message, File, ChatHistoryItem, MentionReference, PaginationInfo, Clarification*.
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * 持久化与渲染用的聊天消息实体。
  */
 
 import type { Artifact } from './artifacts';

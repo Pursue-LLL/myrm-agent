@@ -1,12 +1,13 @@
 /**
  * [INPUT]
- * @/store/config/providerTypes::SingleModelSelection (POS: Provider/model selection type contract)
- *
+ * ./messages::Message (POS: 持久化与渲染用的聊天消息实体)
+ * ./sessionConfig::AgentConfig (POS: 会话级 Agent 与模式配置类型)
+ * 
  * [OUTPUT]
- * Chat message, stream event, artifact, memory citation and store state TypeScript contracts.
- *
+ * ChatState 接口（Zustand 形状 + actions）。
+ * 
  * [POS]
- * Chat state and SSE event type definitions. Split from monolithic types.ts for maintainability.
+ * useChatStore 状态与操作方法契约。
  */
 
 import type { ActionMode, AgentConfig, SearchDepth, SelectedModels } from './sessionConfig';
