@@ -476,5 +476,6 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     handleUpdatePairingStatus,
     handleUpdatePairingDisplayName,
     handleChannelToggle,
+    fetchChannelStatuses,
   };
 }

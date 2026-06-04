@@ -25,6 +25,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.channels.schemas import (
+    ChannelInstallDependenciesResponse,
     ChannelIssueResponse,
     ChannelStatusResponse,
     ChannelToggleRequest,
@@ -121,6 +122,27 @@ async def list_channel_status() -> list[ChannelStatusResponse]:
             )
         )
     return result
+
+
+@router.post(
+    "/{channel_name}/install-dependencies",
+    response_model=ChannelInstallDependenciesResponse,
+)
+async def install_channel_dependencies(
+    channel_name: str,
+) -> ChannelInstallDependenciesResponse:
+    """Lazy-install optional packages for a channel (GUI one-click)."""
+    from app.core.channel_bridge import channel_gateway
+    from app.services.channels.dependency_install import (
+        install_channel_dependencies as run_install,
+    )
+
+    all_issues = channel_gateway.collect_all_issues()
+    raw_issues = all_issues.get(channel_name, [])
+    ok, message = await asyncio.to_thread(run_install, channel_name, raw_issues)
+    if not ok:
+        raise HTTPException(status_code=400, detail=message)
+    return ChannelInstallDependenciesResponse(ok=True, message=message)
 
 
 @router.patch("/{channel_name}/toggle", response_model=ChannelToggleResponse)
@@ -279,11 +301,7 @@ async def update_pairing_status(
     if body.status is None and body.display_name is None:
         raise HTTPException(status_code=422, detail="Nothing to update")
 
-    row = (
-        await db.execute(
-            select(ChannelPairingModel).where(ChannelPairingModel.id == pairing_id)
-        )
-    ).scalar_one_or_none()
+    row = (await db.execute(select(ChannelPairingModel).where(ChannelPairingModel.id == pairing_id))).scalar_one_or_none()
 
     if not row:
         raise HTTPException(status_code=404, detail="Pairing not found")

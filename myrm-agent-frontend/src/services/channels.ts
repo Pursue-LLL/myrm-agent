@@ -78,6 +78,19 @@ export async function listChannelStatuses(): Promise<ChannelStatus[]> {
   return apiRequest('/channels/manage/status');
 }
 
+export interface ChannelInstallDependenciesResult {
+  ok: boolean;
+  message: string;
+}
+
+export async function installChannelDependencies(
+  channelName: string,
+): Promise<ChannelInstallDependenciesResult> {
+  return apiRequest(`/channels/manage/${channelName}/install-dependencies`, {
+    method: 'POST',
+  });
+}
+
 // ── Channel Instances ──
 
 export interface ChannelInstance {

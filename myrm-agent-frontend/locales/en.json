@@ -8041,7 +8041,10 @@
       "msgUvSyncRequired": "A dependency is missing. Reinstall packages with uv.",
       "msgMautrixMissing": "Matrix SDK (mautrix) is not installed.",
       "msgLarkMissing": "Feishu WebSocket SDK (lark-oapi) is not installed.",
-      "fixRunUvSync": "Run in terminal (project root: myrm-agent-server):",
+      "installDependencies": "Install dependencies",
+      "installingDependencies": "Installing…",
+      "installDependenciesFailed": "Could not install dependencies. Try the terminal command below.",
+      "fixRunUvSync": "Advanced: run in terminal (project root: myrm-agent-server):",
       "copyInstallCommand": "Copy command",
       "copiedInstallCommand": "Copied"
     },

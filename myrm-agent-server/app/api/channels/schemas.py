@@ -52,6 +52,11 @@ class ChannelToggleResponse(BaseModel):
     connected: bool = False
 
 
+class ChannelInstallDependenciesResponse(BaseModel):
+    ok: bool
+    message: str
+
+
 class PairingCreate(BaseModel):
     channel: str = Field(..., min_length=1, max_length=50)
     sender_id: str = Field(..., min_length=1, max_length=255)

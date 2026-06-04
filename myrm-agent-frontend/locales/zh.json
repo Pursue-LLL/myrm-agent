@@ -8064,7 +8064,10 @@
       "msgUvSyncRequired": "缺少运行依赖，请用 uv 重新安装依赖。",
       "msgMautrixMissing": "未安装 Matrix SDK（mautrix）。",
       "msgLarkMissing": "未安装飞书 WebSocket SDK（lark-oapi）。",
-      "fixRunUvSync": "在终端执行（项目目录：myrm-agent-server）：",
+      "installDependencies": "安装依赖",
+      "installingDependencies": "正在安装…",
+      "installDependenciesFailed": "无法自动安装依赖，请尝试下方终端命令。",
+      "fixRunUvSync": "高级：在终端执行（项目目录：myrm-agent-server）：",
       "copyInstallCommand": "复制命令",
       "copiedInstallCommand": "已复制"
     },

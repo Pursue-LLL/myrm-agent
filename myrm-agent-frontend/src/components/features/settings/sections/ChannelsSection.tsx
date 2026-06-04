@@ -10,7 +10,7 @@ import { PolicySelector } from './DmPolicySelector';
 import { ChannelPolicyOverride } from './ChannelPolicyOverride';
 import { GroupManager, CHANNELS_WITH_GROUPS } from './GroupManager';
 import ChannelList, { buildChannelEntries } from './ChannelList';
-import type { ChannelIssue } from '@/services/channels';
+import { installChannelDependencies, type ChannelIssue } from '@/services/channels';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import type { WhatsAppCardProps } from './WhatsAppCard';
 import { Switch } from '@/components/primitives/switch';
@@ -141,10 +141,20 @@ function useIssueTranslator() {
 
 const UV_INSTALL_COMMAND = /^uv sync\b/;
 
-function ChannelIssueFix({ fix }: { fix: string }) {
+function ChannelIssueFix({
+  fix,
+  channelName,
+  onInstalled,
+}: {
+  fix: string;
+  channelName: string;
+  onInstalled: () => void;
+}) {
   const t = useTranslations('channels.issues');
   const translate = useIssueTranslator();
   const [copied, setCopied] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -166,14 +176,31 @@ function ChannelIssueFix({ fix }: { fix: string }) {
     }
   }, [fix]);
 
+  const handleInstall = useCallback(async () => {
+    setInstalling(true);
+    setInstallError(null);
+    try {
+      await installChannelDependencies(channelName);
+      onInstalled();
+    } catch (err) {
+      setInstallError(err instanceof Error ? err.message : t('installDependenciesFailed'));
+    } finally {
+      setInstalling(false);
+    }
+  }, [channelName, onInstalled, t]);
+
   if (UV_INSTALL_COMMAND.test(fix)) {
     return (
       <div className="mt-1.5 space-y-1.5">
-        <p className="text-muted-foreground text-xs">{t('fixRunUvSync')}</p>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <code className="block min-w-0 flex-1 break-all rounded-md border border-border/60 bg-background/80 px-2 py-1.5 font-mono text-xs">
-            {fix}
-          </code>
+          <button
+            type="button"
+            onClick={() => void handleInstall()}
+            disabled={installing}
+            className="shrink-0 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium hover:bg-primary/20 disabled:opacity-60"
+          >
+            {installing ? t('installingDependencies') : t('installDependencies')}
+          </button>
           <button
             type="button"
             onClick={() => void handleCopy()}
@@ -182,6 +209,13 @@ function ChannelIssueFix({ fix }: { fix: string }) {
             {copied ? t('copiedInstallCommand') : t('copyInstallCommand')}
           </button>
         </div>
+        {installError ? (
+          <p className="text-destructive text-xs">{installError}</p>
+        ) : null}
+        <p className="text-muted-foreground text-xs">{t('fixRunUvSync')}</p>
+        <code className="block min-w-0 break-all rounded-md border border-border/60 bg-background/80 px-2 py-1.5 font-mono text-xs">
+          {fix}
+        </code>
       </div>
     );
   }
@@ -191,7 +225,15 @@ function ChannelIssueFix({ fix }: { fix: string }) {
   );
 }
 
-function ChannelIssueBanner({ issues }: { issues: ChannelIssue[] }) {
+function ChannelIssueBanner({
+  issues,
+  channelName,
+  onInstalled,
+}: {
+  issues: ChannelIssue[];
+  channelName: string;
+  onInstalled: () => void;
+}) {
   const translate = useIssueTranslator();
   if (!issues.length) return null;
   return (
@@ -207,7 +249,9 @@ function ChannelIssueBanner({ issues }: { issues: ChannelIssue[] }) {
             <Icon className="h-4 w-4 mt-0.5 shrink-0 text-current opacity-70" />
             <div className="min-w-0 flex-1 text-sm">
               <span className="font-medium">{translate(issue.message, ISSUE_MESSAGE_PATTERNS)}</span>
-              {issue.fix ? <ChannelIssueFix fix={issue.fix} /> : null}
+              {issue.fix ? (
+                <ChannelIssueFix fix={issue.fix} channelName={channelName} onInstalled={onInstalled} />
+              ) : null}
             </div>
           </div>
         );
@@ -415,7 +459,11 @@ export default function ChannelsSection() {
               disabled={!status || state.togglingChannel === ch}
             />
           </div>
-          <ChannelIssueBanner issues={state.channelIssues[ch] ?? []} />
+          <ChannelIssueBanner
+            issues={state.channelIssues[ch] ?? []}
+            channelName={ch}
+            onInstalled={state.fetchChannelStatuses}
+          />
           <CredentialGuide channel={ch} t={t} />
           {status !== 'disabled' && (
             <ChannelConfigPanel
