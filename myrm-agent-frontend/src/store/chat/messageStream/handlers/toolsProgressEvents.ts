@@ -233,10 +233,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   if (data.type === H.AgentEventType.TOOL_APPROVAL_REQUEST) {
     const payload = data.data;
 
-    // 从 H.useChatStore 获取当前上下文（用于 resume 请求）
-    const { chatId: currentChatId, actionMode: currentActionMode } = (
-      await import('@/store/H.useChatStore')
-    ).default.getState();
+    const { chatId: currentChatId, actionMode: currentActionMode } = H.useChatStore.getState();
 
     // Parse standard LangChain HITL payload structure (supports batch approval)
     const { actionRequests, reviewConfigs, extensions } = payload;
@@ -249,7 +246,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const reviewConfig = reviewConfigs?.[i];
       const requestId = isBatch ? `${batchId}_${i}` : extensions.approval.requestId;
 
-      const approvalRequest: ToolApprovalRequest = {
+      const approvalRequest: H.ToolApprovalRequest = {
         requestId,
         toolName: action.action,
         toolInput: action.args,

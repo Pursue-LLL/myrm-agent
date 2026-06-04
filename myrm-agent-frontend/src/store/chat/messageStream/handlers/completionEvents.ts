@@ -20,7 +20,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
   }
 
   if (data.type === H.AgentEventType.GOAL_STATUS) {
-    const { useGoalStore } = await import('./goals/useGoalStore');
+    const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);
     useGoalStore.getState().setActiveGoal(goalState);
     return done(ctx);
@@ -38,7 +38,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
   if (data.type === H.AgentEventType.MESSAGE_END) {
     if (data.goal_status) {
-      const { useGoalStore } = await import('./goals/useGoalStore');
+      const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
       useGoalStore.getState().setActiveGoal(H.normalizeGoalState(data.goal_status));
     }
     setTimeout(() => {
