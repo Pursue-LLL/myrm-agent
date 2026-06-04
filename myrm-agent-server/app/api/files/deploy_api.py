@@ -36,9 +36,9 @@ from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
+from app.services.deploy.artifact_files import resolve_artifact_deploy_files
 from app.services.deploy.preflight import (
     evaluate_deploy_preflight,
-    resolve_artifact_deploy_files,
     run_deploy_preflight,
 )
 from app.services.deploy.vercel_client import VercelClient

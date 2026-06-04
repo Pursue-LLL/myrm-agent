@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-工件只读公网分享：HMAC 令牌 + 与 deploy 同规则的静态包（`share_bundle.py`，复用 `preflight.resolve_artifact_deploy_files`）。部署预检在 `app/services/deploy/preflight.py`。
+工件只读公网分享：HMAC 令牌 + 与 deploy 同规则的静态包（`share_bundle.py`，复用 `deploy.artifact_files.resolve_artifact_deploy_files`）。部署预检在 `app/services/deploy/preflight.py`。
 
 ---
 

@@ -14,7 +14,8 @@
 |------|------|------|
 | `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
 | `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
-| `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `resolve_artifact_deploy_files` — FE 部署前门禁 |
+| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — deploy / share 共用的工件文件收集 |
+| `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `evaluate_deploy_preflight` — FE 部署前门禁 |
 
 ---
 
@@ -22,7 +23,7 @@
 
 - `httpx`：异步 HTTP 客户端
 - `tenacity`：网络抖动重试
-- 调用方：`app/api/files/deploy_api.py`、`app/services/artifacts/share_bundle.py`
+- 调用方：`app/api/files/deploy_api.py`、`app/api/files/artifact_share_api.py`、`app/services/artifacts/share_bundle.py`
 
 ---
 

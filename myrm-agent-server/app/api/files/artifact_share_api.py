@@ -31,6 +31,7 @@ from app.database.models.artifact import Artifact
 from app.services.artifacts.share_bundle import (
     bundle_asset_count,
     materialize_share_bundle,
+    purge_expired_share_bundles,
     resolve_share_bundle_file,
 )
 from app.services.artifacts.share_token import (
@@ -84,6 +85,7 @@ async def _serve_share_bundle(
     workspace_root: str,
     relative_path: str | None,
 ) -> FileResponse:
+    purge_expired_share_bundles()
     resolved = resolve_share_bundle_file(claims, relative_path)
     if resolved is None:
         try:
@@ -176,11 +178,6 @@ async def get_public_artifact_share(
     claims = parse_artifact_share_token(token)
     if claims is None:
         raise HTTPException(status_code=404, detail="Share link is invalid or expired")
-    if bundle_asset_count(claims) == 0:
-        try:
-            await materialize_share_bundle(db, workspace_root, claims)
-        except (ValueError, LookupError, FileNotFoundError) as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
     if bundle_asset_count(claims) > 1 and not str(request.url.path).endswith("/"):
         return RedirectResponse(url=str(request.url) + "/", status_code=307)
     return await _serve_share_bundle(claims, db, workspace_root, None)

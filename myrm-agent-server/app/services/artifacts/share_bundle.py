@@ -1,7 +1,7 @@
 """Materialize shareable artifact static bundles for public preview links.
 
 [INPUT]
-- app.services.deploy.preflight::resolve_artifact_deploy_files (POS: vault + asset_root packaging)
+- app.services.deploy.artifact_files::resolve_artifact_deploy_files (POS: vault + asset_root packaging)
 - app.services.deploy.deploy_packager::DeployFile, validate_deploy_payload
 - app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
 - app.config.settings::settings (POS: state_dir root)
@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import settings
 from app.services.artifacts.share_token import ArtifactShareClaims
 from app.services.deploy.deploy_packager import DeployFile, validate_deploy_payload
-from app.services.deploy.preflight import resolve_artifact_deploy_files
+from app.services.deploy.artifact_files import resolve_artifact_deploy_files
 
 logger = logging.getLogger(__name__)
 
