@@ -20,7 +20,12 @@ import AuthCallback from './auth-callback';
 import { isTauriRuntime, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
 
-const AUTH_PATHS = ['/auth/login', '/auth/setup'];
+const AUTH_PATHS = [
+  '/auth/login',
+  '/auth/setup',
+  '/auth/oauth/callback',
+  '/auth/mcp-callback',
+];
 
 function isAuthPage(): boolean {
   if (typeof window === 'undefined') return false;

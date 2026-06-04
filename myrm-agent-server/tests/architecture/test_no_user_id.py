@@ -15,6 +15,8 @@ def test_no_user_id_in_orm_models():
         "skill_quality_history",  # 遗留表
         "skill_drafts",  # 遗留表
         "failed_messages",  # 遗留表
+        "artifact_audit_logs",  # Audit actor id (single-tenant sandbox), not CP multi-tenant
+        "commitments",  # Channel-scoped end-user id in single-tenant instance, not CP DB tenant
     }
 
     for model_class in Base.registry.mappers:
