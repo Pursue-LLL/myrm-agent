@@ -90,7 +90,7 @@ pub fn update_global_shortcut(
     if let Some(ref appshot) = appshot_shortcut {
         if !appshot.is_empty() {
             if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(appshot) {
-                if let Ok(mut guard) = crate::APPSHOT_SHORTCUT_STR.lock() {
+                if let Ok(mut guard) = crate::runtime::APPSHOT_SHORTCUT_STR.lock() {
                     *guard = format!("{s}");
                 }
                 if let Err(e) = app.global_shortcut().register(s) {

@@ -30,8 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.services.artifacts.share_token import ArtifactShareClaims
-from app.services.deploy.deploy_packager import DeployFile, validate_deploy_payload
 from app.services.deploy.artifact_files import resolve_artifact_deploy_files
+from app.services.deploy.deploy_packager import DeployFile, validate_deploy_payload
 
 logger = logging.getLogger(__name__)
 

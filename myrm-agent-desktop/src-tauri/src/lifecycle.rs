@@ -2,7 +2,7 @@
 //!
 //! [INPUT]
 //! - config::ConfigManager (POS: 配置管理)
-//! - main::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend} (POS: Sidecar 进程管理)
+//! - runtime::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend} (POS: Sidecar 进程管理)
 //! - tunnel::stop_quick_tunnel_via_backend (POS: 通知 Server 停止 Quick Tunnel)
 //!
 //! [OUTPUT]

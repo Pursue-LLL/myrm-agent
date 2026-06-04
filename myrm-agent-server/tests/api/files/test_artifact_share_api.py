@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 import uuid
 from unittest.mock import AsyncMock, patch
 
@@ -11,7 +10,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_workspace_root
-from app.api.files.artifact_share_api import public_router, router as share_router
+from app.api.files.artifact_share_api import public_router
+from app.api.files.artifact_share_api import router as share_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion

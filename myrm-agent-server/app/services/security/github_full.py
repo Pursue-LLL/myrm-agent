@@ -8,8 +8,6 @@ import httpx
 
 from app.api.security.dashboard_models import SecurityAlert, SecurityDashboard, SecurityMetrics
 from app.services.security.github_supplement import (
-    check_sbom_available,
-    fetch_dependabot_prs_for_repo,
     fetch_github_supplement,
 )
 

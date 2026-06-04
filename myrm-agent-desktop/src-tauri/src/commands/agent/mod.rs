@@ -1,7 +1,8 @@
 //! CLI Agent 相关的 Tauri 命令
 //!
 //! 提供前端与 CLI Agent 交互的 API。
-//! 通过 Node.js Sidecar 调用 @anthropic-ai/claude-agent-sdk。
+//! 主路径：Agent Runner Sidecar（`sidecar/agent-runner` 编译二进制）JSON-RPC。
+//! 备用：Rust `agents/` 适配器（Sidecar 未运行时）。
 
 mod message;
 mod permission;

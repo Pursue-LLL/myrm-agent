@@ -19,7 +19,6 @@ from fastapi import HTTPException
 
 from app.api.security.dashboard_models import (
     DependabotPR,
-    SecurityAlert,
     SecurityDashboard,
     SecurityMetrics,
     SecuritySetupHints,
@@ -32,11 +31,11 @@ from app.services.security.cp_security_dashboard import (
     map_cp_dashboard,
 )
 from app.services.security.dashboard_settings import load_monitored_github_repos
+from app.services.security.github_full import build_github_dashboard
 from app.services.security.github_supplement import (
     fetch_github_supplement,
     resolve_github_repos,
 )
-from app.services.security.github_full import build_github_dashboard
 
 logger = logging.getLogger(__name__)
 

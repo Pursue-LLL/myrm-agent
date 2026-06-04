@@ -24,7 +24,6 @@ import httpx
 from fastapi import HTTPException
 from fastapi.responses import Response
 
-from app.services.audit.auth_log_reader import read_auth_audit_events
 from app.api.security.dashboard_models import (
     PlatformAuditEvent,
     PlatformAuditEventCount,
@@ -36,6 +35,7 @@ from app.api.security.dashboard_models import (
 )
 from app.config.deploy_mode import is_sandbox
 from app.middleware.auth_audit import AuthEventType
+from app.services.audit.auth_log_reader import read_auth_audit_events
 from app.services.security.cp_security_dashboard import get_cp_api_base, get_cp_request_headers
 
 logger = logging.getLogger(__name__)

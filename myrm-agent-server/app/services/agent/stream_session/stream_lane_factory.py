@@ -41,6 +41,33 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
     return int(value) if isinstance(value, int | float | str) else default
 
 
+async def create_dynamic_workflow_stream(
+    params: GeneralAgentParams,
+    cancel_token: "CancellationToken | None",
+) -> AsyncIterable[dict[str, object]]:
+    """Build Dynamic Workflow SSE stream from GeneralAgentParams.
+    
+    This delegates to the Harness Dynamic Workflow Engine, which uses PTC
+    to generate and execute a Python orchestration script that can spawn
+    multiple sub-agents concurrently.
+    """
+    from myrm_agent_harness.agent.dynamic_workflow import run_dynamic_workflow_stream
+    from myrm_agent_harness.toolkits.llms import llm_manager
+
+    from app.core.utils.chat_utils import convert_chat_history
+
+    llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
+    
+    history = convert_chat_history(params.chat_history)
+    query = params.query
+
+    return run_dynamic_workflow_stream(
+        llm=llm,
+        query=query,
+        chat_history=history,
+        cancel_token=cancel_token,
+    )
+
 async def create_deep_research_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",

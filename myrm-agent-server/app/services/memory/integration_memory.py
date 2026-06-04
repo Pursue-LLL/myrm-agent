@@ -153,8 +153,8 @@ class IntegrationMemoryService:
             )
             from myrm_agent_harness.toolkits.memory.strategies.extractor import ExtractionConfig, MemoryExtractor
 
-            from app.services.agent.llm_access import get_optional_llm_for_user
             from app.core.memory.adapters.setup import get_or_create_memory_manager
+            from app.services.agent.llm_access import get_optional_llm_for_user
             
             # Using the system's default LLM config
             llm = await get_optional_llm_for_user()

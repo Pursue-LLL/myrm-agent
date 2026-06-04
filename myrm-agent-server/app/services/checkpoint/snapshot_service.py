@@ -28,7 +28,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if not session_id:
             return
             
-        from app.ai_agents.general_agent.context import get_current_turn_id, get_current_chat_id, get_current_agent_id
+        from app.ai_agents.general_agent.context import get_current_agent_id, get_current_chat_id, get_current_turn_id
         
         turn_id = get_current_turn_id() or "unknown_turn"
         chat_id = get_current_chat_id() or "unknown_chat"
@@ -134,6 +134,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
         """Emit a WebSocket event to the frontend to show the Snapshotting UI indicator."""
         try:
             from app.services.chat.chat_event_publisher import ChatEventPublisher
+
             from app.services.event.app_event_bus import AppEventType
             
             # Using AppEventBus SYSTEM_NOTIFICATION which is handled by useGlobalEvents.ts

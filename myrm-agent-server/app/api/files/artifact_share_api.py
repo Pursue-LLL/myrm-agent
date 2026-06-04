@@ -24,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
-from app.core.infra.limiter import limiter
 from app.config.settings import settings
+from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share_bundle import (

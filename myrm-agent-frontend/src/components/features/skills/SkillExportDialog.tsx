@@ -150,8 +150,19 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                   <ScrollArea className="flex-1 p-0">
                     {Object.entries(preview.redactions!).map(([filename, redactions]) => (
                       <div key={filename} className="mb-4 last:mb-0">
-                        <div className="bg-muted/50 px-3 py-1.5 text-xs font-mono border-y first:border-t-0">
-                          {filename}
+                        <div className="bg-muted/50 px-3 py-1.5 text-xs font-mono border-y first:border-t-0 flex items-center justify-between">
+                          <span>{filename}</span>
+                          <div className="flex items-center gap-2">
+                            <Checkbox 
+                              id={`toggle-all-${filename}`}
+                              checked={(ignoredRedactions[filename] || []).length === 0}
+                              onCheckedChange={() => toggleAllRedactions(filename, redactions.length, (ignoredRedactions[filename] || []).length === 0)}
+                              className="h-3 w-3"
+                            />
+                            <label htmlFor={`toggle-all-${filename}`} className="cursor-pointer select-none text-[10px] text-muted-foreground">
+                              {t('toggleAll')}
+                            </label>
+                          </div>
                         </div>
                         <div className="p-3 space-y-3">
                           {redactions.map((r, i) => {

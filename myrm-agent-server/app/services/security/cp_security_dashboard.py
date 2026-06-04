@@ -51,7 +51,7 @@ def _severity_str(value: object) -> str:
     if value is None:
         return "unknown"
     if hasattr(value, "value"):
-        return str(getattr(value, "value"))
+        return str(value.value)
     return str(value)
 
 

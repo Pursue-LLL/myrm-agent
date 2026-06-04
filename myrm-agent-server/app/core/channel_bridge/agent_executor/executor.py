@@ -15,6 +15,7 @@ from myrm_agent_harness.agent.middlewares._session_context import (
 from myrm_agent_harness.agent.middlewares.approval.scheduler import (
     ApprovalTimeoutScheduler,
 )
+from myrm_agent_harness.toolkits.code_execution.interceptor import set_execution_interceptor
 from myrm_agent_harness.toolkits.llms.errors import MyrmLLMError
 from myrm_agent_harness.utils.locale import is_chinese
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -61,6 +62,7 @@ from app.services.agent.profile_resolver import (
     ResolvedAgentProfile,
     get_agent_profile_resolver,
 )
+from app.services.checkpoint.snapshot_service import SnapshotInterceptor
 
 from .helpers import (
     _extract_code_exec_network,
@@ -70,10 +72,6 @@ from .helpers import (
 from .session import resolve_session_key
 
 logger = logging.getLogger(__name__)
-
-
-from myrm_agent_harness.toolkits.code_execution.interceptor import set_execution_interceptor
-from app.services.checkpoint.snapshot_service import SnapshotInterceptor
 
 # Initialize and register the snapshot interceptor
 set_execution_interceptor(SnapshotInterceptor())
@@ -491,7 +489,7 @@ class ChannelAgentExecutor:
                 )
                 return
 
-            from app.ai_agents.general_agent.context import set_current_turn_id, set_current_chat_id, set_current_agent_id
+            from app.ai_agents.general_agent.context import set_current_agent_id, set_current_chat_id, set_current_turn_id
             
             # Set context for snapshot interceptor
             turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"

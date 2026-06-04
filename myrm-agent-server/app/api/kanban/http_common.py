@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask
 
 from app.api.kanban.schemas import AttachmentInfo, BoardResponse, TaskResponse
@@ -107,7 +107,6 @@ async def _resolve_attachments(ids: list[str]) -> list[AttachmentInfo]:
     """Resolve file IDs to attachment metadata for display (concurrent)."""
     if not ids:
         return []
-    import asyncio
 
     from app.core.storage import files_service
 

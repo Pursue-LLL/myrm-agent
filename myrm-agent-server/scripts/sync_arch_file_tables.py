@@ -13,7 +13,6 @@ Run from myrm-agent-server root::
 from __future__ import annotations
 
 import argparse
-import re
 from pathlib import Path
 
 # Only rewrite stub _ARCH files created with the bulk placeholder table row.
