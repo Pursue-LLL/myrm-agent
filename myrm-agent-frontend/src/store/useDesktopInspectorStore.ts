@@ -14,6 +14,9 @@ interface DesktopViewData {
   needsPermission: boolean;
   viewportWidth: number;
   viewportHeight: number;
+  screenWidth?: number;
+  screenHeight?: number;
+  dpiScale?: number;
   updatedAt: number;
 }
 
@@ -54,6 +57,9 @@ interface DesktopSnapshotResponse {
   needs_permission: boolean;
   viewport_width: number;
   viewport_height: number;
+  screen_width?: number;
+  screen_height?: number;
+  dpi_scale?: number;
 }
 
 const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
@@ -101,6 +107,9 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
           needsPermission: data.needs_permission,
           viewportWidth: data.viewport_width,
           viewportHeight: data.viewport_height,
+          screenWidth: data.screen_width,
+          screenHeight: data.screen_height,
+          dpiScale: data.dpi_scale,
           updatedAt: Date.now(),
         },
       });

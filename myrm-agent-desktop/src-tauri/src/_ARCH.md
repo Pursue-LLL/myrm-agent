@@ -27,7 +27,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `tray.rs` | ✅ 核心 | 系统托盘初始化（Show/New Chat/Settings/Workspace/Quit 菜单 + 左键显示窗口）与 tooltip 状态管理。前端 `useTrayStatus` hook 还通过 Tauri JS API 控制任务栏进度条（`setProgressBar`）和完成弹跳通知（`requestUserAttention`） | ✅ |
 | `commands/` | ✅ 核心 | Tauri IPC 命令模块（config, agent） | ✅ |
 | `utils/` | ✅ 工具 | 系统工具封装（`quarantine.rs` 隔离检测, `auth.rs` 原生提权, `power.rs` 智能电源锁防休眠[跨平台RAII, macOS 使用 IOKit 原生 API], `screen_lock.rs` 屏幕锁定管理[检测/解锁/重锁/Keychain], `updater_safety.rs` 启动期 Tauri Updater pubkey 占位符强校验） | ✅ |
-| `commands/visual_approval_overlay.rs` | ✅ 核心 | Tauri 原生 OS 视觉审批红框 overlay IPC | ✅ |
+| `commands/visual_approval_overlay.rs` | ✅ 核心 | Tauri OS 视觉审批红框 overlay IPC（screen/image 坐标模式 + 显示器门控） | ✅ |
 | `commands/power.rs` | ✅ 核心 | 电源管理 IPC 命令（`power_lock_acquire`/`release`/`status`），支持 `prevent_display_sleep` 参数控制显示器保持唤醒 | ✅ |
 | `commands/screen_lock.rs` | ✅ 核心 | 屏幕锁定管理 IPC 命令（`screen_is_locked`/`screen_unlock`/`screen_relock`/`screen_lock_store_password`/`screen_lock_has_password`/`screen_lock_delete_password`/`screen_lock_platform_support`） | ✅ |
 | `tunnel.rs` | ✅ 辅助 | 解析 bundled cloudflared 路径；停机时调用 Server `/tunnel/stop` | ✅ |

@@ -204,16 +204,34 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       processInbox();
     };
 
-    // 监听全局的 loading 状态变化，当对话结束（loading 变为 false）时，恢复执行 inbox 中的积压任务
+      // 监听全局的 loading 状态变化，当对话结束（loading 变为 false）时，恢复执行 inbox 中的积压任务
     const unsubscribe = useChatStore.subscribe((state, prevState) => {
       if (prevState.loading === true && state.loading === false) {
         processInbox();
       }
     });
 
+    const handleSystemNotification = (e: Event) => {
+      const customEvent = e as CustomEvent<{ session_id: string; notification: any }>;
+      const { session_id, notification } = customEvent.detail;
+      
+      if (session_id !== id) return;
+      
+      if (notification?.type === 'snapshot_created') {
+        toast({
+          title: '系统保护',
+          description: notification.message || '🛡️ 正在创建系统快照，保护您的代码',
+          variant: 'default',
+        });
+      }
+    };
+
     window.addEventListener('async-agent-stream-chunk', handleAsyncChunk);
+    window.addEventListener('system-notification', handleSystemNotification);
+    
     return () => {
       window.removeEventListener('async-agent-stream-chunk', handleAsyncChunk);
+      window.removeEventListener('system-notification', handleSystemNotification);
       unsubscribe();
     };
   }, [id]);

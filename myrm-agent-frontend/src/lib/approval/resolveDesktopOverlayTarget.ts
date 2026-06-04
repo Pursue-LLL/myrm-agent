@@ -65,9 +65,14 @@ export function resolveDesktopOverlayTarget(
       continue;
     }
 
+    const payload = buildVisualApprovalOsOverlayPayload(renderState.visualContext);
+    if (!payload) {
+      continue;
+    }
+
     return {
       request,
-      payload: buildVisualApprovalOsOverlayPayload(renderState.visualContext),
+      payload,
     };
   }
 

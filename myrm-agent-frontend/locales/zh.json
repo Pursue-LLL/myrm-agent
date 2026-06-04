@@ -4932,7 +4932,10 @@
     "hint": "根据任务复杂度选择合适的模式",
     "deepSearchLabel": "深度",
     "deepSearchTitle": "深度搜索",
-    "deepSearchDescription": "深度阅读网页全文，获取更准确详尽的回答。耗时稍长，但结果质量更高。"
+    "deepSearchDescription": "深度阅读网页全文，获取更准确详尽的回答。耗时稍长，但结果质量更高。",
+    "workflowModeLabel": "工作流",
+    "workflowModeTitle": "动态工作流模式",
+    "workflowModeDescription": "启动后台多代理并发引擎，专为全代码库重构等超大型复杂任务设计。注意：Token 消耗巨大。"
   },
   "thinkingIntensity": {
     "title": "思考强度",
@@ -10259,7 +10262,26 @@
     "auditRequestCount": "{count} 次请求",
     "auditEventDistribution": "事件分布",
     "auditExportCsv": "导出 CSV",
-    "auditExportJson": "导出 JSON"
+    "auditExportJson": "导出 JSON",
+    "monitoredReposTitle": "监控的 GitHub 仓库",
+    "monitoredReposHint": "最多 3 个 owner/repo（如 my-org/my-app）。当控制平面尚无告警仓库时，用于拉取 Dependabot PR。",
+    "monitoredReposPlaceholder": "owner/repo",
+    "monitoredReposAdd": "添加仓库",
+    "monitoredReposSave": "保存仓库",
+    "monitoredReposSaved": "已保存",
+    "rateLimitColUser": "用户 ID",
+    "rateLimitColResource": "资源",
+    "rateLimitColCurrent": "当前",
+    "rateLimitColMax": "上限",
+    "rateLimitColRemaining": "剩余",
+    "rateLimitColWindow": "窗口",
+    "rateLimitColUsage": "使用率",
+    "rateLimitMinutes": "分钟",
+    "auditFieldUser": "用户",
+    "auditFieldIp": "IP",
+    "auditFieldAction": "操作",
+    "auditFieldResult": "结果",
+    "auditFieldMetadata": "元数据"
   },
   "project": {
     "all": "全部",

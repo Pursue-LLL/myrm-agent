@@ -1,12 +1,13 @@
 //! Native OS overlay for desktop visual tool approvals (BBox highlight).
 //!
-//! Maps screenshot viewport coordinates to the closest matching monitor and renders a
-//! transparent always-on-top window with a red highlight frame.
+//! Maps harness screen-space or image-space coordinates to the closest matching monitor
+//! and renders a transparent always-on-top window with a red highlight frame.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use tauri::{AppHandle, Manager, Monitor, Url, WebviewUrl, WebviewWindowBuilder};
 
 const OVERLAY_WINDOW_LABEL: &str = "visual-approval-overlay";
+const SCREEN_MONITOR_TOLERANCE: f64 = 0.05;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +18,9 @@ pub struct VisualApprovalOverlayPayload {
     pub height: f64,
     pub viewport_width: f64,
     pub viewport_height: f64,
+    pub coordinate_mode: String,
+    pub screen_width: f64,
+    pub screen_height: f64,
     pub label: Option<String>,
 }
 
@@ -36,9 +40,37 @@ fn scaled_box(payload: &VisualApprovalOverlayPayload, screen_w: f64, screen_h: f
     )
 }
 
-fn overlay_html(payload: &VisualApprovalOverlayPayload, screen_w: f64, screen_h: f64) -> String {
-    let (bx, by, bw, bh) = scaled_box(payload, screen_w, screen_h);
-    let label = payload.label.as_deref().unwrap_or("").trim();
+fn resolve_overlay_box(
+    payload: &VisualApprovalOverlayPayload,
+    screen_w: f64,
+    screen_h: f64,
+    monitor_origin_x: f64,
+    monitor_origin_y: f64,
+) -> (f64, f64, f64, f64) {
+    if payload.coordinate_mode == "screen" {
+        return (
+            payload.x - monitor_origin_x,
+            payload.y - monitor_origin_y,
+            payload.width,
+            payload.height,
+        );
+    }
+
+    scaled_box(payload, screen_w, screen_h)
+}
+
+fn monitor_dimensions_compatible(expected_w: f64, expected_h: f64, monitor_w: f64, monitor_h: f64) -> bool {
+    if expected_w <= 0.0 || expected_h <= 0.0 {
+        return false;
+    }
+
+    let width_delta = (monitor_w - expected_w).abs() / expected_w;
+    let height_delta = (monitor_h - expected_h).abs() / expected_h;
+    width_delta <= SCREEN_MONITOR_TOLERANCE && height_delta <= SCREEN_MONITOR_TOLERANCE
+}
+
+fn overlay_html(bx: f64, by: f64, bw: f64, bh: f64, label: Option<&str>) -> String {
+    let label = label.unwrap_or("").trim();
     let label_html = if label.is_empty() {
         String::new()
     } else {
@@ -147,6 +179,14 @@ fn monitor_for_viewport(
         .ok_or_else(|| "No monitors available".to_string())
 }
 
+fn monitor_match_dimensions(payload: &VisualApprovalOverlayPayload) -> (f64, f64) {
+    if payload.coordinate_mode == "screen" {
+        return (payload.screen_width, payload.screen_height);
+    }
+
+    (payload.viewport_width, payload.viewport_height)
+}
+
 #[tauri::command]
 pub fn show_visual_approval_overlay(
     app: AppHandle,
@@ -154,11 +194,8 @@ pub fn show_visual_approval_overlay(
 ) -> Result<(), String> {
     hide_visual_approval_overlay(app.clone())?;
 
-    let monitor = monitor_for_viewport(
-        &app,
-        payload.viewport_width,
-        payload.viewport_height,
-    )?;
+    let (match_w, match_h) = monitor_match_dimensions(&payload);
+    let monitor = monitor_for_viewport(&app, match_w, match_h)?;
 
     let scale_factor = monitor.scale_factor();
     let position = monitor.position();
@@ -169,7 +206,14 @@ pub fn show_visual_approval_overlay(
     let pos_x = position.x as f64 / scale_factor;
     let pos_y = position.y as f64 / scale_factor;
 
-    let html = overlay_html(&payload, screen_w, screen_h);
+    if payload.coordinate_mode == "screen"
+        && !monitor_dimensions_compatible(payload.screen_width, payload.screen_height, screen_w, screen_h)
+    {
+        return Err("Screen dimensions mismatch; overlay suppressed".to_string());
+    }
+
+    let (bx, by, bw, bh) = resolve_overlay_box(&payload, screen_w, screen_h, pos_x, pos_y);
+    let html = overlay_html(bx, by, bw, bh, payload.label.as_deref());
     let data_url = format!(
         "data:text/html;base64,{}",
         STANDARD.encode(html.as_bytes())
@@ -214,20 +258,29 @@ pub fn hide_visual_approval_overlay(app: AppHandle) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{monitor_match_score, scaled_box, VisualApprovalOverlayPayload};
+    use super::{
+        monitor_dimensions_compatible, monitor_match_score, resolve_overlay_box, scaled_box,
+        VisualApprovalOverlayPayload,
+    };
 
-    #[test]
-    fn scales_bbox_to_screen_coordinates() {
-        let payload = VisualApprovalOverlayPayload {
+    fn sample_payload(coordinate_mode: &str) -> VisualApprovalOverlayPayload {
+        VisualApprovalOverlayPayload {
             x: 100.0,
             y: 200.0,
             width: 50.0,
             height: 40.0,
             viewport_width: 1000.0,
             viewport_height: 500.0,
+            coordinate_mode: coordinate_mode.to_string(),
+            screen_width: 1440.0,
+            screen_height: 900.0,
             label: None,
-        };
+        }
+    }
 
+    #[test]
+    fn scales_bbox_to_screen_coordinates_for_image_mode() {
+        let payload = sample_payload("image");
         let (x, y, w, h) = scaled_box(&payload, 2000.0, 1000.0);
         assert!((x - 200.0).abs() < f64::EPSILON);
         assert!((y - 400.0).abs() < f64::EPSILON);
@@ -236,10 +289,58 @@ mod tests {
     }
 
     #[test]
+    fn screen_mode_uses_absolute_coordinates_without_scaling() {
+        let payload = VisualApprovalOverlayPayload {
+            x: 500.0,
+            y: 300.0,
+            width: 40.0,
+            height: 30.0,
+            viewport_width: 1280.0,
+            viewport_height: 800.0,
+            coordinate_mode: "screen".to_string(),
+            screen_width: 1440.0,
+            screen_height: 900.0,
+            label: None,
+        };
+
+        let (x, y, w, h) = resolve_overlay_box(&payload, 1440.0, 900.0, 0.0, 0.0);
+        assert!((x - 500.0).abs() < f64::EPSILON);
+        assert!((y - 300.0).abs() < f64::EPSILON);
+        assert!((w - 40.0).abs() < f64::EPSILON);
+        assert!((h - 30.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn screen_mode_offsets_bbox_by_monitor_origin() {
+        let payload = VisualApprovalOverlayPayload {
+            x: 500.0,
+            y: 300.0,
+            width: 40.0,
+            height: 30.0,
+            viewport_width: 1280.0,
+            viewport_height: 800.0,
+            coordinate_mode: "screen".to_string(),
+            screen_width: 1440.0,
+            screen_height: 900.0,
+            label: None,
+        };
+
+        let (x, y, _, _) = resolve_overlay_box(&payload, 1440.0, 900.0, 100.0, 50.0);
+        assert!((x - 400.0).abs() < f64::EPSILON);
+        assert!((y - 250.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
     fn prefers_monitor_with_closest_viewport_dimensions() {
         let exact = monitor_match_score(1920.0, 1080.0, 1920.0, 1080.0);
         let mismatch = monitor_match_score(1920.0, 1080.0, 2560.0, 1440.0);
 
         assert!(exact < mismatch);
+    }
+
+    #[test]
+    fn rejects_monitor_when_screen_dimensions_differ_too_much() {
+        assert!(!monitor_dimensions_compatible(1440.0, 900.0, 1920.0, 1080.0));
+        assert!(monitor_dimensions_compatible(1440.0, 900.0, 1450.0, 905.0));
     }
 }

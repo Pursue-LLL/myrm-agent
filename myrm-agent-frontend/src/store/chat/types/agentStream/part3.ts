@@ -91,6 +91,9 @@ export interface DesktopViewUpdateStreamEvent extends BaseAgentEvent {
     needs_permission: boolean;
     viewport_width: number;
     viewport_height: number;
+    screen_width?: number;
+    screen_height?: number;
+    dpi_scale?: number;
   };
 }
 

@@ -53,6 +53,7 @@ const StatusIcon = ({ status }: { status: SubagentStatus }) => {
 type TreeNodeProps = {
   node: SubagentNode & { children?: SubagentNode[] };
   chatId: string;
+  setOpen: (open: boolean) => void;
 };
 
 type TeammateRowProps = {
@@ -96,7 +97,7 @@ function formatScope(scope: string | undefined, t: DashboardTranslator): string 
   return scope || '';
 }
 
-const SubagentTreeNode = ({ node, chatId }: TreeNodeProps) => {
+const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
   const t = useTranslations('subagentDashboard');
   const [expanded, setExpanded] = useState(true);
   const [steerMessage, setSteerMessage] = useState('');
@@ -166,8 +167,25 @@ const SubagentTreeNode = ({ node, chatId }: TreeNodeProps) => {
   }, [chatId, node.task_id, t]);
 
   const isRunning = node.status === 'running';
-  const isCheckpoint = node.status === 'checkpoint' || node.status === 'interrupted';
+  const isCheckpoint = node.status === 'checkpoint';
+  const isInterrupted = node.status === 'interrupted';
   const hasChildren = !!node.children?.length;
+
+  const handleJumpToApproval = useCallback(() => {
+    // Find the approval card in the DOM by task_id or just scroll to the bottom where the latest card usually is
+    // The approval card ID format is usually `approval-card-${approval_id}`.
+    // Since we don't have approval_id here, we can dispatch a custom event or find by data attribute
+    const card = document.querySelector(`[data-subagent-task-id="${node.task_id}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add a brief highlight effect
+      card.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'transition-all', 'duration-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2000);
+      setOpen(false); // Close dashboard
+    } else {
+      toast.error(t('approvalCardNotFound'));
+    }
+  }, [node.task_id, setOpen, t]);
 
   return (
     <div className="flex flex-col gap-2 my-2 ml-4 border-l pl-2 border-gray-200 dark:border-gray-800">
@@ -202,6 +220,11 @@ const SubagentTreeNode = ({ node, chatId }: TreeNodeProps) => {
               {node.control_scope && (
                 <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] leading-none dark:border-gray-700">
                   {formatScope(node.control_scope, t)}
+                </span>
+              )}
+              {node.budget?.cost_usd !== undefined && (
+                <span className="rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800">
+                  ${Number(node.budget.cost_usd).toFixed(3)}
                 </span>
               )}
               <span className="truncate">{node.last_tool || t('processing')}</span>
@@ -248,6 +271,16 @@ const SubagentTreeNode = ({ node, chatId }: TreeNodeProps) => {
               title={t('resumeTitle')}
             >
               <PlayCircle className="w-4 h-4" />
+            </Button>
+          )}
+          {isInterrupted && (
+            <Button
+              variant="default"
+              size="sm"
+              className="h-7 text-xs px-2 bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={handleJumpToApproval}
+            >
+              {t('reviewAction')}
             </Button>
           )}
         </div>
@@ -330,7 +363,7 @@ const SubagentTreeNode = ({ node, chatId }: TreeNodeProps) => {
       {expanded && hasChildren && (
         <div className="flex flex-col">
           {node.children!.map((child) => (
-            <SubagentTreeNode key={child.task_id} node={child} chatId={chatId} />
+            <SubagentTreeNode key={child.task_id} node={child} chatId={chatId} setOpen={setOpen} />
           ))}
         </div>
       )}
@@ -498,7 +531,7 @@ export const SubagentDashboard = () => {
               </div>
             )}
             {treeNodes.map((node) => (
-              <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} />
+              <SubagentTreeNode key={node.task_id} node={node} chatId={chatId || ''} setOpen={setOpen} />
             ))}
           </div>
         </ScrollArea>

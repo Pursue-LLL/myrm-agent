@@ -69,7 +69,8 @@ export type ConfigKey =
   | 'googlechatCredentials'
   | 'budget_policy'
   | 'backupSync'
-  | 'proxySettings';
+  | 'proxySettings'
+  | 'securityDashboardSettings';
 
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
@@ -99,6 +100,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'budget_policy',
   'backupSync',
   'proxySettings',
+  'securityDashboardSettings',
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
@@ -414,6 +416,10 @@ export interface ProxySettingsConfigValue {
   auth: ProxyAuthMode;
 }
 
+export interface SecurityDashboardSettingsConfigValue {
+  monitoredGithubRepos: string[];
+}
+
 /**
  * 配置键到值类型的映射
  */
@@ -444,6 +450,7 @@ export interface ConfigValueMap {
   budget_policy: BudgetPolicyConfigValue;
   backupSync: BackupSyncConfigValue;
   proxySettings: ProxySettingsConfigValue;
+  securityDashboardSettings: SecurityDashboardSettingsConfigValue;
 }
 
 /**

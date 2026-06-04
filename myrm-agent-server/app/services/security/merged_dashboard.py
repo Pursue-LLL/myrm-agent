@@ -1,4 +1,14 @@
-"""Build the security dashboard (control-plane alerts + optional GitHub supplement)."""
+"""Build the security dashboard (control-plane alerts + optional GitHub supplement).
+
+[INPUT]
+- app.services.security.cp_security_dashboard (CP payload)
+- app.services.security.github_supplement (PR/SBOM)
+- app.services.security.dashboard_settings (monitored repos)
+
+[OUTPUT] build_security_dashboard / build_setup_hints
+
+[POS] SaaS 合并轴；`data_source=merged` 仅在有 GitHub 补充内容时设置（P-A）。
+"""
 
 from __future__ import annotations
 
@@ -8,6 +18,7 @@ import httpx
 from fastapi import HTTPException
 
 from app.api.security.dashboard_models import (
+    DependabotPR,
     SecurityAlert,
     SecurityDashboard,
     SecurityMetrics,
@@ -20,7 +31,11 @@ from app.services.security.cp_security_dashboard import (
     fetch_cp_webhook_tenant_id,
     map_cp_dashboard,
 )
-from app.services.security.github_supplement import fetch_github_supplement, repos_from_cp_payload
+from app.services.security.dashboard_settings import load_monitored_github_repos
+from app.services.security.github_supplement import (
+    fetch_github_supplement,
+    resolve_github_repos,
+)
 from app.services.security.github_full import build_github_dashboard
 
 logger = logging.getLogger(__name__)
@@ -33,12 +48,25 @@ def _github_token() -> str | None:
     return raw or None
 
 
+def _has_github_supplement(
+    recent_prs: list[DependabotPR],
+    pr_metrics: SecurityMetrics,
+    sbom_available: bool,
+) -> bool:
+    return bool(recent_prs) or pr_metrics.open_dependabot_prs > 0 or sbom_available
+
+
 async def _merge_cp_with_github(
     cp_dashboard: SecurityDashboard,
     cp_payload: dict[str, object],
     token: str | None,
+    monitored_repos: list[str],
 ) -> SecurityDashboard:
-    repos = repos_from_cp_payload(cp_payload, fallback_default=False)
+    repos = resolve_github_repos(
+        cp_payload,
+        monitored_repos=monitored_repos,
+        fallback_default=False,
+    )
     recent_prs, pr_metrics, sbom_available = await fetch_github_supplement(repos, token)
 
     metrics = SecurityMetrics(
@@ -50,12 +78,13 @@ async def _merge_cp_with_github(
         open_dependabot_prs=pr_metrics.open_dependabot_prs,
         security_prs=pr_metrics.security_prs,
     )
+    data_source = "merged" if _has_github_supplement(recent_prs, pr_metrics, sbom_available) else "control_plane"
     return SecurityDashboard(
         metrics=metrics,
         recent_alerts=cp_dashboard.recent_alerts,
         recent_prs=recent_prs,
         sbom_available=sbom_available,
-        data_source="merged",
+        data_source=data_source,
     )
 
 
@@ -63,11 +92,12 @@ async def build_security_dashboard() -> SecurityDashboard:
     """Resolve dashboard for local (GitHub) or sandbox (CP + GitHub supplement)."""
     cp_payload = await fetch_cp_security_payload()
     token = _github_token()
+    monitored_repos = await load_monitored_github_repos()
 
     if cp_payload is not None:
         cp_dashboard = map_cp_dashboard(cp_payload)
         if token:
-            return await _merge_cp_with_github(cp_dashboard, cp_payload, token)
+            return await _merge_cp_with_github(cp_dashboard, cp_payload, token, monitored_repos)
         return SecurityDashboard(
             metrics=cp_dashboard.metrics,
             recent_alerts=cp_dashboard.recent_alerts,
@@ -76,8 +106,9 @@ async def build_security_dashboard() -> SecurityDashboard:
             data_source="control_plane",
         )
 
+    primary_repo = monitored_repos[0] if monitored_repos else _DEFAULT_REPO
     try:
-        return await build_github_dashboard(_DEFAULT_REPO, token)
+        return await build_github_dashboard(primary_repo, token)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=exc.response.status_code,

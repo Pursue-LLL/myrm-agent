@@ -1,6 +1,7 @@
 'use client';
 
 import type { VisualApprovalContext } from '@/lib/approval/visualApprovalContext';
+import { mapScreenSpaceBBoxToImageSpace } from '@/lib/approval/visualApprovalContext';
 
 interface VisualApprovalHighlightProps {
   visualContext: VisualApprovalContext;
@@ -13,10 +14,25 @@ export default function VisualApprovalHighlight({
   maxHeight = 300,
   className,
 }: VisualApprovalHighlightProps) {
-  const leftPercent = (visualContext.bbox.x / visualContext.viewportWidth) * 100;
-  const topPercent = (visualContext.bbox.y / visualContext.viewportHeight) * 100;
-  const widthPercent = (visualContext.bbox.width / visualContext.viewportWidth) * 100;
-  const heightPercent = (visualContext.bbox.height / visualContext.viewportHeight) * 100;
+  const displayBBox =
+    visualContext.highlightKind === 'ref' &&
+    visualContext.screenWidth &&
+    visualContext.screenHeight &&
+    visualContext.screenWidth > 0 &&
+    visualContext.screenHeight > 0
+      ? mapScreenSpaceBBoxToImageSpace(
+          visualContext.bbox,
+          visualContext.screenWidth,
+          visualContext.screenHeight,
+          visualContext.viewportWidth,
+          visualContext.viewportHeight,
+        )
+      : visualContext.bbox;
+
+  const leftPercent = (displayBBox.x / visualContext.viewportWidth) * 100;
+  const topPercent = (displayBBox.y / visualContext.viewportHeight) * 100;
+  const widthPercent = (displayBBox.width / visualContext.viewportWidth) * 100;
+  const heightPercent = (displayBBox.height / visualContext.viewportHeight) * 100;
 
   return (
     <div

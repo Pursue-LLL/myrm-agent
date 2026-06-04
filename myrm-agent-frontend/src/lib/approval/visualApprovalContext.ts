@@ -13,6 +13,9 @@ export interface VisualApprovalContext {
   bbox: VisualApprovalBBox;
   viewportWidth: number;
   viewportHeight: number;
+  screenWidth?: number;
+  screenHeight?: number;
+  dpiScale?: number;
   targetLabel?: string;
   highlightKind: 'ref' | 'coordinate';
 }
@@ -23,11 +26,32 @@ export interface InspectorViewSnapshot {
   refs: Record<string, BrowserRefInfo>;
   viewportWidth: number;
   viewportHeight: number;
+  screenWidth?: number;
+  screenHeight?: number;
+  dpiScale?: number;
   updatedAt?: number;
   needsPermission?: boolean;
 }
 
 const COORDINATE_HIGHLIGHT_SIZE = 48;
+
+export function mapScreenSpaceBBoxToImageSpace(
+  bbox: VisualApprovalBBox,
+  screenWidth: number,
+  screenHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+): VisualApprovalBBox {
+  const scaleX = viewportWidth / screenWidth;
+  const scaleY = viewportHeight / screenHeight;
+
+  return {
+    x: bbox.x * scaleX,
+    y: bbox.y * scaleY,
+    width: bbox.width * scaleX,
+    height: bbox.height * scaleY,
+  };
+}
 
 export function isVisualApprovalToolName(toolName: string): boolean {
   return toolName.startsWith('desktop_') || toolName.startsWith('browser_');
@@ -71,6 +95,9 @@ function bboxFromRef(
     },
     viewportWidth: viewData.viewportWidth,
     viewportHeight: viewData.viewportHeight,
+    screenWidth: viewData.screenWidth,
+    screenHeight: viewData.screenHeight,
+    dpiScale: viewData.dpiScale,
     targetLabel: refStr,
     highlightKind: 'ref',
   };
@@ -96,6 +123,9 @@ function bboxFromCoordinate(
     },
     viewportWidth: viewData.viewportWidth,
     viewportHeight: viewData.viewportHeight,
+    screenWidth: viewData.screenWidth,
+    screenHeight: viewData.screenHeight,
+    dpiScale: viewData.dpiScale,
     targetLabel: `(${cx}, ${cy})`,
     highlightKind: 'coordinate',
   };

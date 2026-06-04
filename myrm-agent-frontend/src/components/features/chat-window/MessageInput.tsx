@@ -16,6 +16,7 @@ import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
 import SearchModeSelector from '../message-input-actions/SearchModeSelector';
 import DeepSearchToggle from '../message-input-actions/DeepSearchToggle';
+import WorkflowModeToggle from '../message-input-actions/WorkflowModeToggle';
 import BaseModelSelector from '../message-input-actions/BaseModelSelector';
 import ContextUsageIndicator from '../message-box/ContextUsageIndicator';
 import BudgetBadge from './BudgetBadge';
@@ -360,6 +361,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   </button>
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                   <DeepSearchToggle />
+                  <WorkflowModeToggle />
                   <IncognitoModeToggle />
                   <AgentIndicator />
                 </div>
@@ -367,6 +369,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                 <div className="hidden sm:flex flex-row items-center gap-2">
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                   <DeepSearchToggle />
+                  <WorkflowModeToggle />
                   <BaseModelSelector />
                   <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
                   <GoalModeToggle />

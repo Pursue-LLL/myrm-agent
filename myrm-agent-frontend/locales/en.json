@@ -4911,7 +4911,10 @@
     "hint": "Choose the mode based on task complexity",
     "deepSearchLabel": "Deep",
     "deepSearchTitle": "Deep Search",
-    "deepSearchDescription": "Reads full web pages for accurate, detailed answers. Takes a bit longer but delivers higher quality results."
+    "deepSearchDescription": "Reads full web pages for accurate, detailed answers. Takes a bit longer but delivers higher quality results.",
+    "workflowModeLabel": "Workflow",
+    "workflowModeTitle": "Dynamic Workflow Mode",
+    "workflowModeDescription": "Launch background multi-agent concurrent engine, designed for massive complex tasks like full codebase refactoring. Note: High Token consumption."
   },
   "thinkingIntensity": {
     "title": "Thinking Intensity",
@@ -10774,7 +10777,26 @@
     "auditRequestCount": "{count} requests",
     "auditEventDistribution": "Event distribution",
     "auditExportCsv": "Export CSV",
-    "auditExportJson": "Export JSON"
+    "auditExportJson": "Export JSON",
+    "monitoredReposTitle": "Monitored GitHub repositories",
+    "monitoredReposHint": "Up to 3 owner/repo slugs (e.g. my-org/my-app). Used for Dependabot PRs when control plane has no alert repos yet.",
+    "monitoredReposPlaceholder": "owner/repo",
+    "monitoredReposAdd": "Add repository",
+    "monitoredReposSave": "Save repositories",
+    "monitoredReposSaved": "Saved",
+    "rateLimitColUser": "User ID",
+    "rateLimitColResource": "Resource",
+    "rateLimitColCurrent": "Current",
+    "rateLimitColMax": "Max",
+    "rateLimitColRemaining": "Remaining",
+    "rateLimitColWindow": "Window",
+    "rateLimitColUsage": "Usage",
+    "rateLimitMinutes": "min",
+    "auditFieldUser": "User",
+    "auditFieldIp": "IP",
+    "auditFieldAction": "Action",
+    "auditFieldResult": "Result",
+    "auditFieldMetadata": "Metadata"
   },
   "project": {
     "all": "All",

@@ -50,6 +50,27 @@ def repos_from_cp_payload(
     return ordered[:_MAX_REPOS]
 
 
+def resolve_github_repos(
+    payload: dict[str, object],
+    *,
+    monitored_repos: list[str] | None = None,
+    fallback_default: bool = True,
+) -> list[str]:
+    """Prefer CP-derived repos, then user-configured repos, then optional default."""
+    from_cp = repos_from_cp_payload(payload, fallback_default=False)
+    if from_cp:
+        return from_cp[:_MAX_REPOS]
+
+    if monitored_repos:
+        cleaned = [repo.strip() for repo in monitored_repos if repo.strip()]
+        if cleaned:
+            return cleaned[:_MAX_REPOS]
+
+    if fallback_default:
+        return [_DEFAULT_REPO]
+    return []
+
+
 def _parse_github_obj(raw: object) -> dict[str, object]:
     if not isinstance(raw, dict):
         return {}

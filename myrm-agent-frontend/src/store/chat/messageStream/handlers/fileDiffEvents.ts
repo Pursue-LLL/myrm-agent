@@ -150,6 +150,9 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       needsPermission: data.data.needs_permission,
       viewportWidth: data.data.viewport_width,
       viewportHeight: data.data.viewport_height,
+      screenWidth: data.data.screen_width,
+      screenHeight: data.data.screen_height,
+      dpiScale: data.data.dpi_scale,
       updatedAt: Date.now(),
     });
     return done(ctx);

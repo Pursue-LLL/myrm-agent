@@ -8,10 +8,10 @@
 
 | 文件 | 职责 |
 | ---- | ---- |
-| `visualApprovalContext.ts` | 从 inspector snapshot + toolInput 解析 BBox 高亮上下文 |
+| `visualApprovalContext.ts` | 从 inspector snapshot + toolInput 解析 BBox 高亮上下文；`mapScreenSpaceBBoxToImageSpace` 供 inline 红框 |
 | `visualApprovalSurface.ts` | inline（聊天内嵌）vs modal（对话框）表面分区；batch 同 surface |
 | `visualApprovalRenderState.ts` | loading / ready / unavailable 渲染态解析 |
-| `visualApprovalOsOverlay.ts` | Tauri OS overlay IPC payload + show/hide bridge |
+| `visualApprovalOsOverlay.ts` | Tauri OS overlay IPC payload + show/hide bridge（screen/image 双坐标模式） |
 | `resolveDesktopOverlayTarget.ts` | 最早过期 desktop ready 态 + AttentionBar 主 request 共用选择 |
 | `approvalBulkGroups.ts` | bulk approve/reject 的分组（batchId / messageId） |
 | `approvalDecision.ts` | resume decision payload 构建 |
@@ -19,7 +19,7 @@
 
 ## 依赖
 
-- `@/store/useDesktopInspectorStore`、`@/store/useBrowserInspectorStore`：截图与 ref
+- `@/store/useDesktopInspectorStore`：截图与 ref（含 `screenWidth/screenHeight/dpiScale`）
 - `@/hooks/useToolApprovalResolve`：React hook，编排单条与 bulk 决策
 - `@/hooks/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot`
 - `@/hooks/useVisualApprovalOsOverlay`：Tauri 原生 OS 红框 overlay 生命周期

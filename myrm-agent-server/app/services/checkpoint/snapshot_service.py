@@ -28,9 +28,6 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if not session_id:
             return
             
-        # In a real implementation, we would extract turn_id, chat_id, agent_id from the session context.
-        # For now, we use a simplified turn_id extraction or fallback to session_id.
-        # This requires integration with the Agent loop context.
         from app.ai_agents.general_agent.context import get_current_turn_id, get_current_chat_id, get_current_agent_id
         
         turn_id = get_current_turn_id() or "unknown_turn"
@@ -43,6 +40,24 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if self._snapshotted_turns.get(cache_key):
             return
             
+        # Create a background task for the snapshot process
+        # We use asyncio.shield to ensure the git operations are not cancelled
+        # even if the outer wait_for times out, preventing .git/index.lock corruption
+        snapshot_task = asyncio.create_task(
+            self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key)
+        )
+        
+        try:
+            # We still wait for it, but if it takes too long, we let the main execution proceed
+            # while the snapshot finishes safely in the background
+            await asyncio.wait_for(asyncio.shield(snapshot_task), timeout=3.0)
+        except asyncio.TimeoutError:
+            logger.warning(f"Snapshot creation for {workspace_path} exceeded 3s timeout, continuing in background")
+        except Exception as e:
+            logger.warning(f"Snapshot creation error: {e}")
+
+    async def _safe_snapshot_with_lock(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str, cache_key: tuple[str, str]) -> None:
+        """Acquire lock and perform snapshot safely."""
         lock = _get_workspace_lock(workspace_path)
         async with lock:
             # Double check after acquiring lock
@@ -50,14 +65,13 @@ class SnapshotInterceptor(ExecutionInterceptor):
                 return
                 
             try:
+                # Emit WebSocket event for UI immediately when we start
+                await self._emit_snapshot_event(chat_id, action_type)
+                
                 await self._create_snapshot(workspace_path, action_type, chat_id, agent_id, turn_id)
                 self._snapshotted_turns[cache_key] = True
-                
-                # Emit WebSocket event for UI
-                await self._emit_snapshot_event(chat_id, action_type)
             except Exception as e:
                 logger.error(f"Failed to create snapshot for {workspace_path}: {e}")
-                # We don't raise here to avoid blocking the main execution flow
 
     async def _create_snapshot(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str) -> None:
         """Create a Git commit in the shadow repository."""
@@ -118,6 +132,21 @@ class SnapshotInterceptor(ExecutionInterceptor):
 
     async def _emit_snapshot_event(self, chat_id: str, action_type: str) -> None:
         """Emit a WebSocket event to the frontend to show the Snapshotting UI indicator."""
-        # For now, we log it. In a full implementation, we would broadcast this via the WebSocket hub
-        # to the specific chat_id so the frontend can display a shield/camera icon.
-        logger.info(f"SNAPSHOT_EVENT: chat_id={chat_id}, action={action_type}, message='Creating snapshot backup'")
+        try:
+            from app.services.chat.chat_event_publisher import ChatEventPublisher
+            from app.database.models.chat import ChatEventKind
+            
+            # Using SYSTEM_NOTIFICATION which is already supported by the frontend
+            await ChatEventPublisher.publish(
+                chat_id=chat_id,
+                kind=ChatEventKind.SYSTEM_NOTIFICATION,
+                data={
+                    "type": "snapshot_created", 
+                    "action": action_type, 
+                    "message": "Creating snapshot backup",
+                    "level": "info"
+                }
+            )
+            logger.info(f"SNAPSHOT_EVENT emitted for chat_id={chat_id}")
+        except Exception as e:
+            logger.debug(f"Failed to emit snapshot event: {e}")

@@ -24,6 +24,7 @@ from app.api.security.dashboard_models import (
 )
 from app.config.settings import settings as _settings
 from app.services.security.cp_rate_limit import fetch_cp_rate_limits
+from app.services.security.dashboard_settings import load_monitored_github_repos
 from app.services.security.github_supplement import fetch_dependabot_prs_for_repo
 from app.services.security.merged_dashboard import build_security_dashboard, build_setup_hints
 from app.services.security.platform_audit import (
@@ -100,7 +101,9 @@ async def export_platform_audit(
 async def get_dependabot_prs() -> list[DependabotPR]:
     try:
         token = GITHUB_TOKEN.strip() or None
-        return await fetch_dependabot_prs_for_repo(DEFAULT_REPO, token)
+        monitored = await load_monitored_github_repos()
+        repo = monitored[0] if monitored else DEFAULT_REPO
+        return await fetch_dependabot_prs_for_repo(repo, token)
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=exc.response.status_code,

@@ -90,14 +90,65 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           <div className="space-y-4">
             <h4 className="font-medium text-sm text-muted-foreground">{t('subagentApprovalRequired')}</h4>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {toolCalls.map((call, idx: number) => (
-                <div key={idx} className="rounded-lg border p-4 bg-muted/50">
-                  <div className="font-medium font-mono text-sm mb-2 text-primary">{call.name}</div>
-                  <pre className="text-xs overflow-x-auto text-muted-foreground">
-                    {JSON.stringify(call.args, null, 2)}
-                  </pre>
-                </div>
-              ))}
+              {toolCalls.map((call, idx: number) => {
+                // Special rendering for file_write tool to show DiffEditor
+                if (call.name === 'file_write' && typeof call.args === 'object' && call.args !== null) {
+                  const args = call.args as Record<string, any>;
+                  const content = args.content || args.file_content || args.text || '';
+                  // We don't have original content here easily, but we can show the new content in a nice editor
+                  // If we had original_content in args we could use DiffEditor. For now, just show the new content nicely.
+                  return (
+                    <div key={idx} className="rounded-lg border overflow-hidden">
+                      <div className="bg-muted px-3 py-2 border-b font-mono text-xs text-primary flex items-center justify-between">
+                        <span>{call.name}</span>
+                        <span className="text-muted-foreground truncate ml-2 max-w-[200px]">{args.path || args.file_path || ''}</span>
+                      </div>
+                      <div className="h-[300px]">
+                        <Editor
+                          height="100%"
+                          language="markdown" // Fallback language
+                          theme={isDark ? 'vs-dark' : 'light'}
+                          value={String(content)}
+                          options={{
+                            readOnly: true,
+                            minimap: { enabled: false },
+                            wordWrap: 'on',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // Special rendering for shell/execute commands
+                if ((call.name === 'shell' || call.name === 'execute_command' || call.name === 'run_script') && typeof call.args === 'object' && call.args !== null) {
+                  const args = call.args as Record<string, any>;
+                  const command = args.command || args.script || args.cmd || '';
+                  return (
+                    <div key={idx} className="rounded-lg border overflow-hidden bg-[#1e1e1e]">
+                      <div className="bg-[#2d2d2d] px-3 py-1.5 border-b border-[#404040] font-mono text-xs text-gray-300 flex items-center">
+                        <span className="text-green-400 mr-2">$</span>
+                        <span>{call.name}</span>
+                      </div>
+                      <div className="p-3 overflow-x-auto">
+                        <pre className="font-mono text-sm text-gray-100 whitespace-pre-wrap break-all">
+                          {String(command)}
+                        </pre>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback for other tools
+                return (
+                  <div key={idx} className="rounded-lg border p-4 bg-muted/50">
+                    <div className="font-medium font-mono text-sm mb-2 text-primary">{call.name}</div>
+                    <pre className="text-xs overflow-x-auto text-muted-foreground whitespace-pre-wrap break-all">
+                      {JSON.stringify(call.args, null, 2)}
+                    </pre>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
@@ -199,7 +250,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const hasMeta = Boolean(approval.chat_id) || Boolean(approval.expires_at);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-subagent-task-id={approval.payload?.subagent_task_id || approval.subagent_task_id}>
       {hasMeta && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
           <div className="flex items-center gap-2 min-w-0">

@@ -33,4 +33,27 @@ describe('VisualApprovalHighlight', () => {
       height: `${(32 / 1080) * 100}%`,
     });
   });
+
+  it('maps screen-space desktop bbox into sent-image space for overlay percentages', () => {
+    render(
+      <VisualApprovalHighlight
+        visualContext={{
+          ...visualContext,
+          bbox: { x: 500, y: 300, width: 40, height: 30 },
+          viewportWidth: 1280,
+          viewportHeight: 800,
+          screenWidth: 1440,
+          screenHeight: 900,
+        }}
+      />,
+    );
+
+    const bbox = screen.getByTestId('visual-approval-bbox');
+    const expectedX = (500 * (1280 / 1440)) / 1280 * 100;
+    const expectedY = (300 * (800 / 900)) / 800 * 100;
+    expect(bbox).toHaveStyle({
+      left: `${expectedX}%`,
+      top: `${expectedY}%`,
+    });
+  });
 });

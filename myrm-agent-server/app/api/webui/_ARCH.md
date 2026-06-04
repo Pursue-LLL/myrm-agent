@@ -42,7 +42,7 @@ webui_router 直接挂在 FastAPI `app` 根路由上（`main.py`），不在 `ap
 | `/webui/qrcode.png` | GET | 生成 WebUI 访问二维码。 |
 | `/webui/welcome` | GET | 生成欢迎页，展示访问地址和二维码。 |
 | `/webui/browser/snapshot` | GET | 获取当前浏览器截图 + ARIA refs + BBox 数据，供 Browser Inspector 使用。 |
-| `/webui/desktop/snapshot` | GET | 获取当前桌面截图 + AX @dref refs + BBox 数据，供 Desktop Inspector 使用。 |
+| `/webui/desktop/snapshot` | GET | 获取当前桌面截图 + AX @dref refs + BBox + `screen_width/height/dpi_scale`，供 Desktop Inspector 与 Tauri OS overlay 使用。 |
 
 ---
 

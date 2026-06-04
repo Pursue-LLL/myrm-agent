@@ -48,6 +48,7 @@ ConfigKey = Literal[
     "local_file_search_records",
     "backupSync",
     "proxySettings",
+    "securityDashboardSettings",
 ]
 
 # ============================================================================
@@ -223,10 +224,21 @@ class ProxySettingsConfigValue(BaseModel):
     auth: ProxyAuthMode = Field(default_factory=ProxyAuthMode, description="Authentication mode")
 
 
+class SecurityDashboardSettingsConfigValue(BaseModel):
+    """GitHub repos monitored on the Security Center dashboard (Dependabot PR supplement)."""
+
+    monitoredGithubRepos: list[str] = Field(
+        default_factory=list,
+        max_length=3,
+        description="Up to 3 GitHub owner/repo slugs (e.g. org/app)",
+    )
+
+
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
     "proxySettings": ProxySettingsConfigValue,
+    "securityDashboardSettings": SecurityDashboardSettingsConfigValue,
 }
 
 # ============================================================================

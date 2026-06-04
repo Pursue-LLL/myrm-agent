@@ -124,3 +124,45 @@ async def test_sandbox_cp_empty_alerts_stays_control_plane_not_default_repo() ->
     mock_github.assert_not_called()
     assert result.data_source == "control_plane"
     assert result.recent_alerts == []
+
+
+@pytest.mark.asyncio
+async def test_merge_stays_control_plane_when_github_supplement_empty() -> None:
+    cp_payload = {
+        "tenant_id": "user-42",
+        "metrics": {"open_alerts": 1, "critical_count": 0, "high_count": 1},
+        "recent_alerts": [{"id": 1, "severity": "high", "title": "x", "state": "open"}],
+        "top_vulnerable_repos": [],
+    }
+    empty_pr_metrics = SecurityMetrics(
+        total_alerts=0,
+        critical_count=0,
+        high_count=0,
+        medium_count=0,
+        low_count=0,
+        open_dependabot_prs=0,
+        security_prs=0,
+    )
+
+    with (
+        patch(
+            "app.services.security.merged_dashboard.fetch_cp_security_payload",
+            AsyncMock(return_value=cp_payload),
+        ),
+        patch(
+            "app.services.security.merged_dashboard._github_token",
+            return_value="gh-test",
+        ),
+        patch(
+            "app.services.security.merged_dashboard.load_monitored_github_repos",
+            AsyncMock(return_value=["my-org/my-app"]),
+        ),
+        patch(
+            "app.services.security.merged_dashboard.fetch_github_supplement",
+            AsyncMock(return_value=([], empty_pr_metrics, False)),
+        ),
+    ):
+        result = await build_security_dashboard()
+
+    assert result.data_source == "control_plane"
+    assert result.recent_prs == []

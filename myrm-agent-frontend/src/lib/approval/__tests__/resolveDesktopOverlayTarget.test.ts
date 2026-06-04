@@ -28,8 +28,10 @@ const viewData = {
       bbox: { x: 10, y: 20, width: 30, height: 40, viewport_x: 10, viewport_y: 20 },
     },
   },
-  viewportWidth: 1920,
-  viewportHeight: 1080,
+  viewportWidth: 1280,
+  viewportHeight: 800,
+  screenWidth: 1440,
+  screenHeight: 900,
 };
 
 describe('resolveDesktopOverlayTarget', () => {
@@ -67,10 +69,30 @@ describe('resolveDesktopOverlayTarget', () => {
       y: 20,
       width: 30,
       height: 40,
-      viewportWidth: 1920,
-      viewportHeight: 1080,
+      viewportWidth: 1280,
+      viewportHeight: 800,
+      coordinateMode: 'screen',
+      screenWidth: 1440,
+      screenHeight: 900,
       label: 'd1',
     });
+  });
+
+  it('returns null when screen metadata is missing for ref highlights', () => {
+    const target = resolveDesktopOverlayTarget({
+      inlineRequests: [baseRequest],
+      desktopViewData: {
+        ...viewData,
+        screenWidth: undefined,
+        screenHeight: undefined,
+      },
+      browserViewData: null,
+      desktopLoading: false,
+      browserLoading: false,
+      snapshotFetchFailed: false,
+    });
+
+    expect(target).toBeNull();
   });
 
   it('returns null while desktop snapshot is still loading', () => {
