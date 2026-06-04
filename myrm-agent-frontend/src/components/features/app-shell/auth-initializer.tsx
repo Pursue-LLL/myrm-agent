@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import useAuthStore from '@/store/useAuthStore';
 import AuthCallback from './auth-callback';
 import { isTauriRuntime, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
@@ -91,7 +92,16 @@ async function handleTauriRemoteSetup(): Promise<void> {
   }
 }
 
+function isDedicatedAuthRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname.startsWith('/auth/oauth/callback')
+    || pathname.startsWith('/auth/mcp-callback')
+  );
+}
+
 export default function AuthInitializer() {
+  const pathname = usePathname();
   const { isInitialized, initAuth, initTauriLocalUser } = useAuthStore();
   const localMode = isLocalMode();
   const interceptorInstalledRef = useRef(false);
@@ -121,7 +131,7 @@ export default function AuthInitializer() {
     };
   }, []);
 
-  if (localMode) {
+  if (localMode || isDedicatedAuthRoute(pathname)) {
     return null;
   }
 
