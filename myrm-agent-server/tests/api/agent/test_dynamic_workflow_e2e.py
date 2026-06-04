@@ -25,6 +25,9 @@ def test_dynamic_workflow_e2e(client: TestClient):
     }
     
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
+        if response.status_code != 200:
+            response.read()
+            print(f"Error: {response.text}")
         assert response.status_code == 200
         
         collected_data = []

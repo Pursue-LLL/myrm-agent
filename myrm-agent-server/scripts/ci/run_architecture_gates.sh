@@ -44,8 +44,13 @@ _fail_no_harness_source() {
 
 _install_deps() {
   if _resolve_harness_root >/dev/null; then
-    echo "Architecture gates: full install (local harness tree found)"
-    uv sync --all-extras --group dev
+    echo "Architecture gates: dev install (local harness tree found)"
+    # Architecture tests do not need matrix-e2ee / data-viz native wheels; skip --all-extras.
+    if [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
+      echo "Architecture gates: reusing existing .venv"
+      return 0
+    fi
+    uv sync --group dev
     return 0
   fi
   if _harness_on_pypi; then
@@ -60,7 +65,12 @@ _install_deps() {
 }
 
 _run_pytest() {
-  uv run pytest tests/architecture/ -m architecture -v --tb=short
+  local pytest_args=(tests/architecture/ -m architecture -v --tb=short -n0)
+  if [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
+    "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"
+  else
+    uv run pytest "${pytest_args[@]}"
+  fi
 }
 
 _install_deps

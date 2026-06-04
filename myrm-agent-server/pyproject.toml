@@ -78,7 +78,6 @@ data-viz = [
 # index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 # Limit lock splits while harness==0.1.0rc1 is not on PyPI for all markers; refresh win32 via ./myrm harness sync-lock after publish.
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
-# Harness 仅从 PyPI 安装（见 uv.lock）。monorepo 联调 lock 使用 editable ../../myrm-agent-harness。
 override-dependencies = [
   "click>=8.4.1",
   "patchright>=1.60.0",
@@ -87,6 +86,10 @@ override-dependencies = [
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
 ]
+
+# Monorepo: editable harness beside open-perplexity root. OSS-only clone uses PyPI pins in uv.lock (--frozen).
+[tool.uv.sources]
+myrm-agent-harness = { path = "../../myrm-agent-harness", editable = true }
 
 [dependency-groups]
 dev = [
