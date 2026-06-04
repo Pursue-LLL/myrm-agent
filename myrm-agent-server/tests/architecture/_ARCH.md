@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin。
+Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪 markdown 链到私有开发壳 `temp-docs/`。
 
 ## 文件清单
 
