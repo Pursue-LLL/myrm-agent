@@ -339,7 +339,7 @@ def collect_deploy_files(
                 for part in relative.parts[:-1]
             ):
                 continue
-            entry_name = _normalize_entry_name(file_path, obj_path)
+            entry_name = _normalize_entry_name(file_path.resolve(), root)
             deploy_file, total_bytes = _read_file_entry(file_path, entry_name, total_bytes)
             files[entry_name] = deploy_file
         if not files:

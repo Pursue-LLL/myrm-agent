@@ -406,6 +406,36 @@ class TestBuildMultimodalRealExtraction:
         assert "spec.docx" in result
 
     @pytest.mark.asyncio
+    async def test_extract_enabled_empty_pdf_falls_back_to_reference(self) -> None:
+        from tests.services.files.test_content_extraction import _MINIMAL_PDF
+
+        runner = KanbanTaskRunner(AsyncMock())
+        task = KanbanTask(task_id="t1", board_id="b1", title="T")
+
+        mock_file = MagicMock(content_type="application/pdf", filename="empty.pdf")
+        mock_fs = MagicMock()
+        mock_fs.get_file = AsyncMock(return_value=mock_file)
+        mock_fs.get_file_content = AsyncMock(return_value=_MINIMAL_PDF)
+
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
+        with (
+            patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
+            patch("app.core.storage.files_service", mock_fs),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
+        ):
+            result = await runner._build_multimodal_query(task, "ctx")
+
+        assert isinstance(result, str)
+        assert "[Attachment: empty.pdf]" in result
+        assert "## Attachment:" not in result
+
+    @pytest.mark.asyncio
     async def test_extract_disabled_pdf_reference_only(self) -> None:
         runner = KanbanTaskRunner(AsyncMock())
         task = KanbanTask(task_id="t1", board_id="b1", title="T")

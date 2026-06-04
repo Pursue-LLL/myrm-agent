@@ -12,10 +12,12 @@ tools, memory, security).
 - app.services.agent.profile_resolver::AgentProfileResolver (POS: Agent profile resolution.)
 - app.ai_agents.agents::AgentFactory, GeneralAgentParams (POS: Agent creation.)
 - app.core.storage::files_service (POS: File storage for attachment content resolution.)
+- app.services.files.attachment_settings::should_extract_document_text (POS: extractDocumentText personal setting.)
+- app.services.files.content_extraction (POS: PDF/Office bytes-to-text for attachments.)
 
 [OUTPUT]
 - KanbanTaskRunner: Concrete TaskRunner implementation.
-- _build_multimodal_query: Transforms task attachments into multimodal LLM input (image_url / text extraction).
+- _build_multimodal_query: Multimodal LLM input (image_url; PDF/Office text or [Attachment: name] fallback).
 
 [POS]
 Server-layer TaskRunner that executes kanban tasks through the agent pipeline.
@@ -359,6 +361,10 @@ class KanbanTaskRunner:
                             extra_text_parts.append(
                                 f"\n## Attachment: {file_info.filename}\n{extracted}"
                             )
+                        else:
+                            extra_text_parts.append(
+                                f"\n[Attachment: {file_info.filename}]"
+                            )
                     else:
                         extra_text_parts.append(
                             f"\n[Attachment: {file_info.filename}]"
@@ -369,6 +375,10 @@ class KanbanTaskRunner:
                         if extracted:
                             extra_text_parts.append(
                                 f"\n## Attachment: {file_info.filename}\n{extracted}"
+                            )
+                        else:
+                            extra_text_parts.append(
+                                f"\n[Attachment: {file_info.filename}]"
                             )
                     else:
                         extra_text_parts.append(

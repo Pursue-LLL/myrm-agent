@@ -71,7 +71,6 @@ class TestHasDocumentAttachment:
 
 class TestEnrichDocumentInbound:
     @pytest.mark.asyncio
-    @pytest.mark.asyncio
     async def test_zip_reference_when_not_extractable(self) -> None:
         msg = _make_msg(
             media=(

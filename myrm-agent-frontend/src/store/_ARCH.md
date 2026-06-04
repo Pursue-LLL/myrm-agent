@@ -26,5 +26,5 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 
 ## 约束
 
-- 新域优先新增 `useFooStore.ts` 或 `foo/` 子目录，避免继续膨胀 `chat/types.ts`。
+- 新域优先新增 `useFooStore.ts` 或 `foo/` 子目录；聊天类型见 `chat/types/`（`types.ts` 仅 barrel）。
 - SaaS 专用状态须与 `resolveCpBaseUrl()` / sandbox 构建标志显式分支，避免污染本地单机路径。
