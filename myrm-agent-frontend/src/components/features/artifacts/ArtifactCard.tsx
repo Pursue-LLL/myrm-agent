@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Play } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { getStorageUrl } from '@/lib/api';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import { getArtifactIcon, formatBytes, getDownloadFilename } from './artifactUtils';
+import { getArtifactIcon, formatBytes, getDownloadFilename, isDeployableArtifactType, patchArtifactDeploymentInChat } from './artifactUtils';
+import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
 import { HtmlPreview } from './renderers/MediaPreview';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
@@ -66,7 +67,14 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [inlineExpanded, setInlineExpanded] = useState(false);
   const [inlineContent, setInlineContent] = useState<string | null>(null);
   const [inlineLoading, setInlineLoading] = useState(false);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [artifactState, setArtifactState] = useState(artifact);
   const hasLocalPath = Boolean(artifact.file_path);
+  const canDeploy = isDeployableArtifactType(artifact.type as ArtifactType);
+
+  useEffect(() => {
+    setArtifactState(artifact);
+  }, [artifact]);
 
   const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { getCachedContent, setCachedContent } = useArtifactPortalStore();
@@ -208,17 +216,17 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
 
   const handleDownload = async () => {
     if (onDownload) {
-      onDownload(artifact);
+      onDownload(artifactState);
       return;
     }
 
     try {
-      const response = await fetch(artifact.download_url);
+      const response = await fetch(artifactState.download_url);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = getDownloadFilename(artifact.filename);
+      a.download = getDownloadFilename(artifactState.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -228,7 +236,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     }
   };
 
+  const handleDeployed = (update: DeployedArtifactUpdate) => {
+    setArtifactState((prev) => ({ ...prev, ...update }));
+    patchArtifactDeploymentInChat(artifact.id, update);
+  };
+
   return (
+    <>
     <div
       className={cn(
         'group relative rounded-xl overflow-hidden',
@@ -249,12 +263,12 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{artifact.filename}</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{artifactState.filename}</h4>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifact.type}`)}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifactState.type}`)}</span>
             <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifact.size)}</span>
-            {artifact.filename.endsWith('.skill') && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifactState.size)}</span>
+            {artifactState.filename.endsWith('.skill') && (
               <>
                 <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">{t('skillActions.skillPackageHint')}</span>
@@ -313,6 +327,34 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               title={pathCopied ? t('copied') : t('copyPath')}
             >
               <Copy className={cn('w-3.5 h-3.5', pathCopied && 'text-green-500')} />
+            </Button>
+          )}
+          {canDeploy && artifactState.deployment_status === 'READY' && artifactState.deployment_url && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-green-600 dark:text-green-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(artifactState.deployment_url!, '_blank');
+              }}
+              title={t('deploy.deployedLabel', { hostname: new URL(artifactState.deployment_url).hostname })}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+          )}
+          {canDeploy && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeployModalOpen(true);
+              }}
+              title={t('deploy.openModal')}
+            >
+              <Globe className="w-4 h-4" />
             </Button>
           )}
           {canInlinePreview && (
@@ -400,6 +442,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
       )}
     </div>
+    <DeployModal
+      artifact={artifactState}
+      open={deployModalOpen}
+      onClose={() => setDeployModalOpen(false)}
+      onDeployed={handleDeployed}
+    />
+    </>
   );
 };
 

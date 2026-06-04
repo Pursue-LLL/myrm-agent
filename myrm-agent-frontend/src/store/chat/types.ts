@@ -282,6 +282,8 @@ export interface Artifact {
   deployment_url?: string | null;
   deployment_status?: string | null;
   deployment_project_id?: string | null;
+  deployment_version_id?: string | null;
+  latest_version_id?: string | null;
 }
 
 // ==================== 交互式 UI 类型定义 (A2UI 风格) ====================

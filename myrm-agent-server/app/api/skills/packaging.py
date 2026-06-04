@@ -50,21 +50,31 @@ async def preview_skill_package(
         redactions=redactions_response
     )
 
-@router.get("/{skill_id}/download")
-async def download_skill(
-    skill_id: str,
-    apply_redactions: bool = Query(False, description="Whether to apply redactions to sensitive information"),
-) -> Response:
-    """Download skill as ZIP package
+from pydantic import BaseModel
 
+class ExportSkillRequest(BaseModel):
+    apply_redactions: bool = False
+    ignored_redactions: dict[str, list[int]] | None = None
+
+@router.post("/{skill_id}/export")
+async def export_skill(
+    skill_id: str,
+    request: ExportSkillRequest,
+) -> Response:
+    """Export skill as ZIP package
+    
     Args:
         skill_id: Skill ID
-        apply_redactions: Whether to apply redactions to sensitive information
-
+        request: Export options including redaction preferences
+        
     Returns:
         ZIP file
     """
-    result = await skill_packaging_service.package_skill(skill_id, apply_redactions=apply_redactions)
+    result = await skill_packaging_service.package_skill(
+        skill_id, 
+        apply_redactions=request.apply_redactions,
+        ignored_redactions=request.ignored_redactions
+    )
 
     if not result.success:
         raise HTTPException(status_code=404, detail=result.error)

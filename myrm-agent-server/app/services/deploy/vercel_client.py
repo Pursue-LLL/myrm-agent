@@ -13,10 +13,12 @@ Third-party hosting integration for artifact one-click deployment.
 
 import json
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from app.services.deploy.deploy_packager import DeployFile
 
 logger = logging.getLogger(__name__)
 
@@ -38,31 +40,27 @@ class VercelClient:
         retry=retry_if_exception_type(httpx.RequestError),
         reraise=True
     )
-    async def deploy(self, project_name: str, files: Dict[str, str]) -> Dict[str, Any]:
-        """
-        Deploy files to Vercel.
-        
-        Args:
-            project_name: The name of the project in Vercel.
-            files: A dictionary mapping file paths to their string content.
-                   e.g., {"index.html": "<h1>Hello</h1>", "style.css": "body { color: red; }"}
-        """
+    async def deploy(self, project_name: str, files: dict[str, DeployFile]) -> dict[str, Any]:
+        """Deploy files to Vercel."""
         # 1. 智能注入 vercel.json (处理 SPA 路由)
         if "index.html" in files and "vercel.json" not in files:
-            logger.info(f"Injecting vercel.json for SPA routing in project {project_name}")
-            files["vercel.json"] = json.dumps({
-                "rewrites": [
-                    {"source": "/(.*)", "destination": "/index.html"}
-                ]
-            }, indent=2)
+            logger.info("Injecting vercel.json for SPA routing in project %s", project_name)
+            files["vercel.json"] = DeployFile(
+                path="vercel.json",
+                content=json.dumps(
+                    {"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]},
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
 
         # 2. 构造 Vercel API 要求的 files 数组
         vercel_files = []
-        for file_path, content in files.items():
-            vercel_files.append({
-                "file": file_path,
-                "data": content
-            })
+        for file_path, deploy_file in files.items():
+            entry: dict[str, str] = {"file": file_path, "data": deploy_file.content}
+            if deploy_file.encoding == "base64":
+                entry["encoding"] = "base64"
+            vercel_files.append(entry)
 
         payload = {
             "name": project_name,
@@ -97,7 +95,7 @@ class VercelClient:
         retry=retry_if_exception_type(httpx.RequestError),
         reraise=True
     )
-    async def get_deployment_status(self, deployment_id: str) -> Dict[str, Any]:
+    async def get_deployment_status(self, deployment_id: str) -> dict[str, Any]:
         """Get the status of a deployment."""
         url = f"{self.BASE_URL}/v13/deployments/{deployment_id}"
         async with httpx.AsyncClient() as client:

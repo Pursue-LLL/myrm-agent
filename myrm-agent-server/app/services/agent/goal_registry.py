@@ -279,13 +279,11 @@ class ServerGoalManager(GoalManager):
         try:
             llm_kwargs = await build_platform_litellm_kwargs()
             
-            # Multimodal evaluation: Attempt to inject visual proof from active GUI sessions
             screenshot_b64 = None
             if getattr(self, "session_id", None):
                 from app.services.agent.gateway import get_agent_gateway
                 gateway = get_agent_gateway()
                 
-                # Retrieve active browser session for the current chat
                 browser_session = gateway.get_active_browser_session(self.session_id)
                 if browser_session is not None:
                     try:
@@ -294,7 +292,6 @@ class ServerGoalManager(GoalManager):
                         logger.warning("Failed to extract browser screenshot for semantic evaluation: %s", e)
                 
                 if not screenshot_b64:
-                    # Fallback to desktop session if no browser screenshot
                     desktop_session = gateway.get_active_desktop_session(self.session_id)
                     if desktop_session is not None:
                         try:
@@ -309,7 +306,6 @@ class ServerGoalManager(GoalManager):
             ]
 
             if screenshot_b64:
-                # Inject the screenshot as visual proof
                 messages.append({
                     "role": "user",
                     "content": [
@@ -322,7 +318,6 @@ class ServerGoalManager(GoalManager):
                 })
                 logger.info("Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation.")
             else:
-                # Text-only evaluation fallback
                 messages.append({"role": "user", "content": content})
 
             response = await acompletion(

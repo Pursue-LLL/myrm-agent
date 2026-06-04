@@ -21,8 +21,8 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { getStorageUrl } from '@/lib/api';
-import { getDownloadFilename } from './artifactUtils';
+import { getApiUrl, getStorageUrl } from '@/lib/api';
+import { getDownloadFilename, isDeploymentStale, patchArtifactDeploymentInChat } from './artifactUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
@@ -165,7 +165,13 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
   }, [artifact]);
 
   const handleDeployed = (update: DeployedArtifactUpdate) => {
-    setCurrentArtifact((prev) => (prev ? { ...prev, ...update } : prev));
+    setCurrentArtifact((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      patchArtifactDeploymentInChat(prev.id, update);
+      return { ...prev, ...update };
+    });
   };
 
   // Hydrate deployment state from DB when preview opens (survives page refresh)
@@ -186,6 +192,8 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
           deployment_url?: string | null;
           deployment_status?: string | null;
           deployment_project_id?: string | null;
+          deployment_version_id?: string | null;
+          latest_version_id?: string | null;
         };
         if (cancelled) {
           return;
@@ -197,6 +205,8 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
                 deployment_url: data.deployment_url ?? prev.deployment_url,
                 deployment_status: data.deployment_status ?? prev.deployment_status,
                 deployment_project_id: data.deployment_project_id ?? prev.deployment_project_id,
+                deployment_version_id: data.deployment_version_id ?? prev.deployment_version_id,
+                latest_version_id: data.latest_version_id ?? prev.latest_version_id,
               }
             : prev,
         );
@@ -289,6 +299,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
     currentArtifact.content_type === 'application/pdf' ||
     currentArtifact.filename.toLowerCase().endsWith('.pdf');
   const cannotPreview = ['binary'].includes(currentArtifact.type);
+  const showRedeployBanner = isDeploymentStale(currentArtifact);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -374,6 +385,14 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
 
         {/* 内容区域 */}
         <div className="flex-1 overflow-hidden p-4">
+          {showRedeployBanner && (
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+              <span>{t('deploy.redeployBanner')}</span>
+              <Button size="sm" variant="outline" onClick={() => setDeployModalOpen(true)}>
+                {t('deploy.redeployAction')}
+              </Button>
+            </div>
+          )}
           {loading ? (
             <div className="h-full flex items-center justify-center">
               <div className="animate-spin w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-primary rounded-full" />

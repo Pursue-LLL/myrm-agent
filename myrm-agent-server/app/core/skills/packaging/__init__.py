@@ -55,14 +55,22 @@ class SkillPackagingService:
         self._unpacker = SkillUnpacker()
         self._skills_svc = skills_svc or skills_service
 
-    async def package_skill(self, skill_id: str, preview_only: bool = False, apply_redactions: bool = False) -> PackageResult:
+    async def package_skill(
+        self, 
+        skill_id: str, 
+        preview_only: bool = False, 
+        apply_redactions: bool = False,
+        ignored_redactions: dict[str, list[int]] | None = None
+    ) -> PackageResult:
         """从 Server 的 SkillsService 获取并打包已注册的技能
         
         Args:
             skill_id: 技能 ID
             preview_only: 如果为 True，仅返回脱敏预览结果，不实际生成 ZIP
             apply_redactions: 如果为 True，将脱敏后的内容写入 ZIP；否则写入原始内容（用户确认无误或忽略警告）
+            ignored_redactions: 字典，key 为文件名，value 为该文件中需要忽略脱敏的匹配项索引列表
         """
+        ignored_redactions = ignored_redactions or {}
         try:
             skill = await self._skills_svc.get_skill(skill_id)
             if not skill:
@@ -82,8 +90,14 @@ class SkillPackagingService:
                 content = await self._skills_svc.get_skill_file(skill_id, file_path)
                 if content:
                     # Perform sanitization check
-                    sanitization_result = content_sanitizer.sanitize(content, file_path)
+                    file_ignored_indices = ignored_redactions.get(file_path, [])
+                    sanitization_result = content_sanitizer.sanitize(content, file_path, ignored_indices=file_ignored_indices)
                     
+                    # If there are redactions (even if we ignore some, if there are remaining ones, it's not safe)
+                    # Actually, if we ignored ALL of them, is it safe?
+                    # The preview returns all found redactions. 
+                    # If we are applying redactions, we pass ignored_indices.
+                    # The result redactions will only contain the ones that were NOT ignored.
                     if not sanitization_result.is_safe:
                         is_safe = False
                         all_redactions[file_path] = sanitization_result.redactions

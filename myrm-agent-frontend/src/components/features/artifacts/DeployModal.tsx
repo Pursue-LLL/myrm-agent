@@ -15,6 +15,8 @@ export interface DeployedArtifactUpdate {
   deployment_url: string;
   deployment_status: string;
   deployment_project_id?: string | null;
+  deployment_version_id?: string | null;
+  latest_version_id?: string | null;
 }
 
 interface DeployModalProps {
@@ -36,7 +38,10 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
+  const [platformAvailable, setPlatformAvailable] = useState(false);
   const isIntentionalClose = useRef(false);
+
+  const canDeploy = platformAvailable || token.trim().length > 0;
 
   const notifyDeployed = useCallback(
     (url: string, deploymentStatus: string, projectId?: string | null) => {
@@ -44,9 +49,11 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         deployment_url: url,
         deployment_status: deploymentStatus,
         deployment_project_id: projectId ?? null,
+        deployment_version_id: artifact.latest_version_id ?? artifact.deployment_version_id ?? null,
+        latest_version_id: artifact.latest_version_id ?? null,
       });
     },
-    [onDeployed],
+    [artifact.deployment_version_id, artifact.latest_version_id, onDeployed],
   );
 
   const saveCredentials = useCallback(async (value: string) => {
@@ -70,6 +77,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
     setDeployUrl('');
     setErrorMsg('');
     setCopied(false);
+    setPlatformAvailable(false);
     isIntentionalClose.current = false;
 
     let cancelled = false;
@@ -79,7 +87,14 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
       try {
         const response = await fetch(getApiUrl(CREDENTIALS_URL));
         if (response.ok) {
-          const data = (await response.json()) as { token?: string | null; configured?: boolean };
+          const data = (await response.json()) as {
+            token?: string | null;
+            configured?: boolean;
+            platform_available?: boolean;
+          };
+          if (!cancelled) {
+            setPlatformAvailable(Boolean(data.platform_available));
+          }
           if (!cancelled && data.token) {
             setToken(data.token);
             return;
@@ -109,17 +124,19 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
   }, [open, saveCredentials]);
 
   const handleDeploy = async () => {
-    if (!token.trim()) {
+    if (!canDeploy) {
       setErrorMsg(t('errors.tokenRequired'));
       return;
     }
 
-    try {
-      await saveCredentials(token.trim());
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : t('errors.saveCredentialsFailed');
-      setErrorMsg(message);
-      return;
+    if (token.trim()) {
+      try {
+        await saveCredentials(token.trim());
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : t('errors.saveCredentialsFailed');
+        setErrorMsg(message);
+        return;
+      }
     }
 
     setStatus('DEPLOYING');
@@ -237,9 +254,14 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         <div className="space-y-6 py-4 relative z-10">
           {status === 'IDLE' && (
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {platformAvailable && (
+                <p className="text-sm text-primary bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                  {t('platformHostingHint')}
+                </p>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="token" className="text-sm font-medium">
-                  {t('tokenLabel')}
+                  {platformAvailable ? t('tokenLabelOptional') : t('tokenLabel')}
                 </Label>
                 <Input
                   id="token"
@@ -271,7 +293,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
               <Button
                 onClick={handleDeploy}
                 className="w-full shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
-                disabled={!token.trim() || credentialsLoading}
+                disabled={!canDeploy || credentialsLoading}
               >
                 {t('deployNow')}
               </Button>

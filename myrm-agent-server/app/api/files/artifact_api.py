@@ -8,7 +8,7 @@
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, viewing, and verifying artifacts.
+Provides REST endpoints for listing, retrieving, verifying artifacts and reading deployment state.
 """
 
 import logging
@@ -29,7 +29,7 @@ router = APIRouter()
 
 def _artifact_summary(a: Artifact) -> dict[str, Any]:
     """Serialize artifact list item including deployment state."""
-    return {
+    summary: dict[str, Any] = {
         "id": a.id,
         "name": a.name,
         "description": a.description,
@@ -38,7 +38,12 @@ def _artifact_summary(a: Artifact) -> dict[str, Any]:
         "deployment_url": a.deployment_url,
         "deployment_status": a.deployment_status,
         "deployment_project_id": a.deployment_project_id,
+        "deployment_version_id": a.deployment_version_id,
     }
+    if a.versions:
+        latest = sorted(a.versions, key=lambda v: v.created_at, reverse=True)[0]
+        summary["latest_version_id"] = latest.id
+    return summary
 
 
 @router.get("")
@@ -48,6 +53,7 @@ async def list_artifacts(
     """List all artifacts (soft-deleted ones are excluded)."""
     stmt = (
         select(Artifact)
+        .options(selectinload(Artifact.versions))
         .where(Artifact.is_deleted.is_(False))
         .order_by(Artifact.updated_at.desc())
     )
@@ -65,9 +71,13 @@ async def get_artifact(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get a single artifact summary including deployment state."""
-    stmt = select(Artifact).where(
-        Artifact.id == artifact_id,
-        Artifact.is_deleted.is_(False),
+    stmt = (
+        select(Artifact)
+        .options(selectinload(Artifact.versions))
+        .where(
+            Artifact.id == artifact_id,
+            Artifact.is_deleted.is_(False),
+        )
     )
     result = await db.execute(stmt)
     artifact = result.scalars().first()
@@ -103,6 +113,7 @@ async def get_artifact_versions(
         "deployment_url": artifact.deployment_url,
         "deployment_status": artifact.deployment_status,
         "deployment_project_id": artifact.deployment_project_id,
+        "deployment_version_id": artifact.deployment_version_id,
         "versions": [
             {
                 "id": v.id,

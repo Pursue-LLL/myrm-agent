@@ -6,6 +6,7 @@
 - app.database.models.config::UserConfig (POS: User config with encryption)
 - app.services.config.encryption::get_encryption_service (POS: Config encryption service)
 - app.services.deploy.vercel_client::VercelClient (POS: Vercel deploy client)
+- app.services.deploy.deploy_packager::collect_deploy_files (POS: Vault file packaging)
 
 [OUTPUT]
 - router: APIRouter — deploy endpoints, credentials CRUD, WebSocket status stream
@@ -17,8 +18,9 @@ Provides one-click artifact deployment to Vercel and encrypted credential storag
 import asyncio
 import json
 import logging
+import os
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
@@ -29,10 +31,12 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_workspace_root
+from app.config.deploy_mode import is_sandbox
 from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
+from app.services.deploy.deploy_packager import collect_deploy_files
 from app.services.deploy.vercel_client import VercelClient
 
 logger = logging.getLogger(__name__)
@@ -40,6 +44,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _VERCEL_CREDENTIALS_KEY = "vercelDeployCredentials"
+_PLATFORM_TOKEN_ENV = "VERCEL_PLATFORM_TOKEN"
 
 
 class DeployRequest(BaseModel):
@@ -50,10 +55,23 @@ class DeployRequest(BaseModel):
 class VercelCredentialsResponse(BaseModel):
     token: str | None = None
     configured: bool = False
+    platform_available: bool = False
 
 
 class SaveVercelCredentialsRequest(BaseModel):
     token: str = Field(..., min_length=1)
+
+
+def _get_platform_vercel_token() -> str | None:
+    if not is_sandbox():
+        return None
+    token = os.environ.get(_PLATFORM_TOKEN_ENV, "").strip()
+    return token or None
+
+
+def _vault_object_path(vault: ArtifactVault, vault_uri: str):
+    obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
+    return vault.get_object_path(obj_id)
 
 
 def _decrypt_vercel_credentials(
@@ -93,20 +111,45 @@ async def _resolve_vercel_token(db: AsyncSession, request_token: str) -> str:
         return token
 
     row = await _load_vercel_credentials_row(db)
-    if not row:
-        raise HTTPException(
-            status_code=400,
-            detail="Vercel token is required. Configure it in deploy settings or pass token in request.",
-        )
+    if row:
+        credentials = _decrypt_vercel_credentials(row.config_value, row.is_encrypted)
+        stored_token = credentials.get("token")
+        if isinstance(stored_token, str) and stored_token.strip():
+            return stored_token.strip()
 
-    credentials = _decrypt_vercel_credentials(row.config_value, row.is_encrypted)
-    stored_token = credentials.get("token")
-    if not isinstance(stored_token, str) or not stored_token.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Vercel token is required. Configure it in deploy settings or pass token in request.",
-        )
-    return stored_token.strip()
+    platform_token = _get_platform_vercel_token()
+    if platform_token:
+        return platform_token
+
+    raise HTTPException(
+        status_code=400,
+        detail="Vercel token is required. Configure it in deploy settings or pass token in request.",
+    )
+
+
+async def _apply_deployment_state(
+    db: AsyncSession,
+    artifact_id: str,
+    *,
+    deployment_url: str | None,
+    deployment_status: str,
+    deployment_project_id: str | None = None,
+    deployment_version_id: str | None = None,
+) -> None:
+    stmt = select(Artifact).where(Artifact.id == artifact_id, Artifact.is_deleted.is_(False))
+    result = await db.execute(stmt)
+    artifact = result.scalars().first()
+    if not artifact:
+        return
+
+    artifact.deployment_status = deployment_status
+    if deployment_url is not None:
+        artifact.deployment_url = deployment_url
+    if deployment_project_id is not None:
+        artifact.deployment_project_id = deployment_project_id
+    if deployment_version_id is not None:
+        artifact.deployment_version_id = deployment_version_id
+    await db.commit()
 
 
 @router.get("/deploy/credentials/vercel", response_model=VercelCredentialsResponse)
@@ -114,16 +157,21 @@ async def get_vercel_credentials(
     db: AsyncSession = Depends(get_db),
 ) -> VercelCredentialsResponse:
     """Return stored Vercel deploy token (encrypted at rest in UserConfig)."""
+    platform_available = _get_platform_vercel_token() is not None
     row = await _load_vercel_credentials_row(db)
     if not row:
-        return VercelCredentialsResponse(configured=False)
+        return VercelCredentialsResponse(configured=False, platform_available=platform_available)
 
     credentials = _decrypt_vercel_credentials(row.config_value, row.is_encrypted)
     token = credentials.get("token")
     if not isinstance(token, str) or not token.strip():
-        return VercelCredentialsResponse(configured=False)
+        return VercelCredentialsResponse(configured=False, platform_available=platform_available)
 
-    return VercelCredentialsResponse(token=token, configured=True)
+    return VercelCredentialsResponse(
+        token=token,
+        configured=True,
+        platform_available=platform_available,
+    )
 
 
 @router.put("/deploy/credentials/vercel")
@@ -158,17 +206,17 @@ async def save_vercel_credentials(
     await db.commit()
     return {"status": "success", "message": "Vercel credentials saved"}
 
+
 @router.post("/{artifact_id}/deploy")
 async def deploy_artifact(
     artifact_id: str,
     request: DeployRequest,
     db: AsyncSession = Depends(get_db),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Deploy an artifact to a third-party platform (e.g., Vercel)."""
     if request.platform != "vercel":
         raise HTTPException(status_code=400, detail="Only Vercel is supported currently")
 
-    # 1. Fetch Artifact and its latest version
     stmt = (
         select(Artifact)
         .options(selectinload(Artifact.versions))
@@ -179,65 +227,43 @@ async def deploy_artifact(
 
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    
+
     if not artifact.versions:
         raise HTTPException(status_code=400, detail="Artifact has no versions to deploy")
 
     latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
 
-    # 2. Read files from Vault
     vault = ArtifactVault(str(get_workspace_root()))
     try:
-        obj_path = vault.get_object_path(latest_version.vault_uri)
-        if not obj_path.exists():
-            raise FileNotFoundError(f"Missing in vault: {obj_path}")
-            
-        # Assuming the vault object for a web artifact is a directory or a single HTML file.
-        # If it's a single file, we wrap it in a dict. If it's a directory, we read all files.
-        files_to_deploy = {}
-        if obj_path.is_file():
-            with open(obj_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            # If it's a single file, we assume it's index.html for deployment purposes
-            file_name = "index.html" if obj_path.suffix in [".html", ".htm"] else obj_path.name
-            files_to_deploy[file_name] = content
-        elif obj_path.is_dir():
-            for file_path in obj_path.rglob("*"):
-                if file_path.is_file():
-                    rel_path = file_path.relative_to(obj_path).as_posix()
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        files_to_deploy[rel_path] = f.read()
-        else:
-            raise HTTPException(status_code=400, detail="Invalid artifact physical format")
-            
+        obj_path = _vault_object_path(vault, latest_version.vault_uri)
+        files_to_deploy = collect_deploy_files(obj_path)
     except Exception as e:
-        logger.error(f"Failed to read artifact files: {e}")
+        logger.error("Failed to read artifact files: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}") from e
 
-    # 3. Deploy using VercelClient
     vercel_token = await _resolve_vercel_token(db, request.token)
     client = VercelClient(token=vercel_token)
     try:
-        # Use artifact name as project name, sanitize it
         project_name = "".join(c if c.isalnum() or c == "-" else "-" for c in artifact.name.lower())
         if not project_name:
             project_name = f"myrm-artifact-{artifact_id[:8]}"
-            
+
         deploy_result = await client.deploy(project_name=project_name, files=files_to_deploy)
-        
-        # 4. Update Database
+
         artifact.deployment_url = deploy_result["url"]
         artifact.deployment_project_id = deploy_result["project_id"]
         artifact.deployment_status = deploy_result["status"]
+        artifact.deployment_version_id = latest_version.id
         await db.commit()
-        
+
         return deploy_result
-        
+
     except Exception as e:
-        logger.error(f"Deployment failed: {e}")
+        logger.error("Deployment failed: %s", e)
         artifact.deployment_status = "ERROR"
         await db.commit()
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @router.websocket("/{artifact_id}/deploy/status/{deployment_id}")
 async def deployment_status_ws(
@@ -258,15 +284,15 @@ async def deployment_status_ws(
             await websocket.close(code=1008, reason="Invalid auth payload")
             return
     except asyncio.TimeoutError:
-        logger.warning(f"WebSocket auth timeout for deployment {deployment_id}")
+        logger.warning("WebSocket auth timeout for deployment %s", deployment_id)
         await websocket.close(code=1008, reason="Auth timeout")
         return
     except json.JSONDecodeError as e:
-        logger.warning(f"WebSocket auth JSON decode error: {e}")
+        logger.warning("WebSocket auth JSON decode error: %s", e)
         await websocket.close(code=1003, reason="Unsupported Data: Invalid JSON")
         return
     except Exception as e:
-        logger.warning(f"WebSocket auth error: {e}")
+        logger.warning("WebSocket auth error: %s", e)
         await websocket.close(code=1008, reason="Auth failed")
         return
 
@@ -278,26 +304,42 @@ async def deployment_status_ws(
         return
 
     client = VercelClient(token=vercel_token)
-    
+    terminal_status: str | None = None
+    terminal_url: str | None = None
+
     try:
         while True:
             try:
                 status_data = await client.get_deployment_status(deployment_id)
                 await websocket.send_json(status_data)
-                
+
                 status = status_data.get("status")
                 if status in ["READY", "ERROR", "CANCELED"]:
+                    terminal_status = str(status)
+                    terminal_url = status_data.get("url")
                     break
-                    
-                await asyncio.sleep(2.0) # Poll every 2 seconds
+
+                await asyncio.sleep(2.0)
             except Exception as e:
-                logger.error(f"Error polling deployment status: {e}")
+                logger.error("Error polling deployment status: %s", e)
                 await websocket.send_json({"status": "ERROR", "error": str(e)})
+                terminal_status = "ERROR"
                 break
-                
+
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for deployment {deployment_id}")
+        logger.info("WebSocket disconnected for deployment %s", deployment_id)
     finally:
+        if terminal_status is not None:
+            try:
+                async with get_session() as db:
+                    await _apply_deployment_state(
+                        db,
+                        artifact_id,
+                        deployment_url=terminal_url,
+                        deployment_status=terminal_status,
+                    )
+            except Exception as e:
+                logger.error("Failed to persist deployment terminal state: %s", e)
         try:
             await websocket.close()
         except Exception:

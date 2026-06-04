@@ -35,6 +35,7 @@ class Artifact(Base):
     deployment_url = Column(String(512), nullable=True)  # Public URL after deployment
     deployment_project_id = Column(String(255), nullable=True)  # Vercel project ID
     deployment_status = Column(String(50), nullable=True)  # e.g., DEPLOYING, READY, ERROR
+    deployment_version_id = Column(String(36), nullable=True)  # Version ID last deployed
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

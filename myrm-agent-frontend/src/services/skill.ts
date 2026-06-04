@@ -233,14 +233,25 @@ export async function previewSkillPackage(skillId: string): Promise<PackagePrevi
  * 下载技能为 ZIP 包
  * @param skillId 技能 ID
  * @param applyRedactions 是否应用脱敏
+ * @param ignoredRedactions 忽略脱敏的索引字典 (filename -> indices)
  */
-export async function downloadSkill(skillId: string, applyRedactions: boolean = false): Promise<Blob> {
+export async function downloadSkill(
+  skillId: string, 
+  applyRedactions: boolean = false,
+  ignoredRedactions: Record<string, number[]> = {}
+): Promise<Blob> {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
 
-  const response = await fetch(`${API_BASE}${SKILLS_API_PREFIX}/${skillId}/download?apply_redactions=${applyRedactions}`, {
+  const response = await fetch(`${API_BASE}${SKILLS_API_PREFIX}/${skillId}/export`, {
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
     },
+    body: JSON.stringify({
+      apply_redactions: applyRedactions,
+      ignored_redactions: ignoredRedactions,
+    }),
   });
 
   if (!response.ok) {

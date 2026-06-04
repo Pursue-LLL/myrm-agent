@@ -1,4 +1,3 @@
-import builtins
 import uuid
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -10,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.api.files.deploy_api import router as deploy_router
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
+from app.services.deploy.deploy_packager import DeployFile
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ async def mock_artifact(db_session):
     version = ArtifactVersion(
         id=str(uuid.uuid4()),
         artifact_id=artifact.id,
-        vault_uri="test_uri",
+        vault_uri="vault://test_uri",
         sha256_hash="test_hash",
     )
     db_session.add(version)
@@ -64,24 +64,14 @@ async def artifact_without_versions(db_session):
 
 @pytest.mark.asyncio
 async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session):
-    mock_path = MagicMock()
-    mock_path.exists.return_value = True
-    mock_path.is_file.return_value = True
-    mock_path.suffix = ".html"
-
-    original_open = builtins.open
-
-    def side_effect(filename, *args, **kwargs):
-        if str(filename).endswith(".html"):
-            mock_file = MagicMock()
-            mock_file.__enter__.return_value.read.return_value = "<h1>Hello</h1>"
-            return mock_file
-        return original_open(filename, *args, **kwargs)
-
     with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
-        mock_vault_class.return_value.get_object_path.return_value = mock_path
+        mock_vault_class.return_value.get_object_path.return_value = MagicMock()
 
-        with patch("builtins.open", side_effect=side_effect):
+        with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+            mock_collect.return_value = {
+                "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
+            }
+
             with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
                 mock_vercel_instance.deploy = AsyncMock(
@@ -106,6 +96,7 @@ async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session)
                 await db_session.refresh(mock_artifact)
                 assert mock_artifact.deployment_url == "https://test.vercel.app"
                 assert mock_artifact.deployment_status == "READY"
+                assert mock_artifact.deployment_version_id is not None
 
 
 @pytest.mark.asyncio
@@ -140,18 +131,13 @@ async def test_deploy_artifact_no_versions(deploy_client, artifact_without_versi
 
 @pytest.mark.asyncio
 async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artifact, db_session):
-    mock_path = MagicMock()
-    mock_path.exists.return_value = True
-    mock_path.is_file.return_value = True
-    mock_path.suffix = ".html"
-
     with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
-        mock_vault_class.return_value.get_object_path.return_value = mock_path
+        mock_vault_class.return_value.get_object_path.return_value = MagicMock()
 
-        with patch("builtins.open", create=True) as mock_open:
-            mock_file = MagicMock()
-            mock_file.__enter__.return_value.read.return_value = "<h1>Hello</h1>"
-            mock_open.return_value = mock_file
+        with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+            mock_collect.return_value = {
+                "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
+            }
 
             with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
@@ -169,28 +155,14 @@ async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artif
 
 @pytest.mark.asyncio
 async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_session):
-    mock_path = MagicMock()
-    mock_path.exists.return_value = True
-    mock_path.is_file.return_value = False
-    mock_path.is_dir.return_value = True
-
-    file1 = MagicMock()
-    file1.is_file.return_value = True
-    file1.relative_to.return_value.as_posix.return_value = "index.html"
-
-    file2 = MagicMock()
-    file2.is_file.return_value = True
-    file2.relative_to.return_value.as_posix.return_value = "style.css"
-
-    mock_path.rglob.return_value = [file1, file2]
-
     with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
-        mock_vault_class.return_value.get_object_path.return_value = mock_path
+        mock_vault_class.return_value.get_object_path.return_value = MagicMock()
 
-        with patch("builtins.open", create=True) as mock_open:
-            mock_file = MagicMock()
-            mock_file.__enter__.return_value.read.side_effect = ["<h1>Dir</h1>", "body{}"]
-            mock_open.return_value = mock_file
+        with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+            mock_collect.return_value = {
+                "index.html": DeployFile(path="index.html", content="<h1>Dir</h1>"),
+                "style.css": DeployFile(path="style.css", content="body{}"),
+            }
 
             with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
@@ -230,20 +202,21 @@ def test_deployment_status_ws_auth_success(deploy_client, db_session):
         )
 
         with patch("app.api.files.deploy_api.get_session", session_override):
-            with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                mock_vercel_instance = mock_vercel_class.return_value
-                mock_vercel_instance.get_deployment_status = AsyncMock(
-                    return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
-                )
+            with patch("app.api.files.deploy_api._apply_deployment_state", new_callable=AsyncMock):
+                with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                    mock_vercel_instance = mock_vercel_class.return_value
+                    mock_vercel_instance.get_deployment_status = AsyncMock(
+                        return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
+                    )
 
-                artifact_id = str(uuid.uuid4())
-                with deploy_client.websocket_connect(
-                    f"/{artifact_id}/deploy/status/dep_123"
-                ) as ws:
-                    ws.send_json({"type": "auth"})
-                    data = ws.receive_json()
-                    assert data["status"] == "READY"
-                mock_vercel_class.assert_called_once_with(token="test_token")
+                    artifact_id = str(uuid.uuid4())
+                    with deploy_client.websocket_connect(
+                        f"/{artifact_id}/deploy/status/dep_123"
+                    ) as ws:
+                        ws.send_json({"type": "auth"})
+                        data = ws.receive_json()
+                        assert data["status"] == "READY"
+                    mock_vercel_class.assert_called_once_with(token="test_token")
 
 
 def test_deployment_status_ws_invalid_auth_payload(deploy_client):
@@ -262,13 +235,14 @@ def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
         yield db_session
 
     with patch("app.api.files.deploy_api.get_session", session_override):
-        artifact_id = str(uuid.uuid4())
-        with deploy_client.websocket_connect(
-            f"/{artifact_id}/deploy/status/dep_123"
-        ) as ws:
-            ws.send_json({"type": "auth"})
-            with pytest.raises(Exception):
-                ws.receive_json()
+        with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value=None):
+            artifact_id = str(uuid.uuid4())
+            with deploy_client.websocket_connect(
+                f"/{artifact_id}/deploy/status/dep_123"
+            ) as ws:
+                ws.send_json({"type": "auth"})
+                with pytest.raises(Exception):
+                    ws.receive_json()
 
 
 def test_get_vercel_credentials_empty(deploy_client):
@@ -277,6 +251,7 @@ def test_get_vercel_credentials_empty(deploy_client):
     data = response.json()
     assert data["configured"] is False
     assert data["token"] is None
+    assert data["platform_available"] is False
 
 
 def test_save_and_get_vercel_credentials(deploy_client):
@@ -309,18 +284,13 @@ async def test_deploy_uses_stored_credentials_when_token_empty(
 
         deploy_client.put("/deploy/credentials/vercel", json={"token": "stored-token"})
 
-    mock_path = MagicMock()
-    mock_path.exists.return_value = True
-    mock_path.is_file.return_value = True
-    mock_path.suffix = ".html"
-
     with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
-        mock_vault_class.return_value.get_object_path.return_value = mock_path
+        mock_vault_class.return_value.get_object_path.return_value = MagicMock()
 
-        with patch("builtins.open", create=True) as mock_open:
-            mock_file = MagicMock()
-            mock_file.__enter__.return_value.read.return_value = "<h1>Hello</h1>"
-            mock_open.return_value = mock_file
+        with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+            mock_collect.return_value = {
+                "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
+            }
 
             with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
@@ -340,3 +310,34 @@ async def test_deploy_uses_stored_credentials_when_token_empty(
 
                 assert response.status_code == 200
                 mock_vercel_class.assert_called_once_with(token="stored-token")
+
+
+@pytest.mark.asyncio
+async def test_deploy_uses_platform_token_in_sandbox(deploy_client, mock_artifact):
+    with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value="platform-token"):
+        with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
+            mock_vault_class.return_value.get_object_path.return_value = MagicMock()
+
+            with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+                mock_collect.return_value = {
+                    "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
+                }
+
+                with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                    mock_vercel_instance = mock_vercel_class.return_value
+                    mock_vercel_instance.deploy = AsyncMock(
+                        return_value={
+                            "deployment_id": "dep_platform",
+                            "url": "https://platform.vercel.app",
+                            "status": "READY",
+                            "project_id": "prj_platform",
+                        }
+                    )
+
+                    response = deploy_client.post(
+                        f"/{mock_artifact.id}/deploy",
+                        json={"token": "", "platform": "vercel"},
+                    )
+
+                    assert response.status_code == 200
+                    mock_vercel_class.assert_called_once_with(token="platform-token")

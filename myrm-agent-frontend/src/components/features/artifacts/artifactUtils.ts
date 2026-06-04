@@ -13,7 +13,8 @@ import {
   Video01Icon,
   HeadphonesIcon,
 } from 'hugeicons-react';
-import { ArtifactType } from '@/store/chat/types';
+import { Artifact, ArtifactType } from '@/store/chat/types';
+import useChatStore from '@/store/useChatStore';
 import { formatFileSize as formatFileSizeUtil, isPreviewable, needsContentLoad, inferLanguage } from '@/types/artifact';
 
 /** Artifact 类型到图标的映射（基础类型） */
@@ -226,4 +227,32 @@ export function getDownloadFilename(filename: string): string {
     return `${filename}.zip`;
   }
   return filename;
+}
+
+/** Sync deployment fields on matching chat message artifacts. */
+export function patchArtifactDeploymentInChat(artifactId: string, update: Partial<Artifact>): void {
+  useChatStore.getState().updateMessages((state) => {
+    for (const message of state.messages) {
+      if (!message.artifacts?.length) {
+        continue;
+      }
+      const index = message.artifacts.findIndex((item) => item.id === artifactId);
+      if (index >= 0) {
+        message.artifacts[index] = { ...message.artifacts[index], ...update };
+      }
+    }
+  });
+}
+
+export function isDeploymentStale(artifact: Artifact): boolean {
+  return Boolean(
+    artifact.deployment_status === 'READY' &&
+      artifact.deployment_version_id &&
+      artifact.latest_version_id &&
+      artifact.deployment_version_id !== artifact.latest_version_id,
+  );
+}
+
+export function isDeployableArtifactType(type: ArtifactType): boolean {
+  return type === 'html' || type === 'code';
 }

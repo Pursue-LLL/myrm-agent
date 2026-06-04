@@ -19,6 +19,8 @@ import type { PackagePreviewResponse } from '@/services/skill';
 import type { Skill } from '@/store/skill/types';
 import { toast } from '@/hooks/useToast';
 
+import { Checkbox } from '@/components/primitives/checkbox';
+
 interface SkillExportDialogProps {
   skill: Skill | null;
   open: boolean;
@@ -31,10 +33,13 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
   const [isExporting, setIsExporting] = useState(false);
   const [preview, setPreview] = useState<PackagePreviewResponse | null>(null);
 
+  const [ignoredRedactions, setIgnoredRedactions] = useState<Record<string, number[]>>({});
+
   useEffect(() => {
     if (open && skill) {
       setIsLoading(true);
       setPreview(null);
+      setIgnoredRedactions({});
       previewSkillPackage(skill.id)
         .then((res) => {
           setPreview(res);
@@ -58,7 +63,7 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
       if (!skill) return;
       setIsExporting(true);
       try {
-        const blob = await downloadSkill(skill.id, applyRedactions);
+        const blob = await downloadSkill(skill.id, applyRedactions, ignoredRedactions);
         triggerDownload(blob, `${skill.name}_v${skill.version || '1.0.0'}.zip`);
         toast({
           title: t('exportSuccess'),
@@ -74,8 +79,19 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
         setIsExporting(false);
       }
     },
-    [skill, onOpenChange, t],
+    [skill, onOpenChange, t, ignoredRedactions],
   );
+
+  const toggleRedaction = useCallback((filename: string, index: number) => {
+    setIgnoredRedactions((prev) => {
+      const fileIgnored = prev[filename] || [];
+      if (fileIgnored.includes(index)) {
+        return { ...prev, [filename]: fileIgnored.filter((i) => i !== index) };
+      } else {
+        return { ...prev, [filename]: [...fileIgnored, index] };
+      }
+    });
+  }, []);
 
   if (!skill) return null;
 
@@ -126,24 +142,39 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
                           {filename}
                         </div>
                         <div className="p-3 space-y-3">
-                          {redactions.map((r, i) => (
-                            <div key={i} className="text-xs font-mono border rounded overflow-hidden">
-                              <div className="bg-muted/30 px-2 py-1 border-b text-[10px] text-muted-foreground flex justify-between">
-                                <span>Line {r.line_number}</span>
-                                <span className="text-amber-600 dark:text-amber-400">{r.reason}</span>
-                              </div>
-                              <div className="grid grid-cols-1 divide-y">
-                                <div className="bg-red-500/10 text-red-700 dark:text-red-400 p-2 overflow-x-auto whitespace-pre">
-                                  <span className="select-none opacity-50 mr-2">-</span>
-                                  {r.original}
+                          {redactions.map((r, i) => {
+                            const isIgnored = (ignoredRedactions[filename] || []).includes(i);
+                            return (
+                              <div key={i} className={`text-xs font-mono border rounded overflow-hidden transition-opacity ${isIgnored ? 'opacity-60' : ''}`}>
+                                <div className="bg-muted/30 px-2 py-1 border-b text-[10px] text-muted-foreground flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox 
+                                      id={`redact-${filename}-${i}`}
+                                      checked={!isIgnored}
+                                      onCheckedChange={() => toggleRedaction(filename, i)}
+                                      className="h-3 w-3"
+                                    />
+                                    <label htmlFor={`redact-${filename}-${i}`} className="cursor-pointer select-none">
+                                      Line {r.line_number}
+                                    </label>
+                                  </div>
+                                  <span className="text-amber-600 dark:text-amber-400">{r.reason}</span>
                                 </div>
-                                <div className="bg-green-500/10 text-green-700 dark:text-green-400 p-2 overflow-x-auto whitespace-pre">
-                                  <span className="select-none opacity-50 mr-2">+</span>
-                                  {r.redacted}
+                                <div className="grid grid-cols-1 divide-y">
+                                  <div className="bg-red-500/10 text-red-700 dark:text-red-400 p-2 overflow-x-auto whitespace-pre">
+                                    <span className="select-none opacity-50 mr-2">-</span>
+                                    {r.original}
+                                  </div>
+                                  {!isIgnored && (
+                                    <div className="bg-green-500/10 text-green-700 dark:text-green-400 p-2 overflow-x-auto whitespace-pre">
+                                      <span className="select-none opacity-50 mr-2">+</span>
+                                      {r.redacted}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
