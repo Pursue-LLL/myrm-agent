@@ -35,12 +35,11 @@ from app.core.storage import files_service
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
+from app.services.files.content_extraction import SUPPORTED_OFFICE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_SUPPORTED_EXTENSIONS = frozenset({".docx", ".xlsx", ".xls", ".pptx", ".ppt"})
 
 
 class DocumentExtractRequest(BaseModel):
@@ -69,8 +68,8 @@ class DocumentExtractResponse(BaseModel):
 def _validate_extension(filename: str) -> str:
     """Validate file extension and return it."""
     ext = Path(filename).suffix.lower()
-    if ext not in _SUPPORTED_EXTENSIONS:
-        supported = ", ".join(sorted(_SUPPORTED_EXTENSIONS))
+    if ext not in SUPPORTED_OFFICE_EXTENSIONS:
+        supported = ", ".join(sorted(SUPPORTED_OFFICE_EXTENSIONS))
         raise validation_error(f"Unsupported format: {ext}. Supported: {supported}")
     return ext
 
@@ -105,26 +104,6 @@ async def _resolve_document_path(body: DocumentExtractRequest) -> tuple[Path, st
     raise validation_error("Provide either filePath or fileId")
 
 
-async def _parse_document(file_path: Path, ext: str) -> str:
-    """Parse document using the appropriate Harness parser."""
-    if ext == ".docx":
-        from myrm_agent_harness.toolkits.file_parsers.docx import DocxParser
-
-        parser = DocxParser()
-    elif ext in (".xlsx", ".xls"):
-        from myrm_agent_harness.toolkits.file_parsers.excel import ExcelParser
-
-        parser = ExcelParser()
-    elif ext in (".pptx", ".ppt"):
-        from myrm_agent_harness.toolkits.file_parsers.pptx import PptxParser
-
-        parser = PptxParser()
-    else:
-        raise validation_error(f"No parser available for {ext}")
-
-    return await parser.parse(str(file_path))
-
-
 @router.post("/extract-document", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.file_upload)
 async def extract_document(
@@ -139,7 +118,9 @@ async def extract_document(
     file_path, ext, is_temp = await _resolve_document_path(body)
 
     try:
-        text = await _parse_document(file_path, ext)
+        from app.services.files.content_extraction import extract_document_from_path
+
+        text = await extract_document_from_path(file_path, ext)
     except Exception as e:
         logger.error("Document extraction failed for %s: %s", file_path, e)
         raise internal_error(operation="Document extraction", exception=e) from e

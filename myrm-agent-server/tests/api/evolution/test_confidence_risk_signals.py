@@ -24,6 +24,7 @@ from app.services.agent.confidence_approval_flow import (
 
 def _make_proposal(
     *,
+    skill_id: str = "test_skill",
     original: str = "def func():\n    return 1",
     proposed: str = "def func():\n    return 2",
     score: float = 0.9,
@@ -31,7 +32,7 @@ def _make_proposal(
     evolution_type: EvolutionType = EvolutionType.FIX,
 ) -> EvolutionProposal:
     return EvolutionProposal(
-        skill_id="test_skill",
+        skill_id=skill_id,
         evolution_type=evolution_type,
         original_content=original,
         proposed_content=proposed,
@@ -175,32 +176,40 @@ async def test_test_passed_reflects_score() -> None:
 
     from app.database.connection import get_session
     from app.database.models import ApprovalRecord
+    from app.services.skills.evolution_reviews import approval_to_evolution_review_record
 
-    zero_proposal = _make_proposal(score=0.0, is_general=False)
+    async def _review_for_skill(skill_id: str) -> tuple[ApprovalRecord, object]:
+        async with get_session() as db:
+            result = await db.execute(
+                select(ApprovalRecord)
+                .where(ApprovalRecord.action_type == "evolution")
+                .order_by(ApprovalRecord.created_at.desc())
+            )
+            for record in result.scalars().all():
+                review = approval_to_evolution_review_record(record)
+                if review is not None and review.skill_id == skill_id:
+                    return record, review
+        raise AssertionError(f"No evolution review for skill_id={skill_id}")
+
+    zero_proposal = _make_proposal(
+        skill_id="test_skill_zero_score", score=0.0, is_general=False
+    )
     flow = ConfidenceApprovalFlow()
     await flow.process_evolution(zero_proposal)
 
+    record, review = await _review_for_skill("test_skill_zero_score")
+    assert review.test_passed is False
     async with get_session() as db:
-        result = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
-        record = result.scalars().first()
-        assert record is not None
-        assert record.payload.get("test_passed") is False
-
         await db.delete(record)
         await db.commit()
 
-    positive_proposal = _make_proposal(score=0.5, is_general=False)
+    positive_proposal = _make_proposal(
+        skill_id="test_skill_positive_score", score=0.5, is_general=False
+    )
     await flow.process_evolution(positive_proposal)
 
+    record, review = await _review_for_skill("test_skill_positive_score")
+    assert review.test_passed is True
     async with get_session() as db:
-        result = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
-        record = result.scalars().first()
-        assert record is not None
-        assert record.payload.get("test_passed") is True
-
         await db.delete(record)
         await db.commit()

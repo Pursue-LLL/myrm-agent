@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
+from app.services.skills.evolution_reviews import approval_to_evolution_review_record
 
 
 @pytest.mark.asyncio
@@ -30,14 +31,23 @@ async def test_confidence_approval_flow_ast_block():
 
     async with get_session() as db:
         result_db = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
+            select(ApprovalRecord)
+            .where(ApprovalRecord.action_type == "evolution")
+            .order_by(ApprovalRecord.created_at.desc())
         )
-        approval = result_db.scalars().first()
+        approval = None
+        review = None
+        for record in result_db.scalars().all():
+            parsed = approval_to_evolution_review_record(record)
+            if parsed is not None and parsed.skill_id == failed_proposal.skill_id:
+                approval = record
+                review = parsed
+                break
 
         assert approval is not None
-        assert isinstance(approval.payload, dict)
-        assert approval.payload.get("confidence") == 0.0
-        assert approval.payload.get("test_passed") is False
+        assert review is not None
+        assert review.confidence == 0.0
+        assert review.test_passed is False
 
         await db.delete(approval)
         await db.commit()

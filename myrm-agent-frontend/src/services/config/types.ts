@@ -182,6 +182,7 @@ export interface VideoGenerationConfig {
 export interface PersonalSettingsConfigValue {
   systemInstructions: string;
   fetchRawWebpage: boolean;
+  extractDocumentText: boolean;
   generateSearchSuggestions: boolean;
   enableCostEstimation: boolean;
   enableCacheBreakNotification: boolean;
@@ -683,6 +684,7 @@ export class ConfigSyncError extends Error {
 export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   systemInstructions: '',
   fetchRawWebpage: false,
+  extractDocumentText: true,
   generateSearchSuggestions: true,
   enableCostEstimation: true,
   enableCacheBreakNotification: false,

@@ -64,6 +64,7 @@ const ConfigImportExport: React.FC = () => {
       {
         systemInstructions: configStore.systemInstructions,
         fetchRawWebpage: configStore.fetchRawWebpage,
+        extractDocumentText: configStore.extractDocumentText,
         generateSearchSuggestions: configStore.generateSearchSuggestions,
         enableCostEstimation: configStore.enableCostEstimation,
         searchServiceConfigs: configStore.searchServiceConfigs,
@@ -103,6 +104,7 @@ const ConfigImportExport: React.FC = () => {
     }
     if (selectedCategories.has('generalSettings')) {
       filteredConfig.fetchRawWebpage = parsedData.config.fetchRawWebpage;
+      filteredConfig.extractDocumentText = parsedData.config.extractDocumentText;
       filteredConfig.generateSearchSuggestions = parsedData.config.generateSearchSuggestions;
       filteredConfig.enableCostEstimation = parsedData.config.enableCostEstimation;
     }
@@ -133,6 +135,9 @@ const ConfigImportExport: React.FC = () => {
         ? configStore.setSystemInstructions
         : undefined,
       setFetchRawWebpage: selectedCategories.has('generalSettings') ? configStore.setFetchRawWebpage : undefined,
+      setExtractDocumentText: selectedCategories.has('generalSettings')
+        ? configStore.setExtractDocumentText
+        : undefined,
       setGenerateSearchSuggestions: selectedCategories.has('generalSettings')
         ? configStore.setGenerateSearchSuggestions
         : undefined,

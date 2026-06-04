@@ -13,7 +13,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
-| `deploy_packager.py` | ✅ 核心 | Vault 文件收集；`validate_deploy_payload` 校验 HTML 入口 |
+| `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
 
 ---
 

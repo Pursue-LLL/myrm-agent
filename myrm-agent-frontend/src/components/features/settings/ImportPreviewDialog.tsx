@@ -45,6 +45,7 @@ export function parseImportJson(json: string): ParsedImportData | { error: strin
     }
     if (
       config.fetchRawWebpage !== undefined ||
+      config.extractDocumentText !== undefined ||
       config.generateSearchSuggestions !== undefined ||
       config.enableCostEstimation !== undefined
     ) {

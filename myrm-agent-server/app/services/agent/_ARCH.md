@@ -36,6 +36,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `stream_session/risk_gate.py` | ✅ 辅助 | 流式输入 risk 拦截 |
 | `streaming_support/sse_helpers.py` | ✅ 核心 | SSE 格式化与审批/压缩辅助 |
 | `streaming_support/stream_collector.py` | ✅ 核心 | 流内容收集与 assistant 持久化 |
+| `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
 | `params/` | ✅ 核心 | Agent 参数转换层 |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent |
 | `fission_config.py` | ✅ 辅助 | 从 Agent `engine_params.max_parallel_fission` 解析并发上限（默认 3，上限 5），供 Web/Channel/Kanban/FastSearch 统一传入 `execute_swarm_fission` |

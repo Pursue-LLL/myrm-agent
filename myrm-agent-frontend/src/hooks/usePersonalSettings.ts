@@ -12,6 +12,7 @@ function selectPersonalSettings(state: ReturnType<typeof useConfigStore.getState
     ...state.personalSettings,
     systemInstructions: state.systemInstructions,
     fetchRawWebpage: state.fetchRawWebpage,
+    extractDocumentText: state.extractDocumentText,
     generateSearchSuggestions: state.generateSearchSuggestions,
     enableCostEstimation: state.enableCostEstimation,
     enableCacheBreakNotification: state.enableCacheBreakNotification,

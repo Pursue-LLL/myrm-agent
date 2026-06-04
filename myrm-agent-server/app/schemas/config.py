@@ -120,6 +120,12 @@ class PersonalSettingsConfigValue(BaseModel):
     fetchRawWebpage: bool = _personal_settings_field(
         "preferences", default=False, description="获取原始网页", group="advanced"
     )
+    extractDocumentText: bool = _personal_settings_field(
+        "preferences",
+        default=True,
+        description="Extract text from PDF/Office attachments before sending to the model",
+        group="advanced",
+    )
     generateSearchSuggestions: bool = _personal_settings_field(
         "preferences", default=True, description="生成搜索建议"
     )

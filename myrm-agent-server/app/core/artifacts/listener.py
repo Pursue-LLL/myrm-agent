@@ -8,7 +8,6 @@
 - upsert_processor_artifact: function — Upsert Artifact(id=file_id) + Version
 - ensure_artifact_for_deploy: function — Load or JIT-prepare deploy artifact
 - persist_artifact_event: function — Persist harness registry batch (legacy)
-- upsert_processor_artifact: function — Upsert Artifact+Version keyed by storage file_id
 
 [POS]
 Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id.

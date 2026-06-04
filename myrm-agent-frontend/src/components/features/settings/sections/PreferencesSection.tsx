@@ -103,6 +103,7 @@ const PreferencesSection = memo(() => {
     enableAutoTitleGeneration: TextFontIcon,
     generateSearchSuggestions: BulbIcon,
     fetchRawWebpage: File01Icon,
+    extractDocumentText: File01Icon,
     enableCostEstimation: Coins01Icon,
     enableCacheBreakNotification: IconAlertCircle,
     showContextUsage: CircleIcon,

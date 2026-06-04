@@ -7,7 +7,7 @@
  * Pure helpers: task step status, source merge, goal/clarification normalization, friendly errors
  *
  * [POS]
- * Shared utilities for messageStream/handleMessageStream event branches.
+ * Shared utilities for messageStream/handlers/* event slices.
  */
 
 import type {

@@ -1,6 +1,7 @@
 """
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 统一审批记录模型)
+- app.database.dto::AgentUpdate (POS: Agent API 契约 DTO)
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。)
 - app.services.skills.experience_ledger::record_experience_event (POS: 学习资产事件账本服务)
 [OUTPUT]
@@ -31,6 +32,7 @@ from sqlalchemy import desc, func, select
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.connection import get_session
+from app.database.dto import AgentUpdate
 from app.database.models import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 from app.services.skills.experience_ledger import (
@@ -960,8 +962,6 @@ async def _rollback_content_update(
         # Restore the original mount for the agent if we know who owned the fork
         if owner_id and parent_id:
             try:
-                from app.api.agent.schemas import AgentUpdate
-
                 from app.services.agent.agent_service import agent_service
                 agent = await agent_service.get_agent(owner_id)
                 if agent:

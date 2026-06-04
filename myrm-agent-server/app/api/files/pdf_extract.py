@@ -14,10 +14,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor import (
-    PDFExtractConfig,
-    extract_pdf_content,
-)
+from myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor import PDFExtractConfig
 from pydantic import BaseModel, Field
 from pydantic.alias_generators import to_camel
 
@@ -133,7 +130,9 @@ async def extract_pdf(
             table_format=body.table_format,
 
         )
-        result = await extract_pdf_content(str(file_path), config)
+        from app.services.files.content_extraction import extract_pdf_from_path
+
+        result = await extract_pdf_from_path(file_path, config)
     finally:
         # 清理 Sandbox 模式下创建的临时文件
         if body.file_id and file_path.exists():

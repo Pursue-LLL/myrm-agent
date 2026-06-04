@@ -5,6 +5,7 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import { fromStoreFile } from '@/services/file-service/types';
 import { extractPdfContent, extractDocumentContent } from '@/services/file';
 import { toast } from '@/lib/utils/toast';
+import useConfigStore from '@/store/useConfigStore';
 
 type VisionTextPart = { type: 'text'; text: string };
 type VisionImagePart = { type: 'image_url'; image_url: { url: string; detail: string } };
@@ -49,7 +50,17 @@ const currentModelSupportsVision = (): boolean => {
  * Text-first; when text is sparse, backend renders pages as images.
  * If the model doesn't support vision, image parts are silently dropped.
  */
+const attachmentReferencePart = (fileName: string): VisionContentPart => ({
+  type: 'text',
+  text: `[Attachment: ${fileName}]`,
+});
+
 const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> => {
+  const extractEnabled = useConfigStore.getState().extractDocumentText ?? true;
+  if (!extractEnabled) {
+    return pdfFiles.map((file) => attachmentReferencePart(file.fileName));
+  }
+
   const results = await Promise.allSettled(
     pdfFiles.map((file) => extractPdfContent(buildExtractParams(file)).then((result) => ({ file, result }))),
   );
@@ -92,6 +103,11 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
  * Backend uses Harness parsers to convert to Markdown text.
  */
 const processDocumentFiles = async (docFiles: File[]): Promise<VisionContentPart[]> => {
+  const extractEnabled = useConfigStore.getState().extractDocumentText ?? true;
+  if (!extractEnabled) {
+    return docFiles.map((file) => attachmentReferencePart(file.fileName));
+  }
+
   const results = await Promise.allSettled(
     docFiles.map((file) => extractDocumentContent(buildExtractParams(file)).then((result) => ({ file, result }))),
   );

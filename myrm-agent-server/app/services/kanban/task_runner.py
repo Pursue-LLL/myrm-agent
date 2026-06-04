@@ -328,7 +328,12 @@ class KanbanTaskRunner:
         if not attachment_ids:
             return text_context
 
+        from app.core.channel_bridge.config_loader import load_user_configs
         from app.core.storage import files_service
+        from app.services.files.attachment_settings import should_extract_document_text
+
+        configs = await load_user_configs()
+        extract_documents = should_extract_document_text(configs.personal_settings_dict)
 
         image_urls: list[str] = []
         extra_text_parts: list[str] = []
@@ -348,16 +353,26 @@ class KanbanTaskRunner:
                 if kind == "image":
                     image_urls.append(content_url)
                 elif kind == "pdf":
-                    extracted = await self._extract_pdf_text(fid)
-                    if extracted:
+                    if extract_documents:
+                        extracted = await self._extract_pdf_text(fid)
+                        if extracted:
+                            extra_text_parts.append(
+                                f"\n## Attachment: {file_info.filename}\n{extracted}"
+                            )
+                    else:
                         extra_text_parts.append(
-                            f"\n## Attachment: {file_info.filename}\n{extracted}"
+                            f"\n[Attachment: {file_info.filename}]"
                         )
                 elif kind == "document":
-                    extracted = await self._extract_document_text(fid)
-                    if extracted:
+                    if extract_documents:
+                        extracted = await self._extract_document_text(fid)
+                        if extracted:
+                            extra_text_parts.append(
+                                f"\n## Attachment: {file_info.filename}\n{extracted}"
+                            )
+                    else:
                         extra_text_parts.append(
-                            f"\n## Attachment: {file_info.filename}\n{extracted}"
+                            f"\n[Attachment: {file_info.filename}]"
                         )
             except Exception:
                 logger.warning("Failed to process attachment %s", fid, exc_info=True)

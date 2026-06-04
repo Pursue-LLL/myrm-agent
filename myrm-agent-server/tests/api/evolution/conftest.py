@@ -1,26 +1,27 @@
-"""Evolution API test fixtures."""
+"""Evolution API tests — bypass auth for TestClient (non-loopback client)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
+
+from app.core.security.auth.identity import LOCAL_USER_ID
+
+
+@dataclass(frozen=True, slots=True)
+class _FakeIdentity:
+    user_id: str = LOCAL_USER_ID
+    auth_source: str = "loopback"
+    loopback: bool = True
+    client_ip: str = "127.0.0.1"
 
 
 @pytest.fixture(autouse=True)
-def mock_myrm_data_dir(tmp_path, monkeypatch):
-    """Isolate each test to a fresh workspace + SQLite file."""
-    monkeypatch.setenv("MYRM_DATA_DIR", str(tmp_path))
-
-
-@pytest_asyncio.fixture(autouse=True)
-async def init_evolution_test_db():
-    import app.database.models  # noqa: F401 — register all tables on Base.metadata
-    from app.database.models import Base
-    from app.platform_utils import get_database_engine, reset_database_engine
-
-    await reset_database_engine()
-    engine = get_database_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield
-
-    await reset_database_engine()
+def _bypass_auth():
+    with patch(
+        "app.middleware.auth.resolve_identity",
+        return_value=_FakeIdentity(),
+    ):
+        yield

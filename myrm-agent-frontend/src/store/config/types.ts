@@ -78,6 +78,7 @@ export interface ConfigState {
 
   // 高级配置
   fetchRawWebpage: boolean;
+  extractDocumentText: boolean;
   generateSearchSuggestions: boolean;
 
   // 成本计算开关
@@ -154,6 +155,7 @@ export interface ConfigState {
 
   // 设置方法
   setFetchRawWebpage: (fetch: boolean) => void;
+  setExtractDocumentText: (enabled: boolean) => void;
   setGenerateSearchSuggestions: (generate: boolean) => void;
   setSystemInstructions: (instructions: string) => void;
   setEnableCostEstimation: (enable: boolean) => void;

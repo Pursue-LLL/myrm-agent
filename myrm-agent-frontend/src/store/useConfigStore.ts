@@ -63,6 +63,7 @@ const useConfigStore = create<ConfigState>()(
     (set, get) => ({
       // ============ 初始状态 ============
       fetchRawWebpage: DEFAULT_PERSONAL_SETTINGS.fetchRawWebpage,
+      extractDocumentText: DEFAULT_PERSONAL_SETTINGS.extractDocumentText,
       generateSearchSuggestions: DEFAULT_PERSONAL_SETTINGS.generateSearchSuggestions,
       enableCostEstimation: DEFAULT_PERSONAL_SETTINGS.enableCostEstimation,
       enableCacheBreakNotification: DEFAULT_PERSONAL_SETTINGS.enableCacheBreakNotification,
@@ -102,6 +103,11 @@ const useConfigStore = create<ConfigState>()(
       setFetchRawWebpage: (fetch) => {
         set({ fetchRawWebpage: fetch });
         syncPersonalSettings({ fetchRawWebpage: fetch });
+      },
+
+      setExtractDocumentText: (enabled) => {
+        set({ extractDocumentText: enabled });
+        syncPersonalSettings({ extractDocumentText: enabled });
       },
 
       setGenerateSearchSuggestions: (generate) => {
@@ -390,6 +396,7 @@ const useConfigStore = create<ConfigState>()(
         return importExportManager.importConfig(configJson, {
           setSystemInstructions: state.setSystemInstructions,
           setFetchRawWebpage: state.setFetchRawWebpage,
+          setExtractDocumentText: state.setExtractDocumentText,
           setGenerateSearchSuggestions: state.setGenerateSearchSuggestions,
           setEnableCostEstimation: state.setEnableCostEstimation,
           setSearchServiceConfigs: state.setSearchServiceConfigs,
@@ -476,6 +483,7 @@ const useConfigStore = create<ConfigState>()(
       name: 'config-store-v4', // 版本升级：ConfigSyncManager 集成
       partialize: (state): Partial<ConfigState> => ({
         fetchRawWebpage: state.fetchRawWebpage,
+        extractDocumentText: state.extractDocumentText,
         generateSearchSuggestions: state.generateSearchSuggestions,
         enableCostEstimation: state.enableCostEstimation,
         enableCacheBreakNotification: state.enableCacheBreakNotification,

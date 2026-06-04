@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - build_channel_inbound_query: Multimodal or plain-text query with delivery provenance banner.
+- Consumes metadata image_data_list and document_text_blocks from channel media enrichment.
 - _resolve_inbound_memory_identity: Resolved memory identifiers for inbound messages.
 
 [POS]
@@ -137,6 +138,18 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
         body = user_text
 
     text = prepend_plain_banner(channel_label=msg.channel, ingress_label=ingress, body=body)
+
+    if isinstance(msg.metadata, dict):
+        doc_blocks = msg.metadata.get("document_text_blocks")
+        if isinstance(doc_blocks, list) and doc_blocks:
+            doc_parts: list[str] = []
+            for block in doc_blocks:
+                if isinstance(block, dict):
+                    block_text = block.get("text")
+                    if isinstance(block_text, str) and block_text.strip():
+                        doc_parts.append(block_text)
+            if doc_parts:
+                text = f"{text}\n\n" + "\n\n".join(doc_parts)
 
     image_data_list = msg.metadata.get("image_data_list") if isinstance(msg.metadata, dict) else None
     if not image_data_list or not isinstance(image_data_list, list):

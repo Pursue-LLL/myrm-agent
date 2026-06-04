@@ -3,6 +3,7 @@
 [INPUT]
 - app.database.connection::get_db (POS: Database session)
 - app.core.artifacts.listener::ensure_artifact_for_deploy (POS: Deploy artifact resolution)
+- app.core.artifacts.listener::resolve_sandbox_file_path (POS: Sandbox path resolution for deploy assets)
 - app.core.infra.limiter::limiter (POS: API rate limiting)
 - app.services.deploy.deploy_packager::collect_deploy_files (POS: Vault file packaging)
 - app.services.deploy.vercel_client::VercelClient (POS: Vercel deploy client)
@@ -19,6 +20,7 @@ import json
 import logging
 import os
 import uuid
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -31,7 +33,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.api.dependencies import get_workspace_root
 from app.config.deploy_mode import is_sandbox
 from app.config.settings import settings
-from app.core.artifacts.listener import ensure_artifact_for_deploy
+from app.core.artifacts.listener import ensure_artifact_for_deploy, resolve_sandbox_file_path
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
@@ -236,7 +238,18 @@ async def deploy_artifact(
     vault = ArtifactVault(workspace_root)
     try:
         obj_path = _vault_object_path(vault, latest_version.vault_uri)
-        files_to_deploy = collect_deploy_files(obj_path)
+        asset_root: Path | None = None
+        if artifact.chat_id and artifact.name:
+            resolved = resolve_sandbox_file_path(
+                artifact.name, workspace_root, artifact.chat_id
+            )
+            if resolved:
+                asset_root = Path(resolved).parent
+        files_to_deploy = collect_deploy_files(
+            obj_path,
+            asset_root=asset_root,
+            entry_name_hint=artifact.name,
+        )
         validate_deploy_payload(files_to_deploy)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

@@ -3,6 +3,7 @@
 [INPUT]
 app.platform_utils::get_session_factory (POS: 数据库会话工厂)
 app.config.settings::settings (POS: 统一配置中心)
+app.services.agent.llm_access (POS: WebUI 配置驱动的 LLM 解析)
 
 [OUTPUT]
 get_deploy_identity: 单机部署身份标识
@@ -23,11 +24,14 @@ import logging
 from collections.abc import AsyncIterator
 
 from fastapi import Header, HTTPException
-from langchain_core.language_models.chat_models import BaseChatModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.deploy_identity import get_deploy_identity
 from app.platform_utils.workspace_root import get_workspace_root
+from app.services.agent.llm_access import (
+    get_llm_for_user,
+    get_optional_llm_for_user,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,47 +46,6 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
 
 
 get_db = get_db_session
-
-
-async def get_llm_for_user(model_id: str | None = None) -> BaseChatModel:
-    """Return an LLM instance configured for the authenticated user."""
-    from myrm_agent_harness.toolkits.llms import llm_manager
-
-    from app.core.channel_bridge.config_loader import load_user_configs
-    from app.core.channel_bridge.model_resolver import resolve_model_config
-
-    configs = await load_user_configs()
-
-    if model_id:
-        model_cfg = resolve_model_config(configs.providers_dict, model_override=model_id)
-    else:
-        model_cfg = configs.model_cfg
-
-    llm: BaseChatModel = await llm_manager.get_llm_from_config(
-        model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None)
-    )
-    return llm
-
-
-async def get_optional_llm_for_user(model_id: str | None = None) -> BaseChatModel:
-    """Return an LLM instance or a dummy model if not configured (prevents 500 errors on UI load)."""
-    try:
-        return await get_llm_for_user(model_id)
-    except Exception:
-        from typing import Any
-
-        from langchain_core.language_models.chat_models import BaseChatModel
-        from langchain_core.messages import BaseMessage
-        from langchain_core.outputs import ChatResult
-
-        class DummyChatModel(BaseChatModel):
-            def _generate(self, messages: list[BaseMessage], stop: list[str] | None = None, run_manager: Any | None = None, **kwargs: Any) -> ChatResult:
-                raise NotImplementedError("LLM is not configured")
-            @property
-            def _llm_type(self) -> str:
-                return "dummy"
-
-        return DummyChatModel()
 
 
 async def require_internal_service_key(

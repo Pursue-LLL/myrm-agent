@@ -7,6 +7,7 @@ export interface FullExportConfig {
   // ConfigStore 配置
   systemInstructions?: string;
   fetchRawWebpage?: boolean;
+  extractDocumentText?: boolean;
   generateSearchSuggestions?: boolean;
   enableCostEstimation?: boolean;
   searchServiceConfigs?: SearchServiceConfigItem[];
@@ -34,6 +35,7 @@ export const exportConfig = (
       // ConfigStore 配置
       systemInstructions: configState.systemInstructions,
       fetchRawWebpage: configState.fetchRawWebpage,
+      extractDocumentText: configState.extractDocumentText,
       generateSearchSuggestions: configState.generateSearchSuggestions,
       enableCostEstimation: configState.enableCostEstimation,
       searchServiceConfigs: configState.searchServiceConfigs,
@@ -56,6 +58,7 @@ export const importConfig = async (
     // ConfigStore setters
     setSystemInstructions?: (instructions: string) => void;
     setFetchRawWebpage?: (fetch: boolean) => void;
+    setExtractDocumentText?: (enabled: boolean) => void;
     setGenerateSearchSuggestions?: (generate: boolean) => void;
     setEnableCostEstimation?: (enable: boolean) => void;
     setSearchServiceConfigs?: (configs: SearchServiceConfigItem[]) => void;
@@ -82,6 +85,10 @@ export const importConfig = async (
 
     if (config.fetchRawWebpage !== undefined && setters.setFetchRawWebpage) {
       setters.setFetchRawWebpage(config.fetchRawWebpage);
+    }
+
+    if (config.extractDocumentText !== undefined && setters.setExtractDocumentText) {
+      setters.setExtractDocumentText(config.extractDocumentText);
     }
 
     if (config.generateSearchSuggestions !== undefined && setters.setGenerateSearchSuggestions) {

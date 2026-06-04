@@ -69,6 +69,8 @@ describe('schemaFormUtils', () => {
       ({
         fetchRawWebpage: 'Fetch Raw Webpage',
         fetchRawWebpageDesc: 'Keep raw HTML content',
+        extractDocumentText: 'Extract Attachment Text',
+        extractDocumentTextDesc: 'Convert PDF/Office attachments to text before sending to the model',
         enableWebNotifications: 'Web Notifications',
         webNotifications: 'Web Notifications Legacy',
         webNotificationsDesc: 'Browser notifications',
@@ -78,6 +80,8 @@ describe('schemaFormUtils', () => {
       [
         'fetchRawWebpage',
         'fetchRawWebpageDesc',
+        'extractDocumentText',
+        'extractDocumentTextDesc',
         'enableWebNotifications',
         'webNotifications',
         'webNotificationsDesc',

@@ -1,0 +1,262 @@
+/**
+ * [POS]
+ * Chat SSE event handler slice (statusStreamEvents).
+ */
+
+import type { StreamCtx, StreamTurn } from "../streamContext";
+import { done } from "../streamContext";
+import * as H from "./handlerDeps";
+
+export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
+  const { data, actions } = ctx;
+  if (data.type === H.AgentEventType.STATUS) {
+    const stepKey = data.step_key;
+    if (
+      stepKey === 'model_failover' ||
+      stepKey === 'context_compaction' ||
+      stepKey === 'context_truncation' ||
+      stepKey === 'safety_fallback_active' ||
+      stepKey === 'memory_archived' ||
+      stepKey === 'context_pruned' ||
+      stepKey === 'archive_checkpoint' ||
+      stepKey === 'archive_restore_blocked' ||
+      stepKey === 'archive_restore_result' ||
+      stepKey === 'thinking_budget_exhausted' ||
+      stepKey === 'tool_call_truncated' ||
+      stepKey === 'text_continuation' ||
+      stepKey === 'text_continuation_exhausted' ||
+      stepKey === 'transient_retry' ||
+      stepKey === 'analyzing_image' ||
+      stepKey === 'analyzing_video' ||
+      stepKey === 'media_stripped' ||
+      stepKey === 'media_rejected_recovery' ||
+      stepKey === 'ux_warning_truncated' ||
+      stepKey === 'consensus_active' ||
+      stepKey === 'consensus_reference_done'
+    ) {
+      const displayKey =
+        stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
+      const isMediaAnalysis = stepKey === 'analyzing_image' || stepKey === 'analyzing_video';
+      const isArchiveRestoreStatus = stepKey === 'archive_restore_blocked' || stepKey === 'archive_restore_result';
+      const archiveRestoreBlock =
+        stepKey === 'archive_restore_blocked'
+          ? H.parseArchiveRestoreBlockPayload(data.data?.archive_restore_block)
+          : undefined;
+      const archiveRestoreResult =
+        stepKey === 'archive_restore_result'
+          ? H.parseArchiveRestoreResultPayload(data.data?.archive_restore_result)
+          : undefined;
+      const archiveRestoreActions = H.buildArchiveRestoreActions(archiveRestoreBlock);
+      const itemText =
+        (stepKey === 'model_failover' || stepKey === 'safety_fallback_active') && data.fallback_model
+          ? data.fallback_model
+          : (stepKey === 'memory_archived' || stepKey === 'context_pruned') && data.tokens_saved
+            ? `(Tokens saved: ${data.tokens_saved})`
+            : stepKey === 'archive_checkpoint' && data.tool_name
+              ? `(${data.tool_name})`
+              : stepKey === 'media_stripped' && data.stripped_count
+                ? `(${data.stripped_count})`
+                : stepKey === 'transient_retry' && data.attempt
+                  ? `(${data.attempt}/15)`
+                  : stepKey === 'consensus_active' && data.data?.reference_models
+                    ? `(${(data.data.reference_models as string[]).join(', ')})`
+                    : stepKey === 'consensus_reference_done' && data.data?.model
+                      ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
+                      : '';
+      actions.setMessages((state) => {
+        let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+        if (messageIndex === -1 && (isMediaAnalysis || isArchiveRestoreStatus)) {
+          state.messages.push({
+            content: '',
+            messageId: data.messageId,
+            chatId: state.messages[0]?.chatId || '',
+            role: 'assistant',
+            progressSteps: [],
+            mediaAnalysisStatus: isMediaAnalysis ? (stepKey as 'analyzing_image' | 'analyzing_video') : null,
+            createdAt: new Date(),
+            metadata: data.metadata,
+          });
+          messageIndex = state.messages.length - 1;
+          ctx.added = true;
+        }
+
+        if (messageIndex !== -1) {
+          if (!state.messages[messageIndex].progressSteps) {
+            state.messages[messageIndex].progressSteps = [];
+          }
+          const progressStep: H.ProgressItem = {
+            step_key: displayKey,
+            items: data.items ?? (itemText ? [{ text: itemText }] : []),
+            tool_name: stepKey === 'archive_checkpoint' ? undefined : (data.tool_name ?? undefined),
+            status: data.status,
+          };
+          if (archiveRestoreBlock) {
+            progressStep.archive_restore_block = archiveRestoreBlock;
+          }
+          if (archiveRestoreActions.length > 0) {
+            progressStep.archive_restore_actions = archiveRestoreActions;
+          }
+          if (archiveRestoreResult) {
+            progressStep.archive_restore_result = archiveRestoreResult;
+          }
+          if (stepKey === 'archive_restore_blocked') {
+            const existingStep = state.messages[messageIndex].progressSteps!.find(
+              (step) => step.step_key === 'archive_restore_blocked',
+            );
+            if (existingStep) {
+              Object.assign(existingStep, progressStep);
+            } else {
+              state.messages[messageIndex].progressSteps!.push(progressStep);
+            }
+          } else {
+            state.messages[messageIndex].progressSteps!.push(progressStep);
+          }
+          if (isMediaAnalysis) {
+            state.messages[messageIndex].mediaAnalysisStatus = stepKey as 'analyzing_image' | 'analyzing_video';
+          }
+        }
+      });
+      if (stepKey === 'archive_restore_blocked') {
+        const message = archiveRestoreBlock?.message ?? 'Archived context restore was blocked.';
+        const { toast } = await import('@/lib/utils/toast');
+        toast.warning(message, { duration: 6000 });
+      }
+
+      if (stepKey === 'ux_warning_truncated') {
+        const payloadData = data.data as Record<string, unknown> | undefined;
+        const msg =
+          typeof payloadData?.message === 'string'
+            ? payloadData.message
+            : 'Warning: Large content was intelligently truncated to fit within context limits.';
+        const { toast } = await import('@/lib/utils/toast');
+        toast.warning(msg, { duration: 8000 });
+      }
+    }
+
+    if (stepKey === 'cache_break') {
+      const sd = data.data as Record<string, unknown> | undefined;
+      const reason = typeof sd?.reason === 'string' ? sd.reason : '';
+      const suggestedActions = typeof sd?.suggested_actions === 'string' ? sd.suggested_actions : '';
+      if (reason) {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1) {
+            state.messages[idx].cacheBreakReason = reason;
+            if (suggestedActions) {
+              state.messages[idx].cacheSuggestedActions = suggestedActions;
+            }
+          }
+        });
+        const notifyEnabled = H.useConfigStore.getState().enableCacheBreakNotification;
+        if (notifyEnabled) {
+          const tokenDrop = typeof sd?.token_drop === 'number' ? sd.token_drop : 0;
+          const dropText = tokenDrop > 1000 ? `, ~${Math.round(tokenDrop / 1000)}k tokens uncached` : '';
+          import('@/lib/utils/toast').then(({ toast }) => {
+            toast.info(`Cache reset: ${reason}${dropText}`, { duration: 5000 });
+          });
+        }
+      }
+    }
+
+    if (stepKey === 'analyzing_image_clear' || stepKey === 'analyzing_video_clear') {
+      const analysisStepKey = stepKey === 'analyzing_image_clear' ? 'analyzing_image' : 'analyzing_video';
+      window.setTimeout(() => {
+        actions.setMessages((state) => {
+          const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (messageIndex !== -1 && state.messages[messageIndex].progressSteps) {
+            state.messages[messageIndex].progressSteps = state.messages[messageIndex].progressSteps!.filter(
+              (step) => step.step_key !== analysisStepKey,
+            );
+            state.messages[messageIndex].mediaAnalysisStatus = null;
+          }
+        });
+      }, 250);
+    }
+
+    const statusData = data.data;
+    if (typeof statusData === 'object' && statusData !== null) {
+      const sd = statusData as Record<string, unknown>;
+
+      if ('progress_percent' in sd && typeof sd.progress_percent === 'number') {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1) {
+            const steps = state.messages[idx].progressSteps;
+            if (steps && steps.length > 0) {
+              steps[steps.length - 1].progress_percent = sd.progress_percent as number;
+            }
+          }
+        });
+      }
+
+      if (sd.phase === 'clarify' && sd.status === 'resolved') {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1 && state.messages[idx].clarification) {
+            state.messages[idx].clarification!.answered = true;
+          }
+        });
+      }
+
+      if (sd.phase === 'plan' && typeof sd.plan === 'string') {
+        const planText = (sd.plan as string).trim();
+        if (planText) {
+          const planLines = planText
+            .split('\n')
+            .map((line) => line.replace(/^[\d\-.*]+\s*/, '').trim())
+            .filter((line) => line.length > 0)
+            .slice(0, 10);
+
+          if (planLines.length > 0) {
+            actions.setMessages((state) => {
+              const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+              if (idx !== -1) {
+                const steps = state.messages[idx].progressSteps;
+                if (steps && steps.length > 0) {
+                  const lastStep = steps[steps.length - 1];
+                  lastStep.items = planLines.map((line) => ({ text: line }));
+                }
+              }
+            });
+          }
+        }
+      }
+
+      if (sd.phase === 'research' && typeof sd.agent_status === 'string') {
+        const MAX_DETAIL_ITEMS = 30;
+        let detailText: string | null = null;
+
+        if (sd.agent_status === 'started' && typeof sd.task === 'string') {
+          detailText = (sd.task as string).slice(0, 120);
+        } else if (sd.agent_status === 'tool_call' && typeof sd.tool_name === 'string') {
+          detailText = sd.tool_name as string;
+        }
+
+        if (detailText) {
+          actions.setMessages((state) => {
+            const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+            if (idx !== -1) {
+              const steps = state.messages[idx].progressSteps;
+              if (steps && steps.length > 0) {
+                const lastStep = steps[steps.length - 1];
+                if (!lastStep.items || !Array.isArray(lastStep.items)) {
+                  lastStep.items = [];
+                }
+                const items = lastStep.items as { text: string }[];
+                items.push({ text: detailText! });
+                if (items.length > MAX_DETAIL_ITEMS) {
+                  items.splice(0, items.length - MAX_DETAIL_ITEMS);
+                }
+              }
+            }
+          });
+        }
+      }
+    }
+
+    return done(ctx);
+  }
+
+
+  return null;
+}

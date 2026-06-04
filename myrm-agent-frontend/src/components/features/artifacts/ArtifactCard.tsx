@@ -7,7 +7,21 @@ import { Artifact, ArtifactType } from '@/store/chat/types';
 import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Play } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
+import { isTauriRuntime } from '@/lib/deploy-mode';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { toast } from 'sonner';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
+import { HtmlPreview } from './renderers/MediaPreview';
+import {
+  deploymentHostname,
+  formatBytes,
+  getArtifactIcon,
+  getDownloadFilename,
+  isDeployableArtifactType,
+  isDeploymentStale,
+  patchArtifactDeploymentInChat,
+} from './artifactUtils';
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -277,6 +291,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     patchArtifactDeploymentInChat(artifact.id, update);
   };
 
+  const showRedeployBanner = isDeploymentStale(artifactState);
+
   return (
     <>
     <div
@@ -458,6 +474,26 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           </Button>
         </div>
       </div>
+
+      {showRedeployBanner && (
+        <div
+          className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="min-w-0">{t('deploy.redeployBanner')}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeployModalOpen(true);
+            }}
+          >
+            {t('deploy.redeployAction')}
+          </Button>
+        </div>
+      )}
 
       {/* Inline HTML preview */}
       {canInlinePreview && inlineExpanded && (

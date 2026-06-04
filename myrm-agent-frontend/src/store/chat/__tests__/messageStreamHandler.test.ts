@@ -1,164 +1,210 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { AdaptiveScheduler } from '../adaptiveScheduler';
+import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState } from '../messageStreamHandler';
+import { AgentEventType, type Message } from '../types';
 
-/**
- * Test messageStreamHandler diagnostic_result priority logic
- * Logic: prioritize diagnostic_result from backend > frontend getUserFriendlyError
- */
+vi.mock('@/lib/utils/toast', () => ({
+  toast: {
+    error: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+const createAssistantState = (messageId: string): StreamHandlerState => {
+  const assistant: Message = {
+    messageId,
+    chatId: 'chat-1',
+    createdAt: new Date('2026-06-04T00:00:00Z'),
+    content: '',
+    role: 'assistant',
+    progressSteps: [],
+  };
+  return {
+    messages: [assistant],
+    messageAppeared: false,
+    loading: true,
+    scheduler: new AdaptiveScheduler(),
+  };
+};
+
+const createStatefulActions = (state: StreamHandlerState): StreamHandlerActions => ({
+  setMessages: (updater) => updater(state),
+  setMessageAppeared: () => undefined,
+  setLoading: (loading) => {
+    state.loading = typeof loading === 'function' ? loading(state.loading) : loading;
+  },
+  _processSuggestions: async () => undefined,
+  scheduleAutoSave: () => undefined,
+});
+
+const findProgressStepText = (
+  state: StreamHandlerState,
+  messageId: string,
+  stepKey: string,
+): string | undefined => {
+  const message = state.messages.find((m) => m.messageId === messageId);
+  const step = message?.progressSteps?.find((s) => s.step_key === stepKey);
+  const item = step?.items?.[0];
+  return item && typeof item === 'object' && 'text' in item ? String(item.text) : undefined;
+};
+
 describe('messageStreamHandler - diagnostic_result priority logic', () => {
-  it('should prioritize diagnostic_result over frontend translation', () => {
-    // Simulate ERROR event with diagnostic_result
-    const data = {
-      type: 'ERROR',
-      error: 'API key is invalid',
-      error_kind: 'LLM_ERROR',
-      diagnostic_result: {
-        error_type: 'api_key',
-        user_message: 'Invalid API key from backend i18n',
-        resolution_steps: [
-          'Check your API key in settings',
-          'Verify API key format',
-          'Visit https://platform.openai.com/api-keys for help',
-        ],
-        locale: 'en',
+  it('should prioritize diagnostic_result over frontend translation', async () => {
+    const messageId = 'assistant-error-1';
+    const state = createAssistantState(messageId);
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.ERROR,
+        messageId,
+        error: 'API key is invalid',
+        error_kind: 'LLM_ERROR',
+        diagnostic_result: {
+          error_type: 'api_key',
+          user_message: 'Invalid API key from backend i18n',
+          resolution_steps: [
+            'Check your API key in settings',
+            'Verify API key format',
+            'Visit https://platform.openai.com/api-keys for help',
+          ],
+          locale: 'en',
+        },
       },
-    };
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
 
-    let errorText: string = '';
-    let hint: string | undefined;
-
-    // Simulate the logic from messageStreamHandler
-    if (data.diagnostic_result) {
-      const diagnostic = data.diagnostic_result;
-      errorText = diagnostic.user_message;
-      if (diagnostic.resolution_steps.length > 0) {
-        const stepsText = diagnostic.resolution_steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
-        hint = stepsText;
-      }
-    }
-
+    const errorText = findProgressStepText(state, messageId, 'processing_failed');
     expect(errorText).toBe('Invalid API key from backend i18n');
-    expect(hint).toContain('1. Check your API key in settings');
-    expect(hint).toContain('2. Verify API key format');
-    expect(hint).toContain('3. Visit https://platform.openai.com/api-keys for help');
+
+    const step = state.messages[0].progressSteps?.find((s) => s.step_key === 'processing_failed');
+    expect(step?.error).toContain('1. Check your API key in settings');
+    expect(step?.error).toContain('2. Verify API key format');
+    expect(step?.error).toContain('3. Visit https://platform.openai.com/api-keys for help');
   });
 
-  it('should use fallback path when diagnostic_result is missing', () => {
-    // Simulate ERROR event WITHOUT diagnostic_result
-    const data = {
-      type: 'ERROR',
-      error: 'API key is invalid',
-      error_kind: 'LLM_ERROR',
-    } as any;
+  it('should use fallback path when diagnostic_result is missing', async () => {
+    const messageId = 'assistant-error-2';
+    const state = createAssistantState(messageId);
 
-    let usedFallback = false;
-
-    if (data.diagnostic_result) {
-      // Should NOT enter this branch
-    } else {
-      usedFallback = true;
-    }
-
-    expect(usedFallback).toBe(true);
-    expect(data.diagnostic_result).toBeUndefined();
-  });
-
-  it('should handle diagnostic_result with empty resolution_steps', () => {
-    const data = {
-      type: 'ERROR',
-      error: 'Unknown error',
-      error_kind: 'LLM_ERROR',
-      diagnostic_result: {
-        error_type: 'unknown',
-        user_message: 'Unknown error occurred',
-        resolution_steps: [], // empty
-        locale: 'en',
+    await handleMessageStream(
+      {
+        type: AgentEventType.ERROR,
+        messageId,
+        error: 'API key is invalid',
+        error_kind: 'LLM_ERROR',
       },
-    };
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
 
-    let errorText: string = '';
-    let hint: string | undefined;
-
-    if (data.diagnostic_result) {
-      const diagnostic = data.diagnostic_result;
-      errorText = diagnostic.user_message;
-      if (diagnostic.resolution_steps.length > 0) {
-        const stepsText = diagnostic.resolution_steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
-        hint = stepsText;
-      }
-    }
-
-    expect(errorText).toBe('Unknown error occurred');
-    expect(hint).toBeUndefined();
+    expect(findProgressStepText(state, messageId, 'processing_failed')).toBe('API key is invalid');
+    const step = state.messages[0].progressSteps?.find((s) => s.step_key === 'processing_failed');
+    expect(step?.error).toBe(true);
+    expect(state.loading).toBe(false);
   });
 
-  it('should format resolution_steps with line numbers', () => {
-    const diagnostic_result = {
-      error_type: 'api_key',
-      user_message: 'API key error',
-      resolution_steps: ['Step one', 'Step two', 'Step three'],
-      locale: 'en',
-    };
+  it('should handle diagnostic_result with empty resolution_steps', async () => {
+    const messageId = 'assistant-error-3';
+    const state = createAssistantState(messageId);
 
-    const stepsText = diagnostic_result.resolution_steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
+    await handleMessageStream(
+      {
+        type: AgentEventType.ERROR,
+        messageId,
+        error: 'Unknown error',
+        error_kind: 'LLM_ERROR',
+        diagnostic_result: {
+          error_type: 'unknown',
+          user_message: 'Unknown error occurred',
+          resolution_steps: [],
+          locale: 'en',
+        },
+      },
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
 
-    expect(stepsText).toBe('1. Step one\n2. Step two\n3. Step three');
+    expect(findProgressStepText(state, messageId, 'processing_failed')).toBe('Unknown error occurred');
+    const step = state.messages[0].progressSteps?.find((s) => s.step_key === 'processing_failed');
+    expect(step?.error).toBe(true);
   });
 });
 
-/**
- * Test STEERING event handling logic from messageStreamHandler.
- * Validates the parsing of different SSE STEERING event data formats.
- */
 describe('messageStreamHandler - STEERING event parsing', () => {
-  function parseSteerText(steerData: { count?: number; messages?: string[] } | string | undefined): string {
-    let steerText = 'Steering applied';
-    if (typeof steerData === 'object' && steerData?.messages?.length) {
-      const preview = steerData.messages[0].slice(0, 80);
-      const suffix = steerData.messages[0].length > 80 || steerData.messages.length > 1 ? '...' : '';
-      steerText = `Steering: "${preview}${suffix}"`;
-    }
-    return steerText;
-  }
+  const messageId = 'assistant-steer-1';
 
-  it('should show preview of short single message', () => {
-    const result = parseSteerText({ count: 1, messages: ['focus on testing'] });
-    expect(result).toBe('Steering: "focus on testing"');
+  const runSteering = async (
+    data: { count?: number; messages?: string[] } | string | undefined,
+  ): Promise<StreamHandlerState> => {
+    const state = createAssistantState(messageId);
+    await handleMessageStream(
+      {
+        type: AgentEventType.STEERING,
+        messageId,
+        data,
+      },
+      '',
+      undefined,
+      false,
+      '',
+      state,
+      createStatefulActions(state),
+    );
+    return state;
+  };
+
+  it('should show preview of short single message', async () => {
+    const state = await runSteering({ count: 1, messages: ['focus on testing'] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering: "focus on testing"');
   });
 
-  it('should truncate message longer than 80 chars', () => {
+  it('should truncate message longer than 80 chars', async () => {
     const longMsg = 'A'.repeat(120);
-    const result = parseSteerText({ count: 1, messages: [longMsg] });
-    expect(result).toBe(`Steering: "${'A'.repeat(80)}..."`);
+    const state = await runSteering({ count: 1, messages: [longMsg] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe(`Steering: "${'A'.repeat(80)}..."`);
   });
 
-  it('should add ellipsis for multiple messages', () => {
-    const result = parseSteerText({ count: 2, messages: ['first', 'second'] });
-    expect(result).toBe('Steering: "first..."');
+  it('should add ellipsis for multiple messages', async () => {
+    const state = await runSteering({ count: 2, messages: ['first', 'second'] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering: "first..."');
   });
 
-  it('should fallback for undefined data', () => {
-    const result = parseSteerText(undefined);
-    expect(result).toBe('Steering applied');
+  it('should fallback for undefined data', async () => {
+    const state = await runSteering(undefined);
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering applied');
   });
 
-  it('should fallback for string data (backward compat)', () => {
-    const result = parseSteerText('Steering with 2 new message(s)' as unknown as undefined);
-    expect(result).toBe('Steering applied');
+  it('should fallback for string data (backward compat)', async () => {
+    const state = await runSteering('Steering with 2 new message(s)' as unknown as undefined);
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering applied');
   });
 
-  it('should fallback for empty messages array', () => {
-    const result = parseSteerText({ count: 0, messages: [] });
-    expect(result).toBe('Steering applied');
+  it('should fallback for empty messages array', async () => {
+    const state = await runSteering({ count: 0, messages: [] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering applied');
   });
 
-  it('should handle Chinese/Unicode in preview', () => {
-    const result = parseSteerText({ count: 1, messages: ['请专注于中文搜索结果'] });
-    expect(result).toBe('Steering: "请专注于中文搜索结果"');
+  it('should handle Chinese/Unicode in preview', async () => {
+    const state = await runSteering({ count: 1, messages: ['请专注于中文搜索结果'] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe('Steering: "请专注于中文搜索结果"');
   });
 
-  it('should handle message with newlines (no truncation under 80)', () => {
+  it('should handle message with newlines (no truncation under 80)', async () => {
     const msg = 'line1\nline2\nline3';
-    const result = parseSteerText({ count: 1, messages: [msg] });
-    expect(result).toBe(`Steering: "${msg}"`);
+    const state = await runSteering({ count: 1, messages: [msg] });
+    expect(findProgressStepText(state, messageId, 'steering_applied')).toBe(`Steering: "${msg}"`);
   });
 });

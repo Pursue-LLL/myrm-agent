@@ -37,6 +37,7 @@ and voice STT/TTS via voice_handler module.
 - channels.voice.handler::transcribe_inbound, has_audio_attachment (POS: voice processing)
 - channels.media.image_enrichment::enrich_image_inbound, has_image_attachment (POS: image attachment base64 enrichment)
 - channels.media.video_enrichment::enrich_video_inbound, has_video_attachment (POS: video attachment metadata enrichment)
+- channels.media.document_enrichment::enrich_document_inbound, has_document_attachment (POS: PDF/Office text extraction for IM)
 
 [OUTPUT]
 - AgentRouter: inbound message routing hub managing dedup, command dispatch, agent task lifecycle, and streaming progress
@@ -83,6 +84,10 @@ from app.channels.core.bus import (
     set_correlation_context,
 )
 from app.channels.i18n import get_text, resolve_message_locale
+from app.channels.media.document_enrichment import (
+    enrich_document_inbound,
+    has_document_attachment,
+)
 from app.channels.media.image_enrichment import (
     enrich_image_inbound,
 )
@@ -797,6 +802,19 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if not is_resume and has_image_attachment_fn(msg):
             msg = await enrich_image_inbound(msg, self._bus.get_channel)
+            exec_for_error = msg
+
+        if not is_resume and has_document_attachment(msg):
+            from app.core.channel_bridge.config_loader import load_user_configs
+            from app.services.files.attachment_settings import should_extract_document_text
+
+            configs = await load_user_configs()
+            extract_docs = should_extract_document_text(configs.personal_settings_dict)
+            msg = await enrich_document_inbound(
+                msg,
+                self._bus.get_channel,
+                extract_enabled=extract_docs,
+            )
             exec_for_error = msg
 
         agent_route_resolved = self._registry.resolve(msg.content)

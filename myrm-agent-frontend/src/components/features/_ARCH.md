@@ -13,15 +13,24 @@
 | `message-box/` | 消息渲染与操作栏 |
 | `settings/` | 设置页各 Section |
 | `sidebar/` | 会话列表与项目栏 |
+| `chat-window/` | 主对话、审批、Agent 配置 | [_ARCH.md](chat-window/_ARCH.md) |
+| `message-box/` | 消息渲染与进度 | [_ARCH.md](message-box/_ARCH.md) |
+| `sidebar/` | 会话侧栏 | [_ARCH.md](sidebar/_ARCH.md) |
+| `settings/` | 设置各 Section | [_ARCH.md](settings/_ARCH.md) |
+| `memory/` | 记忆中心 | [_ARCH.md](memory/_ARCH.md) |
+| `skills/` | 技能管理 | [_ARCH.md](skills/_ARCH.md) |
 | `kanban/` | 看板 | [_ARCH.md](kanban/_ARCH.md) |
-| `memory/` | 记忆中心 |
-| `skills/` | 技能管理 |
-| `health/` | System Doctor |
+| `health/` | System Doctor | [_ARCH.md](health/_ARCH.md) |
+| `workspace/` | 工作区与文件树 | [_ARCH.md](workspace/_ARCH.md) |
+| `channels/` | 渠道 UI 入口 | [_ARCH.md](channels/_ARCH.md) |
+| `cron/` | 定时任务 UI | [_ARCH.md](cron/_ARCH.md) |
+| `app-shell/` | 应用壳与全局初始化 | [_ARCH.md](app-shell/_ARCH.md) |
+| `artifacts/` | 工件与部署 | [_ARCH.md](artifacts/_ARCH.md) |
+| `companion/` | 桌宠伴侣 | [_ARCH.md](companion/_ARCH.md) |
 | `browser-inspector/` | 浏览器检查器 | [_ARCH.md](browser-inspector/_ARCH.md) |
 | `desktop-inspector/` | 桌面检查器 | [_ARCH.md](desktop-inspector/_ARCH.md) |
-| `companion/` | 桌宠伴侣 | [_ARCH.md](companion/_ARCH.md) |
 
-其余子目录见本文件夹列表（`artifacts/`、`cron/`、`workspace/` 等）。
+其余子目录（`agent-events/`、`eval-lab/`、`voice/` 等）均有目录级 `_ARCH.md`，见各文件夹。
 
 ## 依赖
 

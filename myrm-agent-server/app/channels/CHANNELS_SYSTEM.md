@@ -233,9 +233,12 @@ components: []
 2. **命令检测**：`/stop` / `/new` / `/compact` / `/topic` / `/agent` / 审批命令
 3. **策略解析**：DM/群聊策略 + 身份解析 + 群组启用检查
 4. **Debounce**：连发消息合并（SessionGate，默认 300ms 窗口）
-5. **并发控制**：`asyncio.Semaphore` 限制同时执行的 Agent 任务数
-6. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken
-7. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
+5. **入站附件增强**（`_handle_merged`，在 Agent 执行前）：语音转写 → 贴纸描述 → 视频元数据 → 图片 base64（`image_data_list`）→ **PDF/Office 文本**（`document_text_blocks`，受 `personalSettings.extractDocumentText` 控制，默认开启；解析复用 `services/files/content_extraction`）
+6. **并发控制**：`asyncio.Semaphore` 限制同时执行的 Agent 任务数
+7. **Agent 执行**：`AgentExecutor.execute_stream()` + CancellationToken；`build_channel_inbound_query` 将文档块拼入 user 正文
+8. **流式回复**：Placeholder 编辑 + 自适应节流 + 智能分块
+
+**前端联动**：设置 → 偏好 → **提取附件文本**（`extractDocumentText`）同步影响 Web 聊天、IM 渠道与看板任务附件。
 
 **审批命令（emoji reaction）**：
 

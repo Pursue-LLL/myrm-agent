@@ -386,7 +386,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
         {/* 内容区域 */}
         <div className="flex-1 overflow-hidden p-4">
           {showRedeployBanner && (
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
               <span>{t('deploy.redeployBanner')}</span>
               <Button size="sm" variant="outline" onClick={() => setDeployModalOpen(true)}>
                 {t('deploy.redeployAction')}

@@ -8,7 +8,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `content_extraction.py` | ✅ 核心 | PDF/Office 文档字节流文本提取 | ✅ |
+| `content_extraction.py` | ✅ 核心 | PDF/Office 提取（bytes/path）；`api/files` 与 Kanban 共用 | ✅ |
+| `attachment_settings.py` | ✅ 核心 | `extractDocumentText` 个人设置解析（默认开启） | — |
 
 ## 依赖关系
 
@@ -17,3 +18,4 @@
 
 ### 被依赖方
 - `app/services/kanban/task_runner.py`：任务附件上下文注入
+- `app/channels/media/document_enrichment.py`：渠道入站文档提取
