@@ -8,7 +8,14 @@ import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, 
 import { Button } from '@/components/primitives/button';
 import { getStorageUrl } from '@/lib/api';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import { getArtifactIcon, formatBytes, getDownloadFilename, isDeployableArtifactType, patchArtifactDeploymentInChat } from './artifactUtils';
+import {
+  deploymentHostname,
+  formatBytes,
+  getArtifactIcon,
+  getDownloadFilename,
+  isDeployableArtifactType,
+  patchArtifactDeploymentInChat,
+} from './artifactUtils';
 import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
 import { HtmlPreview } from './renderers/MediaPreview';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
@@ -286,7 +293,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
           {hasLocalPath && (
             <Button
               variant="ghost"
@@ -338,7 +345,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
                 e.stopPropagation();
                 window.open(artifactState.deployment_url!, '_blank');
               }}
-              title={t('deploy.deployedLabel', { hostname: new URL(artifactState.deployment_url).hostname })}
+              title={t('deploy.deployedLabel', { hostname: deploymentHostname(artifactState.deployment_url) })}
             >
               <ExternalLink className="w-4 h-4" />
             </Button>

@@ -256,3 +256,12 @@ export function isDeploymentStale(artifact: Artifact): boolean {
 export function isDeployableArtifactType(type: ArtifactType): boolean {
   return type === 'html' || type === 'code';
 }
+
+/** Safe hostname extraction for deployment URL labels. */
+export function deploymentHostname(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
