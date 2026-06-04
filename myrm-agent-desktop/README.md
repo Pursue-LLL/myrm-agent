@@ -204,7 +204,7 @@ myrm-agent-desktop/
 │   ├── src/
 │   │   ├── main.rs         # Tauri 入口（插件注册、setup、invoke_handler）
 │   │   ├── _ARCH.md        # Rust 模块清单
-│   │   ├── runtime/        # Python/Next.js Sidecar、Appshot、Setup Token
+│   │   ├── runtime/        # Python/Next.js Sidecar、Appshot、Agent Runner 编排
 │   │   ├── commands/       # IPC 命令（config、agent、power、screen_lock…）
 │   │   ├── agents/         # CLI 适配器（Sidecar 不可用时的 Rust fallback）
 │   │   ├── sidecar/        # Agent Runner 进程与 JSON-RPC
