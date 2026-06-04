@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 from app.api.files import (
     artifact_api,
+    artifact_share_api,
     browse,
     deploy_api,
     document_extract,
@@ -30,6 +31,7 @@ router.include_router(upload.router, tags=["files-upload"])
 router.include_router(vault_api.router, prefix="/vault", tags=["files-vault"])
 router.include_router(artifact_api.router, prefix="/artifacts", tags=["files-artifacts"])
 router.include_router(deploy_api.router, prefix="/artifacts", tags=["files-deploy"])
+router.include_router(artifact_share_api.router, prefix="/artifacts", tags=["files-artifact-share"])
 router.include_router(storage.router, prefix="/storage", tags=["files-storage"])
 router.include_router(pdf_extract.router, tags=["files-pdf"])
 router.include_router(document_extract.router, tags=["files-document"])

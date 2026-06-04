@@ -6833,6 +6833,12 @@
     "imageLoadError": "图片加载失败",
     "audioLoadError": "音频加载失败",
     "videoLoadError": "视频加载失败",
+    "sharePreview": {
+      "open": "复制只读分享链接",
+      "successTitle": "分享链接已复制",
+      "successDescription": "持有链接的人可在 7 天内只读查看该工件。",
+      "failed": "创建分享链接失败"
+    },
     "deploy": {
       "title": "部署到 Web",
       "description": "通过 Vercel 将工件一键发布到全球边缘网络。",

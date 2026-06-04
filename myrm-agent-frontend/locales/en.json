@@ -6810,6 +6810,12 @@
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
     "videoLoadError": "Failed to load video",
+    "sharePreview": {
+      "open": "Copy read-only share link",
+      "successTitle": "Share link copied",
+      "successDescription": "Anyone with the link can view this artifact for 7 days.",
+      "failed": "Failed to create share link"
+    },
     "deploy": {
       "title": "Deploy to Web",
       "description": "Publish your artifact instantly to the global edge network using Vercel.",

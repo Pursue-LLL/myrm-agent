@@ -10,6 +10,8 @@ import { Artifact } from '@/store/chat/types';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { getApiUrl } from '@/lib/api';
 import { useTranslations } from 'next-intl';
+import { fetchArtifactDeployPreflight, type ArtifactDeployPreflight } from './artifactUtils';
+import { toast } from 'sonner';
 
 export interface DeployedArtifactUpdate {
   deployment_url: string;
@@ -39,9 +41,12 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
   const [copied, setCopied] = useState(false);
   const [credentialsLoading, setCredentialsLoading] = useState(false);
   const [platformAvailable, setPlatformAvailable] = useState(false);
+  const [preflight, setPreflight] = useState<ArtifactDeployPreflight | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
   const isIntentionalClose = useRef(false);
 
-  const canDeploy = platformAvailable || token.trim().length > 0;
+  const canDeploy =
+    (platformAvailable || token.trim().length > 0) && preflight?.deployable !== false;
 
   const notifyDeployed = useCallback(
     (payload: DeployedArtifactUpdate) => {
@@ -75,6 +80,21 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
     isIntentionalClose.current = false;
 
     let cancelled = false;
+
+    const loadPreflight = async () => {
+      setPreflightLoading(true);
+      try {
+        const result = await fetchArtifactDeployPreflight(artifact.id);
+        setPreflight(result);
+        if (result && !result.deployable) {
+          setErrorMsg(result.message);
+        }
+      } finally {
+        setPreflightLoading(false);
+      }
+    };
+
+    void loadPreflight();
 
     const loadCredentials = async () => {
       setCredentialsLoading(true);
@@ -115,9 +135,13 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
     return () => {
       cancelled = true;
     };
-  }, [open, saveCredentials]);
+  }, [open, saveCredentials, artifact.id]);
 
   const handleDeploy = async () => {
+    if (preflight && !preflight.deployable) {
+      toast.error(preflight.message, { description: preflight.hint ?? undefined });
+      return;
+    }
     if (!canDeploy) {
       setErrorMsg(t('errors.tokenRequired'));
       return;
@@ -303,6 +327,11 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
                   .
                 </p>
               </div>
+              {preflight && !preflight.deployable && preflight.hint && (
+                <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-md border border-amber-200 dark:border-amber-900">
+                  {preflight.hint}
+                </p>
+              )}
               {errorMsg && (
                 <p className="text-sm text-red-500 bg-red-50 dark:bg-red-950/50 p-2 rounded-md border border-red-100 dark:border-red-900">
                   {errorMsg}
@@ -311,7 +340,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
               <Button
                 onClick={handleDeploy}
                 className="w-full shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
-                disabled={!canDeploy || credentialsLoading}
+                disabled={!canDeploy || credentialsLoading || preflightLoading}
               >
                 {t('deployNow')}
               </Button>

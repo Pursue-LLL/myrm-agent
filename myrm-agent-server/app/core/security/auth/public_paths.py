@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # Prefix match — keep health, OpenAPI, and static webui entrypoints open.
 PUBLIC_PATH_PREFIXES: tuple[str, ...] = (
+    "/api/v1/public/artifact-share",
     "/api/v1/health",
     "/api/v1/webui/welcome",
     "/webui/auth/",

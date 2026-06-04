@@ -13,6 +13,7 @@ import {
   Video01Icon,
   HeadphonesIcon,
 } from 'hugeicons-react';
+import { getApiUrl } from '@/lib/api';
 import { Artifact, ArtifactType } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { formatFileSize as formatFileSizeUtil, isPreviewable, needsContentLoad, inferLanguage } from '@/types/artifact';
@@ -253,8 +254,69 @@ export function isDeploymentStale(artifact: Artifact): boolean {
   );
 }
 
+const DEPLOY_CANDIDATE_TYPES: ReadonlySet<ArtifactType> = new Set(['html', 'code']);
+
+export function isDeployCandidateArtifactType(type: ArtifactType): boolean {
+  return DEPLOY_CANDIDATE_TYPES.has(type);
+}
+
+/** @deprecated Use isDeployCandidateArtifactType + deploy preflight deployable flag. */
 export function isDeployableArtifactType(type: ArtifactType): boolean {
-  return type === 'html' || type === 'code';
+  return isDeployCandidateArtifactType(type);
+}
+
+export interface ArtifactDeployPreflight {
+  deployable: boolean;
+  reason: string;
+  message: string;
+  hint: string | null;
+}
+
+export async function fetchArtifactDeployPreflight(
+  artifactId: string,
+): Promise<ArtifactDeployPreflight | null> {
+  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/deploy/preflight`));
+  if (!response.ok) {
+    return null;
+  }
+  return (await response.json()) as ArtifactDeployPreflight;
+}
+
+const SHARE_PREVIEW_SUFFIXES = ['.html', '.htm', '.pdf', '.md', '.markdown', '.txt'] as const;
+
+export function isSharePreviewableArtifact(artifact: Artifact): boolean {
+  const lower = artifact.filename.toLowerCase();
+  if (SHARE_PREVIEW_SUFFIXES.some((suffix) => lower.endsWith(suffix))) {
+    return true;
+  }
+  return artifact.type === 'html' || artifact.type === 'pdf' || artifact.type === 'document';
+}
+
+export interface ArtifactSharePreviewResult {
+  token: string;
+  share_path: string;
+  expires_at: number;
+}
+
+export function buildPublicArtifactShareUrl(sharePath: string): string {
+  const apiBase = getApiUrl('');
+  const backendOrigin = apiBase.replace(/\/api\/v1\/?$/, '');
+  return `${backendOrigin}${sharePath}`;
+}
+
+export async function createArtifactSharePreview(
+  artifactId: string,
+): Promise<ArtifactSharePreviewResult> {
+  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/share-preview`), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ttl_days: 7 }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { detail?: string };
+    throw new Error(body.detail ?? 'Failed to create share link');
+  }
+  return (await response.json()) as ArtifactSharePreviewResult;
 }
 
 /** Safe hostname extraction for deployment URL labels. */

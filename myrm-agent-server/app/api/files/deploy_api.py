@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
-from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,13 +32,16 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.api.dependencies import get_workspace_root
 from app.config.deploy_mode import is_sandbox
 from app.config.settings import settings
-from app.core.artifacts.listener import ensure_artifact_for_deploy, resolve_sandbox_file_path
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
-from app.services.deploy.deploy_packager import collect_deploy_files, validate_deploy_payload
+from app.services.deploy.preflight import (
+    evaluate_deploy_preflight,
+    resolve_artifact_deploy_files,
+    run_deploy_preflight,
+)
 from app.services.deploy.vercel_client import VercelClient
 
 logger = logging.getLogger(__name__)
@@ -65,16 +67,18 @@ class SaveVercelCredentialsRequest(BaseModel):
     token: str = Field(..., min_length=1)
 
 
+class DeployPreflightResponse(BaseModel):
+    deployable: bool
+    reason: str
+    message: str
+    hint: str | None = None
+
+
 def _get_platform_vercel_token() -> str | None:
     if not is_sandbox():
         return None
     token = os.environ.get(_PLATFORM_TOKEN_ENV, "").strip()
     return token or None
-
-
-def _vault_object_path(vault: ArtifactVault, vault_uri: str):
-    obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
-    return vault.get_object_path(obj_id)
 
 
 def _decrypt_vercel_credentials(
@@ -210,6 +214,22 @@ async def save_vercel_credentials(
     return {"status": "success", "message": "Vercel credentials saved"}
 
 
+@router.get("/{artifact_id}/deploy/preflight", response_model=DeployPreflightResponse)
+async def deploy_artifact_preflight(
+    artifact_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> DeployPreflightResponse:
+    """Check whether an artifact can be deployed before opening the deploy UI."""
+    workspace_root = str(get_workspace_root())
+    result = await run_deploy_preflight(db, artifact_id, workspace_root)
+    return DeployPreflightResponse(
+        deployable=result.deployable,
+        reason=result.reason,
+        message=result.message,
+        hint=result.hint,
+    )
+
+
 @router.post("/{artifact_id}/deploy")
 @limiter.limit(settings.rate_limit.artifact_deploy)
 async def deploy_artifact(
@@ -223,39 +243,29 @@ async def deploy_artifact(
         raise HTTPException(status_code=400, detail="Only Vercel is supported currently")
 
     workspace_root = str(get_workspace_root())
+    preflight = await run_deploy_preflight(db, artifact_id, workspace_root)
+    if not preflight.deployable:
+        raise HTTPException(status_code=400, detail=preflight.message)
+
     try:
-        artifact = await ensure_artifact_for_deploy(db, artifact_id, workspace_root)
+        artifact, files_to_deploy = await resolve_artifact_deploy_files(
+            db, artifact_id, workspace_root
+        )
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
-
-    if not artifact.versions:
-        raise HTTPException(status_code=400, detail="Artifact has no versions to deploy")
-
-    latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-
-    vault = ArtifactVault(workspace_root)
-    try:
-        obj_path = _vault_object_path(vault, latest_version.vault_uri)
-        asset_root: Path | None = None
-        if artifact.chat_id and artifact.name:
-            resolved = resolve_sandbox_file_path(
-                artifact.name, workspace_root, artifact.chat_id
-            )
-            if resolved:
-                asset_root = Path(resolved).parent
-        files_to_deploy = collect_deploy_files(
-            obj_path,
-            asset_root=asset_root,
-            entry_name_hint=artifact.name,
-        )
-        validate_deploy_payload(files_to_deploy)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Failed to read artifact files: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}") from e
+
+    check = evaluate_deploy_preflight(files_to_deploy)
+    if not check.deployable:
+        raise HTTPException(status_code=400, detail=check.message)
+
+    latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
 
     vercel_token = await _resolve_vercel_token(db, deploy_body.token)
     client = VercelClient(token=vercel_token)

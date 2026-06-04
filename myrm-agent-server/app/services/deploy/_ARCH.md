@@ -14,6 +14,7 @@
 |------|------|------|
 | `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
 | `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
+| `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `resolve_artifact_deploy_files` — FE 部署前门禁 |
 
 ---
 

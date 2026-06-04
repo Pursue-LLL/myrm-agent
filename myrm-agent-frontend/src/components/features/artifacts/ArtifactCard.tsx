@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, Play } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { isTauriRuntime } from '@/lib/deploy-mode';
@@ -18,9 +18,14 @@ import {
   formatBytes,
   getArtifactIcon,
   getDownloadFilename,
-  isDeployableArtifactType,
+  buildPublicArtifactShareUrl,
+  createArtifactSharePreview,
+  fetchArtifactDeployPreflight,
+  isDeployCandidateArtifactType,
   isDeploymentStale,
+  isSharePreviewableArtifact,
   patchArtifactDeploymentInChat,
+  type ArtifactDeployPreflight,
 } from './artifactUtils';
 
 interface ArtifactCardProps {
@@ -75,16 +80,42 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [inlineContent, setInlineContent] = useState<string | null>(null);
   const [inlineLoading, setInlineLoading] = useState(false);
   const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
   const [artifactState, setArtifactState] = useState(artifact);
   const hasLocalPath = Boolean(artifact.file_path);
-  const canDeploy = isDeployableArtifactType(artifact.type as ArtifactType);
+  const isDeployCandidate = isDeployCandidateArtifactType(artifact.type as ArtifactType);
+  const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
+  const canSharePreview = isSharePreviewableArtifact(artifactState);
 
   useEffect(() => {
     setArtifactState(artifact);
   }, [artifact]);
 
   useEffect(() => {
-    if (!canDeploy) {
+    if (!isDeployCandidate) {
+      setDeployPreflight(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPreflight = async () => {
+      const result = await fetchArtifactDeployPreflight(artifact.id);
+      if (!cancelled) {
+        setDeployPreflight(result);
+      }
+    };
+
+    void loadPreflight();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [artifact.id, isDeployCandidate]);
+
+  useEffect(() => {
+    if (!isDeployCandidate) {
       return;
     }
 
@@ -124,7 +155,45 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     return () => {
       cancelled = true;
     };
-  }, [artifact.id, canDeploy]);
+  }, [artifact.id, isDeployCandidate]);
+
+  const handleOpenDeploy = useCallback(
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (deployPreflight && !deployPreflight.deployable) {
+        toast.error(deployPreflight.message, {
+          description: deployPreflight.hint ?? undefined,
+        });
+        return;
+      }
+      setDeployModalOpen(true);
+    },
+    [deployPreflight],
+  );
+
+  const handleSharePreview = useCallback(
+    async (event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (shareLoading) {
+        return;
+      }
+      setShareLoading(true);
+      try {
+        const result = await createArtifactSharePreview(artifactState.id);
+        const url = buildPublicArtifactShareUrl(result.share_path);
+        await writeToClipboard(url);
+        toast.success(t('sharePreview.successTitle'), {
+          description: t('sharePreview.successDescription'),
+        });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : t('sharePreview.failed');
+        toast.error(message);
+      } finally {
+        setShareLoading(false);
+      }
+    },
+    [artifactState.id, shareLoading, t],
+  );
 
   const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { getCachedContent, setCachedContent } = useArtifactPortalStore();
@@ -395,16 +464,32 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               <ExternalLink className="w-4 h-4" />
             </Button>
           )}
-          {canDeploy && (
+          {canSharePreview && (
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeployModalOpen(true);
-              }}
-              title={t('deploy.openModal')}
+              disabled={shareLoading}
+              onClick={handleSharePreview}
+              title={t('sharePreview.open')}
+            >
+              <Link2 className={cn('w-4 h-4', shareLoading && 'opacity-50')} />
+            </Button>
+          )}
+          {isDeployCandidate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'h-8 w-8',
+                canDeploy ? 'text-primary' : 'text-muted-foreground opacity-60',
+              )}
+              onClick={handleOpenDeploy}
+              title={
+                canDeploy
+                  ? t('deploy.openModal')
+                  : deployPreflight?.hint ?? deployPreflight?.message ?? t('deploy.openModal')
+              }
             >
               <Globe className="w-4 h-4" />
             </Button>
