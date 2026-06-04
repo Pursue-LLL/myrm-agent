@@ -6,30 +6,44 @@
  * [INPUT]
  * - @/store/useChatStore: Messages, loading state, stop action
  * - @/store/useToolApprovalStore: Pending approval queue
+ * - @/hooks/useToolApprovalResolve: Stream resume for approve/reject
+ * - @/hooks/useVisualApprovalSnapshot: Snapshot fallback for inline visual approvals
  * - chatId: Active chat identifier
  *
  * [OUTPUT]
  * - MobileStatusBoard: Full-screen mobile command center with:
  *   - Real-time execution progress (Watch Mode)
- *   - Pending approval queue with one-tap approve/reject
+ *   - Inline visual approvals (BBox screenshot) and modal text approvals
  *   - Quick command input for sending new instructions
  *   - Stop task control
  *
  * [POS]
  * Renders as the primary mobile interface for monitoring and controlling
- * desktop Agent execution. Designed for Codex-like "approve/watch/stop"
- * interaction pattern that works for non-technical users.
+ * desktop Agent execution. Visual browser/desktop approvals reuse the same
+ * inline surface rules as the desktop chat window.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send } from 'lucide-react';
+import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Button } from '@/components/primitives/button';
 import ProgressSteps from '@/components/features/message-box/progress-steps/ProgressSteps';
+import VisualApprovalArtifactCard from '@/components/features/chat-window/VisualApprovalArtifactCard';
+import VisualApprovalPendingCard from '@/components/features/chat-window/VisualApprovalPendingCard';
+import SingleApprovalCard from '@/components/features/chat-window/SingleApprovalCard';
+import {
+  hasVisualApprovalContext,
+  resolveVisualApprovalContextForRequest,
+} from '@/lib/approval/visualApprovalContext';
+import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
+import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
+import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
@@ -50,50 +64,28 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   );
 
   const approvalQueue = useToolApprovalStore((s) => s.queue);
+  const desktopViewData = useDesktopInspectorStore((state) => state.viewData);
+  const browserViewData = useBrowserInspectorStore((state) => state.viewData);
+  const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
+  const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
+  const { resolveRequest, approveAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
   const [quickInput, setQuickInput] = useState('');
+
+  const chatApprovalQueue = useMemo(
+    () => approvalQueue.filter((request) => request.chatId === chatId),
+    [approvalQueue, chatId],
+  );
+
+  const { inlineRequests, modalRequests } = useMemo(
+    () => partitionApprovalQueue(chatApprovalQueue),
+    [chatApprovalQueue],
+  );
+
+  useVisualApprovalSnapshot(inlineRequests);
 
   useEffect(() => {
     initializeChat(chatId);
   }, [chatId, initializeChat]);
-
-  const resolveApproval = useCallback(
-    (requestId: string, decision: 'approve' | 'reject') => {
-      const req = approvalQueue.find((r) => r.requestId === requestId);
-      if (!req) return;
-
-      const resumeValue = {
-        decisions: [{ type: decision, extensions: { allowAlways: false } }],
-      };
-
-      sendMessage('', req.messageId, undefined, resumeValue);
-      useToolApprovalStore.getState().removeRequest(requestId);
-    },
-    [approvalQueue, sendMessage],
-  );
-
-  const handleApprove = useCallback((requestId: string) => resolveApproval(requestId, 'approve'), [resolveApproval]);
-
-  const handleReject = useCallback((requestId: string) => resolveApproval(requestId, 'reject'), [resolveApproval]);
-
-  const handleApproveAll = useCallback(() => {
-    // Group by messageId — batch approvals share the same messageId
-    const grouped = new Map<string, typeof approvalQueue>();
-    for (const req of approvalQueue) {
-      const existing = grouped.get(req.messageId) ?? [];
-      existing.push(req);
-      grouped.set(req.messageId, existing);
-    }
-
-    for (const [messageId, reqs] of grouped) {
-      const resumeValue = {
-        decisions: reqs.map(() => ({ type: 'approve' as const, extensions: { allowAlways: false } })),
-      };
-      sendMessage('', messageId, undefined, resumeValue);
-      for (const req of reqs) {
-        useToolApprovalStore.getState().removeRequest(req.requestId);
-      }
-    }
-  }, [approvalQueue, sendMessage]);
 
   const handleSendQuickCommand = useCallback(() => {
     const text = quickInput.trim();
@@ -121,11 +113,10 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const lastAssistantMessage = [...messages].reverse().find((m) => m.role === 'assistant');
   const hasProgress = lastAssistantMessage?.progressSteps && lastAssistantMessage.progressSteps.length > 0;
   const hasThinking = lastAssistantMessage?.thinkingItems && lastAssistantMessage.thinkingItems.length > 0;
-  const pendingCount = approvalQueue.length;
+  const pendingCount = chatApprovalQueue.length;
 
   return (
     <div className="flex flex-col h-[100dvh] bg-background/50 backdrop-blur-3xl">
-      {/* Header */}
       <div className="flex items-center p-4 border-b bg-background/80 sticky top-0 z-50">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
           <ArrowLeft className="h-5 w-5" />
@@ -149,9 +140,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Pending Approvals */}
         {pendingCount > 0 && (
           <div className="bg-card rounded-2xl border border-amber-500/30 overflow-hidden">
             <div className="p-3 border-b bg-amber-500/10 flex items-center justify-between">
@@ -161,35 +150,60 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
                   {t('pendingApprovals')} ({pendingCount})
                 </h2>
               </div>
-              {pendingCount > 1 && (
-                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleApproveAll}>
+              {modalRequests.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => void approveAll(modalRequests)}
+                  disabled={isApprovalLoading}
+                >
                   {t('approveAll')}
                 </Button>
               )}
             </div>
-            <div className="divide-y">
-              {approvalQueue.map((req) => (
-                <div key={req.requestId} className="p-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{req.toolName ?? 'Operation'}</p>
-                    {req.reason && <p className="text-xs text-muted-foreground truncate mt-0.5">{req.reason}</p>}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button size="sm" className="h-8 px-3 text-xs" onClick={() => handleApprove(req.requestId)}>
-                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                      {t('approve')}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 px-3 text-xs"
-                      onClick={() => handleReject(req.requestId)}
-                    >
-                      <ShieldX className="mr-1 h-3.5 w-3.5" />
-                      {t('reject')}
-                    </Button>
-                  </div>
-                </div>
+            <div className="divide-y space-y-3 p-3">
+              {inlineRequests.map((request) => {
+                const visualContext = resolveVisualApprovalContextForRequest(
+                  request,
+                  desktopViewData,
+                  browserViewData,
+                );
+
+                if (visualContext) {
+                  return (
+                    <VisualApprovalArtifactCard
+                      key={request.requestId}
+                      request={request}
+                      desktopViewData={desktopViewData}
+                      browserViewData={browserViewData}
+                      onResolve={resolveRequest}
+                      isLoading={isApprovalLoading}
+                    />
+                  );
+                }
+
+                const waitingForSnapshot =
+                  (request.toolName.startsWith('desktop_') && desktopLoading) ||
+                  (request.toolName.startsWith('browser_') && browserLoading) ||
+                  !hasVisualApprovalContext(request, desktopViewData, browserViewData);
+
+                if (waitingForSnapshot) {
+                  return <VisualApprovalPendingCard key={request.requestId} request={request} />;
+                }
+
+                return null;
+              })}
+
+              {modalRequests.map((request) => (
+                <SingleApprovalCard
+                  key={request.requestId}
+                  request={request}
+                  onResolve={resolveRequest}
+                  isLoading={isApprovalLoading}
+                  compact
+                  hideVisualHighlight
+                />
               ))}
             </div>
           </div>
@@ -197,7 +211,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
 
         {lastAssistantMessage ? (
           <>
-            {/* Progress (Watch Mode view) */}
             {hasProgress && (
               <div className="bg-card rounded-2xl border overflow-hidden">
                 <div className="p-3 border-b bg-muted/20 flex items-center gap-2">
@@ -214,7 +227,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
               </div>
             )}
 
-            {/* Thinking */}
             {hasThinking && (
               <div className="bg-card rounded-2xl border overflow-hidden">
                 <div className="p-3 border-b bg-muted/20 flex items-center gap-2">
@@ -229,7 +241,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
               </div>
             )}
 
-            {/* Result (when task is done) */}
             {!loading && lastAssistantMessage.content && (
               <div className="bg-card rounded-2xl border overflow-hidden">
                 <div className="p-3 border-b bg-muted/20 flex items-center gap-2">
@@ -254,9 +265,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
         )}
       </div>
 
-      {/* Footer: Stop + Quick Command */}
       <div className="border-t bg-background/80 backdrop-blur-md pb-safe">
-        {/* Quick command input */}
         <div className="p-3 flex items-center gap-2">
           <input
             type="text"
@@ -276,7 +285,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           </Button>
         </div>
 
-        {/* Stop button */}
         {loading && (
           <div className="px-3 pb-3">
             <Button variant="destructive" className="w-full h-11 text-sm font-medium rounded-xl" onClick={stopMessage}>

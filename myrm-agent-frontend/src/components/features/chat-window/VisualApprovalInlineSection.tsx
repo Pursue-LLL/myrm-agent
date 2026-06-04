@@ -5,9 +5,15 @@ import { useMemo } from 'react';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
-import { hasVisualApprovalContext } from '@/lib/approval/visualApprovalContext';
+import {
+  hasVisualApprovalContext,
+  resolveVisualApprovalContextForRequest,
+} from '@/lib/approval/visualApprovalContext';
+import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
 import VisualApprovalArtifactCard from './VisualApprovalArtifactCard';
+import VisualApprovalPendingCard from './VisualApprovalPendingCard';
 
 interface VisualApprovalInlineSectionProps {
   messageId: string;
@@ -18,9 +24,11 @@ export default function VisualApprovalInlineSection({ messageId, chatId }: Visua
   const queue = useToolApprovalStore((state) => state.queue);
   const desktopViewData = useDesktopInspectorStore((state) => state.viewData);
   const browserViewData = useBrowserInspectorStore((state) => state.viewData);
+  const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
+  const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, isLoading } = useToolApprovalResolve();
 
-  const visualRequests = useMemo(() => {
+  const inlineRequests = useMemo(() => {
     if (!chatId) {
       return [];
     }
@@ -29,26 +37,44 @@ export default function VisualApprovalInlineSection({ messageId, chatId }: Visua
       (request) =>
         request.messageId === messageId &&
         request.chatId === chatId &&
-        hasVisualApprovalContext(request, desktopViewData, browserViewData),
+        usesInlineVisualApprovalSurface(request, queue),
     );
-  }, [browserViewData, chatId, desktopViewData, messageId, queue]);
+  }, [chatId, messageId, queue]);
 
-  if (visualRequests.length === 0) {
+  useVisualApprovalSnapshot(inlineRequests);
+
+  if (inlineRequests.length === 0) {
     return null;
   }
 
   return (
     <div className="space-y-3" data-testid="visual-approval-inline-section">
-      {visualRequests.map((request) => (
-        <VisualApprovalArtifactCard
-          key={request.requestId}
-          request={request}
-          desktopViewData={desktopViewData}
-          browserViewData={browserViewData}
-          onResolve={resolveRequest}
-          isLoading={isLoading}
-        />
-      ))}
+      {inlineRequests.map((request) => {
+        const visualContext = resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData);
+        if (visualContext) {
+          return (
+            <VisualApprovalArtifactCard
+              key={request.requestId}
+              request={request}
+              desktopViewData={desktopViewData}
+              browserViewData={browserViewData}
+              onResolve={resolveRequest}
+              isLoading={isLoading}
+            />
+          );
+        }
+
+        const waitingForSnapshot =
+          (request.toolName.startsWith('desktop_') && desktopLoading) ||
+          (request.toolName.startsWith('browser_') && browserLoading) ||
+          !hasVisualApprovalContext(request, desktopViewData, browserViewData);
+
+        if (waitingForSnapshot) {
+          return <VisualApprovalPendingCard key={request.requestId} request={request} />;
+        }
+
+        return null;
+      })}
     </div>
   );
 }

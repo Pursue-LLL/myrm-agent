@@ -27,6 +27,10 @@ export interface InspectorViewSnapshot {
 
 const COORDINATE_HIGHLIGHT_SIZE = 48;
 
+export function isVisualApprovalToolName(toolName: string): boolean {
+  return toolName.startsWith('desktop_') || toolName.startsWith('browser_');
+}
+
 function parseRef(toolInput: Record<string, unknown>): string | null {
   const refStr = toolInput.ref ?? toolInput.element_id ?? toolInput.id;
   return typeof refStr === 'string' && refStr.length > 0 ? refStr : null;

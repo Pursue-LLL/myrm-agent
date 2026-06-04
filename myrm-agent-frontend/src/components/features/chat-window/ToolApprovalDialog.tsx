@@ -14,66 +14,42 @@ import {
   DialogTitle,
 } from '@/components/primitives/dialog';
 import { ScrollArea } from '@/components/primitives/scroll-area';
-import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
-import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
-import type { ToolApprovalRequest } from '@/store/chat/types';
-import { hasVisualApprovalContext } from '@/lib/approval/visualApprovalContext';
+import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
+import type { ToolApprovalRequest } from '@/store/chat/types';
 import SingleApprovalCard from './SingleApprovalCard';
 
-function partitionQueue(
-  queue: ToolApprovalRequest[],
-  desktopViewData: ReturnType<typeof useDesktopInspectorStore.getState>['viewData'],
-  browserViewData: ReturnType<typeof useBrowserInspectorStore.getState>['viewData'],
-) {
-  const visual: ToolApprovalRequest[] = [];
-  const nonVisual: ToolApprovalRequest[] = [];
+function groupModalRequests(modalQueue: ToolApprovalRequest[]) {
+  const batches: Map<string, ToolApprovalRequest[]> = new Map();
+  const singles: ToolApprovalRequest[] = [];
 
-  for (const request of queue) {
-    if (hasVisualApprovalContext(request, desktopViewData, browserViewData)) {
-      visual.push(request);
+  for (const req of modalQueue) {
+    if (req.batchId) {
+      const group = batches.get(req.batchId) || [];
+      group.push(req);
+      batches.set(req.batchId, group);
     } else {
-      nonVisual.push(request);
+      singles.push(req);
     }
   }
 
-  return { visual, nonVisual };
+  for (const group of batches.values()) {
+    group.sort((a, b) => (a.batchIndex ?? 0) - (b.batchIndex ?? 0));
+  }
+
+  return {
+    batchGroups: Array.from(batches.entries()),
+    singleRequests: singles,
+  };
 }
 
 export default function ToolApprovalDialog() {
   const t = useTranslations('toolApproval');
-  const desktopViewData = useDesktopInspectorStore((state) => state.viewData);
-  const browserViewData = useBrowserInspectorStore((state) => state.viewData);
   const { queue, resolveRequest, approveAll, rejectAll, isLoading } = useToolApprovalResolve();
 
-  const { nonVisual: modalQueue } = useMemo(
-    () => partitionQueue(queue, desktopViewData, browserViewData),
-    [browserViewData, desktopViewData, queue],
-  );
+  const modalQueue = useMemo(() => partitionApprovalQueue(queue).modalRequests, [queue]);
 
-  const { batchGroups, singleRequests } = useMemo(() => {
-    const batches: Map<string, ToolApprovalRequest[]> = new Map();
-    const singles: ToolApprovalRequest[] = [];
-
-    for (const req of modalQueue) {
-      if (req.batchId) {
-        const group = batches.get(req.batchId) || [];
-        group.push(req);
-        batches.set(req.batchId, group);
-      } else {
-        singles.push(req);
-      }
-    }
-
-    for (const group of batches.values()) {
-      group.sort((a, b) => (a.batchIndex ?? 0) - (b.batchIndex ?? 0));
-    }
-
-    return {
-      batchGroups: Array.from(batches.entries()),
-      singleRequests: singles,
-    };
-  }, [modalQueue]);
+  const { batchGroups, singleRequests } = useMemo(() => groupModalRequests(modalQueue), [modalQueue]);
 
   if (modalQueue.length === 0) return null;
 
@@ -124,11 +100,11 @@ export default function ToolApprovalDialog() {
 
         {modalQueue.length > 1 && (
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => void rejectAll()} disabled={isLoading}>
+            <Button variant="outline" onClick={() => void rejectAll(modalQueue)} disabled={isLoading}>
               <MessageSquareX className="mr-1 h-4 w-4" />
               {t('rejectAll')}
             </Button>
-            <Button onClick={() => void approveAll()} disabled={isLoading}>
+            <Button onClick={() => void approveAll(modalQueue)} disabled={isLoading}>
               <CheckCircle2 className="mr-1 h-4 w-4" />
               {t('approveAll')}
             </Button>
