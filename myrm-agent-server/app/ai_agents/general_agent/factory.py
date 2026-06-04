@@ -323,8 +323,11 @@ async def build_general_agent(
     from myrm_agent_harness.agent._skill_agent_context import (
         set_permission_invalidation_callback,
     )
+    from myrm_agent_harness.agent.middlewares.guardrails import (
+        GuardrailMiddleware,
+        SkillBoundaryProvider,
+    )
     from myrm_agent_harness.agent.middlewares import (
-        PermissionCheckMiddleware,
         RateLimitMiddleware,
     )
 
@@ -334,7 +337,22 @@ async def build_general_agent(
     )
 
     permission_checker = create_permission_checker()
-    permission_middleware = PermissionCheckMiddleware(permission_checker)
+    
+    guardrail_providers = [
+        SkillBoundaryProvider(permission_checker=permission_checker),
+    ]
+    
+    try:
+        from app.services.security.tenant_guardrail import TenantPolicyProvider
+        guardrail_providers.append(TenantPolicyProvider())
+    except ImportError:
+        pass
+
+    guardrail_middleware = GuardrailMiddleware(
+        providers=guardrail_providers,
+        agent_id=agent_wrapper.agent_id,
+        session_id=effective_chat_id,
+    )
 
     set_permission_invalidation_callback(clear_permission_cache)
 
@@ -382,8 +400,8 @@ async def build_general_agent(
         task_adaptive_digest=agent_wrapper.task_adaptive_digest
     )
 
-    if permission_middleware:
-        middlewares_list.insert(0, permission_middleware)
+    if guardrail_middleware:
+        middlewares_list.insert(0, guardrail_middleware)
 
     middlewares = cast(list[AgentMiddleware], middlewares_list)
 

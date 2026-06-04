@@ -2,7 +2,7 @@
  * CLI Agent 服务
  *
  * 通过 Tauri IPC 调用 CLI Agent 功能。
- * 这是前端与 Rust 后端 + Node.js Sidecar 的通信接口。
+ * 执行路径：Rust → Agent Runner Sidecar（Bun 编译二进制）→ 本机 CLI（claude 等）。
  */
 
 import { invoke } from '@tauri-apps/api/core';
@@ -82,6 +82,11 @@ export interface AgentMessage {
  */
 export async function detectAgents(): Promise<string[]> {
   return invoke<string[]>('detect_agents');
+}
+
+/** Agent Runner Sidecar 状态：ready | starting | failed:{message} */
+export async function getAgentSidecarStatus(): Promise<string> {
+  return invoke<string>('get_agent_sidecar_status');
 }
 
 /**

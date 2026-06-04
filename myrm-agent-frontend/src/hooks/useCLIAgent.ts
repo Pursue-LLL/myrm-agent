@@ -6,6 +6,8 @@
  */
 
 import { useEffect, useCallback } from 'react';
+import { listen } from '@tauri-apps/api/event';
+import { useTranslations } from 'next-intl';
 import {
   useCLIAgentStore,
   usePermissionMode,
@@ -13,6 +15,8 @@ import {
   useCurrentPermissionRequest,
 } from '@/store/useCLIAgentStore';
 import type { PermissionMode } from '@/services/cli-agent';
+import { isTauriEnvironment } from '@/lib/tauri';
+import { useToast } from '@/hooks/use-toast';
 
 // ============================================================================
 // 权限模式快捷键 Hook
@@ -107,11 +111,41 @@ export function usePermissionDialog() {
 export function useCLIAgent() {
   const store = useCLIAgentStore();
   const permissionMode = usePermissionMode();
+  const { toast } = useToast();
+  const t = useTranslations('cliAgent');
 
-  // 初始化
   useEffect(() => {
     store.initialize();
-  }, []);
+  }, [store]);
+
+  useEffect(() => {
+    if (!isTauriEnvironment()) return;
+
+    const unlisteners: Array<() => void> = [];
+
+    void (async () => {
+      unlisteners.push(
+        await listen<string>('agent-sidecar-error', (event) => {
+          const message = typeof event.payload === 'string' ? event.payload : String(event.payload);
+          store.setSidecarFailed(message);
+          toast({
+            title: t('sidecarFailedTitle'),
+            description: message,
+            variant: 'destructive',
+          });
+        }),
+      );
+      unlisteners.push(
+        await listen('agent-sidecar-ready', () => {
+          store.setSidecarReady();
+        }),
+      );
+    })();
+
+    return () => {
+      unlisteners.forEach((fn) => fn());
+    };
+  }, [store, toast, t]);
 
   // 切换权限模式
   const cycleMode = useCallback(async () => {
@@ -131,6 +165,8 @@ export function useCLIAgent() {
     permissionMode,
     pendingPermissions: store.pendingPermissions,
     currentSessionId: store.currentSessionId,
+    sidecarStatus: store.sidecarStatus,
+    sidecarError: store.sidecarError,
 
     // 操作
     setMode,

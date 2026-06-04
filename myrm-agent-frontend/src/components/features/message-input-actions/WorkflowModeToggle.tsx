@@ -47,16 +47,19 @@ const WorkflowModeToggle = () => {
             aria-pressed={isWorkflowMode}
             onClick={toggle}
             className={cn(
-              'relative flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium transition-all duration-300 cursor-pointer select-none',
+              'relative flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold transition-all duration-500 cursor-pointer select-none overflow-hidden',
               isWorkflowMode
-                ? 'bg-primary/10 dark:bg-primary/15 text-primary border border-primary/30 dark:border-primary/25 shadow-[0_0_10px_rgba(var(--primary),0.2)]'
-                : 'bg-black/[0.04] dark:bg-white/[0.06] text-black/40 dark:text-white/40 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.1]',
+                ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/40 shadow-[0_0_15px_rgba(var(--primary),0.3)] hover:shadow-[0_0_20px_rgba(var(--primary),0.4)]'
+                : 'bg-black/[0.03] dark:bg-white/[0.04] text-black/50 dark:text-white/50 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.08]',
             )}
           >
+            {isWorkflowMode && (
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer" />
+            )}
             <WorkflowIcon
-              className={cn('transition-colors duration-300', isWorkflowMode ? 'text-primary' : 'text-current')}
+              className={cn('transition-all duration-500 z-10', isWorkflowMode ? 'text-primary scale-110 drop-shadow-[0_0_5px_rgba(var(--primary),0.8)]' : 'text-current scale-100')}
             />
-            <span className="hidden sm:inline">{t('workflowModeLabel')}</span>
+            <span className="hidden sm:inline z-10 tracking-wide">{t('workflowModeLabel')}</span>
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64 p-3">

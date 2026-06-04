@@ -11,11 +11,12 @@
 //! [POS]
 //! 桌面启动时 Agent Runner 的生命周期编排与 Sidecar 事件桥接。
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::commands::agent::AgentSystemState;
+use crate::commands::agent::{AgentSystemState, SidecarStatus};
 use crate::sidecar;
 
 /// 解析 Agent Runner 可执行路径（开发：dist/index.js；生产：bundled 二进制）
@@ -45,21 +46,25 @@ pub fn resolve_agent_runner_path(app: &AppHandle) -> String {
 }
 
 /// 延迟启动 Agent Runner，并将 Sidecar 事件桥接到 Tauri 前端
-pub fn bootstrap_agent_runner(agent_system: &AgentSystemState, app: &AppHandle) {
-    let agent_system_clone = agent_system.sidecar.clone();
+pub fn bootstrap_agent_runner(agent_system: Arc<AgentSystemState>, app: &AppHandle) {
+    let sidecar = agent_system.sidecar.clone();
     let sidecar_path = agent_system.sidecar_path.clone();
     let app_handle = app.clone();
 
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
-        let mut sidecar = agent_system_clone.lock().await;
-        match sidecar.start(&sidecar_path).await {
+        let mut sidecar_guard = sidecar.lock().await;
+        match sidecar_guard.start(&sidecar_path).await {
             Ok(_) => {
                 println!("✅ Agent sidecar started");
+                agent_system
+                    .set_sidecar_status(SidecarStatus::Ready)
+                    .await;
+                let _ = app_handle.emit("agent-sidecar-ready", ());
 
-                let mut event_rx = sidecar.subscribe_events();
-                drop(sidecar);
+                let mut event_rx = sidecar_guard.subscribe_events();
+                drop(sidecar_guard);
 
                 tokio::spawn(async move {
                     while let Ok(event) = event_rx.recv().await {
@@ -67,7 +72,14 @@ pub fn bootstrap_agent_runner(agent_system: &AgentSystemState, app: &AppHandle) 
                     }
                 });
             }
-            Err(e) => eprintln!("⚠️  Agent sidecar not started: {}", e),
+            Err(e) => {
+                let msg = e.clone();
+                eprintln!("⚠️  Agent sidecar not started: {}", msg);
+                agent_system
+                    .set_sidecar_status(SidecarStatus::Failed(msg.clone()))
+                    .await;
+                let _ = app_handle.emit("agent-sidecar-error", msg);
+            }
         }
     });
 }

@@ -6,9 +6,10 @@ use std::thread;
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, State};
-use uuid::Uuid;
 
 use crate::config::{BackendConfig, ConfigManager};
+use uuid::Uuid;
+
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
 use crate::tunnel;
@@ -222,8 +223,11 @@ pub fn stop_backend(backend: State<'_, PythonBackend>) -> Result<String, String>
 }
 
 #[tauri::command]
-pub async fn check_backend_health() -> Result<bool, String> {
-    check_health_with_port(8080).await
+pub async fn check_backend_health(app: AppHandle) -> Result<bool, String> {
+    let config_manager = ConfigManager::new(&app)?;
+    let system_config = config_manager.load();
+    let port = BackendConfig::from_system_config(&system_config).port;
+    check_health_with_port(port).await
 }
 
 #[tauri::command]

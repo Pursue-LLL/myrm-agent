@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::agents::PermissionMode;
+use crate::cli_agent_types::PermissionMode;
 
 // ============================================================================
 // 危险命令黑名单（借鉴 craft-agents）

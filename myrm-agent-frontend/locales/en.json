@@ -10812,5 +10812,10 @@
     "rename": "Rename",
     "delete": "Delete Project",
     "current": "current"
+  },
+  "cliAgent": {
+    "modeAgent": "AI Agent",
+    "sidecarFailedTitle": "CLI runner unavailable",
+    "sidecarUnavailable": "CLI unavailable"
   }
 }

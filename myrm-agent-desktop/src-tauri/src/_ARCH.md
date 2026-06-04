@@ -45,7 +45,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 
 | 模块 | 路径 | 职责 | 文档 |
 |------|------|------|------|
-| **agents** | `./agents/` | CLI Agent 适配器（Claude Code、Codex、Gemini） | ✅ |
+| **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | ✅ |
 | **runtime** | `./runtime/` | Python/Next.js Sidecar、Appshot、Setup Token、Agent Runner 编排 | ✅ |
 | **sidecar** | `./sidecar/` | Agent Runner Sidecar 进程管理（Bun compile 二进制） | ✅ |
 | **sessions** | `./sessions/` | CLI 会话生命周期管理 | ✅ |
@@ -58,8 +58,8 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 ## 依赖关系
 
 ### 内部依赖
-- `agents/` → `sidecar/`：Agent 适配器依赖 Sidecar 进程管理
-- `commands/` → `agents/`, `sessions/`, `config/`：IPC 命令调用 Agent、会话管理和配置
+- `commands/agent/` → `sidecar/`：CLI IPC 仅经 Agent Runner Sidecar
+- `commands/` → `cli_agent_types/`, `sessions/`, `config/`：IPC 命令与会话、配置
 
 ### 外部依赖
 - `tauri`：桌面应用框架
@@ -105,13 +105,13 @@ Tauri 主进程 (Rust)
 
 ---
 
-## 消息类型（agents → 前端）
+## 消息类型（Agent Runner → 前端，JSON 事件）
 
-| 类型 | 说明 | Rust 类型 |
-|-----|------|----------|
-| `text` | 文本内容 | `AgentMessage::Text` |
-| `thought` | 思考过程 | `AgentMessage::Thought` |
-| `tool_call_start` | 工具调用开始 | `AgentMessage::ToolCallStart` |
-| `tool_call_result` | 工具调用结果 | `AgentMessage::ToolCallResult` |
-| `permission_request` | 权限请求 | `AgentMessage::PermissionRequest` |
-| `session_status` | 会话状态 | `AgentMessage::SessionStatus` |
+| 类型 | 说明 | 通道 |
+|-----|------|------|
+| `text` | 文本内容 | `agent:message:{session_id}` |
+| `thought` | 思考过程 | 同上 |
+| `tool_call_start` | 工具调用开始 | 同上 |
+| `tool_call_result` | 工具调用结果 | 同上 |
+| `permission_request` | 权限请求 | `agent:permission:{session_id}` |
+| `session_status` | 会话状态 | `agent:status:{session_id}` |

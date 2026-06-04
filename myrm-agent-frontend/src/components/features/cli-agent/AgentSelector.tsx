@@ -18,6 +18,8 @@ import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { ActionMode } from '@/store/chat/types';
 import { IconTerminal, IconChevronDown, IconGlow } from '@/components/features/icons/PremiumIcons';
+import { useCLIAgentStore } from '@/store/useCLIAgentStore';
+import { isTauriEnvironment } from '@/lib/tauri';
 
 interface CLIAgentSelectorProps {
   actionMode: ActionMode;
@@ -72,12 +74,24 @@ export function CLIAgentSelector({ actionMode, setActionMode, className }: CLIAg
  * 显示当前是否处于 Claude Code 模式
  */
 export function CLIAgentBadge({ actionMode }: { actionMode: ActionMode }) {
+  const t = useTranslations('cliAgent');
+  const sidecarStatus = useCLIAgentStore((s) => s.sidecarStatus);
+  const sidecarError = useCLIAgentStore((s) => s.sidecarError);
+
   if (actionMode !== 'claude_code') return null;
 
+  const sidecarFailed = isTauriEnvironment() && sidecarStatus === 'failed';
+
   return (
-    <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary">
+    <div
+      className={cn(
+        'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs',
+        sidecarFailed ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary',
+      )}
+      title={sidecarFailed ? (sidecarError ?? t('sidecarFailedTitle')) : undefined}
+    >
       <IconTerminal className="h-3 w-3" />
-      <span>Claude Code</span>
+      <span>{sidecarFailed ? t('sidecarUnavailable') : 'Claude Code'}</span>
     </div>
   );
 }

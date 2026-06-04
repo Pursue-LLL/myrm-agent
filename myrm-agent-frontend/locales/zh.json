@@ -10297,5 +10297,10 @@
     "rename": "重命名",
     "delete": "删除项目",
     "current": "当前"
+  },
+  "cliAgent": {
+    "modeAgent": "AI 智能体",
+    "sidecarFailedTitle": "CLI 运行器不可用",
+    "sidecarUnavailable": "CLI 不可用"
   }
 }

@@ -48,6 +48,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import {
+  getAgentSidecarStatus,
   getPermissionMode,
   setPermissionMode as setPermissionModeAPI,
   cyclePermissionMode as cyclePermissionModeAPI,
@@ -80,6 +81,10 @@ interface CLIAgentState {
   sessions: CLISession[];
   /** 会话列表加载状态 */
   sessionsLoading: boolean;
+  /** Agent Runner Sidecar：ready | starting | failed */
+  sidecarStatus: 'unknown' | 'ready' | 'starting' | 'failed';
+  /** Sidecar 启动失败时的错误信息 */
+  sidecarError: string | null;
 
   // ==================== 操作 ====================
   /** 初始化（获取当前权限模式 + 会话列表） */
@@ -104,6 +109,10 @@ interface CLIAgentState {
   resumeSession: (sessionId: string) => Promise<CLISession | null>;
   /** 删除会话 */
   deleteSession: (sessionId: string) => Promise<boolean>;
+  /** 刷新 Sidecar 状态（Tauri 桌面端） */
+  refreshSidecarStatus: () => Promise<void>;
+  setSidecarReady: () => void;
+  setSidecarFailed: (message: string) => void;
 }
 
 // ============================================================================
@@ -120,16 +129,40 @@ export const useCLIAgentStore = create<CLIAgentState>()(
       workingDirectory: null,
       sessions: [],
       sessionsLoading: false,
+      sidecarStatus: 'unknown',
+      sidecarError: null,
 
       // ==================== 操作 ====================
       initialize: async () => {
         try {
           const [mode, sessions] = await Promise.all([getPermissionMode(), listAgentSessions().catch(() => [])]);
           set({ permissionMode: mode, sessions });
+          await get().refreshSidecarStatus();
         } catch {
           // Tauri 环境不可用时忽略
         }
       },
+
+      refreshSidecarStatus: async () => {
+        try {
+          const raw = await getAgentSidecarStatus();
+          if (raw === 'ready') {
+            set({ sidecarStatus: 'ready', sidecarError: null });
+          } else if (raw === 'starting') {
+            set({ sidecarStatus: 'starting', sidecarError: null });
+          } else if (raw.startsWith('failed:')) {
+            set({ sidecarStatus: 'failed', sidecarError: raw.slice('failed:'.length) });
+          } else {
+            set({ sidecarStatus: 'unknown', sidecarError: null });
+          }
+        } catch {
+          set({ sidecarStatus: 'unknown', sidecarError: null });
+        }
+      },
+
+      setSidecarReady: () => set({ sidecarStatus: 'ready', sidecarError: null }),
+
+      setSidecarFailed: (message) => set({ sidecarStatus: 'failed', sidecarError: message }),
 
       setPermissionMode: async (mode) => {
         try {

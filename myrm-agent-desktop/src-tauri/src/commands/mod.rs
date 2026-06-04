@@ -10,6 +10,7 @@ pub mod visual_approval_overlay;
 
 pub use agent::{
     detect_agents,
+    get_agent_sidecar_status,
     list_agent_adapters,
     create_agent_session,
     list_agent_sessions,

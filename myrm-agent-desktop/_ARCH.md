@@ -11,7 +11,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 | `src-tauri/src/sidecar/` | Rust **Agent Runner 进程管理** | Tauri | JSON-RPC stdio、事件转发 | `src-tauri/src/_ARCH.md` |
 | `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar + Agent Runner 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |
 
-**数据流（CLI 可视化）**: 用户输入 → Tauri IPC → Rust → Agent Runner 二进制 → 外部 CLI（claude/codex/gemini）→ 适配器 → WebView UI。
+**数据流（CLI 可视化）**: 用户输入 → Tauri IPC → Rust `sidecar/` → Agent Runner 二进制 → 外部 CLI（claude 等）→ JSON 事件 → WebView UI。
 
 **与开源 server 关系**: Python Sidecar 入口为 `myrm-agent-server/app/main.py`（与本地 `myrm start` 同一应用，不同打包形态）。
 

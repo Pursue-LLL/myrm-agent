@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::agents::{PermissionMode, SessionStatus};
+use crate::cli_agent_types::{PermissionMode, SessionStatus};
 
 // ============================================================================
 // 会话数据结构

@@ -5,7 +5,7 @@
 //! 2. 所属文件夹的 _ARCH.md
 //!
 //! [INPUT]
-//! - agents: CLI Agent 适配器（Claude Code 等）
+//! - cli_agent_types: CLI 可视化共享类型
 //! - commands: Tauri IPC 命令实现
 //! - config: 配置管理（后端地址、WebUI 模式）
 //! - runtime: Python/Next.js Sidecar、Appshot、Setup Token
@@ -26,7 +26,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod agents;
+mod cli_agent_types;
 mod commands;
 mod config;
 mod lifecycle;
@@ -38,7 +38,7 @@ mod tray;
 mod tunnel;
 mod utils;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager};
@@ -203,8 +203,8 @@ fn main() {
                 println!("📂 App data dir: {:?}", dir);
             }
 
-            let agent_system = AgentSystemState::new(sidecar_path, app_data_dir);
-            runtime::bootstrap_agent_runner(&agent_system, &app.handle().clone());
+            let agent_system = Arc::new(AgentSystemState::new(sidecar_path, app_data_dir));
+            runtime::bootstrap_agent_runner(agent_system.clone(), &app.handle().clone());
 
             app.manage(agent_system);
             println!("🤖 Agent system initialized");
@@ -295,6 +295,7 @@ fn main() {
             stop_frontend,
             detect_agents,
             list_agent_adapters,
+            get_agent_sidecar_status,
             create_agent_session,
             list_agent_sessions,
             get_agent_session,
