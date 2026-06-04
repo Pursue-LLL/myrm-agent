@@ -3,14 +3,22 @@
 set -euo pipefail
 
 AGENT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-HOOKS_DIR="${AGENT_ROOT}/.git/hooks"
-HOOK_PATH="${HOOKS_DIR}/pre-push"
 MARKER="# myrm-agent-architecture-gates"
+GATES_SCRIPT="${AGENT_ROOT}/myrm-agent-server/scripts/ci/run_architecture_gates.sh"
 
-if [[ ! -d "${AGENT_ROOT}/.git" ]]; then
-  echo "ERROR: ${AGENT_ROOT} is not a git repository root." >&2
+if ! git -C "${AGENT_ROOT}" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "ERROR: ${AGENT_ROOT} is not inside a git repository." >&2
   exit 1
 fi
+
+if [[ ! -x "${GATES_SCRIPT}" ]]; then
+  echo "ERROR: missing executable ${GATES_SCRIPT}" >&2
+  exit 1
+fi
+
+GIT_DIR="$(cd "$(git -C "${AGENT_ROOT}" rev-parse --git-dir)" && pwd)"
+HOOKS_DIR="${GIT_DIR}/hooks"
+HOOK_PATH="${HOOKS_DIR}/pre-push"
 
 if [[ -f "${HOOK_PATH}" ]] && grep -q "${MARKER}" "${HOOK_PATH}" 2>/dev/null; then
   echo "pre-push hook already installed"
@@ -26,8 +34,8 @@ cat > "${HOOK_PATH}" <<EOF
 #!/usr/bin/env bash
 ${MARKER}
 set -euo pipefail
-exec bash myrm-agent-server/scripts/ci/run_architecture_gates.sh
+exec bash "${GATES_SCRIPT}"
 EOF
 
 chmod +x "${HOOK_PATH}"
-echo "Installed ${HOOK_PATH}"
+echo "Installed myrm-agent pre-push hook: ${HOOK_PATH}"
