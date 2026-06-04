@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getApiUrl, getStorageUrl } from '@/lib/api';
-import { getDownloadFilename, isDeploymentStale, patchArtifactDeploymentInChat } from './artifactUtils';
+import { deploymentHostname, getDownloadFilename, isDeploymentStale, patchArtifactDeploymentInChat } from './artifactUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
@@ -339,7 +339,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
                   className="text-green-600 dark:text-green-500 border-green-200 dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Globe className="w-4 h-4 mr-1.5" />
-                  {t('deploy.deployedLabel', { hostname: new URL(currentArtifact.deployment_url).hostname })}
+                  {t('deploy.deployedLabel', { hostname: deploymentHostname(currentArtifact.deployment_url) })}
                   <ExternalLink className="w-3 h-3 ml-1.5 opacity-50" />
                 </Button>
               )}
