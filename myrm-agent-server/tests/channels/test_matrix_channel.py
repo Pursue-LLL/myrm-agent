@@ -144,6 +144,7 @@ class TestMatrixCollectIssues:
         dep_issues = [i for i in issues if i.kind == IssueKind.DEPENDENCY]
         assert len(dep_issues) == 1
         assert "mautrix" in dep_issues[0].message
+        assert dep_issues[0].fix == "uv sync --extra matrix"
 
 
 class TestMatrixHealthCheck:

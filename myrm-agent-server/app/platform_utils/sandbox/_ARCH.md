@@ -8,7 +8,7 @@
 | 模块 | 职责 |
 |------|------|
 | `entitlements/` | Control Plane 配额客户端（cron/ingress/subagent/VNC entitlements + WU budget adapter） |
-| `storage.py` | S3StorageBackend（非核心沙箱路径，运维/外部用） |
+| `storage.py` | S3StorageBackend（需 aioboto3；缺包报错提示 `uv sync`） |
 
 ---
 

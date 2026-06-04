@@ -8037,7 +8037,13 @@
       "fixConfigureInSettings": "Please configure in Settings → Channels",
       "fixCheckCredentials": "Please check credentials are valid and have proper permissions",
       "fixVerifyToken": "Please verify token is correct",
-      "fixScanQrCode": "Scan QR code to login"
+      "fixScanQrCode": "Scan QR code to login",
+      "msgUvSyncRequired": "A dependency is missing. Reinstall packages with uv.",
+      "msgMautrixMissing": "Matrix SDK (mautrix) is not installed.",
+      "msgLarkMissing": "Feishu WebSocket SDK (lark-oapi) is not installed.",
+      "fixRunUvSync": "Run in terminal (project root: myrm-agent-server):",
+      "copyInstallCommand": "Copy command",
+      "copiedInstallCommand": "Copied"
     },
     "groupsTitle": "Group Management",
     "groupsDesc": "Select which groups the bot should respond in. Unselected groups will be ignored.",

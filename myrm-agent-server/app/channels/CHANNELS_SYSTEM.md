@@ -438,7 +438,7 @@ StreamCoordinator
 
 - Gateway 60s 周期调用 `channel.health_check()`
 - `ChannelHealth` 追踪连续成功/失败次数
-- `collect_issues()` 结构化诊断（kind/severity/message/fix）
+- `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺依赖时 `fix` 为 `uv sync` 或 `uv sync --extra matrix`（WebUI 设置页可复制执行）
 
 ---
 

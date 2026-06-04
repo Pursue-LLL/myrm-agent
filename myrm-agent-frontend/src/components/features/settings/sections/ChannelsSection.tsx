@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
 import { IconAlertTriangle, IconXCircle, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
@@ -11,6 +11,7 @@ import { ChannelPolicyOverride } from './ChannelPolicyOverride';
 import { GroupManager, CHANNELS_WITH_GROUPS } from './GroupManager';
 import ChannelList, { buildChannelEntries } from './ChannelList';
 import type { ChannelIssue } from '@/services/channels';
+import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import type { WhatsAppCardProps } from './WhatsAppCard';
 import { Switch } from '@/components/primitives/switch';
 import { useChannelsState } from './useChannelsState';
@@ -106,6 +107,9 @@ const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
   [/must use HTTPS/i, 'webhookHttps'],
   [/webhook.*(setup|set up) failed/i, 'webhookFailed'],
   [/SDK.*not installed/i, 'sdkNotInstalled'],
+  [/mautrix not installed/i, 'msgMautrixMissing'],
+  [/lark-oapi not installed/i, 'msgLarkMissing'],
+  [/Run: uv sync/i, 'msgUvSyncRequired'],
   [/token.*failed/i, 'tokenFailed'],
   [/connection failed/i, 'connectionFailed'],
   [/encryption not configured/i, 'encryptionNotConfigured'],
@@ -135,6 +139,58 @@ function useIssueTranslator() {
   );
 }
 
+const UV_INSTALL_COMMAND = /^uv sync\b/;
+
+function ChannelIssueFix({ fix }: { fix: string }) {
+  const t = useTranslations('channels.issues');
+  const translate = useIssueTranslator();
+  const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = useCallback(async () => {
+    const ok = await writeToClipboard(fix, true);
+    if (ok) {
+      setCopied(true);
+      if (copiedTimerRef.current !== null) {
+        clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    }
+  }, [fix]);
+
+  if (UV_INSTALL_COMMAND.test(fix)) {
+    return (
+      <div className="mt-1.5 space-y-1.5">
+        <p className="text-muted-foreground text-xs">{t('fixRunUvSync')}</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <code className="block min-w-0 flex-1 break-all rounded-md border border-border/60 bg-background/80 px-2 py-1.5 font-mono text-xs">
+            {fix}
+          </code>
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            className="shrink-0 rounded-lg border px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            {copied ? t('copiedInstallCommand') : t('copyInstallCommand')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <p className="mt-0.5 text-muted-foreground text-xs">{translate(fix, ISSUE_FIX_PATTERNS)}</p>
+  );
+}
+
 function ChannelIssueBanner({ issues }: { issues: ChannelIssue[] }) {
   const translate = useIssueTranslator();
   if (!issues.length) return null;
@@ -149,11 +205,9 @@ function ChannelIssueBanner({ issues }: { issues: ChannelIssue[] }) {
             className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${style.bg} ${style.border}`}
           >
             <Icon className="h-4 w-4 mt-0.5 shrink-0 text-current opacity-70" />
-            <div className="min-w-0 text-sm">
+            <div className="min-w-0 flex-1 text-sm">
               <span className="font-medium">{translate(issue.message, ISSUE_MESSAGE_PATTERNS)}</span>
-              {issue.fix && (
-                <p className="mt-0.5 text-muted-foreground text-xs">{translate(issue.fix, ISSUE_FIX_PATTERNS)}</p>
-              )}
+              {issue.fix ? <ChannelIssueFix fix={issue.fix} /> : null}
             </div>
           </div>
         );

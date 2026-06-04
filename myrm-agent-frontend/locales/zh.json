@@ -8060,7 +8060,13 @@
       "fixConfigureInSettings": "请在设置 → 通道中配置",
       "fixCheckCredentials": "请检查凭证是否有效且具有正确的权限",
       "fixVerifyToken": "请验证令牌是否正确",
-      "fixScanQrCode": "请扫描二维码登录"
+      "fixScanQrCode": "请扫描二维码登录",
+      "msgUvSyncRequired": "缺少运行依赖，请用 uv 重新安装依赖。",
+      "msgMautrixMissing": "未安装 Matrix SDK（mautrix）。",
+      "msgLarkMissing": "未安装飞书 WebSocket SDK（lark-oapi）。",
+      "fixRunUvSync": "在终端执行（项目目录：myrm-agent-server）：",
+      "copyInstallCommand": "复制命令",
+      "copiedInstallCommand": "已复制"
     },
     "groupsTitle": "群组管理",
     "groupsDesc": "选择机器人应在哪些群组中响应。未选中的群组将被忽略。",

@@ -691,6 +691,11 @@ export const sendMessage = async (
       return;
     }
 
+    // Auto-reset workflow mode after sending to prevent accidental high-cost subsequent messages
+    if (state.isWorkflowMode) {
+      actions.setIsWorkflowMode(false);
+    }
+
     // 创建 AbortController 并设置 loading 状态
     const abortController = new AbortController();
     actions.setMessages((innerState) => {

@@ -33,7 +33,7 @@
 | `_ilink/` | 内部共享库 | iLink Bot 协议客户端/加密/媒体/类型 |
 | `_http_timeout.py` | 内部工具 | Channel API 超时配置 |
 | `_twilio_utils.py` | 内部工具 | Twilio 签名验证 |
-| `registry.py` | 核心 | 渠道注册表 (lazy-loading, thread-safe) |
+| `registry.py` | 核心 | 渠道注册表 (lazy-loading, thread-safe)；import 失败时日志给出 uv 安装命令 |
 
 ## 企业微信双模式
 - **wecom/channel.py**（自建应用）: AES-CBC 加密 XML 回调，需公网回调服务器，支持 OAuth、多媒体、@mention
