@@ -34,6 +34,21 @@
 | `SamplePrompts.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SessionTrashPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
 
+## Visual Approval（工具 HITL 截图审批）
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `VisualApprovalInlineSection.tsx` | 入口 | 消息级 inline 审批挂载 | ✅ |
+| `VisualApprovalArtifactCard.tsx` | UI | 截图 BBox + 操作区 | ✅ |
+| `VisualApprovalPendingCard.tsx` | UI | snapshot loading | ✅ |
+| `approval/VisualApprovalRequestRenderer.tsx` | UI | 三态路由 | ✅ |
+| `approval/VisualApprovalUnavailableCard.tsx` | UI | 失败降级 + 重试 | ✅ |
+| `approval/VisualApprovalHighlight.tsx` | UI | 红框 overlay | ✅ |
+| `ToolApprovalDialog.tsx` | UI | modal 非 visual 审批 | ✅ |
+| `MobileStatusBoard.tsx` | UI | 移动端审批面板 | ✅ |
+
+逻辑层见 [`lib/approval/_ARCH.md`](../../lib/approval/_ARCH.md)。
+
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`

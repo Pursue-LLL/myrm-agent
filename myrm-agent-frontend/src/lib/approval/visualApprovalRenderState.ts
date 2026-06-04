@@ -64,7 +64,7 @@ export function resolveVisualApprovalRenderState({
   return {
     phase: 'unavailable',
     visualContext: null,
-    unavailableReason: snapshotFetchFailed ? 'fetch_failed' : 'fetch_failed',
+    unavailableReason: 'fetch_failed',
   };
 }
 

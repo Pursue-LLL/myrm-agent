@@ -24,5 +24,9 @@
 ## UI 入口
 
 - `chat-window/VisualApprovalInlineSection.tsx`：桌面聊天 inline artifact
+- `chat-window/approval/VisualApprovalRequestRenderer.tsx`：loading/ready/unavailable 三态渲染
+- `chat-window/approval/VisualApprovalUnavailableCard.tsx`：snapshot 失败降级 + 重试
+- `chat-window/VisualApprovalPendingCard.tsx`：snapshot loading 占位
+- `chat-window/VisualApprovalArtifactCard.tsx`：截图 + BBox + 审批操作
 - `chat-window/ToolApprovalDialog.tsx`：modal 审批（非 visual / handover）
 - `chat-window/MobileStatusBoard.tsx`：移动端复用同一 surface 规则
