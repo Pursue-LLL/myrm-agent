@@ -26,6 +26,7 @@
 ## 依赖
 
 - `../types/`（`../types.ts` barrel）— `AgentStreamEvent`、`Message` 等
+- `../schema.ts` + `../knownSseEventTypes.ts` — SSE `type` 白名单与 harness 别名
 - `./types.ts` — `StreamHandlerState` / `StreamHandlerActions`（本目录专用）
 - `../messageUtils.ts`, `../memoryCitationUtils.ts`, `../archiveRestoreActions.ts`
 

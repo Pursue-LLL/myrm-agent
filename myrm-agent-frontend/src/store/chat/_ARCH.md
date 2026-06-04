@@ -1,0 +1,20 @@
+# chat/
+
+## 架构概述
+
+会话状态、SSE 流式 reducer、发送请求与类型契约。
+
+## 子模块
+
+| 路径 | 职责 |
+|------|------|
+| `types/` | `AgentStreamEvent`、`Message`、`ChatState` 等 |
+| `messageStream/` | SSE dispatcher + `handlers/*` |
+| `schema.ts` / `knownSseEventTypes.ts` | SSE 入站校验与 harness 对齐 |
+| `streamConsumer.ts` | 读 SSE 行 → `parseSseEnvelope` → reducer |
+| `messageRequest.ts` | 组装请求并启动流 |
+
+## 依赖
+
+- `@/services/chat` — HTTP/SSE API
+- `myrm-agent-harness` `AgentEventType`（通过 `knownSseEventTypes` 清单对齐）

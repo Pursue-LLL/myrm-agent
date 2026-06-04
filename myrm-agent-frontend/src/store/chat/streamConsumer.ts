@@ -1,4 +1,4 @@
-import { SSEEnvelopeSchema } from './schema';
+import { parseSseEnvelope } from './schema';
 import { handleMessageStream, StreamHandlerState, StreamHandlerActions } from './messageStreamHandler';
 import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './messageRequest';
 import { type ArchiveRestoreAction, ModelSelection } from './types';
@@ -260,15 +260,14 @@ export async function consumeStream(
           const jsonStr = line.substring(dataPrefix.length).trim();
           if (jsonStr) {
             try {
-              const rawJson = JSON.parse(jsonStr);
-              const parseResult = SSEEnvelopeSchema.safeParse(rawJson);
-              if (!parseResult.success) {
-                console.warn('Malformed SSE payload dropped:', parseResult.error);
+              const rawJson = JSON.parse(jsonStr) as unknown;
+              const event = parseSseEnvelope(rawJson);
+              if (!event) {
+                console.warn('Unknown or malformed SSE payload dropped');
                 continue;
               }
-              const json = parseResult.data as any; // The original handleMessageStream expects AgentStreamEvent, we'll cast it or let it be 'any' inside
               ({ added, recievedMessage } = await handleMessageStream(
-                json,
+                event,
                 input,
                 undefined,
                 added,

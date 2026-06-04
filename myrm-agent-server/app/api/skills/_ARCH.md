@@ -28,7 +28,7 @@
 | `instances.py` | ✅ 核心 | 多实例 CRUD API 路由（状态管理已下沉至 `core/skills/state_manager_instance.py`） |
 | `config_version.py` | ✅ 辅助 | Re-export wrapper（单一来源：`core/skills/config_version.py`） |
 | `local.py` | ✅ 核心 | 本地技能管理（上传、安装、卸载） |
-| `packaging.py` | ✅ 核心 | 技能打包（导出为可分享格式） |
+| `packaging.py` | ✅ 核心 | 技能打包（导出为 ZIP，集成脱敏引擎，支持两段式 Diff 预览与细粒度脱敏控制） |
 | `permissions.py` | ✅ 核心 | 技能权限授权 CRUD + 使用统计 |
 | `history.py` | ✅ 核心 | 技能版本历史 + 回滚 |
 | `prebuilt.py` | ✅ 核心 | 预置技能列表 + reset-to-default + accept-upstream 更新管理 |

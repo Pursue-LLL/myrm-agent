@@ -5,15 +5,10 @@ import { useMemo } from 'react';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
-import {
-  hasVisualApprovalContext,
-  resolveVisualApprovalContextForRequest,
-} from '@/lib/approval/visualApprovalContext';
 import { usesInlineVisualApprovalSurface } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
 import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
-import VisualApprovalArtifactCard from './VisualApprovalArtifactCard';
-import VisualApprovalPendingCard from './VisualApprovalPendingCard';
+import VisualApprovalRequestRenderer from './approval/VisualApprovalRequestRenderer';
 
 interface VisualApprovalInlineSectionProps {
   messageId: string;
@@ -41,7 +36,8 @@ export default function VisualApprovalInlineSection({ messageId, chatId }: Visua
     );
   }, [chatId, messageId, queue]);
 
-  useVisualApprovalSnapshot(inlineRequests);
+  const { status, snapshotFetchFailed, retrySnapshot } = useVisualApprovalSnapshot(inlineRequests);
+  const snapshotRetrying = status === 'loading';
 
   if (inlineRequests.length === 0) {
     return null;
@@ -49,32 +45,21 @@ export default function VisualApprovalInlineSection({ messageId, chatId }: Visua
 
   return (
     <div className="space-y-3" data-testid="visual-approval-inline-section">
-      {inlineRequests.map((request) => {
-        const visualContext = resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData);
-        if (visualContext) {
-          return (
-            <VisualApprovalArtifactCard
-              key={request.requestId}
-              request={request}
-              desktopViewData={desktopViewData}
-              browserViewData={browserViewData}
-              onResolve={resolveRequest}
-              isLoading={isLoading}
-            />
-          );
-        }
-
-        const waitingForSnapshot =
-          (request.toolName.startsWith('desktop_') && desktopLoading) ||
-          (request.toolName.startsWith('browser_') && browserLoading) ||
-          !hasVisualApprovalContext(request, desktopViewData, browserViewData);
-
-        if (waitingForSnapshot) {
-          return <VisualApprovalPendingCard key={request.requestId} request={request} />;
-        }
-
-        return null;
-      })}
+      {inlineRequests.map((request) => (
+        <VisualApprovalRequestRenderer
+          key={request.requestId}
+          request={request}
+          desktopViewData={desktopViewData}
+          browserViewData={browserViewData}
+          desktopLoading={desktopLoading}
+          browserLoading={browserLoading}
+          snapshotFetchFailed={snapshotFetchFailed}
+          snapshotRetrying={snapshotRetrying}
+          onRetrySnapshot={retrySnapshot}
+          onResolve={resolveRequest}
+          isLoading={isLoading}
+        />
+      ))}
     </div>
   );
 }

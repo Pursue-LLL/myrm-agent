@@ -23,6 +23,8 @@ export interface InspectorViewSnapshot {
   refs: Record<string, BrowserRefInfo>;
   viewportWidth: number;
   viewportHeight: number;
+  updatedAt?: number;
+  needsPermission?: boolean;
 }
 
 const COORDINATE_HIGHLIGHT_SIZE = 48;

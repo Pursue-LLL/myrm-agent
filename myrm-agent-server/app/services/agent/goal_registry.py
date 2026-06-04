@@ -269,7 +269,7 @@ class ServerGoalManager(GoalManager):
                 )
 
     async def evaluate_semantic(
-        self, criteria: str, content: str
+        self, criteria: str, content: str, context_messages: list[object] | None = None
     ) -> "VerificationResult":
         from litellm import acompletion
         from myrm_agent_harness.agent.goals.verification.base import VerificationResult
@@ -279,8 +279,20 @@ class ServerGoalManager(GoalManager):
         try:
             llm_kwargs = await build_platform_litellm_kwargs()
             
+            requires_vision = False
+            if context_messages:
+                for msg in context_messages:
+                    if getattr(msg, "type", "") == "tool" and getattr(msg, "name", "") in (
+                        "browser_interact",
+                        "browser_extract",
+                        "computer_use",
+                        "desktop_snapshot_tool",
+                    ):
+                        requires_vision = True
+                        break
+
             screenshot_b64 = None
-            if getattr(self, "session_id", None):
+            if requires_vision and getattr(self, "session_id", None):
                 from app.services.agent.gateway import get_agent_gateway
                 gateway = get_agent_gateway()
                 

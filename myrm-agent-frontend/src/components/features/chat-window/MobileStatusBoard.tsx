@@ -25,19 +25,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, Send } from 'lucide-react';
+import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Button } from '@/components/primitives/button';
 import ProgressSteps from '@/components/features/message-box/progress-steps/ProgressSteps';
-import VisualApprovalArtifactCard from '@/components/features/chat-window/VisualApprovalArtifactCard';
-import VisualApprovalPendingCard from '@/components/features/chat-window/VisualApprovalPendingCard';
+import VisualApprovalRequestRenderer from '@/components/features/chat-window/approval/VisualApprovalRequestRenderer';
 import SingleApprovalCard from '@/components/features/chat-window/SingleApprovalCard';
-import {
-  hasVisualApprovalContext,
-  resolveVisualApprovalContextForRequest,
-} from '@/lib/approval/visualApprovalContext';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/useToolApprovalResolve';
 import { useVisualApprovalSnapshot } from '@/hooks/useVisualApprovalSnapshot';
@@ -49,6 +44,7 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
   const t = useTranslations('agent.mobileCommand');
+  const tToolApproval = useTranslations('toolApproval');
   const tAgent = useTranslations('agent');
 
   const { messages, loading, initializeChat, stopMessage, isMessagesLoaded, sendMessage, steerMessage } = useChatStore(
@@ -68,7 +64,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const browserViewData = useBrowserInspectorStore((state) => state.viewData);
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
-  const { resolveRequest, approveAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
+  const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
   const [quickInput, setQuickInput] = useState('');
 
   const chatApprovalQueue = useMemo(
@@ -81,7 +77,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
     [chatApprovalQueue],
   );
 
-  useVisualApprovalSnapshot(inlineRequests);
+  const { status, snapshotFetchFailed, retrySnapshot } = useVisualApprovalSnapshot(inlineRequests);
+  const snapshotRetrying = status === 'loading';
 
   useEffect(() => {
     initializeChat(chatId);
@@ -151,49 +148,45 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
                 </h2>
               </div>
               {modalRequests.length > 1 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => void approveAll(modalRequests)}
-                  disabled={isApprovalLoading}
-                >
-                  {t('approveAll')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void rejectAll(modalRequests)}
+                    disabled={isApprovalLoading}
+                  >
+                    <ShieldX className="mr-1 h-3.5 w-3.5" />
+                    {tToolApproval('rejectAll')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void approveAll(modalRequests)}
+                    disabled={isApprovalLoading}
+                  >
+                    {t('approveAll')}
+                  </Button>
+                </div>
               )}
             </div>
             <div className="divide-y space-y-3 p-3">
-              {inlineRequests.map((request) => {
-                const visualContext = resolveVisualApprovalContextForRequest(
-                  request,
-                  desktopViewData,
-                  browserViewData,
-                );
-
-                if (visualContext) {
-                  return (
-                    <VisualApprovalArtifactCard
-                      key={request.requestId}
-                      request={request}
-                      desktopViewData={desktopViewData}
-                      browserViewData={browserViewData}
-                      onResolve={resolveRequest}
-                      isLoading={isApprovalLoading}
-                    />
-                  );
-                }
-
-                const waitingForSnapshot =
-                  (request.toolName.startsWith('desktop_') && desktopLoading) ||
-                  (request.toolName.startsWith('browser_') && browserLoading) ||
-                  !hasVisualApprovalContext(request, desktopViewData, browserViewData);
-
-                if (waitingForSnapshot) {
-                  return <VisualApprovalPendingCard key={request.requestId} request={request} />;
-                }
-
-                return null;
-              })}
+              {inlineRequests.map((request) => (
+                <VisualApprovalRequestRenderer
+                  key={request.requestId}
+                  request={request}
+                  desktopViewData={desktopViewData}
+                  browserViewData={browserViewData}
+                  desktopLoading={desktopLoading}
+                  browserLoading={browserLoading}
+                  snapshotFetchFailed={snapshotFetchFailed}
+                  snapshotRetrying={snapshotRetrying}
+                  onRetrySnapshot={retrySnapshot}
+                  onResolve={resolveRequest}
+                  isLoading={isApprovalLoading}
+                />
+              ))}
 
               {modalRequests.map((request) => (
                 <SingleApprovalCard

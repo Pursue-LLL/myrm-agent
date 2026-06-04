@@ -301,7 +301,7 @@ export interface ContextReferenceWarningStreamEvent extends BaseAgentEvent {
 }
 
 export interface GoalStatusStreamEvent {
-  type: 'goal_status';
+  type: typeof AgentEventType.GOAL_STATUS;
   messageId?: string;
   data: GoalStatusPayload;
 }

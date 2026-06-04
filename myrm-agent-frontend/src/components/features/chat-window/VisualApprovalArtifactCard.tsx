@@ -9,6 +9,7 @@ import {
   resolveVisualApprovalContextForRequest,
   type InspectorViewSnapshot,
 } from '@/lib/approval/visualApprovalContext';
+import { formatSnapshotAgeSeconds } from '@/lib/approval/visualApprovalRenderState';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import SingleApprovalCard from './SingleApprovalCard';
@@ -51,6 +52,9 @@ export default function VisualApprovalArtifactCard({
       ? t('visualApprovalCoordinateTarget', { label: visualContext.targetLabel ?? '' })
       : t('visualApprovalRefTarget', { label: visualContext.targetLabel ?? '' });
 
+  const snapshotViewData = request.toolName.startsWith('desktop_') ? desktopViewData : browserViewData;
+  const snapshotAgeSeconds = formatSnapshotAgeSeconds(snapshotViewData?.updatedAt, Date.now());
+
   return (
     <div
       className="overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-background shadow-sm"
@@ -76,6 +80,11 @@ export default function VisualApprovalArtifactCard({
             <Target className="h-3.5 w-3.5 text-red-500" />
           )}
           <span>{targetHint}</span>
+          {snapshotAgeSeconds !== null && (
+            <span className="text-[11px] text-muted-foreground/80">
+              {t('visualApprovalSnapshotAge', { seconds: snapshotAgeSeconds })}
+            </span>
+          )}
         </div>
       </div>
 

@@ -19,7 +19,7 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     return done(ctx);
   }
 
-  if (data.type === 'goal_status') {
+  if (data.type === H.AgentEventType.GOAL_STATUS) {
     const { useGoalStore } = await import('./goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);
     useGoalStore.getState().setActiveGoal(goalState);

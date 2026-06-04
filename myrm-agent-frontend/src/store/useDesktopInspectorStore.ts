@@ -40,7 +40,7 @@ interface DesktopInspectorState {
   clearSelection: () => void;
   setDesktopActive: (active: boolean) => void;
   setInstructionText: (text: string) => void;
-  fetchSnapshot: () => Promise<void>;
+  fetchSnapshot: () => Promise<boolean>;
   reset: () => void;
 }
 
@@ -83,7 +83,7 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
     })),
   setInstructionText: (text) => set({ instructionText: text }),
   fetchSnapshot: async () => {
-    if (get().isSnapshotLoading) return;
+    if (get().isSnapshotLoading) return false;
     set({ isSnapshotLoading: true });
     try {
       const data = await apiRequest<DesktopSnapshotResponse>('/webui/desktop/snapshot', {
@@ -104,8 +104,9 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
           updatedAt: Date.now(),
         },
       });
+      return Boolean(data.screenshot_base64);
     } catch {
-      // Snapshot not available — desktop session might not be active
+      return false;
     } finally {
       set({ isSnapshotLoading: false });
     }
