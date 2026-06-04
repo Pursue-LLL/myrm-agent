@@ -64,6 +64,20 @@ class ProjectService:
                 workspace_path=workspace_path,
             )
             db.add(project)
+            
+            # Create and bind a shared memory context for the project
+            from app.services.memory.shared_context import SharedContextService
+            shared_context_svc = SharedContextService(db)
+            context = await shared_context_svc.create_context(
+                name=f"Project: {project.name}",
+                description=f"Shared memory context for project {project.name}"
+            )
+            await shared_context_svc.bind_context(
+                context_id=context.id,
+                target_type="project",
+                target_id=project.id
+            )
+            
             await db.commit()
             await db.refresh(project)
             return {

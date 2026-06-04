@@ -11,6 +11,7 @@ export interface Project {
   name: string;
   color: string;
   sortOrder: number;
+  workspacePath?: string;
   createdAt: string | null;
   updatedAt: string | null;
 }

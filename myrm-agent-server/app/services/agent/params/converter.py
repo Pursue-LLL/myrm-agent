@@ -666,6 +666,7 @@ async def convert_to_general_agent_params(
             channel_id="web_chat",
             conversation_id=request.chat_id,
             task_id=None,
+            project_id=chat.project_id if chat_loaded and chat else None,
         )
     except Exception as e:
         logger.warning("Failed to resolve shared memory contexts for agent request: %s", e)
@@ -711,10 +712,19 @@ async def convert_to_general_agent_params(
         try:
             from app.services.agent.agent_service import AgentService
             mentioned_names = []
+            if jit_subagents is None:
+                jit_subagents = {}
+                
             for aid in request.mentioned_agent_ids:
                 agent = await AgentService.get_agent_by_id(aid)
                 if agent and agent.display_name:
                     mentioned_names.append(agent.display_name)
+                    # Add to jit_subagents so the main agent gets the delegate_task tool
+                    jit_subagents[aid] = {
+                        "name": agent.display_name,
+                        "description": agent.description or "Mentioned agent",
+                        "agent_id": aid
+                    }
             
             if mentioned_names:
                 names_str = ", ".join(mentioned_names)

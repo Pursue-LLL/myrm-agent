@@ -48,8 +48,8 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
     isIntentionalClose.current = false;
 
     try {
-      // 1. Call POST /api/v1/artifacts/{id}/deploy
-      const response = await fetch(getApiUrl(`/api/v1/artifacts/${artifact.id}/deploy`), {
+      // 1. Call POST /api/v1/files/artifacts/{id}/deploy
+      const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifact.id}/deploy`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
       // 2. Connect to WebSocket for status updates
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsHost = getApiUrl('').replace(/^https?:\/\//, '');
-      const wsUrl = `${wsProtocol}//${wsHost}/api/v1/artifacts/${artifact.id}/deploy/status/${deploymentId}`;
+      const wsUrl = `${wsProtocol}//${wsHost}/api/v1/files/artifacts/${artifact.id}/deploy/status/${deploymentId}`;
       
       const ws = new WebSocket(wsUrl);
 

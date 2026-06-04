@@ -32,11 +32,11 @@ from app.database.models import (
 )
 
 SharedContextStatus = Literal["active", "archived"]
-SharedContextTargetType = Literal["agent", "channel", "cron", "conversation", "task"]
+SharedContextTargetType = Literal["agent", "channel", "cron", "conversation", "task", "project"]
 SharedContextProposalStatus = Literal["pending", "approved", "rejected"]
 SharedContextMemoryType = Literal["semantic", "episodic"]
 
-_VALID_TARGET_TYPES: set[str] = {"agent", "channel", "cron", "conversation", "task"}
+_VALID_TARGET_TYPES: set[str] = {"agent", "channel", "cron", "conversation", "task", "project"}
 _VALID_CONTEXT_STATUSES: set[str] = {"active", "archived"}
 _VALID_PROPOSAL_STATUSES: set[str] = {"pending", "approved", "rejected"}
 _VALID_MEMORY_TYPES: set[str] = {"semantic", "episodic"}
@@ -452,6 +452,7 @@ async def resolve_shared_context_ids(
     cron_id: str | None = None,
     conversation_id: str | None = None,
     task_id: str | None = None,
+    project_id: str | None = None,
 ) -> list[str]:
     """Resolve active SharedContext IDs for a runtime memory binding."""
     targets: list[tuple[SharedContextTargetType, str]] = []
@@ -465,6 +466,8 @@ async def resolve_shared_context_ids(
         targets.append(("conversation", conversation_id))
     if task_id:
         targets.append(("task", task_id))
+    if project_id:
+        targets.append(("project", project_id))
 
     async with get_session() as session:
         return await SharedContextService(session).resolve_active_context_ids(targets)

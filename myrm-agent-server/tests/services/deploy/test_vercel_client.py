@@ -69,10 +69,33 @@ async def test_get_deployment_status_success(vercel_client):
         "url": "test.vercel.app",
         "readyState": "READY"
     }
-    
+
     with patch("httpx.AsyncClient.get", return_value=mock_response):
         result = await vercel_client.get_deployment_status("dep_123")
-        
+
         assert result["id"] == "dep_123"
         assert result["url"] == "https://test.vercel.app"
         assert result["status"] == "READY"
+
+@pytest.mark.asyncio
+async def test_get_deployment_status_api_error(vercel_client):
+    mock_response = AsyncMock()
+    mock_response.status_code = 404
+    mock_response.text = "Not found"
+
+    with patch("httpx.AsyncClient.get", return_value=mock_response):
+        with pytest.raises(Exception, match="Failed to get deployment status"):
+            await vercel_client.get_deployment_status("dep_missing")
+
+@pytest.mark.asyncio
+async def test_deploy_api_http_error(vercel_client):
+    files = {"index.html": "<h1>Hello</h1>"}
+
+    mock_response = AsyncMock()
+    mock_response.status_code = 401
+    mock_response.text = "Unauthorized"
+
+    with patch("httpx.AsyncClient.post", return_value=mock_response):
+        with pytest.raises(Exception, match="Vercel deployment failed"):
+            await vercel_client.deploy("test-project", files)
+

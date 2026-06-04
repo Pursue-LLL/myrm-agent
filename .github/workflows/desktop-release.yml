@@ -81,8 +81,6 @@ jobs:
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         id: tauri
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: "myrm-agent/myrm-agent-desktop"
           args: ${{ matrix.platform == 'macos-apple-silicon' && '--target aarch64-apple-darwin' || matrix.platform == 'macos-intel' && '--target x86_64-apple-darwin' || '' }}
