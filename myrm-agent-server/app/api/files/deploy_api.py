@@ -29,7 +29,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_workspace_root
-from app.database.connection import get_db
+from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
@@ -246,17 +246,17 @@ async def deployment_status_ws(
     deployment_id: str,
 ):
     """WebSocket endpoint to stream deployment status.
-    Requires first message to be JSON payload: {"type": "auth", "token": "..."}
+
+    Client sends first message: {"type": "auth"}.
+    Vercel token is resolved server-side from encrypted UserConfig storage.
     """
     await websocket.accept()
-    
-    # 1. Wait for auth payload
+
     try:
         auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
-        if not isinstance(auth_msg, dict) or auth_msg.get("type") != "auth" or not auth_msg.get("token"):
+        if not isinstance(auth_msg, dict) or auth_msg.get("type") != "auth":
             await websocket.close(code=1008, reason="Invalid auth payload")
             return
-        token = auth_msg["token"]
     except asyncio.TimeoutError:
         logger.warning(f"WebSocket auth timeout for deployment {deployment_id}")
         await websocket.close(code=1008, reason="Auth timeout")
@@ -270,7 +270,14 @@ async def deployment_status_ws(
         await websocket.close(code=1008, reason="Auth failed")
         return
 
-    client = VercelClient(token=token)
+    try:
+        async with get_session() as db:
+            vercel_token = await _resolve_vercel_token(db, "")
+    except HTTPException:
+        await websocket.close(code=1008, reason="Missing Vercel credentials")
+        return
+
+    client = VercelClient(token=vercel_token)
     
     try:
         while True:

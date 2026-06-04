@@ -133,7 +133,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: token.trim(), platform: 'vercel' }),
+        body: JSON.stringify({ platform: 'vercel' }),
       });
 
       if (!response.ok) {
@@ -163,7 +163,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'auth', token: token.trim() }));
+        ws.send(JSON.stringify({ type: 'auth' }));
       };
 
       ws.onmessage = (event) => {

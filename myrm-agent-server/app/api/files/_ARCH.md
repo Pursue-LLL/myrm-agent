@@ -23,8 +23,8 @@
 | `suggest.py` | ✅ 核心 | GUI @ 结构化引用建议 API — `/suggest`。按 `chat_id` 解析当前 workspace，聚合 workspace、uploaded、generated、special 引用，返回无绝对路径的 DTO |
 | `workspace_ops.py` | ✅ 核心 | 工作区文件写操作 API — `/browse/upload`（文件上传到工作区目录，含 rate limit）、`/browse/mkdir`（新建目录）、`/browse/rename`（重命名）、`/browse/move`（移动）、`/browse/delete`（删除）、`/browse/content`（PUT，在线编辑保存）。6 层安全栈：边界校验 · 危险路径拦截 · 敏感文件守卫 · 文件名合法性 · 删除保护 · 上传限制。与 browse.py 职责分离（读写分离） |
 | `local_actions.py` | ✅ 核心 | 本地文件操作 API — `/files/{file_id}/reveal`（文件管理器定位）、`/files/{file_id}/open`（默认应用打开）。仅本地部署模式可用，含三重安全校验（模式/路径/存在性），跨平台（macOS/Windows/Linux） | ✅ |
-| `artifact_api.py` | ✅ 核心 | 工件 CRUD — 列表（含 `deployment_*` 字段）、版本历史、哈希校验 |
-| `deploy_api.py` | ✅ 核心 | 工件一键部署 — POST `/{artifact_id}/deploy`、WebSocket 部署状态流、Vercel 凭据加密存储（UserConfig） |
+| `artifact_api.py` | ✅ 核心 | 工件 CRUD — 列表/单品 GET（含 `deployment_*`）、版本历史、哈希校验 |
+| `deploy_api.py` | ✅ 核心 | 工件一键部署 — POST deploy、WS 状态流（服务端读 DB token）、Vercel 凭据加密存储 |
 
 ---
 

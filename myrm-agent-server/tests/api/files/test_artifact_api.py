@@ -84,3 +84,30 @@ async def test_list_artifacts_includes_deployment_fields(client: TestClient, db_
     assert listed["deployment_url"] == "https://landing.vercel.app"
     assert listed["deployment_status"] == "READY"
     assert listed["deployment_project_id"] == "prj_123"
+
+
+@pytest.mark.asyncio
+async def test_get_artifact_returns_deployment_fields(client: TestClient, db_session: AsyncSession):
+    artifact = Artifact(
+        id="art-get-1",
+        name="Portfolio",
+        deployment_url="https://portfolio.vercel.app",
+        deployment_status="READY",
+        deployment_project_id="prj_456",
+    )
+    db_session.add(artifact)
+    await db_session.commit()
+
+    response = client.get("/api/v1/files/artifacts/art-get-1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == "art-get-1"
+    assert data["deployment_url"] == "https://portfolio.vercel.app"
+    assert data["deployment_status"] == "READY"
+    assert data["deployment_project_id"] == "prj_456"
+
+
+@pytest.mark.asyncio
+async def test_get_artifact_not_found(client: TestClient):
+    response = client.get("/api/v1/files/artifacts/missing-id")
+    assert response.status_code == 404

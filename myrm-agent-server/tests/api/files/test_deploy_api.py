@@ -1,5 +1,6 @@
 import builtins
 import uuid
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -213,20 +214,36 @@ async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_sessio
                 assert "style.css" in call_kwargs["files"]
 
 
-def test_deployment_status_ws_auth_success(deploy_client):
-    with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-        mock_vercel_instance = mock_vercel_class.return_value
-        mock_vercel_instance.get_deployment_status = AsyncMock(
-            return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
+def test_deployment_status_ws_auth_success(deploy_client, db_session):
+    @asynccontextmanager
+    async def session_override():
+        yield db_session
+
+    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+        mock_service = mock_service_factory.return_value
+        mock_service.encrypt_if_needed.return_value = ({"token": "test_token"}, False)
+        mock_service.decrypt.return_value = {"token": "test_token"}
+
+        deploy_client.put(
+            "/deploy/credentials/vercel",
+            json={"token": "test_token"},
         )
 
-        artifact_id = str(uuid.uuid4())
-        with deploy_client.websocket_connect(
-            f"/{artifact_id}/deploy/status/dep_123"
-        ) as ws:
-            ws.send_json({"type": "auth", "token": "test_token"})
-            data = ws.receive_json()
-            assert data["status"] == "READY"
+        with patch("app.api.files.deploy_api.get_session", session_override):
+            with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.get_deployment_status = AsyncMock(
+                    return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
+                )
+
+                artifact_id = str(uuid.uuid4())
+                with deploy_client.websocket_connect(
+                    f"/{artifact_id}/deploy/status/dep_123"
+                ) as ws:
+                    ws.send_json({"type": "auth"})
+                    data = ws.receive_json()
+                    assert data["status"] == "READY"
+                mock_vercel_class.assert_called_once_with(token="test_token")
 
 
 def test_deployment_status_ws_invalid_auth_payload(deploy_client):
@@ -234,9 +251,24 @@ def test_deployment_status_ws_invalid_auth_payload(deploy_client):
     with deploy_client.websocket_connect(
         f"/{artifact_id}/deploy/status/dep_123"
     ) as ws:
-        ws.send_json({"type": "invalid", "token": ""})
+        ws.send_json({"type": "invalid"})
         with pytest.raises(Exception):
             ws.receive_json()
+
+
+def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
+    @asynccontextmanager
+    async def session_override():
+        yield db_session
+
+    with patch("app.api.files.deploy_api.get_session", session_override):
+        artifact_id = str(uuid.uuid4())
+        with deploy_client.websocket_connect(
+            f"/{artifact_id}/deploy/status/dep_123"
+        ) as ws:
+            ws.send_json({"type": "auth"})
+            with pytest.raises(Exception):
+                ws.receive_json()
 
 
 def test_get_vercel_credentials_empty(deploy_client):

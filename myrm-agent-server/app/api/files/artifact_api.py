@@ -59,6 +59,25 @@ async def list_artifacts(
     }
 
 
+@router.get("/{artifact_id}")
+async def get_artifact(
+    artifact_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get a single artifact summary including deployment state."""
+    stmt = select(Artifact).where(
+        Artifact.id == artifact_id,
+        Artifact.is_deleted.is_(False),
+    )
+    result = await db.execute(stmt)
+    artifact = result.scalars().first()
+
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+
+    return _artifact_summary(artifact)
+
+
 @router.get("/{artifact_id}/versions")
 async def get_artifact_versions(
     artifact_id: str,

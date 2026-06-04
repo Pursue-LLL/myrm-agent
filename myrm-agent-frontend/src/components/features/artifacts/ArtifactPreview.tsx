@@ -168,6 +168,50 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
     setCurrentArtifact((prev) => (prev ? { ...prev, ...update } : prev));
   };
 
+  // Hydrate deployment state from DB when preview opens (survives page refresh)
+  useEffect(() => {
+    if (!currentArtifact || !open) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateDeployment = async () => {
+      try {
+        const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${currentArtifact.id}`));
+        if (!response.ok || cancelled) {
+          return;
+        }
+        const data = (await response.json()) as {
+          deployment_url?: string | null;
+          deployment_status?: string | null;
+          deployment_project_id?: string | null;
+        };
+        if (cancelled) {
+          return;
+        }
+        setCurrentArtifact((prev) =>
+          prev
+            ? {
+                ...prev,
+                deployment_url: data.deployment_url ?? prev.deployment_url,
+                deployment_status: data.deployment_status ?? prev.deployment_status,
+                deployment_project_id: data.deployment_project_id ?? prev.deployment_project_id,
+              }
+            : prev,
+        );
+      } catch (error) {
+        console.error('Failed to hydrate artifact deployment state:', error);
+      }
+    };
+
+    void hydrateDeployment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentArtifact?.id, open]);
+
   // 加载文件内容
   useEffect(() => {
     if (!currentArtifact || !open) {
