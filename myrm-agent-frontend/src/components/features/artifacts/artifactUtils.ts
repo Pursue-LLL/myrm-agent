@@ -260,11 +260,6 @@ export function isDeployCandidateArtifactType(type: ArtifactType): boolean {
   return DEPLOY_CANDIDATE_TYPES.has(type);
 }
 
-/** @deprecated Use isDeployCandidateArtifactType + deploy preflight deployable flag. */
-export function isDeployableArtifactType(type: ArtifactType): boolean {
-  return isDeployCandidateArtifactType(type);
-}
-
 export interface ArtifactDeployPreflight {
   deployable: boolean;
   reason: string;

@@ -122,6 +122,25 @@ async def run_deploy_preflight(
     workspace_root: str,
 ) -> DeployPreflightResult:
     """Full preflight: resolve files then evaluate deployability."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.database.models.artifact import Artifact
+
+    row = await db.execute(
+        select(Artifact)
+        .options(selectinload(Artifact.versions))
+        .where(Artifact.id == artifact_id, Artifact.is_deleted.is_(False))
+    )
+    existing = row.scalars().first()
+    if existing is not None and not existing.versions:
+        return DeployPreflightResult(
+            deployable=False,
+            reason="NO_VERSIONS",
+            message="Artifact has no versions to deploy.",
+            hint=None,
+        )
+
     try:
         _, files = await resolve_artifact_deploy_files(db, artifact_id, workspace_root)
     except LookupError:

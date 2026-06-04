@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-聊天流工件展示与一键部署 UI。卡片/预览双入口，hydrate 部署状态，过期版本提示重新部署。
+聊天流工件展示：Vercel 部署、部署 preflight 门禁、只读分享短链（HMAC 公网查看）。卡片与全屏预览双入口一致。
 
 ---
 
@@ -12,10 +12,10 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `ArtifactCard.tsx` | 核心 | 聊天流卡片；hydrate；Globe 部署；`isDeploymentStale` redeploy banner（移动/桌面响应式） |
-| `ArtifactPreview.tsx` | 核心 | 全屏预览；同款 redeploy banner |
-| `DeployModal.tsx` | 核心 | Vercel BYOK / 平台 Token 部署弹窗 |
-| `artifactUtils.ts` | 辅助 | `isDeploymentStale`、`patchArtifactDeploymentInChat`、图标与格式化 |
+| `ArtifactCard.tsx` | 核心 | 聊天卡片；Link 只读分享；Globe 部署（preflight 通过才可部署） |
+| `ArtifactPreview.tsx` | 核心 | 全屏预览；与卡片相同的分享/部署入口（`flex-wrap` 响应式） |
+| `DeployModal.tsx` | 核心 | Vercel 部署；打开时拉取 preflight |
+| `artifactUtils.ts` | 辅助 | preflight/share API 客户端、`isDeploymentStale`、图标 |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由 |
 | `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe（主题桥、自动高度） |
 
@@ -25,4 +25,4 @@
 
 - `@/lib/api`：artifact GET、deploy POST/WS
 - `@/store/chat`：部署字段同步
-- `app/api/files/deploy_api.py`（服务端）
+- `app/api/files/deploy_api.py`、`artifact_share_api.py`（服务端）

@@ -15,6 +15,7 @@ import {
   FileCode,
   FileText,
   Globe,
+  Link2,
   Image,
   Video,
   File,
@@ -22,8 +23,20 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getApiUrl, getStorageUrl } from '@/lib/api';
-import { deploymentHostname, getDownloadFilename, isDeploymentStale, patchArtifactDeploymentInChat } from './artifactUtils';
+import {
+  buildPublicArtifactShareUrl,
+  createArtifactSharePreview,
+  deploymentHostname,
+  fetchArtifactDeployPreflight,
+  getDownloadFilename,
+  isDeployCandidateArtifactType,
+  isDeploymentStale,
+  isSharePreviewableArtifact,
+  patchArtifactDeploymentInChat,
+  type ArtifactDeployPreflight,
+} from './artifactUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { toast } from 'sonner';
 
 import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
 
@@ -159,10 +172,34 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   useEffect(() => {
     setCurrentArtifact(artifact);
   }, [artifact]);
+
+  const isDeployCandidate = currentArtifact
+    ? isDeployCandidateArtifactType(currentArtifact.type as ArtifactType)
+    : false;
+  const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
+  const canSharePreview = currentArtifact ? isSharePreviewableArtifact(currentArtifact) : false;
+
+  useEffect(() => {
+    if (!open || !currentArtifact || !isDeployCandidate) {
+      setDeployPreflight(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchArtifactDeployPreflight(currentArtifact.id).then((result) => {
+      if (!cancelled) {
+        setDeployPreflight(result);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currentArtifact?.id, isDeployCandidate]);
 
   const handleDeployed = (update: DeployedArtifactUpdate) => {
     setCurrentArtifact((prev) => {
@@ -288,6 +325,34 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
     window.open(getStorageUrl(currentArtifact.preview_url), '_blank');
   };
 
+  const handleOpenDeploy = () => {
+    if (deployPreflight && !deployPreflight.deployable) {
+      toast.error(deployPreflight.message, { description: deployPreflight.hint ?? undefined });
+      return;
+    }
+    setDeployModalOpen(true);
+  };
+
+  const handleSharePreview = async () => {
+    if (!currentArtifact || shareLoading) {
+      return;
+    }
+    setShareLoading(true);
+    try {
+      const result = await createArtifactSharePreview(currentArtifact.id);
+      const url = buildPublicArtifactShareUrl(result.share_path);
+      await writeToClipboard(url);
+      toast.success(t('sharePreview.successTitle'), {
+        description: t('sharePreview.successDescription'),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('sharePreview.failed');
+      toast.error(message);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   if (!currentArtifact) return null;
 
   const Icon = getArtifactIcon(currentArtifact.type as ArtifactType);
@@ -330,7 +395,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
             </div>
 
             {/* 操作按钮 */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 max-w-[min(100%,20rem)] sm:max-w-none">
               {currentArtifact.deployment_status === 'READY' && currentArtifact.deployment_url && (
                 <Button
                   variant="outline"
@@ -339,12 +404,34 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
                   className="text-green-600 dark:text-green-500 border-green-200 dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Globe className="w-4 h-4 mr-1.5" />
-                  {t('deploy.deployedLabel', { hostname: deploymentHostname(currentArtifact.deployment_url) })}
+                  <span className="hidden sm:inline">
+                    {t('deploy.deployedLabel', { hostname: deploymentHostname(currentArtifact.deployment_url) })}
+                  </span>
                   <ExternalLink className="w-3 h-3 ml-1.5 opacity-50" />
                 </Button>
               )}
-              {(isHtml || currentArtifact.type === 'code') && (
-                <Button variant="outline" size="sm" onClick={() => setDeployModalOpen(true)} className="text-primary border-primary hover:bg-primary/10">
+              {canSharePreview && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={shareLoading}
+                  onClick={() => void handleSharePreview()}
+                  className="text-primary border-primary/30 hover:bg-primary/10"
+                >
+                  <Link2 className={cn('w-4 h-4 mr-1.5', shareLoading && 'opacity-50')} />
+                  <span className="hidden sm:inline">{t('sharePreview.open')}</span>
+                </Button>
+              )}
+              {isDeployCandidate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenDeploy}
+                  className={cn(
+                    'border-primary/30 hover:bg-primary/10',
+                    canDeploy ? 'text-primary' : 'text-muted-foreground opacity-70',
+                  )}
+                >
                   <Globe className="w-4 h-4 mr-1.5" />
                   {t('deploy.openModal')}
                 </Button>

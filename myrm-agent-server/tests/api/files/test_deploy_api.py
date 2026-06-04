@@ -126,22 +126,33 @@ async def test_deploy_unsupported_platform(deploy_client, mock_artifact):
 
 @pytest.mark.asyncio
 async def test_deploy_artifact_no_versions(deploy_client, artifact_without_versions):
-    from types import SimpleNamespace
-
-    stub_artifact = SimpleNamespace(
-        id=artifact_without_versions.id,
-        name=artifact_without_versions.name,
-        versions=[],
-        deployment_project_id=None,
+    response = deploy_client.post(
+        f"/{artifact_without_versions.id}/deploy",
+        json={"token": "test_token", "platform": "vercel"},
     )
-    with patch("app.api.files.deploy_api.ensure_artifact_for_deploy", new_callable=AsyncMock) as mock_ensure:
-        mock_ensure.return_value = stub_artifact
-        response = deploy_client.post(
-            f"/{artifact_without_versions.id}/deploy",
-            json={"token": "test_token", "platform": "vercel"},
-        )
     assert response.status_code == 400
-    assert response.json()["detail"] == "Artifact has no versions to deploy"
+    assert response.json()["detail"] == "Artifact has no versions to deploy."
+
+
+@pytest.mark.asyncio
+async def test_deploy_preflight_rejects_tsx_only(deploy_client, mock_artifact):
+    with patch(
+        "app.api.files.deploy_api.run_deploy_preflight",
+        new_callable=AsyncMock,
+    ) as mock_preflight:
+        from app.services.deploy.preflight import DeployPreflightResult
+
+        mock_preflight.return_value = DeployPreflightResult(
+            deployable=False,
+            reason="CODE_REQUIRES_HTML_ARTIFACT",
+            message="React/code artifacts must be exported as a complete index.html before deploy.",
+            hint="Ask the agent to output a full HTML document artifact (type html), then deploy.",
+        )
+        response = deploy_client.get(f"/{mock_artifact.id}/deploy/preflight")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["deployable"] is False
+    assert data["reason"] == "CODE_REQUIRES_HTML_ARTIFACT"
 
 
 @pytest.mark.asyncio
