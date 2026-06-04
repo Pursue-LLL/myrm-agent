@@ -4515,6 +4515,7 @@
     "relatedSearches": "Related Searches",
     "sources": "Sources",
     "answer": "Answer",
+    "tableOfContents": "Table of Contents",
     "reasoningThinking": "Thinking {seconds}s...",
     "reasoningCompleted": "Thought for {seconds}s",
     "reasoningTitle": "Reasoning",

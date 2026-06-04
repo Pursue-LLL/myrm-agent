@@ -179,7 +179,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
           >
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
               <ListTree className="w-4 h-4" />
-              <span>{t('tableOfContents') || '目录'}</span>
+              <span>{t('tableOfContents')}</span>
             </div>
             <ChevronRight 
               className={cn(
@@ -202,7 +202,7 @@ export const MessageToc: React.FC<MessageTocProps> = ({ content, messageId, isSt
         <div className="sticky top-24 max-h-[80vh] overflow-y-auto bg-background/50 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-sm pointer-events-auto">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
             <ListTree className="w-4 h-4" />
-            <span>{t('tableOfContents') || '目录'}</span>
+            <span>{t('tableOfContents')}</span>
           </div>
           <TocContent />
         </div>

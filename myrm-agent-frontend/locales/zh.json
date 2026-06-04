@@ -4536,6 +4536,7 @@
     "relatedSearches": "相关搜索",
     "sources": "来源",
     "answer": "回答",
+    "tableOfContents": "目录",
     "reasoningThinking": "思考中 {seconds}s...",
     "reasoningCompleted": "思考了 {seconds}s",
     "reasoningTitle": "思考过程",
