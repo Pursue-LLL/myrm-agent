@@ -30,7 +30,7 @@
 | `schemas.py` | ✅ 辅助 | 通用记忆请求/响应 Pydantic 模型（含 MemoryItem 投影字段、UpdateMemoryStatusRequest、TasteSummaryResponse、MemoryExportResponse、备份、评分和偏好稳定性响应） |
 | `archive_schemas.py` | ✅ 辅助 | Memory Archive 与服务端绑定导入/回滚请求响应模型（含 MemoryArchiveExportResponse、MemoryArchiveDryRunRequest/Response、带 payload_hash/plan_hash 强绑定的 MemoryArchiveRestoreConfirmRequest、恢复后诊断状态、MemoryImportDryRunRequest/Response、MemoryImportConfirmRequest/Response、结构化 MemoryImportRollbackWarning、含 missing_items 的 MemoryImportRollbackPreviewResponse 和含 deleted/missing/forbidden/failed refs 与 integrity_status 的 MemoryImportRollbackResponse） |
 | `shared_context_schemas.py` | ✅ 辅助 | Shared Context 专用请求/响应 Pydantic 模型 |
-| `utils.py` | ✅ 辅助 | `get_memory_manager()` 工厂 + `memory_to_item()` 转换（含投影映射） + `parse_memory_type()` 验证 |
+| `utils.py` | ✅ 辅助 | 向 API 路由 re-export `app/services/memory/manager_deps` 与 `presentation`（实现不在 api 层） |
 
 ---
 

@@ -19,6 +19,7 @@
 | `deployment_capabilities.py` | ✅ 核心 | 启动时构建语义能力位（local/tauri/sandbox/remote） | ✅ |
 | `execution.py` | ✅ 核心 | Agent 执行策略抽象（ExecutionStrategy Protocol + LocalExecutionStrategy） | 永远返回本地执行策略 |
 | `protocols.py` | ✅ 核心 | 平台协议接口定义（FileService, ExecutionStrategy 等） |
+| `workspace_root.py` | ✅ 辅助 | 工作区根路径解析（`get_workspace_root`，供 core/services/api 共用） | ✅ |
 
 ---
 

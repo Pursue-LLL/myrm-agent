@@ -1,4 +1,16 @@
-"""FastAPI dependencies for MemoryManager injection (api + service handlers)."""
+"""FastAPI dependencies for MemoryManager injection (api + service handlers).
+
+[INPUT]
+app.config.deploy_identity::get_deploy_identity (POS: 部署身份哨兵)
+app.core.memory.adapters.setup (POS: MemoryManager 工厂)
+app.services.agent.platform_config (POS: 平台 embedding 配置)
+
+[OUTPUT]
+get_memory_manager / get_crud_memory_manager / get_optional_memory_manager
+
+[POS]
+记忆 HTTP 依赖注入工厂，api.memory.utils 仅 re-export。
+"""
 
 from __future__ import annotations
 

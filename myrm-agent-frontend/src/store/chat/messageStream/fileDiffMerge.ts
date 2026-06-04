@@ -6,8 +6,6 @@
  * Unified diff merge logic for progressSteps file rows during agent streaming.
  */
 
-import type { ProgressFileItem } from './types';
-
 export function parseProgressFilePath(item: unknown): string | undefined {
   if (!item || typeof item !== 'object' || !('file_path' in item)) return undefined;
   const fp = (item as { file_path?: unknown }).file_path;

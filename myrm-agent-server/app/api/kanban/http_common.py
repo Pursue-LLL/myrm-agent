@@ -1,4 +1,15 @@
-"""Kanban HTTP shared router, converters, and attachment helpers."""
+"""Kanban HTTP shared router, converters, and attachment helpers.
+
+[INPUT]
+app.services.kanban::KanbanService (POS: Kanban 业务编排)
+app.core.kanban.adapters.sqlalchemy_mapping (POS: 附件 ID 持久化字段)
+
+[OUTPUT]
+router / get_kanban_service / 附件与 TaskResponse 转换辅助函数
+
+[POS]
+Kanban API 共享路由与 DTO 装配；`routes/*` 仅注册端点。
+"""
 
 from __future__ import annotations
 

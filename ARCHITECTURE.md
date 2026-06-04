@@ -62,7 +62,7 @@ myrm-agent/
 | Server | [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md) |
 | Server `app/` | [myrm-agent-server/app/_ARCH.md](myrm-agent-server/app/_ARCH.md) |
 | Frontend 组件 | [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) |
-| Frontend 状态 | [myrm-agent-frontend/src/store/_ARCH.md](myrm-agent-frontend/src/store/_ARCH.md) |
+| Frontend 状态 | [myrm-agent-frontend/src/store/_ARCH.md](myrm-agent-frontend/src/store/_ARCH.md) · 流式 reducer [messageStream/_ARCH.md](myrm-agent-frontend/src/store/chat/messageStream/_ARCH.md) |
 | Frontend API 客户端 | [myrm-agent-frontend/src/services/_ARCH.md](myrm-agent-frontend/src/services/_ARCH.md) |
 | Desktop | [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) |
 

@@ -1,4 +1,14 @@
-"""File content extraction for service-layer callers (bytes in, text out)."""
+"""File content extraction for service-layer callers (bytes in, text out).
+
+[INPUT]
+myrm_agent_harness.toolkits.file_parsers (POS: PDF/Office 解析)
+
+[OUTPUT]
+extract_pdf_text_from_bytes / extract_document_text_from_bytes
+
+[POS]
+服务层文件文本提取，供 Kanban 附件等非 HTTP 路径调用。
+"""
 
 from __future__ import annotations
 

@@ -26,6 +26,7 @@
 | `migrator.py` | ✅ 核心 | 配置迁移工具（check_and_migrate_config，版本升级时自动迁移） | ✅ |
 | `browser.py` | ✅ 核心 | 浏览器池配置工厂（get_browser_pool_config）。本地模式 → `LaunchMode.AUTO`（CDP 探测连接系统 Chrome），沙箱 → `LaunchMode.LAUNCH`（新启 Chromium） | ✅ |
 | `deploy_mode.py` | ✅ 核心 | 部署模式检测（local/tauri/sandbox/webui），存储模式判断 | ✅ |
+| `deploy_identity.py` | ✅ 辅助 | 单租户部署身份哨兵（`get_deploy_identity`，供 FastAPI Depends 与 memory 依赖注入） | ✅ |
 | `env.py` | ✅ 核心 | `is_debug_mode()` — **DEBUG env 唯一读取点** | ✅ |
 | `logging.py` | ✅ 核心 | 日志配置（configure_logging，根据环境设置日志级别和格式） | ✅ |
 | `system_status.py` | ✅ 核心 | 全局系统状态单例（database_degraded/recovered） | ✅ |

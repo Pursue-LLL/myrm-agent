@@ -1,4 +1,15 @@
-"""Memory entity to API schema conversion (shared by HTTP handlers and services)."""
+"""Memory entity to API schema conversion (shared by HTTP handlers and services).
+
+[INPUT]
+myrm_agent_harness.toolkits.memory (POS: 记忆类型与实体)
+app.schemas.memory.crud::MemoryItem (POS: 记忆 API DTO)
+
+[OUTPUT]
+memory_to_item / parse_memory_type
+
+[POS]
+记忆响应 DTO 转换层，供 api 与 services.memory.operations 共用。
+"""
 
 from __future__ import annotations
 

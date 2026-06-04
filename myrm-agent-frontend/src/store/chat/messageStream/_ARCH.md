@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `types.ts` | 核心 | `StreamHandlerState` / `StreamHandlerActions` | ✅ |
-| `handleMessageStream.ts` | 核心 | 按 `AgentEventType` 分支更新消息 | ✅ |
+| `handleMessageStream.ts` | 核心 | 按 `AgentEventType` 分支更新消息（约 2008 行，超过 500 行单文件约定） | ✅ |
 | `streamHelpers.ts` | 辅助 | 来源合并、澄清表单、Goal 归一化 | ✅ |
 | `fileDiffMerge.ts` | 辅助 | FILE_DIFF 路径匹配与 diff 择优合并 | ✅ |
 | `textSanitize.ts` | 辅助 | 流式文本控制字符剥离 | ✅ |
