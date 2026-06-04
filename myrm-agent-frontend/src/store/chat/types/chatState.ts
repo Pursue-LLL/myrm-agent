@@ -52,6 +52,7 @@ export interface ChatState {
   searchDepth: SearchDepth;
   optimizationMode: string;
   isGoalMode: boolean;
+  isWorkflowMode: boolean;
   incognitoMode: boolean;
   goalBudgetTokens: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
@@ -137,6 +138,7 @@ export interface ChatState {
   setSearchDepth: (depth: SearchDepth) => void;
   setOptimizationMode: (mode: string) => void;
   setIsGoalMode: (isGoalMode: boolean) => void;
+  setIsWorkflowMode: (isWorkflowMode: boolean) => void;
   setIncognitoMode: (incognitoMode: boolean) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
   setGoalAcceptanceCriteria: (criteria: Array<Record<string, unknown>> | null) => void;

@@ -6,6 +6,7 @@ pub mod agent;
 pub mod config;
 pub mod power;
 pub mod screen_lock;
+pub mod visual_approval_overlay;
 
 pub use agent::{
     detect_agents,
@@ -32,4 +33,8 @@ pub use screen_lock::{
     screen_lock_has_password,
     screen_lock_delete_password,
     screen_lock_platform_support,
+};
+pub use visual_approval_overlay::{
+    hide_visual_approval_overlay,
+    show_visual_approval_overlay,
 };

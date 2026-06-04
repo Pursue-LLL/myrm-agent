@@ -430,4 +430,3 @@ When adding reply/quote support to a new channel:
 - [Feishu Reply Fetch](../providers/feishu/REPLY_FETCH.md) (planned)
 - [Discord Reference Parsing](../providers/discord/REFERENCE_PARSING.md) (planned)
 - [Slack Thread Fetch](../providers/slack/THREAD_FETCH.md) (planned)
-- [Competitor Comparison Roadmap](../../../../../../temp-docs/COMPETITOR_BORROWABLE_HIGHLIGHTS_ROADMAP.md)

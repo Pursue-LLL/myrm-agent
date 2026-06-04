@@ -72,6 +72,12 @@ from .session import resolve_session_key
 logger = logging.getLogger(__name__)
 
 
+from myrm_agent_harness.toolkits.code_execution.interceptor import set_execution_interceptor
+from app.services.checkpoint.snapshot_service import SnapshotInterceptor
+
+# Initialize and register the snapshot interceptor
+set_execution_interceptor(SnapshotInterceptor())
+
 class ChannelAgentExecutor:
     """Executes Agent tasks for inbound channel messages.
 
@@ -484,6 +490,14 @@ class ChannelAgentExecutor:
                     content=err_msg
                 )
                 return
+
+            from app.ai_agents.general_agent.context import set_current_turn_id, set_current_chat_id, set_current_agent_id
+            
+            # Set context for snapshot interceptor
+            turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"
+            set_current_turn_id(turn_id)
+            set_current_chat_id(chat_id)
+            set_current_agent_id(resolved_agent_id or "default")
 
             params = GeneralAgentParams(
                 query=query,

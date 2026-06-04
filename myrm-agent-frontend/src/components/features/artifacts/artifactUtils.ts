@@ -301,11 +301,15 @@ export function buildPublicArtifactShareUrl(sharePath: string): string {
 
 export async function createArtifactSharePreview(
   artifactId: string,
+  artifactType?: string,
 ): Promise<ArtifactSharePreviewResult> {
   const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/share-preview`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ttl_days: 7 }),
+    body: JSON.stringify({
+      ttl_days: 7,
+      ...(artifactType ? { artifact_type: artifactType } : {}),
+    }),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { detail?: string };

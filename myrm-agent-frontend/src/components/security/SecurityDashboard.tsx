@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   Shield,
   AlertTriangle,
@@ -48,15 +49,26 @@ interface SecurityDashboardData {
   recentAlerts: SecurityAlert[];
   recentPrs: DependabotPR[];
   sbomAvailable: boolean;
+  dataSource?: 'github' | 'control_plane' | 'merged';
+}
+
+interface SecuritySetupHints {
+  deployMode: string;
+  isSandbox: boolean;
+  cpIngressConfigured: boolean;
+  githubTokenConfigured: boolean;
+  webhookTenantId: string | null;
+  webhookUrl: string | null;
+  cpWebhookSecretEnv: string;
 }
 
 interface RateLimitStatus {
-  user_id: string;
+  userId: string;
   resource: string;
   current: number;
   max: number;
   remaining: number;
-  window_seconds: number;
+  windowSeconds: number;
 }
 
 interface AuditLogEvent {
@@ -68,7 +80,7 @@ interface AuditLogEvent {
   resource: string | null;
   action: string;
   result: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   ip_address: string | null;
   trace_id: string | null;
   request_id: string | null;
@@ -140,19 +152,39 @@ const MetricCard = ({
 );
 
 export default function SecurityDashboard() {
-  const locale = useLocale();
+  const t = useTranslations('securityDashboard');
   const [activeTab, setActiveTab] = useState<TabType>('dependencies');
   const [data, setData] = useState<SecurityDashboardData | null>(null);
+  const [setupHints, setSetupHints] = useState<SecuritySetupHints | null>(null);
+  const [rateLimitLive, setRateLimitLive] = useState(false);
   const [rateLimitData, setRateLimitData] = useState<RateLimitStatus[]>([]);
+  const [urlCopied, setUrlCopied] = useState(false);
   const [auditLogData, setAuditLogData] = useState<AuditLogEvent[]>([]);
   const [filteredAuditLogData, setFilteredAuditLogData] = useState<AuditLogEvent[]>([]);
   const [auditStatsData, setAuditStatsData] = useState<AuditLogStats | null>(null);
+  const [auditLive, setAuditLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [searchUserId, setSearchUserId] = useState('');
   const [searchEventType, setSearchEventType] = useState('');
   const [searchResult, setSearchResult] = useState<'all' | 'success' | 'failed'>('all');
+
+  const fetchSetupHints = useCallback(async () => {
+    try {
+      const response = await fetch('/api/v1/security/setup-hints');
+      if (response.ok) {
+        const result = await response.json();
+        setSetupHints(result);
+      }
+    } catch (err) {
+      console.error('Failed to fetch security setup hints:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSetupHints();
+  }, [fetchSetupHints]);
 
   useEffect(() => {
     if (activeTab === 'dependencies') {
@@ -216,35 +248,13 @@ export default function SecurityDashboard() {
   const fetchRateLimitData = async () => {
     try {
       setLoading(true);
-      // In Local mode, use mock data for demonstration
-      // In Production with Control Plane, these APIs are available
-      const mockData: RateLimitStatus[] = [
-        {
-          user_id: 'local-user',
-          resource: 'auth_attempts',
-          current: 2,
-          max: 100,
-          remaining: 98,
-          window_seconds: 3600,
-        },
-        {
-          user_id: 'local-user',
-          resource: 'api_calls',
-          current: 45,
-          max: 1000,
-          remaining: 955,
-          window_seconds: 60,
-        },
-        {
-          user_id: 'local-user',
-          resource: 'task_create',
-          current: 8,
-          max: 50,
-          remaining: 42,
-          window_seconds: 3600,
-        },
-      ];
-      setRateLimitData(mockData);
+      const response = await fetch('/api/v1/security/rate-limits');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const result = await response.json();
+      setRateLimitData(Array.isArray(result.items) ? result.items : []);
+      setRateLimitLive(Boolean(result.isLive));
       setError(null);
     } catch (err) {
       console.error('Failed to fetch rate limit data:', err);
@@ -254,43 +264,49 @@ export default function SecurityDashboard() {
     }
   };
 
+  const dataSourceLabel = (source: SecurityDashboardData['dataSource']) => {
+    if (source === 'merged') return t('dataSourceMerged');
+    if (source === 'control_plane') return t('dataSourceCp');
+    return t('dataSourceGithub');
+  };
+
+  const copyWebhookUrl = async () => {
+    if (!setupHints?.webhookUrl) return;
+    await navigator.clipboard.writeText(setupHints.webhookUrl);
+    setUrlCopied(true);
+    setTimeout(() => setUrlCopied(false), 2000);
+  };
+
   const fetchAuditLogData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/audit/logs?limit=100');
+      const response = await fetch('/api/v1/security/audit/logs?limit=100');
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
-      // Transform auth audit logs to match AuditLogEvent interface
-      const transformedLogs: AuditLogEvent[] = result.logs.map((log: any) => ({
-        event_type: log.event_type,
-        timestamp: log.timestamp,
-        severity: log.event_type.includes('FAILED') || log.event_type.includes('RATE_LIMIT') ? 'WARN' : 'INFO',
-        user_id: log.user_id || null,
-        sandbox_id: null,
-        resource: null,
-        action: log.event_type.includes('LOGIN')
-          ? 'login'
-          : log.event_type.includes('TOKEN')
-            ? 'token_refresh'
-            : 'auth',
-        result: log.event_type.includes('SUCCESS')
-          ? 'success'
-          : log.event_type.includes('FAILED')
-            ? 'failed'
-            : log.event_type.includes('RATE_LIMIT')
-              ? 'rate_limited'
-              : 'unknown',
-        metadata: log.metadata || {},
-        ip_address: log.client_ip || null,
-        trace_id: null,
-        request_id: null,
-        traffic_class: null,
+      const rawEvents = Array.isArray(result.events) ? result.events : [];
+      const transformedLogs: AuditLogEvent[] = rawEvents.map((log: Record<string, unknown>) => ({
+        event_type: String(log.eventType ?? log.event_type ?? ''),
+        timestamp: String(log.timestamp ?? ''),
+        severity: String(log.severity ?? 'info'),
+        user_id: (log.userId ?? log.user_id ?? null) as string | null,
+        sandbox_id: (log.sandboxId ?? log.sandbox_id ?? null) as string | null,
+        resource: (log.resource ?? null) as string | null,
+        action: String(log.action ?? ''),
+        result: String(log.result ?? ''),
+        metadata: (typeof log.metadata === 'object' && log.metadata !== null
+          ? log.metadata
+          : {}) as Record<string, unknown>,
+        ip_address: (log.ipAddress ?? log.ip_address ?? null) as string | null,
+        trace_id: (log.traceId ?? log.trace_id ?? null) as string | null,
+        request_id: (log.requestId ?? log.request_id ?? null) as string | null,
+        traffic_class: (log.trafficClass ?? log.traffic_class ?? null) as string | null,
       }));
       setAuditLogData(transformedLogs);
+      setAuditLive(Boolean(result.isLive));
       setError(null);
     } catch (err) {
       console.error('Failed to fetch audit log data:', err);
@@ -303,35 +319,45 @@ export default function SecurityDashboard() {
   const fetchAuditStatsData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/audit/stats');
+      const response = await fetch('/api/v1/security/audit/stats?hours=24');
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
+      const successFailed = result.successVsFailed ?? result.success_vs_failed ?? {};
 
-      // Transform auth audit stats to match AuditLogStats interface
       const stats: AuditLogStats = {
-        time_series: [], // Auth stats API doesn't provide time series yet, keep empty
-        top_ips:
-          result.top_ips?.map((item: any) => ({
-            ip_address: item.ip,
-            request_count: item.count,
-          })) || [],
-        event_distribution:
-          result.event_types?.map((item: any) => ({
-            event_type: item.event_type,
-            count: item.count,
-          })) || [],
+        time_series: Array.isArray(result.timeSeries)
+          ? result.timeSeries.map((item: Record<string, unknown>) => ({
+              timestamp: String(item.timestamp ?? ''),
+              total: Number(item.total ?? 0),
+              success: Number(item.success ?? 0),
+              failed: Number(item.failed ?? 0),
+            }))
+          : Array.isArray(result.time_series)
+            ? result.time_series
+            : [],
+        top_ips: (result.topIps ?? result.top_ips ?? []).map((item: Record<string, unknown>) => ({
+          ip_address: String(item.ipAddress ?? item.ip_address ?? ''),
+          request_count: Number(item.requestCount ?? item.request_count ?? 0),
+        })),
+        event_distribution: (result.eventDistribution ?? result.event_distribution ?? []).map(
+          (item: Record<string, unknown>) => ({
+            event_type: String(item.eventType ?? item.event_type ?? ''),
+            count: Number(item.count ?? 0),
+          }),
+        ),
         success_vs_failed: {
-          success: result.success_count || 0,
-          failed: result.failed_count || 0,
+          success: Number(successFailed.success ?? 0),
+          failed: Number(successFailed.failed ?? 0),
         },
-        total_events: result.total_logs || 0,
-        time_range_hours: 24,
+        total_events: Number(result.totalEvents ?? result.total_events ?? 0),
+        time_range_hours: Number(result.timeRangeHours ?? result.time_range_hours ?? 24),
       };
       setAuditStatsData(stats);
+      setAuditLive(Boolean(result.isLive));
       setError(null);
     } catch (err) {
       console.error('Failed to fetch audit stats data:', err);
@@ -343,7 +369,7 @@ export default function SecurityDashboard() {
 
   const exportAuditLogs = async (format: 'csv' | 'json') => {
     try {
-      const response = await fetch(`/api/v1/audit/export?format=${format}`);
+      const response = await fetch(`/api/v1/security/audit/export?format=${format}`);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -379,10 +405,10 @@ export default function SecurityDashboard() {
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-red-500">加载失败 / Failed to Load</h3>
+            <h3 className="font-semibold text-red-500">{t('loadFailed')}</h3>
             <p className="text-sm text-muted-foreground mt-1">{error}</p>
             <button onClick={fetchSecurityData} className="mt-2 text-sm text-primary hover:underline">
-              重试 / Retry
+              {t('retry')}
             </button>
           </div>
         </div>
@@ -393,10 +419,10 @@ export default function SecurityDashboard() {
   if (!data) return null;
 
   const tabs = [
-    { id: 'dependencies' as TabType, label: '依赖安全 / Dependencies', icon: Shield },
-    { id: 'rate-limit' as TabType, label: 'Rate Limit 监控 / Rate Limit Monitor', icon: Activity },
-    { id: 'audit-logs' as TabType, label: '审计日志 / Audit Logs', icon: FileText },
-    { id: 'audit-stats' as TabType, label: '安全统计 / Security Stats', icon: Activity },
+    { id: 'dependencies' as TabType, label: t('tabDependencies'), icon: Shield },
+    { id: 'rate-limit' as TabType, label: t('tabRateLimit'), icon: Activity },
+    { id: 'audit-logs' as TabType, label: t('tabAuditLogs'), icon: FileText },
+    { id: 'audit-stats' as TabType, label: t('tabAuditStats'), icon: Activity },
   ];
 
   return localizeReactNode(
@@ -406,9 +432,14 @@ export default function SecurityDashboard() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Shield className="w-8 h-8" />
-            安全仪表盘 / Security Dashboard
+            {t('title')}
           </h1>
-          <p className="text-muted-foreground mt-1">实时监控项目安全态势 / Real-time security monitoring</p>
+          <p className="text-muted-foreground mt-1">{t('subtitle')}</p>
+          {data?.dataSource && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {dataSourceLabel(data.dataSource)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {activeTab === 'audit-logs' && (
@@ -418,14 +449,14 @@ export default function SecurityDashboard() {
                 className="px-4 py-2 rounded-lg border hover:bg-accent transition-colors flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                导出 CSV / Export CSV
+                {t('auditExportCsv')}
               </button>
               <button
                 onClick={() => exportAuditLogs('json')}
                 className="px-4 py-2 rounded-lg border hover:bg-accent transition-colors flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                导出 JSON / Export JSON
+                {t('auditExportJson')}
               </button>
             </>
           )}
@@ -438,13 +469,55 @@ export default function SecurityDashboard() {
             }}
             className="px-4 py-2 rounded-lg border hover:bg-accent transition-colors"
           >
-            刷新 / Refresh
+            {t('refresh')}
           </button>
         </div>
       </div>
 
+      {setupHints?.isSandbox && (
+        <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/8 via-background to-background p-4 md:p-6 space-y-3 shadow-sm">
+          <h2 className="text-lg font-semibold">{t('setupTitle')}</h2>
+          {!setupHints.cpIngressConfigured && (
+            <p className="text-sm text-amber-600 dark:text-amber-400">{t('noIngress')}</p>
+          )}
+          {setupHints.webhookTenantId && (
+            <p className="text-sm text-muted-foreground">
+              {t('setupTenant')}: <span className="font-mono">{setupHints.webhookTenantId}</span>
+            </p>
+          )}
+          {setupHints.webhookUrl && (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-1">{t('setupUrl')}</p>
+                <code className="text-xs break-all block p-2 rounded bg-background border">
+                  {setupHints.webhookUrl}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={copyWebhookUrl}
+                className="px-3 py-2 text-sm rounded-lg border hover:bg-accent shrink-0"
+              >
+                {urlCopied ? t('copied') : t('copyUrl')}
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {t('setupSecret', { env: setupHints.cpWebhookSecretEnv })}
+          </p>
+          {!setupHints.githubTokenConfigured && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {t('setupToken')}{' '}
+              <Link href="/settings/credentials" className="text-primary underline underline-offset-2">
+                {t('openSettingsCredentials')}
+              </Link>
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-2 border-b">
+      <div className="flex flex-wrap gap-2 border-b overflow-x-auto">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -470,25 +543,25 @@ export default function SecurityDashboard() {
           {/* Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricCard
-              title="Critical"
+              title={t('metricCritical')}
               value={data.metrics.criticalCount}
               icon={AlertTriangle}
               color="bg-red-500/5 border-red-500/20"
             />
             <MetricCard
-              title="High"
+              title={t('metricHigh')}
               value={data.metrics.highCount}
               icon={AlertTriangle}
               color="bg-orange-500/5 border-orange-500/20"
             />
             <MetricCard
-              title="Medium"
+              title={t('metricMedium')}
               value={data.metrics.mediumCount}
               icon={AlertTriangle}
               color="bg-yellow-500/5 border-yellow-500/20"
             />
             <MetricCard
-              title="Security PRs"
+              title={t('metricSecurityPrs')}
               value={data.metrics.securityPrs}
               icon={GitPullRequest}
               color="bg-green-500/5 border-green-500/20"
@@ -499,13 +572,13 @@ export default function SecurityDashboard() {
           <div className="rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5" />
-              最近的安全告警 / Recent Alerts
+              {t('recentAlertsTitle')}
             </h2>
 
             {data.recentAlerts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-                <p>未发现安全告警 / No security alerts</p>
+                <p>{t('noAlerts')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -530,7 +603,7 @@ export default function SecurityDashboard() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-primary hover:underline flex-shrink-0"
                     >
-                      查看 / View
+                      {t('viewOnGithub')}
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
@@ -543,13 +616,13 @@ export default function SecurityDashboard() {
           <div className="rounded-lg border p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <GitPullRequest className="w-5 h-5" />
-              Dependabot 更新 / Dependabot Updates ({data.metrics.openDependabotPrs})
+              {t('dependabotPrsTitle')} ({data.metrics.openDependabotPrs})
             </h2>
 
             {data.recentPrs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-                <p>所有依赖都是最新的 / All dependencies are up to date</p>
+                <p>{t('allDepsUpToDate')}</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -563,7 +636,7 @@ export default function SecurityDashboard() {
                         <span className="text-sm font-medium text-muted-foreground">#{pr.number}</span>
                         {pr.labels.includes('security') && (
                           <span className="px-2 py-0.5 text-xs font-medium rounded bg-red-500/10 text-red-500 border border-red-500/20">
-                            SECURITY
+                            {t('securityLabel')}
                           </span>
                         )}
                       </div>
@@ -582,7 +655,7 @@ export default function SecurityDashboard() {
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-primary hover:underline flex-shrink-0"
                     >
-                      查看 / View
+                      {t('viewOnGithub')}
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
@@ -598,17 +671,17 @@ export default function SecurityDashboard() {
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Activity className="w-5 h-5" />
-              Rate Limit 状态监控 / Rate Limit Status Monitor
+              {t('rateLimitMonitorTitle')}
             </h2>
             <div className="px-3 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-              Local Mode Demo / 本地模式演示
+              {rateLimitLive ? t('rateLimitLive') : t('rateLimitUnavailable')}
             </div>
           </div>
 
           {rateLimitData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
-              <p>暂无Rate Limit数据 / No rate limit data</p>
+              <p>{t('noRateLimits')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -631,7 +704,7 @@ export default function SecurityDashboard() {
 
                     return (
                       <tr key={idx} className="border-b hover:bg-accent transition-colors">
-                        <td className="py-3 px-4 font-mono text-sm">{status.user_id}</td>
+                        <td className="py-3 px-4 font-mono text-sm">{status.userId}</td>
                         <td className="py-3 px-4 text-sm">{status.resource}</td>
                         <td className="py-3 px-4 text-right font-mono text-sm">{status.current}</td>
                         <td className="py-3 px-4 text-right font-mono text-sm">{status.max}</td>
@@ -639,7 +712,7 @@ export default function SecurityDashboard() {
                           <span className={isHigh ? 'text-red-500 font-semibold' : ''}>{status.remaining}</span>
                         </td>
                         <td className="py-3 px-4 text-right text-sm text-muted-foreground">
-                          {Math.floor(status.window_seconds / 60)}min
+                          {Math.floor(status.windowSeconds / 60)}min
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -671,57 +744,63 @@ export default function SecurityDashboard() {
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              审计日志 / Audit Logs
+              {t('auditLogsTitle')}
             </h2>
-            <div className="px-3 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-              Local Mode Demo / 本地模式演示
+            <div
+              className={`px-3 py-1 text-xs rounded-full border ${
+                auditLive
+                  ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                  : 'bg-muted text-muted-foreground border-border'
+              }`}
+            >
+              {auditLive ? t('auditLive') : t('auditOffline')}
             </div>
           </div>
 
           {/* Search Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 p-4 rounded-lg bg-muted/50">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">用户ID / User ID</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('auditFilterUserId')}</label>
               <input
                 type="text"
                 value={searchUserId}
                 onChange={(e) => setSearchUserId(e.target.value)}
-                placeholder="Search User ID... / 输入用户ID搜索..."
+                placeholder={t('auditFilterUserIdPlaceholder')}
                 className="w-full px-3 py-2 text-sm rounded-full border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">事件类型 / Event Type</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('auditFilterEventType')}</label>
               <input
                 type="text"
                 value={searchEventType}
                 onChange={(e) => setSearchEventType(e.target.value)}
-                placeholder="Search event type... / 输入事件类型搜索..."
+                placeholder={t('auditFilterEventTypePlaceholder')}
                 className="w-full px-3 py-2 text-sm rounded-full border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">结果 / Result</label>
+              <label className="text-xs text-muted-foreground mb-1 block">{t('auditFilterResult')}</label>
               <select
                 value={searchResult}
                 onChange={(e) => setSearchResult(e.target.value as 'all' | 'success' | 'failed')}
                 className="w-full px-3 py-2 text-sm rounded-full border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                <option value="all">全部 / All</option>
-                <option value="success">成功 / Success</option>
-                <option value="failed">失败 / Failed</option>
+                <option value="all">{t('auditFilterAll')}</option>
+                <option value="success">{t('auditFilterSuccess')}</option>
+                <option value="failed">{t('auditFilterFailed')}</option>
               </select>
             </div>
           </div>
 
           <div className="text-xs text-muted-foreground mb-2">
-            Showing {filteredAuditLogData.length} of {auditLogData.length} records
+            {t('auditShowingCount', { shown: filteredAuditLogData.length, total: auditLogData.length })}
           </div>
 
           {filteredAuditLogData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>{auditLogData.length > 0 ? '未找到匹配的日志 / No matching logs' : '暂无审计日志 / No audit logs'}</p>
+              <p>{auditLogData.length > 0 ? t('auditNoMatch') : t('auditEmpty')}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -806,46 +885,58 @@ export default function SecurityDashboard() {
           <div className="flex items-start justify-between mb-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Activity className="w-5 h-5" />
-              安全统计 / Security Statistics
+              {t('auditStatsTitle')}
             </h2>
-            <div className="px-3 py-1 text-xs rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-              Local Mode Demo / 本地模式演示
+            <div
+              className={`px-3 py-1 text-xs rounded-full border ${
+                auditLive
+                  ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                  : 'bg-muted text-muted-foreground border-border'
+              }`}
+            >
+              {auditLive ? t('auditLive') : t('auditOffline')}
             </div>
           </div>
 
           {/* Overall Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div className="p-4 rounded-lg border">
-              <div className="text-sm text-muted-foreground">总事件数 / Total Events</div>
+              <div className="text-sm text-muted-foreground">{t('auditTotalEvents')}</div>
               <div className="text-3xl font-bold mt-1">{auditStatsData.total_events}</div>
               <div className="text-xs text-muted-foreground mt-1">
-                过去{auditStatsData.time_range_hours}小时 / Last {auditStatsData.time_range_hours}h
+                {t('auditLastHours', { hours: auditStatsData.time_range_hours })}
               </div>
             </div>
             <div className="p-4 rounded-lg border bg-green-500/5">
-              <div className="text-sm text-muted-foreground">成功 / Success</div>
+              <div className="text-sm text-muted-foreground">{t('auditSuccess')}</div>
               <div className="text-3xl font-bold mt-1 text-green-600">{auditStatsData.success_vs_failed.success}</div>
               <div className="text-xs text-muted-foreground mt-1">
-                {((auditStatsData.success_vs_failed.success / auditStatsData.total_events) * 100).toFixed(1)}%
+                {auditStatsData.total_events > 0
+                  ? `${((auditStatsData.success_vs_failed.success / auditStatsData.total_events) * 100).toFixed(1)}%`
+                  : '0%'}
               </div>
             </div>
             <div className="p-4 rounded-lg border bg-red-500/5">
-              <div className="text-sm text-muted-foreground">失败 / Failed</div>
+              <div className="text-sm text-muted-foreground">{t('auditFailed')}</div>
               <div className="text-3xl font-bold mt-1 text-red-600">{auditStatsData.success_vs_failed.failed}</div>
               <div className="text-xs text-muted-foreground mt-1">
-                {((auditStatsData.success_vs_failed.failed / auditStatsData.total_events) * 100).toFixed(1)}%
+                {auditStatsData.total_events > 0
+                  ? `${((auditStatsData.success_vs_failed.failed / auditStatsData.total_events) * 100).toFixed(1)}%`
+                  : '0%'}
               </div>
             </div>
           </div>
 
           {/* Time Series */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">时间序列 / Time Series</h3>
+            <h3 className="text-lg font-semibold mb-3">{t('auditTimeSeries')}</h3>
             <div className="space-y-2">
-              {auditStatsData.time_series.map((point, idx) => (
+              {auditStatsData.time_series.map((point, idx) => {
+                const total = point.total > 0 ? point.total : 1;
+                return (
                 <div key={idx} className="flex items-center gap-3">
                   <div className="text-sm text-muted-foreground w-40 flex-shrink-0">
-                    {new Date(point.timestamp).toLocaleString('zh-CN', {
+                    {new Date(point.timestamp).toLocaleString(undefined, {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
@@ -857,13 +948,13 @@ export default function SecurityDashboard() {
                       <div className="flex-1 h-8 bg-muted rounded-lg overflow-hidden flex">
                         <div
                           className="bg-green-500 flex items-center justify-center text-xs text-white font-medium"
-                          style={{ width: `${(point.success / point.total) * 100}%` }}
+                          style={{ width: `${(point.success / total) * 100}%` }}
                         >
                           {point.success > 0 && point.success}
                         </div>
                         <div
                           className="bg-red-500 flex items-center justify-center text-xs text-white font-medium"
-                          style={{ width: `${(point.failed / point.total) * 100}%` }}
+                          style={{ width: `${(point.failed / total) * 100}%` }}
                         >
                           {point.failed > 0 && point.failed}
                         </div>
@@ -872,19 +963,20 @@ export default function SecurityDashboard() {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
 
           {/* Top IPs */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Top 攻击者 IP / Top Attacker IPs</h3>
+            <h3 className="text-lg font-semibold mb-3">{t('auditTopIps')}</h3>
             <div className="space-y-2">
               {auditStatsData.top_ips.map((ip, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border">
                   <div className="text-sm font-mono flex-shrink-0 w-8">#{idx + 1}</div>
                   <div className="text-sm font-mono flex-1">{ip.ip_address}</div>
-                  <div className="text-sm font-medium">{ip.request_count} 次请求</div>
+                  <div className="text-sm font-medium">{t('auditRequestCount', { count: ip.request_count })}</div>
                 </div>
               ))}
             </div>
@@ -892,7 +984,7 @@ export default function SecurityDashboard() {
 
           {/* Event Distribution */}
           <div>
-            <h3 className="text-lg font-semibold mb-3">事件分布 / Event Distribution</h3>
+            <h3 className="text-lg font-semibold mb-3">{t('auditEventDistribution')}</h3>
             <div className="space-y-2">
               {auditStatsData.event_distribution.map((event, idx) => (
                 <div key={idx} className="flex items-center gap-3">
@@ -902,7 +994,11 @@ export default function SecurityDashboard() {
                       <div
                         className="h-full bg-primary flex items-center justify-end pr-2 text-xs text-white font-medium"
                         style={{
-                          width: `${(event.count / auditStatsData.total_events) * 100}%`,
+                          width: `${
+                            auditStatsData.total_events > 0
+                              ? (event.count / auditStatsData.total_events) * 100
+                              : 0
+                          }%`,
                         }}
                       >
                         {event.count}

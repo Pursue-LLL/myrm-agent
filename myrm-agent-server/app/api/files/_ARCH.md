@@ -25,7 +25,7 @@
 | `local_actions.py` | ✅ 核心 | 本地文件操作 API — `/files/{file_id}/reveal`（文件管理器定位）、`/files/{file_id}/open`（默认应用打开）。仅本地部署模式可用，含三重安全校验（模式/路径/存在性），跨平台（macOS/Windows/Linux） | ✅ |
 | `artifact_api.py` | ✅ 核心 | 工件 CRUD — 列表/单品 GET（含 `deployment_*`、`deployment_version_id`、`latest_version_id`）、版本历史、哈希校验 |
 | `deploy_api.py` | ✅ 核心 | 一键部署 + `GET .../deploy/preflight`、sandbox `asset_root` 打包、限流、WS 状态 |
-| `artifact_share_api.py` | ✅ 核心 | `POST .../share-preview` 签名只读链；`public_router` 免鉴权 inline 查看 |
+| `artifact_share_api.py` | ✅ 核心 | `POST .../share-preview` 物化静态包；`GET /{token}` 与 `GET /{token}/{path}` 多文件 inline |
 
 ---
 

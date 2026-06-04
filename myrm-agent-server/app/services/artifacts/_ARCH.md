@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-工件只读公网分享：无状态 HMAC 令牌与 vault 内容解析。部署预检逻辑在 `app/services/deploy/preflight.py`。
+工件只读公网分享：HMAC 令牌 + 与 deploy 同规则的静态包（`share_bundle.py`，复用 `preflight.resolve_artifact_deploy_files`）。部署预检在 `app/services/deploy/preflight.py`。
 
 ---
 
@@ -12,8 +12,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `share_token.py` | 核心 | 创建/校验分享 token；可分享文件名后缀白名单 | ✅ |
-| `share_resolve.py` | 核心 | 按 artifact+version 解析 vault 路径与 MIME | ✅ |
+| `share_token.py` | 核心 | 创建/校验分享 token；`is_shareable_artifact`；token 可选 `typ` 字段 | ✅ |
+| `share_bundle.py` | 核心 | `collect_deploy_files` 等价物落盘；public `/{token}/{path}` 安全读取；多文件 HTML 尾斜杠重定向 | ✅ |
 
 ---
 

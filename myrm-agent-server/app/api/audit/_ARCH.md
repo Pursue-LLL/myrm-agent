@@ -80,6 +80,8 @@
 
 ### 内部依赖
 - `app/middleware/auth_audit.py`：Auth 审计数据源（JSONL 文件路径 + AuthEventType 枚举）
+- `app/services/audit/auth_log_reader.py`：JSONL 读取（auth 路由与安全仪表盘共用）
+- `app/services/security/platform_audit.py`：`/api/v1/security/audit/*` 沙箱 CP / 本地 auth 聚合
 - `myrm_agent_harness.agent.middlewares._session_context`：EventLogger（Bash 审计数据源）
 - `app/services/system_notification_service`：告警通知持久化
 

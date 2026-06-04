@@ -44,6 +44,8 @@
 | `approval/VisualApprovalRequestRenderer.tsx` | UI | 三态路由 | ✅ |
 | `approval/VisualApprovalUnavailableCard.tsx` | UI | 失败降级 + 重试 | ✅ |
 | `approval/VisualApprovalHighlight.tsx` | UI | 红框 overlay | ✅ |
+| `VisualApprovalOsOverlaySync.tsx` | UI | Tauri OS overlay 同步 | ✅ |
+| `VisualApprovalAttentionBar.tsx` | UI | 滚动区外 pending 可达条 | ✅ |
 | `ToolApprovalDialog.tsx` | UI | modal 非 visual 审批 | ✅ |
 | `MobileStatusBoard.tsx` | UI | 移动端审批面板 | ✅ |
 

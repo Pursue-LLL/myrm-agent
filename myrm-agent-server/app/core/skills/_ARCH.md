@@ -9,7 +9,7 @@
 
 详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
 
-**Catalog vs Runtime（已知差距，待 Phase 1 修复）**：`enabled_prebuilt_ids` / Agent `skill_ids` 当前主要管 GUI 与 user skill 路由；`loader.create_skill_backend()` 仍将全量 prebuilt 暴露给 Agent `list_skills()`。目标方案见 [ACTION_SPACE_OPT_IN_ROADMAP](../../../temp-docs/repair/ACTION_SPACE_OPT_IN_ROADMAP_2026-05-25.md)（Catalog → Bound → Runtime）。
+**Catalog vs Runtime（已知差距）**：`enabled_prebuilt_ids` / Agent `skill_ids` 当前主要管 GUI 与 user skill 路由；`loader.create_skill_backend()` 仍将全量 prebuilt 暴露给 Agent `list_skills()`。目标：Catalog → Bound → Runtime 三层一致（实现细节见 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)）。
 
 ---
 

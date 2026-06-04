@@ -212,6 +212,76 @@ class TestEvaluateSemantic:
             assert result.passed is True
             assert "found in reasoning" in result.reason
 
+    @pytest.mark.asyncio
+    async def test_evaluate_semantic_with_vision_tool(self, mock_storage):
+        """Test that vision tools trigger screenshot extraction."""
+        manager = ServerGoalManager(mock_storage, session_id="test-session")
+        
+        from unittest.mock import MagicMock
+        mock_gateway = MagicMock()
+        mock_browser_session = AsyncMock()
+        mock_browser_session.extract_screenshot.return_value = "fake_base64"
+        mock_gateway.get_active_browser_session.return_value = mock_browser_session
+        
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway), \
+             patch("litellm.acompletion") as mock:
+            
+            mock.return_value = AsyncMock(
+                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
+            )
+            
+            class FakeToolMessage:
+                type = "tool"
+                name = "browser_interact_tool"
+            
+            await manager.evaluate_semantic(
+                "criteria", "content", context_messages=[FakeToolMessage()]
+            )
+
+            kwargs = mock.call_args[1]
+            messages = kwargs["messages"]
+            assert len(messages) == 2
+            user_msg = messages[1]["content"]
+            assert isinstance(user_msg, list)
+            assert user_msg[0]["type"] == "text"
+            assert user_msg[1]["type"] == "image_url"
+            assert "fake_base64" in user_msg[1]["image_url"]["url"]
+            
+            mock_browser_session.extract_screenshot.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_evaluate_semantic_without_vision_tool(self, mock_storage):
+        """Test that non-vision tools skip screenshot extraction even if session exists."""
+        manager = ServerGoalManager(mock_storage, session_id="test-session")
+        
+        from unittest.mock import MagicMock
+        mock_gateway = MagicMock()
+        mock_browser_session = AsyncMock()
+        mock_gateway.get_active_browser_session.return_value = mock_browser_session
+        
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway), \
+             patch("litellm.acompletion") as mock:
+            
+            mock.return_value = AsyncMock(
+                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
+            )
+            
+            class FakeToolMessage:
+                type = "tool"
+                name = "calculator_tool"
+            
+            await manager.evaluate_semantic(
+                "criteria", "content", context_messages=[FakeToolMessage()]
+            )
+
+            kwargs = mock.call_args[1]
+            messages = kwargs["messages"]
+            assert len(messages) == 2
+            user_msg = messages[1]["content"]
+            assert isinstance(user_msg, str)
+            
+            mock_browser_session.extract_screenshot.assert_not_awaited()
+
 
 # ── GoalRegistry ──
 

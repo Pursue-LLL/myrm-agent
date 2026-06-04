@@ -22,7 +22,7 @@
 
 - `httpx`：异步 HTTP 客户端
 - `tenacity`：网络抖动重试
-- 调用方：`app/api/files/deploy_api.py`
+- 调用方：`app/api/files/deploy_api.py`、`app/services/artifacts/share_bundle.py`
 
 ---
 

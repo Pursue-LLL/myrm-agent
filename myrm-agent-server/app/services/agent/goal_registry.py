@@ -283,10 +283,15 @@ class ServerGoalManager(GoalManager):
             if context_messages:
                 for msg in context_messages:
                     if getattr(msg, "type", "") == "tool" and getattr(msg, "name", "") in (
-                        "browser_interact",
-                        "browser_extract",
-                        "computer_use",
+                        "browser_interact_tool",
+                        "browser_snapshot_tool",
+                        "browser_extract_tool",
+                        "browser_navigate_tool",
+                        "browser_execute_script_tool",
+                        "desktop_inspect_tool",
                         "desktop_snapshot_tool",
+                        "desktop_interact_tool",
+                        "desktop_vision_tool",
                     ):
                         requires_vision = True
                         break

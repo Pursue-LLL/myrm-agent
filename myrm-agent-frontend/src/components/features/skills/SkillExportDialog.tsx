@@ -93,6 +93,18 @@ const SkillExportDialog = memo(({ skill, open, onOpenChange }: SkillExportDialog
     });
   }, []);
 
+  const toggleAllRedactions = useCallback((filename: string, totalCount: number, isAllChecked: boolean) => {
+    setIgnoredRedactions((prev) => {
+      if (isAllChecked) {
+        // If currently all checked (meaning none ignored), we want to uncheck all (ignore all)
+        return { ...prev, [filename]: Array.from({ length: totalCount }, (_, i) => i) };
+      } else {
+        // Otherwise, check all (ignore none)
+        return { ...prev, [filename]: [] };
+      }
+    });
+  }, []);
+
   if (!skill) return null;
 
   const hasRedactions = preview?.redactions && Object.keys(preview.redactions).length > 0;

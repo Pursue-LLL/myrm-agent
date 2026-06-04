@@ -64,10 +64,10 @@ myrm-agent/
 | Frontend 组件 | [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) |
 | Frontend 状态 | [myrm-agent-frontend/src/store/_ARCH.md](myrm-agent-frontend/src/store/_ARCH.md) · 聊天类型 [chat/types/_ARCH.md](myrm-agent-frontend/src/store/chat/types/_ARCH.md) · 流式 reducer [messageStream/_ARCH.md](myrm-agent-frontend/src/store/chat/messageStream/_ARCH.md) |
 | Frontend API 客户端 | [myrm-agent-frontend/src/services/_ARCH.md](myrm-agent-frontend/src/services/_ARCH.md) |
+| Frontend 工具审批 UI | [myrm-agent-frontend/src/lib/approval/_ARCH.md](myrm-agent-frontend/src/lib/approval/_ARCH.md) · inline BBox · AttentionBar · Tauri OS overlay |
 | Desktop | [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) |
 
-Git/分发定稿（与本文互补）：`temp-docs/repair/REPO_ARCHITECTURE_AND_DISTRIBUTION_ROADMAP.md`  
-目录治理 backlog：`temp-docs/repair/MYRM_AGENT_OSS_STRUCTURE_MULU_ROADMAP.md`
+**Git 与分发**：本文件即 OSS 产品仓的 Git/五仓/三模式定稿。Monorepo 维护者私有开发壳（Git remote `vortexai`）使用 `./myrm` 与子模块指针；见维护者速查 `scripts/dev/MAINTAINER_QUICKSTART.md`（路径相对于 vortexai 根，不在本 OSS 仓内）。
 
 ---
 

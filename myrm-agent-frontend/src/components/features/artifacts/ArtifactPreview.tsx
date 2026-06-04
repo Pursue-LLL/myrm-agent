@@ -339,7 +339,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
     }
     setShareLoading(true);
     try {
-      const result = await createArtifactSharePreview(currentArtifact.id);
+      const result = await createArtifactSharePreview(currentArtifact.id, currentArtifact.type);
       const url = buildPublicArtifactShareUrl(result.share_path);
       await writeToClipboard(url);
       toast.success(t('sharePreview.successTitle'), {

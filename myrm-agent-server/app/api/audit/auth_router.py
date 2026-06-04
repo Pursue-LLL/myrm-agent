@@ -24,7 +24,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
-from app.middleware.auth_audit import AUDIT_LOG_FILE, AuthEventType
+from app.middleware.auth_audit import AuthEventType
+from app.services.audit.auth_log_reader import read_auth_audit_events
 
 router = APIRouter(prefix="/audit/auth", tags=["audit"])
 
@@ -50,38 +51,6 @@ class AuthAuditStats(BaseModel):
     top_failure_ips: list[tuple[str, int]] = Field(description="Top 10 IPs by failure count")
 
 
-def _read_events(
-    *,
-    start_time: float | None = None,
-    end_time: float | None = None,
-) -> list[dict[str, object]]:
-    """Read and filter events from JSONL audit log."""
-    if not AUDIT_LOG_FILE.exists():
-        return []
-
-    events: list[dict[str, object]] = []
-    with AUDIT_LOG_FILE.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(parsed, dict):
-                continue
-            event: dict[str, object] = {str(k): v for k, v in parsed.items()}
-            ts_raw = event.get("ts", 0)
-            ts = float(ts_raw) if isinstance(ts_raw, (int, float)) else 0.0
-            if start_time is not None and ts < start_time:
-                continue
-            if end_time is not None and ts > end_time:
-                continue
-            events.append(event)
-    return events
-
-
 @router.get("/logs", response_model=list[AuthAuditLog])
 async def get_auth_audit_logs(
     start_time: float | None = Query(None, description="Start time (UTC timestamp)"),
@@ -92,7 +61,7 @@ async def get_auth_audit_logs(
 ) -> list[AuthAuditLog]:
     """Query auth audit logs with optional filters. Returns most recent first."""
     try:
-        events = _read_events(start_time=start_time, end_time=end_time)
+        events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {e}") from e
 
@@ -143,7 +112,7 @@ async def get_auth_audit_stats(
 ) -> AuthAuditStats:
     """Get aggregated auth audit statistics."""
     try:
-        events = _read_events(start_time=start_time, end_time=end_time)
+        events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read audit logs: {e}") from e
 
@@ -183,7 +152,7 @@ async def export_auth_audit_logs(
 ) -> Response:
     """Export auth audit logs as CSV or JSON file."""
     try:
-        events = _read_events(start_time=start_time, end_time=end_time)
+        events = read_auth_audit_events(start_time=start_time, end_time=end_time)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export audit logs: {e}") from e
 

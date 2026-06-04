@@ -9,11 +9,13 @@
  * - ./VirtualMessageList (POS: 虚拟滚动消息列表)
  * - ../message-box/MessageBox (POS: 消息展示组件)
  * - ./ConversationJumpBar (POS: 长对话快速定位导航)
+ * - ./approval/VisualApprovalAttentionBar (POS: 滚动区外 inline 审批可达条)
  *
  * [OUTPUT]
  * - Chat: 聊天主组件
  *   - 支持虚拟滚动（ENABLE_VIRTUAL_SCROLL 开关）
  *   - 消息列表渲染
+ *   - VisualApprovalAttentionBar（输入框上方 pending 条）
  *   - 输入框
  *   - 智能体配置面板
  *   - 长对话导航（PC dot 导航 + 移动端 Sheet）
@@ -50,6 +52,8 @@ import { ConversationJumpBar, MobileJumpBarSheet } from './ConversationJumpBar';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import AgentWorkMap from './AgentWorkMap';
+import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
+import VisualApprovalOsOverlaySync from './VisualApprovalOsOverlaySync';
 
 /**
  * 虚拟滚动开关
@@ -218,6 +222,8 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
         }}
       >
         <div className="mx-auto max-w-6xl w-full px-4 space-y-4" style={{ width: 'var(--message-input-width, 820px)' }}>
+          <VisualApprovalOsOverlaySync />
+          <VisualApprovalAttentionBar messages={messages} onJumpToMessage={handleJumpToMessage} />
           <AgentWorkMap />
           <div className="flex items-end gap-2">
             <CompanionWidget />
@@ -230,7 +236,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
         </div>
       </div>
     );
-  }, [loading, showInput, chatId]);
+  }, [loading, showInput, chatId, messages, handleJumpToMessage]);
 
   // 处理滚动事件（合并输入框显示/隐藏逻辑和滚动位置保存逻辑）
   useEffect(() => {

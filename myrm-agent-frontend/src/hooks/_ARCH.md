@@ -1,0 +1,31 @@
+# hooks/
+
+## 架构概述
+
+React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按域单文件或小目录组织；**禁止**桶导出（barrel index，除 `tasks/index.ts` 等历史例外）。
+
+## 域划分
+
+| 路径 / 模式 | 职责 |
+|-------------|------|
+| `useMessageInput.ts` / `useMessageQueue.ts` / `useSmoothStream.ts` | 对话输入、队列、流式渲染 |
+| `useAgentEditor.ts` / `useAgentConfigPanel.ts` / `use-agent-config-panel/` | Agent 配置面板 |
+| `useToolApprovalResolve.ts` / `useVisualApprovalSnapshot.ts` / `useVisualApprovalOsOverlay.ts` | 工具审批与可视化 HITL |
+| `useVoiceSession.ts` / `useRealtimeVoice.ts` / `useTTS.ts` | 语音会话与 TTS |
+| `useTauri*.ts` / `useTray*.ts` / `useAppUpdate.ts` | 桌面端 Tauri 集成 |
+| `useSubscription.ts` / `useEntitlements.ts` / `useQuotaGuard.ts` | SaaS 配额与 entitlements |
+| `useSystemConfig.ts` / `usePersonalSettings.ts` / `useMCPConfig.ts` | 设置与 MCP |
+| `globalEvents/` | 全局事件 toast（记忆操作、locator healed 等） |
+| `tasks/` | 后台任务 WebSocket 订阅 |
+| `__tests__/` | Hook 单元测试 |
+
+## 依赖
+
+- `@/store/*` — Zustand 状态
+- `@/services/*` — REST/SSE 客户端
+- `@/lib/*` — 纯函数与常量
+
+## 约束
+
+- Hook 内不写 UI JSX（除 `globalEvents/*.tsx` 等 toast 渲染例外）。
+- 单文件 >400 行应拆分子 hook 或下沉逻辑到 `@/lib`。

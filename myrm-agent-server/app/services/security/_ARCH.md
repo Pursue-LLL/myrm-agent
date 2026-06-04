@@ -8,4 +8,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| （见目录） | — | 安全域编排 | ⚠️ 待补 |
+| `cp_security_dashboard.py` | 核心 | CP internal dashboard + `/tenant` 解析 webhook user id | ✅ |
+| `cp_rate_limit.py` | 核心 | Sandbox 从 CP internal 拉平台 rate limit | ✅ |
+| `merged_dashboard.py` | 核心 | CP 告警 + GitHub PR/SBOM 合并；setup-hints | ✅ |
+| `platform_audit.py` | 核心 | `/security/audit/*`：sandbox→CP internal，local→auth JSONL | ✅ |
+| `github_supplement.py` | 核心 | 多仓库 Dependabot PR / SBOM 拉取 | ✅ |
+| `github_full.py` | 核心 | Local 全量 GitHub 仪表盘 | ✅ |

@@ -961,6 +961,8 @@ fn main() {
             screen_lock_has_password,
             screen_lock_delete_password,
             screen_lock_platform_support,
+            show_visual_approval_overlay,
+            hide_visual_approval_overlay,
             // Tray commands
             tray::set_tray_status
         ])

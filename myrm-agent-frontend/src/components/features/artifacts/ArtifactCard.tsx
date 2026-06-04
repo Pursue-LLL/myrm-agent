@@ -179,7 +179,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       }
       setShareLoading(true);
       try {
-        const result = await createArtifactSharePreview(artifactState.id);
+        const result = await createArtifactSharePreview(artifactState.id, artifactState.type);
         const url = buildPublicArtifactShareUrl(result.share_path);
         await writeToClipboard(url);
         toast.success(t('sharePreview.successTitle'), {
