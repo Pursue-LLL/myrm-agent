@@ -1941,7 +1941,6 @@ dependencies = [
     { name = "mcp" },
     { name = "nanoid" },
     { name = "opentelemetry-api" },
-    { name = "orjson" },
     { name = "pillow" },
     { name = "prometheus-client" },
     { name = "psutil" },
@@ -1961,6 +1960,7 @@ dependencies = [
 
 [package.optional-dependencies]
 browser = [
+    { name = "orjson" },
     { name = "patchright" },
 ]
 fastapi = [
@@ -2026,7 +2026,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'observability'", specifier = ">=1.42.1" },
     { name = "opentelemetry-instrumentation", marker = "extra == 'observability'", specifier = ">=0.40b0" },
     { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.42.1" },
-    { name = "orjson", specifier = ">=3.11.9" },
+    { name = "orjson", marker = "extra == 'browser'", specifier = ">=3.11.9" },
     { name = "patchright", marker = "extra == 'browser'", specifier = ">=1.60.0" },
     { name = "pdfplumber", marker = "extra == 'file-parsers'", specifier = ">=0.11.9" },
     { name = "pillow", specifier = ">=12.2.0" },

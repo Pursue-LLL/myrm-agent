@@ -16,7 +16,7 @@ import {
 } from '@/store/useCLIAgentStore';
 import type { PermissionMode } from '@/services/cli-agent';
 import { isTauriEnvironment } from '@/lib/tauri';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/useToast';
 
 // ============================================================================
 // 权限模式快捷键 Hook

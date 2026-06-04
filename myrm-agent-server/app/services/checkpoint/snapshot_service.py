@@ -58,6 +58,11 @@ class SnapshotInterceptor(ExecutionInterceptor):
 
     async def _safe_snapshot_with_lock(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str, cache_key: tuple[str, str]) -> None:
         """Acquire lock and perform snapshot safely."""
+        # Environment check: gracefully degrade if git is not installed
+        if not await self._is_git_installed():
+            logger.warning("Git is not installed in the system environment. Auto-snapshot is disabled.")
+            return
+
         lock = _get_workspace_lock(workspace_path)
         async with lock:
             # Double check after acquiring lock
@@ -72,6 +77,19 @@ class SnapshotInterceptor(ExecutionInterceptor):
                 self._snapshotted_turns[cache_key] = True
             except Exception as e:
                 logger.error(f"Failed to create snapshot for {workspace_path}: {e}")
+
+    async def _is_git_installed(self) -> bool:
+        """Check if git is available in the system PATH."""
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "git", "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await process.communicate()
+            return process.returncode == 0
+        except FileNotFoundError:
+            return False
 
     async def _create_snapshot(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str) -> None:
         """Create a Git commit in the shadow repository."""
