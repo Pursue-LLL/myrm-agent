@@ -241,12 +241,12 @@ class CustomAgentFactory:
         memory_manager = None
         if config.memory_isolation != MemoryIsolationPolicy.EPHEMERAL_SESSION:
             try:
-                from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+                from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 
                 embedding_cfg = await self._resolve_embedding_config()
                 if embedding_cfg is not None:
                     memory_manager = await create_memory_manager(
-                        resolve_memory_binding(
+                        resolve_context_binding(
                             namespaces=None,
                             agent_id=self._agent_id,
                             channel_id=None,

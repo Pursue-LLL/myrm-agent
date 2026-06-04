@@ -70,10 +70,10 @@ def get_memory_guardian_status() -> dict[str, object]:
 
 async def _create_memory_manager() -> MemoryManager:
     """Create a MemoryManager for background maintenance (no user session context)."""
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
     from app.services.agent.platform_config import require_platform_embedding_config
 
-    binding = resolve_memory_binding(
+    binding = resolve_context_binding(
         namespaces=None, agent_id=None, channel_id=None,
         conversation_id=None, task_id=None,
     )

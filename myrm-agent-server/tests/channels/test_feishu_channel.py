@@ -1026,3 +1026,19 @@ class TestCollectIssues:
         ch.health.last_error = "Connection lost"
         issues = ch.collect_issues()
         assert any("Connection lost" in i.message for i in issues)
+
+    def test_ws_transport_missing_sdk_suggests_uv_sync(self) -> None:
+        ch = FeishuChannel(
+            app_id="test_app_id",
+            app_secret="test_app_secret",
+            encrypt_key="test_encrypt_key",
+            transport="websocket",
+        )
+        with patch(
+            "app.channels.providers.feishu.ws_transport.SDK_AVAILABLE",
+            False,
+        ):
+            issues = ch.collect_issues()
+        assert len(issues) == 1
+        assert issues[0].fix == "uv sync"
+        assert "uv sync" in issues[0].message

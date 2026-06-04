@@ -120,11 +120,6 @@ function Setup-Backend {
         throw "Backend dependency sync failed."
     }
     Verify-HarnessInstall
-    Write-Info "Optional native extras ..."
-    uv pip install -e ".[advanced-tools]"
-    if ($LASTEXITCODE -ne 0) {
-        Write-WarnMsg "Advanced native extras failed; core server still usable (install VS Build Tools for C extensions)."
-    }
     Set-Location $ProjectRoot
     Write-Ok "Backend ready."
 }

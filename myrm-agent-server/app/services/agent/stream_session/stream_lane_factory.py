@@ -65,6 +65,8 @@ async def create_dynamic_workflow_stream(
         llm=llm,
         query=query,
         chat_history=history,
+        chat_id=params.chat_id or "default_chat",
+        message_id=params.message_id or "default_msg",
         cancel_token=cancel_token,
     )
 

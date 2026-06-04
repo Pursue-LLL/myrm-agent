@@ -4,14 +4,15 @@
 myrm_agent_harness.toolkits.memory.setup::create_local_memory_manager (POS: 开箱即用的本地记忆工厂)
 
 [OUTPUT]
-resolve_memory_binding: 统一解析业务侧记忆绑定合同
+resolve_context_binding: 统一解析业务侧上下文绑定合同
 create_memory_manager: 业务层记忆管理器工厂
 create_memory_tools_for_user: 业务层记忆工具工厂
 shutdown_cached_memory_managers: 释放进程级记忆管理器缓存
 
 [POS]
-业务层记忆适配器入口。通过 `settings.database.memory_base_path` 统一管理存储路径，实现本地运行与沙箱挂载卷的无缝切换。
-Server 侧必须先解析出 `ResolvedMemoryBinding`，再交给本层创建 MemoryManager。
+业务层记忆适配器入口。通过 ContextBundle volume 的 memory scene 路径统一管理存储，
+实现本地运行与沙箱挂载卷的无缝切换。Server 侧必须先解析出 `ResolvedContextBinding`，
+再交给本层创建 MemoryManager。
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
     create_local_memory_manager,
 )
+from myrm_agent_harness.toolkits.context.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
@@ -32,7 +34,7 @@ from app.core.memory.adapters.policy import (
     derive_binding_namespaces,
     resolve_scope_identifiers,
 )
-from app.core.memory.adapters.types import ResolvedMemoryBinding
+from app.core.memory.adapters.types import ResolvedContextBinding
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +104,7 @@ def _manager_cache_key(
 
 
 async def create_memory_manager(
-    binding: ResolvedMemoryBinding,
+    binding: ResolvedContextBinding,
     embedding_config: EmbeddingConfig,
     *,
     approval_required: bool = False,
@@ -117,8 +119,13 @@ async def create_memory_manager(
     Locally, it defaults to `{state_dir}/memory`.
     """
     from app.config.settings import settings
+    from myrm_agent_harness.toolkits.context import ContextBundleFacade
 
-    base_path = Path(settings.database.memory_base_path)
+    facade = ContextBundleFacade.from_state_dir(
+        settings.database.state_dir,
+        ensure_layout=False,
+    )
+    base_path = facade.memory_path()
     cache_key = _manager_cache_key(
         base_path=base_path,
         user_id="sandbox_user",
@@ -173,7 +180,7 @@ async def create_memory_manager(
 
 
 async def create_memory_tools_for_user(
-    binding: ResolvedMemoryBinding,
+    binding: ResolvedContextBinding,
     embedding_config: EmbeddingConfig,
     *,
     approval_required: bool = False,
@@ -197,7 +204,7 @@ async def create_memory_tools_for_user(
     return manager, tools
 
 
-def resolve_memory_binding(
+def resolve_context_binding(
     *,
     namespaces: list[str] | None,
     agent_id: str | None,
@@ -206,7 +213,11 @@ def resolve_memory_binding(
     task_id: str | None,
     shared_context_ids: list[str] | None = None,
     memory_policy: AgentMemoryPolicy | None = None,
-) -> ResolvedMemoryBinding:
+    bundle_id: str | None = None,
+    task_workspace_root: str | None = None,
+) -> ResolvedContextBinding:
+    from myrm_agent_harness.toolkits.context import AgentContextOverlay
+
     normalized_shared_context_ids = list(
         dict.fromkeys(
             context_id.strip()
@@ -226,7 +237,12 @@ def resolve_memory_binding(
         task_id=task_id,
         memory_policy=memory_policy,
     )
-    return ResolvedMemoryBinding(
+    overlay = (
+        AgentContextOverlay(task_workspace_root=task_workspace_root, memory_scenes_pinned=True)
+        if task_workspace_root
+        else None
+    )
+    return ResolvedContextBinding(
         agent_id=resolved_agent_id or "default",
         namespaces=derive_binding_namespaces(
             namespaces=namespaces,
@@ -242,6 +258,8 @@ def resolve_memory_binding(
         channel_id=resolved_channel_id,
         conversation_id=resolved_conversation_id,
         task_id=resolved_task_id,
+        bundle_id=bundle_id or DEFAULT_BUNDLE_ID,
+        agent_overlay=overlay,
     )
 
 

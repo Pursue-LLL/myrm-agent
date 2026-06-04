@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory.mcp_server::MemoryMCPServer (POS: MCP adapter)
 - app.services.connect::get_connect_service (POS: Token verification)
-- app.core.memory.adapters.setup::create_memory_manager, resolve_memory_binding (POS: MemoryManager factory)
+- app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: MemoryManager factory)
 
 [OUTPUT]
 - setup_mcp_endpoint: async init + mount on FastAPI app
@@ -93,12 +93,12 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
     try:
         from myrm_agent_harness.toolkits.memory.mcp_server import MemoryMCPServer
 
-        from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+        from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
         from app.services.agent.platform_config import require_platform_embedding_config
 
         embedding_cfg = await require_platform_embedding_config()
 
-        binding = resolve_memory_binding(
+        binding = resolve_context_binding(
             namespaces=None,
             agent_id=None,
             channel_id=None,

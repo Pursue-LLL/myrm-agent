@@ -36,14 +36,14 @@ def _make_manager_dependency(*, approval_required: bool) -> _ManagerDep:
         try:
             from app.core.memory.adapters.setup import (
                 create_memory_manager,
-                resolve_memory_binding,
+                resolve_context_binding,
             )
             from app.services.agent.platform_config import require_platform_embedding_config
 
             embedding_cfg = await require_platform_embedding_config()
 
             return await create_memory_manager(
-                resolve_memory_binding(
+                resolve_context_binding(
                     namespaces=None,
                     agent_id=None,
                     channel_id=None,
@@ -73,14 +73,14 @@ async def get_optional_memory_manager(
     try:
         from app.core.memory.adapters.setup import (
             create_memory_manager,
-            resolve_memory_binding,
+            resolve_context_binding,
         )
         from app.services.agent.platform_config import require_platform_embedding_config
 
         embedding_cfg = await require_platform_embedding_config()
 
         return await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id=None,
                 channel_id=None,

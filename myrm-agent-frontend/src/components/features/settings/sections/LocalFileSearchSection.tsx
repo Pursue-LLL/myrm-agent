@@ -26,6 +26,7 @@ import {
   type DirectoryConfig,
   type IndexStats,
 } from '@/services/localFileSearch';
+import { getContextBundleHealth, applyContextBundleMigration, type ContextBundleHealth } from '@/services/contextBundle';
 
 export default function LocalFileSearchSection() {
   const t = useTranslations('localFileSearch');
@@ -37,13 +38,41 @@ export default function LocalFileSearchSection() {
   const [newRecursive, setNewRecursive] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [bundleHealth, setBundleHealth] = useState<ContextBundleHealth | null>(null);
+  const [isMigratingBundle, setIsMigratingBundle] = useState(false);
+
+  const loadBundleHealth = useCallback(async () => {
+    try {
+      const bundle = await getContextBundleHealth();
+      setBundleHealth(bundle);
+    } catch {
+      setBundleHealth(null);
+    }
+  }, []);
+
+  const handleApplyBundleMigration = useCallback(async () => {
+    try {
+      setIsMigratingBundle(true);
+      await applyContextBundleMigration();
+      await loadBundleHealth();
+      toast.success(t('bundleMigrateSuccess'));
+    } catch {
+      toast.error(t('bundleMigrateFailed'));
+    } finally {
+      setIsMigratingBundle(false);
+    }
+  }, [loadBundleHealth, t]);
 
   const loadConfig = useCallback(async () => {
     try {
       setIsLoading(true);
-      const config = await getLocalFileSearchConfig();
+      const [config, bundle] = await Promise.all([
+        getLocalFileSearchConfig(),
+        getContextBundleHealth().catch(() => null),
+      ]);
       setDirectories(config.directories);
       setStats(config.stats);
+      setBundleHealth(bundle);
     } catch {
       toast.error('Failed to load local file search configuration');
     } finally {
@@ -139,6 +168,53 @@ export default function LocalFileSearchSection() {
         <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
+
+      {bundleHealth && (
+        <Card className="border-border/60 bg-gradient-to-br from-background via-background to-muted/20 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <CardTitle className="text-base">{t('bundleHealth')}</CardTitle>
+                <CardDescription className="mt-1 max-w-2xl">{t('bundleHealthDesc')}</CardDescription>
+              </div>
+              {!bundleHealth.manifest_exists && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full shrink-0 sm:w-auto"
+                  disabled={isMigratingBundle}
+                  onClick={handleApplyBundleMigration}
+                >
+                  {isMigratingBundle ? (
+                    <>
+                      <IconLoader className="mr-1.5 size-3.5 animate-spin" />
+                      {t('bundleMigrating')}
+                    </>
+                  ) : (
+                    t('bundleMigrateAction')
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatItem
+              label={t('bundleManifest')}
+              value={bundleHealth.manifest_exists ? t('bundleManifestPresent') : t('bundleManifestMissing')}
+              warning={!bundleHealth.manifest_exists}
+            />
+            <StatItem
+              label={t('status')}
+              value={bundleHealth.writable ? t('bundleWritable') : t('bundleNotWritable')}
+              warning={!bundleHealth.writable}
+            />
+            <StatItem
+              label={t('bundleSchema')}
+              value={`v${bundleHealth.schema_version}`}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Statistics */}
       {stats && (stats.total_files > 0 || isCurrentlyIndexing) && (

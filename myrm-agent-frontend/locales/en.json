@@ -5180,7 +5180,19 @@
     "idle": "Idle",
     "never": "Never",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "bundleHealth": "Context Bundle",
+    "bundleHealthDesc": "Unified volume for memory, workspace files, and session offload paths.",
+    "bundleManifest": "Manifest",
+    "bundleManifestPresent": "Present",
+    "bundleManifestMissing": "Missing — run migration from Memory Doctor",
+    "bundleWritable": "Volume writable",
+    "bundleNotWritable": "Volume not writable",
+    "bundleSchema": "Schema",
+    "bundleMigrateAction": "Initialize bundle",
+    "bundleMigrating": "Initializing...",
+    "bundleMigrateSuccess": "Context bundle initialized",
+    "bundleMigrateFailed": "Failed to initialize context bundle"
   },
   "library": {
     "title": "Library",
@@ -5766,6 +5778,10 @@
       "doctorEmpty": "No memory doctor checks are available yet",
       "doctorRunTitle": "Run memory diagnostics",
       "doctorRunAll": "Run all diagnostics",
+      "bundleMigrateAction": "Initialize context bundle",
+      "bundleMigrating": "Initializing...",
+      "bundleMigrateSuccess": "Context bundle initialized",
+      "bundleMigrateFailed": "Failed to initialize context bundle",
       "doctorLastRun": "Latest diagnostic result",
       "doctorProbeCount": "Probes",
       "doctorFailedCount": "Failed probes",
@@ -5924,6 +5940,10 @@
         "deployment_boundary": {
           "label": "Deployment boundary",
           "evidence": "Checks that Local Web, Tauri desktop, and SaaS sandbox share the same content isolation boundary."
+        },
+        "context_bundle_manifest": {
+          "label": "Context bundle manifest",
+          "evidence": "Checks whether the unified context bundle manifest exists and the volume layout is writable for memory, workspace, and offload scenes."
         },
         "embedding_live": {
           "label": "Embedding live probe",

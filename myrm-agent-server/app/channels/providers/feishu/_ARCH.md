@@ -17,7 +17,7 @@ Feishu/Lark channel provider — bidirectional messaging and document comment in
 | parser.py | Core | Feishu inbound message parser. Converts Feishu event JSON to structured data. | ✅ |
 | webhook_utils.py | Core | Feishu Webhook utility functions for signature verification and metadata extraction. | ✅ |
 | registration.py | Core | Feishu device-code flow for automated app creation via QR scan. | ✅ |
-| ws_transport.py | Core | Feishu WebSocket transport layer. Wraps lark-oapi SDK WS client. | ✅ |
+| ws_transport.py | Core | Feishu WebSocket transport layer. Wraps lark-oapi SDK WS client. Missing SDK: `uv sync` (main dep). | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

@@ -42,6 +42,7 @@ from app.services.memory.diagnostic_recall_benchmark import run_golden_recall_be
 from app.services.memory.diagnostic_repair_plans import with_check_repair_plans, with_probe_repair_plans
 from app.services.memory.diagnostic_slo import build_diagnostic_slo
 from app.services.memory.diagnostic_static_checks import (
+    probe_context_bundle_manifest,
     probe_deployment_boundary,
     probe_embedding_provider,
     probe_event_ledger_snapshot,
@@ -86,6 +87,7 @@ class MemoryDiagnosticsService:
             probe_embedding_provider(runtime),
             probe_event_ledger_snapshot(runtime),
             probe_health_snapshot(health_cache_status),
+            probe_context_bundle_manifest(runtime),
             probe_deployment_boundary(runtime),
             await self._inspect_migration_integrity(),
         ]

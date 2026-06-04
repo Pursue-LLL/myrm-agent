@@ -7,7 +7,7 @@ popular web frameworks (FastAPI).
 - channels.protocols::RouteRegistrar, (POS: Protocols for Skill Optimization Subsystem)
 
 [OUTPUT]
-- FastAPI implementation (optional dependency: pip install myrm-agent-harness[fastapi])
+- FastAPI implementation (bundled via uv sync / myrm-agent-harness[fastapi] in server deps)
 
 [POS]
 Implementation layer for web framework integration. Provides out-of-the-box

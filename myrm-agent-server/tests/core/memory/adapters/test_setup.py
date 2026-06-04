@@ -5,7 +5,7 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryS
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
-from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 
 
 def _patch_memory_path(path: str):
@@ -27,7 +27,7 @@ async def test_create_memory_manager_with_custom_path(tmp_path: Path):
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id=None,
                 channel_id=None,
@@ -50,7 +50,7 @@ async def test_create_memory_manager_default_path(tmp_path: Path):
 
     with _patch_memory_path(str(default_path)):
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id=None,
                 channel_id=None,
@@ -72,7 +72,7 @@ async def test_create_memory_manager_merges_scope_namespaces(tmp_path: Path):
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=["global", "agent:builder"],
                 agent_id="builder",
                 channel_id="telegram",
@@ -99,7 +99,7 @@ async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path:
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id="builder",
                 channel_id="telegram",
@@ -128,7 +128,7 @@ async def test_create_memory_manager_applies_binding_memory_policy(tmp_path: Pat
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id="planner",
                 channel_id="telegram",
@@ -159,7 +159,7 @@ async def test_create_memory_manager_reuses_vector_backend_across_approval_modes
     embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
-        binding = resolve_memory_binding(
+        binding = resolve_context_binding(
             namespaces=None,
             agent_id="builder",
             channel_id="telegram",
@@ -180,4 +180,20 @@ async def test_create_memory_manager_reuses_vector_backend_across_approval_modes
     assert approved_manager is not direct_manager
     assert approved_manager._vector is direct_manager._vector
     assert approved_manager.approval_required is True
-    assert direct_manager.approval_required is False
+        assert direct_manager.approval_required is False
+
+
+def test_resolve_context_binding_carries_task_workspace_overlay() -> None:
+    binding = resolve_context_binding(
+        namespaces=None,
+        agent_id="builder",
+        channel_id=None,
+        conversation_id="chat-1",
+        task_id=None,
+        task_workspace_root="/tmp/project-a",
+    )
+    assert binding.agent_overlay is not None
+    assert binding.agent_overlay.task_workspace_root == "/tmp/project-a"
+    assert binding.agent_overlay.memory_scenes_pinned is True
+    assert binding.bundle_id == "default"
+    assert binding.schema_version == 1

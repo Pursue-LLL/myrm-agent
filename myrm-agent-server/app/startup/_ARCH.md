@@ -24,8 +24,8 @@
 env_loader.py ──→ dotenv (外部)
 config_check.py ──→ app.config.* (配置层)
 health_check.py ──→ app.core.infra.health (基础设施)
-server_lock.py ──→ filelock, psutil (外部)
+server_lock.py ──→ filelock, psutil (主依赖；缺包提示 uv sync)
 uvicorn_runner.py ──→ health_check, uvicorn (外部)
-granian_runner.py ──→ health_check, granian (外部)
+granian_runner.py ──→ health_check, granian (sandbox 组：uv sync --group sandbox)
 run.py (根目录) ──→ 以上全部 (编排入口)
 ```

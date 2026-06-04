@@ -87,6 +87,13 @@ myrm setup
 cd myrm-agent-server && uv sync --all-extras
 ```
 
+可选渠道依赖（默认 `uv sync` 不含 Matrix）：
+
+```bash
+cd myrm-agent-server && uv sync --extra matrix          # Matrix 渠道 + SOCKS 代理
+cd myrm-agent-server && uv sync --extra matrix --extra matrix-e2ee  # 加密房间
+```
+
 4. **安装浏览器运行时（可选）**
 
 ```bash

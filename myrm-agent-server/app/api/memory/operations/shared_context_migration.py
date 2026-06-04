@@ -25,7 +25,7 @@ from app.api.dependencies import get_db_session
 from app.api.memory.operations.shared_context_serializers import context_to_item
 from app.api.memory.shared_context_schemas import LegacyTeamMemoryMigrationResponse
 from app.api.memory.utils import get_crud_memory_manager
-from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 from app.services.memory.shared_context import SharedContextService
 
 router = APIRouter(prefix="/shared-contexts")
@@ -84,7 +84,7 @@ async def migrate_legacy_team_memories(
     embedding_cfg = await require_platform_embedding_config()
 
     shared_manager = await create_memory_manager(
-        resolve_memory_binding(
+        resolve_context_binding(
             namespaces=[context.namespace],
             agent_id="shared-context",
             channel_id=None,

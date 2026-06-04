@@ -99,7 +99,7 @@ async def _recover_stale_agent_turns() -> None:
 async def _recover_incomplete_memory_import_rollbacks() -> None:
     """Resume memory import rollbacks that were journaled before interruption."""
 
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
     from app.platform_utils import get_session_factory
     from app.services.agent.platform_config import require_platform_embedding_config
     from app.services.memory.import_sessions import MemoryImportSessionService
@@ -114,7 +114,7 @@ async def _recover_incomplete_memory_import_rollbacks() -> None:
         return
 
     manager = await create_memory_manager(
-        resolve_memory_binding(
+        resolve_context_binding(
             namespaces=None,
             agent_id=None,
             channel_id=None,
@@ -131,6 +131,19 @@ async def _recover_incomplete_memory_import_rollbacks() -> None:
         logger.info("[Startup] Recovered %d incomplete memory import rollbacks", recovered)
 
 
+def _ensure_context_bundle_layout() -> None:
+    """Initialize context bundle manifest and scene directories when missing."""
+
+    from app.services.context.context_bundle_service import ContextBundleService
+
+    try:
+        report = ContextBundleService().apply_migration()
+        if report.manifest_exists:
+            logger.info("[Startup] Context bundle manifest ready (bundle_id=%s)", report.bundle_id)
+    except Exception as exc:
+        logger.warning("[Startup] Context bundle layout init failed: %s", exc)
+
+
 async def run_async_warmup() -> None:
     """Background warmup tasks after HTTP server is ready.
 
@@ -138,6 +151,8 @@ async def run_async_warmup() -> None:
     Tasks include: schedulers (auth/cleanup/maintenance), browser pool, batch recovery, tokenizer preload, etc.
     """
     warmup_tasks: list[Awaitable[object]] = []
+
+    _ensure_context_bundle_layout()
 
     await start_memory_pressure_monitor()
 

@@ -18,8 +18,7 @@ dependencies = [
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
   "pydantic-settings>=2.14.1", # 统一配置管理 (BaseSettings + .env)
   # --- HTTP & I/O ---
-  "httpx[socks]>=0.28.1", # HTTP 客户端 + SOCKS 代理 (130+ 文件)
-  "aiofiles>=25.1.0",     # 异步文件读写 (3 文件)
+  "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
   "litellm>=1.87.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
   "langchain>=1.3.4",      # Agent 工具/链定义 (70+ 文件)
@@ -38,6 +37,7 @@ dependencies = [
   "sqlalchemy>=2.0.50", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
+  "filelock>=3.29.1", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
@@ -55,12 +55,14 @@ dependencies = [
   "fluent-runtime>=0.4.0",             # i18n Fluent 引擎 (channels/i18n/engine.py)
   "websockets>=16.0",                   # WebSocket 通信 (11+ channels/voice)
   "aioboto3>=15.5.0",                   # AWS S3 异步客户端 (备份 + sandbox/storage)
-  "tenacity",
+  "tenacity>=9.1.4", # Vercel deploy retries (vercel_client.py)
 ]
 
 [project.optional-dependencies]
-advanced-tools = [
-  "myrm-agent-harness[retrieval]"
+# Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
+matrix = [
+  "mautrix>=0.21.0",
+  "aiohttp-socks>=0.11.0",
 ]
 matrix-e2ee = [
   "mautrix[encryption]>=0.21.0",
@@ -74,8 +76,9 @@ data-viz = [
 
 [tool.uv]
 # index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-# 不在此限制 environments：需保留 win32 锁分支供 Windows 部署/CI。
-# Harness 仅从 PyPI 安装（见 uv.lock）。本地源码联调请在本机单独 checkout harness 并用 pip install -e，勿改本仓依赖声明。
+# Limit lock splits while harness==0.1.0rc1 is not on PyPI for all markers; refresh win32 via ./myrm harness sync-lock after publish.
+environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
+# Harness 仅从 PyPI 安装（见 uv.lock）。monorepo 联调 lock 使用 editable ../../myrm-agent-harness。
 override-dependencies = [
   "click>=8.4.1",
   "patchright>=1.60.0",

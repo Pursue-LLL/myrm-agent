@@ -123,8 +123,7 @@ class FeishuWSTransport:
         if not SDK_AVAILABLE:
             raise RuntimeError(
                 "lark-oapi SDK is required for WebSocket transport. "
-                "Install it with: pip install 'lark-oapi>=1.5.3' "
-                "or: uv add 'lark-oapi>=1.5.3'"
+                "Run: uv sync (lark-oapi is a main dependency)"
             )
 
         self._loop = asyncio.get_running_loop()

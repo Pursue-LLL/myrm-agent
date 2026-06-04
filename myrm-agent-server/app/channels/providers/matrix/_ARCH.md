@@ -24,9 +24,10 @@ cross-signing bootstrap, and room-members cache with TTL.
 
 ## Dependencies
 
+- **Install**: `uv sync --extra matrix` (mautrix + aiohttp-socks); E2EE add `--extra matrix-e2ee`
 - **Required**: `mautrix>=0.21.0` (Matrix Client-Server API SDK)
 - **E2EE**: `mautrix[encryption]>=0.21.0` (adds `python-olm`, requires `libolm` C library)
-- **SOCKS proxy**: `aiohttp-socks` (optional, only for SOCKS5 proxy support)
+- **SOCKS proxy**: `aiohttp-socks` (declared in `[project.optional-dependencies] matrix`)
 
 ## Architecture
 

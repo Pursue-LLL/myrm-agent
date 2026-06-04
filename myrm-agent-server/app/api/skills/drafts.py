@@ -381,13 +381,13 @@ async def _materialize_semantic_memory(draft: SkillDraftRecord) -> dict[str, str
         return {"materialized": False, "error": "Draft has no content"}
 
     try:
-        from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+        from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
         from app.services.agent.platform_config import require_platform_embedding_config
 
         embedding_cfg = await require_platform_embedding_config()
 
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id=None,
                 channel_id=None,

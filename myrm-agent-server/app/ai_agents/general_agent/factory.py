@@ -178,11 +178,23 @@ async def build_general_agent(
     agent_wrapper._setup_search_and_basic_tools(tools, deferred_tools)
     agent_wrapper._setup_interaction_tools(tools, deferred_tools)
 
+    from app.services.context.context_assembly import ContextAssemblyService
+
+    context_assembly = ContextAssemblyService.resolve_for_agent(
+        agent_wrapper,
+        effective_chat_id,
+        enable_memory=agent_wrapper.enable_memory,
+    )
+
     memory_manager = None
-    memory_binding = agent_wrapper._resolve_memory_binding(effective_chat_id)
+    memory_binding = context_assembly.binding
     if memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(
             tools, deferred_tools, memory_binding
+        )
+    if memory_manager is not None:
+        await agent_wrapper._setup_context_search_tools(
+            tools, deferred_tools, memory_manager
         )
     if agent_wrapper.enable_memory:
         from app.ai_agents.general_agent.conversation_search_setup import (
@@ -577,7 +589,7 @@ async def build_general_agent(
         else None
     )
 
-    memory_binding = agent_wrapper._resolve_memory_binding(effective_chat_id)
+    memory_binding = context_assembly.binding
     memory_namespaces = memory_binding.namespaces if memory_binding is not None else []
 
     allowed_tool_names: list[str] = []

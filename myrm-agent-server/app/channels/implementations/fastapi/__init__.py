@@ -3,7 +3,7 @@
 Provides ready-to-use implementations for FastAPI applications.
 
 Installation:
-    pip install myrm-agent-harness[fastapi]
+    uv sync (myrm-agent-harness[fastapi] is included in server dependencies)
 
 Usage:
     from app.channels.implementations.fastapi import (

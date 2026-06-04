@@ -26,8 +26,8 @@ from langchain_core.messages import BaseMessage
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
-from app.core.memory.adapters.setup import resolve_memory_binding
-from app.core.memory.adapters.types import ResolvedMemoryBinding
+from app.core.memory.adapters.setup import resolve_context_binding
+from app.core.memory.adapters.types import ResolvedContextBinding
 from app.core.types import MCPServerConfig, ModelConfig
 
 from .compression_intent import build_compression_intent
@@ -278,15 +278,16 @@ class GeneralAgent(ToolSetupMixin):
 
         return _wiki_bm25_search
 
-    def _resolve_memory_binding(
+    def _resolve_context_binding(
         self, effective_chat_id: str
-    ) -> ResolvedMemoryBinding | None:
-        """Resolve the single memory binding contract for the current agent run."""
+    ) -> ResolvedContextBinding | None:
+        """Resolve the unified context binding contract for the current agent run."""
 
         if not self.enable_memory:
             return None
-            
-        return resolve_memory_binding(
+
+        task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None
+        return resolve_context_binding(
             namespaces=None,
             agent_id=self.agent_id or "default",
             channel_id=self.memory_channel_id or self.channel_name,
@@ -294,6 +295,7 @@ class GeneralAgent(ToolSetupMixin):
             task_id=self.memory_task_id,
             shared_context_ids=self.memory_shared_context_ids,
             memory_policy=self.memory_policy,
+            task_workspace_root=task_root,
         )
 
     def _build_runtime_context(
@@ -307,11 +309,11 @@ class GeneralAgent(ToolSetupMixin):
     ) -> dict[str, object]:
         """Build server-layer runtime context passed into the harness."""
         context: dict[str, object] = {}
-        from app.config.settings import get_settings
+        from app.services.context.context_assembly import ContextAssemblyService
 
-        context["workspaces_storage_root"] = str(
-            Path(get_settings().database.harness_dir).resolve()
-        )
+        bundle = ContextAssemblyService.build_facade(ensure_layout=False)
+        context["workspaces_storage_root"] = str(bundle.harness_path().resolve())
+        context["context_bundle_id"] = bundle.spec.bundle_id
         if self.agent_id:
             context["agent_id"] = self.agent_id
         if self.user_instructions:

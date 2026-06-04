@@ -146,7 +146,7 @@ class MatrixChannel(BaseChannel):
         if not _MAUTRIX_AVAILABLE:
             logger.error(
                 "Matrix: mautrix not installed. "
-                "Run: pip install 'mautrix' or 'mautrix[encryption]'"
+                "Run: uv sync --extra matrix (add --extra matrix-e2ee for E2EE)"
             )
             self._status = ChannelStatus.ERROR
             return
@@ -209,7 +209,7 @@ class MatrixChannel(BaseChannel):
         if not check_e2ee_deps():
             logger.error(
                 "Matrix: encryption=true but E2EE dependencies are missing. "
-                "Install with: pip install 'mautrix[encryption]'"
+                "Run: uv sync --extra matrix --extra matrix-e2ee (requires libolm)"
             )
             await session.close()  # type: ignore[union-attr]
             raise ChannelAuthError("E2EE dependencies missing", channel="matrix")
@@ -314,8 +314,8 @@ class MatrixChannel(BaseChannel):
                 ChannelIssue(
                     kind=IssueKind.DEPENDENCY,
                     severity=IssueSeverity.ERROR,
-                    message="mautrix not installed. Run: pip install 'mautrix'",
-                    fix="pip install 'mautrix'",
+                    message="mautrix not installed. Run: uv sync --extra matrix",
+                    fix="uv sync --extra matrix",
                 )
             )
 
@@ -331,10 +331,10 @@ class MatrixChannel(BaseChannel):
                         severity=IssueSeverity.ERROR,
                         message=(
                             "E2EE enabled but mautrix[encryption] not installed. "
-                            "Install with: pip install 'mautrix[encryption]' "
+                            "Run: uv sync --extra matrix --extra matrix-e2ee "
                             "(requires libolm C library)"
                         ),
-                        fix="pip install 'mautrix[encryption]'",
+                        fix="uv sync --extra matrix --extra matrix-e2ee",
                     )
                 )
             elif not self._device_id:

@@ -52,6 +52,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_CHANNEL_INSTALL_HINTS: dict[str, str] = {
+    "matrix": "uv sync --extra matrix",
+}
+
+
+def _channel_install_hint(channel_name: str, spec: ChannelSpec | None) -> str:
+    """Human-readable install hint when a channel module fails to import."""
+    if spec is None or not spec.sdk_package:
+        return ""
+    command = _CHANNEL_INSTALL_HINTS.get(channel_name, "uv sync")
+    return f" (run: {command})"
+
 
 @dataclass(frozen=True, slots=True)
 class ChannelSpec:
@@ -193,8 +205,8 @@ def load_enabled_channels(
         cls = get_channel_class_safe(name)
         if cls is None:
             spec = specs.get(name)
-            sdk_hint = f" (pip install {spec.sdk_package})" if spec and spec.sdk_package else ""
-            logger.warning("Channel '%s' enabled but import failed%s", name, sdk_hint)
+            install_hint = _channel_install_hint(name, spec)
+            logger.warning("Channel '%s' enabled but import failed%s", name, install_hint)
             continue
         result[name] = cls
     return result

@@ -106,13 +106,13 @@ async def _fetch_memory_snapshot() -> tuple[dict[str, int], int, dict[str, float
     Returns (by_type, health_score, dimensions, week_delta).
     """
     try:
-        from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+        from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
         from app.services.agent.platform_config import require_platform_embedding_config
 
         embedding_cfg = await require_platform_embedding_config()
 
         manager = await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=None,
                 agent_id=None,
                 channel_id=None,

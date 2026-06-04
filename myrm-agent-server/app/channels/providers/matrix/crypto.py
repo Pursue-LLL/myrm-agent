@@ -23,7 +23,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _E2EE_INSTALL_HINT = (
-    "Install with: pip install 'mautrix[encryption]' (requires libolm C library)"
+    "Run: uv sync --extra matrix --extra matrix-e2ee (requires libolm C library)"
 )
 
 

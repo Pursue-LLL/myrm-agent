@@ -21,7 +21,7 @@ from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.memory.types import EpisodicMemory, MemorySearchResult, MemoryType, SemanticMemory
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 from app.database.models import SharedContextWriteProposalModel
 from app.services.agent.platform_config import require_platform_embedding_config
 from app.services.memory.shared_context import SharedContextService
@@ -152,7 +152,7 @@ class SharedContextProposalMaterializer:
 
     async def _create_memory_manager(self, namespace: str) -> MemoryManager:
         return await create_memory_manager(
-            resolve_memory_binding(
+            resolve_context_binding(
                 namespaces=[namespace],
                 agent_id="shared-context",
                 channel_id=None,

@@ -12,6 +12,9 @@
  */
 
 import type { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { applyContextBundleMigration } from '@/services/contextBundle';
 import type {
   MemoryCommandBenchmarkSummary,
   MemoryCommandCenterResponse,
@@ -27,6 +30,7 @@ const READINESS_STATUSES = ['ready', 'warning', 'critical', 'missing'] as const;
 const DOCTOR_CHECK_IDS = [
   'relational_store',
   'memory_base_path',
+  'context_bundle_manifest',
   'vector_index',
   'knowledge_graph',
   'embedding_provider',
@@ -128,7 +132,23 @@ const DoctorCheckRow = ({
   t: MemoryTranslation;
   actionId: string | null;
   onDoctorAction: (action: DoctorExecutableAction) => void;
-}) => (
+}) => {
+  const [isBundleMigrating, setIsBundleMigrating] = useState(false);
+
+  const handleBundleInit = async () => {
+    try {
+      setIsBundleMigrating(true);
+      await applyContextBundleMigration();
+      window.dispatchEvent(new Event('app_resync_required'));
+      toast.success(t('commandCenter.bundleMigrateSuccess'));
+    } catch {
+      toast.error(t('commandCenter.bundleMigrateFailed'));
+    } finally {
+      setIsBundleMigrating(false);
+    }
+  };
+
+  return (
   <div className="rounded-lg border border-border/50 bg-accent/20 p-3">
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -149,8 +169,19 @@ const DoctorCheckRow = ({
       safeToRetry={check.safe_to_retry}
       t={t}
     />
+    {check.id === 'context_bundle_manifest' && check.status !== 'ready' && (
+      <button
+        type="button"
+        disabled={isBundleMigrating}
+        onClick={handleBundleInit}
+        className="mt-3 w-full rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
+      >
+        {isBundleMigrating ? t('commandCenter.bundleMigrating') : t('commandCenter.bundleMigrateAction')}
+      </button>
+    )}
   </div>
-);
+  );
+};
 
 const DiagnosticRunSummary = ({
   run,

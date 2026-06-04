@@ -30,6 +30,7 @@ from .external_agents import ExternalAgentsMixin
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.agent.skill_agent import SkillAgent
+    from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.llms.image.models import MediaCallback, MediaMeta
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
     from app.ai_agents.agents import ImageGenerationParams, TTSParams, VideoGenerationParams
-    from app.core.memory.adapters.types import ResolvedMemoryBinding
+    from app.core.memory.adapters.types import ResolvedContextBinding
     from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -419,7 +420,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self,
         tools: list[object],
         deferred_tools: list[object],
-        binding: ResolvedMemoryBinding,
+        binding: ResolvedContextBinding,
     ) -> MemoryManager | None:
         """Create memory tools. Returns MemoryManager on success, None on failure."""
         try:
@@ -600,6 +601,30 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.warning("Local file search tools load failed (degraded): %s", e)
+
+    async def _setup_context_search_tools(
+        self,
+        tools: list[object],
+        deferred_tools: list[object],
+        memory_manager: MemoryManager,
+    ) -> None:
+        """Load unified context search tool when memory is enabled."""
+        try:
+            from app.services.context.context_search_tools import create_context_search_tool
+            from app.services.local_file_search.service import get_local_file_search_service
+
+            svc = get_local_file_search_service()
+            if not svc.is_initialized:
+                await svc.initialize()
+
+            context_tool = create_context_search_tool(
+                memory_manager,
+                svc.search_engine,
+            )
+            deferred_tools.append(context_tool)
+            logger.warning("Loaded context_search_tool [Deferred]")
+        except Exception as e:
+            logger.warning("Context search tool load failed (degraded): %s", e)
 
 
 def _select_image_constraints(model_name: str) -> object | None:

@@ -139,3 +139,33 @@ def probe_deployment_boundary(runtime: MemoryCommandRuntimeStatus) -> MemoryComm
         next_action="No action required.",
         repair_actions=[],
     )
+
+
+def probe_context_bundle_manifest(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
+    from myrm_agent_harness.toolkits.context import run_migration_dry_run
+
+    memory_path = Path(runtime.memory_base_path).expanduser()
+    state_dir = memory_path.parent if memory_path.name == "memory" else memory_path
+    report = run_migration_dry_run(state_dir)
+
+    status: DiagnosticStatus = "ready" if report.ok and report.manifest_exists else "warning"
+    if not report.writable:
+        status = "critical"
+    repair_actions: list[str] = []
+    if not report.manifest_exists:
+        repair_actions.append("review_storage_config")
+    return MemoryCommandDoctorCheck(
+        id="context_bundle_manifest",
+        category="storage",
+        label="Context bundle manifest",
+        status=status,
+        evidence=(
+            f"Bundle manifest {'present' if report.manifest_exists else 'missing'}; "
+            f"writable={report.writable}; pending_actions={len(report.actions)}."
+        ),
+        impact="Unified context export/import and scene health depend on a valid bundle manifest.",
+        next_action="No action required."
+        if report.manifest_exists and report.writable
+        else "Run context bundle migration from Settings or Doctor.",
+        repair_actions=repair_actions,
+    )

@@ -332,7 +332,7 @@ async def test_fetch_memory_snapshot_normal() -> None:
 
     fake_setup = MagicMock()
     fake_setup.create_memory_manager = AsyncMock(return_value=mock_manager)
-    fake_setup.resolve_memory_binding = MagicMock(return_value=None)
+    fake_setup.resolve_context_binding = MagicMock(return_value=None)
     fake_emb = MagicMock()
     fake_emb.get_embedding_config = MagicMock(return_value=None)
     fake_platform_config = MagicMock()
@@ -369,7 +369,7 @@ async def test_fetch_memory_snapshot_exception() -> None:
 
     fake_setup = MagicMock()
     fake_setup.create_memory_manager = AsyncMock(side_effect=RuntimeError("boom"))
-    fake_setup.resolve_memory_binding = MagicMock(return_value=None)
+    fake_setup.resolve_context_binding = MagicMock(return_value=None)
     fake_emb = MagicMock()
     fake_emb.get_embedding_config = MagicMock(return_value=None)
 

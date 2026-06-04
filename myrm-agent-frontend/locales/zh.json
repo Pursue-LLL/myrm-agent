@@ -5201,7 +5201,19 @@
     "idle": "空闲",
     "never": "从未",
     "enabled": "已启用",
-    "disabled": "已禁用"
+    "disabled": "已禁用",
+    "bundleHealth": "上下文包",
+    "bundleHealthDesc": "memory、工作区文件与会话 offload 的统一卷布局。",
+    "bundleManifest": "清单",
+    "bundleManifestPresent": "已存在",
+    "bundleManifestMissing": "缺失 — 请在 Memory Doctor 中执行迁移",
+    "bundleWritable": "卷可写",
+    "bundleNotWritable": "卷不可写",
+    "bundleSchema": "Schema 版本",
+    "bundleMigrateAction": "初始化上下文包",
+    "bundleMigrating": "初始化中...",
+    "bundleMigrateSuccess": "上下文包已初始化",
+    "bundleMigrateFailed": "上下文包初始化失败"
   },
   "library": {
     "title": "库",
@@ -5790,6 +5802,10 @@
       "doctorEmpty": "暂无记忆诊断项",
       "doctorRunTitle": "运行记忆诊断",
       "doctorRunAll": "运行全部诊断",
+      "bundleMigrateAction": "初始化上下文包",
+      "bundleMigrating": "初始化中...",
+      "bundleMigrateSuccess": "上下文包已初始化",
+      "bundleMigrateFailed": "上下文包初始化失败",
       "doctorLastRun": "最近诊断结果",
       "doctorProbeCount": "探针数",
       "doctorFailedCount": "异常探针",
@@ -5948,6 +5964,10 @@
         "deployment_boundary": {
           "label": "部署边界",
           "evidence": "检查 Local Web、Tauri 桌面端和 SaaS 沙箱共享同一套内容隔离规则。"
+        },
+        "context_bundle_manifest": {
+          "label": "上下文包清单",
+          "evidence": "检查统一上下文包 manifest 是否存在，以及 memory、workspace、offload 等 scene 的卷布局是否可写。"
         },
         "embedding_live": {
           "label": "嵌入实时探针",

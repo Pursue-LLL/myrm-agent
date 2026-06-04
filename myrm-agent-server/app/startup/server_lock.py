@@ -27,7 +27,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
         from filelock import FileLock, Timeout
     except ImportError:
         print(
-            "⚠️  Warning: 'filelock' package not found, skipping OS lock. (pip install filelock)"
+            "⚠️  Warning: 'filelock' package not found, skipping OS lock. Run: uv sync"
         )
         return
 

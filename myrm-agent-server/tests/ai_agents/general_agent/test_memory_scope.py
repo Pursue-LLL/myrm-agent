@@ -25,7 +25,7 @@ def test_resolve_memory_binding_uses_explicit_memory_ids() -> None:
         memory_task_id="session-456",
     )
 
-    binding = agent._resolve_memory_binding("fallback-chat")
+    binding = agent._resolve_context_binding("fallback-chat")
 
     assert binding is not None
     assert binding.namespaces == [
@@ -44,7 +44,7 @@ def test_resolve_memory_binding_uses_explicit_memory_ids() -> None:
 def test_resolve_memory_binding_falls_back_to_runtime_values() -> None:
     agent = _build_agent()
 
-    binding = agent._resolve_memory_binding("chat-runtime")
+    binding = agent._resolve_context_binding("chat-runtime")
 
     assert binding is not None
     assert binding.namespaces == [
@@ -61,7 +61,7 @@ def test_resolve_memory_binding_falls_back_to_runtime_values() -> None:
 def test_resolve_memory_binding_includes_shared_contexts() -> None:
     agent = _build_agent(memory_shared_context_ids=["customer-a", "launch-plan"])
 
-    binding = agent._resolve_memory_binding("chat-runtime")
+    binding = agent._resolve_context_binding("chat-runtime")
 
     assert binding is not None
     assert binding.shared_context_ids == ["customer-a", "launch-plan"]
@@ -83,7 +83,7 @@ def test_resolve_memory_binding_includes_shared_contexts() -> None:
 #         ),
 #     )
 # 
-#     binding = agent._resolve_memory_binding("chat-runtime")
+#     binding = agent._resolve_context_binding("chat-runtime")
 # 
 #     assert binding is not None
 #     assert binding.namespaces == [

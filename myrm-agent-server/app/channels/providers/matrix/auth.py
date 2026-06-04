@@ -55,7 +55,7 @@ def create_aiohttp_session(proxy: str = "") -> object:
         except ImportError:
             logger.warning(
                 "aiohttp_socks not installed — SOCKS proxy %s ignored. "
-                "Run: pip install aiohttp-socks",
+                "Run: uv sync --extra matrix",
                 proxy,
             )
             return aiohttp.ClientSession(trust_env=True)

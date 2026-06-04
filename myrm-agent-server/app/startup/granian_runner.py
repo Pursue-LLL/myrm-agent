@@ -66,7 +66,7 @@ def start_with_granian(
         subprocess.run(command, check=True)
     except FileNotFoundError:
         print("❌ Error: 'granian' command not found.")
-        print("💡 Make sure granian is installed: pip install granian")
+        print("💡 Install sandbox deps: uv sync --group sandbox")
         sys.exit(1)
     except KeyboardInterrupt:
         print("\n📍 Server stopped by user")

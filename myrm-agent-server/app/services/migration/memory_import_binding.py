@@ -1,7 +1,7 @@
 """Memory manager factory for competitor imports (global namespace).
 
 [INPUT]
-ResolvedMemoryBinding with global-only namespaces.
+ResolvedContextBinding with global-only namespaces.
 
 [OUTPUT]
 MemoryManager for import confirm/rollback.
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from myrm_agent_harness.toolkits.memory import MemoryManager
 
-from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
 from app.services.agent.platform_config import require_platform_embedding_config
 
 
@@ -22,7 +22,7 @@ async def create_global_import_memory_manager() -> MemoryManager:
     """Create a MemoryManager scoped to global namespace for migration imports."""
 
     embedding_cfg = await require_platform_embedding_config()
-    binding = resolve_memory_binding(
+    binding = resolve_context_binding(
         namespaces=["global"],
         agent_id=None,
         channel_id=None,

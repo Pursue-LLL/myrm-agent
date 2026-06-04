@@ -117,10 +117,6 @@ setup_backend() {
         exit 1
     fi
     verify_harness_install
-    log_info "Optional native extras ..."
-    if ! uv pip install -e ".[advanced-tools]"; then
-        log_warn "Advanced native extras failed; core server still usable."
-    fi
     cd "${PROJECT_ROOT}"
     log_success "Backend ready."
 }

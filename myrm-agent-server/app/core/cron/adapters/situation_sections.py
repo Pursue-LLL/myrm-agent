@@ -112,12 +112,12 @@ class PatternDiscoverySection:
     priority = 30
 
     async def build(self, ctx: SituationContext) -> str | None:
-        from app.core.memory.adapters.setup import create_memory_manager, resolve_memory_binding
+        from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
         from app.services.agent.platform_config import require_platform_embedding_config
 
         embedding_cfg = await require_platform_embedding_config()
 
-        binding = resolve_memory_binding(
+        binding = resolve_context_binding(
             namespaces=None, agent_id=ctx.agent_id, channel_id=None,
             conversation_id=None, task_id=None,
         )

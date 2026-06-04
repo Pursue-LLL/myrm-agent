@@ -540,8 +540,8 @@ class FeishuChannel(BaseChannel):
                     ChannelIssue(
                         kind=IssueKind.DEPENDENCY,
                         severity=IssueSeverity.ERROR,
-                        message="lark-oapi SDK required for WebSocket transport but not installed.",
-                        fix="Install: pip install 'lark-oapi>=1.5.3' or: uv add 'lark-oapi>=1.5.3'",
+                        message="lark-oapi not installed. Run: uv sync",
+                        fix="uv sync",
                     )
                 )
         if self.health.last_error:
