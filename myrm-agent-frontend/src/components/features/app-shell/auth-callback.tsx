@@ -56,9 +56,14 @@ function AuthCallbackContent() {
     // 防止重复处理
     if (processedRef.current) return;
 
-    // 忽略 WebUI Auth 路径的 token 参数（这些是 temp_token，不是 OAuth token）
+    // Dedicated routes handle their own query params (exchange / provider errors).
     const pathname = window.location.pathname;
-    if (pathname.startsWith('/auth/setup') || pathname.startsWith('/auth/login')) {
+    if (
+      pathname.startsWith('/auth/setup')
+      || pathname.startsWith('/auth/login')
+      || pathname.startsWith('/auth/oauth/callback')
+      || pathname.startsWith('/auth/mcp-callback')
+    ) {
       return;
     }
 
