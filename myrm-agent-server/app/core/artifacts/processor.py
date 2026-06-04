@@ -83,6 +83,7 @@ class BaseArtifactProcessor(ABC):
             return None
 
         artifacts: list[ArtifactInfo] = []
+        processed_entries: list[tuple[str, str, str]] = []
 
         for item in artifacts_data:
             filename = item.get("filename", "")
@@ -121,6 +122,7 @@ class BaseArtifactProcessor(ABC):
                     file_path=self._resolve_file_path(file_path),
                 )
                 artifacts.append(artifact)
+                processed_entries.append((filename, file_path, result.file_id))
                 logger.info(
                     f"📦 处理工件: {filename} ({artifact_type.value}, {result.file_size} bytes)"
                 )
@@ -131,21 +133,16 @@ class BaseArtifactProcessor(ABC):
         if not artifacts:
             return None
 
-        # 触发工件持久化监听器 (在上下文退出前)
-        try:
-            from myrm_agent_harness.agent.artifacts.registry import (
-                get_artifact_registry,
-            )
-            from myrm_agent_harness.toolkits.code_execution.executors.base import (
-                get_executor,
-            )
+        if processed_entries:
+            try:
+                from myrm_agent_harness.toolkits.code_execution.executors.base import (
+                    get_executor,
+                )
 
-            from app.api.dependencies import get_workspace_root
-            from app.core.artifacts.listener import persist_artifact_event
-            from app.database.connection import get_session
+                from app.core.artifacts.listener import upsert_processor_artifact
+                from app.database.connection import get_session
+                from app.platform_utils.workspace_root import get_workspace_root
 
-            registry = get_artifact_registry()
-            if registry and len(registry) > 0:
                 executor = get_executor()
                 if executor:
                     workspace_root = executor.workspace_path
@@ -153,16 +150,51 @@ class BaseArtifactProcessor(ABC):
                     workspace_root = str(get_workspace_root())
 
                 async with get_session() as db:
-                    await persist_artifact_event(
-                        db=db,
-                        files=registry.get_all_files(),
-                        workspace_root=workspace_root,
-                        chat_id=self.chat_id,
-                        owner_id=None,
-                        tenant_id=None,
-                    )
-        except Exception as e:
-            logger.error(f"Failed to persist artifacts in process_artifacts_ready: {e}")
+                    for filename, file_path, file_id in processed_entries:
+                        await upsert_processor_artifact(
+                            db,
+                            file_id=file_id,
+                            filename=filename,
+                            sandbox_path=file_path,
+                            workspace_root=workspace_root,
+                            chat_id=self.chat_id,
+                        )
+            except Exception as e:
+                logger.error("Failed to persist processor artifacts to DB: %s", e)
+
+        # Registry hook — only when processor path did not persist (avoids duplicate uuid rows)
+        if not processed_entries:
+            try:
+                from myrm_agent_harness.agent.artifacts.registry import (
+                    get_artifact_registry,
+                )
+                from myrm_agent_harness.toolkits.code_execution.executors.base import (
+                    get_executor,
+                )
+
+                from app.core.artifacts.listener import persist_artifact_event
+                from app.database.connection import get_session
+                from app.platform_utils.workspace_root import get_workspace_root
+
+                registry = get_artifact_registry()
+                if registry and len(registry) > 0:
+                    executor = get_executor()
+                    if executor:
+                        workspace_root = executor.workspace_path
+                    else:
+                        workspace_root = str(get_workspace_root())
+
+                    async with get_session() as db:
+                        await persist_artifact_event(
+                            db=db,
+                            files=registry.get_all_files(),
+                            workspace_root=workspace_root,
+                            chat_id=self.chat_id,
+                            owner_id=None,
+                            tenant_id=None,
+                        )
+            except Exception as e:
+                logger.error("Failed to persist artifacts in process_artifacts_ready: %s", e)
 
         return {
             "type": "artifacts",

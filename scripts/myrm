@@ -78,11 +78,11 @@ case "$COMMAND" in
             kill "${dev_pid}" 2>/dev/null || true
             rm -f "${SERVER_DIR}/.myrm-dev-backend.pid"
         fi
-        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN|[n]ext dev|[b]un run dev" | awk '{print $2}')
+        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
         [[ -n "$pids" ]] && kill -9 $pids || true
         ;;
     status)
-        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN|[n]ext dev|[b]un run dev" | awk '{print $2}')
+        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
         [[ -n "$pids" ]] && echo "Running: $pids" || echo "Not running"
         ;;
     update)

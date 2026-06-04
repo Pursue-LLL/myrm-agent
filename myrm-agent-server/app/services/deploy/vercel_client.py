@@ -40,7 +40,13 @@ class VercelClient:
         retry=retry_if_exception_type(httpx.RequestError),
         reraise=True
     )
-    async def deploy(self, project_name: str, files: dict[str, DeployFile]) -> dict[str, Any]:
+    async def deploy(
+        self,
+        project_name: str,
+        files: dict[str, DeployFile],
+        *,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
         """Deploy files to Vercel."""
         # 1. 智能注入 vercel.json (处理 SPA 路由)
         if "index.html" in files and "vercel.json" not in files:
@@ -62,13 +68,15 @@ class VercelClient:
                 entry["encoding"] = "base64"
             vercel_files.append(entry)
 
-        payload = {
+        payload: dict[str, object] = {
             "name": project_name,
             "files": vercel_files,
             "projectSettings": {
                 "framework": None  # 纯静态文件
-            }
+            },
         }
+        if project_id:
+            payload["projectId"] = project_id
 
         # 3. 发起部署请求
         url = f"{self.BASE_URL}/v13/deployments"

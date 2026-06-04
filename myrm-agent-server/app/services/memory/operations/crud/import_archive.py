@@ -25,9 +25,6 @@ import logging
 from fastapi import Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
 
-from app.api.memory.utils import (
-    get_crud_memory_manager,
-)
 from app.database.connection import get_session
 from app.schemas.memory.archive import (
     MemoryArchiveDryRunRequest,
@@ -52,6 +49,7 @@ from app.services.memory.archive import MemoryArchiveService
 from app.services.memory.command_center import MemoryCommandCenterService
 from app.services.memory.diagnostics import MemoryDiagnosticsService
 from app.services.memory.import_sessions import MemoryImportSessionError, MemoryImportSessionService
+from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
 
 logger = logging.getLogger(__name__)
@@ -334,7 +332,7 @@ async def confirm_import_memories(
                     global_supplement=str(raw_plan.get("global_supplement", "")),
                     workspace_rules=workspace_rules,
                 )
-                from app.api.dependencies import get_workspace_root
+                from app.platform_utils.workspace_root import get_workspace_root
 
                 workspace_root = str(get_workspace_root()) or None
                 instruction_result = await apply_instruction_plan(

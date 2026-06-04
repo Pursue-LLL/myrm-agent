@@ -22,18 +22,15 @@ import logging
 from fastapi import Depends, HTTPException, Query
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryType
 
-from app.api.memory.utils import (
-    get_crud_memory_manager,
-    memory_to_item,
-    parse_memory_type,
-)
 from app.database.standard_responses import create_success_response
 from app.schemas.memory.crud import (
     MemoryItem,
     MemoryListPaginatedResponse,
     PaginationInfo,
 )
+from app.services.memory.manager_deps import get_crud_memory_manager
 from app.services.memory.operations.crud._common import _record_memory_event
+from app.services.memory.presentation import memory_to_item, parse_memory_type
 
 logger = logging.getLogger(__name__)
 

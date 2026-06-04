@@ -21,34 +21,15 @@ from __future__ import annotations
 import hmac
 import logging
 from collections.abc import AsyncIterator
-from pathlib import Path
 
 from fastapi import Header, HTTPException
 from langchain_core.language_models.chat_models import BaseChatModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.deploy_identity import get_deploy_identity
+from app.platform_utils.workspace_root import get_workspace_root
+
 logger = logging.getLogger(__name__)
-
-
-async def get_deploy_identity() -> str:
-    """Return deploy-mode identity sentinel for single-tenant runtime.
-
-    - 'sandbox' when running inside a control-plane sandbox
-    - 'local' for desktop / local WebUI
-    """
-    from app.config.deploy_mode import get_deploy_mode
-
-    mode = get_deploy_mode().value
-    return "sandbox" if mode == "sandbox" else "local"
-
-
-def get_workspace_root() -> Path:
-    """Return the workspace root directory from settings, or cwd as fallback."""
-    from app.config.settings import settings
-
-    if hasattr(settings, "workspace_root") and settings.workspace_root:
-        return Path(settings.workspace_root)
-    return Path.cwd()
 
 
 async def get_db_session() -> AsyncIterator[AsyncSession]:

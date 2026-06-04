@@ -44,16 +44,10 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
   const canDeploy = platformAvailable || token.trim().length > 0;
 
   const notifyDeployed = useCallback(
-    (url: string, deploymentStatus: string, projectId?: string | null) => {
-      onDeployed?.({
-        deployment_url: url,
-        deployment_status: deploymentStatus,
-        deployment_project_id: projectId ?? null,
-        deployment_version_id: artifact.latest_version_id ?? artifact.deployment_version_id ?? null,
-        latest_version_id: artifact.latest_version_id ?? null,
-      });
+    (payload: DeployedArtifactUpdate) => {
+      onDeployed?.(payload);
     },
-    [artifact.deployment_version_id, artifact.latest_version_id, onDeployed],
+    [onDeployed],
   );
 
   const saveCredentials = useCallback(async (value: string) => {
@@ -158,13 +152,32 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
         throw new Error(errorData.detail || t('errors.deployFailed'));
       }
 
-      const data = await response.json();
-      const deploymentId = data.deployment_id as string | undefined;
-      const initialUrl = typeof data.url === 'string' ? data.url : '';
+      const data = (await response.json()) as {
+        deployment_id?: string;
+        url?: string;
+        status?: string;
+        project_id?: string;
+        deployment_url?: string;
+        deployment_status?: string;
+        deployment_project_id?: string | null;
+        deployment_version_id?: string | null;
+        latest_version_id?: string | null;
+      };
+      const deploymentId = data.deployment_id;
+      const initialUrl = typeof data.deployment_url === 'string' ? data.deployment_url : typeof data.url === 'string' ? data.url : '';
+      const deploymentStatus = typeof data.deployment_status === 'string' ? data.deployment_status : typeof data.status === 'string' ? data.status : 'DEPLOYING';
+
+      const deployedUpdate: DeployedArtifactUpdate = {
+        deployment_url: initialUrl,
+        deployment_status: deploymentStatus,
+        deployment_project_id: data.deployment_project_id ?? data.project_id ?? null,
+        deployment_version_id: data.deployment_version_id ?? null,
+        latest_version_id: data.latest_version_id ?? data.deployment_version_id ?? null,
+      };
 
       if (initialUrl) {
         setDeployUrl(initialUrl);
-        notifyDeployed(initialUrl, typeof data.status === 'string' ? data.status : 'DEPLOYING', data.project_id);
+        notifyDeployed(deployedUpdate);
       }
 
       if (!deploymentId) {
@@ -193,7 +206,12 @@ export const DeployModal: React.FC<DeployModalProps> = ({ artifact, open, onClos
           const url = statusData.url ?? initialUrl;
           setStatus('SUCCESS');
           setDeployUrl(url);
-          notifyDeployed(url, 'READY', statusData.project_id);
+          notifyDeployed({
+            ...deployedUpdate,
+            deployment_url: url,
+            deployment_status: 'READY',
+            deployment_project_id: statusData.project_id ?? deployedUpdate.deployment_project_id ?? null,
+          });
           isIntentionalClose.current = true;
           ws.close();
         } else if (currentStatus === 'ERROR' || currentStatus === 'CANCELED') {

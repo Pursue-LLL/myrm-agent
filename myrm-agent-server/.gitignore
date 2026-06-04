@@ -88,6 +88,8 @@ inject.py
 routes_debug.txt
 
 # Playwright / manual UI debug artifacts at package root (regenerated locally)
+screenshot_*.png
+backend*.log
 page_dump.html
 error_page_goal_mode.html
 chat_output*.txt

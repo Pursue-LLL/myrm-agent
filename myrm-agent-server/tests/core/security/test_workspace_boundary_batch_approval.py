@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from langchain_core.messages import ToolCall
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import evaluate_tool_batch
-from myrm_agent_harness.agent.security.types import PermissionAction, SecurityConfig
+from myrm_agent_harness.agent.security.types import SecurityConfig
 
 
 @pytest.mark.asyncio

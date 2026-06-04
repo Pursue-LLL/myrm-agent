@@ -3,6 +3,8 @@
 
 FastAPI 服务器配置层。管理应用 lifespan（启动三阶段 + 优雅关闭）、全局异常处理和中间件注册。
 
+**进程级启动**（`run.py` → `app/startup/*`）与 **运行时 lifespan** 分工见开源根 [ARCHITECTURE.md](../../ARCHITECTURE.md) 启动序图；`app/startup/_ARCH.md` 负责 env/锁/uvicorn，`app/lifecycle/_ARCH.md` 负责 Gateway/Cron/调度器。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

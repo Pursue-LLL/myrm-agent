@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.files.deploy_api import router as deploy_router
+from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.deploy.deploy_packager import DeployFile
@@ -14,6 +15,7 @@ from app.services.deploy.deploy_packager import DeployFile
 
 @pytest.fixture
 def deploy_client(db_session) -> TestClient:
+    limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(deploy_router)
 
@@ -23,6 +25,7 @@ def deploy_client(db_session) -> TestClient:
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as test_client:
         yield test_client
+    limiter.enabled = True
 
 
 @pytest.fixture
@@ -92,6 +95,8 @@ async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session)
                 data = response.json()
                 assert data["deployment_id"] == "dep_123"
                 assert data["url"] == "https://test.vercel.app"
+                assert data["deployment_version_id"] is not None
+                assert data["latest_version_id"] is not None
 
                 await db_session.refresh(mock_artifact)
                 assert mock_artifact.deployment_url == "https://test.vercel.app"
@@ -106,7 +111,7 @@ async def test_deploy_artifact_not_found(deploy_client):
         json={"token": "test_token", "platform": "vercel"},
     )
     assert response.status_code == 404
-    assert response.json()["detail"] == "Artifact not found"
+    assert "Artifact not found" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -121,10 +126,20 @@ async def test_deploy_unsupported_platform(deploy_client, mock_artifact):
 
 @pytest.mark.asyncio
 async def test_deploy_artifact_no_versions(deploy_client, artifact_without_versions):
-    response = deploy_client.post(
-        f"/{artifact_without_versions.id}/deploy",
-        json={"token": "test_token", "platform": "vercel"},
+    from types import SimpleNamespace
+
+    stub_artifact = SimpleNamespace(
+        id=artifact_without_versions.id,
+        name=artifact_without_versions.name,
+        versions=[],
+        deployment_project_id=None,
     )
+    with patch("app.api.files.deploy_api.ensure_artifact_for_deploy", new_callable=AsyncMock) as mock_ensure:
+        mock_ensure.return_value = stub_artifact
+        response = deploy_client.post(
+            f"/{artifact_without_versions.id}/deploy",
+            json={"token": "test_token", "platform": "vercel"},
+        )
     assert response.status_code == 400
     assert response.json()["detail"] == "Artifact has no versions to deploy"
 
@@ -186,7 +201,8 @@ async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_sessio
                 assert "style.css" in call_kwargs["files"]
 
 
-def test_deployment_status_ws_auth_success(deploy_client, db_session):
+@pytest.mark.asyncio
+async def test_deployment_status_ws_auth_success(deploy_client, db_session):
     @asynccontextmanager
     async def session_override():
         yield db_session
@@ -210,6 +226,10 @@ def test_deployment_status_ws_auth_success(deploy_client, db_session):
                     )
 
                     artifact_id = str(uuid.uuid4())
+                    artifact = Artifact(id=artifact_id, name="ws-artifact", is_deleted=False)
+                    db_session.add(artifact)
+                    await db_session.commit()
+
                     with deploy_client.websocket_connect(
                         f"/{artifact_id}/deploy/status/dep_123"
                     ) as ws:
@@ -225,7 +245,7 @@ def test_deployment_status_ws_invalid_auth_payload(deploy_client):
         f"/{artifact_id}/deploy/status/dep_123"
     ) as ws:
         ws.send_json({"type": "invalid"})
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=".*"):
             ws.receive_json()
 
 
@@ -241,7 +261,7 @@ def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
                 f"/{artifact_id}/deploy/status/dep_123"
             ) as ws:
                 ws.send_json({"type": "auth"})
-                with pytest.raises(Exception):
+                with pytest.raises(Exception, match=".*"):
                     ws.receive_json()
 
 
@@ -310,6 +330,37 @@ async def test_deploy_uses_stored_credentials_when_token_empty(
 
                 assert response.status_code == 200
                 mock_vercel_class.assert_called_once_with(token="stored-token")
+
+
+@pytest.mark.asyncio
+async def test_deploy_passes_project_id_on_redeploy(deploy_client, mock_artifact, db_session):
+    mock_artifact.deployment_project_id = "prj_existing"
+    await db_session.commit()
+
+    with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
+        mock_vault_class.return_value.get_object_path.return_value = MagicMock()
+        with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
+            mock_collect.return_value = {
+                "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
+            }
+            with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.deploy = AsyncMock(
+                    return_value={
+                        "deployment_id": "dep_re",
+                        "url": "https://re.vercel.app",
+                        "project_id": "prj_existing",
+                        "status": "READY",
+                    }
+                )
+
+                response = deploy_client.post(
+                    f"/{mock_artifact.id}/deploy",
+                    json={"token": "test_token", "platform": "vercel"},
+                )
+
+                assert response.status_code == 200
+                assert mock_vercel_instance.deploy.call_args.kwargs["project_id"] == "prj_existing"
 
 
 @pytest.mark.asyncio

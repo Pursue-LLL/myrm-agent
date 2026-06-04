@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
 
 ## 目录清单
 
@@ -16,11 +16,11 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 - **依赖**：`pyproject.toml` + `uv.lock` 钉死 PyPI 版本（`myrm setup` / `uv sync`）
 
-子模块详述：
+子模块详述（架构文档优先于 README）：
 
-- [myrm-agent-server/README.md](myrm-agent-server/README.md)
-- [myrm-agent-frontend/README.md](myrm-agent-frontend/README.md)
-- [myrm-agent-desktop/README.md](myrm-agent-desktop/README.md)
+- [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md)
+- [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md)
+- [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md)
 
 ## 本地开发
 

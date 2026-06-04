@@ -12,8 +12,8 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `vercel_client.py` | ✅ 核心 | Vercel API v13 客户端：deploy、get_deployment_status；自动注入 `vercel.json`；text/base64 分流 |
-| `deploy_packager.py` | ✅ 核心 | 从 Vault 文件/目录收集 deploy 载荷；二进制 base64；大小限制 |
+| `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
+| `deploy_packager.py` | ✅ 核心 | Vault 文件收集；`validate_deploy_payload` 校验 HTML 入口 |
 
 ---
 

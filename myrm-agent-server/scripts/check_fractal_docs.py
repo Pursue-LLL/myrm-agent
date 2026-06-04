@@ -24,13 +24,15 @@ import sys
 from collections.abc import Iterable
 from pathlib import Path
 
-_PRUNE_NAMES: frozenset[str] = frozenset(
+_PRUNE_DIR_NAMES: frozenset[str] = frozenset(
     {
         "__pycache__",
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
         ".event_logs",
+        "node_modules",
+        ".bin",
     }
 )
 
@@ -42,6 +44,12 @@ _HEADER_PATTERN = re.compile(
 )
 
 
+def _is_pruned_dir(path: Path) -> bool:
+    if path.name in _PRUNE_DIR_NAMES:
+        return True
+    return "node_modules" in path.parts
+
+
 def _iter_app_dirs(app_root: Path) -> Iterable[Path]:
     if not app_root.is_dir():
         return
@@ -49,10 +57,7 @@ def _iter_app_dirs(app_root: Path) -> Iterable[Path]:
     for path in sorted(app_root.rglob("*")):
         if not path.is_dir():
             continue
-        parts = set(path.parts)
-        if parts & _PRUNE_NAMES:
-            continue
-        if any(p in _PRUNE_NAMES for p in path.parts):
+        if _is_pruned_dir(path):
             continue
         yield path
 
@@ -75,7 +80,7 @@ def _should_skip_header_scan(rel: Path, content_len: int) -> bool:
 def _missing_io_headers(app_root: Path) -> list[Path]:
     bad: list[Path] = []
     for py in sorted(app_root.rglob("*.py")):
-        if any(p in _PRUNE_NAMES for p in py.parts):
+        if any(p in _PRUNE_DIR_NAMES for p in py.parts) or "node_modules" in py.parts:
             continue
         raw = py.read_bytes()
         if _should_skip_header_scan(py.relative_to(app_root), len(raw)):

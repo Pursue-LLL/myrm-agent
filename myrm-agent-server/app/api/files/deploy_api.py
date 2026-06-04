@@ -2,11 +2,10 @@
 
 [INPUT]
 - app.database.connection::get_db (POS: Database session)
-- app.database.models.artifact::Artifact (POS: Artifact ORM model)
-- app.database.models.config::UserConfig (POS: User config with encryption)
-- app.services.config.encryption::get_encryption_service (POS: Config encryption service)
-- app.services.deploy.vercel_client::VercelClient (POS: Vercel deploy client)
+- app.core.artifacts.listener::ensure_artifact_for_deploy (POS: Deploy artifact resolution)
+- app.core.infra.limiter::limiter (POS: API rate limiting)
 - app.services.deploy.deploy_packager::collect_deploy_files (POS: Vault file packaging)
+- app.services.deploy.vercel_client::VercelClient (POS: Vercel deploy client)
 
 [OUTPUT]
 - router: APIRouter — deploy endpoints, credentials CRUD, WebSocket status stream
@@ -22,21 +21,23 @@ import os
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_workspace_root
 from app.config.deploy_mode import is_sandbox
+from app.config.settings import settings
+from app.core.artifacts.listener import ensure_artifact_for_deploy
+from app.core.infra.limiter import limiter
 from app.database.connection import get_db, get_session
 from app.database.models.artifact import Artifact
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
-from app.services.deploy.deploy_packager import collect_deploy_files
+from app.services.deploy.deploy_packager import collect_deploy_files, validate_deploy_payload
 from app.services.deploy.vercel_client import VercelClient
 
 logger = logging.getLogger(__name__)
@@ -208,47 +209,53 @@ async def save_vercel_credentials(
 
 
 @router.post("/{artifact_id}/deploy")
+@limiter.limit(settings.rate_limit.artifact_deploy)
 async def deploy_artifact(
+    request: Request,
     artifact_id: str,
-    request: DeployRequest,
+    deploy_body: DeployRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Deploy an artifact to a third-party platform (e.g., Vercel)."""
-    if request.platform != "vercel":
+    if deploy_body.platform != "vercel":
         raise HTTPException(status_code=400, detail="Only Vercel is supported currently")
 
-    stmt = (
-        select(Artifact)
-        .options(selectinload(Artifact.versions))
-        .where(Artifact.id == artifact_id, Artifact.is_deleted.is_(False))
-    )
-    result = await db.execute(stmt)
-    artifact = result.scalars().first()
-
-    if not artifact:
-        raise HTTPException(status_code=404, detail="Artifact not found")
+    workspace_root = str(get_workspace_root())
+    try:
+        artifact = await ensure_artifact_for_deploy(db, artifact_id, workspace_root)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
     if not artifact.versions:
         raise HTTPException(status_code=400, detail="Artifact has no versions to deploy")
 
     latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
 
-    vault = ArtifactVault(str(get_workspace_root()))
+    vault = ArtifactVault(workspace_root)
     try:
         obj_path = _vault_object_path(vault, latest_version.vault_uri)
         files_to_deploy = collect_deploy_files(obj_path)
+        validate_deploy_payload(files_to_deploy)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.error("Failed to read artifact files: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}") from e
 
-    vercel_token = await _resolve_vercel_token(db, request.token)
+    vercel_token = await _resolve_vercel_token(db, deploy_body.token)
     client = VercelClient(token=vercel_token)
     try:
         project_name = "".join(c if c.isalnum() or c == "-" else "-" for c in artifact.name.lower())
         if not project_name:
             project_name = f"myrm-artifact-{artifact_id[:8]}"
 
-        deploy_result = await client.deploy(project_name=project_name, files=files_to_deploy)
+        deploy_result = await client.deploy(
+            project_name=project_name,
+            files=files_to_deploy,
+            project_id=artifact.deployment_project_id,
+        )
 
         artifact.deployment_url = deploy_result["url"]
         artifact.deployment_project_id = deploy_result["project_id"]
@@ -256,7 +263,14 @@ async def deploy_artifact(
         artifact.deployment_version_id = latest_version.id
         await db.commit()
 
-        return deploy_result
+        return {
+            **deploy_result,
+            "deployment_url": deploy_result["url"],
+            "deployment_status": deploy_result["status"],
+            "deployment_project_id": deploy_result.get("project_id"),
+            "deployment_version_id": latest_version.id,
+            "latest_version_id": latest_version.id,
+        }
 
     except Exception as e:
         logger.error("Deployment failed: %s", e)
@@ -299,6 +313,13 @@ async def deployment_status_ws(
     try:
         async with get_session() as db:
             vercel_token = await _resolve_vercel_token(db, "")
+            stmt = select(Artifact.id).where(
+                Artifact.id == artifact_id,
+                Artifact.is_deleted.is_(False),
+            )
+            if (await db.execute(stmt)).scalar_one_or_none() is None:
+                await websocket.close(code=1008, reason="Artifact not found")
+                return
     except HTTPException:
         await websocket.close(code=1008, reason="Missing Vercel credentials")
         return

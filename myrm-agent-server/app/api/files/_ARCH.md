@@ -24,7 +24,7 @@
 | `workspace_ops.py` | ✅ 核心 | 工作区文件写操作 API — `/browse/upload`（文件上传到工作区目录，含 rate limit）、`/browse/mkdir`（新建目录）、`/browse/rename`（重命名）、`/browse/move`（移动）、`/browse/delete`（删除）、`/browse/content`（PUT，在线编辑保存）。6 层安全栈：边界校验 · 危险路径拦截 · 敏感文件守卫 · 文件名合法性 · 删除保护 · 上传限制。与 browse.py 职责分离（读写分离） |
 | `local_actions.py` | ✅ 核心 | 本地文件操作 API — `/files/{file_id}/reveal`（文件管理器定位）、`/files/{file_id}/open`（默认应用打开）。仅本地部署模式可用，含三重安全校验（模式/路径/存在性），跨平台（macOS/Windows/Linux） | ✅ |
 | `artifact_api.py` | ✅ 核心 | 工件 CRUD — 列表/单品 GET（含 `deployment_*`、`deployment_version_id`、`latest_version_id`）、版本历史、哈希校验 |
-| `deploy_api.py` | ✅ 核心 | 工件一键部署 — POST deploy（`collect_deploy_files` 多文件/二进制打包）、WS 状态流（终态写回 DB）、Vercel 凭据 CRUD；Token 优先级：请求体 → UserConfig 加密 → `VERCEL_PLATFORM_TOKEN` |
+| `deploy_api.py` | ✅ 核心 | 一键部署 — `ensure_artifact_for_deploy`、限流、`projectId` redeploy、WS 归属校验 |
 
 ---
 

@@ -34,6 +34,26 @@ async def test_deploy_success(vercel_client):
         assert result["status"] == "READY"
 
 @pytest.mark.asyncio
+async def test_deploy_includes_project_id(vercel_client):
+    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.json = lambda: {
+        "id": "dep_123",
+        "url": "test.vercel.app",
+        "projectId": "prj_456",
+        "readyState": "READY",
+    }
+
+    with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
+        await vercel_client.deploy("test-project", files, project_id="prj_existing")
+
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["projectId"] == "prj_existing"
+
+
+@pytest.mark.asyncio
 async def test_deploy_spa_injection(vercel_client):
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     

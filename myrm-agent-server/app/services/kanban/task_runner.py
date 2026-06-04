@@ -397,9 +397,9 @@ class KanbanTaskRunner:
             if not content:
                 return ""
 
-            from app.api.files.pdf_extract import extract_pdf_content
-            result = extract_pdf_content(content)
-            return result.get("text", "") if isinstance(result, dict) else ""
+            from app.services.files.content_extraction import extract_pdf_text_from_bytes
+
+            return await extract_pdf_text_from_bytes(content)
         except Exception:
             logger.warning("PDF extraction failed for %s", file_id, exc_info=True)
             return ""
@@ -413,9 +413,15 @@ class KanbanTaskRunner:
             if not content:
                 return ""
 
-            from app.api.files.document_extract import extract_document_content
-            result = extract_document_content(content)
-            return result.get("text", "") if isinstance(result, dict) else ""
+            from app.services.files.content_extraction import (
+                extract_document_text_from_bytes,
+            )
+
+            meta = await files_service.get_file(file_id)
+            filename = getattr(meta, "filename", "") if meta else ""
+            return await extract_document_text_from_bytes(
+                content, filename=filename or "document.bin"
+            )
         except Exception:
             logger.warning("Document extraction failed for %s", file_id, exc_info=True)
             return ""

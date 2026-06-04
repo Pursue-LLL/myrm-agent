@@ -100,3 +100,15 @@ def collect_deploy_files(obj_path: Path) -> dict[str, DeployFile]:
         return files
 
     raise ValueError("Invalid artifact physical format")
+
+
+def validate_deploy_payload(files: dict[str, DeployFile]) -> None:
+    """Ensure payload is deployable static content."""
+    if not files:
+        raise ValueError("No files to deploy")
+    if "index.html" in files:
+        return
+    html_entries = [name for name in files if name.lower().endswith((".html", ".htm"))]
+    if len(html_entries) == 1 and len(files) <= 2:
+        return
+    raise ValueError("Deploy payload must include index.html or a single HTML entry")

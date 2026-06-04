@@ -6,21 +6,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
 import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Play } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { getStorageUrl } from '@/lib/api';
-import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import {
-  deploymentHostname,
-  formatBytes,
-  getArtifactIcon,
-  getDownloadFilename,
-  isDeployableArtifactType,
-  patchArtifactDeploymentInChat,
-} from './artifactUtils';
-import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
-import { HtmlPreview } from './renderers/MediaPreview';
-import { writeToClipboard } from '@/lib/utils/clipboardUtils';
-import { isTauriRuntime } from '@/lib/deploy-mode';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface ArtifactCardProps {
@@ -82,6 +68,49 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   useEffect(() => {
     setArtifactState(artifact);
   }, [artifact]);
+
+  useEffect(() => {
+    if (!canDeploy) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateDeployment = async () => {
+      try {
+        const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifact.id}`));
+        if (!response.ok || cancelled) {
+          return;
+        }
+        const data = (await response.json()) as {
+          deployment_url?: string | null;
+          deployment_status?: string | null;
+          deployment_project_id?: string | null;
+          deployment_version_id?: string | null;
+          latest_version_id?: string | null;
+        };
+        if (cancelled) {
+          return;
+        }
+        setArtifactState((prev) => ({
+          ...prev,
+          deployment_url: data.deployment_url ?? prev.deployment_url,
+          deployment_status: data.deployment_status ?? prev.deployment_status,
+          deployment_project_id: data.deployment_project_id ?? prev.deployment_project_id,
+          deployment_version_id: data.deployment_version_id ?? prev.deployment_version_id,
+          latest_version_id: data.latest_version_id ?? prev.latest_version_id,
+        }));
+      } catch {
+        // hydrate is best-effort
+      }
+    };
+
+    void hydrateDeployment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [artifact.id, canDeploy]);
 
   const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { getCachedContent, setCachedContent } = useArtifactPortalStore();
@@ -264,7 +293,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
       onMouseLeave={handleMouseLeave}
     >
       {/* Card header */}
-      <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={() => canPreview && onPreview?.(artifact)}>
+      <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={() => canPreview && onPreview?.(artifactState)}>
         <div className={cn('flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
           <Icon className="w-5 h-5" />
         </div>
@@ -382,7 +411,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               onClick={(e) => {
                 e.stopPropagation();
-                onPreview?.(artifact);
+                onPreview?.(artifactState);
               }}
               title={t('preview')}
             >

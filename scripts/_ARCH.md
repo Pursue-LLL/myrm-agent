@@ -20,6 +20,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
 | `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
+| `maintainer/` | — | **OSS 仓无脚本**；代码生成在闭源 `myrm-agent-harness/scripts/maintainer/`（如 `generate_litellm_routing.py`）。前端仅提交生成产物。见 [maintainer/_ARCH.md](maintainer/_ARCH.md) |
 
 ## 约束
 

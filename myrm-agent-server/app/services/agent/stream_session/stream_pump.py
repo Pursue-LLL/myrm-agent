@@ -15,8 +15,8 @@ from app.services.agent.streaming_support.sse_helpers import error_sse
 logger = logging.getLogger(__name__)
 
 async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
-    from app.services.project.orchestrator import project_orchestrator
     from app.schemas.streaming import SSEEnvelope
+    from app.services.project.orchestrator import project_orchestrator
 
     project_id = getattr(session.params, "project_id", None)
     

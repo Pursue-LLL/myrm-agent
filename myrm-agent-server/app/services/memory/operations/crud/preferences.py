@@ -22,13 +22,13 @@ import logging
 from fastapi import Depends, HTTPException
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind
 
-from app.api.memory.utils import (
-    get_crud_memory_manager,
-)
 from app.schemas.memory.crud import (
     PreferenceFacetItem,
     PreferenceFacetListResponse,
     TasteSummaryResponse,
+)
+from app.services.memory.manager_deps import (
+    get_crud_memory_manager,
 )
 from app.services.memory.operations.crud._common import _record_memory_event
 

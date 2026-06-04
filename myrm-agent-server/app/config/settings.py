@@ -216,6 +216,7 @@ class RateLimitSettings(BaseSettings):
         validation_alias="RATE_LIMIT_REGISTER",
     )
     webhook: str = "60/minute;300/hour"  # RATE_LIMIT_WEBHOOK
+    artifact_deploy: str = "20/hour"  # RATE_LIMIT_ARTIFACT_DEPLOY
 
 
 # ---------------------------------------------------------------------------

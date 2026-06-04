@@ -7,6 +7,7 @@ import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from app.api.skills.schemas import PackagePreviewResponse, SkillPackageInfoResponse, UploadSkillResponse
 from app.core.skills.packaging import skill_packaging_service
@@ -49,8 +50,6 @@ async def preview_skill_package(
         error=result.error,
         redactions=redactions_response
     )
-
-from pydantic import BaseModel
 
 class ExportSkillRequest(BaseModel):
     apply_redactions: bool = False

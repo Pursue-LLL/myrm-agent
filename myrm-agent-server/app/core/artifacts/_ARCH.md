@@ -13,7 +13,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |-----|------|------|-------|
-| `processor.py` | 核心 | `BaseArtifactProcessor` 模板方法基类（含 `_resolve_file_path` 钩子用于本地路径解析）；`ArtifactProcessor`（Sandbox）、`LocalArtifactProcessor`（本地，覆写 `_resolve_file_path` 暴露真实路径）实现 | ✅ |
+| `processor.py` | 核心 | 模板方法：`LocalArtifactProcessor` / `ArtifactProcessor`；SSE `file_id` 与 DB 同步 | ✅ |
+| `listener.py` | 核心 | `upsert_processor_artifact`（id=file_id）、`ensure_artifact_for_deploy` JIT | ✅ |
 | `__init__.py` | 核心 | 模块入口，公共 API 导出 | ⚠️ 待补 |
 
 ---

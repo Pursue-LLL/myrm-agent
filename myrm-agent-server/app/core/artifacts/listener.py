@@ -5,14 +5,21 @@
 - app.database.models.artifact::Artifact (POS: Artifact models)
 
 [OUTPUT]
-- persist_artifact_event: function — Persist artifact registry event to DB
+- upsert_processor_artifact: function — Upsert Artifact(id=file_id) + Version
+- ensure_artifact_for_deploy: function — Load or JIT-prepare deploy artifact
+- persist_artifact_event: function — Persist harness registry batch (legacy)
+- upsert_processor_artifact: function — Upsert Artifact+Version keyed by storage file_id
 
 [POS]
-Listens to ArtifactRegistry events and persists them to the database.
+Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id.
 """
 
+from __future__ import annotations
+
 import logging
+import os
 import uuid
+from pathlib import Path
 
 from myrm_agent_harness.agent.artifacts.registry import GeneratedFile
 from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX, ArtifactVault
@@ -24,6 +31,179 @@ from app.database.models.artifact import Artifact, ArtifactVersion
 logger = logging.getLogger(__name__)
 
 
+def resolve_sandbox_file_path(
+    file_path: str,
+    workspace_root: str,
+    chat_id: str | None = None,
+) -> str | None:
+    """Resolve a sandbox-relative or absolute path to an on-disk file."""
+    if os.path.isabs(file_path) and os.path.exists(file_path):
+        return file_path
+
+    possible_paths = [
+        file_path,
+        os.path.join(workspace_root, file_path),
+    ]
+    if chat_id:
+        possible_paths.extend(
+            [
+                os.path.join(workspace_root, f"sandboxes/{chat_id}", file_path),
+                os.path.join(workspace_root, chat_id, file_path),
+                os.path.join(
+                    os.path.dirname(workspace_root), f"chat_{chat_id}", file_path
+                ),
+            ]
+        )
+
+    try:
+        from myrm_agent_harness.toolkits.code_execution.executors.base import get_executor
+
+        executor = get_executor()
+        if executor and hasattr(executor, "_current_workspace") and executor._current_workspace:
+            possible_paths.append(os.path.join(str(executor._current_workspace), file_path))
+    except Exception:
+        pass
+
+    resolved = next((p for p in possible_paths if os.path.exists(p)), None)
+    if resolved:
+        return resolved
+
+    basename = os.path.basename(file_path)
+    for root, _, filenames in os.walk(workspace_root):
+        if basename in filenames:
+            return os.path.join(root, basename)
+    return None
+
+
+async def upsert_processor_artifact(
+    db: AsyncSession,
+    *,
+    file_id: str,
+    filename: str,
+    sandbox_path: str,
+    workspace_root: str,
+    chat_id: str | None = None,
+    owner_id: str | None = None,
+    tenant_id: str | None = None,
+    physical_path: str | None = None,
+) -> str:
+    """Upsert deploy DB row keyed by storage file_id; returns latest version id."""
+    resolved_path = physical_path or resolve_sandbox_file_path(
+        sandbox_path, workspace_root, chat_id
+    )
+    if not resolved_path:
+        raise FileNotFoundError(f"Artifact file not found on disk: {sandbox_path}")
+
+    vault = ArtifactVault(workspace_root)
+    vault_uri = vault.put_file(
+        file_path=resolved_path,
+        filename=filename,
+        description="Persisted from chat artifact processor",
+    )
+    meta = vault.get_meta(vault_uri)
+    if not meta:
+        raise FileNotFoundError(f"Vault meta missing after put: {vault_uri}")
+
+    sha256_hash = getattr(meta, "sha256_hash", "") or ""
+    description = meta.description
+
+    stmt = select(Artifact).where(Artifact.id == file_id, Artifact.is_deleted.is_(False))
+    artifact = (await db.execute(stmt)).scalars().first()
+
+    if not artifact:
+        artifact = Artifact(
+            id=file_id,
+            tenant_id=tenant_id,
+            owner_id=owner_id,
+            chat_id=chat_id,
+            name=filename,
+            description=description,
+        )
+        db.add(artifact)
+        await db.flush()
+    else:
+        artifact.name = filename
+        if description:
+            artifact.description = description
+
+    version = ArtifactVersion(
+        id=str(uuid.uuid4()),
+        artifact_id=artifact.id,
+        vault_uri=vault_uri,
+        sha256_hash=sha256_hash,
+        creator_id="agent",
+        commit_message="Auto-saved from chat artifact",
+    )
+    db.add(version)
+    await db.commit()
+    await db.refresh(version)
+    logger.info("Upserted deploy artifact %s version %s", file_id, version.id)
+    return version.id
+
+
+async def ensure_artifact_for_deploy(
+    db: AsyncSession,
+    artifact_id: str,
+    workspace_root: str,
+) -> Artifact:
+    """Load Artifact by file_id or JIT-upsert from FilesService metadata."""
+    from sqlalchemy.orm import selectinload
+
+    from app.core.storage import FilesService
+
+    stmt = (
+        select(Artifact)
+        .options(selectinload(Artifact.versions))
+        .where(Artifact.id == artifact_id, Artifact.is_deleted.is_(False))
+    )
+    artifact = (await db.execute(stmt)).scalars().first()
+    if artifact and artifact.versions:
+        return artifact
+
+    files_svc = FilesService()
+    file_record = await files_svc.get_file_by_id(artifact_id)
+    if not file_record:
+        raise LookupError(f"Artifact not found: {artifact_id}")
+
+    physical_path: str | None = None
+    sandbox_path = file_record.filename
+    content = await files_svc.get_file_content_by_path(file_record.storage_path)
+    if content is not None:
+        import tempfile
+
+        suffix = Path(file_record.filename).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            physical_path = tmp.name
+    elif file_record.source_chat_id:
+        rel = file_record.storage_path
+        if rel.startswith(f"sandboxes/{file_record.source_chat_id}/"):
+            sandbox_path = rel.split("/", 2)[-1]
+
+    try:
+        await upsert_processor_artifact(
+            db,
+            file_id=artifact_id,
+            filename=file_record.filename,
+            sandbox_path=sandbox_path,
+            workspace_root=workspace_root,
+            chat_id=file_record.source_chat_id,
+            physical_path=physical_path,
+        )
+    finally:
+        if physical_path:
+            try:
+                os.remove(physical_path)
+            except OSError:
+                pass
+
+    result = await db.execute(stmt)
+    loaded = result.scalars().first()
+    if not loaded or not loaded.versions:
+        raise LookupError(f"Failed to prepare artifact for deploy: {artifact_id}")
+    return loaded
+
+
 async def persist_artifact_event(
     db: AsyncSession,
     files: list[GeneratedFile],
@@ -33,103 +213,30 @@ async def persist_artifact_event(
     tenant_id: str | None = None,
 ) -> None:
     """Persist generated files from ArtifactRegistry into the Artifact database models."""
-    logger.warning(
-        f" [persist_artifact_event] Called with {len(files)} files for chat_id={chat_id}"
-    )
     if not files:
         return
 
     vault = ArtifactVault(workspace_root)
 
     for file in files:
-        # Check if the file is a vault URI or a local file path
         if file.path.startswith(VAULT_PREFIX):
             vault_uri = file.path
             meta = vault.get_meta(vault_uri)
             if not meta:
-                logger.warning(
-                    f"Vault meta not found for {vault_uri}, skipping persistence."
-                )
+                logger.warning("Vault meta not found for %s, skipping persistence.", vault_uri)
                 continue
 
             filename = meta.filename
             sha256_hash = getattr(meta, "sha256_hash", "")
             description = meta.description
         else:
-            # If it's a raw file path, we need to put it into the vault first to get a hash and URI
             try:
-                import os
-
-                # Check if it's already an absolute path
-                if os.path.isabs(file.path):
-                    file_path = file.path
-                else:
-                    # In test environments, the files might be written to the workspace_root/chat_id/
-                    # Try a few common path resolutions
-                    possible_paths = [
-                        file.path,  # As-is (might be absolute)
-                        os.path.join(
-                            workspace_root, file.path
-                        ),  # Relative to workspace root
-                    ]
-
-                    # Try to find which chat this belongs to if the path includes sandboxes/
-                    if chat_id:
-                        possible_paths.append(
-                            os.path.join(
-                                workspace_root, f"sandboxes/{chat_id}", file.path
-                            )
-                        )
-                        possible_paths.append(
-                            os.path.join(workspace_root, chat_id, file.path)
-                        )
-
-                        # Also check the parent directory of workspace_root just in case
-                        workspace_parent = os.path.dirname(workspace_root)
-                        possible_paths.append(
-                            os.path.join(workspace_parent, f"chat_{chat_id}", file.path)
-                        )
-
-                    # Also try resolving through the executor's workspace if possible
-                    try:
-                        from myrm_agent_harness.toolkits.code_execution.executors.base import (
-                            get_executor,
-                        )
-
-                        executor = get_executor()
-                        if (
-                            executor
-                            and hasattr(executor, "_current_workspace")
-                            and executor._current_workspace
-                        ):
-                            possible_paths.append(
-                                os.path.join(
-                                    str(executor._current_workspace), file.path
-                                )
-                            )
-                    except Exception:
-                        pass
-
-                    file_path = next(
-                        (p for p in possible_paths if os.path.exists(p)), None
-                    )
-
-                    if not file_path:
-                        # As a fallback, try a recursive find from workspace root
-                        for root, _, filenames in os.walk(workspace_root):
-                            if os.path.basename(file.path) in filenames:
-                                file_path = os.path.join(
-                                    root, os.path.basename(file.path)
-                                )
-                                break
-
-                if not file_path or not os.path.exists(file_path):
-                    logger.warning(
-                        f"Generated file {file.path} not found on disk, skipping."
-                    )
+                file_path = resolve_sandbox_file_path(file.path, workspace_root, chat_id)
+                if not file_path:
+                    logger.warning("Generated file %s not found on disk, skipping.", file.path)
                     continue
 
-                filename = os.path.basename(file.path)
+                filename = os.path.basename(file_path)
                 vault_uri = vault.put_file(
                     file_path=file_path,
                     filename=filename,
@@ -140,20 +247,17 @@ async def persist_artifact_event(
                 sha256_hash = getattr(meta, "sha256_hash", "")
                 description = meta.description
             except Exception as e:
-                logger.error(f"Failed to persist raw file {file.path} to vault: {e}")
+                logger.error("Failed to persist raw file %s to vault: %s", file.path, e)
                 continue
 
-        # Check if an artifact with this name already exists in this chat
         stmt = select(Artifact).where(
             Artifact.name == filename,
             Artifact.chat_id == chat_id,
             Artifact.is_deleted.is_(False),
         )
-        result = await db.execute(stmt)
-        artifact = result.scalars().first()
+        artifact = (await db.execute(stmt)).scalars().first()
 
         if not artifact:
-            # Create new artifact
             artifact = Artifact(
                 id=str(uuid.uuid4()),
                 tenant_id=tenant_id,
@@ -163,26 +267,20 @@ async def persist_artifact_event(
                 description=description,
             )
             db.add(artifact)
-            await db.flush()  # Get the ID
+            await db.flush()
 
-        # Create new version
         version = ArtifactVersion(
             id=str(uuid.uuid4()),
             artifact_id=artifact.id,
             vault_uri=vault_uri,
             sha256_hash=sha256_hash,
-            creator_id="agent",  # Assuming it's generated by the agent
+            creator_id="agent",
             commit_message="Auto-saved by artifact listener",
         )
         db.add(version)
 
     try:
         await db.commit()
-        logger.warning(
-            f" [persist_artifact_event] Successfully persisted {len(files)} artifacts to database."
-        )
     except Exception as e:
         await db.rollback()
-        logger.warning(
-            f" [persist_artifact_event] Failed to commit artifact persistence: {e}"
-        )
+        logger.warning("Failed to commit artifact persistence: %s", e)
