@@ -19,4 +19,9 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 ## 依赖
 
 - `myrm-agent-server/pyproject.toml` — harness 版本 pin
-- `myrm-agent-server/uv.lock` — lock 源必须为 PyPI
+- `myrm-agent-server/uv.lock` — OSS `main` 须 PyPI registry pin；vortexai 联调可用 editable（勿提交到 OSS `main`）
+
+## 运行
+
+- 本地 / vortexai：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（旁路 `myrm-agent-harness/`）
+- CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）

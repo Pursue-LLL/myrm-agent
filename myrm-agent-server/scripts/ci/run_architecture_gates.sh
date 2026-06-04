@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Server architecture gates (harness contract, imports, docs links).
-# Full suite when harness is reachable (vortexai layout or PyPI); static subset otherwise.
+# Requires local harness (vortexai layout) or PyPI-published harness for the pinned version.
 set -euo pipefail
 
 SERVER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -35,6 +35,13 @@ except urllib.error.HTTPError:
 PY
 }
 
+_fail_no_harness_source() {
+  echo "ERROR: Cannot run full architecture gates without harness." >&2
+  echo "  - Use vortexai layout (myrm-agent-harness/ beside myrm-agent) and run from monorepo, or" >&2
+  echo "  - Publish harness to PyPI and refresh myrm-agent-server/uv.lock (./myrm harness sync-lock)." >&2
+  exit 1
+}
+
 _install_deps() {
   if _resolve_harness_root >/dev/null; then
     echo "Architecture gates: full install (local harness tree found)"
@@ -43,25 +50,17 @@ _install_deps() {
   fi
   if _harness_on_pypi; then
     echo "Architecture gates: install from PyPI"
-    uv sync --frozen --all-extras --group dev
+    if ! uv sync --frozen --all-extras --group dev; then
+      echo "ERROR: uv sync --frozen failed. Ensure uv.lock uses PyPI registry pins." >&2
+      exit 1
+    fi
     return 0
   fi
-  echo "Architecture gates: static subset only (no local harness, PyPI missing)" >&2
-  uv sync --frozen --no-install-package myrm-agent-harness \
-    --no-sources-package myrm-agent-harness --group dev 2>/dev/null \
-    || uv sync --no-install-package myrm-agent-harness \
-    --no-sources-package myrm-agent-harness --group dev
+  _fail_no_harness_source
 }
 
 _run_pytest() {
-  local -a args=(-m architecture -v --tb=short)
-  if ! _resolve_harness_root >/dev/null && ! _harness_on_pypi; then
-    args+=(
-      --ignore=tests/architecture/test_sse_event_type_parity.py
-      --ignore=tests/architecture/test_no_user_id.py
-    )
-  fi
-  uv run pytest tests/architecture/ "${args[@]}"
+  uv run pytest tests/architecture/ -m architecture -v --tb=short
 }
 
 _install_deps
