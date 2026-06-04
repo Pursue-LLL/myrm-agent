@@ -279,6 +279,9 @@ export interface Artifact {
   // 版本历史
   versions?: ArtifactVersion[]; // 版本历史列表
   currentVersionIndex?: number; // 当前版本索引（默认为最新版本）
+  deployment_url?: string | null;
+  deployment_status?: string | null;
+  deployment_project_id?: string | null;
 }
 
 // ==================== 交互式 UI 类型定义 (A2UI 风格) ====================

@@ -136,7 +136,7 @@ def _build_mock_user_configs() -> object:
         personal_settings_dict=None,
         mcp_dict=None,
         providers_dict={"providers": providers},
-        security_config_dict={"yoloModeEnabled": True},
+        security_config_dict={"yoloModeEnabled": False, "autoModeEnabled": False},
     )
 
 

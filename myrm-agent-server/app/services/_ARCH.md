@@ -39,6 +39,7 @@
 | `background/` | ✅ 辅助 | 后台守护任务 | — |
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
 | `migration/` | ✅ 辅助 | 竞品数据迁移服务（本地 AI 助手数据自动发现） | [_ARCH.md](migration/_ARCH.md) |
+| `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `reasoning_content_manager.py` | ✅ 核心 | reasoning_content 生命周期管理（MiMo/DeepSeek/Kimi 模型回传支持） | — |
 
 ---

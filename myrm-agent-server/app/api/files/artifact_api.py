@@ -27,6 +27,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _artifact_summary(a: Artifact) -> dict[str, Any]:
+    """Serialize artifact list item including deployment state."""
+    return {
+        "id": a.id,
+        "name": a.name,
+        "description": a.description,
+        "created_at": a.created_at.isoformat(),
+        "updated_at": a.updated_at.isoformat(),
+        "deployment_url": a.deployment_url,
+        "deployment_status": a.deployment_status,
+        "deployment_project_id": a.deployment_project_id,
+    }
+
+
 @router.get("")
 async def list_artifacts(
     db: AsyncSession = Depends(get_db),
@@ -40,29 +54,8 @@ async def list_artifacts(
     result = await db.execute(stmt)
     artifacts = result.scalars().all()
 
-    # DEBUG
-    all_stmt = select(Artifact)
-    all_result = await db.execute(all_stmt)
-    all_artifacts = all_result.scalars().all()
-    logger.warning(
-        f" [list_artifacts] Found {len(artifacts)} active artifacts, {len(all_artifacts)} total artifacts in DB."
-    )
-    for a in all_artifacts:
-        logger.warning(
-            f"   - Artifact: id={a.id}, name={a.name}, is_deleted={a.is_deleted}"
-        )
-
     return {
-        "artifacts": [
-            {
-                "id": a.id,
-                "name": a.name,
-                "description": a.description,
-                "created_at": a.created_at.isoformat(),
-                "updated_at": a.updated_at.isoformat(),
-            }
-            for a in artifacts
-        ]
+        "artifacts": [_artifact_summary(a) for a in artifacts]
     }
 
 
@@ -88,6 +81,9 @@ async def get_artifact_versions(
     return {
         "artifact_id": artifact.id,
         "name": artifact.name,
+        "deployment_url": artifact.deployment_url,
+        "deployment_status": artifact.deployment_status,
+        "deployment_project_id": artifact.deployment_project_id,
         "versions": [
             {
                 "id": v.id,

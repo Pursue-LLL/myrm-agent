@@ -61,3 +61,26 @@ async def test_artifact_hash_verification(client: TestClient, db_session: AsyncS
         data = response.json()
         assert data["is_valid"] is False
         assert data["status"] == "CORRUPTED"
+
+
+@pytest.mark.asyncio
+async def test_list_artifacts_includes_deployment_fields(client: TestClient, db_session: AsyncSession):
+    artifact = Artifact(
+        id="art-deploy-1",
+        name="Landing Page",
+        deployment_url="https://landing.vercel.app",
+        deployment_status="READY",
+        deployment_project_id="prj_123",
+    )
+    db_session.add(artifact)
+    await db_session.commit()
+
+    response = client.get("/api/v1/files/artifacts")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["artifacts"]) >= 1
+
+    listed = next(item for item in data["artifacts"] if item["id"] == "art-deploy-1")
+    assert listed["deployment_url"] == "https://landing.vercel.app"
+    assert listed["deployment_status"] == "READY"
+    assert listed["deployment_project_id"] == "prj_123"

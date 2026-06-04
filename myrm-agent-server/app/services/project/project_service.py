@@ -27,6 +27,13 @@ class ProjectService:
     """项目管理服务"""
 
     @staticmethod
+    async def get_project(project_id: str) -> Project | None:
+        async with get_session() as db:
+            stmt = select(Project).where(Project.id == project_id)
+            result = await db.execute(stmt)
+            return result.scalar_one_or_none()
+
+    @staticmethod
     async def list_projects() -> list[dict[str, object]]:
         async with get_session() as db:
             stmt = select(Project).order_by(Project.sort_order.asc(), Project.created_at.asc())

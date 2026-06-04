@@ -1,27 +1,162 @@
+"""Artifact deployment API.
+
+[INPUT]
+- app.database.connection::get_db (POS: Database session)
+- app.database.models.artifact::Artifact (POS: Artifact ORM model)
+- app.database.models.config::UserConfig (POS: User config with encryption)
+- app.services.config.encryption::get_encryption_service (POS: Config encryption service)
+- app.services.deploy.vercel_client::VercelClient (POS: Vercel deploy client)
+
+[OUTPUT]
+- router: APIRouter — deploy endpoints, credentials CRUD, WebSocket status stream
+
+[POS]
+Provides one-click artifact deployment to Vercel and encrypted credential storage.
+"""
+
 import asyncio
 import json
 import logging
+import uuid
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.api.dependencies import get_workspace_root
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
+from app.database.models.config import UserConfig
+from app.services.config.encryption import get_encryption_service
 from app.services.deploy.vercel_client import VercelClient
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_VERCEL_CREDENTIALS_KEY = "vercelDeployCredentials"
+
+
 class DeployRequest(BaseModel):
-    token: str
+    token: str = Field(default="", description="Vercel token; falls back to stored credentials")
     platform: str = "vercel"  # Currently only vercel is supported
+
+
+class VercelCredentialsResponse(BaseModel):
+    token: str | None = None
+    configured: bool = False
+
+
+class SaveVercelCredentialsRequest(BaseModel):
+    token: str = Field(..., min_length=1)
+
+
+def _decrypt_vercel_credentials(
+    raw_value: object,
+    is_encrypted: bool,
+) -> dict[str, object]:
+    service = get_encryption_service()
+    value = raw_value
+    if is_encrypted:
+        if isinstance(value, str):
+            value = service.decrypt(value)
+        elif isinstance(value, dict) and "_cipher" in value:
+            cipher = value["_cipher"]
+            if isinstance(cipher, str):
+                value = service.decrypt(cipher)
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    return value if isinstance(value, dict) else {}
+
+
+async def _load_vercel_credentials_row(db: AsyncSession) -> UserConfig | None:
+    return (
+        await db.execute(
+            select(UserConfig).where(UserConfig.config_key == _VERCEL_CREDENTIALS_KEY)
+        )
+    ).scalars().first()
+
+
+async def _resolve_vercel_token(db: AsyncSession, request_token: str) -> str:
+    token = request_token.strip()
+    if token:
+        return token
+
+    row = await _load_vercel_credentials_row(db)
+    if not row:
+        raise HTTPException(
+            status_code=400,
+            detail="Vercel token is required. Configure it in deploy settings or pass token in request.",
+        )
+
+    credentials = _decrypt_vercel_credentials(row.config_value, row.is_encrypted)
+    stored_token = credentials.get("token")
+    if not isinstance(stored_token, str) or not stored_token.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Vercel token is required. Configure it in deploy settings or pass token in request.",
+        )
+    return stored_token.strip()
+
+
+@router.get("/deploy/credentials/vercel", response_model=VercelCredentialsResponse)
+async def get_vercel_credentials(
+    db: AsyncSession = Depends(get_db),
+) -> VercelCredentialsResponse:
+    """Return stored Vercel deploy token (encrypted at rest in UserConfig)."""
+    row = await _load_vercel_credentials_row(db)
+    if not row:
+        return VercelCredentialsResponse(configured=False)
+
+    credentials = _decrypt_vercel_credentials(row.config_value, row.is_encrypted)
+    token = credentials.get("token")
+    if not isinstance(token, str) or not token.strip():
+        return VercelCredentialsResponse(configured=False)
+
+    return VercelCredentialsResponse(token=token, configured=True)
+
+
+@router.put("/deploy/credentials/vercel")
+async def save_vercel_credentials(
+    payload: SaveVercelCredentialsRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Persist Vercel deploy token in UserConfig with encryption."""
+    service = get_encryption_service()
+    value: dict[str, object] = {"token": payload.token.strip()}
+    stored_value, is_encrypted = service.encrypt_if_needed(_VERCEL_CREDENTIALS_KEY, value)
+    if is_encrypted and isinstance(stored_value, str):
+        stored_value = {"_cipher": stored_value}
+
+    row = await _load_vercel_credentials_row(db)
+    if row:
+        row.config_value = stored_value
+        row.is_encrypted = is_encrypted
+        flag_modified(row, "config_value")
+    else:
+        db.add(
+            UserConfig(
+                id=str(uuid.uuid4()),
+                config_key=_VERCEL_CREDENTIALS_KEY,
+                config_value=stored_value,
+                version="1.0.0",
+                last_device_id="webui",
+                is_encrypted=is_encrypted,
+            )
+        )
+
+    await db.commit()
+    return {"status": "success", "message": "Vercel credentials saved"}
 
 @router.post("/{artifact_id}/deploy")
 async def deploy_artifact(
@@ -80,7 +215,8 @@ async def deploy_artifact(
         raise HTTPException(status_code=500, detail=f"Failed to read artifact files: {str(e)}") from e
 
     # 3. Deploy using VercelClient
-    client = VercelClient(token=request.token)
+    vercel_token = await _resolve_vercel_token(db, request.token)
+    client = VercelClient(token=vercel_token)
     try:
         # Use artifact name as project name, sanitize it
         project_name = "".join(c if c.isalnum() or c == "-" else "-" for c in artifact.name.lower())

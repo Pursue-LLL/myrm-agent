@@ -48,6 +48,7 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "telegramCredentials",
         "googlechatCredentials",
         "smsCredentials",
+        "vercelDeployCredentials",
     }
 )
 

@@ -319,4 +319,5 @@ async def run_agent_stream(
         disconnect_checker=build_disconnect_checker(session),
         check_interval=0.5,
     )
+
     return await launch_buffered_stream(session)

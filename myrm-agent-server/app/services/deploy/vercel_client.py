@@ -1,3 +1,16 @@
+"""Vercel deployment client.
+
+[INPUT]
+- httpx (POS: Async HTTP client)
+- tenacity (POS: Retry with exponential backoff)
+
+[OUTPUT]
+- VercelClient: deploy static files and poll deployment status
+
+[POS]
+Third-party hosting integration for artifact one-click deployment.
+"""
+
 import json
 import logging
 from typing import Any, Dict

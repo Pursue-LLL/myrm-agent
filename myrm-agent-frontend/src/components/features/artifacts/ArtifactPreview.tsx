@@ -25,7 +25,7 @@ import { getStorageUrl } from '@/lib/api';
 import { getDownloadFilename } from './artifactUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
-import { DeployModal } from './DeployModal';
+import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
 
 // 动态导入 PDF 预览组件（包含 react-pdf 配置）
 const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {
@@ -153,28 +153,37 @@ const NoPreview: React.FC<{
 
 const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClose }) => {
   const t = useTranslations('artifacts');
+  const [currentArtifact, setCurrentArtifact] = useState<Artifact | null>(artifact);
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [deployModalOpen, setDeployModalOpen] = useState(false);
 
+  useEffect(() => {
+    setCurrentArtifact(artifact);
+  }, [artifact]);
+
+  const handleDeployed = (update: DeployedArtifactUpdate) => {
+    setCurrentArtifact((prev) => (prev ? { ...prev, ...update } : prev));
+  };
+
   // 加载文件内容
   useEffect(() => {
-    if (!artifact || !open) {
+    if (!currentArtifact || !open) {
       setContent('');
       return;
     }
 
     const loadContent = async () => {
       // 只有代码和文档类型需要加载文本内容
-      if (!['code', 'document'].includes(artifact.type)) {
+      if (!['code', 'document'].includes(currentArtifact.type)) {
         return;
       }
 
       setLoading(true);
       try {
-        const response = await fetch(getStorageUrl(artifact.preview_url));
+        const response = await fetch(getStorageUrl(currentArtifact.preview_url));
         const text = await response.text();
         setContent(text);
       } catch (error) {
@@ -186,7 +195,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
     };
 
     loadContent();
-  }, [artifact, open]);
+  }, [currentArtifact, open]);
 
   // 复制代码
   const handleCopy = async () => {
@@ -202,14 +211,14 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
 
   // 下载文件
   const handleDownload = async () => {
-    if (!artifact) return;
+    if (!currentArtifact) return;
     try {
-      const response = await fetch(artifact.download_url);
+      const response = await fetch(currentArtifact.download_url);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = getDownloadFilename(artifact.filename);
+      a.download = getDownloadFilename(currentArtifact.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -221,21 +230,21 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
 
   // 在新标签页打开
   const handleOpenInNewTab = () => {
-    if (!artifact) return;
-    window.open(getStorageUrl(artifact.preview_url), '_blank');
+    if (!currentArtifact) return;
+    window.open(getStorageUrl(currentArtifact.preview_url), '_blank');
   };
 
-  if (!artifact) return null;
+  if (!currentArtifact) return null;
 
-  const Icon = getArtifactIcon(artifact.type as ArtifactType);
-  const canPreviewContent = ['code', 'document'].includes(artifact.type);
-  const isHtml = artifact.type === 'html';
-  const isImage = artifact.type === 'image';
+  const Icon = getArtifactIcon(currentArtifact.type as ArtifactType);
+  const canPreviewContent = ['code', 'document'].includes(currentArtifact.type);
+  const isHtml = currentArtifact.type === 'html';
+  const isImage = currentArtifact.type === 'image';
   const isPdf =
-    artifact.type === 'pdf' ||
-    artifact.content_type === 'application/pdf' ||
-    artifact.filename.toLowerCase().endsWith('.pdf');
-  const cannotPreview = ['binary'].includes(artifact.type);
+    currentArtifact.type === 'pdf' ||
+    currentArtifact.content_type === 'application/pdf' ||
+    currentArtifact.filename.toLowerCase().endsWith('.pdf');
+  const cannotPreview = ['binary'].includes(currentArtifact.type);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -255,34 +264,34 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  {artifact.filename}
+                  {currentArtifact.filename}
                 </DialogTitle>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${artifact.type}`)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{t(`types.${currentArtifact.type}`)}</span>
                   <span className="text-xs text-gray-400 dark:text-gray-500">·</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(artifact.size)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(currentArtifact.size)}</span>
                 </div>
               </div>
             </div>
 
             {/* 操作按钮 */}
             <div className="flex items-center gap-2">
-              {artifact.deployment_status === 'READY' && artifact.deployment_url && (
+              {currentArtifact.deployment_status === 'READY' && currentArtifact.deployment_url && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(artifact.deployment_url, '_blank')}
+                  onClick={() => window.open(currentArtifact.deployment_url!, '_blank')}
                   className="text-green-600 dark:text-green-500 border-green-200 dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
                 >
                   <Globe className="w-4 h-4 mr-1.5" />
-                  已部署: {new URL(artifact.deployment_url).hostname}
+                  {t('deploy.deployedLabel', { hostname: new URL(currentArtifact.deployment_url).hostname })}
                   <ExternalLink className="w-3 h-3 ml-1.5 opacity-50" />
                 </Button>
               )}
-              {(isHtml || artifact.type === 'code') && (
+              {(isHtml || currentArtifact.type === 'code') && (
                 <Button variant="outline" size="sm" onClick={() => setDeployModalOpen(true)} className="text-primary border-primary hover:bg-primary/10">
                   <Globe className="w-4 h-4 mr-1.5" />
-                  Deploy to Web
+                  {t('deploy.openModal')}
                 </Button>
               )}
               {canPreviewContent && (
@@ -326,7 +335,7 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
               <div className="animate-spin w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-primary rounded-full" />
             </div>
           ) : cannotPreview ? (
-            <NoPreview artifact={artifact} onDownload={handleDownload} t={t} />
+            <NoPreview artifact={currentArtifact} onDownload={handleDownload} t={t} />
           ) : canPreviewContent ? (
             <Tabs
               value={activeTab}
@@ -338,29 +347,30 @@ const ArtifactPreview: React.FC<ArtifactPreviewProps> = ({ artifact, open, onClo
                 <TabsTrigger value="code">{t('code')}</TabsTrigger>
               </TabsList>
               <TabsContent value="preview" className="flex-1 mt-0 overflow-hidden">
-                {artifact.type === 'code' ? (
-                  <CodePreview content={content} language={artifact.language} />
+                {currentArtifact.type === 'code' ? (
+                  <CodePreview content={content} language={currentArtifact.language} />
                 ) : (
                   <DocumentPreview content={content} />
                 )}
               </TabsContent>
               <TabsContent value="code" className="flex-1 mt-0 overflow-hidden">
-                <CodePreview content={content} language={artifact.language} />
+                <CodePreview content={content} language={currentArtifact.language} />
               </TabsContent>
             </Tabs>
           ) : isPdf ? (
-            <PdfPreviewDynamic url={getStorageUrl(artifact.preview_url)} filename={artifact.filename} />
+            <PdfPreviewDynamic url={getStorageUrl(currentArtifact.preview_url)} filename={currentArtifact.filename} />
           ) : isHtml ? (
-            <HtmlPreview url={getStorageUrl(artifact.preview_url)} />
+            <HtmlPreview url={getStorageUrl(currentArtifact.preview_url)} />
           ) : isImage ? (
-            <ImagePreview url={getStorageUrl(artifact.preview_url)} filename={artifact.filename} />
+            <ImagePreview url={getStorageUrl(currentArtifact.preview_url)} filename={currentArtifact.filename} />
           ) : null}
         </div>
       </DialogContent>
-      <DeployModal 
-        artifact={artifact} 
-        open={deployModalOpen} 
-        onClose={() => setDeployModalOpen(false)} 
+      <DeployModal
+        artifact={currentArtifact}
+        open={deployModalOpen}
+        onClose={() => setDeployModalOpen(false)}
+        onDeployed={handleDeployed}
       />
     </Dialog>
   );

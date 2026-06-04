@@ -6831,6 +6831,40 @@
     "imageLoadError": "图片加载失败",
     "audioLoadError": "音频加载失败",
     "videoLoadError": "视频加载失败",
+    "deploy": {
+      "title": "部署到 Web",
+      "description": "通过 Vercel 将工件一键发布到全球边缘网络。",
+      "openModal": "部署到 Web",
+      "deployedLabel": "已部署: {hostname}",
+      "tokenLabel": "Vercel 个人访问令牌",
+      "tokenPlaceholder": "请输入 Vercel Token",
+      "tokenHint": "令牌将加密保存在账户设置中。前往",
+      "tokenLink": "Vercel 账户设置",
+      "deployNow": "立即部署",
+      "deploying": "正在构建并部署...",
+      "successTitle": "部署成功！",
+      "successDescription": "你的应用已在全球边缘网络上运行。",
+      "done": "完成",
+      "failedTitle": "部署失败",
+      "tryAgain": "重试",
+      "logs": {
+        "initiating": "正在发起部署...",
+        "created": "已创建部署: {id}",
+        "connecting": "正在连接构建日志...",
+        "status": "状态: {status}",
+        "wsError": "WebSocket 连接错误",
+        "error": "错误: {message}"
+      },
+      "errors": {
+        "tokenRequired": "请输入 Vercel Token",
+        "saveCredentialsFailed": "保存 Vercel 凭据失败",
+        "deployFailed": "部署失败",
+        "noDeploymentId": "未返回部署 ID",
+        "deploymentStatus": "部署 {status}",
+        "networkLost": "网络连接已断开，请刷新页面查看部署状态。",
+        "unexpected": "发生意外错误"
+      }
+    },
     "errors": {
       "notFound": "文件不存在或已被删除",
       "notFoundHint": "该文件可能已被删除或移动",

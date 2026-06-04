@@ -6808,6 +6808,40 @@
     "imageLoadError": "Failed to load image",
     "audioLoadError": "Failed to load audio",
     "videoLoadError": "Failed to load video",
+    "deploy": {
+      "title": "Deploy to Web",
+      "description": "Publish your artifact instantly to the global edge network using Vercel.",
+      "openModal": "Deploy to Web",
+      "deployedLabel": "Deployed: {hostname}",
+      "tokenLabel": "Vercel Personal Access Token",
+      "tokenPlaceholder": "Enter your Vercel token",
+      "tokenHint": "Securely stored in your account settings. Get one from your",
+      "tokenLink": "Vercel Account Settings",
+      "deployNow": "Deploy Now",
+      "deploying": "Building and deploying...",
+      "successTitle": "Deployment Successful!",
+      "successDescription": "Your app is now live on the global edge network.",
+      "done": "Done",
+      "failedTitle": "Deployment Failed",
+      "tryAgain": "Try Again",
+      "logs": {
+        "initiating": "Initiating deployment...",
+        "created": "Deployment created: {id}",
+        "connecting": "Connecting to build logs...",
+        "status": "Status: {status}",
+        "wsError": "WebSocket connection error",
+        "error": "Error: {message}"
+      },
+      "errors": {
+        "tokenRequired": "Please enter your Vercel token",
+        "saveCredentialsFailed": "Failed to save Vercel credentials",
+        "deployFailed": "Deployment failed",
+        "noDeploymentId": "No deployment ID returned",
+        "deploymentStatus": "Deployment {status}",
+        "networkLost": "Network connection lost. Please refresh to check deployment status.",
+        "unexpected": "An unexpected error occurred"
+      }
+    },
     "errors": {
       "notFound": "File not found or has been deleted",
       "notFoundHint": "The file may have been deleted or moved",

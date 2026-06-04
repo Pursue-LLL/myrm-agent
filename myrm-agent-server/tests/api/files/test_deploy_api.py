@@ -237,3 +237,74 @@ def test_deployment_status_ws_invalid_auth_payload(deploy_client):
         ws.send_json({"type": "invalid", "token": ""})
         with pytest.raises(Exception):
             ws.receive_json()
+
+
+def test_get_vercel_credentials_empty(deploy_client):
+    response = deploy_client.get("/deploy/credentials/vercel")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["configured"] is False
+    assert data["token"] is None
+
+
+def test_save_and_get_vercel_credentials(deploy_client):
+    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+        mock_service = mock_service_factory.return_value
+        mock_service.encrypt_if_needed.return_value = ({"token": "secret-token"}, False)
+        mock_service.decrypt.return_value = {"token": "secret-token"}
+
+        save_response = deploy_client.put(
+            "/deploy/credentials/vercel",
+            json={"token": "secret-token"},
+        )
+        assert save_response.status_code == 200
+
+        get_response = deploy_client.get("/deploy/credentials/vercel")
+        assert get_response.status_code == 200
+        data = get_response.json()
+        assert data["configured"] is True
+        assert data["token"] == "secret-token"
+
+
+@pytest.mark.asyncio
+async def test_deploy_uses_stored_credentials_when_token_empty(
+    deploy_client, mock_artifact, db_session
+):
+    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+        mock_service = mock_service_factory.return_value
+        mock_service.encrypt_if_needed.return_value = ({"token": "stored-token"}, False)
+        mock_service.decrypt.return_value = {"token": "stored-token"}
+
+        deploy_client.put("/deploy/credentials/vercel", json={"token": "stored-token"})
+
+    mock_path = MagicMock()
+    mock_path.exists.return_value = True
+    mock_path.is_file.return_value = True
+    mock_path.suffix = ".html"
+
+    with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
+        mock_vault_class.return_value.get_object_path.return_value = mock_path
+
+        with patch("builtins.open", create=True) as mock_open:
+            mock_file = MagicMock()
+            mock_file.__enter__.return_value.read.return_value = "<h1>Hello</h1>"
+            mock_open.return_value = mock_file
+
+            with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.deploy = AsyncMock(
+                    return_value={
+                        "deployment_id": "dep_stored",
+                        "url": "https://stored.vercel.app",
+                        "status": "READY",
+                        "project_id": "prj_stored",
+                    }
+                )
+
+                response = deploy_client.post(
+                    f"/{mock_artifact.id}/deploy",
+                    json={"token": "", "platform": "vercel"},
+                )
+
+                assert response.status_code == 200
+                mock_vercel_class.assert_called_once_with(token="stored-token")
