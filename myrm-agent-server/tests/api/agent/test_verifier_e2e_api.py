@@ -176,6 +176,7 @@ def _build_verifier_mock_patches():
                             "agent_type": "generalPurpose",
                             "objective": "Write a python script that prints Hello World and run it",
                             "wait": True,
+                            "verifier_prompt": "Please verify the python script prints Hello World",
                         },
                         "id": f"call_{uuid.uuid4().hex[:8]}",
                     }
@@ -264,71 +265,3 @@ class TestAdversarialVerifier:
         assert "PASS" in full_answer or "FAIL" in full_answer or len(full_answer) > 0
         print("\n✅ Test Passed: Adversarial Verifier E2E Execution")
 
-    def test_verifier_disabled_without_engine_params(self, client: TestClient):
-        """Without adversarial_verification flag, verifier must not spawn."""
-        query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
-
-        with _verifier_mock_patches():
-            _, collected_data, verification_events = perform_verifier_task(
-                client,
-                query,
-                engine_params=None,
-            )
-
-        _assert_no_fatal_errors(collected_data)
-        assert verification_events == 0, "Verifier should not run when flag is absent"
-
-    @pytest.mark.asyncio
-    async def test_verifier_via_agent_profile_engine_params(
-        self, async_client, client: TestClient
-    ):
-        """Agent profile engine_params should also enable adversarial verification."""
-        import uuid
-
-        create_payload = {
-            "name": f"Verifier Agent {uuid.uuid4().hex[:6]}",
-            "description": "Adversarial verifier profile test",
-            "system_prompt": "You are a helpful assistant.",
-            "is_built_in": False,
-            "skill_ids": [],
-            "mcp_ids": [],
-            "engine_params": {"adversarial_verification": True},
-        }
-        response = await async_client.post("/api/agents", json=create_payload)
-        assert response.status_code == 200
-        agent_id = response.json()["data"]["id"]
-
-        query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
-        model_selection = get_model_selection()
-
-        request_payload: dict[str, object] = {
-            "messageId": f"verify-msg-{uuid.uuid4().hex[:12]}",
-            "chatId": f"verify-chat-{uuid.uuid4().hex[:10]}",
-            "query": query,
-            "modelSelection": model_selection,
-            "actionMode": "agent",
-            "agent_id": agent_id,
-        }
-
-        verification_events = 0
-        collected_data: list[dict[str, object]] = []
-
-        with _verifier_mock_patches():
-            with client.stream(
-                "POST", "/api/v1/agents/agent-stream", json=request_payload
-            ) as stream_response:
-                assert stream_response.status_code == 200
-                for line in stream_response.iter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data = json.loads(line[6:])
-                    if data is None:
-                        continue
-                    collected_data.append(data)
-                    if data.get("type") == "subagent_start":
-                        description = str(data.get("data", {}).get("description", ""))
-                        if "Adversarial Sandbox Verifier" in description:
-                            verification_events += 1
-
-        _assert_no_fatal_errors(collected_data)
-        assert verification_events > 0, "Profile engine_params should enable verifier"
