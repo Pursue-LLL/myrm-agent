@@ -28,6 +28,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | ⚠️ 待补 |
 | `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ 已完成 |
 | `adapters/memory_lock.py` | 核心 | ConcurrencyLock 实现：基于 OS 级文件锁的跨进程协作 | ✅ 已完成 |
+| `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ 已完成 |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | ⚠️ 待补 |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | ⚠️ 待补 |
 
