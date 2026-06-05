@@ -8067,6 +8067,7 @@
       "installDependencies": "安装依赖",
       "installingDependencies": "正在安装…",
       "installDependenciesFailed": "无法自动安装依赖，请尝试下方终端命令。",
+      "installDependenciesRegisterFailed": "依赖已安装，但频道未能注册到运行时。请配置凭证后重试，或重启服务。",
       "fixRunUvSync": "高级：在终端执行（项目目录：myrm-agent-server）：",
       "copyInstallCommand": "复制命令",
       "copiedInstallCommand": "已复制"

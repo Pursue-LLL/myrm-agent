@@ -318,7 +318,11 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
               issue.fix.startsWith('uv sync'),
           );
           if (needsInstall) {
-            await installChannelDependencies(channelName);
+            const installResult = await installChannelDependencies(channelName);
+            if (!installResult.registered) {
+              toast.error(installResult.message || t('issues.installDependenciesRegisterFailed'));
+              return;
+            }
             const statuses = await listChannelStatuses();
             updateChannelStatusMaps(statuses);
           }

@@ -67,9 +67,9 @@ matrix = [
   "mautrix>=0.21.0",
   "aiohttp-socks>=0.11.0",
 ]
-# matrix-e2ee = [
-#   "mautrix[encryption]>=0.21.0",
-# ]
+matrix-e2ee = [
+  "mautrix[encryption]>=0.21.0",
+]
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [

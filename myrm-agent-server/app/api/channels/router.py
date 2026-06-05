@@ -177,8 +177,11 @@ async def install_channel_dependencies(
 
     registered = await hot_register_channel(channel_name)
     if not registered:
-        message = f"{message}; channel registered after restart may be required"
-    return ChannelInstallDependenciesResponse(ok=True, message=message)
+        message = (
+            f"{message}; packages installed but channel could not be registered — "
+            "restart the server or retry after configuring credentials"
+        )
+    return ChannelInstallDependenciesResponse(ok=True, message=message, registered=registered)
 
 
 @router.patch("/{channel_name}/toggle", response_model=ChannelToggleResponse)

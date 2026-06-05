@@ -81,6 +81,7 @@ export async function listChannelStatuses(): Promise<ChannelStatus[]> {
 export interface ChannelInstallDependenciesResult {
   ok: boolean;
   message: string;
+  registered: boolean;
 }
 
 export async function installChannelDependencies(

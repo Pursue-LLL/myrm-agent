@@ -55,6 +55,7 @@ class ChannelToggleResponse(BaseModel):
 class ChannelInstallDependenciesResponse(BaseModel):
     ok: bool
     message: str
+    registered: bool = True
 
 
 class PairingCreate(BaseModel):

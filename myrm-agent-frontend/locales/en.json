@@ -8044,6 +8044,7 @@
       "installDependencies": "Install dependencies",
       "installingDependencies": "Installing…",
       "installDependenciesFailed": "Could not install dependencies. Try the terminal command below.",
+      "installDependenciesRegisterFailed": "Dependencies installed but the channel was not registered. Configure credentials and retry, or restart the server.",
       "fixRunUvSync": "Advanced: run in terminal (project root: myrm-agent-server):",
       "copyInstallCommand": "Copy command",
       "copiedInstallCommand": "Copied"

@@ -180,7 +180,11 @@ function ChannelIssueFix({
     setInstalling(true);
     setInstallError(null);
     try {
-      await installChannelDependencies(channelName);
+      const result = await installChannelDependencies(channelName);
+      if (!result.registered) {
+        setInstallError(result.message || t('installDependenciesRegisterFailed'));
+        return;
+      }
       onInstalled();
     } catch (err) {
       setInstallError(err instanceof Error ? err.message : t('installDependenciesFailed'));
