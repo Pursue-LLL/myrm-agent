@@ -55,7 +55,9 @@ def check_e2e_errors(collected_data: list[dict[str, object]]) -> None:
     2. 工具执行失败内嵌在其他事件中（如搜索配额耗尽 → Iteration limit reached），
        不会发出顶层 error 事件，需扫描完整事件流的强信号关键字。
     """
-    error_events = [d for d in collected_data if d.get("type") == "error"]
+    error_events = [
+        d for d in collected_data if isinstance(d, dict) and d.get("type") == "error"
+    ]
     if error_events:
         error_msg = str(error_events[0].get("error", "") or error_events[0].get("data", ""))
         if any(kw.lower() in error_msg.lower() for kw in _ENV_SKIP_KEYWORDS):

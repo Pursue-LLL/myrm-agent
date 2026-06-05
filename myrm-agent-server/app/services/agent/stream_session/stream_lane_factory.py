@@ -57,18 +57,26 @@ async def create_dynamic_workflow_stream(
     from app.core.utils.chat_utils import convert_chat_history
 
     llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
-    
-    history = convert_chat_history(params.chat_history)
-    query = params.query
 
-    return run_dynamic_workflow_stream(
+    history = await convert_chat_history(params.chat_history) if params.chat_history else []
+
+    raw_q = params.query
+    if isinstance(raw_q, str):
+        text_query = raw_q
+    elif isinstance(raw_q, list):
+        text_query = _extract_text_from_query(cast(MultimodalQuery, raw_q))
+    else:
+        text_query = str(raw_q)
+
+    async for chunk in run_dynamic_workflow_stream(
         llm=llm,
-        query=query,
+        query=text_query,
         chat_history=history,
         chat_id=params.chat_id or "default_chat",
         message_id=params.message_id or "default_msg",
         cancel_token=cancel_token,
-    )
+    ):
+        yield chunk
 
 async def create_deep_research_stream(
     params: GeneralAgentParams,

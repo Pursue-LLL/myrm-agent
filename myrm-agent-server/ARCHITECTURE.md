@@ -163,7 +163,7 @@
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：
 
-- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、`tenacity>=9.1.4`（`vercel_client`）、`myrm-agent-harness[…,retrieval,…]`（Matrix SOCKS 走 `aiohttp` + extra `aiohttp-socks`）。可选 extra：`matrix` / `matrix-e2ee` / `data-viz`。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian` / `slowapi`。本地 Matrix：`uv sync --extra matrix`（E2EE 再加 `--extra matrix-e2ee`）。`myrm setup` / `uv sync` 单层安装。
+- **依赖分层**：主依赖 `httpx`、`filelock`（cron/多进程锁）、`tenacity>=9.1.4`（`vercel_client`）、`myrm-agent-harness[…,retrieval,…]`（Matrix SOCKS 走 `aiohttp` + extra `aiohttp-socks`）。可选 extra：`channels-sdk`（Discord/飞书 SDK）、`matrix` / `matrix-e2ee` / `data-viz`；Settings 可对缺 SDK 频道 lazy-install（`services/channels/` + harness `lazy_deps`）。`[dependency-groups] sandbox`：`prometheus-fastapi-instrumentator` / `granian` / `slowapi`。本地 Matrix：`uv sync --extra matrix`（E2EE 再加 `--extra matrix-e2ee`）。`myrm setup` 默认 `--all-extras`。
 - **执行运行时绘图栈隔离**：`matplotlib`/`pandas` 收敛到 `[project.optional-dependencies] data-viz`，仅随镜像 `--all-extras` 安装，本地精简安装不引入；CJK/Emoji 字体与默认字体配置（`matplotlibrc`，经 `MATPLOTLIBRC` 加载）则烤入 `Dockerfile`（只读 rootfs + 非 root 无法运行时安装）；字体缓存经 `MPLCONFIGDIR=/tmp/matplotlib` 重定向到可写 tmpfs，避免只读 rootfs 下每个无状态执行子进程重建字体缓存。共同保障浏览器截图 / PDF / 数据图表的中日韩渲染保真。
 - **动态监控隔离 (Metrics)**：`/metrics` 路由、内存直方图、数据库连接池采集器在 **local 与 sandbox 默认均关闭**；仅当 `METRICS_ENABLED=true` 时启用（见 `app/core/monitoring/__init__.py` + `DeploymentCapabilities.default_metrics_enabled`）。
 - **全链路追踪纯净化 (Tracing)**：依赖 Harness 层的 No-Op 降级机制，Server 层在本地模式下绝不初始化 OpenTelemetry SDK，彻底消除不必要的后台序列化与网络发送开销。

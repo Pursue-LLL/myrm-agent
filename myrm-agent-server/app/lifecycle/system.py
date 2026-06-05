@@ -212,6 +212,27 @@ async def start_idle_task_listeners() -> None:
 
             # If task completed successfully, save to offline inbox
             if event.status == "completed":
+                # Special handling for skill extraction (Instinct Engine)
+                if event.task_name == "session_evidence_extraction" and event.data and "proposal" in event.data and event.data["proposal"]:
+                    proposal = event.data["proposal"]
+                    from app.services.approvals.registry import ApprovalRegistry
+                    try:
+                        await ApprovalRegistry.create_approval(
+                            agent_id=proposal.get("agent_id", "default"),
+                            chat_id=proposal.get("chat_id"),
+                            action_type="skill_draft",
+                            payload={
+                                "skill_name": proposal.get("skill_id"),
+                                "description": proposal.get("reasoning"),
+                                "content": proposal.get("proposed_content"),
+                                "score": proposal.get("score")
+                            },
+                            reason="Background Observer instinctively extracted a new skill proposal based on your recent corrections.",
+                        )
+                        logger.info("Successfully registered skill_draft approval for extracted proposal %s", proposal.get("skill_id"))
+                    except Exception as e:
+                        logger.error("Failed to register skill_draft approval: %s", e, exc_info=True)
+
                 from app.database.connection import get_session
                 from app.database.models.notification import SystemNotification
 

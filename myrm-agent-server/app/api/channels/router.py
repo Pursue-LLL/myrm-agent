@@ -37,6 +37,7 @@ from app.api.channels.schemas import (
     PairingStatusUpdate,
 )
 from app.channels import ChannelStatus
+from app.channels.types import ChannelIssue
 from app.database.connection import get_db
 from app.database.models import ChannelPairingModel
 
@@ -80,7 +81,7 @@ def _channel_config_key(channel_name: str) -> str | None:
 # ── Status & Toggle ──────────────────────────────────────────
 
 
-def _issues_to_response(issues: list) -> list[ChannelIssueResponse]:
+def _issues_to_response(issues: list[ChannelIssue]) -> list[ChannelIssueResponse]:
     return [
         ChannelIssueResponse(
             kind=i.kind,
@@ -92,13 +93,18 @@ def _issues_to_response(issues: list) -> list[ChannelIssueResponse]:
     ]
 
 
-def _merged_issues_for_channel(channel_name: str) -> list:
+def _merged_issues_for_channel(
+    channel_name: str,
+    *,
+    probe_map: dict[str, list[ChannelIssue]] | None = None,
+) -> list[ChannelIssue]:
     from app.channels.providers.registry import probe_sdk_channel_issues
     from app.core.channel_bridge import channel_gateway
     from app.services.channels.sdk_registration import merge_channel_issues
 
     bus_issues = channel_gateway.collect_all_issues().get(channel_name, [])
-    probe_issues = probe_sdk_channel_issues().get(channel_name, [])
+    resolved_probe = probe_map if probe_map is not None else probe_sdk_channel_issues()
+    probe_issues = resolved_probe.get(channel_name, [])
     return merge_channel_issues(bus_issues, probe_issues)
 
 
@@ -114,7 +120,7 @@ async def list_channel_status() -> list[ChannelStatusResponse]:
     for name, ch_status in statuses.items():
         ch = channel_gateway.bus.get_channel(name)
         activity = ch.activity if ch else None
-        issues = _issues_to_response(_merged_issues_for_channel(name))
+        issues = _issues_to_response(_merged_issues_for_channel(name, probe_map=probe_map))
         base_type = channel_gateway._resolve_channel_type(ch) if ch else name
         connected = False
         if ch and ch_status == ChannelStatus.RUNNING:
@@ -159,7 +165,6 @@ async def install_channel_dependencies(
     channel_name: str,
 ) -> ChannelInstallDependenciesResponse:
     """Lazy-install optional packages for a channel (GUI one-click)."""
-    from app.core.channel_bridge import channel_gateway
     from app.services.channels.dependency_install import (
         install_channel_dependencies as run_install,
     )
@@ -231,16 +236,19 @@ async def toggle_channel(
             is_encrypted=False,
         )
         db.add(row)
-    await db.commit()
 
     if body.enabled:
+        await db.flush()
         enabled = await channel_gateway.enable_channel(channel_name)
         if not enabled:
+            await db.rollback()
             raise HTTPException(
                 status_code=409,
                 detail="Channel dependencies installed but channel is not registered; configure credentials and retry",
             )
+        await db.commit()
     else:
+        await db.commit()
         await channel_gateway.disable_channel(channel_name)
 
     ch = channel_gateway.bus.get_channel(channel_name)

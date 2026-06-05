@@ -367,3 +367,4 @@ myrm_agent_harness.utils.token_economics.tracker
 myrm_agent_harness.utils.token_estimation
 myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
+myrm_agent_harness.core.security.detection.leak_detector

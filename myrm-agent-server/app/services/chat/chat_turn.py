@@ -124,12 +124,37 @@ class _ChatTurnMixin(_ChatServiceBase):
         fallback_title_model: "_TitleModelConfig | None" = None,
     ) -> str:
         """使用前端配置的轻量模型生成聊天标题，主模型失败时自动尝试备用模型"""
+        import re
+
+        from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
         from myrm_agent_harness.toolkits.llms.errors.resilient import resilient_llm_call
 
         user_messages = [msg.content for msg in messages if msg.role == "user"]
         if not user_messages:
             return "Untitled Chat"
-        content = " ".join(user_messages[:3])[:500]
+
+        raw_content = " ".join(user_messages[:3])
+
+        # 1. Structural Stripping & Sniffing
+        lang_match = re.search(r"```([a-zA-Z0-9_+-]+)", raw_content)
+        lang = lang_match.group(1).strip() if lang_match else ""
+
+        clean_content = re.sub(r"```.*?```", "", raw_content, flags=re.DOTALL)
+        clean_content = re.sub(r"<think>.*?</think>", "", clean_content, flags=re.DOTALL)
+        clean_content = clean_content.strip()
+
+        # 2. Credential Redaction
+        clean_content = redact_leaks(clean_content)
+
+        # 3. Smart Fallback
+        if len(clean_content) < 5:
+            if lang:
+                lang_display = lang.capitalize() if len(lang) > 1 else lang
+                return f"{lang_display} 代码片段"
+            return "Untitled Chat"
+
+        content = clean_content[:500]
+
         if title_model is None:
             return _ChatTurnMixin._generate_fallback_title(content)
         try:

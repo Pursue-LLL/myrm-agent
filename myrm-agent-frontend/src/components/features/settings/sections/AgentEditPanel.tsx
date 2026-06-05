@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   IconArrowRight,
@@ -28,13 +28,14 @@ import { AgentSubagentBinding } from './agent/AgentSubagentBinding';
 import { AgentProfileTimeMachine } from './agent/AgentProfileTimeMachine';
 import { AgentNotifyTargets } from './agent/AgentNotifyTargets';
 import { AgentOpenAPIServicesTab } from './agent/AgentOpenAPIServicesTab';
+import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
 import { exportAgent } from '@/services/agent';
 import { toast } from '@/hooks/useToast';
 
-type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets';
+type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'inbox';
 
 interface AgentEditPanelProps {
   agentId: string | null;
@@ -127,6 +128,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         label: t('agent.secrets.tabTitle', { fallback: 'Secrets' }),
         icon: IconKey,
         color: 'text-rose-500',
+      },
+      {
+        id: 'inbox' as ConfigTab,
+        label: t('agent.instinctInbox.tabTitle', { fallback: 'Insights' }),
+        icon: Sparkles,
+        color: 'text-purple-500',
       },
     ],
     [t],
@@ -988,6 +995,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           {activeTab === 'secrets' && (
             <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>
               <AgentSecretsTab agentId={agentId} isNew={isNew} />
+            </div>
+          )}
+
+          {activeTab === 'inbox' && (
+            <div className={cn(editor.isReadonly && 'pointer-events-none opacity-70')}>
+              <AgentInstinctInboxTab agentId={agentId} readonly={editor.isReadonly} />
             </div>
           )}
         </div>

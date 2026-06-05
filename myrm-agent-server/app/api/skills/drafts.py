@@ -287,7 +287,30 @@ async def _materialize_skill_draft(
 
     skill_name = _slugify_skill_name(raw_name)
 
-    skill_md = _build_skill_md(skill_name, draft.description, draft.trigger_condition, draft.skill_steps)
+    skill_md = ""
+    if draft.content and draft.content.strip():
+        content = draft.content.strip()
+        # Remove any surrounding markdown code blocks (e.g., ```markdown ... ```)
+        if content.startswith("```markdown"):
+            content = content[11:]
+        elif content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+        
+        # Sniff for YAML frontmatter
+        if not content.startswith("---"):
+            # Inject robust frontmatter
+            desc = (draft.description or skill_name).replace('"', '\\"')
+            frontmatter = f"---\nname: {skill_name}\ndescription: \"{desc}\"\n---\n\n"
+            skill_md = frontmatter + content
+        else:
+            skill_md = content
+    else:
+        # Fallback to dummy template for form-based simple drafts
+        skill_md = _build_skill_md(skill_name, draft.description, draft.trigger_condition, draft.skill_steps)
+
     save_result = await skill_creation_service.save_skill(
         name=skill_name,
         content=skill_md,
@@ -464,6 +487,31 @@ async def reject_skill_draft(draft_id: str) -> dict[str, object]:
         detail={"approval_status": rejected_draft.approval_status},
     )
     _publish_skill_growth_event(rejected_draft)
+
+    # Add negative feedback loop: Write rejected draft to memory to prevent re-extraction
+    if rejected_draft.description or rejected_draft.name:
+        try:
+            from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+            from app.services.agent.platform_config import require_platform_embedding_config
+            
+            embedding_cfg = await require_platform_embedding_config()
+            manager = await create_memory_manager(
+                resolve_context_binding(
+                    namespaces=None,
+                    agent_id=rejected_draft.agent_id,
+                    channel_id=None,
+                    conversation_id=None,
+                    task_id=None,
+                ),
+                embedding_config=embedding_cfg,
+                approval_required=False,
+            )
+            
+            rejection_text = f"USER REJECTED SKILL PROPOSAL: {rejected_draft.name or 'Unknown'}. Reasoning/Description: {rejected_draft.description}. DO NOT extract or propose this skill again."
+            await manager.add_knowledge(rejection_text, importance=0.8, tags=["rejected-skill-proposal", "negative-exemplar"])
+            logger.info("Added negative exemplar memory for rejected draft %s", draft_id)
+        except Exception as e:
+            logger.error("Failed to add negative exemplar memory for rejected draft %s: %s", draft_id, e)
 
     return {"id": draft_id, "status": "REJECTED"}
 

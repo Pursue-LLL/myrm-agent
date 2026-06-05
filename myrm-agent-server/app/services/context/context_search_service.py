@@ -52,7 +52,11 @@ class ContextSearchService:
         memory_candidates: list[_RankedCandidate] = []
         file_candidates: list[_RankedCandidate] = []
 
-        if self._memory_manager is not None:
+        import asyncio
+
+        async def _search_memory():
+            if self._memory_manager is None:
+                return
             memory_results = await self._memory_manager.search(
                 query,
                 memory_types=[
@@ -76,7 +80,9 @@ class ContextSearchService:
                     )
                 )
 
-        if self._file_engine is not None:
+        async def _search_files():
+            if self._file_engine is None:
+                return
             file_response = await self._file_engine.search(query, top_k=top_k)
             for rank, hit in enumerate(file_response.hits):
                 file_candidates.append(
@@ -89,6 +95,8 @@ class ContextSearchService:
                         rank=rank,
                     )
                 )
+
+        await asyncio.gather(_search_memory(), _search_files())
 
         merged = _rrf_merge([memory_candidates, file_candidates], top_k=top_k)
         elapsed_ms = (time.perf_counter() - started) * 1000

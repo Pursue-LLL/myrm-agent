@@ -4,7 +4,6 @@ Enforces SaaS quota and tenant restrictions for tools.
 """
 
 import logging
-from typing import Any
 
 from myrm_agent_harness.agent.middlewares.guardrails.core import (
     GuardrailDecision,

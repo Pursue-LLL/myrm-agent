@@ -623,6 +623,22 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
             deferred_tools.append(context_tool)
             logger.warning("Loaded context_search_tool [Deferred]")
+
+            # Remove redundant tools to prevent LLM hallucination and save tokens
+            redundant_names = {"memory_recall", "search_local_files"}
+            
+            # Filter tools list
+            original_tools_len = len(tools)
+            tools[:] = [t for t in tools if getattr(t, "name", None) not in redundant_names]
+            
+            # Filter deferred_tools list
+            original_deferred_len = len(deferred_tools)
+            deferred_tools[:] = [t for t in deferred_tools if getattr(t, "name", None) not in redundant_names]
+            
+            removed_count = (original_tools_len - len(tools)) + (original_deferred_len - len(deferred_tools))
+            if removed_count > 0:
+                logger.warning(f"Removed {removed_count} redundant tools (memory_recall, search_local_files) in favor of context_search_tool")
+                
         except Exception as e:
             logger.warning("Context search tool load failed (degraded): %s", e)
 

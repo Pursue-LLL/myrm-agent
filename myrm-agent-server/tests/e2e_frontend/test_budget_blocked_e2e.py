@@ -17,7 +17,7 @@ if str(_SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(_SERVER_ROOT))
 
 import httpx
-from api.agent.utils import get_model_selection
+from tests.api.agent.utils import get_model_selection
 from e2e_frontend.verifier_helpers import (
     BACKEND_BASE,
     FRONTEND_BASE,
