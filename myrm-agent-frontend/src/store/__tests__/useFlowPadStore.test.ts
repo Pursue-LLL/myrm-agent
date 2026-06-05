@@ -173,4 +173,80 @@ describe('useFlowPadStore', () => {
       expect(useFlowPadStore.getState().initialText).toBe('initial');
     });
   });
+
+  describe('edge cases', () => {
+    it('removeCapture with out-of-bounds index leaves array unchanged', () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Only' }));
+
+      useFlowPadStore.getState().removeCapture(99);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+      expect(useFlowPadStore.getState().captures[0].windowTitle).toBe('Only');
+    });
+
+    it('removeCapture with negative index leaves array unchanged', () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Only' }));
+
+      useFlowPadStore.getState().removeCapture(-1);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+    });
+
+    it('close then reopen starts with clean state', () => {
+      useFlowPadStore.getState().open('first session');
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Old' }));
+      useFlowPadStore.getState().close();
+
+      useFlowPadStore.getState().open('second session');
+      const state = useFlowPadStore.getState();
+      expect(state.isOpen).toBe(true);
+      expect(state.initialText).toBe('second session');
+      expect(state.captures).toHaveLength(0);
+    });
+
+    it('addCapture with empty screenshot and text still adds', () => {
+      useFlowPadStore.getState().addCapture(
+        makeCapture({ screenshot: '', extractedText: '', windowTitle: '' }),
+      );
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+    });
+
+    it('addCapture at exactly MAX_CAPTURES boundary (9 -> 10 succeeds, 10 -> 11 fails)', () => {
+      for (let i = 0; i < 9; i++) {
+        useFlowPadStore.getState().addCapture(makeCapture());
+      }
+      expect(useFlowPadStore.getState().captures).toHaveLength(9);
+
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Tenth' }));
+      expect(useFlowPadStore.getState().captures).toHaveLength(10);
+      expect(useFlowPadStore.getState().captures[9].windowTitle).toBe('Tenth');
+
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Eleventh' }));
+      expect(useFlowPadStore.getState().captures).toHaveLength(10);
+    });
+
+    it('removeCapture then addCapture works after clearing capacity', () => {
+      for (let i = 0; i < 10; i++) {
+        useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: `Win ${i}` }));
+      }
+      expect(useFlowPadStore.getState().captures).toHaveLength(10);
+
+      useFlowPadStore.getState().removeCapture(0);
+      expect(useFlowPadStore.getState().captures).toHaveLength(9);
+
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'New After Remove' }));
+      expect(useFlowPadStore.getState().captures).toHaveLength(10);
+      expect(useFlowPadStore.getState().captures[9].windowTitle).toBe('New After Remove');
+    });
+
+    it('multiple close calls are idempotent', () => {
+      useFlowPadStore.getState().open('test');
+      useFlowPadStore.getState().close();
+      useFlowPadStore.getState().close();
+      useFlowPadStore.getState().close();
+
+      const state = useFlowPadStore.getState();
+      expect(state.isOpen).toBe(false);
+      expect(state.captures).toHaveLength(0);
+      expect(state.initialText).toBe('');
+    });
+  });
 });

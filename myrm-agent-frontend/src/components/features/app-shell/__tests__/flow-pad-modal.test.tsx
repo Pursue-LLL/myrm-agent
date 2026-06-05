@@ -255,4 +255,73 @@ describe('FlowPadModal', () => {
     render(<FlowPadModal />);
     expect(screen.getByText('TestAgent')).toBeInTheDocument();
   });
+
+  it('does not call sendMessage when both text and captures are empty', async () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not call setFiles when captures have no screenshots', async () => {
+    useFlowPadStore.getState().addCapture(
+      makeCapture({ screenshot: '', extractedText: 'text only' }),
+    );
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Send this' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSetFiles).not.toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends captures-only message without user text', async () => {
+    useFlowPadStore.getState().addCapture(
+      makeCapture({ windowTitle: 'Browser', extractedText: 'Page content' }),
+    );
+    render(<FlowPadModal />);
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    const msg = mockSendMessage.mock.calls[0][0] as string;
+    expect(msg).toContain('[Appshot Context]');
+    expect(msg).toContain('**Browser**');
+    expect(msg).not.toContain('Page content\n\n');
+  });
+
+  it('shows correct placeholder text based on capture state', () => {
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+    expect(screen.getByPlaceholderText('placeholder')).toBeInTheDocument();
+  });
+
+  it('shows capture-specific placeholder when captures exist', () => {
+    useFlowPadStore.getState().addCapture(makeCapture());
+    render(<FlowPadModal />);
+    expect(screen.getByPlaceholderText('placeholderWithCapture')).toBeInTheDocument();
+  });
 });

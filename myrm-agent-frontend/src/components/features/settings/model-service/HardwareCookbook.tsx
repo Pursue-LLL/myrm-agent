@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2, X } from 'lucide-react';
+import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2, X, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -25,6 +25,7 @@ interface HardwareProfile {
   os_type?: string;
   cpu_arch?: string;
   total_ram_gb?: number;
+  free_disk_gb?: number;
   has_gpu?: boolean;
   gpu_name?: string;
   gpu_vram_gb?: number;
@@ -46,6 +47,8 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<{ status: string; completed?: number; total?: number } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const [deletingModel, setDeletingModel] = useState<string | null>(null);
 
   // SaaS 模式下直接隐藏
   const isSaaS = getDeployMode() === 'sandbox';
@@ -168,6 +171,40 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     }
   };
 
+  const handleDelete = async (modelId: string) => {
+    const ollamaModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
+    
+    if (!window.confirm(t('confirmDelete', { model: ollamaModelName }))) {
+      return;
+    }
+
+    setDeletingModel(modelId);
+    try {
+      const res = await fetch('/api/v1/integrations/hardware/ollama/models', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: ollamaModelName }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to delete model');
+      
+      setProfile(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recommendations: prev.recommendations.map(r => 
+            r.model_id === modelId ? { ...r, is_installed: false } : r
+          )
+        };
+      });
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(t('deleteFailed'));
+    } finally {
+      setDeletingModel(null);
+    }
+  };
+
   const handleCancelDownload = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -253,6 +290,15 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
               {profile.gpu_vram_gb && !profile.is_unified_memory && (
                 <div className="text-xs text-muted-foreground">{profile.gpu_vram_gb} GB VRAM</div>
               )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-background rounded-md border shadow-sm">
+              <HardDrive className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">{t('diskSpace')}</div>
+              <div className="font-medium text-sm">{profile.free_disk_gb ? `${profile.free_disk_gb} GB ${t('free')}` : 'Unknown'}</div>
             </div>
           </div>
         </div>

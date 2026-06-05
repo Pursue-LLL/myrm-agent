@@ -169,3 +169,6 @@ module = "app.database.models.*"
 follow_imports = "silent"
 
 
+
+[tool.uv.sources]
+myrm-agent-harness = { path = "../../myrm-agent-harness", editable = true }

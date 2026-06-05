@@ -131,6 +131,31 @@ class OllamaPullRequest(BaseModel):
     model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
 
 
+class OllamaDeleteRequest(BaseModel):
+    model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
+
+
+@router.delete("/hardware/ollama/models")
+async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
+    """代理 Ollama 的 /api/delete 接口"""
+    from app.config.deploy_mode import DeployMode, get_deploy_mode
+
+    if get_deploy_mode() == DeployMode.SANDBOX:
+        raise HTTPException(status_code=403, detail="Not available in SaaS mode")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.request(
+                "DELETE", "http://localhost:11434/api/delete", json={"name": request.model_name}
+            )
+            if response.status_code == 200:
+                return success_response(data={"success": True})
+            else:
+                raise HTTPException(status_code=response.status_code, detail=f"Ollama error: {response.text}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/hardware/ollama/pull")
 async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     """代理 Ollama 的 /api/pull 接口，返回流式进度"""
@@ -163,6 +188,7 @@ class HardwareRecommendationResponse(BaseModel):
     os_type: str | None = Field(default=None, description="操作系统类型")
     cpu_arch: str | None = Field(default=None, description="CPU架构")
     total_ram_gb: float | None = Field(default=None, description="总内存(GB)")
+    free_disk_gb: float | None = Field(default=None, description="剩余磁盘空间(GB)")
     has_gpu: bool | None = Field(default=None, description="是否有GPU")
     gpu_name: str | None = Field(default=None, description="GPU名称")
     gpu_vram_gb: float | None = Field(default=None, description="GPU显存(GB)")
@@ -242,6 +268,7 @@ async def get_hardware_recommendations() -> JSONResponse:
         os_type=getattr(profile, "os_type", None),
         cpu_arch=getattr(profile, "cpu_arch", None),
         total_ram_gb=round(getattr(profile, "total_ram_gb", 0.0), 1),
+        free_disk_gb=round(getattr(profile, "free_disk_gb", 0.0), 1) if getattr(profile, "free_disk_gb", None) else None,
         has_gpu=getattr(profile, "has_gpu", False),
         gpu_name=getattr(profile, "gpu_name", None),
         gpu_vram_gb=round(getattr(profile, "gpu_vram_gb", 0.0), 1) if getattr(profile, "gpu_vram_gb", None) else None,
