@@ -240,6 +240,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
               return (
                 <button
                   key={tab.id}
+                  type="button"
+                  data-testid={`agent-tab-${tab.id}`}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
                     'flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg',

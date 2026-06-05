@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from langchain_core.tools import tool
-from myrm_agent_harness.toolkits.memory import MemoryManager
 from myrm_agent_harness.toolkits.local_file_search import LocalFileSearchEngine
+from myrm_agent_harness.toolkits.memory import MemoryManager
 
 from app.services.context.context_search_service import ContextSearchService
 

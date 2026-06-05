@@ -141,6 +141,8 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         clean_content = re.sub(r"```.*?```", "", raw_content, flags=re.DOTALL)
         clean_content = re.sub(r"<think>.*?</think>", "", clean_content, flags=re.DOTALL)
+        clean_content = re.sub(r"http[s]?://\S+", "", clean_content)
+        clean_content = re.sub(r"<[^>]+>", "", clean_content)
         clean_content = clean_content.strip()
 
         # 2. Credential Redaction
@@ -199,7 +201,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             model_kwargs=model_kwargs,
         )
         llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
-        prompt = f"用5-15个字给这段对话起个标题，只输出标题：\n{content[:200]}"
+        prompt = f"用5-15个字给这段对话起个标题，只输出标题：\n<user_input>\n{content[:200]}\n</user_input>"
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         title = str(response.content).strip().strip("\"'「」【】：:。.")
         if len(title) < 2 or len(title) > 50:

@@ -51,6 +51,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.channels.core.base import BaseChannel
+    from app.channels.types import ChannelIssue
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ def _channel_install_hint(channel_name: str, spec: ChannelSpec | None) -> str:
     return f" (run: {command})"
 
 
-def probe_sdk_channel_issues() -> dict[str, list[ChannelIssue]]:
+def probe_sdk_channel_issues() -> dict[str, list["ChannelIssue"]]:
     """Detect missing optional SDK imports for lazy-install channel types."""
     from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
 

@@ -10,8 +10,8 @@ from app.schemas.context.bundle import (
 )
 from app.schemas.context.search import ContextSearchRequest, ContextSearchResponse
 from app.services.context.context_bundle_service import ContextBundleService
-from app.services.context.context_search_service import ContextSearchService
 from app.services.context.context_search_deps import build_context_search_service
+from app.services.context.context_search_service import ContextSearchService
 
 router = APIRouter(prefix="/context-bundle", tags=["context-bundle"])
 

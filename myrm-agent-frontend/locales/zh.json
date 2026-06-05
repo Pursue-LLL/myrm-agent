@@ -4283,6 +4283,15 @@
       "deleteBtn": "删除",
       "deleteError": "删除密钥失败。"
     },
+    "instinctInbox": {
+      "tabTitle": "洞察",
+      "title": "待审洞察",
+      "desc": "审阅并从近期对话中提炼的习惯，批准后永久提升此智能体。",
+      "approveSuccess": "洞察已批准并保存为技能。",
+      "rejectSuccess": "洞察已忽略。",
+      "emptyTitle": "暂无新洞察",
+      "emptyDesc": "后台观察器近期尚未为此智能体提炼出新的习惯或纠正。"
+    },
     "mobileCommand": {
       "title": "指挥中心",
       "running": "执行中...",

@@ -30,7 +30,6 @@ from .external_agents import ExternalAgentsMixin
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.agent.skill_agent import SkillAgent
-    from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.llms.image.models import MediaCallback, MediaMeta
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig

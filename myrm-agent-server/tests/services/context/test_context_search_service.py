@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.context.context_search_service import ContextSearchService, _rrf_merge, _RankedCandidate
+from app.services.context.context_search_service import ContextSearchService, _RankedCandidate, _rrf_merge
 
 
 def test_rrf_merge_prefers_both_lists() -> None:

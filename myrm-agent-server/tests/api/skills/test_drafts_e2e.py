@@ -1,13 +1,8 @@
 import pytest
-import os
-import asyncio
 from fastapi.testclient import TestClient
 
+
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY"),
-    reason="E2E test requires BASIC_API_KEY environment variable",
-)
 class TestDraftsE2E:
     """End-to-End integration test for Draft API Lifecycle."""
 
@@ -68,3 +63,17 @@ class TestDraftsE2E:
         resp = client.post(f"/api/v1/skills/drafts/{draft_id_2}/reject")
         assert resp.status_code == 200
         assert resp.json()["status"] == "REJECTED"
+
+    @pytest.mark.asyncio
+    async def test_seed_mock_drafts_endpoint(self, client: TestClient):
+        resp = client.post("/api/v1/skills/drafts/test/seed-mock")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["skill_names"] == ["test-frontend-approve", "test-frontend-reject"]
+        assert len(body["created_ids"]) == 2
+
+        list_resp = client.get("/api/v1/skills/drafts?status=PENDING_REVIEW")
+        assert list_resp.status_code == 200
+        names = {d["name"] for d in list_resp.json()["drafts"]}
+        assert "test-frontend-approve" in names
+        assert "test-frontend-reject" in names

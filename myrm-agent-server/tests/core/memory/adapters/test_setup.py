@@ -180,7 +180,7 @@ async def test_create_memory_manager_reuses_vector_backend_across_approval_modes
     assert approved_manager is not direct_manager
     assert approved_manager._vector is direct_manager._vector
     assert approved_manager.approval_required is True
-        assert direct_manager.approval_required is False
+    assert direct_manager.approval_required is False
 
 
 def test_resolve_context_binding_carries_task_workspace_overlay() -> None:

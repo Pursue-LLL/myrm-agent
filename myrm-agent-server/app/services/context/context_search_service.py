@@ -17,8 +17,8 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from myrm_agent_harness.toolkits.local_file_search import LocalFileSearchEngine
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 
 from app.schemas.context.search import ContextSearchHit, ContextSearchResponse
 

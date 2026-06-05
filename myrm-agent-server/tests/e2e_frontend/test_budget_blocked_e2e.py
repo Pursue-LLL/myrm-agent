@@ -17,8 +17,10 @@ if str(_SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(_SERVER_ROOT))
 
 import httpx
+from patchright.async_api import async_playwright
+
 from tests.api.agent.utils import get_model_selection
-from e2e_frontend.verifier_helpers import (
+from tests.e2e_frontend.verifier_helpers import (
     BACKEND_BASE,
     FRONTEND_BASE,
     select_chat_model,
@@ -26,7 +28,6 @@ from e2e_frontend.verifier_helpers import (
     sync_providers_from_env,
     verify_providers_ready_in_ui,
 )
-from patchright.async_api import async_playwright
 
 _BLOCK_POLICY = {
     "enabled": True,

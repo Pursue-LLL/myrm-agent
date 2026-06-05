@@ -79,18 +79,19 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
 
   if (drafts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card/30 rounded-xl border border-border/50 border-dashed">
+      <div
+        data-testid="instinct-inbox-empty"
+        className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card/30 rounded-xl border border-border/50 border-dashed"
+      >
         <Sparkles className="w-12 h-12 text-muted-foreground/30 mb-4" />
-        <h3 className="text-lg font-medium text-foreground">No new insights</h3>
-        <p className="text-sm text-muted-foreground max-w-sm mt-2">
-          The Background Observer hasn't extracted any new habits or corrections for this agent recently.
-        </p>
+        <h3 className="text-lg font-medium text-foreground">{t('agent.instinctInbox.emptyTitle')}</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mt-2">{t('agent.instinctInbox.emptyDesc')}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="instinct-inbox-panel">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-purple-500" />
@@ -103,7 +104,12 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
 
       <div className="space-y-4">
         {drafts.map(draft => (
-          <div key={draft.id} className="bg-card border border-border rounded-xl p-4 overflow-hidden relative group transition-all hover:border-purple-500/30 hover:shadow-md hover:shadow-purple-500/5">
+          <div
+            key={draft.id}
+            data-testid="instinct-draft-card"
+            data-draft-name={draft.name ?? ''}
+            className="bg-card border border-border rounded-xl p-4 overflow-hidden relative group transition-all hover:border-purple-500/30 hover:shadow-md hover:shadow-purple-500/5"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -123,8 +129,9 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
               
               {!readonly && (
                 <div className="flex flex-col gap-2 shrink-0">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
+                    data-testid="instinct-approve-btn"
                     onClick={() => handleApprove(draft)}
                     disabled={processingId === draft.id}
                     className="h-8 gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
@@ -132,9 +139,10 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
                     <Check className="w-3.5 h-3.5" />
                     Approve
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid="instinct-dismiss-btn"
                     onClick={() => handleReject(draft)}
                     disabled={processingId === draft.id}
                     className="h-8 gap-1.5 text-muted-foreground hover:text-destructive"

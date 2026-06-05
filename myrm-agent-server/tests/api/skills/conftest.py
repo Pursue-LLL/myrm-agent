@@ -59,6 +59,7 @@ async def setup_test_database():
 
     with (
         patch("app.database.connection.get_session", mock_get_session),
+        patch("app.api.skills.drafts.get_session", mock_get_session),
         patch("app.services.agent.backends.profile_backend.get_session", mock_get_session),
         patch("app.services.approvals.registry.get_session", mock_get_session),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),

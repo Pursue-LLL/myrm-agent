@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _SKILL_DRAFT_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "semantic_memory")
+_TEST_MOCK_DRAFT_NAMES: tuple[str, ...] = ("test-frontend-approve", "test-frontend-reject")
 
 class SkillDraftResponse(BaseModel):
     id: str
@@ -188,6 +189,57 @@ async def get_unreviewed_draft_count() -> dict[str, object]:
         )
         count = sum(1 for record in result.scalars().all() if _approval_growth_status(record) == "PENDING_REVIEW")
     return {"unreviewed_count": count}
+
+
+async def seed_mock_drafts_for_e2e(agent_id: str = "default") -> dict[str, object]:
+    """Create two predictable mock drafts for Instinct Inbox UI E2E tests."""
+    drafts, _ = await get_skill_drafts(status="PENDING_REVIEW", limit=500)
+    for draft in drafts:
+        if draft.name in _TEST_MOCK_DRAFT_NAMES:
+            await ApprovalRegistry.resolve_approval(draft.id, "deny")
+
+    created_ids: list[str] = []
+    mock_specs = (
+        (
+            "test-frontend-approve",
+            "This is a test skill for UI Approve button.",
+            "```markdown\n---\nname: test-frontend-approve\ndescription: \"approve test\"\n---\n\n# Rules\nApprove rules\n```",
+            "Test draft approve UI",
+        ),
+        (
+            "test-frontend-reject",
+            "This is a test skill for UI Reject button.",
+            "```markdown\n---\nname: test-frontend-reject\ndescription: \"reject test\"\n---\n\n# Rules\nReject rules\n```",
+            "Test draft reject UI",
+        ),
+    )
+    for skill_name, description, content, reason in mock_specs:
+        record = await ApprovalRegistry.create_approval(
+            agent_id=agent_id,
+            chat_id="test_chat_123",
+            action_type="skill_draft",
+            payload={
+                "skill_name": skill_name,
+                "description": description,
+                "content": content,
+                "score": 0.95,
+            },
+            reason=reason,
+        )
+        created_ids.append(record.id)
+
+    return {"created_ids": created_ids, "skill_names": list(_TEST_MOCK_DRAFT_NAMES)}
+
+
+@router.post("/drafts/test/seed-mock", include_in_schema=False)
+async def seed_test_mock_drafts() -> dict[str, object]:
+    """Local dev/test only: reset and seed Instinct Inbox E2E mock drafts."""
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+    return await seed_mock_drafts_for_e2e()
+
 
 @router.get("/drafts/{draft_id}", response_model=SkillDraftResponse)
 async def get_skill_draft(draft_id: str) -> SkillDraftResponse:

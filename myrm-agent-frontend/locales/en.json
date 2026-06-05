@@ -4262,6 +4262,15 @@
       "deleteBtn": "Delete",
       "deleteError": "Failed to delete secret."
     },
+    "instinctInbox": {
+      "tabTitle": "Insights",
+      "title": "Pending Insights",
+      "desc": "Review and approve habits extracted from recent conversations to permanently improve this agent.",
+      "approveSuccess": "Insight approved and saved as skill.",
+      "rejectSuccess": "Insight dismissed.",
+      "emptyTitle": "No new insights",
+      "emptyDesc": "The Background Observer hasn't extracted any new habits or corrections for this agent recently."
+    },
     "mobileCommand": {
       "title": "Command Center",
       "running": "Running...",

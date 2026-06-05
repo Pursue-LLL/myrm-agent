@@ -22,11 +22,11 @@ import logging
 from pathlib import Path
 from typing import Protocol, cast
 
+from myrm_agent_harness.toolkits.context.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
     create_local_memory_manager,
 )
-from myrm_agent_harness.toolkits.context.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, RecallMode
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
@@ -118,8 +118,9 @@ async def create_memory_manager(
     In SaaS sandbox, the Control Plane injects the path (e.g., `/persistent/memory`).
     Locally, it defaults to `{state_dir}/memory`.
     """
-    from app.config.settings import settings
     from myrm_agent_harness.toolkits.context import ContextBundleFacade
+
+    from app.config.settings import settings
 
     facade = ContextBundleFacade.from_state_dir(
         settings.database.state_dir,

@@ -32,7 +32,8 @@ from app.api.companion.router import router as companion_router
 from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
-from app.api.context.router import router as context_bundle_router, search_router as context_search_router
+from app.api.context.router import router as context_bundle_router
+from app.api.context.router import search_router as context_search_router
 from app.api.credentials.router import router as credentials_router
 from app.api.cron.routes import router as cron_router
 from app.api.eval.router import router as eval_router

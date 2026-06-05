@@ -9,6 +9,9 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    // Next.js dev keeps HMR sockets open — never wait for full "load".
+    navigationTimeout: 15_000,
+    actionTimeout: 10_000,
   },
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined

@@ -29,7 +29,7 @@ export function resolveVisualApprovalRenderState({
   browserViewData,
   desktopLoading,
   browserLoading,
-  snapshotFetchFailed,
+  snapshotFetchFailed: _snapshotFetchFailed,
 }: VisualApprovalRenderInput): VisualApprovalRenderState {
   const visualContext = resolveVisualApprovalContextForRequest(request, desktopViewData, browserViewData);
   if (visualContext) {

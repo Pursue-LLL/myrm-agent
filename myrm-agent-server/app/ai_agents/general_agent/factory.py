@@ -335,12 +335,12 @@ async def build_general_agent(
     from myrm_agent_harness.agent._skill_agent_context import (
         set_permission_invalidation_callback,
     )
+    from myrm_agent_harness.agent.middlewares import (
+        RateLimitMiddleware,
+    )
     from myrm_agent_harness.agent.middlewares.guardrails import (
         GuardrailMiddleware,
         SkillBoundaryProvider,
-    )
-    from myrm_agent_harness.agent.middlewares import (
-        RateLimitMiddleware,
     )
 
     from app.services.skills.permission_service import (
