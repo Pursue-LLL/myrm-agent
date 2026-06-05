@@ -90,9 +90,8 @@ override-dependencies = [
   "websockets>=16.0",
 ]
 
-# Monorepo: editable harness beside open-perplexity root. OSS-only clone uses PyPI pins in uv.lock (--frozen).
-[tool.uv.sources]
-myrm-agent-harness = { path = "../../myrm-agent-harness", editable = true }
+# OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
+# [tool.uv.sources] myrm-agent-harness editable override in a private overlay (not committed).
 
 [dependency-groups]
 dev = [
