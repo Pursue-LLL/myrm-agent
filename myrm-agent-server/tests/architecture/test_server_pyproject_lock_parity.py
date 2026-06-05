@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architecture.test_uv_lock_harness_registry import _harness_sync_lock_ready_on_pypi
+
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _SERVER_ROOT / "pyproject.toml"
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
@@ -81,6 +83,10 @@ def test_lock_provides_extras_match_pyproject() -> None:
 
 
 @pytest.mark.architecture
+@pytest.mark.skipif(
+    _harness_sync_lock_ready_on_pypi(),
+    reason="PyPI harness pin active; editable monorepo path is not committed in uv.lock",
+)
 def test_lock_harness_editable_monorepo_path() -> None:
     """Monorepo dev: harness editable path must resolve from myrm-agent-server/."""
     text = _LOCK_PATH.read_text(encoding="utf-8")
