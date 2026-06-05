@@ -14,6 +14,7 @@ import type {
   GroupInfo,
   ReactionLevel,
 } from '@/services/channels';
+import { ApiError } from '@/lib/api';
 import {
   listPairings,
   createPairing,
@@ -331,8 +332,12 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
             : t('channelDisableSuccess', { name: channelName }),
         );
         if (channelName === 'whatsapp') fetchWhatsAppStatus();
-      } catch {
-        toast.error(t('channelToggleError'));
+      } catch (err) {
+        const detail =
+          err instanceof ApiError && typeof err.message === 'string' && err.message.trim()
+            ? err.message
+            : t('channelToggleError');
+        toast.error(detail);
       } finally {
         setTogglingChannel(null);
       }

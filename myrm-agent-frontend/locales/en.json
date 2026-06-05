@@ -8371,6 +8371,7 @@
     "hideChannels": "Collapse",
     "channelEnabled": "Enabled",
     "channelDisabled": "Disabled",
+    "channelSdkUnavailable": "Optional SDK missing — install dependencies first",
     "channelNotConfigured": "Not enabled, please fill in or check credentials",
     "channelNotConfiguredQr": "Not enabled, please connect or check connection",
     "channelNotConfiguredConnection": "Not configured, please set up or check connection",

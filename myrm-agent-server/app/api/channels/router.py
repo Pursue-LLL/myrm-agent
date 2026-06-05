@@ -80,26 +80,41 @@ def _channel_config_key(channel_name: str) -> str | None:
 # ── Status & Toggle ──────────────────────────────────────────
 
 
+def _issues_to_response(issues: list) -> list[ChannelIssueResponse]:
+    return [
+        ChannelIssueResponse(
+            kind=i.kind,
+            severity=i.severity,
+            message=i.message,
+            fix=i.fix,
+        )
+        for i in issues
+    ]
+
+
+def _merged_issues_for_channel(channel_name: str) -> list:
+    from app.channels.providers.registry import probe_sdk_channel_issues
+    from app.core.channel_bridge import channel_gateway
+    from app.services.channels.sdk_registration import merge_channel_issues
+
+    bus_issues = channel_gateway.collect_all_issues().get(channel_name, [])
+    probe_issues = probe_sdk_channel_issues().get(channel_name, [])
+    return merge_channel_issues(bus_issues, probe_issues)
+
+
 @router.get("/status", response_model=list[ChannelStatusResponse])
 async def list_channel_status() -> list[ChannelStatusResponse]:
-    """Get runtime status of all registered channels."""
+    """Get runtime status of registered channels plus SDK-unavailable catalog entries."""
+    from app.channels.providers.registry import probe_sdk_channel_issues
     from app.core.channel_bridge import channel_gateway
 
     statuses = channel_gateway.get_status()
-    all_issues = channel_gateway.collect_all_issues()
+    probe_map = probe_sdk_channel_issues()
     result: list[ChannelStatusResponse] = []
     for name, ch_status in statuses.items():
         ch = channel_gateway.bus.get_channel(name)
         activity = ch.activity if ch else None
-        issues = [
-            ChannelIssueResponse(
-                kind=i.kind,
-                severity=i.severity,
-                message=i.message,
-                fix=i.fix,
-            )
-            for i in all_issues.get(name, [])
-        ]
+        issues = _issues_to_response(_merged_issues_for_channel(name))
         base_type = channel_gateway._resolve_channel_type(ch) if ch else name
         connected = False
         if ch and ch_status == ChannelStatus.RUNNING:
@@ -121,6 +136,18 @@ async def list_channel_status() -> list[ChannelStatusResponse]:
                 issues=issues,
             )
         )
+    for name, probed in probe_map.items():
+        if name in statuses:
+            continue
+        result.append(
+            ChannelStatusResponse(
+                name=name,
+                status="unavailable",
+                connected=False,
+                channelType=name,
+                issues=_issues_to_response(probed),
+            )
+        )
     return result
 
 
@@ -137,11 +164,15 @@ async def install_channel_dependencies(
         install_channel_dependencies as run_install,
     )
 
-    all_issues = channel_gateway.collect_all_issues()
-    raw_issues = all_issues.get(channel_name, [])
+    raw_issues = _merged_issues_for_channel(channel_name)
     ok, message = await asyncio.to_thread(run_install, channel_name, raw_issues)
     if not ok:
         raise HTTPException(status_code=400, detail=message)
+    from app.services.channels.sdk_registration import hot_register_channel
+
+    registered = await hot_register_channel(channel_name)
+    if not registered:
+        message = f"{message}; channel registered after restart may be required"
     return ChannelInstallDependenciesResponse(ok=True, message=message)
 
 
@@ -172,6 +203,21 @@ async def toggle_channel(
     else:
         config = {}
 
+    if body.enabled:
+        from app.services.channels.dependency_install import ensure_channel_dependencies_ready
+        from app.services.channels.sdk_registration import hot_register_channel
+
+        pre_issues = _merged_issues_for_channel(channel_name)
+        ready, detail = await asyncio.to_thread(
+            ensure_channel_dependencies_ready,
+            channel_name,
+            pre_issues,
+        )
+        if not ready:
+            raise HTTPException(status_code=409, detail=detail or "Channel dependencies not installed")
+        if channel_gateway.bus.get_channel(channel_name) is None:
+            await hot_register_channel(channel_name)
+
     config["enabled"] = body.enabled
     if row:
         row.config_value = config
@@ -188,17 +234,12 @@ async def toggle_channel(
     await db.commit()
 
     if body.enabled:
-        from app.services.channels.dependency_install import ensure_channel_dependencies_ready
-
-        pre_issues = channel_gateway.collect_all_issues().get(channel_name, [])
-        ready, detail = await asyncio.to_thread(
-            ensure_channel_dependencies_ready,
-            channel_name,
-            pre_issues,
-        )
-        if not ready:
-            raise HTTPException(status_code=409, detail=detail or "Channel dependencies not installed")
-        await channel_gateway.enable_channel(channel_name)
+        enabled = await channel_gateway.enable_channel(channel_name)
+        if not enabled:
+            raise HTTPException(
+                status_code=409,
+                detail="Channel dependencies installed but channel is not registered; configure credentials and retry",
+            )
     else:
         await channel_gateway.disable_channel(channel_name)
 

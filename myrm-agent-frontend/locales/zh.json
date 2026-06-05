@@ -8394,6 +8394,7 @@
     "hideChannels": "收起",
     "channelEnabled": "已启用",
     "channelDisabled": "已禁用",
+    "channelSdkUnavailable": "缺少可选 SDK，请先安装依赖",
     "channelNotConfigured": "未启用，请先填写或检查凭证",
     "channelNotConfiguredQr": "未启用，请先扫码或检查连接",
     "channelNotConfiguredConnection": "未配置，请先填写或检查连接信息",

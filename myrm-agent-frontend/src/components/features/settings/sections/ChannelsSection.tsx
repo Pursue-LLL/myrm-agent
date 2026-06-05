@@ -426,7 +426,7 @@ export default function ChannelsSection() {
   const isChannelEffectivelyEnabled = useCallback(
     (ch: string) => {
       const status = state.channelStatuses[ch];
-      if (!status || status === 'disabled') return false;
+      if (!status || status === 'disabled' || status === 'unavailable') return false;
       if (ch === 'whatsapp') return !!state.waStatus?.connected;
       if (QR_LOGIN_CHANNELS.has(ch)) {
         return status === 'running' || status === 'running_idle';
@@ -447,16 +447,18 @@ export default function ChannelsSection() {
             <span className="text-sm text-muted-foreground">
               {!status
                 ? t(getChannelNotConfiguredKey(ch))
-                : status === 'disabled'
-                  ? t('channelDisabled')
-                  : !effectivelyEnabled
-                    ? t(getChannelNotConfiguredKey(ch))
-                    : t('channelEnabled')}
+                : status === 'unavailable'
+                  ? t('channelSdkUnavailable')
+                  : status === 'disabled'
+                    ? t('channelDisabled')
+                    : !effectivelyEnabled
+                      ? t(getChannelNotConfiguredKey(ch))
+                      : t('channelEnabled')}
             </span>
             <Switch
               checked={effectivelyEnabled}
               onCheckedChange={(checked) => state.handleChannelToggle(ch, checked)}
-              disabled={!status || state.togglingChannel === ch}
+              disabled={!status || status === 'unavailable' || state.togglingChannel === ch}
             />
           </div>
           <ChannelIssueBanner
@@ -465,7 +467,7 @@ export default function ChannelsSection() {
             onInstalled={state.fetchChannelStatuses}
           />
           <CredentialGuide channel={ch} t={t} />
-          {status !== 'disabled' && (
+          {status && status !== 'disabled' && status !== 'unavailable' && (
             <ChannelConfigPanel
               channel={ch}
               waStatus={state.waStatus}

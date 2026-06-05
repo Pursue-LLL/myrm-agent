@@ -30,6 +30,8 @@ Usage:
 [OUTPUT]
 - ChannelSpec: Import path + class name for a channel provider
 - get_channel_class / get_channel_class_safe: Lazy-load channel class by name
+- get_channel_spec / channel_install_command: Spec lookup and GUI install hints
+- probe_sdk_channel_issues: DEPENDENCY diagnostics when optional SDK import fails
 - load_enabled_channels: Bulk load enabled channels from config
 - register_custom_channel: Register a user-defined channel provider
 - CHANNEL_META: Read-only snapshot of all registered channel specs
@@ -58,13 +60,52 @@ _CHANNEL_INSTALL_HINTS: dict[str, str] = {
     "feishu": "uv sync --extra channels-sdk",
 }
 
+# Built-in channels with harness lazy-install mapping (see dependency_install.py).
+_LAZY_SDK_CHANNEL_NAMES: frozenset[str] = frozenset({"matrix", "discord", "feishu"})
+
+
+def get_channel_spec(name: str) -> ChannelSpec | None:
+    """Return the registry spec for *name*, or ``None`` if unknown."""
+    return _all_specs().get(name)
+
+
+def channel_install_command(channel_name: str) -> str:
+    """Return the ``uv sync`` hint for optional SDK channels."""
+    spec = get_channel_spec(channel_name)
+    if spec is None or not spec.sdk_package:
+        return ""
+    return _CHANNEL_INSTALL_HINTS.get(channel_name, "uv sync")
+
 
 def _channel_install_hint(channel_name: str, spec: ChannelSpec | None) -> str:
     """Human-readable install hint when a channel module fails to import."""
     if spec is None or not spec.sdk_package:
         return ""
-    command = _CHANNEL_INSTALL_HINTS.get(channel_name, "uv sync")
+    command = channel_install_command(channel_name)
     return f" (run: {command})"
+
+
+def probe_sdk_channel_issues() -> dict[str, list[ChannelIssue]]:
+    """Detect missing optional SDK imports for lazy-install channel types."""
+    from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
+
+    issues_map: dict[str, list[ChannelIssue]] = {}
+    for name in sorted(_LAZY_SDK_CHANNEL_NAMES):
+        spec = _BUILTIN_SPECS.get(name)
+        if spec is None or not spec.sdk_package:
+            continue
+        if get_channel_class_safe(name) is not None:
+            continue
+        command = channel_install_command(name)
+        issues_map[name] = [
+            ChannelIssue(
+                kind=IssueKind.DEPENDENCY,
+                severity=IssueSeverity.ERROR,
+                message=f"{spec.sdk_package} not installed. Run: {command}",
+                fix=command,
+            )
+        ]
+    return issues_map
 
 
 @dataclass(frozen=True, slots=True)

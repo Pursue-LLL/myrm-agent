@@ -1,4 +1,16 @@
-"""GUI-driven lazy install of optional channel dependencies."""
+"""GUI-driven lazy install of optional channel dependencies.
+
+[INPUT]
+- myrm_agent_harness.runtime.lazy_deps::ensure, feature_missing (POS: Allowlisted venv lazy install)
+- app.channels.providers.registry::get_channel_spec, clear_cache (POS: Central channel provider registry)
+
+[OUTPUT]
+- install_channel_dependencies: pip-install optional SDK wheels for a channel
+- ensure_channel_dependencies_ready: Preflight before enable/toggle
+
+[POS]
+Server business layer for Settings one-click channel SDK installation.
+"""
 
 from __future__ import annotations
 
@@ -30,9 +42,9 @@ _CHANNEL_RELOAD_MODULES: dict[str, tuple[str, ...]] = {
 
 def _resolve_lazy_features(channel_name: str, issues: list[ChannelIssue]) -> tuple[str, ...]:
     """Map channel + diagnostic issues to harness lazy_deps feature keys."""
-    from app.channels.providers.registry import _all_specs
+    from app.channels.providers.registry import get_channel_spec
 
-    spec = _all_specs().get(channel_name)
+    spec = get_channel_spec(channel_name)
     if spec is None or not spec.sdk_package:
         return ()
 
