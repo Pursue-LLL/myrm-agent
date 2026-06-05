@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { cn } from '@/lib/utils/classnameUtils';
 import { discoverCompetitors, type DiscoveryResponse } from '@/services/migrationDiscovery';
@@ -31,6 +30,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
   const [probe, setProbe] = useState<ProbeLocalResponse | null>(null);
   const [fadeOut, setFadeOut] = useState(false);
+  const [initDone, setInitDone] = useState(false);
 
   const providers = useProviderStore((s) => s.providers);
   const isInitialized = useProviderStore((s) => s.isInitialized);
@@ -41,17 +41,16 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   );
   const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
 
-  const needsCapabilities = isLocalMode() && isInitialized && (!hasEnabledProvider || !searchConfigured);
-
+  // We only run the async probes once on mount
   useEffect(() => {
     let mounted = true;
     const startTime = Date.now();
 
-    const runInit = async () => {
+    const runProbes = async () => {
       try {
         const [discRes, probeRes] = await Promise.all([
           isLocalMode() ? discoverCompetitors(false).catch(() => null) : Promise.resolve(null),
-          needsCapabilities ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
+          isLocalMode() ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
         ]);
 
         if (!mounted) return;
@@ -63,28 +62,33 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
 
         setTimeout(() => {
-          if (!mounted) return;
-          
-          if (discRes && discRes.sources.length > 0) {
-            setStep('migration');
-          } else if (needsCapabilities) {
-            setStep('capabilities');
-          } else {
-            handleFinish();
-          }
+          if (mounted) setInitDone(true);
         }, remaining);
       } catch (e) {
-        if (mounted) handleFinish();
+        if (mounted) setInitDone(true);
       }
     };
 
-    void runInit();
+    void runProbes();
 
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // When both the minimum welcome duration has passed AND the stores are initialized, we decide the next step
+  useEffect(() => {
+    if (initDone && isInitialized && step === 'welcome') {
+      if (discovery && discovery.sources.length > 0) {
+        setStep('migration');
+      } else if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
+        setStep('capabilities');
+      } else {
+        handleFinish();
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsCapabilities]);
+  }, [initDone, isInitialized, step, discovery, hasEnabledProvider, searchConfigured]);
 
   const handleFinish = useCallback(async () => {
     setStep('finishing');
@@ -98,12 +102,12 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   }, [onComplete]);
 
   const handleMigrationCompleteOrSkip = useCallback(() => {
-    if (needsCapabilities) {
+    if (isLocalMode() && (!hasEnabledProvider || !searchConfigured)) {
       setStep('capabilities');
     } else {
       handleFinish();
     }
-  }, [needsCapabilities, handleFinish]);
+  }, [hasEnabledProvider, searchConfigured, handleFinish]);
 
   if (step === 'welcome' || step === 'finishing') {
     return (

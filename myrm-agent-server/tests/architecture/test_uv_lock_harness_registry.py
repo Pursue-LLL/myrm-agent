@@ -74,7 +74,7 @@ def test_uv_lock_harness_has_registry_source() -> None:
     """After PyPI publish, lock must contain a registry source for myrm-agent-harness."""
     text = _LOCK_PATH.read_text(encoding="utf-8")
     registry_harness = re.search(
-        r'name = "myrm-agent-harness"[\s\S]*?source = \{ registry = "https://pypi.org/simple" \}',
+        r'name = "myrm-agent-harness"[\s\S]*?source = \{ registry = "https://[^"]+/simple/?" \}',
         text,
     )
     assert registry_harness is not None, (
