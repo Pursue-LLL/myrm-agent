@@ -109,9 +109,7 @@ class S3StorageBackend:
         self.namespace = (prefix or None) or ""
 
         if not HAS_S3:
-            raise ImportError(
-                "aioboto3 is required for S3 backend. Run: uv sync (aioboto3 is a main dependency)"
-            )
+            raise ImportError("aioboto3 is required for S3 backend. Run: uv sync (aioboto3 is a main dependency)")
 
         self.bucket = bucket
         self.prefix = prefix.rstrip("/")

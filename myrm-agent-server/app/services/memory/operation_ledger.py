@@ -91,9 +91,7 @@ class MemoryOperationLedgerService:
         )
         return list(result.scalars().all())
 
-    async def list_events_for_session(
-        self, session_id: str, *, limit: int = 48
-    ) -> list[MemoryOperationEventModel]:
+    async def list_events_for_session(self, session_id: str, *, limit: int = 48) -> list[MemoryOperationEventModel]:
         from sqlalchemy import or_
 
         metadata_chat_id = MemoryOperationEventModel.metadata_json["chat_id"].as_string()
@@ -112,9 +110,7 @@ class MemoryOperationLedgerService:
 
     async def count_events_since(self, since: datetime) -> int:
         result = await self._db.execute(
-            select(func.count())
-            .select_from(MemoryOperationEventModel)
-            .where(MemoryOperationEventModel.occurred_at >= since)
+            select(func.count()).select_from(MemoryOperationEventModel).where(MemoryOperationEventModel.occurred_at >= since)
         )
         return int(result.scalar_one() or 0)
 

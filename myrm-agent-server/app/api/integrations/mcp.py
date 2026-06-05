@@ -1,12 +1,14 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.mcp import MCPAgent, MCPClientManager
 from myrm_agent_harness.toolkits.mcp.security import (
+    MCPConfigScanResult,
     MCPResponseError,
     MCPResponseValidator,
+    MCPRuntimeScanResult,
     MCPURLValidator,
     URLValidationError,
 )
@@ -24,6 +26,11 @@ from app.core.utils.errors import (
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+from app.services.integrations.mcp_posture import (
+    enforce_mcp_config_posture,
+    enforce_mcp_runtime_posture,
+    resolve_mcp_config_scan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +83,34 @@ class MCPToolDetail(BaseModel):
         populate_by_name = True
 
 
+class MCPScanFindingData(BaseModel):
+    """Single MCP security scan finding."""
+
+    threat_type: str
+    severity: str
+    description: str
+    field: str = ""
+    recommendation: str = ""
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class MCPScanData(BaseModel):
+    """Static MCP configuration scan result."""
+
+    server_name: str
+    allow_save: bool
+    requires_acknowledgement: bool
+    max_severity: str | None = None
+    findings: list[MCPScanFindingData] = Field(default_factory=list)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
 class MCPVerifyData(BaseModel):
     """MCP验证数据模型"""
 
@@ -83,10 +118,55 @@ class MCPVerifyData(BaseModel):
     service_name: str = Field(..., description="服务名称")
     instructions: str | None = Field(default=None, description="MCP服务的instructions，无则为空")
     tools: list[MCPToolDetail] = Field(default_factory=list, description="工具明细列表(名称/描述/风险注解)")
+    config_scan: MCPScanData | None = Field(default=None, description="静态配置扫描摘要")
+    runtime_scan: MCPScanData | None = Field(default=None, description="运行时表面扫描摘要")
 
     class Config:
         alias_generator = to_camel
         populate_by_name = True
+
+
+def _scan_result_to_data(
+    result: MCPConfigScanResult | MCPRuntimeScanResult,
+    *,
+    allow_save: bool,
+    requires_acknowledgement: bool,
+) -> MCPScanData:
+    max_sev = result.max_severity.value if isinstance(result, MCPConfigScanResult) and result.max_severity else None
+    if isinstance(result, MCPRuntimeScanResult) and result.findings:
+        max_sev = max((f.severity.value for f in result.findings), default=None)
+    return MCPScanData(
+        server_name=result.server_name,
+        allow_save=allow_save,
+        requires_acknowledgement=requires_acknowledgement,
+        max_severity=max_sev,
+        findings=[
+            MCPScanFindingData(
+                threat_type=finding.threat_type,
+                severity=finding.severity.value,
+                description=finding.description,
+                field=finding.field,
+                recommendation=finding.recommendation,
+            )
+            for finding in result.findings
+        ],
+    )
+
+
+def _config_scan_to_data(result: MCPConfigScanResult) -> MCPScanData:
+    return _scan_result_to_data(
+        result,
+        allow_save=result.allow_save,
+        requires_acknowledgement=result.requires_acknowledgement,
+    )
+
+
+def _runtime_scan_to_data(result: MCPRuntimeScanResult) -> MCPScanData:
+    return _scan_result_to_data(
+        result,
+        allow_save=result.allow_use,
+        requires_acknowledgement=not result.allow_use,
+    )
 
 
 async def _get_server_instructions(server_name: str, mcp_config: list[MCPServerConfig]) -> str | None:
@@ -149,30 +229,75 @@ async def get_mcp_options() -> JSONResponse:
     return success_response(data=data.model_dump(by_alias=True))
 
 
+class MCPScanBatchBody(BaseModel):
+    """Batch static scan request for multiple MCP configurations."""
+
+    configs: list[MCPServerConfig] = Field(default_factory=list)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class MCPScanBatchData(BaseModel):
+    """Batch static scan response."""
+
+    results: list[MCPScanData] = Field(default_factory=list)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+@router.post("/scan", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def scan_mcp_config_endpoint(mcp_server_config: MCPServerConfig, request: Request) -> JSONResponse:
+    """Static pre-flight scan for MCP configuration (no network connection)."""
+    _ = request
+    scan_result = await resolve_mcp_config_scan(mcp_server_config)
+    return success_response(data=_config_scan_to_data(scan_result).model_dump(by_alias=True))
+
+
+@router.post("/scan-batch", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def scan_mcp_config_batch_endpoint(body: MCPScanBatchBody, request: Request) -> JSONResponse:
+    """Batch static pre-flight scan for multiple MCP configurations."""
+    _ = request
+    results: list[MCPScanData] = []
+    for config in body.configs:
+        scan_result = await resolve_mcp_config_scan(config)
+        results.append(_config_scan_to_data(scan_result))
+    batch = MCPScanBatchData(results=results)
+    return success_response(data=batch.model_dump(by_alias=True))
+
+
 @router.post("/verify", response_model=StandardSuccessResponse)
 @limiter.limit(settings.rate_limit.mcp_verify)
-async def verify_mcp_service(mcp_server_config: MCPServerConfig, request: Request) -> JSONResponse:
-    """验证MCP服务是否有效
+async def verify_mcp_service(
+    mcp_server_config: MCPServerConfig,
+    request: Request,
+    acknowledged_high_risks: bool = Query(False),
+) -> JSONResponse:
+    """Verify MCP connectivity after static scan, OSV check, and runtime surface scan.
 
-    验证单个MCP服务器配置是否正确，连接是否正常。
+    Pipeline: static scan -> OSV (stdio) -> dynamic verify -> runtime surface scan.
 
-    安全检查（仅 Sandbox 模式）：
-    1. 应用层限流：10次/分钟 + 100次/小时（防止瞬时高并发）
-    2. STDIO 模式权限检查
-    3. SSRF 防护（URL 黑名单、DNS 解析验证）
-    4. HTTPS 强制（生产环境）
-    5. 超时控制（防止 DoS）
-    6. 响应大小限制（防止内存溢出）
-
-    返回工具数量、服务名称和 instructions（如果有）。
-
-    注意：限流是纯技术保护，与业务配额无关。
+    Security controls also include rate limiting, stdio policy, SSRF/DNS pinning,
+    HTTPS enforcement, timeouts, and response size limits.
     """
     # =========================================================================
     # P0: 严重安全检查（仅 Sandbox 模式）
     # =========================================================================
 
     try:
+        # 0. Static pre-flight scan + OSV (no MCP connection yet)
+        config_scan_result = await resolve_mcp_config_scan(mcp_server_config)
+        enforce_mcp_config_posture(
+            mcp_server_config,
+            acknowledged_high_risks=acknowledged_high_risks,
+            result=config_scan_result,
+        )
+
         # 1. 检查 stdio 模式是否允许
         if mcp_server_config.type == "stdio" and not settings.mcp.allow_stdio:
             logger.warning(
@@ -268,12 +393,32 @@ async def verify_mcp_service(mcp_server_config: MCPServerConfig, request: Reques
                     # Instructions 验证失败不影响整体验证，但记录日志
                     instructions_value = None  # 清空 instructions
 
-        # =========================================================================
-        # P2: 审计日志
-        # =========================================================================
+        tool_details: list[MCPToolDetail] = []
+        runtime_tool_pairs: list[tuple[str, str]] = []
+        if tools_result:
+            for t in tools_result:
+                meta = getattr(t, "metadata", {}) or {}
+                description = t.description or ""
+                tool_details.append(
+                    MCPToolDetail(
+                        name=t.name,
+                        description=description,
+                        read_only_hint=bool(meta.get("readOnlyHint", False)),
+                        destructive_hint=bool(meta.get("destructiveHint", False)),
+                        idempotent_hint=bool(meta.get("idempotentHint", False)),
+                        open_world_hint=bool(meta.get("openWorldHint", False)),
+                    )
+                )
+                runtime_tool_pairs.append((t.name, description))
+
+        runtime_scan_result = enforce_mcp_runtime_posture(
+            mcp_server_config,
+            instructions=instructions_value,
+            tools=runtime_tool_pairs,
+        )
 
         logger.warning(
-            "📋 MCP service verified successfully",
+            "MCP service verified successfully",
             extra={
                 "service_name": mcp_server_config.name,
                 "service_type": mcp_server_config.type,
@@ -284,24 +429,13 @@ async def verify_mcp_service(mcp_server_config: MCPServerConfig, request: Reques
             },
         )
 
-        tool_details: list[MCPToolDetail] = []
-        if tools_result:
-            for t in tools_result:
-                meta = getattr(t, "metadata", {}) or {}
-                tool_details.append(MCPToolDetail(
-                    name=t.name,
-                    description=t.description or "",
-                    read_only_hint=bool(meta.get("readOnlyHint", False)),
-                    destructive_hint=bool(meta.get("destructiveHint", False)),
-                    idempotent_hint=bool(meta.get("idempotentHint", False)),
-                    open_world_hint=bool(meta.get("openWorldHint", False)),
-                ))
-
         data = MCPVerifyData(
             tools_count=tools_count,
             service_name=mcp_server_config.name,
             instructions=instructions_value,
             tools=tool_details,
+            config_scan=_config_scan_to_data(config_scan_result),
+            runtime_scan=_runtime_scan_to_data(runtime_scan_result),
         )
 
         return success_response(data=data.model_dump())
@@ -326,6 +460,9 @@ async def verify_mcp_service(mcp_server_config: MCPServerConfig, request: Reques
     except ConnectionError as e:
         logger.error(f"MCP service connection failed: {str(e)}")
         raise external_service_error("MCP", f"Connection failed: {str(e)}") from e
+
+    except HTTPException:
+        raise
 
     except Exception as e:
         logger.error(f"MCP service verification error: {str(e)}", exc_info=True)

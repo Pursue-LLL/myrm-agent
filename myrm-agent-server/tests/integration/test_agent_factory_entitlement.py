@@ -49,4 +49,3 @@ def test_should_enable_subagent_tools_sandbox_cp_down():
         patch(_FETCH_FN, return_value=None),
     ):
         assert _should_enable_subagent_tools() is False
-

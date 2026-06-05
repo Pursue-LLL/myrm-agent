@@ -118,16 +118,8 @@ async def stream_with_swarm_fission_resume(
                 raw_payload = event.get("data")
                 if isinstance(raw_payload, dict):
                     fission_payload = raw_payload
-                task_count = (
-                    _task_count_from_payload(fission_payload)
-                    if fission_payload is not None
-                    else 0
-                )
-                task_items = (
-                    _task_items_from_payload(fission_payload)
-                    if fission_payload is not None
-                    else []
-                )
+                task_count = _task_count_from_payload(fission_payload) if fission_payload is not None else 0
+                task_items = _task_items_from_payload(fission_payload) if fission_payload is not None else []
                 yield {
                     "type": "tasks_steps",
                     "step_key": "swarm_fission",
@@ -141,11 +133,13 @@ async def stream_with_swarm_fission_resume(
 
         if not is_yielded_for_fission or fission_payload is None:
             break
-            
+
         fission_id = str(uuid.uuid4())
         fission_queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
 
-        async def _fission_on_progress(idx: int, status: str, res: dict[str, object] | None, queue: asyncio.Queue[dict[str, object]] = fission_queue) -> None:
+        async def _fission_on_progress(
+            idx: int, status: str, res: dict[str, object] | None, queue: asyncio.Queue[dict[str, object]] = fission_queue
+        ) -> None:
             await queue.put({"index": idx, "status": status, "res": res})
 
         task_items = _task_items_from_payload(fission_payload)
@@ -157,16 +151,16 @@ async def stream_with_swarm_fission_resume(
                 "objective": item["text"],
                 "status": "pending",
                 "error": None,
-                "cost_usd": 0.0
+                "cost_usd": 0.0,
             }
-            
+
         async def _save_to_db(fid: str = fission_id, nstate: dict[int, dict[str, object]] = nodes_state) -> None:
             try:
                 chat_id_from_agent = "default"
                 if hasattr(agent, "_current_chat_id") and agent._current_chat_id:
                     chat_id_from_agent = agent._current_chat_id
                 agent_id = agent.id if hasattr(agent, "id") else "default_agent"
-                
+
                 async with get_session_factory()() as db:
                     await FissionRepository.create_or_update_record(
                         db,
@@ -178,7 +172,7 @@ async def stream_with_swarm_fission_resume(
                     )
             except Exception as e:
                 logger.error("Failed to persist fission state to DB: %s", e)
-                
+
         await _save_to_db()
 
         fission_task = asyncio.create_task(
@@ -194,15 +188,12 @@ async def stream_with_swarm_fission_resume(
             try:
                 # Wait for queue items or task completion
                 get_task = asyncio.create_task(fission_queue.get())
-                done, pending = await asyncio.wait(
-                    [get_task, fission_task],
-                    return_when=asyncio.FIRST_COMPLETED
-                )
-                
+                done, pending = await asyncio.wait([get_task, fission_task], return_when=asyncio.FIRST_COMPLETED)
+
                 # If we didn't consume get_task, cancel it
                 if get_task in pending:
                     get_task.cancel()
-                
+
                 # Process all items currently in queue
                 needs_db_sync = False
                 while not fission_queue.empty():
@@ -215,34 +206,28 @@ async def stream_with_swarm_fission_resume(
                             if "error" in res_info:
                                 nodes_state[idx]["error"] = str(res_info["error"])
                     needs_db_sync = True
-                
+
                 if needs_db_sync:
                     await _save_to_db()
-                    
+
                     # Yield topology update out to the channel bridge
                     nodes_tuple = tuple(FissionTopologyNode(**n) for n in nodes_state.values())
-                    topo_update = FissionTopologyUpdate(
-                        fission_id=fission_id,
-                        nodes=nodes_tuple,
-                        total_cost_usd=0.0
-                    )
+                    topo_update = FissionTopologyUpdate(fission_id=fission_id, nodes=nodes_tuple, total_cost_usd=0.0)
                     yield {"type": "fission_topology", "data": topo_update}
-                    
+
             except Exception as e:
                 logger.error("Error processing fission queue: %s", e)
                 break
 
         fission_result = fission_task.result()
-        
+
         # Ensure final state is saved
         await _save_to_db()
 
         task_count = _task_count_from_payload(fission_payload)
         completed_count = int(fission_result.get("completed_count") or 0)
         failed_count = int(fission_result.get("failed_count") or 0)
-        partial_success = bool(fission_result.get("partial_success")) or (
-            failed_count > 0 and completed_count > 0
-        )
+        partial_success = bool(fission_result.get("partial_success")) or (failed_count > 0 and completed_count > 0)
         step_status = _fission_step_status(fission_result, task_count)
 
         if not fission_result.get("success") and fission_result.get("error"):

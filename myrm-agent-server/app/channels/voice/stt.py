@@ -113,9 +113,7 @@ class _LocalWhisperManager:
         async with self._lock:
             model_size = config.stt_local_model or "base"
             device = self._resolve_device(config.stt_local_device)
-            compute_type = self._resolve_compute_type(
-                config.stt_local_compute_type, device
-            )
+            compute_type = self._resolve_compute_type(config.stt_local_compute_type, device)
 
             if (
                 self._model is not None
@@ -130,9 +128,7 @@ class _LocalWhisperManager:
             loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(
                 None,
-                lambda: WhisperModel(
-                    model_size, device=device, compute_type=compute_type
-                ),
+                lambda: WhisperModel(model_size, device=device, compute_type=compute_type),
             )
 
             self._model = model
@@ -180,9 +176,7 @@ def get_local_status() -> dict[str, object]:
     return {
         "available": available,
         "model_loaded": _whisper_manager.is_loaded,
-        "config": (
-            _whisper_manager.current_config if _whisper_manager.is_loaded else None
-        ),
+        "config": (_whisper_manager.current_config if _whisper_manager.is_loaded else None),
     }
 
 
@@ -191,9 +185,7 @@ def get_local_status() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
-async def transcribe(
-    audio_path: Path | None, config: VoiceConfig, audio_bytes: bytes | None = None
-) -> STTResult | None:
+async def transcribe(audio_path: Path | None, config: VoiceConfig, audio_bytes: bytes | None = None) -> STTResult | None:
     """Transcribe an audio file or bytes using the configured STT provider.
 
     Fallback strategy (mirrors TTS pattern):
@@ -286,9 +278,7 @@ async def _transcribe_local(
     def _run_transcription() -> tuple[list[object], object]:
         import io
 
-        audio_input = (
-            io.BytesIO(audio_bytes) if audio_bytes is not None else str(audio_path)
-        )
+        audio_input = io.BytesIO(audio_bytes) if audio_bytes is not None else str(audio_path)
         segments, info = model.transcribe(  # type: ignore[union-attr]
             audio_input,
             beam_size=5,
@@ -323,12 +313,8 @@ async def _transcribe_openai_compatible(
 ) -> STTResult:
     """OpenAI / Groq transcription (same API format)."""
     provider = config.stt_provider.lower()
-    base_url = (
-        _GROQ_TRANSCRIPTION_URL if provider == "groq" else _OPENAI_TRANSCRIPTION_URL
-    )
-    model = config.stt_model or (
-        "whisper-large-v3" if provider == "groq" else "whisper-1"
-    )
+    base_url = _GROQ_TRANSCRIPTION_URL if provider == "groq" else _OPENAI_TRANSCRIPTION_URL
+    model = config.stt_model or ("whisper-large-v3" if provider == "groq" else "whisper-1")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         data: dict[str, str] = {"model": model, "response_format": "json"}

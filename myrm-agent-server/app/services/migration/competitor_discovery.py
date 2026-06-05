@@ -117,9 +117,13 @@ def _discover_hermes(home: Path) -> CompetitorSource | None:
     for filename, kind in _HERMES_FILES.items():
         path = root / filename
         if path.is_file():
-            source.files.append(DiscoveredFile(
-                path=str(path), kind=kind, size_bytes=path.stat().st_size,
-            ))
+            source.files.append(
+                DiscoveredFile(
+                    path=str(path),
+                    kind=kind,
+                    size_bytes=path.stat().st_size,
+                )
+            )
             if kind == "env":
                 source.has_api_keys = _detect_api_keys_in_env(path)
 
@@ -128,18 +132,19 @@ def _discover_hermes(home: Path) -> CompetitorSource | None:
         for filename, kind in _HERMES_MEMORY_FILES.items():
             path = memories_dir / filename
             if path.is_file():
-                source.files.append(DiscoveredFile(
-                    path=str(path), kind=kind, size_bytes=path.stat().st_size,
-                ))
+                source.files.append(
+                    DiscoveredFile(
+                        path=str(path),
+                        kind=kind,
+                        size_bytes=path.stat().st_size,
+                    )
+                )
                 if kind == "memory":
                     source.memory_count_estimate = _count_md_bullets(path)
 
     skills_dir = root / "skills"
     if skills_dir.is_dir():
-        source.skill_count = sum(
-            1 for entry in skills_dir.iterdir()
-            if entry.is_dir() and (entry / "SKILL.md").is_file()
-        )
+        source.skill_count = sum(1 for entry in skills_dir.iterdir() if entry.is_dir() and (entry / "SKILL.md").is_file())
 
     source.confidence = _hermes_confidence(source)
     return source if source.confidence != "low" else None
@@ -155,9 +160,13 @@ def _discover_claude(home: Path) -> CompetitorSource | None:
     for filename, kind in _CLAUDE_HOME_FILES.items():
         path = root / filename
         if path.is_file():
-            source.files.append(DiscoveredFile(
-                path=str(path), kind=kind, size_bytes=path.stat().st_size,
-            ))
+            source.files.append(
+                DiscoveredFile(
+                    path=str(path),
+                    kind=kind,
+                    size_bytes=path.stat().st_size,
+                )
+            )
             if kind == "memory":
                 source.memory_count_estimate = _count_md_bullets(path)
 
@@ -183,19 +192,25 @@ def _discover_openclaw(home: Path) -> CompetitorSource | None:
     for candidate in ("memory.json", "sessions.json", "config.json"):
         path = root / candidate
         if path.is_file():
-            source.files.append(DiscoveredFile(
-                path=str(path), kind=candidate.replace(".json", ""),
-                size_bytes=path.stat().st_size,
-            ))
+            source.files.append(
+                DiscoveredFile(
+                    path=str(path),
+                    kind=candidate.replace(".json", ""),
+                    size_bytes=path.stat().st_size,
+                )
+            )
 
     for workspace_dir in _discover_openclaw_workspace_dirs(root):
         for md_name, kind in (("SOUL.md", "soul"), ("MEMORY.md", "memory"), ("USER.md", "user")):
             md_path = workspace_dir / md_name
             if md_path.is_file():
-                source.files.append(DiscoveredFile(
-                    path=str(md_path), kind=f"workspace_{kind}",
-                    size_bytes=md_path.stat().st_size,
-                ))
+                source.files.append(
+                    DiscoveredFile(
+                        path=str(md_path),
+                        kind=f"workspace_{kind}",
+                        size_bytes=md_path.stat().st_size,
+                    )
+                )
                 if kind == "memory":
                     source.memory_count_estimate += _count_md_bullets(md_path)
 
@@ -223,9 +238,13 @@ def _discover_cursor(home: Path) -> CompetitorSource | None:
 
     settings_path = root / "settings.json"
     if settings_path.is_file():
-        source.files.append(DiscoveredFile(
-            path=str(settings_path), kind="settings", size_bytes=settings_path.stat().st_size,
-        ))
+        source.files.append(
+            DiscoveredFile(
+                path=str(settings_path),
+                kind="settings",
+                size_bytes=settings_path.stat().st_size,
+            )
+        )
 
     source.confidence = "high" if source.skill_count >= 3 else "medium" if source.files else "low"
     return source if source.confidence != "low" else None
@@ -241,10 +260,13 @@ def _discover_codex(home: Path) -> CompetitorSource | None:
     for candidate in ("instructions.md", "config.json", "settings.json"):
         path = root / candidate
         if path.is_file():
-            source.files.append(DiscoveredFile(
-                path=str(path), kind=candidate.split(".")[0],
-                size_bytes=path.stat().st_size,
-            ))
+            source.files.append(
+                DiscoveredFile(
+                    path=str(path),
+                    kind=candidate.split(".")[0],
+                    size_bytes=path.stat().st_size,
+                )
+            )
 
     source.confidence = "high" if len(source.files) >= 2 else "medium" if source.files else "low"
     return source if source.confidence != "low" else None

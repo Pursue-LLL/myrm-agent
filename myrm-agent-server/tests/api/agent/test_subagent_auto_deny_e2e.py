@@ -15,7 +15,9 @@ def get_test_request(query: str, chat_id: str, message_id: str):
         "messageId": message_id,
         "modelSelection": get_model_selection(),
         "actionMode": "general",
-        "ephemeral_subagents": {"test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}},
+        "ephemeral_subagents": {
+            "test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}
+        },
     }
     return req
 
@@ -64,9 +66,21 @@ def test_subagent_auto_deny_high_risk(client: TestClient):
                 pass
 
     deny_keywords = (
-        "denied", "deny", "拒绝", "forbidden", "blocked", "阻止",
-        "auto_deny", "auto-deny", "not allowed", "不允许", "error",
-        "failed", "失败", "安全拦截", "permission",
+        "denied",
+        "deny",
+        "拒绝",
+        "forbidden",
+        "blocked",
+        "阻止",
+        "auto_deny",
+        "auto-deny",
+        "not allowed",
+        "不允许",
+        "error",
+        "failed",
+        "失败",
+        "安全拦截",
+        "permission",
     )
     subagent_error_received = any(kw in all_text for kw in deny_keywords)
 

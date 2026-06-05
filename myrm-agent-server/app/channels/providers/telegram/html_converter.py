@@ -47,9 +47,7 @@ def md_to_telegram_html(text: str) -> str:
     def _preserve_code_block(m: re.Match[str]) -> str:
         lang, code = m.group(1), m.group(2)
         tag = (
-            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>'
-            if lang
-            else f"<pre>{html.escape(code)}</pre>"
+            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>' if lang else f"<pre>{html.escape(code)}</pre>"
         )
         preserved.append(tag)
         return f"\x00PRESERVE{len(preserved) - 1}\x00"

@@ -43,11 +43,7 @@ def make_notes_persist(chat_id: str) -> Callable[[str], Awaitable[None]]:
         from app.database.models import Chat
 
         async with get_session() as db:
-            await db.execute(
-                update(Chat)
-                .where(Chat.id == chat_id)
-                .values(session_notes_json=notes_json)
-            )
+            await db.execute(update(Chat).where(Chat.id == chat_id).values(session_notes_json=notes_json))
             await db.commit()
             logger.info("💾 [SessionNotes] Persisted to DB: chat_id=%s", chat_id)
 
@@ -64,9 +60,7 @@ def make_notes_load(chat_id: str) -> Callable[[], Awaitable[str | None]]:
         from app.database.models import Chat
 
         async with get_session() as db:
-            result = await db.execute(
-                select(Chat.session_notes_json).where(Chat.id == chat_id)
-            )
+            result = await db.execute(select(Chat.session_notes_json).where(Chat.id == chat_id))
             val = result.scalar_one_or_none()
             if val is None or isinstance(val, str):
                 return val
@@ -145,9 +139,7 @@ def make_correction_propagation_callback(
 
     async def _propagate(messages: Sequence[dict[str, str]], chat_id: str | None) -> None:
         try:
-            await _run_correction_propagation(
-                list(messages), agent_id=agent_id, llm_func=llm_func, chat_id=chat_id
-            )
+            await _run_correction_propagation(list(messages), agent_id=agent_id, llm_func=llm_func, chat_id=chat_id)
         except Exception:
             logger.error("Correction propagation failed", exc_info=True)
 
@@ -270,8 +262,7 @@ _CORRECTION_SUMMARY_SYSTEM = (
 )
 
 _CORRECTION_SUMMARY_PROMPT_TEMPLATE = (
-    "Conversation (last {n} messages):\n\n{conversation}\n\n"
-    "Extract the factual correction made by the user."
+    "Conversation (last {n} messages):\n\n{conversation}\n\nExtract the factual correction made by the user."
 )
 
 
@@ -281,13 +272,8 @@ async def _extract_correction_summary(
 ) -> str:
     """Extract a concise correction summary from the conversation via LLM."""
     recent = messages[-8:]
-    conversation = "\n".join(
-        f"{'User' if m['role'] == 'user' else 'AI'}: {m['content'][:500]}"
-        for m in recent
-    )
-    prompt = _CORRECTION_SUMMARY_PROMPT_TEMPLATE.format(
-        n=len(recent), conversation=conversation
-    )
+    conversation = "\n".join(f"{'User' if m['role'] == 'user' else 'AI'}: {m['content'][:500]}" for m in recent)
+    prompt = _CORRECTION_SUMMARY_PROMPT_TEMPLATE.format(n=len(recent), conversation=conversation)
     raw_result = await llm_func(_CORRECTION_SUMMARY_SYSTEM, prompt)
     from myrm_agent_harness.utils.text_sanitizer import extract_and_strip_think_blocks
 
@@ -296,4 +282,3 @@ async def _extract_correction_summary(
     if not result or result.upper() == "NONE":
         return ""
     return result[:1000]
-

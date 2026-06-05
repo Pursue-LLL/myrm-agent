@@ -16,7 +16,9 @@ import asyncio
 import json
 
 _SSE_DATA_PREFIX = "data: "
-_MEMORY_RECALL_TOOL_NAMES = frozenset({"memory_recall", "memory_recall_tool"})  # TODO(2026-Q3): remove "memory_recall" legacy alias after migration settles
+_MEMORY_RECALL_TOOL_NAMES = frozenset(
+    {"memory_recall", "memory_recall_tool"}
+)  # TODO(2026-Q3): remove "memory_recall" legacy alias after migration settles
 _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_restore_result"})
 
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
@@ -34,9 +36,7 @@ class StreamContentCollector:
     - Event dicts (via gateway): feed_event({...})
     """
 
-    def __init__(
-        self, sibling_group_id: str | None = None, chat_id: str | None = None
-    ) -> None:
+    def __init__(self, sibling_group_id: str | None = None, chat_id: str | None = None) -> None:
         self._content_parts: list[str] = []
         self._reasoning_parts: list[str] = []
         self._sources: list[dict[str, object]] = []
@@ -295,20 +295,14 @@ class StreamContentCollector:
         return result or None
 
     def _extend_cited_memory_refs(self, refs: list[object]) -> None:
-        seen = {
-            str(ref.get("id"))
-            for ref in self._cited_memory_refs
-            if isinstance(ref.get("id"), str)
-        }
+        seen = {str(ref.get("id")) for ref in self._cited_memory_refs if isinstance(ref.get("id"), str)}
         for ref in refs:
             if not isinstance(ref, dict):
                 continue
             ref_id = ref.get("id")
             if not isinstance(ref_id, str) or not ref_id or ref_id in seen:
                 continue
-            normalized = {
-                str(key): value for key, value in ref.items() if isinstance(key, str)
-            }
+            normalized = {str(key): value for key, value in ref.items() if isinstance(key, str)}
             self._cited_memory_refs.append(normalized)
             seen.add(ref_id)
 

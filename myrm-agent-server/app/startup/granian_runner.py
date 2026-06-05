@@ -32,9 +32,7 @@ def start_with_granian(
     workers = int(os.getenv("GRANIAN_WORKERS", str(os.cpu_count() or 4)))
 
     print("🚀 Granian multi-process mode (SERVER_MODE=granian)")
-    print(
-        "⚠️  Embedded SQLite/Qdrant may conflict with multi-process — use only with remote DB"
-    )
+    print("⚠️  Embedded SQLite/Qdrant may conflict with multi-process — use only with remote DB")
     print(f"📍 Starting server at http://{host}:{port}")
     print(f"💻 CPU cores: {os.cpu_count()}")
     print(f"👷 Workers: {workers}")

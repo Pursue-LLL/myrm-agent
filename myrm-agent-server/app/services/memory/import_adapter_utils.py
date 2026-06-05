@@ -155,8 +155,17 @@ def to_memory_import_source(source: str) -> MemoryImportSource:
     """Map a raw source string to a typed MemoryImportSource literal."""
 
     _KNOWN: set[str] = {
-        "native_json", "myrm_archive", "agentmemory", "gbrain", "memweaver",
-        "claude_code_jsonl", "hermes", "openclaw", "cursor_rules", "codex", "claude",
+        "native_json",
+        "myrm_archive",
+        "agentmemory",
+        "gbrain",
+        "memweaver",
+        "claude_code_jsonl",
+        "hermes",
+        "openclaw",
+        "cursor_rules",
+        "codex",
+        "claude",
     }
     if source in _KNOWN:
         return source  # type: ignore[return-value]

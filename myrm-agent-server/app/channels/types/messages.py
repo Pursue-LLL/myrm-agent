@@ -65,9 +65,7 @@ class MediaAttachment:
     caption: str | None = None
 
 
-_IMAGE_EXTS = frozenset(
-    (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico")
-)
+_IMAGE_EXTS = frozenset((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico"))
 _AUDIO_EXTS = frozenset((".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma"))
 _VIDEO_EXTS = frozenset((".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv"))
 
@@ -315,10 +313,7 @@ class OutboundMessage:
 
         media = tuple(_deserialize_media(m) for m in data.get("media", []))
         tool_steps = tuple(
-            ToolStep(
-                name=t.get("name", ""), label=t.get("label", ""), detail=t.get("detail")
-            )
-            for t in data.get("tool_steps", [])
+            ToolStep(name=t.get("name", ""), label=t.get("label", ""), detail=t.get("detail")) for t in data.get("tool_steps", [])
         )
 
         components = []
@@ -327,20 +322,11 @@ class OutboundMessage:
             components.append(row)
 
         quick_replies = tuple(
-            QuickReply(
-                label=q["label"], text=q["text"], required=q.get("required", False)
-            )
-            for q in data.get("quick_replies", [])
+            QuickReply(label=q["label"], text=q["text"], required=q.get("required", False)) for q in data.get("quick_replies", [])
         )
 
         corr_data = data.get("correlation_context")
-        correlation_context = (
-            CorrelationContext(
-                **{k: v for k, v in corr_data.items() if k != "__type__"}
-            )
-            if corr_data
-            else None
-        )
+        correlation_context = CorrelationContext(**{k: v for k, v in corr_data.items() if k != "__type__"}) if corr_data else None
 
         return cls(
             channel=data["channel"],
@@ -355,15 +341,11 @@ class OutboundMessage:
             tool_steps=tool_steps,
             components=tuple(components),
             quick_replies=quick_replies,
-            priority=MessagePriority(
-                data.get("priority", MessagePriority.NORMAL.value)
-            ),
+            priority=MessagePriority(data.get("priority", MessagePriority.NORMAL.value)),
             correlation_context=correlation_context,
         )
 
-    def strip_media(
-        self, placeholder: str = "\n\n[Image/FileSendFailure，Only保留text]"
-    ) -> OutboundMessage:
+    def strip_media(self, placeholder: str = "\n\n[Image/FileSendFailure，Only保留text]") -> OutboundMessage:
         """Return a new message with media stripped and a placeholder appended."""
         if not self.media:
             return self

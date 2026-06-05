@@ -225,9 +225,7 @@ async def test_browse_content_preview(client: AsyncClient, workspace_dir: str):
 
 
 @pytest.mark.anyio
-async def test_browse_content_via_chat_id_relative_path(
-    client: AsyncClient, workspace_dir: str
-) -> None:
+async def test_browse_content_via_chat_id_relative_path(client: AsyncClient, workspace_dir: str) -> None:
     """chat_id resolves workspace root; relative path joins inside boundary."""
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
@@ -255,9 +253,7 @@ async def test_browse_content_via_chat_id_relative_path(
 
 
 @pytest.mark.anyio
-async def test_browse_content_via_chat_id_absolute_path(
-    client: AsyncClient, workspace_dir: str
-) -> None:
+async def test_browse_content_via_chat_id_absolute_path(client: AsyncClient, workspace_dir: str) -> None:
     """chat_id plus absolute path within workspace returns content."""
     from app.database.models.chat import Chat
     from app.platform_utils import get_session_factory
@@ -287,7 +283,8 @@ async def test_browse_content_via_chat_id_absolute_path(
 
 @pytest.mark.anyio
 async def test_browse_content_requires_workspace_or_chat_id(
-    client: AsyncClient, workspace_dir: str,
+    client: AsyncClient,
+    workspace_dir: str,
 ) -> None:
     """Boundary root is mandatory: omitting both workspace and chat_id must fail."""
     file_path = os.path.join(workspace_dir, "readme.md")

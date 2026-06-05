@@ -150,9 +150,7 @@ class AgentGateway:
         if user_events:
             for event in user_events.values():
                 event.set()
-            logger.info(
-                "Interrupt signal sent for sandbox (%d agents)", len(user_events)
-            )
+            logger.info("Interrupt signal sent for sandbox (%d agents)", len(user_events))
             return True
         logger.debug("No active agent to interrupt for sandbox user")
         return False
@@ -170,7 +168,7 @@ class AgentGateway:
 
     def get_active_browser_session(self, session_id: str | None = None) -> object | None:
         """Get the BrowserSession from any currently active agent, if available.
-        
+
         Args:
             session_id: Optional chat/session ID to filter by.
         """
@@ -194,7 +192,7 @@ class AgentGateway:
 
     def get_active_desktop_session(self, session_id: str | None = None) -> object | None:
         """Get the DesktopSession from any currently active agent, if available.
-        
+
         Args:
             session_id: Optional chat/session ID to filter by.
         """
@@ -254,9 +252,7 @@ class AgentGateway:
     # 长时目标（代码重构、大规模分析）禁用常规超时所用的上限
     GOAL_ACTIVE_TIMEOUT_SECONDS = 3600.0
 
-    def _resolve_effective_timeout(
-        self, *, goal_active: bool, fission_active: bool
-    ) -> float:
+    def _resolve_effective_timeout(self, *, goal_active: bool, fission_active: bool) -> float:
         """Resolve execution timeout by tier (goal > fission > default).
 
         - goal_active: 长时任务禁用常规超时。
@@ -339,9 +335,7 @@ class AgentGateway:
                 if not self._pressure_resolved.is_set()
                 else f"active={self._active_count}/{self._config.max_global}"
             )
-            raise AgentQueueTimeout(
-                f"Queue timeout ({self._config.queue_timeout:.0f}s) — {reason}"
-            ) from None
+            raise AgentQueueTimeout(f"Queue timeout ({self._config.queue_timeout:.0f}s) — {reason}") from None
 
         self._active_count += 1
         started_at = time.monotonic()
@@ -364,9 +358,7 @@ class AgentGateway:
                 return scrub_sensitive_info(data)
             return data
 
-        effective_timeout = self._resolve_effective_timeout(
-            goal_active=goal_active, fission_active=fission_active
-        )
+        effective_timeout = self._resolve_effective_timeout(goal_active=goal_active, fission_active=fission_active)
 
         try:
             async with asyncio.timeout(effective_timeout):
@@ -384,9 +376,7 @@ class AgentGateway:
                         yield {"payload": scrubbed}
         except TimeoutError:
             status = "timeout"
-            raise AgentExecutionTimeout(
-                f"Execution timeout ({effective_timeout:.0f}s)"
-            ) from None
+            raise AgentExecutionTimeout(f"Execution timeout ({effective_timeout:.0f}s)") from None
         except GeneratorExit:
             status = "cancelled"
             raise

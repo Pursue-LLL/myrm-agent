@@ -11,6 +11,7 @@ def client() -> TestClient:
     app.include_router(router, prefix="/api/v1/system")
     return TestClient(app)
 
+
 def test_gateway_health_no_token(client: TestClient) -> None:
     """Test that the gateway health proxy endpoint handles missing token."""
     response = client.post("/api/v1/system/gateway/health", json={"gateway_token": None})
@@ -19,11 +20,13 @@ def test_gateway_health_no_token(client: TestClient) -> None:
     assert data["status"] == "error"
     assert "Gateway PAT token is required" in data["message"]
 
+
 def test_gateway_health_invalid_token(client: TestClient) -> None:
     """Test that the gateway health proxy endpoint validates token format (SSRF protection)."""
     response = client.post("/api/v1/system/gateway/health", json={"gateway_token": "invalid token @!!"})
     assert response.status_code == 422
     assert "gateway_token" in response.text
+
 
 def test_gateway_health_with_token_connection_error(client: TestClient) -> None:
     """Test that the gateway health proxy handles connection failures to control plane."""
@@ -32,7 +35,7 @@ def test_gateway_health_with_token_connection_error(client: TestClient) -> None:
     response = client.post("/api/v1/system/gateway/health", json={"gateway_token": "test_token"})
     assert response.status_code == 200
     data = response.json()
-    
+
     # We don't have a real CP running in the test environment, so it should fail gracefully
     # with either a connection error or a 404/502 depending on what's at the URL.
     if data.get("status") == "error":

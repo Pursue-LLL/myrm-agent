@@ -44,12 +44,8 @@ _PRIVATE_KEY_RE = re.compile(
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
     re.DOTALL,
 )
-_TOKEN_RE = re.compile(
-    r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}|xox[baprs]-[A-Za-z0-9-]{16,})\b"
-)
-_ASSIGNMENT_SECRET_RE = re.compile(
-    r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^'\"\s,;]{8,}"
-)
+_TOKEN_RE = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}|xox[baprs]-[A-Za-z0-9-]{16,})\b")
+_ASSIGNMENT_SECRET_RE = re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[^'\"\s,;]{8,}")
 
 
 class MemoryArchiveService:
@@ -98,14 +94,8 @@ class MemoryArchiveService:
         archive = MemoryArchivePayload.model_validate(payload)
         supported_names: set[str] = {"memory", "shared_context", "conversation", "replay", "audit"}
         total_items = sum(section.item_count for section in archive.manifest.sections)
-        supported_items = sum(
-            section.item_count for section in archive.manifest.sections if section.name in supported_names
-        )
-        warning_codes = [
-            code
-            for section in archive.manifest.sections
-            for code in section.warning_codes
-        ]
+        supported_items = sum(section.item_count for section in archive.manifest.sections if section.name in supported_names)
+        warning_codes = [code for section in archive.manifest.sections for code in section.warning_codes]
         unsupported_items = total_items - supported_items
         return MemoryArchiveDryRunResult(
             manifest=archive.manifest,
@@ -247,9 +237,7 @@ class MemoryArchiveService:
         ]
 
     async def _export_audit(self) -> list[dict[str, object]]:
-        result = await self._db.execute(
-            select(MemoryOperationEventModel).order_by(desc(MemoryOperationEventModel.occurred_at))
-        )
+        result = await self._db.execute(select(MemoryOperationEventModel).order_by(desc(MemoryOperationEventModel.occurred_at)))
         rows = list(result.scalars().all())
         return [
             {

@@ -43,12 +43,9 @@ async def get_taste_summary(
         reply_style = await manager.get_profile_attribute("reply_style")
         cognitive_depth = await manager.get_profile_attribute("cognitive_depth")
         proactivity = await manager.get_profile_attribute("proactivity")
-        
+
         return TasteSummaryResponse(
-            reply_style=reply_style,
-            technical_depth=cognitive_depth,
-            proactivity=proactivity,
-            memory_count=0
+            reply_style=reply_style, technical_depth=cognitive_depth, proactivity=proactivity, memory_count=0
         )
     except Exception as e:
         logger.warning("Failed to read taste summary from profile: %s", e)

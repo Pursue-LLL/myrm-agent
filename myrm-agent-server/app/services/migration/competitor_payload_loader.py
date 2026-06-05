@@ -162,17 +162,11 @@ def _load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if soul_path:
         result["soul_md"] = _read_text(soul_path)
 
-    memory_path = (
-        _path_by_kind(file_paths, "MEMORY.md")
-        or _find_file(root, "memories", "MEMORY.md")
-    )
+    memory_path = _path_by_kind(file_paths, "MEMORY.md") or _find_file(root, "memories", "MEMORY.md")
     if memory_path:
         result["memory_md"] = _read_text(memory_path)
 
-    user_path = (
-        _path_by_kind(file_paths, "USER.md")
-        or _find_file(root, "memories", "USER.md")
-    )
+    user_path = _path_by_kind(file_paths, "USER.md") or _find_file(root, "memories", "USER.md")
     if user_path:
         result["user_md"] = _read_text(user_path)
 
@@ -231,9 +225,7 @@ def _load_openclaw(root: Path, file_paths: list[str]) -> dict[str, object]:
         skills = _load_skill_directories(extra_skills, source="openclaw")
         if skills:
             existing_skills = result.get("openclaw_skills")
-            merged_skills: list[dict[str, object]] = (
-                list(existing_skills) if isinstance(existing_skills, list) else []
-            )
+            merged_skills: list[dict[str, object]] = list(existing_skills) if isinstance(existing_skills, list) else []
             merged_skills.extend(skills)
             result["openclaw_skills"] = merged_skills
 
@@ -270,10 +262,7 @@ def _load_cursor(root: Path, file_paths: list[str]) -> dict[str, object]:
 def _load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     result: dict[str, object] = {}
 
-    instructions_path = (
-        _path_by_kind(file_paths, "instructions.md")
-        or _find_file(root, "instructions.md")
-    )
+    instructions_path = _path_by_kind(file_paths, "instructions.md") or _find_file(root, "instructions.md")
     if instructions_path:
         result["codex_instructions"] = _read_text(instructions_path)
 
@@ -416,11 +405,7 @@ def _merge_openclaw_markdown_into_memory(result: dict[str, object]) -> None:
     """Convert workspace MEMORY.md / USER.md bullets into structured openclaw_memory entries."""
 
     existing = result.get("openclaw_memory")
-    merged: list[dict[str, object]] = (
-        [item for item in existing if isinstance(item, dict)]
-        if isinstance(existing, list)
-        else []
-    )
+    merged: list[dict[str, object]] = [item for item in existing if isinstance(item, dict)] if isinstance(existing, list) else []
 
     memory_md = result.get("memory_md")
     if isinstance(memory_md, str) and memory_md.strip():

@@ -61,10 +61,7 @@ class SQLiteHealthChecker(HealthChecker):
     def __init__(self, force_wal_cleanup: bool = False) -> None:
         self.sqlite_path = Path(settings.database.sqlite_path)
         if force_wal_cleanup:
-            logger.warning(
-                "force_wal_cleanup is ignored. Manual WAL deletion is "
-                "prohibited to prevent data loss."
-            )
+            logger.warning("force_wal_cleanup is ignored. Manual WAL deletion is prohibited to prevent data loss.")
 
     async def check(self) -> HealthCheckResult:
         """Check SQLite database health via SELECT 1 + PRAGMA quick_check."""
@@ -81,9 +78,7 @@ class SQLiteHealthChecker(HealthChecker):
         has_shm = shm_file.exists()
 
         try:
-            conn = sqlite3.connect(
-                str(self.sqlite_path), timeout=5.0, check_same_thread=False
-            )
+            conn = sqlite3.connect(str(self.sqlite_path), timeout=5.0, check_same_thread=False)
         except sqlite3.Error as err:
             return HealthCheckResult(
                 status=HealthStatus.UNHEALTHY,
@@ -150,9 +145,7 @@ class SQLiteHealthChecker(HealthChecker):
 
         if result.restored:
             actions = [
-                f"Quarantined corrupted database to {result.quarantine_dir}"
-                if result.quarantine_dir
-                else "No quarantine needed",
+                f"Quarantined corrupted database to {result.quarantine_dir}" if result.quarantine_dir else "No quarantine needed",
                 f"Restored from backup snapshot: {result.snapshot_file}",
             ]
             logger.info(

@@ -106,13 +106,9 @@ async def list_commitments(
 async def dismiss_commitment(commitment_id: str) -> dict[str, bool]:
     """Dismiss a commitment (won't be shown again)."""
     now_ms = int(time.time() * 1000)
-    count = await _store.mark_status(
-        [commitment_id], CommitmentStatus.DISMISSED, now_ms
-    )
+    count = await _store.mark_status([commitment_id], CommitmentStatus.DISMISSED, now_ms)
     if count == 0:
-        raise HTTPException(
-            status_code=404, detail="Commitment not found or already resolved"
-        )
+        raise HTTPException(status_code=404, detail="Commitment not found or already resolved")
     return {"success": True}
 
 
@@ -124,7 +120,5 @@ async def snooze_commitment(commitment_id: str, body: SnoozeRequest) -> dict[str
         raise HTTPException(status_code=400, detail="Snooze time must be in the future")
     updated = await _store.snooze(commitment_id, body.until_ms, now_ms)
     if not updated:
-        raise HTTPException(
-            status_code=404, detail="Commitment not found or already resolved"
-        )
+        raise HTTPException(status_code=404, detail="Commitment not found or already resolved")
     return {"success": True}

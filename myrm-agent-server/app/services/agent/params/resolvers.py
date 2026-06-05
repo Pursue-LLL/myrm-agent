@@ -37,9 +37,7 @@ async def _resolve_model_config(
 
         return _fallback_model_from_providers(providers_dict)
 
-    providers = (
-        providers_dict.get("providers") if isinstance(providers_dict, dict) else []
-    )
+    providers = providers_dict.get("providers") if isinstance(providers_dict, dict) else []
     logger.info(f"Resolving model config for {selection.provider_id}")
     logger.info(f"Providers dict: {providers_dict}")
 
@@ -48,9 +46,7 @@ async def _resolve_model_config(
         if selection.provider_id in providers:
             provider = providers[selection.provider_id]
             # Ensure it has the structure expected later
-            if isinstance(provider, dict) and (
-                provider.get("isEnabled") or provider.get("enabled")
-            ):
+            if isinstance(provider, dict) and (provider.get("isEnabled") or provider.get("enabled")):
                 provider["id"] = selection.provider_id
                 providers = [provider]
             else:
@@ -62,13 +58,7 @@ async def _resolve_model_config(
         providers = []
 
     provider = next(
-        (
-            p
-            for p in providers
-            if isinstance(p, dict)
-            and p.get("id") == selection.provider_id
-            and p.get("isEnabled")
-        ),
+        (p for p in providers if isinstance(p, dict) and p.get("id") == selection.provider_id and p.get("isEnabled")),
         None,
     )
 
@@ -88,9 +78,7 @@ async def _resolve_model_config(
     if not all_keys:
         raise ValueError(f"No active API key for provider '{selection.provider_id}'")
 
-    full_model = _to_litellm_model(
-        selection.provider_id, selection.model, provider_type
-    )
+    full_model = _to_litellm_model(selection.provider_id, selection.model, provider_type)
 
     return ModelConfig(
         model=full_model,

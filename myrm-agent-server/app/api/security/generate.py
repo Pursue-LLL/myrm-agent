@@ -116,10 +116,7 @@ async def generate_policy(req: GeneratePolicyRequest) -> GeneratePolicyResponse:
         generated_config=generated,
         explanation_zh=explanation_zh,
         explanation_en=explanation_en,
-        warnings=[
-            PolicyWarningResponse(message=w.message, severity=w.severity, field=w.field)
-            for w in warnings
-        ],
+        warnings=[PolicyWarningResponse(message=w.message, severity=w.severity, field=w.field) for w in warnings],
         is_valid=is_valid,
     )
 

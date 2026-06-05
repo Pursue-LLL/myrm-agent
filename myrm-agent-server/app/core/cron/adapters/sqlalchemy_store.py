@@ -124,7 +124,6 @@ class SqlAlchemyCronStore:
             await session.commit()
             return _exec_rowcount(result) > 0
 
-
     async def claim_due(self, job_ids: list[str]) -> None:
         async with get_session() as session:
             await session.execute(update(CronJobModel).where(CronJobModel.id.in_(job_ids)).values(next_run_at=None))
@@ -219,7 +218,6 @@ class SqlAlchemyCronStore:
             await session.commit()
             return _exec_rowcount(result)
 
-
     async def delete_job_cascade(self, job_id: str) -> bool:
         async with get_session() as session:
             await session.execute(delete(MonitorStateModel).where(MonitorStateModel.job_id == job_id))
@@ -288,7 +286,6 @@ class SqlAlchemyCronStore:
             result = await session.execute(delete(MonitorStateModel).where(MonitorStateModel.job_id == job_id))
             await session.commit()
             return _exec_rowcount(result) > 0
-
 
     # ------------------------------------------------------------------
     # Usage aggregation (delegates to sqlalchemy_aggregation module)

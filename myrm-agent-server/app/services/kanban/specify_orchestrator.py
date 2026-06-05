@@ -146,13 +146,17 @@ async def run_specify_task(
     """
     if specifier is None:
         return SpecifyOutcome(
-            task_id=task_id, ok=False, reason="specifier_unavailable",
+            task_id=task_id,
+            ok=False,
+            reason="specifier_unavailable",
         )
 
     task = await store.get_task(task_id)
     if task is None:
         return SpecifyOutcome(
-            task_id=task_id, ok=False, reason="unknown_task",
+            task_id=task_id,
+            ok=False,
+            reason="unknown_task",
         )
 
     outcome = await specifier.specify(task, persist=persist)
@@ -162,8 +166,11 @@ async def run_specify_task(
     latest = await store.get_task(task_id)
     if latest is None or latest.status != TaskStatus.TRIAGE:
         return SpecifyOutcome(
-            task_id=task_id, ok=False, reason="race_lost",
-            new_title=outcome.new_title, new_body=outcome.new_body,
+            task_id=task_id,
+            ok=False,
+            reason="race_lost",
+            new_title=outcome.new_title,
+            new_body=outcome.new_body,
             prompt_tokens=outcome.prompt_tokens,
             completion_tokens=outcome.completion_tokens,
             persisted=False,
@@ -204,12 +211,17 @@ async def run_apply_spec(
     task = await store.get_task(task_id)
     if task is None:
         return SpecifyOutcome(
-            task_id=task_id, ok=False, reason="unknown_task",
+            task_id=task_id,
+            ok=False,
+            reason="unknown_task",
         )
     if task.status != TaskStatus.TRIAGE:
         return SpecifyOutcome(
-            task_id=task_id, ok=False, reason="race_lost",
-            new_title=new_title, new_body=new_body,
+            task_id=task_id,
+            ok=False,
+            reason="race_lost",
+            new_title=new_title,
+            new_body=new_body,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             persisted=False,

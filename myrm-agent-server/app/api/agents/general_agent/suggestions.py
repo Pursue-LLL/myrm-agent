@@ -1,4 +1,5 @@
 """General Agent API — autonomous decision-making agent with streaming SSE."""
+
 import asyncio
 import json
 import logging
@@ -23,12 +24,14 @@ _SUGGESTIONS_PROMPT = (
     "Conversation:\n{conversation}\n\nJSON array:"
 )
 
+
 class SuggestionsRequest(BaseModel):
     chat_history: list[list[str]]
 
     class Config:
         alias_generator = to_camel
         populate_by_name = True
+
 
 @router.post("/suggestions")
 @limiter.limit(settings.rate_limit.chat)
@@ -74,6 +77,7 @@ async def get_suggestions(
         logger.warning("suggestions_generation_failed", exc_info=True)
         return success_response(data={"suggestions": []})
 
+
 def _resolve_lite_model(
     providers_dict: dict[str, object] | None,
     default_model_cfg: ModelConfig | None,
@@ -85,6 +89,7 @@ def _resolve_lite_model(
     if filter_cfg is not None:
         return filter_cfg
     return default_model_cfg
+
 
 def _parse_suggestions(content: str) -> list[str]:
     """Extract a list of suggestion strings from LLM output.
@@ -104,4 +109,3 @@ def _parse_suggestions(content: str) -> list[str]:
 
     lines = [line.strip().lstrip("0123456789.-) ") for line in content.splitlines() if line.strip()]
     return [line for line in lines if len(line) > 5][:5]
-

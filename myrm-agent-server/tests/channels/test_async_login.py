@@ -174,9 +174,7 @@ class TestOAuth2LoginHelper:
         async def simulate_callback():
             while helper._csrf_state is None:
                 await asyncio.sleep(0.05)
-            await helper.handle_callback(
-                code="auth_code_123", state=helper._csrf_state, error=None
-            )
+            await helper.handle_callback(code="auth_code_123", state=helper._csrf_state, error=None)
 
         asyncio.create_task(simulate_callback())
 
@@ -211,9 +209,7 @@ class TestOAuth2LoginHelper:
         async def simulate_denial():
             while helper._csrf_state is None:
                 await asyncio.sleep(0.05)
-            await helper.handle_callback(
-                code=None, state=helper._csrf_state, error="access_denied"
-            )
+            await helper.handle_callback(code=None, state=helper._csrf_state, error="access_denied")
 
         asyncio.create_task(simulate_denial())
 
@@ -244,9 +240,7 @@ class TestOAuth2LoginHelper:
         async def simulate_bad_state():
             while helper._csrf_state is None:
                 await asyncio.sleep(0.05)
-            await helper.handle_callback(
-                code="auth_code_123", state="wrong_state_value", error=None
-            )
+            await helper.handle_callback(code="auth_code_123", state="wrong_state_value", error=None)
 
         asyncio.create_task(simulate_bad_state())
 

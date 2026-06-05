@@ -21,9 +21,7 @@ async def get_evolution_rejections(
     if trigger_type:
         normalized = trigger_type.lower()
         entries = [
-            entry
-            for entry in entries
-            if entry.growth_type.lower() == normalized or entry.status.value.lower() == normalized
+            entry for entry in entries if entry.growth_type.lower() == normalized or entry.status.value.lower() == normalized
         ]
 
     rejections = [
@@ -79,7 +77,3 @@ async def get_rejection_stats(
         ],
         "time_range_days": time_range_days,
     }
-
-
-
-

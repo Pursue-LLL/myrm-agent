@@ -89,23 +89,26 @@ class SleepInhibitor:
                 iokit_path = ctypes.cdll.LoadLibrary(ctypes.util.find_library("IOKit"))
                 if not core_foundation_path or not iokit_path:
                     raise FileNotFoundError("CoreFoundation or IOKit not found")
-                
+
                 core_foundation = ctypes.cdll.LoadLibrary(core_foundation_path)
-                
+
                 # CFStringCreateWithCString
                 core_foundation.CFStringCreateWithCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_uint32]
                 core_foundation.CFStringCreateWithCString.restype = ctypes.c_void_p
-                
+
                 # CFRelease
                 core_foundation.CFRelease.argtypes = [ctypes.c_void_p]
                 core_foundation.CFRelease.restype = None
-                
+
                 # IOPMAssertionCreateWithName
                 iokit_path.IOPMAssertionCreateWithName.argtypes = [
-                    ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)
+                    ctypes.c_void_p,
+                    ctypes.c_uint32,
+                    ctypes.c_void_p,
+                    ctypes.POINTER(ctypes.c_uint32),
                 ]
                 iokit_path.IOPMAssertionCreateWithName.restype = ctypes.c_int32
-                
+
                 # IOPMAssertionRelease
                 iokit_path.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
                 iokit_path.IOPMAssertionRelease.restype = ctypes.c_int32
@@ -122,19 +125,19 @@ class SleepInhibitor:
 
                 reason_cf = create_cfstring("Agent task running")
                 cls._mac_assertions = []
-                
+
                 try:
                     for atype in assertion_types:
                         type_cf = create_cfstring(atype)
                         assertion_id = ctypes.c_uint32(0)
                         result = iokit_path.IOPMAssertionCreateWithName(
                             type_cf,
-                            255, # kIOPMAssertionLevelOn
+                            255,  # kIOPMAssertionLevelOn
                             reason_cf,
-                            ctypes.byref(assertion_id)
+                            ctypes.byref(assertion_id),
                         )
                         core_foundation.CFRelease(type_cf)
-                        
+
                         if result == 0:
                             cls._mac_assertions.append(assertion_id.value)
                         else:
@@ -189,12 +192,13 @@ class SleepInhibitor:
                 try:
                     import ctypes
                     import ctypes.util
+
                     iokit_path_str = ctypes.util.find_library("IOKit")
                     if iokit_path_str:
                         iokit_path = ctypes.cdll.LoadLibrary(iokit_path_str)
                         iokit_path.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
                         iokit_path.IOPMAssertionRelease.restype = ctypes.c_int32
-                        
+
                         for assertion_id in cls._mac_assertions:
                             iokit_path.IOPMAssertionRelease(assertion_id)
                 finally:
@@ -231,6 +235,7 @@ class SleepInhibitor:
             try:
                 import ctypes
                 import ctypes.util
+
                 iokit_path = ctypes.cdll.LoadLibrary(ctypes.util.find_library("IOKit"))
                 iokit_path.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
                 iokit_path.IOPMAssertionRelease.restype = ctypes.c_int32

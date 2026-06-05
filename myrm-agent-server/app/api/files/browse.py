@@ -43,25 +43,100 @@ _MAX_CONTENT_SIZE = 1 * 1024 * 1024  # 1MB
 _SEARCH_MAX_RESULTS = 20
 _SEARCH_MAX_WALK_DEPTH = 6
 
-_IGNORED_DIRS: frozenset[str] = frozenset({
-    "node_modules", ".git", ".next", "__pycache__", ".venv", "venv",
-    "dist", "build", ".cache", ".DS_Store", ".tox", ".mypy_cache",
-    ".pytest_cache", ".ruff_cache", "egg-info", ".eggs",
-})
+_IGNORED_DIRS: frozenset[str] = frozenset(
+    {
+        "node_modules",
+        ".git",
+        ".next",
+        "__pycache__",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".cache",
+        ".DS_Store",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        "egg-info",
+        ".eggs",
+    }
+)
 
-_TEXT_EXTENSIONS: frozenset[str] = frozenset({
-    ".txt", ".md", ".rst", ".py", ".js", ".ts", ".tsx", ".jsx",
-    ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
-    ".html", ".htm", ".css", ".scss", ".less", ".xml", ".svg",
-    ".sh", ".bash", ".zsh", ".fish", ".bat", ".cmd", ".ps1",
-    ".sql", ".graphql", ".gql", ".csv", ".tsv",
-    ".java", ".kt", ".scala", ".go", ".rs", ".c", ".cpp", ".h",
-    ".hpp", ".cs", ".rb", ".php", ".swift", ".r", ".m", ".lua",
-    ".pl", ".pm", ".ex", ".exs", ".erl", ".hs", ".clj",
-    ".dockerfile", ".gitignore", ".env.example", ".editorconfig",
-    ".prettierrc", ".eslintrc", ".babelrc",
-    "Makefile", "Dockerfile", "Procfile", "Gemfile", "Rakefile",
-})
+_TEXT_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".txt",
+        ".md",
+        ".rst",
+        ".py",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".html",
+        ".htm",
+        ".css",
+        ".scss",
+        ".less",
+        ".xml",
+        ".svg",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".bat",
+        ".cmd",
+        ".ps1",
+        ".sql",
+        ".graphql",
+        ".gql",
+        ".csv",
+        ".tsv",
+        ".java",
+        ".kt",
+        ".scala",
+        ".go",
+        ".rs",
+        ".c",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".cs",
+        ".rb",
+        ".php",
+        ".swift",
+        ".r",
+        ".m",
+        ".lua",
+        ".pl",
+        ".pm",
+        ".ex",
+        ".exs",
+        ".erl",
+        ".hs",
+        ".clj",
+        ".dockerfile",
+        ".gitignore",
+        ".env.example",
+        ".editorconfig",
+        ".prettierrc",
+        ".eslintrc",
+        ".babelrc",
+        "Makefile",
+        "Dockerfile",
+        "Procfile",
+        "Gemfile",
+        "Rakefile",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -127,10 +202,11 @@ class FileSearchResponse(BaseModel):
 
 def _is_within_boundary(target: str, boundary: str) -> bool:
     """Check that *target* is equal to or inside *boundary* directory.
-    
+
     Delegates to the unified path security module.
     """
     from myrm_agent_harness.agent.security.path_security import is_within_boundary
+
     return is_within_boundary(target, boundary)
 
 
@@ -186,12 +262,14 @@ def _scan_tree(
                     if depth < max_depth:
                         children = _scan_tree(full_path, boundary, depth + 1, max_depth, counter, max_entries)
 
-                    entries.append(FileEntry(
-                        name=entry.name,
-                        path=full_path,
-                        type="directory",
-                        children=children,
-                    ))
+                    entries.append(
+                        FileEntry(
+                            name=entry.name,
+                            path=full_path,
+                            type="directory",
+                            children=children,
+                        )
+                    )
                 else:
                     if is_sensitive_file(full_path):
                         continue
@@ -205,13 +283,15 @@ def _scan_tree(
                         mtime = None
                         size = None
 
-                    entries.append(FileEntry(
-                        name=entry.name,
-                        path=full_path,
-                        type="file",
-                        size=size,
-                        mtime=mtime,
-                    ))
+                    entries.append(
+                        FileEntry(
+                            name=entry.name,
+                            path=full_path,
+                            type="file",
+                            size=size,
+                            mtime=mtime,
+                        )
+                    )
     except PermissionError:
         pass
     except OSError as e:
@@ -306,9 +386,7 @@ async def browse_content(
         ...,
         description="Absolute file path, or path relative to the resolved workspace when using chat_id/workspace",
     ),
-    workspace: str | None = Query(
-        None, description="Workspace root boundary (omit when chat_id is provided)"
-    ),
+    workspace: str | None = Query(None, description="Workspace root boundary (omit when chat_id is provided)"),
     chat_id: str | None = Query(
         None,
         description="Chat id — resolves workspace root via Chat metadata (JIT sandbox bind when unset)",
@@ -398,7 +476,7 @@ async def browse_content(
 
 def fuzzy_score(query_lower: str, target: str) -> float:
     """Calculate a fuzzy match score (0-100) between query and target.
-    
+
     Higher score is better.
     - 100: Exact match
     - 80-99: Substring match
@@ -407,37 +485,37 @@ def fuzzy_score(query_lower: str, target: str) -> float:
     """
     if not query_lower:
         return 100.0
-        
+
     target = target.lower()
-    
+
     if query_lower == target:
         return 100.0
-        
+
     if query_lower in target:
         # Give higher score if it matches the beginning of the target
         base_score = 90.0 if target.startswith(query_lower) else 80.0
         return base_score + (len(query_lower) / len(target)) * 9.0
-        
+
     # Subsequence match
     q_idx = 0
     t_idx = 0
     q_len = len(query_lower)
     t_len = len(target)
-    
+
     match_indices = []
     while q_idx < q_len and t_idx < t_len:
         if query_lower[q_idx] == target[t_idx]:
             match_indices.append(t_idx)
             q_idx += 1
         t_idx += 1
-        
+
     if q_idx < q_len:
-        return 0.0 # not a subsequence
-        
+        return 0.0  # not a subsequence
+
     # It is a subsequence. Calculate score based on compactness.
     spread = match_indices[-1] - match_indices[0] + 1
     compactness = len(query_lower) / spread if spread > 0 else 1.0
-    
+
     return 10.0 + (compactness * 60.0) + (len(query_lower) / len(target)) * 9.0
 
 
@@ -452,7 +530,7 @@ def _search_files(
 
     root_real = os.path.realpath(root)
     all_files = WorkspaceFileIndexer.list_all_files(root_real)
-    
+
     scored_files = []
     for rel_path in all_files:
         fname = os.path.basename(rel_path)
@@ -460,16 +538,16 @@ def _search_files(
         score = fuzzy_score(query_lower, fname)
         if score <= 0:
             continue
-            
+
         full_path = os.path.join(root_real, rel_path)
         if is_dangerous_path(full_path) or is_sensitive_file(full_path):
             continue
-            
+
         scored_files.append((score, fname, full_path, rel_path))
-        
+
     # Sort by score descending, then by relative path ascending
     scored_files.sort(key=lambda x: (-x[0], x[3]))
-    
+
     results: list[FileSearchResult] = []
     for _score, fname, full_path, rel_path in scored_files[:max_results]:
         try:
@@ -477,12 +555,14 @@ def _search_files(
         except OSError:
             size = None
 
-        results.append(FileSearchResult(
-            name=fname,
-            path=full_path,
-            relative_path=rel_path,
-            size=size,
-        ))
+        results.append(
+            FileSearchResult(
+                name=fname,
+                path=full_path,
+                relative_path=rel_path,
+                size=size,
+            )
+        )
 
     return results
 

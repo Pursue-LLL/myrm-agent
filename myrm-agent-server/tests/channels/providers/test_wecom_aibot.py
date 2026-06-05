@@ -104,8 +104,12 @@ async def test_guardian_loop_20s_jitter(channel):
     now = time.time()
 
     channel._active_streams[stream_id] = WeComStreamState(
-        stream_id=stream_id, chat_id="chat_1", req_id="req_1",
-        start_time=now - 25, last_update_time=now - 25, last_full_text="Thinking..."
+        stream_id=stream_id,
+        chat_id="chat_1",
+        req_id="req_1",
+        start_time=now - 25,
+        last_update_time=now - 25,
+        last_full_text="Thinking...",
     )
 
     with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
@@ -127,8 +131,12 @@ async def test_guardian_loop_280s_truncation(channel):
 
     long_text = "A" * 19995
     channel._active_streams[stream_id] = WeComStreamState(
-        stream_id=stream_id, chat_id="chat_1", req_id="req_1",
-        start_time=now - 285, last_update_time=now - 285, last_full_text=long_text
+        stream_id=stream_id,
+        chat_id="chat_1",
+        req_id="req_1",
+        start_time=now - 285,
+        last_update_time=now - 285,
+        last_full_text=long_text,
     )
 
     with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
@@ -154,8 +162,7 @@ async def test_guardian_loop_3600s_ttl(channel):
     now = time.time()
 
     channel._active_streams[stream_id] = WeComStreamState(
-        stream_id=stream_id, chat_id="chat_1", req_id="req_1",
-        start_time=now - 3601, last_update_time=now - 3601
+        stream_id=stream_id, chat_id="chat_1", req_id="req_1", start_time=now - 3601, last_update_time=now - 3601
     )
 
     with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:

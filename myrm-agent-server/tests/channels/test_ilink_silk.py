@@ -32,9 +32,12 @@ class TestSilkToWav:
         silk_path.write_bytes(b"silk data")
         wav_path = tmp_path / "voice.wav"
 
-        with patch.dict("sys.modules", {"pilk": None}), patch(
-            "app.channels.providers._ilink.silk.silk_to_wav",
-        ) as mock_fn:
+        with (
+            patch.dict("sys.modules", {"pilk": None}),
+            patch(
+                "app.channels.providers._ilink.silk.silk_to_wav",
+            ) as mock_fn,
+        ):
             mock_fn.return_value = False
             result = mock_fn(silk_path, wav_path)
 

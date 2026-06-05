@@ -26,9 +26,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
     try:
         from filelock import FileLock, Timeout
     except ImportError:
-        print(
-            "⚠️  Warning: 'filelock' package not found, skipping OS lock. Run: uv sync"
-        )
+        print("⚠️  Warning: 'filelock' package not found, skipping OS lock. Run: uv sync")
         return
 
     global _server_lock
@@ -65,11 +63,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
                             parent = proc.parent()
                             if parent:
                                 p_cmd = " ".join(parent.cmdline()).lower()
-                                if (
-                                    "run.py" in p_cmd
-                                    or "myrm-agent" in p_cmd
-                                    or "granian" in p_cmd
-                                ):
+                                if "run.py" in p_cmd or "myrm-agent" in p_cmd or "granian" in p_cmd:
                                     return parent.pid
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
@@ -102,12 +96,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
                 cmd_str = " ".join(cmdline).lower()
 
                 # 严格指纹匹配，包括孤儿 worker
-                if (
-                    "run.py" in cmd_str
-                    or "myrm-agent" in cmd_str
-                    or "granian" in cmd_str
-                    or "app.main" in cmd_str
-                ):
+                if "run.py" in cmd_str or "myrm-agent" in cmd_str or "granian" in cmd_str or "app.main" in cmd_str:
                     # 工作区级严格指纹锁定
                     is_match = False
                     try:
@@ -155,9 +144,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
             target_pids.update(_find_pids_by_scan())
 
             if target_pids:
-                print(
-                    f"⚠️  检测到遗留的后台进程 (PIDs: {list(target_pids)})，正在尝试无感接管..."
-                )
+                print(f"⚠️  检测到遗留的后台进程 (PIDs: {list(target_pids)})，正在尝试无感接管...")
 
                 procs_to_kill: list[psutil.Process] = []
                 for pid in target_pids:
@@ -203,9 +190,7 @@ def acquire_server_lock(target_port: int, target_host: str = "0.0.0.0") -> None:
 
                         # 物理端口释放校验
                         if not _verify_port_free(target_host, target_port):
-                            print(
-                                f"⚠️  警告：进程已猎杀，但端口 {target_port} 仍未释放 (可能处于 TIME_WAIT)，将继续尝试启动..."
-                            )
+                            print(f"⚠️  警告：进程已猎杀，但端口 {target_port} 仍未释放 (可能处于 TIME_WAIT)，将继续尝试启动...")
                         else:
                             print("✅  成功接管服务器端口！\n")
                         return

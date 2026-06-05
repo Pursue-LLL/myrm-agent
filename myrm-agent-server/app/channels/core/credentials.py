@@ -148,8 +148,7 @@ async def resolve_credentials(
                 value_str = field.validator(value_str)
             except Exception as e:
                 logger.warning(
-                    f"Validator failed for field '{param_name}' ({field.db_key}): {e}. "
-                    f"Using default value: {field.default!r}"
+                    f"Validator failed for field '{param_name}' ({field.db_key}): {e}. Using default value: {field.default!r}"
                 )
                 value_str = field.default
 

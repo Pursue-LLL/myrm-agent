@@ -44,6 +44,7 @@ class TestGetPresetsEndpoint:
         assert isinstance(github_preset["selected_endpoints"], list)
         assert "issues/get" in github_preset["selected_endpoints"]
 
+
 class TestParseSpecEndpoint:
     """Test POST /api/v1/agents/openapi-services/parse-spec"""
 

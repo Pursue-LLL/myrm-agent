@@ -25,9 +25,7 @@ def acquire_power_lock(task_id: str) -> bool:
 
         battery = psutil.sensors_battery()
         if battery and not battery.power_plugged and battery.percent < 15:
-            logger.warning(
-                f"🔋 Battery low ({battery.percent}%), refusing to acquire power lock for task {task_id}"
-            )
+            logger.warning(f"🔋 Battery low ({battery.percent}%), refusing to acquire power lock for task {task_id}")
             return False
 
         lock = keep.running()

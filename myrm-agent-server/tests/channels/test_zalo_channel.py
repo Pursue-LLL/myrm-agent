@@ -317,9 +317,7 @@ class TestZaloUploadMedia:
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(return_value=upload_resp)
 
-        with patch(
-            "app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock
-        ) as mock_download:
+        with patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock) as mock_download:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.data = b"imgdata"

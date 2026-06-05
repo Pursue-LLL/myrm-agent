@@ -86,9 +86,7 @@ class SubagentManagementExtension(AgentExtension):
             create_steer_subagent_tool(agent),
         ]
         agent.add_tools(subagent_tools)
-        logger.info(
-            "Subagent tools loaded via Extension: delegate/batch/parallel/list/cancel/steer"
-        )
+        logger.info("Subagent tools loaded via Extension: delegate/batch/parallel/list/cancel/steer")
 
     async def on_agent_shutdown(self, agent: BaseAgent) -> None:
         pass

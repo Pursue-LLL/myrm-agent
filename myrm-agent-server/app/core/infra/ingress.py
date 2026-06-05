@@ -39,7 +39,7 @@ async def get_public_ingress_base_url() -> str:
 
     Uses ``load_user_config_entry`` instead of ``load_user_configs`` so ingress
     resolution never requires a configured LLM provider (onboarding/readiness paths).
-    
+
     Returns:
         The resolved URL without trailing slashes, or an empty string.
     """

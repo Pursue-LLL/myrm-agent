@@ -41,9 +41,7 @@ class CompactHandler(Protocol):
     The handler performs DB/chat/compact_service operations.
     """
 
-    async def __call__(
-        self, msg: InboundMessage, user_id: str, *, focus_topic: str = ""
-    ) -> CompactResult:
+    async def __call__(self, msg: InboundMessage, user_id: str, *, focus_topic: str = "") -> CompactResult:
         """Execute compaction for the given message and user.
 
         Args:

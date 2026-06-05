@@ -86,7 +86,7 @@ def _host(**overrides: Any) -> _MixinHost:  # noqa: ANN401
 
 def _reaction(
     *,
-    emoji: str = "\U0001F44D",
+    emoji: str = "\U0001f44d",
     sender_id: str = "alice",
     channel: str = "slack",
     chat_id: str = "C1",
@@ -116,35 +116,33 @@ class TestThreeTierVocabulary:
     @pytest.mark.parametrize(
         "raw,expected",
         [
-            ("\U0001F44D", "allow_once"),
+            ("\U0001f44d", "allow_once"),
             ("\u2705", "allow_once"),
             ("\u2764", "allow_once"),
-            ("\u267E\uFE0F", "allow_always"),  # ♾️ with variation selector
-            ("\u2B50", "allow_always"),
-            ("\U0001F44E", "deny"),
-            ("\u274C", "deny"),
-            ("\U0001F6AB", "deny"),
+            ("\u267e\ufe0f", "allow_always"),  # ♾️ with variation selector
+            ("\u2b50", "allow_always"),
+            ("\U0001f44e", "deny"),
+            ("\u274c", "deny"),
+            ("\U0001f6ab", "deny"),
         ],
     )
-    def test_recognised_emojis(
-        self, raw: str, expected: ApprovalDecision
-    ) -> None:
+    def test_recognised_emojis(self, raw: str, expected: ApprovalDecision) -> None:
         assert parse_approval_command(raw) == expected
 
     def test_skin_tone_modifier_is_stripped(self) -> None:
-        assert parse_approval_command("\U0001F44D\U0001F3FE") == "allow_once"
+        assert parse_approval_command("\U0001f44d\U0001f3fe") == "allow_once"
 
     def test_variation_selector_is_stripped(self) -> None:
-        assert parse_approval_command("\u267E\uFE0F") == "allow_always"
+        assert parse_approval_command("\u267e\ufe0f") == "allow_always"
 
     def test_unknown_emoji_returns_none(self) -> None:
-        assert parse_approval_command("\U0001F389") is None  # 🎉
+        assert parse_approval_command("\U0001f389") is None  # 🎉
 
     def test_normalize_helper_is_idempotent(self) -> None:
-        emoji = "\U0001F44D\U0001F3FE\uFE0F"
+        emoji = "\U0001f44d\U0001f3fe\ufe0f"
         once = normalize_approval_emoji(emoji)
         twice = normalize_approval_emoji(once)
-        assert once == twice == "\U0001F44D"
+        assert once == twice == "\U0001f44d"
 
 
 # ---------------------------------------------------------------------------
@@ -241,9 +239,7 @@ class TestHandleApprovalContract:
     @pytest.mark.asyncio
     async def test_batch_mixed_decisions(self) -> None:
         host, msg = self._setup()
-        await host._handle_approval_command(
-            msg, ["allow_once", "allow_always", "deny"]
-        )
+        await host._handle_approval_command(msg, ["allow_once", "allow_always", "deny"])
         resume = host._gate.submit.call_args[0][0].resume_value
         types = [d["type"] for d in resume["decisions"]]
         assert types == ["approve", "approve", "reject"]

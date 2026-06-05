@@ -6,6 +6,7 @@ from .models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 
+
 def _extract_code_execution_network(
     personal_settings_dict: dict[str, object] | None,
 ) -> bool | None:
@@ -20,6 +21,7 @@ def _extract_code_execution_network(
         return value
     return None
 
+
 def _extract_text_from_query(query: MultimodalQuery) -> str:
     """Extract plain text from a multimodal query for DB storage and hygiene checks."""
     if isinstance(query, str):
@@ -31,4 +33,3 @@ def _extract_text_from_query(query: MultimodalQuery) -> str:
             if isinstance(text, str):
                 texts.append(text)
     return " ".join(texts)
-

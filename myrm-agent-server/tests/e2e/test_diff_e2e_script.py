@@ -28,9 +28,7 @@ async def _wait_frontend_api_health(base_url: str, timeout_s: float = 120.0) -> 
         except Exception as exc:
             last_err = str(exc)
         await asyncio.sleep(1)
-    raise RuntimeError(
-        f"Frontend API not healthy within {timeout_s}s ({health_url}). Last error: {last_err}"
-    )
+    raise RuntimeError(f"Frontend API not healthy within {timeout_s}s ({health_url}). Last error: {last_err}")
 
 
 async def _wait_generation_finished(page, timeout_ms: float = 180_000.0) -> None:
@@ -43,9 +41,7 @@ async def _wait_generation_finished(page, timeout_ms: float = 180_000.0) -> None
     try:
         await stop_btn.wait_for(state="visible", timeout=60_000.0)
     except Exception:
-        print(
-            "WARN: Stop button not visible within 60s (stream may not have started); settling 5s"
-        )
+        print("WARN: Stop button not visible within 60s (stream may not have started); settling 5s")
         await page.wait_for_timeout(5000)
         return
     await stop_btn.wait_for(state="detached", timeout=timeout_ms)
@@ -85,14 +81,8 @@ async def _monaco_model_plain_text(portal) -> str:
 
 def _unified_diff_shows_line_replace(text: str, old_fragment: str, new_fragment: str) -> bool:
     lines = text.replace("\r\n", "\n").split("\n")
-    has_old_minus = any(
-        ln.startswith("-") and not ln.startswith("---") and old_fragment in ln
-        for ln in lines
-    )
-    has_new_plus = any(
-        ln.startswith("+") and not ln.startswith("+++") and new_fragment in ln
-        for ln in lines
-    )
+    has_old_minus = any(ln.startswith("-") and not ln.startswith("---") and old_fragment in ln for ln in lines)
+    has_new_plus = any(ln.startswith("+") and not ln.startswith("+++") and new_fragment in ln for ln in lines)
     return has_old_minus and has_new_plus
 
 
@@ -184,11 +174,7 @@ async def _run_single_session(mode: str, frontend_url: str) -> int:
             )
             page.on(
                 "response",
-                lambda res: (
-                    print(f"Response {res.status}: {res.url}")
-                    if res.status >= 400
-                    else None
-                ),
+                lambda res: print(f"Response {res.status}: {res.url}") if res.status >= 400 else None,
             )
 
             print(f"Navigating to chat (mode={mode})...")
@@ -212,11 +198,7 @@ async def _run_single_session(mode: str, frontend_url: str) -> int:
             else:
                 print("two-turn: waiting for assistant stream after second prompt...")
             await _wait_generation_finished(page)
-            shot = (
-                "after_prompt.png"
-                if mode == "combined"
-                else "after_prompt_turn2_final.png"
-            )
+            shot = "after_prompt.png" if mode == "combined" else "after_prompt_turn2_final.png"
             await page.screenshot(path=shot)
 
             print("Waiting for chip...")
@@ -275,13 +257,10 @@ async def _run_single_session(mode: str, frontend_url: str) -> int:
             green_lines = await monaco_root.locator("[class*='bg-green-500']").count()
             red_lines = await monaco_root.locator("[class*='bg-red-500']").count()
 
-            text_signals_unified_diff = (
-                ("line2" in body_text and "modified_line2" in body_text)
-                and ("-" in body_text or "+" in body_text or "@@" in body_text)
+            text_signals_unified_diff = ("line2" in body_text and "modified_line2" in body_text) and (
+                "-" in body_text or "+" in body_text or "@@" in body_text
             )
-            line_replace_in_monaco = _unified_diff_shows_line_replace(
-                monaco_plain, "line2", "modified_line2"
-            )
+            line_replace_in_monaco = _unified_diff_shows_line_replace(monaco_plain, "line2", "modified_line2")
 
             print(
                 f"Monaco: {green_lines} green-class nodes, {red_lines} red-class nodes; "
@@ -296,18 +275,12 @@ async def _run_single_session(mode: str, frontend_url: str) -> int:
                 (green_lines > 0 and red_lines > 0)
                 or line_replace_in_monaco
                 or text_signals_unified_diff
-                or (
-                    green_lines > 0
-                    and ("modified_line2" in body_text)
-                    and ("line2" in body_text or "-" in body_text)
-                )
+                or (green_lines > 0 and ("modified_line2" in body_text) and ("line2" in body_text or "-" in body_text))
             )
             if passed:
                 print(f"✅ E2E Test Passed ({mode}): Action-Aware Diff Preview works!")
             else:
-                print(
-                    f"❌ E2E Test Failed ({mode}): Diff content/decorations not detected in Monaco."
-                )
+                print(f"❌ E2E Test Failed ({mode}): Diff content/decorations not detected in Monaco.")
                 await page.screenshot(path="diff_test_failed.png")
                 html_content = await page.content()
                 dump_path = os.path.join(os.path.dirname(__file__) or ".", "page_dump.html")

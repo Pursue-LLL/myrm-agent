@@ -51,9 +51,7 @@ class TestConstantTimeComparison:
             if max_variance < 0.6:
                 return
 
-        assert max_variance < 0.6, (
-            f"Timing variance {max_variance:.2%} exceeds 60% after {max_attempts} attempts"
-        )
+        assert max_variance < 0.6, f"Timing variance {max_variance:.2%} exceeds 60% after {max_attempts} attempts"
 
     def test_string_equality_is_not_constant_time(self):
         """Demonstrate that == is NOT constant-time (for comparison)."""

@@ -56,6 +56,7 @@ class ParseSpecResponse(BaseModel):
 
 class SaaSPreset(BaseModel):
     """A built-in preset for a SaaS OpenAPI connector."""
+
     name: str
     description: str
     spec_url: str
@@ -71,13 +72,7 @@ BUILTIN_SAAS_PRESETS: list[dict[str, str | list[str]]] = [
         "spec_url": "https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json",
         "auth_type": "bearer",
         "icon_url": "https://github.githubassets.com/favicons/favicon.png",
-        "selected_endpoints": [
-            "issues/get",
-            "issues/create",
-            "issues/create-comment",
-            "pulls/get",
-            "repos/get"
-        ],
+        "selected_endpoints": ["issues/get", "issues/create", "issues/create-comment", "pulls/get", "repos/get"],
     },
     {
         "name": "Jira Software",
@@ -85,12 +80,7 @@ BUILTIN_SAAS_PRESETS: list[dict[str, str | list[str]]] = [
         "spec_url": "https://developer.atlassian.com/cloud/jira/platform/swagger.v3.json",
         "auth_type": "basic",
         "icon_url": "https://wac-cdn.atlassian.com/assets/img/favicons/jira/favicon.ico",
-        "selected_endpoints": [
-            "getIssue",
-            "createIssue",
-            "addComment",
-            "searchForIssuesUsingJql"
-        ],
+        "selected_endpoints": ["getIssue", "createIssue", "addComment", "searchForIssuesUsingJql"],
     },
     {
         "name": "Notion API",
@@ -98,13 +88,8 @@ BUILTIN_SAAS_PRESETS: list[dict[str, str | list[str]]] = [
         "spec_url": "https://developers.notion.com/reference/openapi.json",
         "auth_type": "bearer",
         "icon_url": "https://www.notion.so/images/favicon.ico",
-        "selected_endpoints": [
-            "queryDatabase",
-            "retrievePage",
-            "createPage",
-            "appendBlockChildren"
-        ],
-    }
+        "selected_endpoints": ["queryDatabase", "retrievePage", "createPage", "appendBlockChildren"],
+    },
 ]
 
 
@@ -203,6 +188,7 @@ async def test_request(payload: TestRequestPayload) -> TestRequestResponse:
         )
 
         import re
+
         path_param_names = set(re.findall(r"\{(\w+)\}", target_ep.path))
         p_params = {k: v for k, v in payload.params.items() if k in path_param_names}
         q_params = {k: v for k, v in payload.params.items() if k not in path_param_names}

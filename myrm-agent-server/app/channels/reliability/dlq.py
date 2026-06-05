@@ -207,9 +207,7 @@ class SQLiteDLQStorage(DLQStorage):
                 )
                 count_cursor = conn.execute("SELECT COUNT(*) FROM failed_messages WHERE status = ?", (status,))
             else:
-                cursor = conn.execute(
-                    "SELECT * FROM failed_messages ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)
-                )
+                cursor = conn.execute("SELECT * FROM failed_messages ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset))
                 count_cursor = conn.execute("SELECT COUNT(*) FROM failed_messages")
 
             rows = cursor.fetchall()
@@ -331,9 +329,7 @@ class AutoRetryWorker:
                 if retry_count >= len(backoffs):
                     # Max retries reached
                     await asyncio.to_thread(self.storage.update_status, msg.id, "failed_permanently", str(e))
-                    logger.error(
-                        "DLQ AutoRetryWorker: Message %s failed permanently after %d retries", msg.id, retry_count
-                    )
+                    logger.error("DLQ AutoRetryWorker: Message %s failed permanently after %d retries", msg.id, retry_count)
                 else:
                     next_retry_at = time.time() + backoffs[retry_count]
                     await asyncio.to_thread(self.storage.update_status, msg.id, "pending", str(e), next_retry_at)

@@ -30,9 +30,7 @@ def _collect_harness_imports() -> frozenset[str]:
                 for alias in node.names:
                     if alias.name.startswith("myrm_agent_harness"):
                         imports.add(alias.name)
-            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith(
-                "myrm_agent_harness"
-            ):
+            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("myrm_agent_harness"):
                 imports.add(node.module)
     return frozenset(imports)
 
@@ -50,6 +48,5 @@ def test_no_new_server_deep_harness_imports() -> None:
     new_imports = sorted(current - baseline)
     assert not new_imports, (
         "New deep harness imports detected in myrm-agent-server. "
-        "Use myrm_agent_harness.api or update baseline only if intentional:\n"
-        + "\n".join(new_imports)
+        "Use myrm_agent_harness.api or update baseline only if intentional:\n" + "\n".join(new_imports)
     )

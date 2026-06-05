@@ -60,9 +60,7 @@ async def list_artifacts(
     result = await db.execute(stmt)
     artifacts = result.scalars().all()
 
-    return {
-        "artifacts": [_artifact_summary(a) for a in artifacts]
-    }
+    return {"artifacts": [_artifact_summary(a) for a in artifacts]}
 
 
 @router.get("/{artifact_id}")
@@ -145,9 +143,7 @@ async def verify_artifact_hash(
     stmt = (
         select(ArtifactVersion)
         .options(selectinload(ArtifactVersion.artifact))
-        .where(
-            ArtifactVersion.id == version_id, ArtifactVersion.artifact_id == artifact_id
-        )
+        .where(ArtifactVersion.id == version_id, ArtifactVersion.artifact_id == artifact_id)
     )
     result = await db.execute(stmt)
     version = result.scalars().first()
@@ -165,30 +161,24 @@ async def verify_artifact_hash(
 
             workspace_root = str(get_workspace_root())
             # In test environments, the URI might just be a relative path despite being saved
-            possible_path = os.path.join(
-                workspace_root, version.vault_uri.replace("vault://", "")
-            )
+            possible_path = os.path.join(workspace_root, version.vault_uri.replace("vault://", ""))
 
             # Additional fallback to check chat sandboxes
             if not os.path.exists(possible_path) and version.artifact_id:
                 stmt_a = select(Artifact).where(Artifact.id == version.artifact_id)
                 res_a = await db.execute(stmt_a)
                 art = res_a.scalars().first()
-                
+
                 if art and art.chat_id:
-                    possible_path_alt = os.path.join(
-                        workspace_root, f"sandboxes/{art.chat_id}/{art.name}"
-                    )
+                    possible_path_alt = os.path.join(workspace_root, f"sandboxes/{art.chat_id}/{art.name}")
                     if os.path.exists(possible_path_alt):
                         possible_path = possible_path_alt
-            
+
             # Simple global fallback
             if not os.path.exists(possible_path):
                 from pathlib import Path
 
-                for path in Path(workspace_root).rglob(
-                    art.name if 'art' in locals() and art else "hello_artifact.md"
-                ):
+                for path in Path(workspace_root).rglob(art.name if "art" in locals() and art else "hello_artifact.md"):
                     possible_path = str(path)
                     break
 
@@ -207,9 +197,7 @@ async def verify_artifact_hash(
                         "is_valid": True,
                         "status": "TAMPER_FREE",
                     }
-                raise HTTPException(
-                    status_code=404, detail="Vault object content not found on disk"
-                )
+                raise HTTPException(status_code=404, detail="Vault object content not found on disk")
 
         sha256_hash_obj = hashlib.sha256()
         with open(obj_path, "rb") as f:
@@ -237,9 +225,7 @@ async def verify_artifact_hash(
             "status": "TAMPER_FREE" if is_valid else "CORRUPTED",
         }
     except FileNotFoundError as e:
-        raise HTTPException(
-            status_code=404, detail="Physical file missing from vault"
-        ) from e
+        raise HTTPException(status_code=404, detail="Physical file missing from vault") from e
     except Exception as e:
         logger.error(f"Hash verification failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e

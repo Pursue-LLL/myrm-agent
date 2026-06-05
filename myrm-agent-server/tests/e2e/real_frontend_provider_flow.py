@@ -58,9 +58,7 @@ def _models_card(page: Page, model_id: str):
     models_panel = (
         page.locator("h4")
         .filter(has_text=re.compile(r"^(模型|MODELS|Models)$", re.I))
-        .locator(
-            "xpath=ancestor::div[contains(@class,'space-y-4')][1]/div[contains(@class,'p-5')]"
-        )
+        .locator("xpath=ancestor::div[contains(@class,'space-y-4')][1]/div[contains(@class,'p-5')]")
         .first
     )
     return (
@@ -96,9 +94,7 @@ async def _enable_model_toggle(page: Page, model_id: str) -> None:
             await page.wait_for_timeout(500)
             return
         html = await card.inner_html()
-        if "text-destructive" in html and (
-            "IconAlert" in html or "alert" in html.lower()
-        ):
+        if "text-destructive" in html and ("IconAlert" in html or "alert" in html.lower()):
             raise RuntimeError((await card.inner_text())[:1600])
         await asyncio.sleep(0.5)
 
@@ -117,25 +113,19 @@ async def _select_provider(page: Page, name: str) -> None:
     await target.scroll_into_view_if_needed()
     await target.click()
     await page.wait_for_timeout(600)
-    await page.locator("h3", has_text=name).first.wait_for(
-        state="visible", timeout=30_000
-    )
+    await page.locator("h3", has_text=name).first.wait_for(state="visible", timeout=30_000)
 
 
 async def _add_manual_model(page: Page, model_id: str) -> None:
     """Add a model via AddModelInput (two-step: expand input → fill → submit)."""
-    existing = page.locator("span.text-sm.font-medium").filter(
-        has_text=re.compile(rf"^{re.escape(model_id)}$")
-    )
+    existing = page.locator("span.text-sm.font-medium").filter(has_text=re.compile(rf"^{re.escape(model_id)}$"))
     if await existing.count() > 0:
         return
 
     models_panel = (
         page.locator("h4")
         .filter(has_text=re.compile(r"^(模型|MODELS|Models)$", re.I))
-        .locator(
-            "xpath=ancestor::div[contains(@class,'space-y-4')][1]/div[contains(@class,'p-5')]"
-        )
+        .locator("xpath=ancestor::div[contains(@class,'space-y-4')][1]/div[contains(@class,'p-5')]")
         .first
     )
     await models_panel.wait_for(state="visible", timeout=30_000)
@@ -154,18 +144,16 @@ async def _add_manual_model(page: Page, model_id: str) -> None:
     await add_model_btn.wait_for(state="visible", timeout=30_000)
     await add_model_btn.click()
 
-    model_input = models_panel.locator(
-        'input[placeholder*="gpt-4"], input[placeholder*="模型名称"]'
-    ).first
+    model_input = models_panel.locator('input[placeholder*="gpt-4"], input[placeholder*="模型名称"]').first
     await model_input.wait_for(state="visible", timeout=15_000)
     await model_input.fill(model_id)
-    await models_panel.locator("button").filter(
-        has_text=re.compile(r"^(添加|Add)$")
-    ).first.click()
+    await models_panel.locator("button").filter(has_text=re.compile(r"^(添加|Add)$")).first.click()
 
-    await page.locator("span.text-sm.font-medium").filter(
-        has_text=re.compile(rf"^{re.escape(model_id)}$")
-    ).first.wait_for(state="visible", timeout=30_000)
+    await (
+        page.locator("span.text-sm.font-medium")
+        .filter(has_text=re.compile(rf"^{re.escape(model_id)}$"))
+        .first.wait_for(state="visible", timeout=30_000)
+    )
     await page.wait_for_timeout(400)
 
 
@@ -228,16 +216,17 @@ async def _add_custom_openai_like(
 
     await _select_provider(page, display_name)
 
-    await page.get_by_placeholder("https://api.example.com/v1").fill(
-        api_base_url.rstrip("/")
-    )
+    await page.get_by_placeholder("https://api.example.com/v1").fill(api_base_url.rstrip("/"))
 
     await _dismiss_blocking_ui(page)
     await page.locator("button.w-full.py-4").filter(has_text="添加").click(force=True)
     await page.locator('input[placeholder="sk-..."]').fill(api_key)
-    await page.locator("form").filter(
-        has=page.locator('input[placeholder="sk-..."]')
-    ).get_by_role("button", name="添加").click(force=True)
+    await (
+        page.locator("form")
+        .filter(has=page.locator('input[placeholder="sk-..."]'))
+        .get_by_role("button", name="添加")
+        .click(force=True)
+    )
     await page.wait_for_timeout(1000)
     await _emit_escape_burst(page, n=2)
 
@@ -247,9 +236,7 @@ async def _add_custom_openai_like(
     await _ensure_provider_main_switch_on(page, display_name)
 
 
-async def _configure_builtin_provider(
-    page: Page, aria_name: str, api_key: str, model_id: str
-) -> None:
+async def _configure_builtin_provider(page: Page, aria_name: str, api_key: str, model_id: str) -> None:
     target = page.locator(f'[role="button"][aria-label="{aria_name}"]').first
     await target.scroll_into_view_if_needed()
     await target.click()
@@ -257,17 +244,15 @@ async def _configure_builtin_provider(
 
     await page.locator("button.w-full.py-4").filter(has_text="添加").click(force=True)
     await page.locator('input[placeholder="sk-..."]').fill(api_key)
-    await page.locator("form").filter(
-        has=page.locator('input[placeholder="sk-..."]')
-    ).get_by_role("button", name="添加").click(force=True)
+    await (
+        page.locator("form")
+        .filter(has=page.locator('input[placeholder="sk-..."]'))
+        .get_by_role("button", name="添加")
+        .click(force=True)
+    )
     await page.wait_for_timeout(600)
 
-    if (
-        await page.locator("span.text-sm.font-medium")
-        .filter(has_text=re.compile(rf"^{re.escape(model_id)}$"))
-        .count()
-        == 0
-    ):
+    if await page.locator("span.text-sm.font-medium").filter(has_text=re.compile(rf"^{re.escape(model_id)}$")).count() == 0:
         await _add_manual_model(page, model_id)
         await page.wait_for_timeout(400)
 
@@ -279,9 +264,7 @@ async def _configure_builtin_provider(
 
 async def _pick_base_default(page: Page, model_id: str, provider_name: str) -> None:
     """Pick a single base default model from a specific provider (for chat smoke)."""
-    blocks = page.locator("div.space-y-3").filter(
-        has=page.locator("label", has_text="选择模型")
-    )
+    blocks = page.locator("div.space-y-3").filter(has=page.locator("label", has_text="选择模型"))
     await blocks.first.wait_for(state="visible", timeout=120_000)
     trigger = blocks.first.locator("button").first
     await trigger.click()
@@ -289,9 +272,7 @@ async def _pick_base_default(page: Page, model_id: str, provider_name: str) -> N
     inp = page.locator('input[placeholder="搜索模型..."]').locator("visible=true").first
     await inp.fill(needle)
     await page.wait_for_timeout(700)
-    scroll = inp.locator(
-        'xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]'
-    )
+    scroll = inp.locator('xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]')
     btn = (
         scroll.locator("button")
         .filter(has_text=re.compile(re.escape(needle), re.I))
@@ -310,15 +291,11 @@ async def _pick_default_models(
     basic_mid: str,
     lite_mid: str,
 ) -> None:
-    blocks = page.locator("div.space-y-3").filter(
-        has=page.locator("label", has_text="选择模型")
-    )
+    blocks = page.locator("div.space-y-3").filter(has=page.locator("label", has_text="选择模型"))
     await blocks.first.wait_for(state="visible", timeout=120_000)
     await page.wait_for_timeout(1200)
 
-    async def pick_nth(
-        idx: int, want_suffix: str, provider_hint: str | None = None
-    ) -> None:
+    async def pick_nth(idx: int, want_suffix: str, provider_hint: str | None = None) -> None:
         trigger = blocks.nth(idx).locator("button").first
         await trigger.scroll_into_view_if_needed()
         await trigger.click()
@@ -330,31 +307,21 @@ async def _pick_default_models(
             timeout=60_000,
         )
         needle = want_suffix.split("/")[-1]
-        inp = (
-            page.locator('input[placeholder="搜索模型..."]')
-            .locator("visible=true")
-            .first
-        )
+        inp = page.locator('input[placeholder="搜索模型..."]').locator("visible=true").first
         await inp.fill("")
         if idx == 0:
             await inp.fill(needle)
         else:
             await inp.fill(needle.split("-")[-1])
         await page.wait_for_timeout(700)
-        scroll = inp.locator(
-            'xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]'
-        )
+        scroll = inp.locator('xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]')
         await scroll.wait_for(state="visible", timeout=30_000)
 
         async def _pick_from_provider_group(group_label: str) -> None:
-            header = scroll.locator("div.sticky").filter(
-                has_text=re.compile(re.escape(group_label), re.I)
-            ).first
+            header = scroll.locator("div.sticky").filter(has_text=re.compile(re.escape(group_label), re.I)).first
             await header.wait_for(state="visible", timeout=30_000)
             group = header.locator("xpath=ancestor::div[1]")
-            model_btn = group.locator("button").filter(
-                has_text=re.compile(rf"^{re.escape(needle)}$", re.I)
-            ).first
+            model_btn = group.locator("button").filter(has_text=re.compile(rf"^{re.escape(needle)}$", re.I)).first
             await model_btn.scroll_into_view_if_needed()
             await model_btn.click()
 
@@ -365,9 +332,7 @@ async def _pick_default_models(
             await _pick_from_provider_group("MiniMax")
             btn = None
         else:
-            btn = scroll.locator("button").filter(
-                has_text=re.compile(rf"^{re.escape(needle)}$", re.I)
-            ).first
+            btn = scroll.locator("button").filter(has_text=re.compile(rf"^{re.escape(needle)}$", re.I)).first
         try:
             if btn is not None:
                 await btn.scroll_into_view_if_needed()
@@ -377,9 +342,7 @@ async def _pick_default_models(
                 excerpt = (await scroll.inner_text(timeout=5000))[:1200]
             except Exception:
                 excerpt = await inp.evaluate("el => el.outerHTML.slice(0, 400)")
-            raise RuntimeError(
-                f"popover_pick_failed token={needle!r} excerpt={excerpt!r}"
-            ) from exc
+            raise RuntimeError(f"popover_pick_failed token={needle!r} excerpt={excerpt!r}") from exc
         await page.wait_for_timeout(500)
 
     await pick_nth(0, basic_mid, provider_hint=custom_display)
@@ -397,17 +360,13 @@ async def _pick_default_models(
     if custom_display and custom_display not in flat_pb:
         # Popover may show openai-like label instead of custom display name.
         if "Xiaomi MiMo" in flat_pb:
-            raise RuntimeError(
-                f"base_default_wrong_provider pb={pb!r} want custom not Xiaomi"
-            )
+            raise RuntimeError(f"base_default_wrong_provider pb={pb!r} want custom not Xiaomi")
     flat_pl = " ".join(pl.split())
     if "MiniMax" not in flat_pl or needle_lite.lower() not in flat_pl.lower():
         raise RuntimeError("lite_default_not_set")
 
 
-async def _wait_assistant_markdown_contains_ok(
-    page: Page, timeout_s: float = 120.0
-) -> None:
+async def _wait_assistant_markdown_contains_ok(page: Page, timeout_s: float = 120.0) -> None:
     """Require OK inside assistant Markdown; tolerate current MessageBox DOM."""
     deadline = time.monotonic() + timeout_s
     last_dump = ""
@@ -441,41 +400,23 @@ async def _wait_assistant_markdown_contains_ok(
     raise TimeoutError(f"assistant_markdown_no_OK excerpts={last_dump[:1600]!r}")
 
 
-async def _select_chat_base_model(
-    page: Page, provider_name: str, model_id: str
-) -> None:
+async def _select_chat_base_model(page: Page, provider_name: str, model_id: str) -> None:
     """Pick base model in the chat composer (agent mode may override settings default)."""
     needle = model_id.split("/")[-1]
-    trigger = (
-        page.locator("button")
-        .filter(has_text=re.compile(re.escape(needle), re.I))
-        .first
-    )
+    trigger = page.locator("button").filter(has_text=re.compile(re.escape(needle), re.I)).first
     if await trigger.count() == 0:
-        trigger = (
-            page.locator("button")
-            .filter(has_text=re.compile(r"Gener\.\.\.|MiniMax|mimo", re.I))
-            .first
-        )
+        trigger = page.locator("button").filter(has_text=re.compile(r"Gener\.\.\.|MiniMax|mimo", re.I)).first
     await trigger.click()
     inp = page.locator('input[placeholder="搜索模型..."]').locator("visible=true").first
     await inp.fill(needle)
     await page.wait_for_timeout(600)
-    scroll = inp.locator(
-        'xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]'
-    )
-    header = scroll.locator("div.sticky").filter(
-        has_text=re.compile(re.escape(provider_name), re.I)
-    ).first
+    scroll = inp.locator('xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]')
+    header = scroll.locator("div.sticky").filter(has_text=re.compile(re.escape(provider_name), re.I)).first
     if await header.count() > 0:
         group = header.locator("xpath=ancestor::div[1]")
-        btn = group.locator("button").filter(
-            has_text=re.compile(rf"^{re.escape(needle)}$", re.I)
-        ).first
+        btn = group.locator("button").filter(has_text=re.compile(rf"^{re.escape(needle)}$", re.I)).first
     else:
-        btn = scroll.locator("button").filter(
-            has_text=re.compile(rf"^{re.escape(needle)}$", re.I)
-        ).first
+        btn = scroll.locator("button").filter(has_text=re.compile(rf"^{re.escape(needle)}$", re.I)).first
     await btn.click(force=True)
     await page.wait_for_timeout(400)
 
@@ -551,9 +492,7 @@ async def main() -> None:
     lite_key = os.environ["LITE_API_KEY"]
 
     frontend = os.environ.get("FRONTEND_URL", "http://127.0.0.1:3000")
-    os.environ.setdefault(
-        "PLAYWRIGHT_BROWSERS_PATH", str(Path.home() / "Library/Caches/ms-playwright")
-    )
+    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(Path.home() / "Library/Caches/ms-playwright"))
 
     await _wait_health(frontend)
 
@@ -594,9 +533,7 @@ async def main() -> None:
         await _ensure_provider_main_switch_on(page, "MiniMax")
         await page.wait_for_timeout(2500)
 
-        await page.goto(
-            frontend.rstrip("/") + "/settings/defaultModel", timeout=120_000
-        )
+        await page.goto(frontend.rstrip("/") + "/settings/defaultModel", timeout=120_000)
         await page.wait_for_timeout(2500)
         await _pick_default_models(page, custom_name, basic_mid, lite_mid)
 

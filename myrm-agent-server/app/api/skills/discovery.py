@@ -326,7 +326,7 @@ class SkillInstallFromUrlRequest(BaseModel):
 
 class SkillUrlInfo(BaseModel):
     """解析出的 GitHub 技能信息"""
-    
+
     url: str
     name: str
     description: str = ""

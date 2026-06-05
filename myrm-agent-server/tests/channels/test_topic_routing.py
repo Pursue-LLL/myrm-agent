@@ -29,6 +29,8 @@ def _parse_topic_command(content: str) -> TopicCommand | None:
     if action == CommandAction.TOPIC:
         return parse_topic_args("topic", resolved.raw_args)
     return None
+
+
 from app.channels.types import InboundMessage, TopicContext  # noqa: E402
 
 # ---------------------------------------------------------------------------

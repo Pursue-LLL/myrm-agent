@@ -132,10 +132,7 @@ class FeishuAppRegistration:
             init_res = self._post_registration({"action": "init"})
             methods = init_res.get("supported_auth_methods") or []
             if "client_secret" not in methods:
-                raise RuntimeError(
-                    f"Feishu/Lark registration does not support client_secret auth. "
-                    f"Supported: {methods}"
-                )
+                raise RuntimeError(f"Feishu/Lark registration does not support client_secret auth. Supported: {methods}")
 
             res = self._post_registration(
                 {
@@ -147,9 +144,7 @@ class FeishuAppRegistration:
             )
             device_code = res.get("device_code")
             if not device_code:
-                raise RuntimeError(
-                    "Feishu/Lark registration did not return device_code"
-                )
+                raise RuntimeError("Feishu/Lark registration did not return device_code")
 
             qr_url = str(res.get("verification_uri_complete", ""))
             separator = "&" if "?" in qr_url else "?"
@@ -183,9 +178,7 @@ class FeishuAppRegistration:
                 )
             except (URLError, OSError, json.JSONDecodeError) as exc:
                 logger.warning("Feishu registration poll network error: %s", exc)
-                return PollResult(
-                    status="pending", credentials=None, domain=self._current_domain
-                )
+                return PollResult(status="pending", credentials=None, domain=self._current_domain)
 
             user_info = res.get("user_info") or {}
             tenant_brand = user_info.get("tenant_brand")
@@ -211,13 +204,9 @@ class FeishuAppRegistration:
             if error in {"access_denied", "expired_token"}:
                 status = "denied" if error == "access_denied" else "expired"
                 logger.warning("Feishu registration %s", error)
-                return PollResult(
-                    status=status, credentials=None, domain=self._current_domain
-                )
+                return PollResult(status=status, credentials=None, domain=self._current_domain)
 
-            return PollResult(
-                status="pending", credentials=None, domain=self._current_domain
-            )
+            return PollResult(status="pending", credentials=None, domain=self._current_domain)
 
         return await asyncio.get_running_loop().run_in_executor(None, _sync_poll)
 

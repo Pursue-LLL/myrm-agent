@@ -87,10 +87,13 @@ class TestPostRegistration:
         exc = HTTPError("url", 500, "Server Error", {}, None)  # type: ignore[arg-type]
         exc.read = MagicMock(return_value=b"")
 
-        with patch(
-            "app.channels.providers.feishu.registration.urlopen",
-            side_effect=exc,
-        ), pytest.raises(HTTPError):
+        with (
+            patch(
+                "app.channels.providers.feishu.registration.urlopen",
+                side_effect=exc,
+            ),
+            pytest.raises(HTTPError),
+        ):
             reg._post_registration({"action": "init"})
 
 

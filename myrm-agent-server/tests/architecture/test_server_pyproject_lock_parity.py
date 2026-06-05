@@ -18,7 +18,7 @@ _FORBIDDEN_REQUIRES_DIST = (
     "aiofiles",
     "advanced-tools",
     'httpx", extras = ["socks"]',
-    'httpx", extras = [\'socks\']',
+    "httpx\", extras = ['socks']",
 )
 
 
@@ -34,7 +34,7 @@ def _main_dependency_names() -> set[str]:
 
 def _lock_requires_dist_block() -> str:
     text = _LOCK_PATH.read_text(encoding="utf-8")
-    marker = "name = \"myrmagentserver\""
+    marker = 'name = "myrmagentserver"'
     start = text.find(marker)
     assert start != -1, "myrmagentserver package not found in uv.lock"
     section = text[start:]
@@ -98,6 +98,6 @@ def test_lock_harness_editable_monorepo_path() -> None:
 def test_lock_includes_matrix_extra_markers() -> None:
     """Matrix optional extra must be present in lock metadata."""
     block = _lock_requires_dist_block()
-    assert 'extra == \'matrix\'' in block or 'extra == "matrix"' in block
+    assert "extra == 'matrix'" in block or 'extra == "matrix"' in block
     assert "aiohttp-socks" in block
     assert "mautrix" in block

@@ -8,6 +8,8 @@ import { ApprovalPayload, ApprovalToolCall } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
 import { Textarea } from '@/components/primitives/textarea';
 import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import ShellCommandDisplay from '@/components/features/chat-window/approval/ShellCommandDisplay';
+import { extractShellCommand, isShellApprovalTool, parseCommandSpanRisks, parseCommandSpans } from '@/lib/approval/shellCommandDisplay';
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
 
@@ -128,6 +130,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     switch (approval.action_type) {
       case 'subagent_approval': {
         const toolCalls: ApprovalToolCall[] = approval.payload?.tool_calls ?? [];
+        const payloadRecord = approval.payload ?? {};
+        const workspaceRoot =
+          typeof payloadRecord.workspaceRoot === 'string'
+            ? payloadRecord.workspaceRoot
+            : typeof (payloadRecord.extensions as { workspaceRoot?: string } | undefined)?.workspaceRoot ===
+                'string'
+              ? (payloadRecord.extensions as { workspaceRoot: string }).workspaceRoot
+              : undefined;
         return (
           <div className="space-y-4">
             <h4 className="font-medium text-sm text-muted-foreground">{t('subagentApprovalRequired')}</h4>
@@ -164,22 +174,29 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   );
                 }
                 
-                // Special rendering for shell/execute commands
-                if ((call.name === 'shell' || call.name === 'execute_command' || call.name === 'run_script') && typeof call.args === 'object' && call.args !== null) {
-                  const args = call.args as Record<string, any>;
-                  const command = args.command || args.script || args.cmd || '';
+                // Shell / code execution tools
+                if (isShellApprovalTool(call.name) && typeof call.args === 'object' && call.args !== null) {
+                  const args = call.args as Record<string, unknown>;
+                  const command = extractShellCommand(args);
+                  const commandSpans = parseCommandSpans(
+                    args.command_spans ?? args.commandSpans,
+                    command.length,
+                  );
+                  const commandSpanRisks = commandSpans
+                    ? parseCommandSpanRisks(
+                        args.command_span_risks ?? args.commandSpanRisks,
+                        commandSpans.length,
+                      )
+                    : undefined;
                   return (
-                    <div key={idx} className="rounded-lg border overflow-hidden bg-[#1e1e1e]">
-                      <div className="bg-[#2d2d2d] px-3 py-1.5 border-b border-[#404040] font-mono text-xs text-gray-300 flex items-center">
-                        <span className="text-green-400 mr-2">$</span>
-                        <span>{call.name}</span>
-                      </div>
-                      <div className="p-3 overflow-x-auto">
-                        <pre className="font-mono text-sm text-gray-100 whitespace-pre-wrap break-all">
-                          {String(command)}
-                        </pre>
-                      </div>
-                    </div>
+                    <ShellCommandDisplay
+                      key={idx}
+                      toolName={call.name}
+                      command={command}
+                      commandSpans={commandSpans}
+                      commandSpanRisks={commandSpanRisks}
+                      workspaceRoot={workspaceRoot}
+                    />
                   );
                 }
 

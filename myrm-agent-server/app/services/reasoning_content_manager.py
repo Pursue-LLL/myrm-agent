@@ -93,10 +93,7 @@ class ReasoningContentManager:
         # Fill placeholder for tool-call messages
         if message.get("tool_calls"):
             message[_REASONING_CONTENT_KEY] = _REASONING_PLACEHOLDER
-            logger.debug(
-                "🔧 [ReasoningContentManager] filled reasoning_content placeholder "
-                "for assistant tool-call message"
-            )
+            logger.debug("🔧 [ReasoningContentManager] filled reasoning_content placeholder for assistant tool-call message")
 
         return message
 
@@ -133,8 +130,7 @@ class ReasoningContentManager:
             rc = msg.get(_REASONING_CONTENT_KEY)
             if not isinstance(rc, str) or not rc:
                 logger.warning(
-                    "⚠️ [ReasoningContentManager] assistant tool-call message "
-                    "missing reasoning_content: %s",
+                    "⚠️ [ReasoningContentManager] assistant tool-call message missing reasoning_content: %s",
                     msg.get("id", "unknown"),
                 )
                 return False

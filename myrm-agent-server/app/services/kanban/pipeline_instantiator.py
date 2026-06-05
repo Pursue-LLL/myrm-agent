@@ -106,40 +106,48 @@ def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> Pipel
         for q_raw in group_raw.get("questions", []):
             if not isinstance(q_raw, dict):
                 continue
-            qs.append(PipelineQuestion(
-                id=str(q_raw.get("id", "")),
-                type=str(q_raw.get("type", "text")),
-                label=str(q_raw.get("label", "")),
-                options=[str(o) for o in q_raw.get("options", [])] if q_raw.get("options") else [],
-            ))
-        question_groups.append(PipelineQuestionGroup(
-            group=str(group_raw.get("group", "")),
-            group_label=str(group_raw.get("group_label", "")),
-            questions=qs,
-        ))
+            qs.append(
+                PipelineQuestion(
+                    id=str(q_raw.get("id", "")),
+                    type=str(q_raw.get("type", "text")),
+                    label=str(q_raw.get("label", "")),
+                    options=[str(o) for o in q_raw.get("options", [])] if q_raw.get("options") else [],
+                )
+            )
+        question_groups.append(
+            PipelineQuestionGroup(
+                group=str(group_raw.get("group", "")),
+                group_label=str(group_raw.get("group_label", "")),
+                questions=qs,
+            )
+        )
 
     roles_raw = raw_spec.get("role_templates", [])
     roles: list[RoleTemplate] = []
     for r_raw in roles_raw:
         if not isinstance(r_raw, dict):
             continue
-        roles.append(RoleTemplate(
-            role_id=str(r_raw.get("role_id", "")),
-            description=str(r_raw.get("description", "")),
-            required_skills=[str(s) for s in r_raw.get("required_skills", [])],
-        ))
+        roles.append(
+            RoleTemplate(
+                role_id=str(r_raw.get("role_id", "")),
+                description=str(r_raw.get("description", "")),
+                required_skills=[str(s) for s in r_raw.get("required_skills", [])],
+            )
+        )
 
     seeds_raw = raw_spec.get("task_graph_seed", [])
     seeds: list[TaskSeed] = []
     for s_raw in seeds_raw:
         if not isinstance(s_raw, dict):
             continue
-        seeds.append(TaskSeed(
-            title_template=str(s_raw.get("title_template", "")),
-            description_template=str(s_raw.get("description_template", "")),
-            role=str(s_raw.get("role", "")),
-            parents=[int(p) for p in s_raw.get("parents", []) if isinstance(p, (int, float))],
-        ))
+        seeds.append(
+            TaskSeed(
+                title_template=str(s_raw.get("title_template", "")),
+                description_template=str(s_raw.get("description_template", "")),
+                role=str(s_raw.get("role", "")),
+                parents=[int(p) for p in s_raw.get("parents", []) if isinstance(p, (int, float))],
+            )
+        )
 
     return PipelineSpec(
         skill_id=skill_id,
@@ -278,7 +286,9 @@ async def instantiate_pipeline(
     role_agent_map: dict[str, str | None] = {}
     for role in spec.role_templates:
         role_agent_map[role.role_id] = _match_role_to_agent(
-            role, agents or [], default_agent_id,
+            role,
+            agents or [],
+            default_agent_id,
         )
 
     created_task_ids: list[str] = []

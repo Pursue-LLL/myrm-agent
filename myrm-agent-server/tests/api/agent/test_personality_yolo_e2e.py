@@ -85,8 +85,22 @@ class TestPersonalityCRUD:
     async def test_all_valid_personality_styles(self, async_client: AsyncClient) -> None:
         """验证所有 16 种预置风格都能保存和读取。"""
         styles = [
-            "professional", "friendly", "concise", "detailed", "humorous", "academic", "creative", "socratic",
-            "pirate", "shakespeare", "noir", "kawaii", "catgirl", "hype", "uwu", "surfer",
+            "professional",
+            "friendly",
+            "concise",
+            "detailed",
+            "humorous",
+            "academic",
+            "creative",
+            "socratic",
+            "pirate",
+            "shakespeare",
+            "noir",
+            "kawaii",
+            "catgirl",
+            "hype",
+            "uwu",
+            "surfer",
         ]
         for style in styles:
             agent = await _create_test_agent(async_client, personality_style=style, name=f"Style-{style}")
@@ -188,8 +202,22 @@ class TestPersonalityYoloCombined:
         assert len(templates) == 16
 
         for style in [
-            "professional", "friendly", "concise", "detailed", "humorous", "academic", "creative", "socratic",
-            "pirate", "shakespeare", "noir", "kawaii", "catgirl", "hype", "uwu", "surfer",
+            "professional",
+            "friendly",
+            "concise",
+            "detailed",
+            "humorous",
+            "academic",
+            "creative",
+            "socratic",
+            "pirate",
+            "shakespeare",
+            "noir",
+            "kawaii",
+            "catgirl",
+            "hype",
+            "uwu",
+            "surfer",
         ]:
             t = get_personality_template(style)
             assert t is not None

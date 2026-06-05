@@ -40,7 +40,6 @@ class TestUnattendedModeGuard:
             if not _contains_unattended_mode_true(filepath):
                 missing.append(f"{rel_path}: {reason}")
 
-        assert not missing, (
-            "These automated runner files are missing unattended_mode=True:\n"
-            + "\n".join(f"  - {m}" for m in missing)
+        assert not missing, "These automated runner files are missing unattended_mode=True:\n" + "\n".join(
+            f"  - {m}" for m in missing
         )

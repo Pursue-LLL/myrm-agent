@@ -27,8 +27,10 @@ class TestContextCompactImpl:
         async def fake_get_session():
             yield mock_session
 
-        with patch("app.database.connection.get_session", fake_get_session), \
-             patch("app.services.chat.compact_service.compact_chat", mock_compact_chat):
+        with (
+            patch("app.database.connection.get_session", fake_get_session),
+            patch("app.services.chat.compact_service.compact_chat", mock_compact_chat),
+        ):
             from app.core.infra.idle_handlers import context_compact_impl
 
             result = await context_compact_impl("chat_123", "session_1")
@@ -53,8 +55,10 @@ class TestContextCompactImpl:
         async def fake_get_session():
             yield mock_session
 
-        with patch("app.database.connection.get_session", fake_get_session), \
-             patch("app.services.chat.compact_service.compact_chat", mock_compact_chat):
+        with (
+            patch("app.database.connection.get_session", fake_get_session),
+            patch("app.services.chat.compact_service.compact_chat", mock_compact_chat),
+        ):
             from app.core.infra.idle_handlers import context_compact_impl
 
             result = await context_compact_impl("chat_short", "session_2")

@@ -40,9 +40,7 @@ _VALID_TARGET_TYPES: set[str] = {"agent", "channel", "cron", "conversation", "ta
 _VALID_CONTEXT_STATUSES: set[str] = {"active", "archived"}
 _VALID_PROPOSAL_STATUSES: set[str] = {"pending", "approved", "rejected"}
 _VALID_MEMORY_TYPES: set[str] = {"semantic", "episodic"}
-_IDEMPOTENT_PROPOSAL_SOURCE_TYPES: frozenset[str] = frozenset(
-    {"goal_completion", "correction_propagation"}
-)
+_IDEMPOTENT_PROPOSAL_SOURCE_TYPES: frozenset[str] = frozenset({"goal_completion", "correction_propagation"})
 _DEFAULT_POLICY: dict[str, object] = {
     "write_mode": "proposal_required",
     "read_mode": "bound_targets",
@@ -283,9 +281,7 @@ class SharedContextService:
         targets: Sequence[tuple[SharedContextTargetType, str]],
     ) -> list[str]:
         normalized_targets = [
-            (_validate_target_type(target_type), target_id.strip())
-            for target_type, target_id in targets
-            if target_id.strip()
+            (_validate_target_type(target_type), target_id.strip()) for target_type, target_id in targets if target_id.strip()
         ]
         if not normalized_targets:
             return []
@@ -324,12 +320,8 @@ class SharedContextService:
         source_type: str,
         source_id: str,
     ) -> SharedContextWriteProposalModel | None:
-        normalized_source_type = _normalize_required(
-            source_type, field_name="source_type", max_length=50
-        )
-        normalized_source_id = _normalize_required(
-            source_id, field_name="source_id", max_length=255
-        )
+        normalized_source_type = _normalize_required(source_type, field_name="source_type", max_length=50)
+        normalized_source_id = _normalize_required(source_id, field_name="source_id", max_length=255)
         result = await self._session.execute(
             select(SharedContextWriteProposalModel)
             .where(
@@ -357,16 +349,9 @@ class SharedContextService:
             return None
         if context.status != "active":
             raise ValueError("Shared context is not active")
-        normalized_source_type = _normalize_required(
-            source_type, field_name="source_type", max_length=50
-        )
-        normalized_source_id = _normalize_optional_field(
-            source_id, field_name="source_id", max_length=255
-        )
-        if (
-            normalized_source_type in _IDEMPOTENT_PROPOSAL_SOURCE_TYPES
-            and normalized_source_id
-        ):
+        normalized_source_type = _normalize_required(source_type, field_name="source_type", max_length=50)
+        normalized_source_id = _normalize_optional_field(source_id, field_name="source_id", max_length=255)
+        if normalized_source_type in _IDEMPOTENT_PROPOSAL_SOURCE_TYPES and normalized_source_id:
             existing = await self.find_write_proposal_by_source(
                 context_id=context_id,
                 source_type=normalized_source_type,

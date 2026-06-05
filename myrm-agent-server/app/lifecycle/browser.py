@@ -1,4 +1,5 @@
 """Browser lifecycle management — pool warmup, thread cleanup, session recovery."""
+
 from __future__ import annotations
 
 import logging
@@ -113,8 +114,7 @@ async def warmup_browser_sessions() -> None:
         warmup_candidates = [
             record
             for record in active_threads
-            if record.last_active_at >= stale_threshold
-            and (datetime.now() - record.last_active_at).total_seconds() < 86400
+            if record.last_active_at >= stale_threshold and (datetime.now() - record.last_active_at).total_seconds() < 86400
         ]
 
         if not warmup_candidates:
@@ -162,4 +162,3 @@ async def cleanup_and_warmup_browser_threads() -> None:
     """Combined cleanup + warmup (backward compatibility entry point)."""
     await cleanup_browser_threads()
     await warmup_browser_sessions()
-

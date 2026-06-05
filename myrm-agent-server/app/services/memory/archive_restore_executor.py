@@ -204,7 +204,9 @@ class MemoryArchiveRestoreExecutor:
             existing_context = await self._shared_context_exists(context_id) if context_id else False
             namespace_exists = await self._namespace_exists(row) if context_id else False
             if not context_id or existing_context or namespace_exists:
-                refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.context", context_id, context_id, "conflict"))
+                refs.append(
+                    self._tracked_ref(batch_id, "shared_context", "shared_context.context", context_id, context_id, "conflict")
+                )
                 continue
             self._db.add(
                 SharedContextModel(
@@ -219,7 +221,9 @@ class MemoryArchiveRestoreExecutor:
                 )
             )
             restored_context_ids.add(context_id)
-            refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.context", context_id, context_id, "restored"))
+            refs.append(
+                self._tracked_ref(batch_id, "shared_context", "shared_context.context", context_id, context_id, "restored")
+            )
         await self._db.flush()
         refs.extend(await self._restore_shared_bindings(data, batch_id, restored_context_ids))
         refs.extend(await self._restore_shared_proposals(data, batch_id, restored_context_ids))
@@ -238,7 +242,9 @@ class MemoryArchiveRestoreExecutor:
             context_id = str(row.get("context_id") or "")
             binding_exists = await self._shared_binding_exists(binding_id) if binding_id else False
             if not binding_id or context_id not in restored_context_ids or binding_exists:
-                refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.binding", binding_id, binding_id, "conflict"))
+                refs.append(
+                    self._tracked_ref(batch_id, "shared_context", "shared_context.binding", binding_id, binding_id, "conflict")
+                )
                 continue
             self._db.add(
                 SharedContextBindingModel(
@@ -249,7 +255,9 @@ class MemoryArchiveRestoreExecutor:
                     created_at=parse_datetime(row.get("created_at")),
                 )
             )
-            refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.binding", binding_id, binding_id, "restored"))
+            refs.append(
+                self._tracked_ref(batch_id, "shared_context", "shared_context.binding", binding_id, binding_id, "restored")
+            )
         return refs
 
     async def _restore_shared_proposals(
@@ -264,7 +272,9 @@ class MemoryArchiveRestoreExecutor:
             context_id = str(row.get("context_id") or "")
             proposal_exists = await self._shared_proposal_exists(proposal_id) if proposal_id else False
             if not proposal_id or context_id not in restored_context_ids or proposal_exists:
-                refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.proposal", proposal_id, proposal_id, "conflict"))
+                refs.append(
+                    self._tracked_ref(batch_id, "shared_context", "shared_context.proposal", proposal_id, proposal_id, "conflict")
+                )
                 continue
             self._db.add(
                 SharedContextWriteProposalModel(
@@ -280,7 +290,9 @@ class MemoryArchiveRestoreExecutor:
                     resolved_at=parse_datetime_or_none(row.get("resolved_at")),
                 )
             )
-            refs.append(self._tracked_ref(batch_id, "shared_context", "shared_context.proposal", proposal_id, proposal_id, "restored"))
+            refs.append(
+                self._tracked_ref(batch_id, "shared_context", "shared_context.proposal", proposal_id, proposal_id, "restored")
+            )
         return refs
 
     async def _restore_conversation(self, value: object, batch_id: str) -> list[MemoryArchiveRestoreMutationRef]:
@@ -409,7 +421,9 @@ class MemoryArchiveRestoreExecutor:
         reason: str = "",
         metadata: dict[str, object] | None = None,
     ) -> MemoryArchiveRestoreMutationRef:
-        ref = make_ref(section=section, item_kind=item_kind, source_id=source_id, target_id=target_id, status=status, reason=reason)
+        ref = make_ref(
+            section=section, item_kind=item_kind, source_id=source_id, target_id=target_id, status=status, reason=reason
+        )
         self._db.add(add_restore_item(batch_id=batch_id, ref=ref, metadata=metadata))
         return ref
 

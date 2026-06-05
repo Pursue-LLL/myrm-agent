@@ -122,9 +122,7 @@ class SqliteInboundJournal:
         self._init_db()
 
     def _create_conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(
-            str(self._db_path), timeout=5.0, check_same_thread=False
-        )
+        conn = sqlite3.connect(str(self._db_path), timeout=5.0, check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.row_factory = sqlite3.Row
@@ -155,10 +153,7 @@ class SqliteInboundJournal:
                 extra_json TEXT NOT NULL DEFAULT '{}'
             )
         """)
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_journal_created "
-            "ON inbound_journal(created_at)"
-        )
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_created ON inbound_journal(created_at)")
         self._conn.commit()
 
     def write(self, entry: JournalEntry) -> None:
@@ -197,14 +192,10 @@ class SqliteInboundJournal:
         """Delete entry after successful processing."""
         try:
             with self._lock:
-                self._conn.execute(
-                    "DELETE FROM inbound_journal WHERE id = ?", (entry_id,)
-                )
+                self._conn.execute("DELETE FROM inbound_journal WHERE id = ?", (entry_id,))
                 self._conn.commit()
         except Exception as e:
-            logger.warning(
-                "InboundJournal: failed to acknowledge %s: %s", entry_id, e
-            )
+            logger.warning("InboundJournal: failed to acknowledge %s: %s", entry_id, e)
 
     def scan_pending(self, max_age_seconds: float | None = None) -> list[JournalEntry]:
         """Return non-expired pending entries."""
@@ -212,9 +203,7 @@ class SqliteInboundJournal:
         entries: list[JournalEntry] = []
         try:
             with self._lock:
-                rows = self._conn.execute(
-                    "SELECT * FROM inbound_journal ORDER BY created_at ASC"
-                ).fetchall()
+                rows = self._conn.execute("SELECT * FROM inbound_journal ORDER BY created_at ASC").fetchall()
 
             for row in rows:
                 created_at = row["created_at"]

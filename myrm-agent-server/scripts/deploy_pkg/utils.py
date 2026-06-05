@@ -10,26 +10,32 @@ def print_header(text: str) -> None:
     print(f"  {text}")
     print(f"{'=' * 60}\n")
 
+
 def print_step(step: int, text: str) -> None:
     """打印步骤"""
     print(f"\n[{step}] {text}")
     print("-" * 40)
 
+
 def print_success(text: str) -> None:
     """打印成功信息"""
     print(f"✅ {text}")
+
 
 def print_warning(text: str) -> None:
     """打印警告信息"""
     print(f"⚠️  {text}")
 
+
 def print_error(text: str) -> None:
     """打印错误信息"""
     print(f"❌ {text}")
 
+
 def print_info(text: str) -> None:
     """打印信息"""
     print(f"ℹ️  {text}")
+
 
 def run_command(cmd: list[str], check: bool = True, capture: bool = False) -> subprocess.CompletedProcess[str]:
     """运行命令"""
@@ -50,9 +56,11 @@ def run_command(cmd: list[str], check: bool = True, capture: bool = False) -> su
                 print(f"stderr: {e.stderr}")
         raise
 
+
 def command_exists(cmd: str) -> bool:
     """检查命令是否存在"""
     return shutil.which(cmd) is not None
+
 
 def merge_env_files(base_files: list[Path], output_file: Path) -> None:
     """合并多个环境变量文件
@@ -118,6 +126,7 @@ def merge_env_files(base_files: list[Path], output_file: Path) -> None:
 
     print_success(f"已生成 {output_file.name} (合并了 {len(merged)} 个配置项)")
 
+
 def get_os_type() -> str:
     """获取操作系统类型"""
     system = platform.system().lower()
@@ -129,4 +138,3 @@ def get_os_type() -> str:
         return "windows"
     else:
         return "unknown"
-

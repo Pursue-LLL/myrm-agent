@@ -73,11 +73,11 @@ _MAX_MEDIA_CONCURRENCY = 3
 _CODE_BLOCK_RE = re.compile(r"```[\s\S]*?```")
 _UNICODE_TO_FEISHU_EMOJI: dict[str, str] = {
     "\u2705": "DONE",
-    "\U0001F44C": "OK",
-    "\U0001F44D": "THUMBSUP",
-    "\u2764\uFE0F": "HEART",
-    "\U0001F389": "JIAYI",
-    "\U0001F440": "EYES",
+    "\U0001f44c": "OK",
+    "\U0001f44d": "THUMBSUP",
+    "\u2764\ufe0f": "HEART",
+    "\U0001f389": "JIAYI",
+    "\U0001f440": "EYES",
 }
 # Inbound coverage extends beyond the outbound vocabulary because reaction
 # events arrive with the platform's full emoji_type set; aligning with
@@ -85,10 +85,10 @@ _UNICODE_TO_FEISHU_EMOJI: dict[str, str] = {
 # avoids silent drops when an IM user reacts with the documented vocabulary.
 _FEISHU_EMOJI_TO_UNICODE: dict[str, str] = {
     **{v: k for k, v in _UNICODE_TO_FEISHU_EMOJI.items()},
-    "THUMBSDOWN": "\U0001F44E",
-    "NO": "\u274C",
-    "INFINITY": "\u267E",
-    "STAR": "\u2B50",
+    "THUMBSDOWN": "\U0001f44e",
+    "NO": "\u274c",
+    "INFINITY": "\u267e",
+    "STAR": "\u2b50",
 }
 _TABLE_RE = re.compile(
     r"((?:^[ \t]*\|.+\|[ \t]*\n)(?:^[ \t]*\|[-:\s|]+\|[ \t]*\n)(?:^[ \t]*\|.+\|[ \t]*\n?)+)",

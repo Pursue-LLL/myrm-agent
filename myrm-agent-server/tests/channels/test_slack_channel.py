@@ -66,9 +66,7 @@ class TestSlackNativeStreaming:
     @pytest.mark.asyncio
     async def test_send_placeholder_uses_start_stream_with_thread(self) -> None:
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1234.5678"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1234.5678"})) as mock_post:
             ts = await ch.send_placeholder("C_CHAN", "thinking...", thread_id="1111.0000")
 
         assert ts == "1234.5678"
@@ -79,9 +77,7 @@ class TestSlackNativeStreaming:
     @pytest.mark.asyncio
     async def test_send_placeholder_fallback_without_thread(self) -> None:
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "9999.0001"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "9999.0001"})) as mock_post:
             ts = await ch.send_placeholder("C_CHAN", "thinking...")
 
         assert ts == "9999.0001"
@@ -93,9 +89,9 @@ class TestSlackNativeStreaming:
     async def test_send_placeholder_fallback_on_stream_error(self) -> None:
         ch = _make_channel()
         responses = [
-            _ok_json(),                       # setStatus succeeds
-            _err_json("not_allowed"),         # startStream fails
-            _ok_json({"ts": "5555.0001"}),    # postMessage fallback
+            _ok_json(),  # setStatus succeeds
+            _err_json("not_allowed"),  # startStream fails
+            _ok_json({"ts": "5555.0001"}),  # postMessage fallback
         ]
         with patch.object(ch._api._http, "post", new_callable=AsyncMock, side_effect=responses):
             ts = await ch.send_placeholder("C_CHAN", "thinking...", thread_id="1111.0000")
@@ -203,9 +199,7 @@ class TestSlackAssistantThreadStatus:
     async def test_send_placeholder_sets_status(self) -> None:
         """send_placeholder with thread_id should call setStatus('is thinking...')."""
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1234.5678"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1234.5678"})) as mock_post:
             await ch.send_placeholder("C_CHAN", "thinking...", thread_id="1111.0000")
 
         calls = [str(c) for c in mock_post.call_args_list]
@@ -216,9 +210,7 @@ class TestSlackAssistantThreadStatus:
     async def test_send_placeholder_without_thread_skips_status(self) -> None:
         """send_placeholder without thread_id should NOT call setStatus."""
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "9999.0001"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "9999.0001"})) as mock_post:
             await ch.send_placeholder("C_CHAN", "thinking...")
 
         calls = [str(c) for c in mock_post.call_args_list]
@@ -231,9 +223,7 @@ class TestSlackAssistantThreadStatus:
         ch = _make_channel()
         ch._active_thread_status["C_CHAN"] = "1111.0000"
         msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Hello", user_id="U")
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})) as mock_post:
             await ch.send(msg)
 
         assert "C_CHAN" not in ch._active_thread_status
@@ -247,9 +237,7 @@ class TestSlackAssistantThreadStatus:
         """send() with no active status should not call setStatus."""
         ch = _make_channel()
         msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Hello", user_id="U")
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "1.1"})) as mock_post:
             await ch.send(msg)
 
         calls = [str(c) for c in mock_post.call_args_list]
@@ -262,9 +250,7 @@ class TestSlackAssistantThreadStatus:
         ch._stream_sent["1234.5678"] = "partial"
         ch._active_thread_status["C_CHAN"] = "1111.0000"
         msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Final", user_id="U")
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
             await ch.edit_placeholder_message("C_CHAN", "1234.5678", msg)
 
         assert "C_CHAN" not in ch._active_thread_status
@@ -277,9 +263,7 @@ class TestSlackAssistantThreadStatus:
         ch = _make_channel()
         ch._active_thread_status["C_CHAN"] = "1111.0000"
         msg = OutboundMessage(channel="slack", recipient_id="C_CHAN", content="Final", user_id="U")
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
             await ch.edit_placeholder_message("C_CHAN", "9999.0001", msg)
 
         assert "C_CHAN" not in ch._active_thread_status
@@ -291,9 +275,7 @@ class TestSlackAssistantThreadStatus:
         """delete_message should clear assistant status if active."""
         ch = _make_channel()
         ch._active_thread_status["C_CHAN"] = "1111.0000"
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
             await ch.delete_message("C_CHAN", "1234.5678")
 
         assert "C_CHAN" not in ch._active_thread_status
@@ -313,9 +295,7 @@ class TestSlackAssistantThreadStatus:
     async def test_api_set_thread_status(self) -> None:
         """api.set_thread_status should call the correct Slack API endpoint."""
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
             result = await ch._api.set_thread_status("C_CHAN", "1111.0000", "is thinking...")
         assert result is True
         call_args = mock_post.call_args
@@ -329,9 +309,7 @@ class TestSlackAssistantThreadStatus:
     async def test_api_set_thread_status_failure(self) -> None:
         """api.set_thread_status should return False on failure."""
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json("not_allowed")
-        ):
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_err_json("not_allowed")):
             result = await ch._api.set_thread_status("C_CHAN", "1111.0000", "thinking")
         assert result is False
 
@@ -339,9 +317,7 @@ class TestSlackAssistantThreadStatus:
     async def test_api_set_thread_status_exception(self) -> None:
         """api.set_thread_status should return False on exception."""
         ch = _make_channel()
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, side_effect=Exception("network")
-        ):
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, side_effect=Exception("network")):
             result = await ch._api.set_thread_status("C_CHAN", "1111.0000", "thinking")
         assert result is False
 
@@ -718,9 +694,7 @@ class TestSlackSend:
             user_id="U",
             metadata={"thread_ts": "0.0"},
         )
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "2.2"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "2.2"})) as mock_post:
             await ch.send(msg)
         payload = mock_post.call_args.kwargs.get("json", {})
         assert payload.get("thread_ts") == "0.0"
@@ -735,9 +709,7 @@ class TestSlackSend:
             user_id="U",
             reply_to_id="parent.ts",
         )
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "3.3"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "3.3"})) as mock_post:
             await ch.send(msg)
         payload = mock_post.call_args.kwargs.get("json", {})
         assert payload.get("thread_ts") == "parent.ts"
@@ -752,9 +724,7 @@ class TestSlackSend:
             user_id="U",
             components=((ActionButton(label="Go", action_id="go"),),),
         )
-        with patch.object(
-            ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "4.4"})
-        ) as mock_post:
+        with patch.object(ch._api._http, "post", new_callable=AsyncMock, return_value=_ok_json({"ts": "4.4"})) as mock_post:
             await ch.send(msg)
         payload = mock_post.call_args.kwargs.get("json", {})
         assert "blocks" in payload
@@ -1105,9 +1075,7 @@ class TestSlackInbound:
             "channel": "C_CHAN",
             "channel_type": "channel",
             "ts": "3333.0001",
-            "files": [
-                {"mimetype": "image/jpeg", "name": "photo.jpg", "url_private": "https://files.slack.com/photo.jpg"}
-            ],
+            "files": [{"mimetype": "image/jpeg", "name": "photo.jpg", "url_private": "https://files.slack.com/photo.jpg"}],
         }
         msg = await ch._parse_message_event(event)
         assert msg is not None

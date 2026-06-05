@@ -93,7 +93,7 @@ class VaultCredentialService:
             if cred:
                 await db.delete(cred)
                 await db.commit()
-                
+
                 # Remove from global vault
                 vault = get_global_credential_vault()
                 vault.remove_credential(label)
@@ -106,7 +106,7 @@ class VaultCredentialService:
         """
         vault = get_global_credential_vault()
         vault.clear()
-        
+
         creds = await self.list_credentials()
         for cred in creds:
             password = None
@@ -115,14 +115,14 @@ class VaultCredentialService:
                     password = str(ConfigCrypto.decrypt_value(cred.encrypted_password, self._key)["value"])
                 except Exception as e:
                     logger.error(f"Failed to decrypt password for label '{cred.label}': {e}")
-                    
+
             totp_seed = None
             if cred.encrypted_totp_seed:
                 try:
                     totp_seed = str(ConfigCrypto.decrypt_value(cred.encrypted_totp_seed, self._key)["value"])
                 except Exception as e:
                     logger.error(f"Failed to decrypt TOTP seed for label '{cred.label}': {e}")
-                    
+
             vault.add_credential(label=cred.label, password=password, totp_seed=totp_seed)
-            
+
         logger.info(f"Synced {len(creds)} credentials to the global CredentialVault.")

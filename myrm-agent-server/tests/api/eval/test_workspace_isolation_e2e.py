@@ -19,8 +19,10 @@ def app_client():
     from fastapi.testclient import TestClient
 
     from app.main import app
+
     with TestClient(app) as test_client:
         yield test_client
+
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
@@ -29,7 +31,7 @@ async def test_workspace_physical_isolation_e2e(app_client) -> None:
     app.ai_agents.agents.EmbeddingConfig = EmbeddingConfig
     app.ai_agents.agents.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()
-    
+
     if not os.environ.get("BASIC_API_KEY") and not os.environ.get("OPENAI_API_KEY"):
         pytest.skip("E2E test requires API key")
 
@@ -42,22 +44,26 @@ async def test_workspace_physical_isolation_e2e(app_client) -> None:
     # If they share a workspace, they will overwrite each other.
     # If isolated, they each get their own 'test_isolation.txt' in their respective session folder.
     cases = [
-        MultiTurnEvalCase(turns=[EvalCase(
-            message="Run this exact bash command: `echo Alpha > test_isolation.txt`",
-            expected_tools=[],
-            sandbox_assertions=[
-                SandboxAssertion(type="file_contains", target="test_isolation.txt", expected="Alpha")
-            ],
-            metadata={"test_id": "case_1"}
-        )]),
-        MultiTurnEvalCase(turns=[EvalCase(
-            message="Run this exact bash command: `echo Beta > test_isolation.txt`",
-            expected_tools=[],
-            sandbox_assertions=[
-                SandboxAssertion(type="file_contains", target="test_isolation.txt", expected="Beta")
-            ],
-            metadata={"test_id": "case_2"}
-        )])
+        MultiTurnEvalCase(
+            turns=[
+                EvalCase(
+                    message="Run this exact bash command: `echo Alpha > test_isolation.txt`",
+                    expected_tools=[],
+                    sandbox_assertions=[SandboxAssertion(type="file_contains", target="test_isolation.txt", expected="Alpha")],
+                    metadata={"test_id": "case_1"},
+                )
+            ]
+        ),
+        MultiTurnEvalCase(
+            turns=[
+                EvalCase(
+                    message="Run this exact bash command: `echo Beta > test_isolation.txt`",
+                    expected_tools=[],
+                    sandbox_assertions=[SandboxAssertion(type="file_contains", target="test_isolation.txt", expected="Beta")],
+                    metadata={"test_id": "case_2"},
+                )
+            ]
+        ),
     ]
 
     executor = LocalEvalExecutor()

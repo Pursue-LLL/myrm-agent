@@ -98,7 +98,10 @@ def _make_llm_response(content: str, prompt_tokens: int = 100, completion_tokens
 async def test_specify_rejects_non_triage_task() -> None:
     specifier = PlatformTaskSpecifier()
     task = KanbanTask(
-        task_id="t1", board_id="b1", title="x", status=TaskStatus.READY,
+        task_id="t1",
+        board_id="b1",
+        title="x",
+        status=TaskStatus.READY,
     )
     outcome = await specifier.specify(task)
     assert not outcome.ok
@@ -126,11 +129,14 @@ async def test_specify_parses_valid_json_response() -> None:
     llm_resp = _make_llm_response(
         '{"title": "Implement dark mode toggle", "body": "**Goal** Dark mode support"}',
     )
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
@@ -146,11 +152,14 @@ async def test_specify_fallback_when_json_parse_fails() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
     llm_resp = _make_llm_response("This is just plain text, no JSON here.")
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
@@ -164,11 +173,14 @@ async def test_specify_returns_empty_response() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
     llm_resp = _make_llm_response("")
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await specifier.specify(task)
 
     assert not outcome.ok
@@ -179,11 +191,14 @@ async def test_specify_returns_empty_response() -> None:
 async def test_specify_handles_llm_exception() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, side_effect=TimeoutError("timeout")):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, side_effect=TimeoutError("timeout")),
+    ):
         outcome = await specifier.specify(task)
 
     assert not outcome.ok
@@ -203,11 +218,14 @@ async def test_specify_picks_cjk_prompt_for_chinese_title() -> None:
         captured_messages.extend(kwargs.get("messages", []))  # type: ignore[arg-type]
         return llm_resp
 
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", side_effect=mock_acompletion):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", side_effect=mock_acompletion),
+    ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
@@ -226,11 +244,14 @@ async def test_specify_picks_english_prompt_for_english_title() -> None:
         captured_messages.extend(kwargs.get("messages", []))  # type: ignore[arg-type]
         return llm_resp
 
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", side_effect=mock_acompletion):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", side_effect=mock_acompletion),
+    ):
         outcome = await specifier.specify(task)
 
     assert outcome.ok
@@ -242,11 +263,14 @@ async def test_specify_missing_title_and_body() -> None:
     specifier = PlatformTaskSpecifier()
     task = _make_triage_task()
     llm_resp = _make_llm_response('{"foo": "bar"}')
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock,
-        return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await specifier.specify(task)
 
     assert not outcome.ok

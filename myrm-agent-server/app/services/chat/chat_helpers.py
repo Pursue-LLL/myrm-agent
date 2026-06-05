@@ -62,9 +62,7 @@ def filter_messages(
         Filtered list of messages (system messages removed unless whitelisted)
     """
     context = FilterContext(user_id="sandbox", api_key=api_key)
-    message_dicts = [
-        {"role": msg.role, "content": msg.content, "_original": msg} for msg in messages
-    ]
+    message_dicts = [{"role": msg.role, "content": msg.content, "_original": msg} for msg in messages]
     filtered_dicts = _message_filter_pipeline.filter_messages(message_dicts, context)
     return [msg_dict["_original"] for msg_dict in filtered_dicts]
 
@@ -115,9 +113,7 @@ def _sanitize_snippet(raw_snippet: str) -> str:
 
     placeholder = "\x00MARK\x00"
     placeholder_end = "\x00/MARK\x00"
-    safe = raw_snippet.replace("<mark>", placeholder).replace(
-        "</mark>", placeholder_end
-    )
+    safe = raw_snippet.replace("<mark>", placeholder).replace("</mark>", placeholder_end)
     safe = html.escape(safe)
     safe = safe.replace(placeholder, "<mark>").replace(placeholder_end, "</mark>")
     safe = re.sub(r"<(?!/?mark>)", "&lt;", safe)

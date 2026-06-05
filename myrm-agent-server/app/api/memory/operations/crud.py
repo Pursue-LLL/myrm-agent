@@ -45,7 +45,9 @@ router.post("/archive/dry-run", response_model=MemoryArchiveDryRunResponse)(hand
 router.post("/import", response_model=MemoryImportResponse)(handlers.import_memories)
 router.post("/import/dry-run", response_model=MemoryImportDryRunResponse)(handlers.dry_run_import_memories)
 router.post("/import/confirm", response_model=MemoryImportConfirmResponse)(handlers.confirm_import_memories)
-router.post("/import/rollback/dry-run", response_model=MemoryImportRollbackPreviewResponse)(handlers.dry_run_rollback_import_memories)
+router.post("/import/rollback/dry-run", response_model=MemoryImportRollbackPreviewResponse)(
+    handlers.dry_run_rollback_import_memories
+)
 router.post("/import/rollback", response_model=MemoryImportRollbackResponse)(handlers.rollback_import_memories)
 router.post("/{memory_id}/rate", response_model=RateMemoryResponse)(handlers.rate_memory)
 router.post("/undo-consolidation")(handlers.undo_consolidation)

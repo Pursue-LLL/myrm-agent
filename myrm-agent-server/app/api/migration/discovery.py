@@ -55,10 +55,7 @@ def _to_response(source: CompetitorSource) -> CompetitorSourceResponse:
         competitor=source.competitor,
         root=source.root,
         confidence=source.confidence,
-        files=[
-            DiscoveredFileResponse(path=f.path, kind=f.kind, size_bytes=f.size_bytes)
-            for f in source.files
-        ],
+        files=[DiscoveredFileResponse(path=f.path, kind=f.kind, size_bytes=f.size_bytes) for f in source.files],
         memory_count_estimate=source.memory_count_estimate,
         skill_count=source.skill_count,
         has_api_keys=source.has_api_keys,

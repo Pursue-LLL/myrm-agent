@@ -35,8 +35,16 @@ class TestDiscoverCompetitorsEmpty:
 class TestHermesDiscovery:
     """Hermes ~/.hermes detection and metadata extraction."""
 
-    def _setup_hermes(self, home: Path, *, with_memory: bool = True, with_config: bool = True,
-                      with_soul: bool = False, with_skills: int = 0, with_env_keys: bool = False) -> Path:
+    def _setup_hermes(
+        self,
+        home: Path,
+        *,
+        with_memory: bool = True,
+        with_config: bool = True,
+        with_soul: bool = False,
+        with_skills: int = 0,
+        with_env_keys: bool = False,
+    ) -> Path:
         root = home / ".hermes"
         root.mkdir()
         if with_config:
@@ -108,8 +116,7 @@ class TestHermesDiscovery:
 class TestClaudeDiscovery:
     """Claude ~/.claude detection."""
 
-    def _setup_claude(self, home: Path, *, with_memory: bool = True,
-                      with_settings: bool = True, skill_count: int = 0) -> Path:
+    def _setup_claude(self, home: Path, *, with_memory: bool = True, with_settings: bool = True, skill_count: int = 0) -> Path:
         root = home / ".claude"
         root.mkdir()
         if with_memory:
@@ -163,8 +170,8 @@ class TestOpenClawDiscovery:
     def test_openclaw_high_confidence(self, fake_home: Path) -> None:
         root = fake_home / ".openclaw"
         root.mkdir()
-        (root / "memory.json").write_text('[]')
-        (root / "sessions.json").write_text('[]')
+        (root / "memory.json").write_text("[]")
+        (root / "sessions.json").write_text("[]")
         result = discover_competitors(str(fake_home))
         oc = [s for s in result.sources if s.competitor == "openclaw"]
         assert len(oc) == 1
@@ -173,7 +180,7 @@ class TestOpenClawDiscovery:
     def test_openclaw_medium_confidence_single_file(self, fake_home: Path) -> None:
         root = fake_home / ".openclaw"
         root.mkdir()
-        (root / "config.json").write_text('{}')
+        (root / "config.json").write_text("{}")
         result = discover_competitors(str(fake_home))
         oc = [s for s in result.sources if s.competitor == "openclaw"]
         assert len(oc) == 1
@@ -188,12 +195,12 @@ class TestOpenClawDiscovery:
     def test_openclaw_skill_counting(self, fake_home: Path) -> None:
         root = fake_home / ".openclaw"
         root.mkdir()
-        (root / "memory.json").write_text('[]')
-        (root / "sessions.json").write_text('[]')
+        (root / "memory.json").write_text("[]")
+        (root / "sessions.json").write_text("[]")
         skills_dir = root / "skills"
         skills_dir.mkdir()
-        (skills_dir / "skill_a.json").write_text('{}')
-        (skills_dir / "skill_b.json").write_text('{}')
+        (skills_dir / "skill_a.json").write_text("{}")
+        (skills_dir / "skill_b.json").write_text("{}")
         result = discover_competitors(str(fake_home))
         assert result.sources[0].skill_count == 2
 
@@ -217,7 +224,7 @@ class TestCursorDiscovery:
     def test_cursor_medium_confidence_settings_only(self, fake_home: Path) -> None:
         root = fake_home / ".cursor"
         root.mkdir()
-        (root / "settings.json").write_text('{}')
+        (root / "settings.json").write_text("{}")
         result = discover_competitors(str(fake_home))
         cur = [s for s in result.sources if s.competitor == "cursor"]
         assert len(cur) == 1
@@ -237,7 +244,7 @@ class TestCodexDiscovery:
         root = fake_home / ".codex"
         root.mkdir()
         (root / "instructions.md").write_text("# Instructions")
-        (root / "config.json").write_text('{}')
+        (root / "config.json").write_text("{}")
         result = discover_competitors(str(fake_home))
         cdx = [s for s in result.sources if s.competitor == "codex"]
         assert len(cdx) == 1

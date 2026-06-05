@@ -58,9 +58,7 @@ async def _check_semantic_duplicate(skill_name: str, description: str) -> str | 
     if _similarity_checker is None:
         return None
     try:
-        similar = await _similarity_checker.find_similar(
-            skill_name, description, top_k=3, threshold=SIMILARITY_THRESHOLD
-        )
+        similar = await _similarity_checker.find_similar(skill_name, description, top_k=3, threshold=SIMILARITY_THRESHOLD)
         if not similar:
             return None
         names = ", ".join(f"'{s.name}' ({s.similarity_score:.0%})" for s in similar)

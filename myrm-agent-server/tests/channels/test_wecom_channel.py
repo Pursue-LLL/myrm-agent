@@ -63,17 +63,11 @@ def _text_xml(content: str = "hello", from_user: str = "user1", msg_id: str = "m
 
 
 def _image_xml(pic_url: str = "https://img.example.com/1.jpg") -> str:
-    return (
-        f"<xml><MsgType>image</MsgType><PicUrl>{pic_url}</PicUrl>"
-        "<FromUserName>user1</FromUserName><MsgId>m2</MsgId></xml>"
-    )
+    return f"<xml><MsgType>image</MsgType><PicUrl>{pic_url}</PicUrl><FromUserName>user1</FromUserName><MsgId>m2</MsgId></xml>"
 
 
 def _voice_xml(media_id: str = "voice_mid") -> str:
-    return (
-        f"<xml><MsgType>voice</MsgType><MediaId>{media_id}</MediaId>"
-        "<FromUserName>user1</FromUserName><MsgId>m3</MsgId></xml>"
-    )
+    return f"<xml><MsgType>voice</MsgType><MediaId>{media_id}</MediaId><FromUserName>user1</FromUserName><MsgId>m3</MsgId></xml>"
 
 
 def _location_xml() -> str:
@@ -483,8 +477,12 @@ class TestWeComSend:
                 "app.channels.media.downloader.MediaDownloader.download",
                 new_callable=AsyncMock,
                 return_value=MediaDownloadResult(
-                    success=True, data=b"imgdata", content_type="image/jpeg",
-                    error=None, url="https://img.example.com/1.jpg", size_bytes=7,
+                    success=True,
+                    data=b"imgdata",
+                    content_type="image/jpeg",
+                    error=None,
+                    url="https://img.example.com/1.jpg",
+                    size_bytes=7,
                 ),
             ):
                 await ch.send(msg)
@@ -609,14 +607,21 @@ class TestWeComSendMedia:
 
         upload_resp = _ok_json({"errcode": 0, "media_id": "mid_url"})
         send_resp = _ok_json()
-        with patch(
-            "app.channels.media.downloader.MediaDownloader.download",
-            new_callable=AsyncMock,
-            return_value=MediaDownloadResult(
-                success=True, data=b"imgdata", content_type="image/jpeg",
-                error=None, url="https://img.example.com/1.jpg", size_bytes=7,
+        with (
+            patch(
+                "app.channels.media.downloader.MediaDownloader.download",
+                new_callable=AsyncMock,
+                return_value=MediaDownloadResult(
+                    success=True,
+                    data=b"imgdata",
+                    content_type="image/jpeg",
+                    error=None,
+                    url="https://img.example.com/1.jpg",
+                    size_bytes=7,
+                ),
             ),
-        ), patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=[upload_resp, send_resp]):
+            patch.object(ch._http, "post", new_callable=AsyncMock, side_effect=[upload_resp, send_resp]),
+        ):
             await ch._send_media("user1", att)
 
     @pytest.mark.asyncio

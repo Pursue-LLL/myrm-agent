@@ -57,4 +57,3 @@ async def test_git_diff_reference_is_structured() -> None:
     assert 'type="git-diff"' in context
     assert warnings == []
     assert tokens > 0
-

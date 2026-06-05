@@ -74,12 +74,17 @@ async def _create_memory_manager() -> MemoryManager:
     from app.services.agent.platform_config import require_platform_embedding_config
 
     binding = resolve_context_binding(
-        namespaces=None, agent_id=None, channel_id=None,
-        conversation_id=None, task_id=None,
+        namespaces=None,
+        agent_id=None,
+        channel_id=None,
+        conversation_id=None,
+        task_id=None,
     )
     embedding_cfg = await require_platform_embedding_config()
     return await create_memory_manager(
-        binding, embedding_cfg, approval_required=False,
+        binding,
+        embedding_cfg,
+        approval_required=False,
     )
 
 
@@ -139,8 +144,7 @@ async def _run_guardian_cycle() -> MaintenanceReport | None:
         else:
             force_tag = " [FORCED]" if force else ""
             logger.info(
-                "Memory guardian: cycle complete%s — merged=%d corrected=%d forgotten=%d "
-                "archived=%d health=%s (%.0fms)",
+                "Memory guardian: cycle complete%s — merged=%d corrected=%d forgotten=%d archived=%d health=%s (%.0fms)",
                 force_tag,
                 report.consolidation_merged,
                 report.consolidation_corrected,
@@ -301,16 +305,14 @@ async def _purge_expired_archives(manager: MemoryManager) -> int:
             if not expired_ids:
                 continue
 
-            coll = (
-                manager.config.semantic_collection
-                if mem_type == MemoryType.SEMANTIC
-                else manager.config.episodic_collection
-            )
+            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
             deleted = await manager.delete_memory(coll, expired_ids)
             total_purged += deleted
             logger.info(
                 "Memory guardian: purged %d/%d expired archived %s memories",
-                deleted, len(expired_ids), mem_type.value,
+                deleted,
+                len(expired_ids),
+                mem_type.value,
             )
         except Exception as exc:
             logger.warning("Memory guardian: failed to purge expired %s archives: %s", mem_type.value, exc)
@@ -440,9 +442,7 @@ async def start_memory_guardian_scheduler() -> None:
                         _consecutive_unhealthy = 0
 
                     interval_hours = (
-                        _HEALTHY_INTERVAL_HOURS
-                        if report.health.total >= _HEALTH_THRESHOLD
-                        else _UNHEALTHY_INTERVAL_HOURS
+                        _HEALTHY_INTERVAL_HOURS if report.health.total >= _HEALTH_THRESHOLD else _UNHEALTHY_INTERVAL_HOURS
                     )
                 else:
                     interval_hours = _HEALTHY_INTERVAL_HOURS

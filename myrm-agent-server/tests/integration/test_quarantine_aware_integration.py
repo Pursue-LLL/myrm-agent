@@ -46,9 +46,7 @@ async def test_quarantine_aware_integration(temp_workspace):
     skill_id = "test_quarantined_skill"
     skill_dir = f"{skills_prefix}/{skill_id}"
 
-    await storage.write_text(
-        f"{skill_dir}/SKILL.md", "---\ndescription: test\n---\n# Test Skill"
-    )
+    await storage.write_text(f"{skill_dir}/SKILL.md", "---\ndescription: test\n---\n# Test Skill")
     await storage.write_text(
         f"{skill_dir}/metadata.json",
         '{"name": "test_quarantined_skill", "description": "test"}',
@@ -57,9 +55,7 @@ async def test_quarantine_aware_integration(temp_workspace):
     # 创建一个正常的技能
     normal_skill_id = "test_normal_skill"
     normal_skill_dir = f"{skills_prefix}/{normal_skill_id}"
-    await storage.write_text(
-        f"{normal_skill_dir}/SKILL.md", "---\ndescription: normal\n---\n# Normal Skill"
-    )
+    await storage.write_text(f"{normal_skill_dir}/SKILL.md", "---\ndescription: normal\n---\n# Normal Skill")
     await storage.write_text(
         f"{normal_skill_dir}/metadata.json",
         '{"name": "test_normal_skill", "description": "normal"}',
@@ -135,6 +131,4 @@ async def test_quarantine_aware_integration(temp_workspace):
     # 被隔离的技能应该被过滤掉
     assert skill_id not in skill_names
 
-    print(
-        f"\n✅ 集成测试通过：成功过滤隔离技能 {skill_id}，保留正常技能 {normal_skill_id}"
-    )
+    print(f"\n✅ 集成测试通过：成功过滤隔离技能 {skill_id}，保留正常技能 {normal_skill_id}")

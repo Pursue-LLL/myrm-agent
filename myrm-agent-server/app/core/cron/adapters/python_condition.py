@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class SandboxedPythonCondition(PreFlightCondition):
     """Executes a Python script in an isolated subprocess with a strict timeout.
-    
+
     If the script prints `[SKIP]` or `{"action": "skip"}`, aborts job execution.
     Otherwise, the entire stdout is collected and returned as `injected_context`.
     """
@@ -42,13 +42,13 @@ class SandboxedPythonCondition(PreFlightCondition):
     async def evaluate(self, job: CronJob) -> tuple[bool, str]:
         if not job.pre_condition_script:
             return True, ""
-            
+
         script = job.pre_condition_script.strip()
         if not script:
             return True, ""
 
         logger.debug("Executing pre-flight condition script for job %s", job.id)
-        
+
         script_path = None
         try:
             # Write script to a temporary file
@@ -65,10 +65,7 @@ class SandboxedPythonCondition(PreFlightCondition):
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(), 
-                timeout=self.timeout_seconds
-            )
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)
 
             if proc.returncode != 0:
                 stderr = stderr_bytes.decode(errors="replace").strip()
@@ -77,7 +74,7 @@ class SandboxedPythonCondition(PreFlightCondition):
                     "Treating as SKIPPED to prevent cascading failures.",
                     job.id,
                     proc.returncode,
-                    stderr
+                    stderr,
                 )
                 return False, f"Probe Failed: {stderr}"
 
@@ -87,7 +84,7 @@ class SandboxedPythonCondition(PreFlightCondition):
             lines = stdout.splitlines()
             if any(line.strip() == "[SKIP]" for line in lines):
                 return False, ""
-                
+
             try:
                 if lines:
                     last_line = lines[-1].strip()
@@ -99,13 +96,9 @@ class SandboxedPythonCondition(PreFlightCondition):
                 pass
 
             return True, stdout
-                
+
         except asyncio.TimeoutError:
-            logger.warning(
-                "Pre-flight condition for job %s timed out after %ds. Skipping.", 
-                job.id, 
-                self.timeout_seconds
-            )
+            logger.warning("Pre-flight condition for job %s timed out after %ds. Skipping.", job.id, self.timeout_seconds)
             return False, f"Probe Timeout ({self.timeout_seconds}s)"
         except Exception as e:
             logger.error("Error executing pre-flight condition for job %s: %s", job.id, e)

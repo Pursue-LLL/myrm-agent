@@ -46,7 +46,7 @@ async def create_dynamic_workflow_stream(
     cancel_token: "CancellationToken | None",
 ) -> AsyncIterable[dict[str, object]]:
     """Build Dynamic Workflow SSE stream from GeneralAgentParams.
-    
+
     This delegates to the Harness Dynamic Workflow Engine, which uses PTC
     to generate and execute a Python orchestration script that can spawn
     multiple sub-agents concurrently.
@@ -77,6 +77,7 @@ async def create_dynamic_workflow_stream(
         cancel_token=cancel_token,
     ):
         yield chunk
+
 
 async def create_deep_research_stream(
     params: GeneralAgentParams,
@@ -275,9 +276,7 @@ async def create_consensus_stream(
     reference_llms = []
     for mc in reference_model_cfgs or []:
         try:
-            llm = await llm_manager.get_llm_from_config(
-                mc, api_keys=getattr(mc, "api_keys", None)
-            )
+            llm = await llm_manager.get_llm_from_config(mc, api_keys=getattr(mc, "api_keys", None))
             reference_llms.append(llm)
         except Exception:
             logger.warning(
@@ -316,8 +315,7 @@ async def create_consensus_stream(
 
     ref_model_names = [
         next(
-            (v for attr in ("model_name", "model", "name")
-             if (v := getattr(llm, attr, None)) and isinstance(v, str)),
+            (v for attr in ("model_name", "model", "name") if (v := getattr(llm, attr, None)) and isinstance(v, str)),
             type(llm).__name__,
         )
         for llm in reference_llms
@@ -400,13 +398,10 @@ async def create_consensus_stream(
             "completion_status": "success" if (result and result.success) else "error",
             "consensus_meta": {
                 "models_used": len(result.reference_responses) if result else 0,
-                "models_succeeded": (
-                    sum(1 for r in result.reference_responses if r.success) if result else 0
-                ),
+                "models_succeeded": (sum(1 for r in result.reference_responses if r.success) if result else 0),
                 "aggregator_model": result.aggregator_model if result else "",
                 "elapsed_seconds": result.elapsed_seconds if result else 0,
             },
         }
     finally:
         reset_token_tracker()
-

@@ -121,9 +121,7 @@ class TestFrustrationRoutingUnit:
         mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_when_no_skills_bound(
-        self, frustration_messages_verbosity: list
-    ) -> None:
+    async def test_skips_when_no_skills_bound(self, frustration_messages_verbosity: list) -> None:
         from app.ai_agents.general_agent.frustration_routing import make_frustration_skill_routing_callback
 
         mock_llm = AsyncMock(return_value="YES")
@@ -136,9 +134,7 @@ class TestFrustrationRoutingUnit:
         mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_routes_to_relevant_skill(
-        self, frustration_messages_verbosity: list
-    ) -> None:
+    async def test_routes_to_relevant_skill(self, frustration_messages_verbosity: list) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )
@@ -182,9 +178,7 @@ class TestFrustrationRoutingUnit:
             mock_bus.return_value.publish.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_skips_locked_skill(
-        self, frustration_messages_verbosity: list
-    ) -> None:
+    async def test_skips_locked_skill(self, frustration_messages_verbosity: list) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )
@@ -210,9 +204,7 @@ class TestFrustrationRoutingUnit:
             mock_llm.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_skips_when_llm_says_not_relevant(
-        self, frustration_messages_verbosity: list
-    ) -> None:
+    async def test_skips_when_llm_says_not_relevant(self, frustration_messages_verbosity: list) -> None:
         from app.ai_agents.general_agent.frustration_routing import (
             _run_frustration_routing,
         )

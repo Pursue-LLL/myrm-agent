@@ -1,5 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { IconPencil, IconPlus, IconShield, IconTrash, IconUpload } from '@/components/features/icons/PremiumIcons';
+import {
+  IconLoader,
+  IconPencil,
+  IconPlus,
+  IconShield,
+  IconTrash,
+  IconUpload,
+} from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
 import { MCPServiceConfig } from '@/store/useConfigStore';
@@ -11,10 +18,27 @@ import {
   MCPOAuthStatusMap,
 } from '@/services/llm-config';
 import { useToast } from '@/hooks/useToast';
+import { cn } from '@/lib/utils/classnameUtils';
+
+function severityBadgeClass(severity: string | null | undefined): string {
+  switch (severity) {
+    case 'critical':
+      return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    case 'high':
+      return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+    case 'medium':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+    case 'low':
+      return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+    default:
+      return 'bg-muted text-muted-foreground';
+  }
+}
 
 interface MCPConfigListProps {
   configs: MCPServiceConfig[];
   mcpStatus: Record<string, { available: boolean; pending?: boolean; latency?: number }>;
+  togglingIndex?: number | null;
   onAddConfig: () => void;
   onEditConfig: (index: number) => void;
   onToggleConfig: (index: number) => void;
@@ -36,6 +60,7 @@ interface MCPConfigListProps {
 export function MCPConfigList({
   configs,
   mcpStatus,
+  togglingIndex = null,
   onAddConfig,
   onEditConfig,
   onToggleConfig,
@@ -167,6 +192,8 @@ export function MCPConfigList({
             const status = mcpStatus[config.name];
             const oauth = oauthStatus[config.name];
             const hasOAuthConfig = !!config.oauth?.clientId;
+            const scanSeverity = config.lastScanSummary?.maxSeverity;
+            const isToggling = togglingIndex === index;
             return (
               <div
                 key={index}
@@ -174,8 +201,18 @@ export function MCPConfigList({
                 className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors group"
               >
                 <div className="flex items-center space-x-3">
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Switch checked={config.enabled} onCheckedChange={() => onToggleConfig(index)} />
+                  <div
+                    className="flex items-center gap-1.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Switch
+                      checked={config.enabled}
+                      disabled={isToggling}
+                      onCheckedChange={() => onToggleConfig(index)}
+                    />
+                    {isToggling ? (
+                      <IconLoader className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : null}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-black/90 dark:text-white/90 flex items-center gap-1">
@@ -199,6 +236,17 @@ export function MCPConfigList({
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                           <IconShield className="w-2.5 h-2.5" />
                           {t('mcpOAuthExpired') || 'Expired'}
+                        </span>
+                      )}
+                      {scanSeverity && (
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase',
+                            severityBadgeClass(scanSeverity),
+                          )}
+                        >
+                          <IconShield className="w-2.5 h-2.5" />
+                          {scanSeverity}
                         </span>
                       )}
                     </p>

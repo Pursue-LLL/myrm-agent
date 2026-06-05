@@ -86,9 +86,7 @@ async def handoff_chat(
         policy = SessionPolicy()
 
     async with get_session() as session:
-        chat = (
-            await session.execute(select(Chat).where(Chat.id == chat_id))
-        ).scalar_one_or_none()
+        chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
         if not chat:
             return HandoffResult(success=False, error=f"Chat {chat_id} not found")
 

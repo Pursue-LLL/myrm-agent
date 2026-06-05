@@ -48,9 +48,7 @@ def resolve_sandbox_file_path(
             [
                 os.path.join(workspace_root, f"sandboxes/{chat_id}", file_path),
                 os.path.join(workspace_root, chat_id, file_path),
-                os.path.join(
-                    os.path.dirname(workspace_root), f"chat_{chat_id}", file_path
-                ),
+                os.path.join(os.path.dirname(workspace_root), f"chat_{chat_id}", file_path),
             ]
         )
 
@@ -87,9 +85,7 @@ async def upsert_processor_artifact(
     physical_path: str | None = None,
 ) -> str:
     """Upsert deploy DB row keyed by storage file_id; returns latest version id."""
-    resolved_path = physical_path or resolve_sandbox_file_path(
-        sandbox_path, workspace_root, chat_id
-    )
+    resolved_path = physical_path or resolve_sandbox_file_path(sandbox_path, workspace_root, chat_id)
     if not resolved_path:
         raise FileNotFoundError(f"Artifact file not found on disk: {sandbox_path}")
 

@@ -75,10 +75,10 @@ async def _process_import_zip(zip_data: bytes) -> tuple[int, list[str]]:
     base_path = skill_creation_service.base_path
     import_count = 0
     imported_skills = []
-    
+
     # Initialize sandbox validator for security scanning
     validator = SandboxValidator(timeout_seconds=5.0)
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_zip_path = Path(tmpdir) / "upload.zip"
         with open(tmp_zip_path, "wb") as f:
@@ -98,10 +98,11 @@ async def _process_import_zip(zip_data: bytes) -> tuple[int, list[str]]:
                     try:
                         with open(skill_md_path, "r", encoding="utf-8") as f:
                             content = f.read()
-                        
+
                         # Create a temporary SkillRecord for validation
                         # We only need the content and name for dry_run_skill
                         from myrm_agent_harness.agent.skills.evolution.core.types import EvolutionType, SkillLineage
+
                         temp_skill = SkillRecord(
                             skill_id=f"temp_{item.name}",
                             name=item.name,
@@ -110,13 +111,13 @@ async def _process_import_zip(zip_data: bytes) -> tuple[int, list[str]]:
                             path=str(skill_md_path),
                             lineage=SkillLineage(evolution_type=EvolutionType.CAPTURED, version=1),
                         )
-                        
+
                         # Run the sandbox validation
                         is_safe, error_msg = await validator.dry_run_skill(temp_skill)
                         if not is_safe:
                             logger.warning(f"Security scan failed for imported skill: {item.name}")
                             raise ValueError(f"Skill {item.name} failed security scan: {error_msg}")
-                            
+
                     except Exception as e:
                         if isinstance(e, ValueError):
                             raise

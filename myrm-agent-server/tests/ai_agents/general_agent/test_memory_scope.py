@@ -82,9 +82,9 @@ def test_resolve_memory_binding_includes_shared_contexts() -> None:
 #             write_policy=MemoryWritePolicy.TASK,
 #         ),
 #     )
-# 
+#
 #     binding = agent._resolve_context_binding("chat-runtime")
-# 
+#
 #     assert binding is not None
 #     assert binding.namespaces == [
 #         "global",

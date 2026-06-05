@@ -35,9 +35,7 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
             f"Invalid action: {body.action}. Must be one of: {', '.join(sorted(_BULK_VALID_ACTIONS))}",
         )
     if body.action == "delete" and not body.confirm:
-        raise HTTPException(
-            400, "Bulk delete requires confirm=true"
-        )
+        raise HTTPException(400, "Bulk delete requires confirm=true")
 
     svc = get_kanban_service()
     results: list[BulkActionItemResult] = []
@@ -80,7 +78,9 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
                 reason = body.params.get("reason")
                 new_agent_id = body.params.get("new_agent_id")
                 task = await svc.reclaim_task(
-                    task_id, reason=reason, new_agent_id=new_agent_id,
+                    task_id,
+                    reason=reason,
+                    new_agent_id=new_agent_id,
                 )
                 if task is None:
                     results.append(BulkActionItemResult(task_id=task_id, success=False, error="Not found"))
@@ -104,5 +104,3 @@ async def bulk_action(board_id: str, body: BulkActionRequest) -> BulkActionRespo
         succeeded=succeeded,
         failed=len(results) - succeeded,
     )
-
-

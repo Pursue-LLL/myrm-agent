@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 @router.get("/{agent_id}/history")
 async def get_agent_history(
     agent_id: str,
@@ -27,7 +28,7 @@ async def get_agent_history(
             .limit(50)
         )
         history_records = result.scalars().all()
-        
+
         history_list = [
             {
                 "id": record.id,
@@ -37,7 +38,7 @@ async def get_agent_history(
             }
             for record in history_records
         ]
-        
+
         return success_response(data=history_list)
     except Exception as e:
         logger.error(f"Failed to fetch agent history: {e}")

@@ -33,18 +33,14 @@ class TestThreadCleanupDecoupling:
         mock_record_active.last_active_at = datetime.now() - timedelta(hours=1)
 
         mock_thread_store = AsyncMock()
-        mock_thread_store.find_active_threads = AsyncMock(
-            return_value=[mock_record_zombie, mock_record_active]
-        )
+        mock_thread_store.find_active_threads = AsyncMock(return_value=[mock_record_zombie, mock_record_active])
         mock_thread_store.mark_failed = AsyncMock()
         mock_thread_store.cleanup_old_records = AsyncMock(return_value=3)
 
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
@@ -69,26 +65,20 @@ class TestThreadCleanupDecoupling:
         active.last_active_at = datetime.now() - timedelta(hours=2)
 
         mock_thread_store = AsyncMock()
-        mock_thread_store.find_active_threads = AsyncMock(
-            return_value=[*zombies, active]
-        )
+        mock_thread_store.find_active_threads = AsyncMock(return_value=[*zombies, active])
         mock_thread_store.mark_failed = AsyncMock()
         mock_thread_store.cleanup_old_records = AsyncMock(return_value=0)
 
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
 
         assert mock_thread_store.mark_failed.call_count == 5
-        marked_ids = {
-            call.args[0] for call in mock_thread_store.mark_failed.call_args_list
-        }
+        marked_ids = {call.args[0] for call in mock_thread_store.mark_failed.call_args_list}
         assert marked_ids == {f"zombie-{i}" for i in range(5)}
 
     @pytest.mark.asyncio
@@ -108,9 +98,7 @@ class TestThreadCleanupDecoupling:
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
@@ -129,9 +117,7 @@ class TestThreadCleanupDecoupling:
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
@@ -144,9 +130,7 @@ class TestThreadCleanupDecoupling:
         """Should gracefully skip if checkpointer lacks thread_store."""
         mock_checkpointer = MagicMock(spec=[])
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
@@ -173,17 +157,13 @@ class TestThreadCleanupDecoupling:
 
         mock_thread_store = AsyncMock()
         mock_thread_store.find_active_threads = AsyncMock(return_value=[zombie])
-        mock_thread_store.mark_failed = AsyncMock(
-            side_effect=RuntimeError("DB write failed")
-        )
+        mock_thread_store.mark_failed = AsyncMock(side_effect=RuntimeError("DB write failed"))
         mock_thread_store.cleanup_old_records = AsyncMock(return_value=0)
 
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             # Should not raise — exception is caught at the top level
@@ -212,9 +192,7 @@ class TestThreadCleanupDecoupling:
         mock_checkpointer = MagicMock()
         mock_checkpointer.thread_store = mock_thread_store
 
-        with patch(
-            "app.platform_utils.get_checkpointer", return_value=mock_checkpointer
-        ):
+        with patch("app.platform_utils.get_checkpointer", return_value=mock_checkpointer):
             from app.lifecycle.browser import cleanup_browser_threads
 
             await cleanup_browser_threads()
@@ -238,9 +216,7 @@ class TestThreadCleanupDecoupling:
         source = inspect.getsource(run_async_warmup)
         cleanup_pos = source.index("cleanup_browser_threads()")
         warmup_cond_pos = source.index("if settings.browser_auto_warmup:")
-        assert (
-            cleanup_pos < warmup_cond_pos
-        ), "cleanup must be unconditional and precede warmup condition"
+        assert cleanup_pos < warmup_cond_pos, "cleanup must be unconditional and precede warmup condition"
 
     def test_db_maintenance_job_includes_thread_cleanup(self):
         """db_maintenance_job must include periodic thread cleanup."""
@@ -265,12 +241,8 @@ class TestThreadCleanupDecoupling:
     async def test_backward_compat_calls_both(self):
         """cleanup_and_warmup_browser_threads calls both functions in order."""
         with (
-            patch(
-                "app.lifecycle.browser.cleanup_browser_threads", new_callable=AsyncMock
-            ) as mock_cleanup,
-            patch(
-                "app.lifecycle.browser.warmup_browser_sessions", new_callable=AsyncMock
-            ) as mock_warmup,
+            patch("app.lifecycle.browser.cleanup_browser_threads", new_callable=AsyncMock) as mock_cleanup,
+            patch("app.lifecycle.browser.warmup_browser_sessions", new_callable=AsyncMock) as mock_warmup,
         ):
             from app.lifecycle.browser import cleanup_and_warmup_browser_threads
 

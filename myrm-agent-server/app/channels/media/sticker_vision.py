@@ -49,10 +49,7 @@ _STICKER_PROMPT = (
 def _build_sticker_prompt(set_name: str) -> str:
     """Build a sticker-specific vision prompt, optionally including set context."""
     if set_name:
-        return (
-            f"This is a sticker from the '{set_name}' sticker pack. "
-            f"{_STICKER_PROMPT}"
-        )
+        return f"This is a sticker from the '{set_name}' sticker pack. {_STICKER_PROMPT}"
     return _STICKER_PROMPT
 
 
@@ -60,9 +57,7 @@ class StickerDownloader(Protocol):
     """Protocol for downloading sticker file bytes by file_id."""
 
     async def get_file(self, file_id: str) -> dict[str, object]: ...
-    async def download_file(
-        self, file_path: str, *, timeout: float = 30.0
-    ) -> bytes: ...
+    async def download_file(self, file_path: str, *, timeout: float = 30.0) -> bytes: ...
 
 
 class StickerVisionService:
@@ -73,9 +68,7 @@ class StickerVisionService:
     Results are cached by file_unique_id (Telegram-global identifier).
     """
 
-    def __init__(
-        self, engine: VisionFallbackEngine, max_cache_size: int = _LRU_MAX_SIZE
-    ) -> None:
+    def __init__(self, engine: VisionFallbackEngine, max_cache_size: int = _LRU_MAX_SIZE) -> None:
         self._engine = engine
         self._cache: OrderedDict[str, str] = OrderedDict()
         self._max_cache_size = max_cache_size
@@ -114,9 +107,7 @@ class StickerVisionService:
         fut: asyncio.Future[str | None] = asyncio.get_running_loop().create_future()
         self._in_flight[file_unique_id] = fut
         try:
-            result = await self._fetch_and_cache(
-                file_id, file_unique_id, set_name, downloader
-            )
+            result = await self._fetch_and_cache(file_id, file_unique_id, set_name, downloader)
             fut.set_result(result)
             return result
         except BaseException as exc:
@@ -167,9 +158,7 @@ class StickerVisionService:
         b64_data = base64.b64encode(raw_bytes).decode("ascii")
 
         prompt = _build_sticker_prompt(set_name)
-        return await self._engine.describe_image_b64(
-            b64_data, "image/webp", prompt=prompt
-        )
+        return await self._engine.describe_image_b64(b64_data, "image/webp", prompt=prompt)
 
     def _put_cache(self, key: str, value: str) -> None:
         """Insert into LRU cache with eviction."""
@@ -237,7 +226,5 @@ async def describe_sticker_inbound(
     if emoji:
         sticker_text = f"{sticker_text} {emoji}"
 
-    logger.warning(
-        "Sticker: vision described %s → %d chars", file_unique_id, len(description)
-    )
+    logger.warning("Sticker: vision described %s → %d chars", file_unique_id, len(description))
     return dataclasses.replace(msg, content=sticker_text)

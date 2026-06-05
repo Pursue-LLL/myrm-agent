@@ -201,10 +201,10 @@ async def download_skill_to_workspace(
             workspace_root = Path(target_path).parent.parent.parent
             if (workspace_root / ".myrm").exists():
                 from myrm_agent_harness.backends.skills.snapshot import SQLiteSkillSnapshot
-                
+
                 snapshot_path = workspace_root / ".skills_snapshot.sqlite"
                 skill_md_path = Path(target_path) / "SKILL.md"
-                
+
                 def _do_upsert():
                     snapshot = SQLiteSkillSnapshot(snapshot_path)
                     snapshot.upsert_from_path(skill_md_path, workspace_root=workspace_root)

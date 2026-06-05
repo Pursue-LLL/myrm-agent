@@ -31,9 +31,7 @@ class TestParameterForwarding:
     @pytest.mark.asyncio
     async def test_trusted_domains_forwarded(self, reviewer: DynamicLLMSecurityReviewer):
         mock_llm = MagicMock()
-        expected_result = ReviewResult(
-            decision=ReviewDecision.ALLOW, reason="safe"
-        )
+        expected_result = ReviewResult(decision=ReviewDecision.ALLOW, reason="safe")
 
         with (
             patch(
@@ -41,9 +39,7 @@ class TestParameterForwarding:
                 new_callable=AsyncMock,
                 return_value=mock_llm,
             ),
-            patch(
-                "app.core.security.llm_reviewer.TranscriptClassifier"
-            ) as mock_cls,
+            patch("app.core.security.llm_reviewer.TranscriptClassifier") as mock_cls,
         ):
             mock_instance = MagicMock()
             mock_instance.review = AsyncMock(return_value=expected_result)
@@ -54,9 +50,7 @@ class TestParameterForwarding:
                 workspace_root="/home/user/project",
                 intent_context="Download API schema",
                 taint_labels=frozenset({"network"}),
-                recent_tool_calls=(
-                    RecentToolCall(tool_name="bash", args="ls"),
-                ),
+                recent_tool_calls=(RecentToolCall(tool_name="bash", args="ls"),),
                 model_id="gpt-4o",
                 trusted_domains=("api.github.com", "internal.api.com"),
             )
@@ -66,9 +60,7 @@ class TestParameterForwarding:
                 workspace_root="/home/user/project",
                 intent_context="Download API schema",
                 taint_labels=frozenset({"network"}),
-                recent_tool_calls=(
-                    RecentToolCall(tool_name="bash", args="ls"),
-                ),
+                recent_tool_calls=(RecentToolCall(tool_name="bash", args="ls"),),
                 model_id="gpt-4o",
                 trusted_domains=("api.github.com", "internal.api.com"),
             )
@@ -77,9 +69,7 @@ class TestParameterForwarding:
     @pytest.mark.asyncio
     async def test_empty_trusted_domains_default(self, reviewer: DynamicLLMSecurityReviewer):
         mock_llm = MagicMock()
-        expected_result = ReviewResult(
-            decision=ReviewDecision.DENY, reason="dangerous"
-        )
+        expected_result = ReviewResult(decision=ReviewDecision.DENY, reason="dangerous")
 
         with (
             patch(
@@ -87,9 +77,7 @@ class TestParameterForwarding:
                 new_callable=AsyncMock,
                 return_value=mock_llm,
             ),
-            patch(
-                "app.core.security.llm_reviewer.TranscriptClassifier"
-            ) as mock_cls,
+            patch("app.core.security.llm_reviewer.TranscriptClassifier") as mock_cls,
         ):
             mock_instance = MagicMock()
             mock_instance.review = AsyncMock(return_value=expected_result)
@@ -122,9 +110,7 @@ class TestErrorHandling:
             assert "LLM initialization error" in result.reason
 
     @pytest.mark.asyncio
-    async def test_classifier_review_exception_returns_uncertain(
-        self, reviewer: DynamicLLMSecurityReviewer
-    ):
+    async def test_classifier_review_exception_returns_uncertain(self, reviewer: DynamicLLMSecurityReviewer):
         mock_llm = MagicMock()
 
         with (
@@ -133,14 +119,10 @@ class TestErrorHandling:
                 new_callable=AsyncMock,
                 return_value=mock_llm,
             ),
-            patch(
-                "app.core.security.llm_reviewer.TranscriptClassifier"
-            ) as mock_cls,
+            patch("app.core.security.llm_reviewer.TranscriptClassifier") as mock_cls,
         ):
             mock_instance = MagicMock()
-            mock_instance.review = AsyncMock(
-                side_effect=TimeoutError("LLM timeout")
-            )
+            mock_instance.review = AsyncMock(side_effect=TimeoutError("LLM timeout"))
             mock_cls.return_value = mock_instance
 
             result = await reviewer.review("test", model_id="gpt-4o")
@@ -154,9 +136,7 @@ class TestWarningLogs:
     @pytest.mark.asyncio
     async def test_no_model_id_logs_warning(self, reviewer: DynamicLLMSecurityReviewer):
         mock_llm = MagicMock()
-        expected_result = ReviewResult(
-            decision=ReviewDecision.ALLOW, reason="ok"
-        )
+        expected_result = ReviewResult(decision=ReviewDecision.ALLOW, reason="ok")
 
         with (
             patch(
@@ -164,12 +144,8 @@ class TestWarningLogs:
                 new_callable=AsyncMock,
                 return_value=mock_llm,
             ),
-            patch(
-                "app.core.security.llm_reviewer.TranscriptClassifier"
-            ) as mock_cls,
-            patch(
-                "app.core.security.llm_reviewer.logger"
-            ) as mock_logger,
+            patch("app.core.security.llm_reviewer.TranscriptClassifier") as mock_cls,
+            patch("app.core.security.llm_reviewer.logger") as mock_logger,
         ):
             mock_instance = MagicMock()
             mock_instance.review = AsyncMock(return_value=expected_result)
@@ -184,9 +160,7 @@ class TestWarningLogs:
     @pytest.mark.asyncio
     async def test_with_model_id_no_warning(self, reviewer: DynamicLLMSecurityReviewer):
         mock_llm = MagicMock()
-        expected_result = ReviewResult(
-            decision=ReviewDecision.ALLOW, reason="ok"
-        )
+        expected_result = ReviewResult(decision=ReviewDecision.ALLOW, reason="ok")
 
         with (
             patch(
@@ -194,12 +168,8 @@ class TestWarningLogs:
                 new_callable=AsyncMock,
                 return_value=mock_llm,
             ),
-            patch(
-                "app.core.security.llm_reviewer.TranscriptClassifier"
-            ) as mock_cls,
-            patch(
-                "app.core.security.llm_reviewer.logger"
-            ) as mock_logger,
+            patch("app.core.security.llm_reviewer.TranscriptClassifier") as mock_cls,
+            patch("app.core.security.llm_reviewer.logger") as mock_logger,
         ):
             mock_instance = MagicMock()
             mock_instance.review = AsyncMock(return_value=expected_result)

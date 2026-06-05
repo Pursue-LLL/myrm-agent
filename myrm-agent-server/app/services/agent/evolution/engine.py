@@ -86,9 +86,7 @@ async def _run_evolution_task(
 
             if len(messages) < 4:
                 # Too short to be a complex skill
-                logger.debug(
-                    f"Chat {chat_id} too short for skill evolution ({len(messages)} messages)"
-                )
+                logger.debug(f"Chat {chat_id} too short for skill evolution ({len(messages)} messages)")
                 return
 
             # Format conversation for the LLM
@@ -98,9 +96,7 @@ async def _run_evolution_task(
                 conversation_text += f"[{role}]: {msg.content}\n\n"
 
         # Initialize the LLM (using the same model config as the main agent, or a dedicated reasoning model)
-        llm = await llm_manager.get_llm_from_config(
-            model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None)
-        )
+        llm = await llm_manager.get_llm_from_config(model_cfg, streaming=False, api_keys=getattr(model_cfg, "api_keys", None))
 
         # We delegate the actual extraction and validation to the Harness engine
         import platform
@@ -139,9 +135,7 @@ async def _run_evolution_task(
             store.close()
 
         if not proposal:
-            logger.debug(
-                f"No reusable skill detected or skill rejected by SandboxValidator for chat {chat_id}"
-            )
+            logger.debug(f"No reusable skill detected or skill rejected by SandboxValidator for chat {chat_id}")
             return
 
         skill_name = proposal.skill_id
@@ -157,14 +151,10 @@ async def _run_evolution_task(
         # Broadcast to the user that a new skill draft is ready for review
         await broadcast_proposal(proposal.to_dict())
 
-        logger.info(
-            f"✨ Successfully generated new skill proposal: '{skill_name}' (chat: {chat_id})"
-        )
+        logger.info(f"✨ Successfully generated new skill proposal: '{skill_name}' (chat: {chat_id})")
 
     except Exception as e:
-        logger.error(
-            f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True
-        )
+        logger.error(f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True)
 
 
 def trigger_skill_evolution(
@@ -184,7 +174,5 @@ def trigger_skill_evolution(
         return
 
     # Fire and forget
-    asyncio.create_task(
-        _run_evolution_task(chat_id, model_cfg), name=f"skill_evolution_{chat_id}"
-    )
+    asyncio.create_task(_run_evolution_task(chat_id, model_cfg), name=f"skill_evolution_{chat_id}")
     logger.debug(f"Triggered background skill evolution for chat {chat_id}")

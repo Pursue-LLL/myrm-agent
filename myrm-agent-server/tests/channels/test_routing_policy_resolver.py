@@ -60,11 +60,23 @@ def _make_resolver(
     fx.send_pairing_request_reply = AsyncMock()
     fx.send_mute_reply = AsyncMock()
 
-    if policy is not None and isinstance(policy, MagicMock) and not isinstance(getattr(policy, "get_free_response_chats", None), AsyncMock):
+    if (
+        policy is not None
+        and isinstance(policy, MagicMock)
+        and not isinstance(getattr(policy, "get_free_response_chats", None), AsyncMock)
+    ):
         policy.get_free_response_chats = AsyncMock(return_value=set())
-    if policy is not None and isinstance(policy, MagicMock) and not isinstance(getattr(policy, "get_guest_mode", None), AsyncMock):
+    if (
+        policy is not None
+        and isinstance(policy, MagicMock)
+        and not isinstance(getattr(policy, "get_guest_mode", None), AsyncMock)
+    ):
         policy.get_guest_mode = AsyncMock(return_value=False)
-    if policy is not None and isinstance(policy, MagicMock) and not isinstance(getattr(policy, "get_enabled_groups", None), AsyncMock):
+    if (
+        policy is not None
+        and isinstance(policy, MagicMock)
+        and not isinstance(getattr(policy, "get_enabled_groups", None), AsyncMock)
+    ):
         policy.get_enabled_groups = AsyncMock(return_value=set())
 
     return PolicyResolver(
@@ -477,15 +489,19 @@ class TestGroupFollowUpExemption:
         r = _make_resolver(policy=policy)
 
         # 1. In MENTION_ONLY mode, inbound messages without mention or active thread should be ignored
-        msg1 = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False
-        )
+        msg1 = InboundMessage(channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False)
         res1 = await r.resolve_group_user(msg1)
         assert res1 is None
 
         # 2. Explicit mention triggers the activation sequence
         msg2 = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=True, thread_id="thread-456"
+            channel="test",
+            sender_id="u1",
+            chat_id="chat-123",
+            content="hello",
+            is_group=True,
+            mentioned=True,
+            thread_id="thread-456",
         )
         res2 = await r.resolve_group_user(msg2)
         assert res2 is not None
@@ -493,7 +509,13 @@ class TestGroupFollowUpExemption:
 
         # 3. The thread is active now, so subsequent messages in the same thread are exempted
         msg3 = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="continue...", is_group=True, mentioned=False, thread_id="thread-456"
+            channel="test",
+            sender_id="u1",
+            chat_id="chat-123",
+            content="continue...",
+            is_group=True,
+            mentioned=False,
+            thread_id="thread-456",
         )
         res3 = await r.resolve_group_user(msg3)
         assert res3 is not None
@@ -501,7 +523,13 @@ class TestGroupFollowUpExemption:
 
         # 4. Mute command deactivates the thread immediately
         msg4 = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="/mute", is_group=True, mentioned=False, thread_id="thread-456"
+            channel="test",
+            sender_id="u1",
+            chat_id="chat-123",
+            content="/mute",
+            is_group=True,
+            mentioned=False,
+            thread_id="thread-456",
         )
         res4 = await r.resolve_group_user(msg4)
         assert res4 is None
@@ -511,7 +539,13 @@ class TestGroupFollowUpExemption:
         r._fx.send_mute_reply.assert_called_once_with(msg4)
 
         msg5 = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="any follow-ups?", is_group=True, mentioned=False, thread_id="thread-456"
+            channel="test",
+            sender_id="u1",
+            chat_id="chat-123",
+            content="any follow-ups?",
+            is_group=True,
+            mentioned=False,
+            thread_id="thread-456",
         )
         res5 = await r.resolve_group_user(msg5)
         assert res5 is None
@@ -529,10 +563,7 @@ class TestGroupFollowUpExemption:
 
         r = _make_resolver(policy=policy)
 
-        msg = InboundMessage(
-            channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False
-        )
+        msg = InboundMessage(channel="test", sender_id="u1", chat_id="chat-123", content="hello", is_group=True, mentioned=False)
         res = await r.resolve_group_user(msg)
         assert res is not None
         assert res[0] == "user1"
-

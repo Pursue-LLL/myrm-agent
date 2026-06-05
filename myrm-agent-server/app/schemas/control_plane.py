@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 class SkillQualityTelemetry(BaseModel):
     """Telemetry data for a single skill's quality metrics."""
+
     skill_id: str
     overall_score: float
     success_rate: float
@@ -27,6 +28,7 @@ class SkillQualityTelemetry(BaseModel):
 
 class TelemetryPushPayload(BaseModel):
     """Payload for pushing skill telemetry to the control plane."""
+
     tenant_id: str
     timestamp: str
     skills: list[SkillQualityTelemetry]
@@ -81,9 +83,7 @@ class ContextCompressionEventSnapshot(BaseModel):
             archive_deferred_count=_to_int(raw.get("archive_deferred_count")),
             archive_deferred_reasons=_to_count_map(raw.get("archive_deferred_reasons")),
             archive_deferred_soft_trimmed_count=_to_int(raw.get("archive_deferred_soft_trimmed_count")),
-            archive_deferred_soft_trimmed_reasons=_to_count_map(
-                raw.get("archive_deferred_soft_trimmed_reasons")
-            ),
+            archive_deferred_soft_trimmed_reasons=_to_count_map(raw.get("archive_deferred_soft_trimmed_reasons")),
             original_tokens=_to_int(raw.get("original_tokens")),
             backoff_applied=bool(raw.get("backoff_applied")),
             backoff_reasons=_to_str_list(raw.get("backoff_reasons")),
@@ -149,18 +149,9 @@ class ContextArchiveRestoreBlockEventSnapshot(BaseModel):
             raw.get("primary_restore_arg"),
             guidance_mapping.get("primary_restore_arg"),
         )
-        recommended_ranges = _to_str_list(
-            raw.get("recommended_ranges")
-            or guidance_mapping.get("recommended_ranges")
-        )
-        restore_range_hints = _to_dict_list(
-            raw.get("restore_range_hints")
-            or guidance_mapping.get("restore_range_hints")
-        )
-        content_features = _to_dict_list(
-            raw.get("content_features")
-            or guidance_mapping.get("content_features")
-        )
+        recommended_ranges = _to_str_list(raw.get("recommended_ranges") or guidance_mapping.get("recommended_ranges"))
+        restore_range_hints = _to_dict_list(raw.get("restore_range_hints") or guidance_mapping.get("restore_range_hints"))
+        content_features = _to_dict_list(raw.get("content_features") or guidance_mapping.get("content_features"))
         return cls(
             timestamp=_to_str(raw.get("timestamp")),
             reason=_to_str(raw.get("reason")),
@@ -182,19 +173,13 @@ class ContextArchiveRestoreBlockEventSnapshot(BaseModel):
                 raw,
                 "recommended_range_count",
             ),
-            restore_range_hints=[
-                _content_blind_restore_range_hint(hint)
-                for hint in restore_range_hints[:5]
-            ],
+            restore_range_hints=[_content_blind_restore_range_hint(hint) for hint in restore_range_hints[:5]],
             restore_range_hint_count=_count_from_items_or_raw(
                 len(restore_range_hints),
                 raw,
                 "restore_range_hint_count",
             ),
-            content_features=[
-                _content_blind_content_feature(feature)
-                for feature in content_features[:8]
-            ],
+            content_features=[_content_blind_content_feature(feature) for feature in content_features[:8]],
             content_feature_count=_count_from_items_or_raw(
                 len(content_features),
                 raw,
@@ -326,12 +311,10 @@ class ContextCompactionSnapshot(BaseModel):
     @classmethod
     def from_mapping(cls, raw: Mapping[str, object]) -> "ContextCompactionSnapshot":
         compression_events = [
-            ContextCompressionEventSnapshot.from_mapping(event)
-            for event in _to_mapping_list(raw.get("compression_events"))
+            ContextCompressionEventSnapshot.from_mapping(event) for event in _to_mapping_list(raw.get("compression_events"))
         ]
         refetch_events = [
-            ContextRefetchEventSnapshot.from_mapping(event)
-            for event in _to_mapping_list(raw.get("refetch_events"))
+            ContextRefetchEventSnapshot.from_mapping(event) for event in _to_mapping_list(raw.get("refetch_events"))
         ]
         archive_restore_block_events = [
             ContextArchiveRestoreBlockEventSnapshot.from_mapping(event)
@@ -364,9 +347,7 @@ class ContextCompactionSnapshot(BaseModel):
             archive_deferred_count=_to_int(raw.get("archive_deferred_count")),
             archive_deferred_reasons=_to_count_map(raw.get("archive_deferred_reasons")),
             archive_deferred_soft_trimmed_count=_to_int(raw.get("archive_deferred_soft_trimmed_count")),
-            archive_deferred_soft_trimmed_reasons=_to_count_map(
-                raw.get("archive_deferred_soft_trimmed_reasons")
-            ),
+            archive_deferred_soft_trimmed_reasons=_to_count_map(raw.get("archive_deferred_soft_trimmed_reasons")),
             archived_original_tokens=_to_int(raw.get("archived_original_tokens")),
             refetch_count=_to_int(raw.get("refetch_count")),
             refetch_ratio=_to_float(raw.get("refetch_ratio")),
@@ -487,6 +468,7 @@ def _content_blind_content_feature(feature: dict[str, object]) -> dict[str, obje
 
 class ContextCompactionTelemetryEnvelope(BaseModel):
     """Detached telemetry payload ready for transport."""
+
     telemetry_subject: str
     chat_id: str
     timestamp: str
@@ -495,6 +477,7 @@ class ContextCompactionTelemetryEnvelope(BaseModel):
 
 class ContextCompactionBatchPayload(BaseModel):
     """Batch payload for context compaction telemetry."""
+
     events: list[ContextCompactionTelemetryEnvelope]
 
 
@@ -502,8 +485,10 @@ class ContextCompactionBatchPayload(BaseModel):
 # Global Baselines
 # -----------------------------------------------------------------------------
 
+
 class SkillBaseline(BaseModel):
     """Global baseline data for a skill."""
+
     skill_id: str
     global_strategy: str
     confidence_score: float
@@ -512,6 +497,7 @@ class SkillBaseline(BaseModel):
 
 class BaselinesResponse(BaseModel):
     """Response containing global skill baselines."""
+
     baselines: list[SkillBaseline]
 
 
@@ -519,8 +505,10 @@ class BaselinesResponse(BaseModel):
 # Health Metrics
 # -----------------------------------------------------------------------------
 
+
 class DLQMetrics(BaseModel):
     """Dead Letter Queue metrics."""
+
     failed_count: int
     status: str
     error: str | None = None
@@ -528,4 +516,5 @@ class DLQMetrics(BaseModel):
 
 class HealthMetricsResponse(BaseModel):
     """System metrics exposed to the control plane."""
+
     dlq: DLQMetrics

@@ -86,22 +86,20 @@ async def build_general_agent(
         agent_wrapper.safety_fallback_model_cfg = None
     agent_wrapper.model_cfg = selected_model_cfg
 
-    llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = (
-        await create_agent_llms(
-            agent_wrapper.model_cfg,
-            agent_wrapper.lite_model_cfg,
-            agent_wrapper.fallback_model_cfg,
-            agent_wrapper.safety_fallback_model_cfg,
-        )
+    llm, agent_wrapper._lite_llm, fallback_llm, safety_fallback_llm = await create_agent_llms(
+        agent_wrapper.model_cfg,
+        agent_wrapper.lite_model_cfg,
+        agent_wrapper.fallback_model_cfg,
+        agent_wrapper.safety_fallback_model_cfg,
     )
 
     # 1.3 Validate auxiliary model context mismatch
     if agent_wrapper._lite_llm is not None:
         from myrm_agent_harness.toolkits.llms.utils.model_utils import get_model_context_limit
-        
+
         main_limit = get_model_context_limit(llm) or 128000
         lite_limit = get_model_context_limit(agent_wrapper._lite_llm)
-        
+
         if lite_limit and main_limit:
             # Dynamic Ratio Shield: If the auxiliary model's context is smaller than 85% of the main model,
             # it will crash when receiving the almost-full context during compression.
@@ -120,9 +118,7 @@ async def build_general_agent(
         main_model_name = agent_wrapper.model_cfg.model
         if reasoning_model_name != main_model_name:
             try:
-                reasoning_api_keys = getattr(
-                    agent_wrapper.reasoning_model_cfg, "api_keys", None
-                )
+                reasoning_api_keys = getattr(agent_wrapper.reasoning_model_cfg, "api_keys", None)
                 from myrm_agent_harness.toolkits.llms import llm_manager
 
                 escalation_target_llm = await llm_manager.get_llm_from_config(
@@ -140,13 +136,9 @@ async def build_general_agent(
                 )
 
     # 1.5 Privacy routing wrapper for auxiliary LLM
-    privacy_routing_cfg = build_privacy_routing_config(
-        agent_wrapper.privacy_routing_raw
-    )
+    privacy_routing_cfg = build_privacy_routing_config(agent_wrapper.privacy_routing_raw)
     if privacy_routing_cfg is not None and agent_wrapper._lite_llm is not None:
-        agent_wrapper._lite_llm = wrap_with_privacy_routing(
-            agent_wrapper._lite_llm, privacy_routing_cfg
-        )
+        agent_wrapper._lite_llm = wrap_with_privacy_routing(agent_wrapper._lite_llm, privacy_routing_cfg)
 
     # 2. Storage backend (adapts to DEPLOY_MODE)
     from app.platform_utils import get_storage_provider
@@ -154,11 +146,7 @@ async def build_general_agent(
     storage_backend = get_storage_provider()
 
     # 3. Load Skills (with prebuilt whitelist from Agent Profile)
-    workspace_root = (
-        agent_wrapper.declared_allowed_roots[0]
-        if agent_wrapper.declared_allowed_roots
-        else None
-    )
+    workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
     from app.core.skills.store.user_config import UserSkillConfigManager
 
@@ -189,13 +177,9 @@ async def build_general_agent(
     memory_manager = None
     memory_binding = context_assembly.binding
     if memory_binding is not None:
-        memory_manager = await agent_wrapper._create_memory_tools(
-            tools, deferred_tools, memory_binding
-        )
+        memory_manager = await agent_wrapper._create_memory_tools(tools, deferred_tools, memory_binding)
     if memory_manager is not None:
-        await agent_wrapper._setup_context_search_tools(
-            tools, deferred_tools, memory_manager
-        )
+        await agent_wrapper._setup_context_search_tools(tools, deferred_tools, memory_manager)
     if agent_wrapper.enable_memory:
         from app.ai_agents.general_agent.conversation_search_setup import (
             append_conversation_search_tool,
@@ -210,9 +194,7 @@ async def build_general_agent(
     await agent_wrapper._setup_cron_tools(tools, deferred_tools, user_id=user_id)
 
     if agent_wrapper.enable_browser:
-        await agent_wrapper._setup_browser_tools(
-            tools, deferred_tools, effective_chat_id, vision_llm=llm
-        )
+        await agent_wrapper._setup_browser_tools(tools, deferred_tools, effective_chat_id, vision_llm=llm)
 
     if agent_wrapper.enable_computer_use:
         agent_wrapper._setup_computer_use_tools(tools, deferred_tools)
@@ -327,9 +309,7 @@ async def build_general_agent(
         effective_chat_id=effective_chat_id,
     )
     archive_checkpoint_store = archive_checkpoint_ext.build_archive_checkpoint_store()
-    archive_checkpoint_notifier = (
-        archive_checkpoint_ext.build_archive_checkpoint_notifier()
-    )
+    archive_checkpoint_notifier = archive_checkpoint_ext.build_archive_checkpoint_notifier()
 
     # 6. Create middlewares
     from myrm_agent_harness.agent._skill_agent_context import (
@@ -349,13 +329,14 @@ async def build_general_agent(
     )
 
     permission_checker = create_permission_checker()
-    
+
     guardrail_providers = [
         SkillBoundaryProvider(permission_checker=permission_checker),
     ]
-    
+
     try:
         from app.services.security.tenant_guardrail import TenantPolicyProvider
+
         guardrail_providers.append(TenantPolicyProvider())
     except ImportError:
         pass
@@ -368,9 +349,7 @@ async def build_general_agent(
 
     set_permission_invalidation_callback(clear_permission_cache)
 
-    logger.info(
-        f"Skill permission checker enabled for user: {'sandbox'}, real-time revocation registered"
-    )
+    logger.info(f"Skill permission checker enabled for user: {'sandbox'}, real-time revocation registered")
 
     time_decay_half_life_days = 90.0
     if agent_wrapper.memory_decay_profile == "permanent":
@@ -402,15 +381,11 @@ async def build_general_agent(
             on_notes_load=make_notes_load(effective_chat_id),
             budget_pressure_fn=_get_budget_pressure_fn(),
             time_decay_half_life_days=time_decay_half_life_days,
-            cache_ttl_prune_config=resolve_cache_ttl_prune_policy(
-                agent_wrapper.model_cfg.model
-            ).config,
+            cache_ttl_prune_config=resolve_cache_ttl_prune_policy(agent_wrapper.model_cfg.model).config,
         ),
     ]
 
-    task_adaptive_ext = TaskAdaptiveExtension(
-        task_adaptive_digest=agent_wrapper.task_adaptive_digest
-    )
+    task_adaptive_ext = TaskAdaptiveExtension(task_adaptive_digest=agent_wrapper.task_adaptive_digest)
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
@@ -446,9 +421,7 @@ async def build_general_agent(
         from myrm_agent_harness.toolkits.kanban import get_worker_lifecycle_guidance
 
         system_prompt += get_worker_lifecycle_guidance(
-            zombie_timeout_seconds=getattr(
-                agent_wrapper, "kanban_zombie_timeout_seconds", 120
-            ),
+            zombie_timeout_seconds=getattr(agent_wrapper, "kanban_zombie_timeout_seconds", 120),
             max_runtime_seconds=getattr(agent_wrapper, "kanban_max_runtime_seconds", None),
         )
 
@@ -482,9 +455,7 @@ async def build_general_agent(
     if _user_skill_cfg.trusted_skill_ids:
         trusted_ids = _user_skill_cfg.trusted_skill_ids
     if _user_skill_cfg.skill_env_vars:
-        resolved_env_map = await resolve_skill_env_map(
-            skill_backend, _user_skill_cfg.skill_env_vars
-        )
+        resolved_env_map = await resolve_skill_env_map(skill_backend, _user_skill_cfg.skill_env_vars)
 
     if agent_wrapper.agent_id:
         try:
@@ -499,18 +470,14 @@ async def build_general_agent(
 
             global_env = await secret_store.get_all_secrets(agent_wrapper.agent_id)
             if global_env:
-                logger.info(
-                    f"Loaded {len(global_env)} secrets for agent {agent_wrapper.agent_id}"
-                )
+                logger.info(f"Loaded {len(global_env)} secrets for agent {agent_wrapper.agent_id}")
 
             if agent_wrapper.mcp_config:
                 new_mcp_configs = []
                 for cfg in agent_wrapper.mcp_config:
                     if cfg.type == "stdio":
                         ep_raw = cfg.extra_params or {}
-                        extra_params: dict[str, object] = (
-                            dict(ep_raw) if isinstance(ep_raw, dict) else {}
-                        )
+                        extra_params: dict[str, object] = dict(ep_raw) if isinstance(ep_raw, dict) else {}
                         env_raw = extra_params.get("env")
                         env: dict[str, str] = {}
                         if isinstance(env_raw, dict):
@@ -525,21 +492,16 @@ async def build_general_agent(
                                     env[req_key] = global_env[req_key]
                                 else:
                                     logger.warning(
-                                        "MCP server '%s' requires secret '%s', "
-                                        "but it is not found in agent secrets.",
+                                        "MCP server '%s' requires secret '%s', but it is not found in agent secrets.",
                                         cfg.name,
                                         req_key,
                                     )
 
                         extra_params["env"] = env
-                        new_mcp_configs.append(
-                            cfg.model_copy(update={"extra_params": extra_params})
-                        )
+                        new_mcp_configs.append(cfg.model_copy(update={"extra_params": extra_params}))
                     else:
                         cfg_headers = getattr(cfg, "headers", None) or {}
-                        has_secret_refs = any(
-                            "{{secret:" in v for v in cfg_headers.values()
-                        ) if cfg_headers else False
+                        has_secret_refs = any("{{secret:" in v for v in cfg_headers.values()) if cfg_headers else False
 
                         if has_secret_refs and agent_wrapper.agent_id:
                             auth_provider = MCPSecretAuthProvider(
@@ -547,9 +509,7 @@ async def build_general_agent(
                                 secret_store=secret_store,
                                 agent_id=agent_wrapper.agent_id,
                             )
-                            new_mcp_configs.append(
-                                cfg.model_copy(update={"auth_provider": auth_provider})
-                            )
+                            new_mcp_configs.append(cfg.model_copy(update={"auth_provider": auth_provider}))
                         else:
                             oauth_cfg = await _try_inject_mcp_oauth(cfg)
                             new_mcp_configs.append(oauth_cfg)
@@ -572,11 +532,7 @@ async def build_general_agent(
 
     from myrm_agent_harness.agent.types import AgentRuntimeSpec, WorkspaceBinding
 
-    workspace_root = (
-        agent_wrapper.declared_allowed_roots[0]
-        if agent_wrapper.declared_allowed_roots
-        else None
-    )
+    workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
     workspace_mode = "chat"
     workspace_binding = (
@@ -644,9 +600,7 @@ async def build_general_agent(
 
             all_backend_skills = await skill_backend.list_skills()
             if all_backend_skills:
-                engine = HybridSkillSearchEngine(
-                    all_backend_skills, agent_wrapper.embedding_config
-                )
+                engine = HybridSkillSearchEngine(all_backend_skills, agent_wrapper.embedding_config)
                 sim_checker = HybridSimilarityChecker(engine)
                 logger.info(
                     "Skill similarity checker enabled (%d skills indexed)",
@@ -693,8 +647,7 @@ async def build_general_agent(
         write_backend=skill_creation_service,
         secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,
-        enable_memory_auto_extraction=agent_wrapper.enable_memory
-        and agent_wrapper.enable_memory_auto_extraction,
+        enable_memory_auto_extraction=agent_wrapper.enable_memory and agent_wrapper.enable_memory_auto_extraction,
         extraction_llm=agent_wrapper._lite_llm,
         middlewares=middlewares,
         tools=tools,
@@ -710,24 +663,12 @@ async def build_general_agent(
         trusted_skill_ids=trusted_ids,
         skill_env_map=resolved_env_map,
         state_manager=state_manager,
-        default_skill_instances=(
-            default_skill_instances if default_skill_instances else None
-        ),
+        default_skill_instances=(default_skill_instances if default_skill_instances else None),
         global_env=global_env,
         on_skill_review_ready=make_skill_review_callback(),
-        on_session_cleanup=_build_session_cleanup_callback(
-            agent_wrapper, user_id or "default"
-        ),
-        wiki_base_dir=(
-            agent_wrapper._resolve_wiki_base_dir()
-            if agent_wrapper.enable_wiki
-            else None
-        ),
-        wiki_search_fn=(
-            agent_wrapper._build_wiki_search_fn()
-            if agent_wrapper.enable_wiki
-            else None
-        ),
+        on_session_cleanup=_build_session_cleanup_callback(agent_wrapper, user_id or "default"),
+        wiki_base_dir=(agent_wrapper._resolve_wiki_base_dir() if agent_wrapper.enable_wiki else None),
+        wiki_search_fn=(agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None),
         similarity_checker=sim_checker,
         model_resolver=subagent_model_resolver,
         enable_file_tools=effective_enable_file,
@@ -943,9 +884,7 @@ def _build_session_cleanup_callback(
         llm_func=llm_func,
     )
 
-    async def _composite(
-        messages: "Sequence[dict[str, str]]", chat_id: str | None
-    ) -> None:
+    async def _composite(messages: "Sequence[dict[str, str]]", chat_id: str | None) -> None:
         import asyncio
 
         await asyncio.gather(

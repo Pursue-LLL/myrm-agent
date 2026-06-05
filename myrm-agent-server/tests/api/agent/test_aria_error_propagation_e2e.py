@@ -48,9 +48,7 @@ class TestAriaErrorPropagation:
         tool_calls = []
         error_msg = None
 
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=request_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
             if response.status_code != 200:
                 response.read()
                 print(f"Error: {response.text}")
@@ -96,9 +94,7 @@ class TestAriaErrorPropagation:
         assert has_browser_tools, "Agent 应该调用了浏览器相关工具"
 
         # 收集最终回复
-        final_answer = "".join(
-            [d.get("data", "") for d in collected_data if d.get("type") == "message"]
-        )
+        final_answer = "".join([d.get("data", "") for d in collected_data if d.get("type") == "message"])
         print(f"\n💬 最终回答: {final_answer}")
 
         # 验证 LLM 确实收到了带有建议的底层错误

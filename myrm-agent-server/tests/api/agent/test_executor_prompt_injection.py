@@ -30,7 +30,9 @@ def mock_agent_factory():
 @pytest.fixture
 def mock_load_user_configs():
     with patch("app.core.channel_bridge.agent_executor.executor.load_user_configs", new_callable=AsyncMock) as loader:
-        with patch("app.core.channel_bridge.agent_executor.executor.verify_search_service_available", new_callable=AsyncMock) as mock_verify:
+        with patch(
+            "app.core.channel_bridge.agent_executor.executor.verify_search_service_available", new_callable=AsyncMock
+        ) as mock_verify:
             mock_verify.return_value = True
             from myrm_agent_harness.toolkits.web_search.web_searcher import SearchServiceConfig
 
@@ -45,7 +47,12 @@ def mock_load_user_configs():
                 mcp_dict={},
                 providers_dict={
                     "providers": [
-                        {"id": "openai-1", "providerType": "openai", "isEnabled": True, "apiKeys": [{"key": "sk-test", "isActive": True}]},
+                        {
+                            "id": "openai-1",
+                            "providerType": "openai",
+                            "isEnabled": True,
+                            "apiKeys": [{"key": "sk-test", "isActive": True}],
+                        },
                     ],
                     "defaultModelConfig": {
                         "baseModel": {"primary": {"providerId": "openai-1", "model": "gpt-4o"}},

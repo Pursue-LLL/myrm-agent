@@ -15,6 +15,7 @@ from app.services.memory.import_openclaw import dry_run_openclaw
 # Hermes adapter
 # ---------------------------------------------------------------------------
 
+
 class TestHermesAdapter:
     """dry_run_hermes maps SOUL.md / MEMORY.md / USER.md / skills correctly."""
 
@@ -113,6 +114,7 @@ class TestHermesAdapter:
 # OpenClaw adapter
 # ---------------------------------------------------------------------------
 
+
 class TestOpenClawAdapter:
     """dry_run_openclaw maps sessions, memory entries, and skills."""
 
@@ -195,6 +197,7 @@ class TestOpenClawAdapter:
 # Cursor adapter
 # ---------------------------------------------------------------------------
 
+
 class TestCursorAdapter:
     """dry_run_cursor maps rules and settings."""
 
@@ -261,6 +264,7 @@ class TestCursorAdapter:
 # ---------------------------------------------------------------------------
 # Codex adapter
 # ---------------------------------------------------------------------------
+
 
 class TestCodexAdapter:
     """dry_run_codex maps instructions, memory, and settings."""

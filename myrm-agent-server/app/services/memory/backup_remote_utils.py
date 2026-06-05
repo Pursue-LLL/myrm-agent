@@ -85,14 +85,8 @@ async def create_exportable_backup(
                 rules = await relational.list_rules(user_id=user_id)
 
                 backup_data["relational"] = {  # type: ignore[index]
-                    "profiles": [
-                        {"key": p.key, "value": p.value, "confidence": p.confidence}
-                        for p in profiles
-                    ],
-                    "rules": [
-                        {"content": r.content, "tags": r.tags, "active": r.active}
-                        for r in rules
-                    ],
+                    "profiles": [{"key": p.key, "value": p.value, "confidence": p.confidence} for p in profiles],
+                    "rules": [{"content": r.content, "tags": r.tags, "active": r.active} for r in rules],
                 }
         except Exception as e:
             logger.warning("Failed to backup relational data: %s", e)

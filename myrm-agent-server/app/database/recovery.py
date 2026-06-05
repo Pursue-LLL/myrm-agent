@@ -36,12 +36,12 @@ def _move_db_with_wal(src: Path, dst: Path) -> None:
     """移动数据库文件及其 WAL/SHM 附属文件"""
     if src.exists():
         shutil.move(str(src), str(dst))
-    
+
     src_wal = src.with_name(f"{src.name}-wal")
     dst_wal = dst.with_name(f"{dst.name}-wal")
     if src_wal.exists():
         shutil.move(str(src_wal), str(dst_wal))
-        
+
     src_shm = src.with_name(f"{src.name}-shm")
     dst_shm = dst.with_name(f"{dst.name}-shm")
     if src_shm.exists():
@@ -50,7 +50,7 @@ def _move_db_with_wal(src: Path, dst: Path) -> None:
 
 def rescue_database(db_path: str) -> bool:
     """尝试通过 dump 机制抢救损坏的 SQLite 数据库
-    
+
     将旧库中能读出的数据逐行导出并导入到新库中。
     """
     path = Path(db_path)
@@ -63,7 +63,7 @@ def rescue_database(db_path: str) -> bool:
         if corrupted_path.exists():
             corrupted_path.unlink()
             _cleanup_wal_files(corrupted_path)
-            
+
         _move_db_with_wal(path, corrupted_path)
 
         logger.info("Attempting to rescue corrupted database: %s", corrupted_path)
@@ -112,7 +112,7 @@ def restore_from_backup(db_path: str) -> bool:
         shutil.copy2(str(bak_path), str(path))
         # 备份恢复后，确保没有旧的 WAL 文件干扰
         _cleanup_wal_files(path)
-        
+
         logger.info("Restored database from backup: %s", bak_path)
         return True
     except Exception as e:

@@ -92,9 +92,7 @@ class TestFollowedUserUpdate:
     @pytest.mark.asyncio
     async def test_follow_user_leave_triggers_leave(self) -> None:
         leave_check = AsyncMock(return_value=True)
-        _, _, leave_mock, fm = _make_follow_manager(
-            follow_user_ids={"100"}, on_guild_leave_check=leave_check
-        )
+        _, _, leave_mock, fm = _make_follow_manager(follow_user_ids={"100"}, on_guild_leave_check=leave_check)
         fm._followed_user_channels["100"] = (1, 200)
         fm._followed_voice_guilds.add(1)
 
@@ -137,9 +135,7 @@ class TestFollowedUserUpdate:
 
     @pytest.mark.asyncio
     async def test_handoff_to_another_followed_user(self) -> None:
-        client, join_mock, _, fm = _make_follow_manager(
-            follow_user_ids={"100", "200"}
-        )
+        client, join_mock, _, fm = _make_follow_manager(follow_user_ids={"100", "200"})
 
         other_channel = MagicMock(spec=discord.VoiceChannel)
         other_channel.id = 500
@@ -277,9 +273,7 @@ class TestReconciliation:
     @pytest.mark.asyncio
     async def test_reconcile_cleans_stale_guild(self) -> None:
         leave_check = AsyncMock(return_value=True)
-        client, _, leave_mock, fm = _make_follow_manager(
-            follow_user_ids={"100"}, on_guild_leave_check=leave_check
-        )
+        client, _, leave_mock, fm = _make_follow_manager(follow_user_ids={"100"}, on_guild_leave_check=leave_check)
         fm._followed_voice_guilds.add(1)
 
         guild = MagicMock()
@@ -346,9 +340,7 @@ class TestHandoffEdgeCases:
     async def test_leave_check_returns_false_prevents_leave(self) -> None:
         """on_guild_leave_check returning False prevents bot from leaving."""
         leave_check = AsyncMock(return_value=False)
-        _, _, leave_mock, fm = _make_follow_manager(
-            follow_user_ids={"100"}, on_guild_leave_check=leave_check
-        )
+        _, _, leave_mock, fm = _make_follow_manager(follow_user_ids={"100"}, on_guild_leave_check=leave_check)
         fm._followed_voice_guilds.add(1)
         fm._followed_user_channels["100"] = (1, 200)
 
@@ -405,9 +397,7 @@ class TestReconcileOnceEdgeCases:
 
         response = MagicMock()
         response.status = 500
-        client.http.request = AsyncMock(
-            side_effect=discord.HTTPException(response, "server error")
-        )
+        client.http.request = AsyncMock(side_effect=discord.HTTPException(response, "server error"))
 
         await fm._reconcile_once()
         join_mock.assert_not_awaited()
@@ -449,9 +439,7 @@ class TestReconcileOnceEdgeCases:
     async def test_reconcile_leave_check_false_prevents_leave(self) -> None:
         """Reconciliation respects on_guild_leave_check returning False."""
         leave_check = AsyncMock(return_value=False)
-        client, _, leave_mock, fm = _make_follow_manager(
-            follow_user_ids={"100"}, on_guild_leave_check=leave_check
-        )
+        client, _, leave_mock, fm = _make_follow_manager(follow_user_ids={"100"}, on_guild_leave_check=leave_check)
         fm._followed_voice_guilds.add(1)
 
         guild = MagicMock()
@@ -459,9 +447,7 @@ class TestReconcileOnceEdgeCases:
         guild.name = "test"
         client.guilds = [guild]
 
-        client.http.request = AsyncMock(
-            side_effect=discord.NotFound(MagicMock(), "not found")
-        )
+        client.http.request = AsyncMock(side_effect=discord.NotFound(MagicMock(), "not found"))
 
         await fm._reconcile_once()
         leave_mock.assert_not_awaited()

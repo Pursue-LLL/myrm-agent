@@ -1,6 +1,6 @@
 """E2E test for Vision Analyze Reactive Compress.
 
-Uploads a >5MB image with >4096px resolution to verify the frontend and backend 
+Uploads a >5MB image with >4096px resolution to verify the frontend and backend
 can handle it without crashing, and that the backend compresses it successfully.
 """
 
@@ -15,25 +15,53 @@ from PIL import Image
 
 def _create_large_image(path: str) -> None:
     """Create a 4500x4500 image that triggers resolution-based compress."""
-    img = Image.new('RGB', (4500, 4500), color='red')
-    img.save(path, format='PNG')
+    img = Image.new("RGB", (4500, 4500), color="red")
+    img.save(path, format="PNG")
+
 
 async def _chat_smoke_vision(page: Page, image_path: str) -> None:
     from dotenv import load_dotenv
+
     load_dotenv()
     basic_model = os.getenv("BASIC_MODEL", "openai/gpt-4o")
     provider_id = basic_model.split("/")[0] if "/" in basic_model else "openai"
     model_name = basic_model.split("/")[1] if "/" in basic_model else basic_model
 
-    await page.route("**/api/v1/config", lambda route: route.fulfill(
-        json={
-            "configs": {
-                "providers": {"key":"providers","value":{"providers":[{"id":provider_id,"name":provider_id,"isBuiltIn":True,"isEnabled":True,"apiKeys":["sk-123"],"apiUrl":"","enabledModels":[model_name],"availableModels":[model_name],"routingProfile":provider_id}]}},
-                "defaultModelConfig": {"key":"defaultModelConfig","value":{"baseModel":{"primary":{"providerId":provider_id,"model":model_name}}}},
-                "customModelInfo": {"key":"customModelInfo","value":{f"{provider_id}/{model_name}":{"id":model_name,"name":model_name,"supports_vision":True}}}
+    await page.route(
+        "**/api/v1/config",
+        lambda route: route.fulfill(
+            json={
+                "configs": {
+                    "providers": {
+                        "key": "providers",
+                        "value": {
+                            "providers": [
+                                {
+                                    "id": provider_id,
+                                    "name": provider_id,
+                                    "isBuiltIn": True,
+                                    "isEnabled": True,
+                                    "apiKeys": ["sk-123"],
+                                    "apiUrl": "",
+                                    "enabledModels": [model_name],
+                                    "availableModels": [model_name],
+                                    "routingProfile": provider_id,
+                                }
+                            ]
+                        },
+                    },
+                    "defaultModelConfig": {
+                        "key": "defaultModelConfig",
+                        "value": {"baseModel": {"primary": {"providerId": provider_id, "model": model_name}}},
+                    },
+                    "customModelInfo": {
+                        "key": "customModelInfo",
+                        "value": {f"{provider_id}/{model_name}": {"id": model_name, "name": model_name, "supports_vision": True}},
+                    },
+                }
             }
-        }
-    ))
+        ),
+    )
 
     await page.goto(os.environ.get("FRONTEND_URL", "http://127.0.0.1:3000").rstrip("/") + "/", timeout=120_000)
     await page.wait_for_timeout(1500)
@@ -85,17 +113,18 @@ async def _chat_smoke_vision(page: Page, image_path: str) -> None:
 
     # Wait for response
     # The response should contain text
-    await page.wait_for_selector('.prose', timeout=60_000)
-    
+    await page.wait_for_selector(".prose", timeout=60_000)
+
     # Wait until the streaming stops (send button reappears or stop button disappears)
     await page.wait_for_selector('button[aria-label="发送"], button[aria-label="Send"]', timeout=120_000)
-    
+
     # Check the latest assistant message
-    messages = await page.locator('.prose').all_inner_texts()
+    messages = await page.locator(".prose").all_inner_texts()
     assert len(messages) > 0
     last_msg = messages[-1].lower()
     print(f"Assistant replied: {last_msg}")
     assert "red" in last_msg or "error" not in last_msg
+
 
 @pytest.mark.asyncio
 async def test_vision_upload_reactive_compress(tmp_path: Path) -> None:
@@ -105,7 +134,7 @@ async def test_vision_upload_reactive_compress(tmp_path: Path) -> None:
 
     image_path = str(tmp_path / "large_red.png")
     _create_large_image(image_path)
-    
+
     size_mb = os.path.getsize(image_path) / (1024 * 1024)
     print(f"Created test image: {size_mb:.2f} MB")
 
@@ -121,6 +150,7 @@ async def test_vision_upload_reactive_compress(tmp_path: Path) -> None:
         finally:
             await context.close()
             await browser.close()
+
 
 if __name__ == "__main__":
     # For manual execution

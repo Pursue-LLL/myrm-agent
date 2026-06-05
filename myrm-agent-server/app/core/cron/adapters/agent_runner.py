@@ -38,6 +38,7 @@ from .injection_scan import scan_cron_prompt
 
 logger = logging.getLogger(__name__)
 
+
 def _source_sort_key(s: dict[str, object]) -> int:
     v = s.get("index", 0)
     if isinstance(v, int):
@@ -155,7 +156,9 @@ class AgentJobRunner:
         await provider.create_goal(session_id=chat_id, objective=objective)
         logger.info(
             "Cron job %s enqueued as goal on chat %s (active goal: %s)",
-            job.id, chat_id, active.goal_id,
+            job.id,
+            chat_id,
+            active.goal_id,
         )
         return True
 
@@ -270,14 +273,8 @@ class AgentJobRunner:
                             build_leader_protocol_prompt,
                         )
 
-                        leader_protocol = await build_leader_protocol_prompt(
-                            agent_subagent_ids
-                        )
-                        user_instructions = (
-                            f"{user_instructions}\n\n{leader_protocol}"
-                            if user_instructions
-                            else leader_protocol
-                        )
+                        leader_protocol = await build_leader_protocol_prompt(agent_subagent_ids)
+                        user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
             # Priority: agent profile model > job.model > global default
             model_override = agent_model_override or job.model
@@ -330,9 +327,7 @@ class AgentJobRunner:
                 memory_decay_profile=memory_decay_profile,
                 engine_params=agent_engine_params,
                 memory_shared_context_ids=memory_shared_context_ids,
-                notify_targets=(
-                    resolved.notify_targets if resolved else ()
-                ),
+                notify_targets=(resolved.notify_targets if resolved else ()),
             )
 
             agent = AgentFactory.create_general_agent(params)

@@ -20,9 +20,7 @@ def test_tool_clarification_ui():
             browser.close()
             return
 
-        print(
-            "Sending message to trigger a tool error (search for NON_EXISTENT_KEYWORD)..."
-        )
+        print("Sending message to trigger a tool error (search for NON_EXISTENT_KEYWORD)...")
         # Let's ask it to do a network search that fails, or ask it to create a branch.
         # We just need to trigger the Approval dialog. Let's try to list directories.
         page.fill("textarea", "Please execute bash command: ls -la /root")

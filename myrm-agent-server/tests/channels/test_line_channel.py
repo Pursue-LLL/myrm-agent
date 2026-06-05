@@ -480,9 +480,7 @@ class TestDiagnostics:
     def test_missing_secret_warning(self) -> None:
         ch = LINEChannel(channel_access_token="tok")
         issues = ch.collect_issues()
-        assert any(
-            i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.WARNING and "secret" in i.message for i in issues
-        )
+        assert any(i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.WARNING and "secret" in i.message for i in issues)
 
     def test_healthy_channel_no_config_errors(self) -> None:
         ch = LINEChannel(channel_access_token="tok", channel_secret="sec")

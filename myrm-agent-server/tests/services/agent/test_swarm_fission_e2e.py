@@ -59,27 +59,16 @@ async def test_web_fission_interrupt_resume_message_e2e() -> None:
     assert call_index == 2
     assert execute_mock.await_count == 1
 
-    running = [
-        e
-        for e in events
-        if e.get("type") == "tasks_steps" and e.get("status") == "running"
-    ]
+    running = [e for e in events if e.get("type") == "tasks_steps" and e.get("status") == "running"]
     assert len(running) == 1
     assert running[0].get("count") == 2
 
-    partial = [
-        e
-        for e in events
-        if e.get("type") == "tasks_steps" and e.get("status") == "partial_success"
-    ]
+    partial = [e for e in events if e.get("type") == "tasks_steps" and e.get("status") == "partial_success"]
     assert len(partial) == 1
     assert partial[0].get("failed_count") == 1
     assert partial[0].get("partial_success") is True
 
-    assert any(
-        e.get("type") == "message" and e.get("data") == "Synthesized report"
-        for e in events
-    )
+    assert any(e.get("type") == "message" and e.get("data") == "Synthesized report" for e in events)
 
 
 def test_parallel_task_results_partial_success_field() -> None:

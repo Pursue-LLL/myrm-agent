@@ -41,6 +41,7 @@ def start_application() -> None:
         print_error(f"启动应用失败: {e}")
         sys.exit(1)
 
+
 def show_status() -> None:
     """显示服务状态"""
     print_header("服务状态")
@@ -63,6 +64,7 @@ def show_status() -> None:
             run_command(["systemctl", "status", "postgresql", "--no-pager"], check=False)
     else:
         print_info("未安装")
+
 
 def stop_services() -> None:
     """停止所有服务"""
@@ -92,4 +94,3 @@ def stop_services() -> None:
             print_info("无 Docker 服务运行")
 
     print_success("所有服务已停止")
-

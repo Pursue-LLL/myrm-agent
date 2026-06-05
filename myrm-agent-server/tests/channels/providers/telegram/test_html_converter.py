@@ -44,7 +44,7 @@ def test_split_message_with_nested_tags():
 
 def test_split_message_utf16_emoji():
     # An emoji like  takes 2 UTF-16 code units
-    emoji = "\U0001F600"
+    emoji = "\U0001f600"
     assert _utf16_len(emoji) == 2
 
     # Create a string that is exactly 4095 code units long, then add an emoji

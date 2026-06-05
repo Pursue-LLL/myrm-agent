@@ -107,9 +107,7 @@ class TelegramInboundMixin:
 
         return self._parse_message_model(msg, is_edit=is_edit)
 
-    def _parse_reaction_model(
-        self, reaction: TgMessageReactionUpdated
-    ) -> InboundMessage | None:
+    def _parse_reaction_model(self, reaction: TgMessageReactionUpdated) -> InboundMessage | None:
         """Convert a Telegram message_reaction update to InboundMessage."""
         if not reaction.user or not reaction.new_reaction:
             return None
@@ -130,10 +128,7 @@ class TelegramInboundMixin:
             sender_id=sender_id,
             content=emoji,
             chat_id=chat_id,
-            is_group=bool(
-                reaction.chat
-                and reaction.chat.type in ("group", "supergroup")
-            ),
+            is_group=bool(reaction.chat and reaction.chat.type in ("group", "supergroup")),
             mentioned=True,
             message_id=target_msg_id,
             metadata={"reaction": True, "target_message_id": target_msg_id},
@@ -174,11 +169,7 @@ class TelegramInboundMixin:
 
         voice_data = reply_msg.voice or reply_msg.audio
         if voice_data:
-            media_list.append(
-                MediaAttachment(
-                    media_type=MediaType.AUDIO, mime_type=voice_data.mime_type
-                )
-            )
+            media_list.append(MediaAttachment(media_type=MediaType.AUDIO, mime_type=voice_data.mime_type))
 
         if reply_msg.sticker:
             media_list.append(MediaAttachment(media_type=MediaType.IMAGE))
@@ -219,9 +210,7 @@ class TelegramInboundMixin:
             timestamp=timestamp,
         )
 
-    def _parse_message_model(
-        self, msg: TgMessage, *, is_edit: bool
-    ) -> InboundMessage | None:
+    def _parse_message_model(self, msg: TgMessage, *, is_edit: bool) -> InboundMessage | None:
         """Convert a validated TgMessage into an InboundMessage."""
         from_user = msg.from_user
         if from_user is None:
@@ -233,12 +222,7 @@ class TelegramInboundMixin:
 
         media_list: list[MediaAttachment] = []
         tg_display_name = (
-            " ".join(
-                filter(
-                    None, (from_user.first_name, getattr(from_user, "last_name", None))
-                )
-            )
-            or from_user.username
+            " ".join(filter(None, (from_user.first_name, getattr(from_user, "last_name", None)))) or from_user.username
         )
 
         metadata: dict[str, object] = {
@@ -272,11 +256,7 @@ class TelegramInboundMixin:
 
         voice_data = msg.voice or msg.audio
         if voice_data:
-            media_list.append(
-                MediaAttachment(
-                    media_type=MediaType.AUDIO, mime_type=voice_data.mime_type
-                )
-            )
+            media_list.append(MediaAttachment(media_type=MediaType.AUDIO, mime_type=voice_data.mime_type))
             metadata["voice_file_id"] = voice_data.file_id
             metadata["voice_duration"] = voice_data.duration
             metadata["voice_is_voice_note"] = msg.voice is not None
@@ -301,9 +281,7 @@ class TelegramInboundMixin:
                     parts.append(f"Address: {msg.venue.address}")
                 map_q = f"{loc.latitude},{loc.longitude}"
                 parts.append(map_q)
-                parts.append(
-                    f"Map: https://www.google.com/maps/search/?api=1&query={map_q}]"
-                )
+                parts.append(f"Map: https://www.google.com/maps/search/?api=1&query={map_q}]")
                 text = " | ".join(parts)
                 has_text = True
             elif msg.location:
@@ -338,9 +316,7 @@ class TelegramInboundMixin:
         if explicit_mention:
             metadata[METADATA_EXPLICIT_MENTION_KEY] = "1"
 
-        thread_id = (
-            str(msg.message_thread_id) if msg.message_thread_id is not None else None
-        )
+        thread_id = str(msg.message_thread_id) if msg.message_thread_id is not None else None
 
         if chat and chat.is_forum is not None:
             metadata["is_forum"] = chat.is_forum
@@ -356,11 +332,7 @@ class TelegramInboundMixin:
         if content and is_group and self._bot_username and (explicit_mention or mentioned):
             content = self._strip_bot_mention_text(content)
 
-        sent_at = (
-            float(msg.date)
-            if hasattr(msg, "date") and msg.date is not None
-            else time.time()
-        )
+        sent_at = float(msg.date) if hasattr(msg, "date") and msg.date is not None else time.time()
 
         return self._build_inbound(
             sender_id=str(from_user.id),
@@ -380,9 +352,7 @@ class TelegramInboundMixin:
             message_id=str(msg.message_id) if msg.message_id else None,
         )
 
-    async def _buffer_or_emit(
-        self, msg: InboundMessage, update: dict[str, object]
-    ) -> None:
+    async def _buffer_or_emit(self, msg: InboundMessage, update: dict[str, object]) -> None:
         """Route message through media-group buffer or emit directly."""
         try:
             tg = TgUpdate.model_validate(update)
@@ -457,9 +427,7 @@ class TelegramInboundMixin:
             metadata=merged_metadata,
         )
 
-    def _parse_callback_query_model(
-        self, cbq: TgCallbackQuery
-    ) -> InboundMessage | None:
+    def _parse_callback_query_model(self, cbq: TgCallbackQuery) -> InboundMessage | None:
         """Convert a validated TgCallbackQuery into an InboundMessage."""
         if cbq.from_user is None:
             return None
@@ -644,8 +612,7 @@ class TelegramInboundMixin:
                         )
                         self._status = ChannelStatus.ERROR
                         self.health.record_failure(
-                            "Polling conflict: another process is polling this bot "
-                            "token. Stop the other process and restart."
+                            "Polling conflict: another process is polling this bot token. Stop the other process and restart."
                         )
                         self._set_connected(False)
                         break

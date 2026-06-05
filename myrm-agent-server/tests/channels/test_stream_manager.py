@@ -73,9 +73,7 @@ class TestBlockChunkerFindBreak:
         assert bp == 0
 
     def test_no_code_fence_protection(self) -> None:
-        chunker = BlockChunker(
-            ChunkConfig(block_size=10, enable_code_fence_protection=False, prefer_newline_breaks=False)
-        )
+        chunker = BlockChunker(ChunkConfig(block_size=10, enable_code_fence_protection=False, prefer_newline_breaks=False))
         text = "a" * 100
         bp = chunker.find_break_point(text, 50)
         assert bp == 50

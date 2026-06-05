@@ -117,4 +117,3 @@ def apply_delivery_banner(
 def apply_general_agent_pipeline_banner(query: object, *, channel_name: str) -> object:
     ch, ing = resolve_general_agent_pipeline_labels(channel_name)
     return apply_delivery_banner(query, channel_label=ch, ingress_label=ing)
-

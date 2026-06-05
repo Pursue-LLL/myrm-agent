@@ -40,6 +40,7 @@ def _build_session_key(
     )
     return str(sk.to_str())
 
+
 async def resolve_session_key(
     msg: InboundMessage,
     policy: SessionPolicy,
@@ -73,6 +74,7 @@ async def resolve_session_key(
         case SessionResetMode.IDLE:
             return await _resolve_idle_key(base, policy.idle_minutes)
     return base
+
 
 async def _resolve_idle_key(
     base_key: str,
@@ -113,4 +115,3 @@ async def _resolve_idle_key(
         return f"{base_key}:e={now.strftime('%Y%m%dT%H%M')}"
 
     return existing_key
-

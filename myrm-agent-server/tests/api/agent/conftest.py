@@ -36,9 +36,7 @@ def configure_test_logging() -> None:
     console_handler.setFormatter(formatter)
     root_logger.setLevel(logging.WARNING)
     root_logger.addHandler(console_handler)
-    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(
-        logging.WARNING
-    )
+    logging.getLogger("myrm_agent_harness.toolkits.llms.utils.logger").setLevel(logging.WARNING)
 
 
 configure_test_logging()
@@ -152,29 +150,19 @@ def app() -> FastAPI:
     pass
 
     general_agent_module = import_module("app.api.agents.general_agent")
-    app.include_router(
-        general_agent_module.router, prefix="/api/v1/agents", tags=["agents"]
-    )
+    app.include_router(general_agent_module.router, prefix="/api/v1/agents", tags=["agents"])
 
     agent_management_module = import_module("app.api.agents.agent")
-    app.include_router(
-        agent_management_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_management_module.router, prefix="/api/agents", tags=["agent-management"])
 
     generate_prompt_module = import_module("app.api.agents.generate_prompt")
-    app.include_router(
-        generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(generate_prompt_module.router, prefix="/api/agents", tags=["agent-management"])
 
     agent_history_module = import_module("app.api.agents.agent_history")
-    app.include_router(
-        agent_history_module.router, prefix="/api/agents", tags=["agent-management"]
-    )
+    app.include_router(agent_history_module.router, prefix="/api/agents", tags=["agent-management"])
 
     memory_module = import_module("app.api.memory.router")
-    app.include_router(
-        memory_module.router, prefix="/api/v1/memory", tags=["memory"]
-    )
+    app.include_router(memory_module.router, prefix="/api/v1/memory", tags=["memory"])
 
     wiki_module = import_module("app.api.wiki.router")
     app.include_router(wiki_module.router, prefix="/api/v1/wiki", tags=["wiki"])
@@ -189,14 +177,10 @@ def app() -> FastAPI:
 
     # Add files router for vault endpoints tests
     vault_module = import_module("app.api.files.vault_api")
-    app.include_router(
-        vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"]
-    )
-    
+    app.include_router(vault_module.router, prefix="/api/v1/files/vault", tags=["files-vault"])
+
     artifact_api_module = import_module("app.api.files.artifact_api")
-    app.include_router(
-        artifact_api_module.router, prefix="/api/v1/files/artifacts", tags=["files-artifacts"]
-    )
+    app.include_router(artifact_api_module.router, prefix="/api/v1/files/artifacts", tags=["files-artifacts"])
 
     goals_module = import_module("app.api.goals.router")
     app.include_router(goals_module.router, prefix="/api/v1", tags=["goals"])
@@ -221,19 +205,19 @@ async def setup_test_database(tmp_path: Path):
     from sqlalchemy.pool import StaticPool
 
     from app.database.models import Base
+
     db_file = tmp_path / "test_agent.db"
     engine = create_async_engine(
-        f"sqlite+aiosqlite:///{db_file}",
-        poolclass=StaticPool,
-        connect_args={"check_same_thread": False}
+        f"sqlite+aiosqlite:///{db_file}", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
+
         # Create raw SQL tables (FTS5)
         from sqlalchemy import text
 
         from app.database.repositories.conversation_recall_repo import CONVERSATION_RECALL_SCHEMA_SQL
+
         for sql in CONVERSATION_RECALL_SCHEMA_SQL:
             await conn.execute(text(sql))
 
@@ -261,9 +245,7 @@ async def setup_test_database(tmp_path: Path):
             mock_get_session_factory,
         ),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),
-        patch(
-            "app.services.budget.enforcer.get_session_factory", mock_get_session_factory
-        ),
+        patch("app.services.budget.enforcer.get_session_factory", mock_get_session_factory),
         patch("app.services.memory.shared_context.get_session", mock_get_session),
     ):
         yield
@@ -274,6 +256,7 @@ async def setup_test_database(tmp_path: Path):
             await conn.run_sync(Base.metadata.drop_all)
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).warning(f"Failed to drop test database tables: {e}")
     finally:
         await engine.dispose()
@@ -301,6 +284,7 @@ def disable_memory_auto_extraction():
     auto_extract_memories runs LLM-generated bash commands that time out in
     test environments (no /persistent volume), adding ~60s per test run.
     """
+
     async def _noop(*args: object, **kwargs: object) -> None:
         return
 
@@ -319,9 +303,11 @@ def disable_commitment_extraction():
     fixture teardown (SQLite tables already dropped). Since MCP tests don't
     exercise this feature, mock it out to eliminate log noise.
     """
+
     def _noop_factory(*args: object, **kwargs: object):
         async def _noop_extract(messages: object, chat_id: object) -> None:
             return
+
         return _noop_extract
 
     with patch(

@@ -35,7 +35,7 @@ def register_middlewares(app: FastAPI) -> None:
         allow_headers=["*"],
         max_age=600,
     )
-    
+
     # Public Ingress Middleware 最后注册，处于洋葱模型的最外层。
     # 它在请求进入框架路由或 CORS 处理之前，修正反向代理丢失的 Host/Scheme
     app.add_middleware(PublicIngressMiddleware)

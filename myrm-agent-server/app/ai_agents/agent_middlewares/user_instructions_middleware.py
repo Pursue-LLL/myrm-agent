@@ -108,6 +108,7 @@ class UserInstructionsMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     - user_instructions 只注入一次 → 避免 token 浪费
     - 注入到 state["messages"] → 持久化到对话历史
     """
+
     name = "user_instructions_middleware"
 
     def wrap_model_call(
@@ -163,5 +164,6 @@ CRITICAL: You MUST strictly obey these instructions. In case of any conflict bet
             request = request.override(messages=new_messages)
 
         return await handler(request)
+
 
 user_instructions_middleware = UserInstructionsMiddleware()

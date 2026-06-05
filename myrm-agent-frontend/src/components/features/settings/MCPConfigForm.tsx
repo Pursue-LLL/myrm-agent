@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { MCPServiceConfig } from '@/store/useConfigStore';
+import type { MCPScanResult } from '@/store/config/types';
 import { useMCPConfig } from '@/hooks/useMCPConfig';
 import { MCPConfigList } from './mcp/MCPConfigList';
 import { MCPConfigEditor } from './mcp/MCPConfigEditor';
@@ -8,6 +9,9 @@ import { MCPJsonImporter } from './mcp/MCPJsonImporter';
 import { DeleteConfirmDialog } from './mcp/DeleteConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { parseMCPConfigsFromJSON } from '@/lib/utils/mcpConfigParser';
+import { buildLastScanSummary, gateMcpConfigBatch } from '@/hooks/useMcpSecurityGate';
+import { getMcpFindingDescription } from '@/lib/utils/mcpScanFindingText';
+import { MCPScanAckDialog } from './mcp/MCPScanAckDialog';
 
 interface MCPConfigFormProps {
   currentConfigs: MCPServiceConfig[];
@@ -21,12 +25,78 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
   // JSON导入状态（单独管理，因为有复杂的导入逻辑）
   const [importJsonText, setImportJsonText] = useState('');
   const [importError, setImportError] = useState('');
+  const [pendingImportAck, setPendingImportAck] = useState<{
+    configsToImport: MCPServiceConfig[];
+    ackServerName: string;
+    ackFindings: MCPScanResult['findings'];
+    newConfigs: MCPServiceConfig[];
+    skippedCount: number;
+    skippedUnsupportedCount: number;
+  } | null>(null);
 
   // 使用自定义Hook管理所有状态和逻辑
   const mcpConfig = useMCPConfig(currentConfigs, onSave);
 
+  const finishImport = useCallback(
+    (
+      configsToImport: MCPServiceConfig[],
+      scanResults: MCPScanResult[],
+      baseConfigs: MCPServiceConfig[],
+      meta: { skippedCount: number; skippedUnsupportedCount: number },
+    ) => {
+      const newConfigs = [...baseConfigs];
+      let addedCount = 0;
+      let disabledCount = 0;
+
+      for (let importIdx = 0; importIdx < configsToImport.length; importIdx += 1) {
+        const importedConfig = configsToImport[importIdx];
+        const scanResult = scanResults[importIdx];
+        if (scanResult) {
+          importedConfig.lastScanSummary = buildLastScanSummary(scanResult);
+        }
+        if (!importedConfig.description.trim()) {
+          importedConfig.enabled = false;
+          disabledCount++;
+        }
+        newConfigs.push(importedConfig);
+        addedCount++;
+      }
+
+      mcpConfig.setConfigs(newConfigs);
+      onSave(newConfigs);
+      mcpConfig.setShowImportModal(false);
+      setImportJsonText('');
+      setPendingImportAck(null);
+
+      const parts: string[] = [t('mcpImportSuccessDesc', { count: addedCount })];
+      if (meta.skippedCount > 0) parts.push(t('mcpImportSkipped', { count: meta.skippedCount }));
+      if (meta.skippedUnsupportedCount > 0) {
+        parts.push(t('mcpImportUnsupportedSkipped', { count: meta.skippedUnsupportedCount }));
+      }
+      if (disabledCount > 0) parts.push(t('mcpImportDisabledNoDesc', { count: disabledCount }));
+
+      toast({
+        title: t('mcpImportSuccess'),
+        description: parts.join(' · '),
+      });
+    },
+    [mcpConfig, onSave, t, toast],
+  );
+
+  const handleConfirmImportAck = useCallback(async () => {
+    if (!pendingImportAck) return;
+    const { configsToImport, newConfigs, ...meta } = pendingImportAck;
+    const batchGate = await gateMcpConfigBatch(configsToImport, true);
+    if (batchGate.blocked || batchGate.needsAcknowledgement) {
+      setImportError(t('mcpScanBlocked'));
+      setPendingImportAck(null);
+      return;
+    }
+    finishImport(configsToImport, batchGate.scanResults, newConfigs, meta);
+  }, [pendingImportAck, finishImport, t]);
+
   // JSON导入处理（保留在主组件，因为逻辑复杂且依赖多个状态）
-  const handleImportJson = useCallback(() => {
+  const handleImportJson = useCallback(async () => {
     setImportError('');
 
     if (!importJsonText.trim()) {
@@ -58,43 +128,54 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
 
       const existingNames = new Set(mcpConfig.configs.map((c) => c.name));
       const newConfigs = [...mcpConfig.configs];
-      let addedCount = 0;
       let skippedCount = 0;
-      let disabledCount = 0;
 
+      const configsToImport: typeof filteredConfigs = [];
       for (const importedConfig of filteredConfigs) {
         if (existingNames.has(importedConfig.name)) {
           skippedCount++;
           continue;
         }
-        const needsDescription = !importedConfig.description.trim();
-        if (needsDescription) {
-          importedConfig.enabled = false;
-          disabledCount++;
-        }
-        newConfigs.push(importedConfig);
-        existingNames.add(importedConfig.name);
-        addedCount++;
+        configsToImport.push(importedConfig);
       }
 
-      mcpConfig.setConfigs(newConfigs);
-      onSave(newConfigs);
-      mcpConfig.setShowImportModal(false);
-      setImportJsonText('');
-
-      const parts: string[] = [t('mcpImportSuccessDesc', { count: addedCount })];
-      if (skippedCount > 0) parts.push(t('mcpImportSkipped', { count: skippedCount }));
-      if (skippedUnsupportedCount > 0) parts.push(t('mcpImportUnsupportedSkipped', { count: skippedUnsupportedCount }));
-      if (disabledCount > 0) parts.push(t('mcpImportDisabledNoDesc', { count: disabledCount }));
+      if (configsToImport.length > 0) {
+        const batchGate = await gateMcpConfigBatch(configsToImport);
+        if (batchGate.blocked) {
+          const blockedIndex = configsToImport.findIndex((cfg) => cfg.name === batchGate.blocked?.name);
+          const scanResult = batchGate.scanResults[blockedIndex] ?? batchGate.scanResults[0];
+          const first = scanResult?.findings[0];
+          setImportError(
+            first ? `${t('mcpScanBlocked')}: ${getMcpFindingDescription(first, t)}` : t('mcpScanBlocked'),
+          );
+          return;
+        }
+        if (batchGate.needsAcknowledgement) {
+          setPendingImportAck({
+            configsToImport,
+            ackServerName: batchGate.needsAcknowledgement.config.name,
+            ackFindings: batchGate.needsAcknowledgement.scanResult.findings,
+            newConfigs,
+            skippedCount,
+            skippedUnsupportedCount,
+          });
+          return;
+        }
+        finishImport(configsToImport, batchGate.scanResults, newConfigs, {
+          skippedCount,
+          skippedUnsupportedCount,
+        });
+        return;
+      }
 
       toast({
         title: t('mcpImportSuccess'),
-        description: parts.join(' · '),
+        description: t('mcpImportSkipped', { count: skippedCount }),
       });
     } catch (e) {
       setImportError(t('mcpImportParseError') + (e instanceof Error ? `: ${e.message}` : ''));
     }
-  }, [importJsonText, mcpConfig, onSave, t, toast]);
+  }, [importJsonText, mcpConfig, finishImport, t, toast]);
 
   return (
     <div className="flex flex-col space-y-4">
@@ -102,6 +183,7 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
       <MCPConfigList
         configs={mcpConfig.configs}
         mcpStatus={mcpConfig.mcpStatus}
+        togglingIndex={mcpConfig.togglingIndex}
         onAddConfig={mcpConfig.handleAddConfig}
         onEditConfig={mcpConfig.handleEditConfig}
         onToggleConfig={mcpConfig.handleToggleConfig}
@@ -120,6 +202,8 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
         validationSuccess={mcpConfig.validationSuccess}
         validationError={mcpConfig.validationError}
         validationLatency={mcpConfig.validationLatency}
+        scanFindings={mcpConfig.scanFindings}
+        isLiveScanning={mcpConfig.isLiveScanning}
         connectionTypeOptions={mcpConfig.connectionTypeOptions}
         pendingDescriptionChoice={mcpConfig.pendingDescriptionChoice}
         onFormDataChange={mcpConfig.setFormData}
@@ -147,6 +231,30 @@ const MCPConfigForm = ({ currentConfigs, onSave }: MCPConfigFormProps) => {
           setImportJsonText('');
           setImportError('');
         }}
+      />
+
+      <MCPScanAckDialog
+        open={!!mcpConfig.pendingRiskAck}
+        serverName={mcpConfig.pendingRiskAck?.finalFormData.name || ''}
+        findings={mcpConfig.pendingRiskAck?.scanResult.findings ?? []}
+        onConfirm={mcpConfig.handleConfirmRiskAck}
+        onCancel={mcpConfig.handleCancelRiskAck}
+      />
+
+      <MCPScanAckDialog
+        open={!!mcpConfig.pendingToggleAck}
+        serverName={mcpConfig.configs[mcpConfig.pendingToggleAck?.index ?? -1]?.name || ''}
+        findings={mcpConfig.pendingToggleAck?.scanResult.findings ?? []}
+        onConfirm={mcpConfig.handleConfirmToggleAck}
+        onCancel={mcpConfig.handleCancelToggleAck}
+      />
+
+      <MCPScanAckDialog
+        open={!!pendingImportAck}
+        serverName={pendingImportAck?.ackServerName || ''}
+        findings={pendingImportAck?.ackFindings ?? []}
+        onConfirm={handleConfirmImportAck}
+        onCancel={() => setPendingImportAck(null)}
       />
 
       {/* 删除确认对话框 */}

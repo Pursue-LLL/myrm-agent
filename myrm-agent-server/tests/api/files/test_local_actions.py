@@ -53,6 +53,7 @@ class TestGetDataDir:
     def test_returns_custom_workspace_dir(self):
         """Test that _get_workspace_dir respects MYRM_DATA_DIR setting."""
         from app.config.settings import DatabaseSettings
+
         custom_dir = "/custom/workspace"
         with patch.dict(os.environ, {"MYRM_DATA_DIR": custom_dir}):
             db_settings = DatabaseSettings()

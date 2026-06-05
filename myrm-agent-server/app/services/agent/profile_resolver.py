@@ -186,27 +186,19 @@ class AgentProfileResolver:
                 raw_mcp_ids = metadata.get("mcp_ids", [])
                 raw_security = metadata.get("security_overrides")
                 raw_personality = metadata.get("personality_style")
-                raw_builtin_tools = metadata.get(
-                    "enabled_builtin_tools", list(DEFAULT_ENABLED_BUILTIN_TOOLS)
-                )
+                raw_builtin_tools = metadata.get("enabled_builtin_tools", list(DEFAULT_ENABLED_BUILTIN_TOOLS))
                 raw_workspace_policy = metadata.get("workspace_policy")
                 raw_engine_params = metadata.get("engine_params")
 
                 mcp_tuple = _coerce_str_tuple(raw_mcp_ids)
                 mcp_tool_selections = _coerce_tool_selections(metadata.get("mcp_tool_selections"))
-                sub_tuple = (
-                    _coerce_str_tuple(raw_subagent_ids) if raw_subagent_ids is not None else ()
-                )
+                sub_tuple = _coerce_str_tuple(raw_subagent_ids) if raw_subagent_ids is not None else ()
                 tools_tuple = (
-                    _coerce_str_tuple(raw_builtin_tools)
-                    if raw_builtin_tools is not None
-                    else DEFAULT_ENABLED_BUILTIN_TOOLS
+                    _coerce_str_tuple(raw_builtin_tools) if raw_builtin_tools is not None else DEFAULT_ENABLED_BUILTIN_TOOLS
                 )
                 raw_auto_restore = metadata.get("auto_restore_domains")
-                auto_domains_tuple = (
-                    _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
-                )
-                
+                auto_domains_tuple = _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
+
                 raw_browser_engine = metadata.get("browser_engine")
                 browser_engine = str(raw_browser_engine) if raw_browser_engine else None
 
@@ -219,14 +211,13 @@ class AgentProfileResolver:
 
                 raw_openapi_services = metadata.get("openapi_services", [])
                 openapi_services: list[dict[str, object]] = (
-                    list(raw_openapi_services)
-                    if isinstance(raw_openapi_services, list)
-                    else []
+                    list(raw_openapi_services) if isinstance(raw_openapi_services, list) else []
                 )
 
                 raw_notify = metadata.get("notify_targets", [])
                 notify_targets: tuple[dict[str, str], ...] = tuple(
-                    d for d in (raw_notify if isinstance(raw_notify, list) else [])
+                    d
+                    for d in (raw_notify if isinstance(raw_notify, list) else [])
                     if isinstance(d, dict) and "channel" in d and "recipient_id" in d
                 )
 
@@ -243,46 +234,26 @@ class AgentProfileResolver:
                     mcp_ids=mcp_tuple,
                     mcp_tool_selections=mcp_tool_selections,
                     browser_engine=browser_engine,
-                    security_overrides=(
-                        raw_security if isinstance(raw_security, dict) else None
-                    ),
+                    security_overrides=(raw_security if isinstance(raw_security, dict) else None),
                     personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),
                     max_iterations=agent.max_iterations,
-                    workspace_policy=(
-                        str(raw_workspace_policy) if raw_workspace_policy else None
-                    ),
-                    memory_policy=(
-                        agent.memory_policy
-                        if isinstance(agent.memory_policy, AgentMemoryPolicy)
-                        else None
-                    ),
+                    workspace_policy=(str(raw_workspace_policy) if raw_workspace_policy else None),
+                    memory_policy=(agent.memory_policy if isinstance(agent.memory_policy, AgentMemoryPolicy) else None),
                     memory_decay_profile=getattr(agent, "memory_decay_profile", None),
                     enabled_builtin_tools=tools_tuple,
                     model_kwargs=model_kwargs,
                     openapi_services=openapi_services,
                     auto_restore_domains=auto_domains_tuple,
-                    engine_params=(
-                        raw_engine_params
-                        if isinstance(raw_engine_params, dict)
-                        else None
-                    ),
-                    session_policy=(
-                        metadata.get("session_policy")
-                        if isinstance(metadata.get("session_policy"), dict)
-                        else None
-                    ),
+                    engine_params=(raw_engine_params if isinstance(raw_engine_params, dict) else None),
+                    session_policy=(metadata.get("session_policy") if isinstance(metadata.get("session_policy"), dict) else None),
                     notify_targets=notify_targets,
                     tool_gateway_config=(
-                        metadata.get("tool_gateway_config")
-                        if isinstance(metadata.get("tool_gateway_config"), dict)
-                        else None
+                        metadata.get("tool_gateway_config") if isinstance(metadata.get("tool_gateway_config"), dict) else None
                     ),
                 )
         except Exception:
-            logger.error(
-                "Failed to resolve agent profile for '%s'", agent_id, exc_info=True
-            )
+            logger.error("Failed to resolve agent profile for '%s'", agent_id, exc_info=True)
             return None
 
 

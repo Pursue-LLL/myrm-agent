@@ -6,6 +6,7 @@ from patchright.async_api import Page, async_playwright
 
 BASE_URL = "http://localhost:3000"
 
+
 @pytest.fixture(scope="function")
 async def browser_page():
     """启动浏览器并返回页面对象"""
@@ -18,6 +19,7 @@ async def browser_page():
 
         await context.close()
         await browser.close()
+
 
 @pytest.mark.asyncio
 @pytest.mark.e2e

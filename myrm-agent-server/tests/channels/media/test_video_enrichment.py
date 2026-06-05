@@ -1,4 +1,3 @@
-
 from app.channels.media.video_enrichment import (
     enrich_video_inbound,
     has_video_attachment,

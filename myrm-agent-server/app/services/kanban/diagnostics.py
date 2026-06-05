@@ -60,7 +60,8 @@ _MAX_ERROR_SNIPPET = 200
 
 
 def _escalate_severity(
-    value: float, threshold: float,
+    value: float,
+    threshold: float,
 ) -> TaskDiagnosticSeverity:
     """Escalate severity based on how far past the threshold we are.
 
@@ -188,9 +189,7 @@ class RepeatedFailuresRule:
             detail_parts.append("Auto-blocked by dispatcher.")
         if err:
             detail_parts.append(f"Last error: {err}")
-        detail_parts.append(
-            "Consider reviewing the task description or archiving it."
-        )
+        detail_parts.append("Consider reviewing the task description or archiving it.")
 
         actions: list[DiagnosticAction] = []
         if task.status == TaskStatus.BLOCKED:
@@ -314,10 +313,7 @@ class DeadDependencyRule:
         if context is None or not context.parent_task_ids:
             return []
 
-        all_parents_dead = all(
-            context.parent_statuses.get(pid) in ("failed", "archived")
-            for pid in context.parent_task_ids
-        )
+        all_parents_dead = all(context.parent_statuses.get(pid) in ("failed", "archived") for pid in context.parent_task_ids)
         if not all_parents_dead:
             return []
 
@@ -327,10 +323,7 @@ class DeadDependencyRule:
                 rule_id=self.rule_id,
                 severity=TaskDiagnosticSeverity.ERROR,
                 title=f"All {n} parent{'s' if n > 1 else ''} dead",
-                detail=(
-                    f"All {n} parent tasks are in failed/archived status. "
-                    f"This task will never be promoted to READY."
-                ),
+                detail=(f"All {n} parent tasks are in failed/archived status. This task will never be promoted to READY."),
                 actions=(
                     DiagnosticAction(
                         kind="archive",
@@ -437,11 +430,7 @@ class BlockUnblockCyclingRule:
             return []
         severity = _escalate_severity(cycles, self._threshold)
         reason_snippet = task.blocked_reason[:100] if task.blocked_reason else ""
-        title = (
-            f"Block→unblock cycled {cycles}x: {reason_snippet}"
-            if reason_snippet
-            else f"Block→unblock cycled {cycles}x"
-        )
+        title = f"Block→unblock cycled {cycles}x: {reason_snippet}" if reason_snippet else f"Block→unblock cycled {cycles}x"
         return [
             TaskDiagnostic(
                 rule_id=self.rule_id,
@@ -474,13 +463,15 @@ class BlockUnblockCyclingRule:
 # Engine factory & helpers
 # ---------------------------------------------------------------------------
 
-CARD_FAST_RULES: frozenset[str] = frozenset({
-    "stranded_in_ready",
-    "repeated_failures",
-    "stuck_in_blocked",
-    "stranded_in_triage",
-    "block_unblock_cycling",
-})
+CARD_FAST_RULES: frozenset[str] = frozenset(
+    {
+        "stranded_in_ready",
+        "repeated_failures",
+        "stuck_in_blocked",
+        "stranded_in_triage",
+        "block_unblock_cycling",
+    }
+)
 
 
 def create_diagnostic_engine(

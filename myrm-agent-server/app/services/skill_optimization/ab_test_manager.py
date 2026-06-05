@@ -172,12 +172,12 @@ class ABTestManager:
 
             self._consistent_counts.pop(skill_id, None)
             logger.info(f"Version v{version} promoted to Master for skill {skill_id}")
-            
+
             try:
                 get_event_bus().publish(AppEvent(event_type=AppEventType.SKILL_AB_TEST_UPDATED))
             except Exception as e:
                 logger.debug(f"Failed to emit AB test update event: {e}")
-                
+
             return True
         except Exception as e:
             logger.error(f"Failed to promote version {version} for {skill_id}: {e}")

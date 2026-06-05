@@ -35,12 +35,8 @@ class SensitiveDataFilter(logging.Filter):
 
     # Sensitive field patterns (case-insensitive)
     SENSITIVE_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
-        re.compile(
-            r'(token|password|secret|key|auth|credential|bearer)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE
-        ),
-        re.compile(
-            r'(access_token|api_key|auth_header|access_key|secret_key)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE
-        ),
+        re.compile(r'(token|password|secret|key|auth|credential|bearer)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
+        re.compile(r'(access_token|api_key|auth_header|access_key|secret_key)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
     ]
 
     # Value patterns that look like credentials

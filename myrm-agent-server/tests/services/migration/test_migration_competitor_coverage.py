@@ -111,11 +111,7 @@ class TestOpenClawMultiWorkspace:
         )
         entries = loaded.get("openclaw_memory")
         assert isinstance(entries, list)
-        contents = [
-            str(item.get("content", ""))
-            for item in entries
-            if isinstance(item, dict)
-        ]
+        contents = [str(item.get("content", "")) for item in entries if isinstance(item, dict)]
         assert any("Main fact" in text for text in contents)
         assert any("Side project fact" in text for text in contents)
 

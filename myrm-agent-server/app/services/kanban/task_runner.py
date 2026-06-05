@@ -95,18 +95,41 @@ def _coerce_int(v: object) -> int:
     return 0
 
 
-_IMAGE_EXTENSIONS = frozenset({
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tiff", ".ico", ".avif",
-})
+_IMAGE_EXTENSIONS = frozenset(
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".svg",
+        ".tiff",
+        ".ico",
+        ".avif",
+    }
+)
 _PDF_EXTENSIONS = frozenset({".pdf"})
-_DOCUMENT_EXTENSIONS = frozenset({
-    ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt", ".ods", ".odp", ".rtf",
-})
+_DOCUMENT_EXTENSIONS = frozenset(
+    {
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".odt",
+        ".ods",
+        ".odp",
+        ".rtf",
+    }
+)
 
 
 def _classify_content_type(content_type: str, filename: str) -> str:
     """Classify a file as 'image', 'pdf', 'document', or 'other'."""
     import os
+
     ext = os.path.splitext(filename)[1].lower()
     if ext in _IMAGE_EXTENSIONS or content_type.startswith("image/"):
         return "image"
@@ -161,7 +184,9 @@ class KanbanTaskRunner:
             elapsed = time.monotonic() - t0
             logger.warning(
                 "Kanban task %s timed out after %.0fs (limit %ds)",
-                task.task_id[:8], elapsed, effective_timeout,
+                task.task_id[:8],
+                elapsed,
+                effective_timeout,
             )
             raise TaskTimeoutError(
                 task_id=task.task_id,
@@ -199,7 +224,9 @@ class KanbanTaskRunner:
             return base_dir
 
         worktree_path = await self._create_worktree(
-            base_dir, task.branch, task.task_id,
+            base_dir,
+            task.branch,
+            task.task_id,
         )
         if worktree_path:
             await self._store.add_event(
@@ -222,11 +249,16 @@ class KanbanTaskRunner:
     def _worktree_dir(base_dir: str, branch: str, task_id: str) -> str:
         safe_name = branch.replace("/", "-").replace("\\", "-")
         return os.path.join(
-            base_dir, _WORKTREE_DIR_NAME, f"{safe_name}-{task_id[:8]}",
+            base_dir,
+            _WORKTREE_DIR_NAME,
+            f"{safe_name}-{task_id[:8]}",
         )
 
     async def _create_worktree(
-        self, base_dir: str, branch: str, task_id: str,
+        self,
+        base_dir: str,
+        branch: str,
+        task_id: str,
     ) -> str | None:
         """Create a git worktree for isolated task execution."""
         worktree_dir = self._worktree_dir(base_dir, branch, task_id)
@@ -234,7 +266,8 @@ class KanbanTaskRunner:
         if Path(worktree_dir).exists():
             logger.info(
                 "Worktree already exists at %s for task %s",
-                worktree_dir, task_id[:8],
+                worktree_dir,
+                task_id[:8],
             )
             return worktree_dir
 
@@ -242,9 +275,14 @@ class KanbanTaskRunner:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [
-                    "git", "worktree", "add",
-                    "--force", "-B", branch,
-                    worktree_dir, "HEAD",
+                    "git",
+                    "worktree",
+                    "add",
+                    "--force",
+                    "-B",
+                    branch,
+                    worktree_dir,
+                    "HEAD",
                 ],
                 cwd=base_dir,
                 capture_output=True,
@@ -254,19 +292,23 @@ class KanbanTaskRunner:
             if result.returncode != 0:
                 logger.warning(
                     "git worktree add failed (rc=%d): %s",
-                    result.returncode, result.stderr.strip(),
+                    result.returncode,
+                    result.stderr.strip(),
                 )
                 return None
 
             logger.info(
                 "Created worktree at %s (branch=%s) for task %s",
-                worktree_dir, branch, task_id[:8],
+                worktree_dir,
+                branch,
+                task_id[:8],
             )
             return worktree_dir
         except Exception as exc:
             logger.warning(
                 "Failed to create worktree for task %s: %s",
-                task_id[:8], exc,
+                task_id[:8],
+                exc,
             )
             return None
 
@@ -299,17 +341,20 @@ class KanbanTaskRunner:
             if result.returncode == 0:
                 logger.info(
                     "Cleaned up worktree at %s for archived task %s",
-                    worktree_dir, task.task_id[:8],
+                    worktree_dir,
+                    task.task_id[:8],
                 )
             else:
                 logger.warning(
                     "git worktree remove failed (rc=%d): %s",
-                    result.returncode, result.stderr.strip(),
+                    result.returncode,
+                    result.stderr.strip(),
                 )
         except Exception as exc:
             logger.warning(
                 "Failed to cleanup worktree for task %s: %s",
-                task.task_id[:8], exc,
+                task.task_id[:8],
+                exc,
             )
 
     async def _build_multimodal_query(
@@ -348,7 +393,8 @@ class KanbanTaskRunner:
                     continue
 
                 kind = _classify_content_type(
-                    file_info.content_type, file_info.filename,
+                    file_info.content_type,
+                    file_info.filename,
                 )
                 content_url = f"/api/v1/files/{fid}/content"
 
@@ -358,32 +404,20 @@ class KanbanTaskRunner:
                     if extract_documents:
                         extracted = await self._extract_pdf_text(fid)
                         if extracted:
-                            extra_text_parts.append(
-                                f"\n## Attachment: {file_info.filename}\n{extracted}"
-                            )
+                            extra_text_parts.append(f"\n## Attachment: {file_info.filename}\n{extracted}")
                         else:
-                            extra_text_parts.append(
-                                f"\n[Attachment: {file_info.filename}]"
-                            )
+                            extra_text_parts.append(f"\n[Attachment: {file_info.filename}]")
                     else:
-                        extra_text_parts.append(
-                            f"\n[Attachment: {file_info.filename}]"
-                        )
+                        extra_text_parts.append(f"\n[Attachment: {file_info.filename}]")
                 elif kind == "document":
                     if extract_documents:
                         extracted = await self._extract_document_text(fid)
                         if extracted:
-                            extra_text_parts.append(
-                                f"\n## Attachment: {file_info.filename}\n{extracted}"
-                            )
+                            extra_text_parts.append(f"\n## Attachment: {file_info.filename}\n{extracted}")
                         else:
-                            extra_text_parts.append(
-                                f"\n[Attachment: {file_info.filename}]"
-                            )
+                            extra_text_parts.append(f"\n[Attachment: {file_info.filename}]")
                     else:
-                        extra_text_parts.append(
-                            f"\n[Attachment: {file_info.filename}]"
-                        )
+                        extra_text_parts.append(f"\n[Attachment: {file_info.filename}]")
             except Exception:
                 logger.warning("Failed to process attachment %s", fid, exc_info=True)
 
@@ -444,9 +478,7 @@ class KanbanTaskRunner:
 
             meta = await files_service.get_file(file_id)
             filename = getattr(meta, "filename", "") if meta else ""
-            return await extract_document_text_from_bytes(
-                content, filename=filename or "document.bin"
-            )
+            return await extract_document_text_from_bytes(content, filename=filename or "document.bin")
         except Exception:
             logger.warning("Document extraction failed for %s", file_id, exc_info=True)
             return ""
@@ -493,9 +525,7 @@ class KanbanTaskRunner:
         user_cfgs = await load_user_configs()
 
         board = await self._store.get_board(task.board_id) if task.board_id else None
-        zombie_timeout = (
-            board.settings.zombie_timeout_seconds if board and board.settings else 120
-        )
+        zombie_timeout = board.settings.zombie_timeout_seconds if board and board.settings else 120
 
         embedding_cfg, reranker_cfg = extract_retrieval_models(user_cfgs.retrieval_dict)
         fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
@@ -558,20 +588,12 @@ class KanbanTaskRunner:
             enabled_builtin_tools.append("kanban")
 
         task_user_instructions: str | None = profile.system_prompt if profile else None
-        if (
-            profile
-            and profile.agent_type == "team"
-            and profile.subagent_ids
-        ):
+        if profile and profile.agent_type == "team" and profile.subagent_ids:
             from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
-            leader_protocol = await build_leader_protocol_prompt(
-                list(profile.subagent_ids)
-            )
+            leader_protocol = await build_leader_protocol_prompt(list(profile.subagent_ids))
             task_user_instructions = (
-                f"{task_user_instructions}\n\n{leader_protocol}"
-                if task_user_instructions
-                else leader_protocol
+                f"{task_user_instructions}\n\n{leader_protocol}" if task_user_instructions else leader_protocol
             )
 
         declared_roots: tuple[str, ...] = ()
@@ -593,8 +615,7 @@ class KanbanTaskRunner:
             channel_name=_CHANNEL_NAME,
             declared_allowed_roots=declared_roots,
             enable_web_search=(
-                user_cfgs.search_is_user_configured
-                and await verify_search_service_available(user_cfgs.search_cfg)
+                user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg)
             ),
             kanban_tool_mode="worker",
             kanban_current_task_id=task.task_id,
@@ -604,12 +625,8 @@ class KanbanTaskRunner:
             auto_restore_domains=list(profile.auto_restore_domains) if profile else [],
             unattended_mode=True,
             user_instructions=task_user_instructions,
-            agent_skill_ids=list(dict.fromkeys(
-                (*(profile.skill_ids if profile else []), *task.extra_skill_ids)
-            )),
-            subagent_ids=(
-                list(profile.subagent_ids) if profile and profile.subagent_ids else None
-            ),
+            agent_skill_ids=list(dict.fromkeys((*(profile.skill_ids if profile else []), *task.extra_skill_ids))),
+            subagent_ids=(list(profile.subagent_ids) if profile and profile.subagent_ids else None),
             max_iterations=profile.max_iterations if profile else None,
             memory_policy=profile.memory_policy if profile else None,
             memory_decay_profile=profile.memory_decay_profile if profile else None,
@@ -643,9 +660,7 @@ class KanbanTaskRunner:
                 agent,
                 context,
                 _open_stream,
-                max_concurrent=max_parallel_from_engine_params(
-                    profile.engine_params if profile else None
-                ),
+                max_concurrent=max_parallel_from_engine_params(profile.engine_params if profile else None),
             ):
                 acc.add(event)
 

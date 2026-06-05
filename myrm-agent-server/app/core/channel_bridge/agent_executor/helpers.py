@@ -96,7 +96,7 @@ def _format_reply_context(reply_to: ReplyContext) -> str:
             content = content[:_REPLY_CONTENT_MAX_LEN] + "..."
         content = sanitize(content)
 
-    parts: list[str] = [f'[Replying to {sender}]']
+    parts: list[str] = [f"[Replying to {sender}]"]
     if content:
         parts.append(f': "{content}"')
     if reply_to.media:
@@ -158,10 +158,12 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
     parts: list[dict[str, object]] = [{"type": "text", "text": text}]
     for item in image_data_list:
         if isinstance(item, dict) and "data_url" in item:
-            parts.append({
-                "type": "image_url",
-                "image_url": {"url": item["data_url"], "detail": "auto"},
-            })
+            parts.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": item["data_url"], "detail": "auto"},
+                }
+            )
 
     if len(parts) == 1:
         return text

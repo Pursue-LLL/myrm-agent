@@ -39,9 +39,7 @@ _SNAPSHOT_RETENTION = 10
 class _AgentRepositoryPort(Protocol):
     async def get_profile(self, agent_id: str) -> AgentProfile | None: ...
 
-    async def update_profile(
-        self, agent_id: str, updates: dict[str, object]
-    ) -> AgentProfile | None: ...
+    async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None: ...
 
 
 def _repo(uow: UnitOfWork) -> _AgentRepositoryPort:
@@ -102,11 +100,7 @@ def mutable_snapshot_data(profile: AgentProfile) -> dict[str, object]:
         auto_restore_domains = [str(x) for x in raw_auto_restore]
 
     raw_openapi = metadata.get("openapi_services", [])
-    openapi_services = (
-        [item for item in raw_openapi if isinstance(item, dict)]
-        if isinstance(raw_openapi, list)
-        else []
-    )
+    openapi_services = [item for item in raw_openapi if isinstance(item, dict)] if isinstance(raw_openapi, list) else []
 
     return {
         "display_name": profile.display_name,
@@ -132,9 +126,7 @@ def mutable_snapshot_data(profile: AgentProfile) -> dict[str, object]:
     }
 
 
-def project_mutable_after_update(
-    existing: AgentProfile, updates: dict[str, object]
-) -> dict[str, object]:
+def project_mutable_after_update(existing: AgentProfile, updates: dict[str, object]) -> dict[str, object]:
     projected = mutable_snapshot_data(existing)
     if "display_name" in updates:
         projected["display_name"] = updates["display_name"]
@@ -155,9 +147,7 @@ def project_mutable_after_update(
     if "workspace_policy" in updates:
         projected["workspace_policy"] = updates["workspace_policy"]
     if "memory_policy" in updates:
-        projected["memory_policy"] = memory_policy_to_dict(
-            cast(AgentMemoryPolicy | None, updates["memory_policy"])
-        )
+        projected["memory_policy"] = memory_policy_to_dict(cast(AgentMemoryPolicy | None, updates["memory_policy"]))
     if "command_bindings" in updates:
         raw_bindings = updates["command_bindings"]
         if raw_bindings is None:
@@ -177,9 +167,7 @@ def project_mutable_after_update(
                 for b in raw_bindings
             ]
     if "tools_allowed" in updates:
-        projected["enabled_builtin_tools"] = _normalize_str_list(
-            updates["tools_allowed"]
-        )
+        projected["enabled_builtin_tools"] = _normalize_str_list(updates["tools_allowed"])
     metadata_update = updates.get("metadata")
     if isinstance(metadata_update, dict):
         for key in (
@@ -203,9 +191,7 @@ def project_mutable_after_update(
 
 
 def has_mutable_diff(existing: AgentProfile, updates: dict[str, object]) -> bool:
-    return mutable_snapshot_data(existing) != project_mutable_after_update(
-        existing, updates
-    )
+    return mutable_snapshot_data(existing) != project_mutable_after_update(existing, updates)
 
 
 def _command_bindings_from_snapshot(raw: object) -> list[CommandBinding] | None:
@@ -218,9 +204,7 @@ def _command_bindings_from_snapshot(raw: object) -> list[CommandBinding] | None:
     return _command_bindings_from_request(configs)
 
 
-def updates_from_snapshot_data(
-    agent: AgentProfile, data: dict[str, object]
-) -> dict[str, object]:
+def updates_from_snapshot_data(agent: AgentProfile, data: dict[str, object]) -> dict[str, object]:
     updates: dict[str, object] = {
         "display_name": data.get("display_name"),
         "description": data.get("description"),
@@ -235,14 +219,10 @@ def updates_from_snapshot_data(
     if "memory_policy" in data:
         raw_policy = data.get("memory_policy")
         updates["memory_policy"] = (
-            memory_policy_from_dict(cast(dict[str, object], raw_policy))
-            if isinstance(raw_policy, dict)
-            else None
+            memory_policy_from_dict(cast(dict[str, object], raw_policy)) if isinstance(raw_policy, dict) else None
         )
     if "command_bindings" in data:
-        updates["command_bindings"] = _command_bindings_from_snapshot(
-            data.get("command_bindings")
-        )
+        updates["command_bindings"] = _command_bindings_from_snapshot(data.get("command_bindings"))
 
     model_selection = data.get("model_selection")
     if isinstance(model_selection, dict):
@@ -271,9 +251,7 @@ def updates_from_snapshot_data(
 
 class ProfileSnapshotService:
     @staticmethod
-    async def save_profile_snapshot(
-        agent_id: str, reason: str = "", uow: UnitOfWork | None = None
-    ) -> str | None:
+    async def save_profile_snapshot(agent_id: str, reason: str = "", uow: UnitOfWork | None = None) -> str | None:
         from datetime import datetime, timezone
 
         from sqlalchemy import delete, select
@@ -304,9 +282,7 @@ class ProfileSnapshotService:
             result = await uow_instance.session.execute(stmt)
             ids_to_delete = result.scalars().all()
             if ids_to_delete:
-                del_stmt = delete(AgentProfileSnapshot).where(
-                    AgentProfileSnapshot.id.in_(ids_to_delete)
-                )
+                del_stmt = delete(AgentProfileSnapshot).where(AgentProfileSnapshot.id.in_(ids_to_delete))
                 await uow_instance.session.execute(del_stmt)
 
             return snapshot_id
@@ -324,18 +300,12 @@ class ProfileSnapshotService:
         from app.database.models.agent import AgentProfileSnapshot
 
         async with UnitOfWork() as uow:
-            stmt = (
-                select(func.count())
-                .select_from(AgentProfileSnapshot)
-                .where(AgentProfileSnapshot.agent_id == agent_id)
-            )
+            stmt = select(func.count()).select_from(AgentProfileSnapshot).where(AgentProfileSnapshot.agent_id == agent_id)
             result = await uow.session.execute(stmt)
             return int(result.scalar_one())
 
     @staticmethod
-    async def list_profile_snapshots(
-        agent_id: str, limit: int = _SNAPSHOT_RETENTION
-    ) -> list[AgentProfileSnapshot]:
+    async def list_profile_snapshots(agent_id: str, limit: int = _SNAPSHOT_RETENTION) -> list[AgentProfileSnapshot]:
         from sqlalchemy import select
 
         from app.database.models.agent import AgentProfileSnapshot
@@ -371,9 +341,7 @@ class ProfileSnapshotService:
             if not snapshot:
                 return False
 
-        return await ProfileSnapshotService._restore_record(
-            agent_id, snapshot, pre_rollback=True
-        )
+        return await ProfileSnapshotService._restore_record(agent_id, snapshot, pre_rollback=True)
 
     @staticmethod
     async def rollback_profile_to_snapshot(agent_id: str, snapshot_id: str) -> bool:
@@ -381,9 +349,7 @@ class ProfileSnapshotService:
 
         from app.database.models.agent import AgentProfileSnapshot
 
-        pre_rollback_id = await ProfileSnapshotService.save_profile_snapshot(
-            agent_id, reason="pre-rollback"
-        )
+        pre_rollback_id = await ProfileSnapshotService.save_profile_snapshot(agent_id, reason="pre-rollback")
         if pre_rollback_id is None:
             return False
 
@@ -409,13 +375,9 @@ class ProfileSnapshotService:
         return True
 
     @staticmethod
-    async def _restore_record(
-        agent_id: str, snapshot: AgentProfileSnapshot, *, pre_rollback: bool
-    ) -> bool:
+    async def _restore_record(agent_id: str, snapshot: AgentProfileSnapshot, *, pre_rollback: bool) -> bool:
         if pre_rollback:
-            await ProfileSnapshotService.save_profile_snapshot(
-                agent_id, reason="pre-rollback"
-            )
+            await ProfileSnapshotService.save_profile_snapshot(agent_id, reason="pre-rollback")
 
         async with UnitOfWork() as uow:
             agent = await _repo(uow).get_profile(agent_id)

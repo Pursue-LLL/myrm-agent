@@ -12,6 +12,7 @@ from app.core.skills.store.service import skills_service
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 @router.get("/", response_model=SkillListResponse)
 async def list_skills(
     type: str | None = None,
@@ -48,6 +49,7 @@ async def list_skills(
         total=len(skills),
     )
 
+
 @router.get("/{skill_id}/files/{filename}")
 async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     """Get skill file content by skill ID and filename."""
@@ -63,6 +65,7 @@ async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
 
     return PlainTextResponse(text_body)
 
+
 @router.get("/{skill_id}", response_model=SkillResponse)
 async def get_skill(skill_id: str) -> SkillResponse:
     """Get skill details by ID."""
@@ -71,4 +74,3 @@ async def get_skill(skill_id: str) -> SkillResponse:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
     return skill_to_response(skill)
-

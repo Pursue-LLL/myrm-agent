@@ -89,9 +89,7 @@ async def test_ensure_prebuilt_respects_disabled_list(storage: LocalStorageBacke
         )
     )
 
-    await manager.ensure_prebuilt_enabled_after_sync(
-        ["self-qa", "code-review", "github-workflow"]
-    )
+    await manager.ensure_prebuilt_enabled_after_sync(["self-qa", "code-review", "github-workflow"])
     config = await manager.get_config()
 
     assert "github-workflow" in config.enabled_prebuilt_ids
@@ -109,8 +107,7 @@ async def test_all_prebuilt_seeds_parse_and_sync(storage: LocalStorageBackend) -
 
     synced_ids = set(result.skill_ids)
     assert synced_ids == expected_dirs, (
-        f"Synced IDs mismatch. Missing: {expected_dirs - synced_ids}, "
-        f"Extra: {synced_ids - expected_dirs}"
+        f"Synced IDs mismatch. Missing: {expected_dirs - synced_ids}, Extra: {synced_ids - expected_dirs}"
     )
     assert result.synced_count == len(expected_dirs)
 
@@ -246,26 +243,25 @@ async def test_cleanup_stale_prebuilt_skills(storage: LocalStorageBackend) -> No
     # 1. Manually write a mock stale skill metadata and SKILL.md directly to storage
     from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
     from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
-    
+
     stale_id = "obsolete-ghost-skill"
     md_path = get_skill_file_path(SkillType.PREBUILT, stale_id, SKILL_MD_FILE)
     meta_path = get_skill_metadata_path(SkillType.PREBUILT, stale_id)
-    
+
     await storage.write_text(md_path, "old skill content")
     await storage.write_text(meta_path, json.dumps({"id": stale_id, "version": "1.0.0"}))
-    
+
     # 2. Verify files are present in storage before sync
     assert await storage.read_text(md_path) == "old skill content"
     assert await storage.read_text(meta_path) is not None
-    
+
     # 3. Perform prebuilt sync (obsolete-ghost-skill is NOT a seed dir in prebuilt_seeds)
     prebuilt_sync._synced = False  # noqa: SLF001
     await prebuilt_sync.sync_prebuilt_seeds(storage)
-    
+
     # 4. Verify that the obsolete skill file structures are purged from storage
     with pytest.raises(FileNotFoundError):
         await storage.read_text(md_path)
-        
+
     with pytest.raises(FileNotFoundError):
         await storage.read_text(meta_path)
-

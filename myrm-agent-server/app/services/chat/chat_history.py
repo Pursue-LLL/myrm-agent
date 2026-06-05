@@ -55,9 +55,7 @@ class _ChatHistoryMixin(_ChatServiceBase):
                         f"[Previous conversation summary]\n{chat.compacted_summary}",
                     ]
                 )
-                anchor_ts = await _ChatServiceBase._cr(uow).get_message_created_at(
-                    chat.compacted_before_id
-                )
+                anchor_ts = await _ChatServiceBase._cr(uow).get_message_created_at(chat.compacted_before_id)
             all_messages = await _ChatServiceBase._cr(uow).get_recent_messages(
                 chat_id,
                 limit=max_messages,
@@ -99,9 +97,7 @@ class _ChatHistoryMixin(_ChatServiceBase):
         return history
 
     @staticmethod
-    async def load_channel_history(
-        chat_id: str, max_messages: int = 50, api_key: str | None = None
-    ) -> list[ChannelHistoryEntry]:
+    async def load_channel_history(chat_id: str, max_messages: int = 50, api_key: str | None = None) -> list[ChannelHistoryEntry]:
         entries: list[ChannelHistoryEntry] = []
         async with UnitOfWork() as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
@@ -115,12 +111,8 @@ class _ChatHistoryMixin(_ChatServiceBase):
                         created_at=summary_created,
                     )
                 )
-                anchor_ts = await _ChatServiceBase._cr(uow).get_message_created_at(
-                    chat.compacted_before_id
-                )
-            all_messages = await _ChatServiceBase._cr(uow).get_recent_messages(
-                chat_id, limit=max_messages, after_ts=anchor_ts
-            )
+                anchor_ts = await _ChatServiceBase._cr(uow).get_message_created_at(chat.compacted_before_id)
+            all_messages = await _ChatServiceBase._cr(uow).get_recent_messages(chat_id, limit=max_messages, after_ts=anchor_ts)
 
         if not all_messages:
             return entries
@@ -152,9 +144,7 @@ class _ChatHistoryMixin(_ChatServiceBase):
             return ([], 0)
         try:
             async with UnitOfWork() as uow:
-                raw_messages, total = await _ChatServiceBase._cr(uow).search_messages_fts(
-                    safe_query, limit, offset, since, until
-                )
+                raw_messages, total = await _ChatServiceBase._cr(uow).search_messages_fts(safe_query, limit, offset, since, until)
             messages: list[dict[str, object]] = [
                 {
                     "id": msg["id"],
@@ -163,9 +153,7 @@ class _ChatHistoryMixin(_ChatServiceBase):
                     "content": msg["content"],
                     "sent_at": _serialize_search_sent_at(msg["sent_at"]),
                     "chat_title": msg["chat_title"],
-                    "snippet": _sanitize_snippet(
-                        str(msg.get("highlight_snippet") or "")
-                    ),
+                    "snippet": _sanitize_snippet(str(msg.get("highlight_snippet") or "")),
                 }
                 for msg in raw_messages
             ]

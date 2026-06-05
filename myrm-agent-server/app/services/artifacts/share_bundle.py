@@ -53,9 +53,7 @@ def _bundles_root() -> Path:
 
 def bundle_dir_for_claims(claims: ArtifactShareClaims) -> Path:
     """Stable directory name from pinned artifact version and expiry."""
-    digest = hashlib.sha256(
-        f"{claims.artifact_id}:{claims.version_id}:{claims.exp}".encode("utf-8")
-    ).hexdigest()
+    digest = hashlib.sha256(f"{claims.artifact_id}:{claims.version_id}:{claims.exp}".encode("utf-8")).hexdigest()
     return _bundles_root() / digest
 
 
@@ -168,11 +166,7 @@ def bundle_asset_count(claims: ArtifactShareClaims) -> int:
     bundle_root = bundle_dir_for_claims(claims)
     if not bundle_root.is_dir():
         return 0
-    return sum(
-        1
-        for path in bundle_root.rglob("*")
-        if path.is_file() and path.name != _MANIFEST_NAME
-    )
+    return sum(1 for path in bundle_root.rglob("*") if path.is_file() and path.name != _MANIFEST_NAME)
 
 
 def resolve_share_bundle_file(

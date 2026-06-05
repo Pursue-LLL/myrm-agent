@@ -111,21 +111,15 @@ class BaseArtifactProcessor(ABC):
                     type=artifact_type,
                     content_type=content_type,
                     size=result.file_size,
-                    preview_url=self._build_artifact_url(
-                        result.file_id, inline=True, content_type=content_type
-                    ),
-                    download_url=self._build_artifact_url(
-                        result.file_id, inline=False, content_type=content_type
-                    ),
+                    preview_url=self._build_artifact_url(result.file_id, inline=True, content_type=content_type),
+                    download_url=self._build_artifact_url(result.file_id, inline=False, content_type=content_type),
                     language=infer_language(filename),
                     created_at=datetime.now(UTC).isoformat(),
                     file_path=self._resolve_file_path(file_path),
                 )
                 artifacts.append(artifact)
                 processed_entries.append((filename, file_path, result.file_id))
-                logger.info(
-                    f"📦 处理工件: {filename} ({artifact_type.value}, {result.file_size} bytes)"
-                )
+                logger.info(f"📦 处理工件: {filename} ({artifact_type.value}, {result.file_size} bytes)")
 
             except Exception as e:
                 logger.warning(f"📦 处理工件失败: {file_path}, error: {e}")
@@ -252,9 +246,7 @@ class BaseArtifactProcessor(ABC):
         """
         return None
 
-    def _build_artifact_url(
-        self, file_id: str, inline: bool = True, content_type: str = ""
-    ) -> str:
+    def _build_artifact_url(self, file_id: str, inline: bool = True, content_type: str = "") -> str:
         """构建工件访问 URL
 
         对活跃内容（HTML/SVG/XHTML）强制设置 inline=false，防止 XSS。
@@ -356,9 +348,7 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
                     file_size = len(content)
                     if file_size > MAX_ARTIFACT_SIZE_BYTES:
                         size_mb = file_size / 1024 / 1024
-                        logger.warning(
-                            f"📦 [Local] 跳过大文件: {filename} ({size_mb:.2f}MB > 5MB)"
-                        )
+                        logger.warning(f"📦 [Local] 跳过大文件: {filename} ({size_mb:.2f}MB > 5MB)")
                         return None
             except Exception as e:
                 logger.warning(f"📦 [Local] 获取文件大小失败: {file_path}, {e}")

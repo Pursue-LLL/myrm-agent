@@ -132,6 +132,7 @@ def _check_local_stt_installed() -> bool:
     """Check if faster-whisper STT dependencies are importable."""
     try:
         import faster_whisper  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -141,6 +142,7 @@ def _get_tokenizer_backend() -> str:
     """Return the active tokenizer backend name (jieba or bigram_fallback)."""
     try:
         from myrm_agent_harness.toolkits.retriever.bm25 import get_tokenizer_service
+
         return get_tokenizer_service().backend
     except Exception:
         return "unavailable"
@@ -317,11 +319,7 @@ async def list_browser_orphans() -> dict[str, object]:
     return {
         "count": len(orphans),
         "orphans": orphans,
-        "message": (
-            f"Found {len(orphans)} orphan automation process(es)"
-            if orphans
-            else "No orphan processes found"
-        ),
+        "message": (f"Found {len(orphans)} orphan automation process(es)" if orphans else "No orphan processes found"),
     }
 
 
@@ -367,9 +365,7 @@ async def cleanup_browser_orphans(
             "failed": result.get("failed", []),
         }
     except Exception as exc:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to process orphans: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Failed to process orphans: {exc}") from exc
 
 
 @router.get("/doctor")
@@ -456,12 +452,10 @@ async def system_doctor() -> dict[str, object]:
             )
 
     harness_payload: list[object] = [
-        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report
-        for report in harness_reports
+        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report for report in harness_reports
     ]
     server_payload: list[object] = [
-        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report
-        for report in server_reports
+        redact_health_report(report).model_dump() if hasattr(report, "model_dump") else report for report in server_reports
     ]
     return {
         "server": server_payload,
@@ -470,9 +464,7 @@ async def system_doctor() -> dict[str, object]:
     }
 
 
-@router.post(
-    "/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult
-)
+@router.post("/repair-actions/{action_id}/execute", response_model=RepairActionExecuteResult)
 async def execute_health_repair_action(
     action_id: RepairActionId,
     request: RepairActionExecuteRequest,
@@ -490,7 +482,7 @@ async def execute_health_repair_action(
 @router.post("/database/reset")
 async def reset_database() -> dict[str, str]:
     """重置数据库端点
-    
+
     用于在数据库严重损坏且降级到内存模式后，用户主动请求重置数据库。
     将删除现有的数据库文件及 WAL 文件，并重新初始化。
     """
@@ -501,28 +493,29 @@ async def reset_database() -> dict[str, str]:
     from app.database.recovery import _cleanup_wal_files
     from app.platform_utils import reset_database_engine
     from app.server.status import system_status
-    
+
     try:
         # 1. 释放当前所有数据库连接
         await reset_database_engine()
-        
+
         # 2. 删除物理文件
         db_path = Path(settings.database.sqlite_path)
         if db_path.exists():
             db_path.unlink()
         _cleanup_wal_files(db_path)
-        
+
         # 3. 重新初始化数据库
         await init_database()
-        
+
         # 4. 恢复系统状态
         system_status.database_degraded = False
         system_status.database_recovered = False
-        
+
         return {"status": "success", "message": "Database has been reset successfully."}
     except Exception as e:
         logger.error("Failed to reset database: %s", e)
         raise HTTPException(status_code=500, detail=f"Failed to reset database: {e}") from e
+
 
 @router.get("/history")
 async def health_history(hours: int = 24) -> dict[str, object]:
@@ -538,9 +531,7 @@ async def health_history(hours: int = 24) -> dict[str, object]:
     from datetime import timezone as tz
 
     if hours < 1 or hours > 168:
-        raise HTTPException(
-            status_code=400, detail="Hours parameter must be between 1 and 168 (7 days)"
-        )
+        raise HTTPException(status_code=400, detail="Hours parameter must be between 1 and 168 (7 days)")
 
     cutoff_time = (datetime.now(tz.utc) - timedelta(hours=hours)).isoformat()
 
@@ -567,11 +558,7 @@ async def health_history(hours: int = 24) -> dict[str, object]:
     return {
         "data": [
             {
-                "timestamp": (
-                    row[0]
-                    if isinstance(row[0], str)
-                    else (row[0].isoformat() if row[0] else None)
-                ),
+                "timestamp": (row[0] if isinstance(row[0], str) else (row[0].isoformat() if row[0] else None)),
                 "status": row[1],
                 "score": row[2],
                 "components": row[3] if len(row) > 3 else None,
@@ -584,9 +571,7 @@ async def health_history(hours: int = 24) -> dict[str, object]:
 @router.get("/resources")
 async def resource_health_check(
     auto_recover: bool = Query(False, description="Automatically recover unhealthy resources"),
-    force_recovery: bool = Query(
-        False, description="Allow dangerous recovery actions (SQLite WAL deletion)"
-    ),
+    force_recovery: bool = Query(False, description="Allow dangerous recovery actions (SQLite WAL deletion)"),
 ) -> dict[str, object]:
     """Resource-level health check (Qdrant, SQLite, Browser).
 
@@ -616,9 +601,7 @@ async def resource_health_check(
                 "status": check_result.status.value if check_result else "unknown",
                 "message": check_result.message if check_result else "No check result",
                 "details": check_result.details if check_result else None,
-                "checked_at": (
-                    check_result.checked_at.isoformat() if check_result and check_result.checked_at else None
-                ),
+                "checked_at": (check_result.checked_at.isoformat() if check_result and check_result.checked_at else None),
             }
 
             if recovery_result:
@@ -627,11 +610,7 @@ async def resource_health_check(
                     "message": recovery_result.message,
                     "actions_taken": recovery_result.actions_taken,
                     "details": recovery_result.details,
-                    "recovered_at": (
-                        recovery_result.recovered_at.isoformat()
-                        if recovery_result.recovered_at
-                        else None
-                    ),
+                    "recovered_at": (recovery_result.recovered_at.isoformat() if recovery_result.recovered_at else None),
                 }
 
             formatted_results.append(item)
@@ -645,6 +624,4 @@ async def resource_health_check(
 
     except Exception as exc:
         logger.error("Resource health check failed: %s", exc)
-        raise HTTPException(
-            status_code=500, detail=f"Resource health check failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Resource health check failed: {exc}") from exc

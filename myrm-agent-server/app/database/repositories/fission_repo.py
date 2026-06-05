@@ -13,9 +13,7 @@ class FissionRepository:
 
     @staticmethod
     async def get_fission_record(db: AsyncSession, fission_id: str) -> FissionTaskRecord | None:
-        result = await db.execute(
-            select(FissionTaskRecord).where(FissionTaskRecord.fission_id == fission_id)
-        )
+        result = await db.execute(select(FissionTaskRecord).where(FissionTaskRecord.fission_id == fission_id))
         return result.scalar_one_or_none()
 
     @staticmethod

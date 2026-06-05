@@ -54,8 +54,7 @@ def create_aiohttp_session(proxy: str = "") -> object:
             )
         except ImportError:
             logger.warning(
-                "aiohttp_socks not installed — SOCKS proxy %s ignored. "
-                "Run: uv sync --extra matrix",
+                "aiohttp_socks not installed — SOCKS proxy %s ignored. Run: uv sync --extra matrix",
                 proxy,
             )
             return aiohttp.ClientSession(trust_env=True)
@@ -106,9 +105,7 @@ async def authenticate(
             return user_id, access_token
         except Exception as exc:
             await session.close()  # type: ignore[union-attr]
-            raise ChannelAuthError(
-                f"Matrix whoami failed: {exc}", channel="matrix"
-            ) from exc
+            raise ChannelAuthError(f"Matrix whoami failed: {exc}", channel="matrix") from exc
 
     if password and user_id:
         try:
@@ -127,9 +124,7 @@ async def authenticate(
             return user_id, resolved_token
         except Exception as exc:
             await session.close()  # type: ignore[union-attr]
-            raise ChannelAuthError(
-                f"Matrix login failed: {exc}", channel="matrix"
-            ) from exc
+            raise ChannelAuthError(f"Matrix login failed: {exc}", channel="matrix") from exc
 
     await session.close()  # type: ignore[union-attr]
     raise ChannelAuthError(
@@ -211,9 +206,7 @@ async def refresh_dm_cache(
                 if isinstance(room_list, list):
                     dm_room_ids.update(str(r) for r in room_list)
             dm_rooms.clear()
-            dm_rooms.update(
-                {room_id: room_id in dm_room_ids for room_id in joined_rooms}
-            )
+            dm_rooms.update({room_id: room_id in dm_room_ids for room_id in joined_rooms})
             logger.info(
                 "Matrix: DM cache built (%d DMs / %d rooms)",
                 sum(1 for v in dm_rooms.values() if v),

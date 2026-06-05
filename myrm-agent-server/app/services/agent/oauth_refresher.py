@@ -125,7 +125,8 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         credentials_dict[issuer] = updated_cred
 
                         enc_value, is_enc = service.encrypt_if_needed(
-                            "oauthCredentials", credentials_dict,
+                            "oauthCredentials",
+                            credentials_dict,
                         )
                         final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
 

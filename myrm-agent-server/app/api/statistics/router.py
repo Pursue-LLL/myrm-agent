@@ -41,9 +41,7 @@ def _parse_date(value: str, param_name: str) -> datetime:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt
     except ValueError as e:
-        raise validation_error(
-            f"Invalid {param_name} format. Use ISO 8601 (e.g. 2025-01-01T00:00:00Z)"
-        ) from e
+        raise validation_error(f"Invalid {param_name} format. Use ISO 8601 (e.g. 2025-01-01T00:00:00Z)") from e
 
 
 @router.get("/usage")
@@ -73,11 +71,7 @@ async def get_usage_statistics(
         if end_dt:
             filters.append(Message.created_at <= end_dt)
 
-        stmt = (
-            select(Message.extra_data, Message.created_at)
-            .where(and_(*filters))
-            .order_by(Message.created_at.asc())
-        )
+        stmt = select(Message.extra_data, Message.created_at).where(and_(*filters)).order_by(Message.created_at.asc())
 
         result = await db.execute(stmt)
         rows = result.all()
@@ -95,7 +89,7 @@ async def get_usage_radar(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Get O(1) aggregated global usage statistics for the user's dashboard.
-    
+
     Aggregates total_calls, total_tokens, and total_usd directly from the Chat table.
     """
     try:
@@ -106,7 +100,7 @@ async def get_usage_radar(
         )
         result = await db.execute(stmt)
         row = result.first()
-        
+
         return success_response(
             data={
                 "total_calls": row.total_calls or 0 if row else 0,
@@ -160,9 +154,7 @@ async def get_daily_usage(
                 daily_map[day_key] = DayAccumulator()
             daily_map[day_key].add(usage, extra_data)
 
-        daily_list = [
-            {"date": day, **acc.to_dict()} for day, acc in sorted(daily_map.items())
-        ]
+        daily_list = [{"date": day, **acc.to_dict()} for day, acc in sorted(daily_map.items())]
 
         return success_response(
             data={
@@ -216,9 +208,7 @@ async def get_session_usage(
             )
         )
         msg_result = await db.execute(msg_stmt)
-        msg_by_chat: dict[
-            str, list[tuple[dict[str, object] | None, datetime | None]]
-        ] = {}
+        msg_by_chat: dict[str, list[tuple[dict[str, object] | None, datetime | None]]] = {}
         for row in msg_result.all():
             cells = tuple(row)
             if len(cells) < 2:
@@ -244,9 +234,7 @@ async def get_session_usage(
 
         return success_response(data={"sessions": sessions})
     except Exception as e:
-        raise internal_error(
-            operation="Get session usage statistics", exception=e
-        ) from e
+        raise internal_error(operation="Get session usage statistics", exception=e) from e
 
 
 @router.get("/tool-stability")
@@ -255,9 +243,7 @@ async def get_tool_stability(
         None,
         description="Optional tool name to filter by. If omitted, aggregates all tools.",
     ),
-    time_range_days: int | None = Query(
-        30, ge=1, le=365, description="Time range in days (optional, defaults to 30)"
-    ),
+    time_range_days: int | None = Query(30, ge=1, le=365, description="Time range in days (optional, defaults to 30)"),
 ) -> JSONResponse:
     """Get global tool stability and performance metrics.
 
@@ -277,9 +263,7 @@ async def get_tool_stability(
                 }
             )
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id="default"
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
         analytics = EventLogAnalytics(backend)
 
         stability_data = await analytics.get_tool_stability(
@@ -313,16 +297,12 @@ async def get_tool_stability(
             }
         )
     except Exception as e:
-        raise internal_error(
-            operation="Get tool stability patterns", exception=e
-        ) from e
+        raise internal_error(operation="Get tool stability patterns", exception=e) from e
 
 
 @router.get("/activity")
 async def get_global_activity_patterns(
-    time_range_days: int | None = Query(
-        None, ge=1, le=365, description="Time range in days (optional)"
-    ),
+    time_range_days: int | None = Query(None, ge=1, le=365, description="Time range in days (optional)"),
 ) -> JSONResponse:
     """Get global activity patterns across all sessions.
 
@@ -343,14 +323,10 @@ async def get_global_activity_patterns(
                 }
             )
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id="default"
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
         analytics = EventLogAnalytics(backend)
 
-        patterns = await analytics.get_global_activity_patterns(
-            time_range_days=time_range_days
-        )
+        patterns = await analytics.get_global_activity_patterns(time_range_days=time_range_days)
 
         return success_response(
             data={
@@ -374,20 +350,14 @@ async def get_global_activity_patterns(
             }
         )
     except Exception as e:
-        raise internal_error(
-            operation="Get global activity patterns", exception=e
-        ) from e
+        raise internal_error(operation="Get global activity patterns", exception=e) from e
 
 
 @router.get("/top-sessions")
 async def get_top_sessions(
-    metric: str = Query(
-        "duration", description="Ranking metric: duration, messages, tokens, tool_calls"
-    ),
+    metric: str = Query("duration", description="Ranking metric: duration, messages, tokens, tool_calls"),
     limit: int = Query(10, ge=1, le=50, description="Number of top sessions (1-50)"),
-    time_range_days: int | None = Query(
-        None, ge=1, le=365, description="Time range in days (optional)"
-    ),
+    time_range_days: int | None = Query(None, ge=1, le=365, description="Time range in days (optional)"),
 ) -> JSONResponse:
     """Get top N sessions ranked by specified metric.
 
@@ -398,9 +368,7 @@ async def get_top_sessions(
         if not Path(settings.database.event_log_dir).exists():
             return success_response(data=[])
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id="default"
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
         analytics = EventLogAnalytics(backend)
 
         top_sessions = await analytics.get_top_sessions(
@@ -454,19 +422,13 @@ async def get_nav_badges() -> JSONResponse:
 
     async def count_pending_approvals() -> int:
         async with get_session() as db:
-            result = await db.scalar(
-                select(func.count())
-                .select_from(ApprovalRecord)
-                .where(ApprovalRecord.status == "PENDING")
-            )
+            result = await db.scalar(select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.status == "PENDING"))
             return result or 0
 
     async def count_unread_notifications() -> int:
         async with get_session() as db:
             result = await db.scalar(
-                select(func.count())
-                .select_from(SystemNotification)
-                .where(SystemNotification.is_read == False)  # noqa: E712
+                select(func.count()).select_from(SystemNotification).where(SystemNotification.is_read == False)  # noqa: E712
             )
             return result or 0
 

@@ -46,6 +46,7 @@ async def test_analyze_url_success(mock_analyze_github_url):
         ) as mock_list_skills,
         patch("httpx.AsyncClient") as mock_client,
     ):
+
         class MockSkill:
             name = "skill1"
             version = "1.0.0"

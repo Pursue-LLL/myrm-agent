@@ -88,14 +88,8 @@ async def run_commitment_extraction(
         if earliest_ms is None:
             continue
 
-        latest_raw = (
-            _parse_iso_to_ms(c.due_window_latest) if c.due_window_latest else None
-        )
-        latest_ms = (
-            latest_raw
-            if latest_raw and latest_raw >= earliest_ms
-            else earliest_ms + _TWELVE_HOURS_MS
-        )
+        latest_raw = _parse_iso_to_ms(c.due_window_latest) if c.due_window_latest else None
+        latest_ms = latest_raw if latest_raw and latest_raw >= earliest_ms else earliest_ms + _TWELVE_HOURS_MS
 
         record = CommitmentRecord(
             agent_id=agent_id,

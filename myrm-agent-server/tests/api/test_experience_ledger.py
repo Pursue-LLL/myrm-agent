@@ -149,9 +149,7 @@ async def test_low_confidence_evolution_creates_pending_ledger_event() -> None:
     assert result.requires_manual_review is True
 
     async with get_session() as db:
-        approval_result = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        approval_result = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         approvals = list(approval_result.scalars().all())
         pending = next(
             (

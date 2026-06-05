@@ -37,9 +37,7 @@ def _collect_stream_events(
     events: list[dict[str, object]] = []
     chunks: list[str] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_body
-    ) as resp:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as resp:
         if resp.status_code != 200:
             resp.read()
             pytest.fail(f"HTTP {resp.status_code}: {resp.text}")
@@ -83,9 +81,7 @@ class TestPseudonymizeE2E:
         phone = "13900001111"
         query = f"Hello, my phone is {phone}, just confirm you received it"
 
-        _, ps_events = _collect_stream_events(
-            client, query, "pseudonymize", "pseudonymize"
-        )
+        _, ps_events = _collect_stream_events(client, query, "pseudonymize", "pseudonymize")
         _, rd_events = _collect_stream_events(client, query, "redact", "redact")
 
         assert len(ps_events) > 0, "Pseudonymize mode should produce events"

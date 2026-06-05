@@ -379,13 +379,9 @@ class TestSend:
         ch._http.post = AsyncMock(side_effect=mock_post)
 
         attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
-        msg = OutboundMessage(
-            channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,)
-        )
+        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
 
-        with patch(
-            "app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock
-        ) as mock_download:
+        with patch("app.channels.media.downloader.MediaDownloader.download", new_callable=AsyncMock) as mock_download:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.data = b"image-bytes"
@@ -400,9 +396,7 @@ class TestSend:
         ch._http = AsyncMock()
 
         attachment = MediaAttachment(media_type=MediaType.DOCUMENT, url="https://example.com/doc.pdf")
-        msg = OutboundMessage(
-            channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,)
-        )
+        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
         await ch.send(msg)
 
     @pytest.mark.asyncio
@@ -411,9 +405,7 @@ class TestSend:
         ch._http = AsyncMock()
 
         attachment = MediaAttachment(media_type=MediaType.IMAGE)
-        msg = OutboundMessage(
-            channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,)
-        )
+        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
         await ch.send(msg)
 
     @pytest.mark.asyncio
@@ -423,9 +415,7 @@ class TestSend:
         ch._http.get = AsyncMock(side_effect=httpx.ConnectError("fail"))
 
         attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
-        msg = OutboundMessage(
-            channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,)
-        )
+        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
         await ch.send(msg)
 
     @pytest.mark.asyncio
@@ -448,9 +438,7 @@ class TestSend:
         ch._http.post = AsyncMock(return_value=upload_resp)
 
         attachment = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.example.com/1.jpg")
-        msg = OutboundMessage(
-            channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,)
-        )
+        msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="", user_id="u1", media=(attachment,))
         await ch.send(msg)
 
 

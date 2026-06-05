@@ -344,9 +344,7 @@ class WeChatILinkChannel(BaseChannel):
     def get_status_info(self) -> dict[str, object]:
         poll_alive = self._poll_task is not None and not self._poll_task.done()
         is_connected = (
-            self._status in (ChannelStatus.RUNNING, ChannelStatus.DEGRADED)
-            and bool(self._client.credentials)
-            and poll_alive
+            self._status in (ChannelStatus.RUNNING, ChannelStatus.DEGRADED) and bool(self._client.credentials) and poll_alive
         )
         info: dict[str, object] = {
             "connected": is_connected,
@@ -464,9 +462,7 @@ class WeChatILinkChannel(BaseChannel):
                 )
 
                 if failures >= _MAX_CONSECUTIVE_FAILURES:
-                    logger.warning(
-                        "WeChatILinkChannel: %d consecutive failures, backing off %ds", failures, _MAX_BACKOFF
-                    )
+                    logger.warning("WeChatILinkChannel: %d consecutive failures, backing off %ds", failures, _MAX_BACKOFF)
                     self.health.record_success()
                     await asyncio.sleep(_MAX_BACKOFF)
                     backoff = _INITIAL_BACKOFF

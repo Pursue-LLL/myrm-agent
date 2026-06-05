@@ -29,16 +29,15 @@ async def test_history_backfill_not_triggered_for_existing_chat():
     mock_chat.id = "chat-db-id"
 
     # Mock ChatService methods so it thinks there is already history
-    with patch.object(
-        ChatService, "get_channel_chat_by_key", AsyncMock(return_value=mock_chat)
-    ), patch.object(
-        ChatService,
-        "load_channel_history",
-        AsyncMock(return_value=["some historical msg"]),
-    ), patch(
-        "app.core.channel_bridge.get_channel_gateway"
-    ) as mock_get_gateway:
-
+    with (
+        patch.object(ChatService, "get_channel_chat_by_key", AsyncMock(return_value=mock_chat)),
+        patch.object(
+            ChatService,
+            "load_channel_history",
+            AsyncMock(return_value=["some historical msg"]),
+        ),
+        patch("app.core.channel_bridge.get_channel_gateway") as mock_get_gateway,
+    ):
         if not hasattr(executor, "_backfill_locks"):
             executor._backfill_locks = set()
 
@@ -48,9 +47,7 @@ async def test_history_backfill_not_triggered_for_existing_chat():
             if not existing_chat:
                 is_cold_start = True
             else:
-                existing_hist = await ChatService.load_channel_history(
-                    existing_chat.id, api_key=None
-                )
+                existing_hist = await ChatService.load_channel_history(existing_chat.id, api_key=None)
                 if not existing_hist:
                     is_cold_start = True
         except Exception:
@@ -109,16 +106,12 @@ async def test_history_backfill_triggered_for_cold_start_and_saves_sequential():
     mock_chat.id = "chat-db-id"
 
     # Mock ChatService to return None for get_channel_chat_by_key (Cold start)
-    with patch.object(
-        ChatService, "get_channel_chat_by_key", AsyncMock(return_value=None)
-    ), patch.object(
-        ChatService, "get_or_create_channel_chat", AsyncMock(return_value=mock_chat)
-    ), patch.object(
-        ChatService, "append_message", AsyncMock()
-    ) as mock_append, patch(
-        "app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway
+    with (
+        patch.object(ChatService, "get_channel_chat_by_key", AsyncMock(return_value=None)),
+        patch.object(ChatService, "get_or_create_channel_chat", AsyncMock(return_value=mock_chat)),
+        patch.object(ChatService, "append_message", AsyncMock()) as mock_append,
+        patch("app.core.channel_bridge.get_channel_gateway", return_value=mock_gateway),
     ):
-
         # Run identical logic as executor.py
         if not hasattr(executor, "_backfill_locks"):
             executor._backfill_locks = set()
@@ -129,9 +122,7 @@ async def test_history_backfill_triggered_for_cold_start_and_saves_sequential():
             if not existing_chat:
                 is_cold_start = True
             else:
-                existing_hist = await ChatService.load_channel_history(
-                    existing_chat.id, api_key=None
-                )
+                existing_hist = await ChatService.load_channel_history(existing_chat.id, api_key=None)
                 if not existing_hist:
                     is_cold_start = True
         except Exception:
@@ -150,9 +141,7 @@ async def test_history_backfill_triggered_for_cold_start_and_saves_sequential():
                     if channel_inst and hasattr(channel_inst, "fetch_history"):
                         backfill_limit = 15
                         if backfill_limit > 0:
-                            hist_msgs = await channel_inst.fetch_history(
-                                msg.chat_id, limit=backfill_limit
-                            )
+                            hist_msgs = await channel_inst.fetch_history(msg.chat_id, limit=backfill_limit)
                             if hist_msgs:
                                 chat = await ChatService.get_or_create_channel_chat(
                                     session_key,
@@ -162,20 +151,13 @@ async def test_history_backfill_triggered_for_cold_start_and_saves_sequential():
 
                                 for i, h_msg in enumerate(hist_msgs):
                                     truncated_content = h_msg.content
-                                    if (
-                                        truncated_content
-                                        and len(truncated_content) > 500
-                                    ):
-                                        truncated_content = (
-                                            truncated_content[:500] + "..."
-                                        )
+                                    if truncated_content and len(truncated_content) > 500:
+                                        truncated_content = truncated_content[:500] + "..."
 
                                     if not truncated_content and not h_msg.media:
                                         continue
 
-                                    smoothed_time = datetime.fromtimestamp(
-                                        base_time + (i * 0.001), tz=timezone.utc
-                                    )
+                                    smoothed_time = datetime.fromtimestamp(base_time + (i * 0.001), tz=timezone.utc)
 
                                     await ChatService.append_message(
                                         chat.id,
@@ -216,10 +198,10 @@ async def test_history_backfill_concurrency_lock_skips():
     # Pre-populate backfill lock
     executor._backfill_locks = {session_key}
 
-    with patch.object(
-        ChatService, "get_channel_chat_by_key", AsyncMock(return_value=None)
-    ), patch("app.core.channel_bridge.get_channel_gateway") as mock_get_gateway:
-
+    with (
+        patch.object(ChatService, "get_channel_chat_by_key", AsyncMock(return_value=None)),
+        patch("app.core.channel_bridge.get_channel_gateway") as mock_get_gateway,
+    ):
         is_cold_start = True
 
         # Attempt backfill

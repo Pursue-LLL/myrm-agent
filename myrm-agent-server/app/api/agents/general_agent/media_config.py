@@ -1,4 +1,5 @@
 """General Agent API — autonomous decision-making agent with streaming SSE."""
+
 import asyncio
 import logging
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 class TestMediaConfigRequest(BaseModel):
     """Request to test media generation configuration connectivity."""
 
@@ -28,6 +30,7 @@ class TestMediaConfigRequest(BaseModel):
     class Config:
         alias_generator = to_camel
         populate_by_name = True
+
 
 @router.post("/test-media-config")
 @limiter.limit(settings.rate_limit.chat)
@@ -80,6 +83,7 @@ async def test_media_config(
 
     return error_response(message=f"Unknown media type: {request.media_type}")
 
+
 @router.get("/media-provider-status")
 @limiter.limit(settings.rate_limit.chat)
 async def media_provider_status(
@@ -127,4 +131,3 @@ async def media_provider_status(
 
     checks = await asyncio.gather(*[_check_one(info) for info in provider_infos])
     return success_response(data={"providers": dict(checks)})
-

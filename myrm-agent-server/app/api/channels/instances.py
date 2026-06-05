@@ -192,11 +192,13 @@ async def update_channel_display_name(
                 matched = True
                 break
         if not matched:
-            current.append({
-                "channelType": base_type,
-                "channelName": channel_name,
-                "displayName": body.display_name,
-            })
+            current.append(
+                {
+                    "channelType": base_type,
+                    "channelName": channel_name,
+                    "displayName": body.display_name,
+                }
+            )
     await save_persisted_instances(current)
 
     return ChannelInstanceResponse(

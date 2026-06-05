@@ -64,9 +64,7 @@ class TestGoalCompletionConsolidation:
         mock_event_bus = MagicMock()
 
         with (
-            patch(
-                "myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage"
-            ) as planner_cls,
+            patch("myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage") as planner_cls,
             patch(
                 "app.services.agent.goal_registry._resolve_shared_context_ids_for_goal",
                 new=AsyncMock(return_value=["ctx-1"]),
@@ -122,9 +120,7 @@ class TestGoalCompletionConsolidation:
         mock_session_factory = MagicMock(return_value=mock_session)
 
         with (
-            patch(
-                "myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage"
-            ) as planner_cls,
+            patch("myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage") as planner_cls,
             patch(
                 "app.services.agent.goal_registry._resolve_shared_context_ids_for_goal",
                 new=AsyncMock(return_value=["ctx-1"]),
@@ -171,9 +167,7 @@ class TestGoalCompletionConsolidation:
         mock_session_factory = MagicMock(return_value=mock_session)
 
         with (
-            patch(
-                "myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage"
-            ) as planner_cls,
+            patch("myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage") as planner_cls,
             patch(
                 "app.services.agent.goal_registry._resolve_shared_context_ids_for_goal",
                 new=AsyncMock(return_value=["ctx-1"]),
@@ -198,16 +192,12 @@ class TestGoalCompletionConsolidation:
         mock_materializer.approve_write_proposal.assert_awaited_once_with("proposal-1")
 
     @pytest.mark.asyncio
-    async def test_skips_when_no_shared_context_binding(
-        self, manager: ServerGoalManager
-    ) -> None:
+    async def test_skips_when_no_shared_context_binding(self, manager: ServerGoalManager) -> None:
         plan = _sample_plan()
         goal = _sample_goal()
 
         with (
-            patch(
-                "myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage"
-            ) as planner_cls,
+            patch("myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage") as planner_cls,
             patch(
                 "app.services.agent.goal_registry._resolve_shared_context_ids_for_goal",
                 new=AsyncMock(return_value=[]),
@@ -222,9 +212,7 @@ class TestGoalCompletionConsolidation:
         session_factory_patch.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_idempotent_skip_when_proposal_already_approved(
-        self, manager: ServerGoalManager
-    ) -> None:
+    async def test_idempotent_skip_when_proposal_already_approved(self, manager: ServerGoalManager) -> None:
         plan = _sample_plan()
         goal = _sample_goal()
         context = SimpleNamespace(
@@ -247,9 +235,7 @@ class TestGoalCompletionConsolidation:
         mock_event_bus = MagicMock()
 
         with (
-            patch(
-                "myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage"
-            ) as planner_cls,
+            patch("myrm_agent_harness.agent.sub_agents.planner.storage.PlannerStorage") as planner_cls,
             patch(
                 "app.services.agent.goal_registry._resolve_shared_context_ids_for_goal",
                 new=AsyncMock(return_value=["ctx-1"]),

@@ -184,8 +184,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                 "agent_persona": instruction_plan.agent_persona,
                 "global_supplement": instruction_plan.global_supplement,
                 "workspace_rules": [
-                    {"filename": rule.filename, "content": rule.content}
-                    for rule in instruction_plan.workspace_rules
+                    {"filename": rule.filename, "content": rule.content} for rule in instruction_plan.workspace_rules
                 ],
             },
         }
@@ -213,19 +212,11 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         migration_lanes = [
             MigrationLanePreviewItem(
                 lane=lane.lane,
-                status=(
-                    result.summary.status
-                    if lane.lane == "memory"
-                    else lane.status
-                ),
+                status=(result.summary.status if lane.lane == "memory" else lane.status),
                 label=lane.label,
                 detail=(
                     f"{result.summary.mapped_items} mapped item(s)"
-                    + (
-                        ", episodic excluded"
-                        if body.migration is not None and not body.migration.include_episodic
-                        else ""
-                    )
+                    + (", episodic excluded" if body.migration is not None and not body.migration.include_episodic else "")
                     if lane.lane == "memory"
                     else lane.detail
                 ),
@@ -310,9 +301,7 @@ async def confirm_import_memories(
                     ),
                     include_episodic=bool(raw_opts.get("include_episodic")) if isinstance(raw_opts, dict) else False,
                     apply_global_instructions=(
-                        bool(raw_opts.get("apply_global_instructions", True))
-                        if isinstance(raw_opts, dict)
-                        else True
+                        bool(raw_opts.get("apply_global_instructions", True)) if isinstance(raw_opts, dict) else True
                     ),
                 )
                 rules_raw = raw_plan.get("workspace_rules")
@@ -392,15 +381,9 @@ async def confirm_import_memories(
         diagnostic_run_id=result.diagnostic_run_id,
         target_agent_id=instruction_result.target_agent_id if instruction_result else None,
         agent_created=instruction_result.agent_created if instruction_result else False,
-        global_instructions_updated=(
-            instruction_result.global_instructions_updated if instruction_result else False
-        ),
-        workspace_rules_written=(
-            instruction_result.workspace_rules_written if instruction_result else 0
-        ),
-        workspace_rules_skipped=(
-            instruction_result.workspace_rules_skipped if instruction_result else 0
-        ),
+        global_instructions_updated=(instruction_result.global_instructions_updated if instruction_result else False),
+        workspace_rules_written=(instruction_result.workspace_rules_written if instruction_result else 0),
+        workspace_rules_skipped=(instruction_result.workspace_rules_skipped if instruction_result else 0),
     )
 
 
@@ -490,5 +473,3 @@ async def rollback_import_memories(
         instructions_rolled_back=instructions_rolled_back,
         imported_agent_deleted=imported_agent_deleted,
     )
-
-

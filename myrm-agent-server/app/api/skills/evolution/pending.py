@@ -96,10 +96,7 @@ async def approve_pending_evolution_record(evolution_id: str) -> EvolutionReview
     except EvolutionApplyError as exc:
         if "not found" not in str(exc).lower():
             latest_record = await get_evolution_review_record(evolution_id)
-            if (
-                latest_record is not None
-                and latest_record.apply_status.value == "FAILED"
-            ):
+            if latest_record is not None and latest_record.apply_status.value == "FAILED":
                 return latest_record
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -150,9 +147,7 @@ async def approve_pending_evolution(
         )
     )
     return {
-        "status": (
-            "apply_failed" if record.apply_status.value == "FAILED" else "approved"
-        ),
+        "status": ("apply_failed" if record.apply_status.value == "FAILED" else "approved"),
         "skill_id": record.skill_id,
         "apply_status": record.apply_status.value,
         "apply_error": record.apply_error,

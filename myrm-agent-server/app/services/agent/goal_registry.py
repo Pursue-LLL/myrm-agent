@@ -36,9 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
-_JSON_INLINE_RE = re.compile(
-    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL
-)
+_JSON_INLINE_RE = re.compile(r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL)
 
 
 def _parse_judge_json(raw: str) -> dict[str, object] | None:
@@ -147,11 +145,7 @@ class ServerGoalManager(GoalManager):
 
             decision_text = "## Architectural Decisions\n\n"
             for dec in active_decisions:
-                decision_text += (
-                    f"### {dec.topic}\n"
-                    f"- **Decision:** {dec.decision}\n"
-                    f"- **Rationale:** {dec.rationale}\n\n"
-                )
+                decision_text += f"### {dec.topic}\n- **Decision:** {dec.decision}\n- **Rationale:** {dec.rationale}\n\n"
 
             from app.platform_utils import get_session_factory
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -278,7 +272,7 @@ class ServerGoalManager(GoalManager):
 
         try:
             llm_kwargs = await build_platform_litellm_kwargs()
-            
+
             requires_vision = False
             if context_messages:
                 for msg in context_messages:
@@ -299,15 +293,16 @@ class ServerGoalManager(GoalManager):
             screenshot_b64 = None
             if requires_vision and getattr(self, "session_id", None):
                 from app.services.agent.gateway import get_agent_gateway
+
                 gateway = get_agent_gateway()
-                
+
                 browser_session = gateway.get_active_browser_session(self.session_id)
                 if browser_session is not None:
                     try:
                         screenshot_b64 = await browser_session.extract_screenshot(scale=1.0)
                     except Exception as e:
                         logger.warning("Failed to extract browser screenshot for semantic evaluation: %s", e)
-                
+
                 if not screenshot_b64:
                     desktop_session = gateway.get_active_desktop_session(self.session_id)
                     if desktop_session is not None:
@@ -323,16 +318,15 @@ class ServerGoalManager(GoalManager):
             ]
 
             if screenshot_b64:
-                messages.append({
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": content},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{screenshot_b64}"}
-                        }
-                    ]
-                })
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": content},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{screenshot_b64}"}},
+                        ],
+                    }
+                )
                 logger.info("Multimodal Evaluator triggered: Injected visual proof (screenshot) for goal evaluation.")
             else:
                 messages.append({"role": "user", "content": content})
@@ -363,19 +357,13 @@ class ServerGoalManager(GoalManager):
                 return VerificationResult(passed=False, reason=reason)
 
             lower = raw.lower()
-            if (
-                lower.startswith("pass")
-                or '"done": true' in lower
-                or '"done":true' in lower
-            ):
+            if lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower:
                 return VerificationResult(passed=True, reason=raw)
             return VerificationResult(passed=False, reason=raw)
 
         except Exception as e:
             logger.error("Semantic evaluation failed: %s", e)
-            return VerificationResult(
-                passed=False, reason="Server evaluation failed", error_logs=str(e)
-            )
+            return VerificationResult(passed=False, reason="Server evaluation failed", error_logs=str(e))
 
 
 class GoalRegistry:
@@ -437,13 +425,14 @@ class GoalRegistry:
 
                     with cls._lock:
                         session_ids = list(cls._providers.keys())
-                    
+
                     if not session_ids:
                         continue
 
                     # Determine workspace_dir from the first provider (assuming single-tenant sandbox)
                     # In a real setup, workspace_dir should be injected, but we fallback to cwd
                     from app.config.settings import settings
+
                     workspace_dir = str(Path(settings.project_dir).expanduser().resolve())
                     if not git_head_path:
                         git_head_path = os.path.join(workspace_dir, ".git", "HEAD")
@@ -452,7 +441,7 @@ class GoalRegistry:
                             git_head_path = None
                             disabled = True
                             continue
-                    
+
                     try:
                         current_mtime = os.stat(git_head_path).st_mtime
                     except (FileNotFoundError, PermissionError):
@@ -491,8 +480,13 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git", "symbolic-ref", "--short", "HEAD",
-            cwd=workspace_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            "git",
+            "symbolic-ref",
+            "--short",
+            "HEAD",
+            cwd=workspace_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode == 0:
@@ -502,8 +496,13 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git", "rev-parse", "--abbrev-ref", "HEAD",
-            cwd=workspace_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            "git",
+            "rev-parse",
+            "--abbrev-ref",
+            "HEAD",
+            cwd=workspace_dir,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode == 0:
@@ -515,9 +514,7 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
     return None
 
 
-async def check_and_handle_branch_stash(
-    session_id: str, workspace_dir: str | None = None
-) -> None:
+async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | None = None) -> None:
     """Perceive git branch changes, auto stash/restore/migrate goals and planner progress."""
     branch = await get_current_git_branch(workspace_dir)
     if not branch:
@@ -539,6 +536,7 @@ async def check_and_handle_branch_stash(
     # Check if the new branch has a stash
     # Using the new composite key format from Harness
     from myrm_agent_harness.agent.goals.storage import _GOAL_NAMESPACE
+
     try:
         stash_raw = await storage.read(key=f"{_GOAL_NAMESPACE}_stash/{session_id}/{branch}")
         has_stash = bool(stash_raw)
@@ -551,6 +549,7 @@ async def check_and_handle_branch_stash(
         active_goal = await provider.get_active_goal(session_id)
         if active_goal:
             from myrm_agent_harness.agent.sub_agents.planner import PlannerStorage
+
             planner_storage = PlannerStorage(storage, prefix="planner_")
             plan = await planner_storage.load_plan()
             plan_dict = plan.dict() if plan else None
@@ -581,12 +580,9 @@ async def check_and_handle_branch_stash(
     # Update Kanban tasks metadata and append branch_switched event
     try:
         from app.services.kanban.service import KanbanService
+
         kanban_svc = KanbanService.get_instance()
-        await kanban_svc.update_active_tasks_branch_metadata(
-            new_branch=branch,
-            old_branch=last_branch,
-            migrated=migrated
-        )
+        await kanban_svc.update_active_tasks_branch_metadata(new_branch=branch, old_branch=last_branch, migrated=migrated)
     except Exception as e:
         logger.warning("Kanban branch metadata update skipped: %s", e)
 
@@ -612,6 +608,7 @@ async def check_and_handle_branch_stash(
 
     try:
         from app.services.event.app_event_bus import AppEvent, get_event_bus
+
         bus = get_event_bus()
         bus.publish(
             AppEvent(
@@ -621,8 +618,8 @@ async def check_and_handle_branch_stash(
                     "branch": branch,
                     "stashed_branch": last_branch,
                     "restored": bool(restored),
-                    "migrated": migrated
-                }
+                    "migrated": migrated,
+                },
             )
         )
     except Exception as e:

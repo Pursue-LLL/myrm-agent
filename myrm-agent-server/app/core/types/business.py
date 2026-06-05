@@ -37,19 +37,13 @@ class ModelConfig(BaseModel):
     base_url: str | None = Field(default=None, description="API base URL")
     temperature: float | None = Field(default=None, description="Temperature parameter")
     streaming: bool = Field(default=True, description="Enable streaming")
-    model_kwargs: dict[str, object] | None = Field(
-        default=None, description="Model-specific parameters"
-    )
+    model_kwargs: dict[str, object] | None = Field(default=None, description="Model-specific parameters")
     max_context_tokens: int | None = Field(
         default=None,
         description="Context window size for dynamic compression and summary thresholds",
     )
-    supports_vision: bool = Field(
-        default=False, description="Whether the model supports vision/image input"
-    )
-    supports_video: bool = Field(
-        default=False, description="Whether the model supports native video input (e.g. Gemini)"
-    )
+    supports_vision: bool = Field(default=False, description="Whether the model supports vision/image input")
+    supports_video: bool = Field(default=False, description="Whether the model supports native video input (e.g. Gemini)")
     custom_model_def: CustomModelDef | None = Field(
         default=None,
         description="Custom model definition for self-hosted endpoints (Ollama/LM Studio/vLLM)",
@@ -64,9 +58,7 @@ class ModelConfig(BaseModel):
         description="Dispatch strategy for credential pool: round_robin, fill_first, least_used, random",
     )
 
-    model_config = ConfigDict(
-        alias_generator=to_camel, populate_by_name=True, frozen=True
-    )
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, frozen=True)
 
 
 class ModelsConfig(BaseModel):
@@ -89,9 +81,7 @@ class ModelsConfig(BaseModel):
         ... )
     """
 
-    main: ModelConfig = Field(
-        ..., description="Main Agent model for reasoning and decision making"
-    )
+    main: ModelConfig = Field(..., description="Main Agent model for reasoning and decision making")
     filter: ModelConfig | None = Field(
         default=None,
         description="Filter/summary model (optional) for large tool result filtering and context summarization",
@@ -133,12 +123,8 @@ class MCPServerConfig(BaseModel):
     name: str = Field(..., description="MCP server name (unique identifier)")
     type: str = Field(..., description="Connection type: sse, stdio, streamable_http")
     url: str | None = Field(default=None, description="URL for SSE or HTTP connections")
-    command: str | None = Field(
-        default=None, description="Command for stdio connections"
-    )
-    args: list[str] | None = Field(
-        default=None, description="Arguments for stdio connections"
-    )
+    command: str | None = Field(default=None, description="Command for stdio connections")
+    args: list[str] | None = Field(default=None, description="Arguments for stdio connections")
     description: str = Field(
         default="",
         description="Service description for LLM skill selection",
@@ -150,9 +136,7 @@ class MCPServerConfig(BaseModel):
             "Values may contain {{secret:KEY_NAME}} references resolved at connection time."
         ),
     )
-    extra_params: dict[str, object] | None = Field(
-        default=None, description="Additional parameters for client"
-    )
+    extra_params: dict[str, object] | None = Field(default=None, description="Additional parameters for client")
     required_secrets: list[str] | None = Field(
         default=None,
         description="List of secret keys this MCP server is allowed to access (Scoped Secret Injection)",
@@ -195,8 +179,7 @@ class MCPServerConfig(BaseModel):
     client_key_password: str | None = Field(
         default=None,
         description=(
-            "Passphrase for an encrypted client private key. "
-            "Encrypted at rest with the rest of mcpServers config; never logged."
+            "Passphrase for an encrypted client private key. Encrypted at rest with the rest of mcpServers config; never logged."
         ),
     )
     auth_provider: MCPAuthProvider | None = Field(
@@ -208,13 +191,9 @@ class MCPServerConfig(BaseModel):
     @model_validator(mode="after")
     def _validate_transport(self) -> Self:
         if self.type in ("sse", "streamable_http") and not self.url:
-            raise ValueError(
-                f"MCPConfig '{self.name}': type='{self.type}' requires 'url'"
-            )
+            raise ValueError(f"MCPConfig '{self.name}': type='{self.type}' requires 'url'")
         if self.type == "stdio" and not self.command:
-            raise ValueError(
-                f"MCPConfig '{self.name}': type='stdio' requires 'command'"
-            )
+            raise ValueError(f"MCPConfig '{self.name}': type='stdio' requires 'command'")
         if self.client_key and not self.client_cert:
             raise ValueError(
                 f"MCPConfig '{self.name}': 'client_key' requires 'client_cert' "

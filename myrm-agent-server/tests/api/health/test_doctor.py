@@ -40,20 +40,14 @@ def test_system_doctor_endpoint(client: TestClient):
     assert len(harness_reports) >= 3, "Harness reports should contain built-in probes"
 
     component_names = [r["component_name"] for r in harness_reports]
-    assert (
-        "Network" in component_names or "check_network_health" in component_names
-    ), "Network/check_network_health probe should be registered"
-    assert (
-        "WorkspaceStorage" in component_names
-    ), "WorkspaceStorage probe should be registered"
-    assert (
-        "Database" in component_names
-    ), "Database probe should be registered in Harness layer"
+    assert "Network" in component_names or "check_network_health" in component_names, (
+        "Network/check_network_health probe should be registered"
+    )
+    assert "WorkspaceStorage" in component_names, "WorkspaceStorage probe should be registered"
+    assert "Database" in component_names, "Database probe should be registered in Harness layer"
 
     # 验证 Database 报告在 Harness 层
-    db_report = next(
-        (r for r in harness_reports if r["component_name"] == "Database"), None
-    )
+    db_report = next((r for r in harness_reports if r["component_name"] == "Database"), None)
     assert db_report is not None, "Database report is missing from harness reports"
     assert db_report["status"] in ["pass", "fail"], "Database report status is invalid"
 
@@ -61,9 +55,7 @@ def test_system_doctor_endpoint(client: TestClient):
     for report in harness_reports:
         assert report["status"] in ["pass", "fail", "warn"]
         assert "message" in report
-        assert (
-            "detail" in report
-        ), f"Missing 'detail' field in report for {report['component_name']}"
+        assert "detail" in report, f"Missing 'detail' field in report for {report['component_name']}"
 
     # 验证 repair_actions 结构（列表，每个 action 有必需字段）
     repair_actions = data["repair_actions"]
@@ -131,6 +123,4 @@ def test_doctor_response_layers_independent(client: TestClient):
     assert isinstance(data["repair_actions"], list)
     server_components = {r["component_name"] for r in data["server"]}
     harness_components = {r["component_name"] for r in data["harness"]}
-    assert not server_components.intersection(
-        harness_components
-    ), "Server and Harness should not share components"
+    assert not server_components.intersection(harness_components), "Server and Harness should not share components"

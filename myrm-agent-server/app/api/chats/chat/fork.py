@@ -84,6 +84,7 @@ async def fork_conversation(
     except Exception as e:
         raise internal_error(operation="Fork conversation", exception=e) from e
 
+
 @router.get("/{chat_id}/fork-info", response_model=StandardSuccessResponse)
 async def get_fork_info(
     chat_id: str,
@@ -124,4 +125,3 @@ async def get_fork_info(
         raise
     except Exception as e:
         raise internal_error(operation="Get fork info", exception=e) from e
-

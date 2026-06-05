@@ -49,8 +49,13 @@ class _DispatcherWaker(Protocol):
 
 class _EventPublisher(Protocol):
     def __call__(
-        self, board_id: str, task_id: str, action: str,
-        *, title: str, status: str,
+        self,
+        board_id: str,
+        task_id: str,
+        action: str,
+        *,
+        title: str,
+        status: str,
     ) -> None: ...
 
 
@@ -89,7 +94,9 @@ async def run_decompose_task(
     """Run the TaskDecomposer on a single TRIAGE task (preview only)."""
     if decomposer is None:
         return DecomposeOutcome(
-            task_id=task_id, ok=False, reason="decomposer_unavailable",
+            task_id=task_id,
+            ok=False,
+            reason="decomposer_unavailable",
         )
 
     task = await store.get_task(task_id)
@@ -98,7 +105,9 @@ async def run_decompose_task(
 
     roster, _valid_ids, default_id = await build_agent_roster()
     return await decomposer.decompose(
-        task, roster=roster, default_assignee=default_id,
+        task,
+        roster=roster,
+        default_assignee=default_id,
     )
 
 
@@ -126,7 +135,9 @@ async def run_apply_decompose(
         return DecomposeOutcome(task_id=task_id, ok=False, reason="unknown_task")
     if task.status != TaskStatus.TRIAGE:
         return DecomposeOutcome(
-            task_id=task_id, ok=False, reason="race_lost",
+            task_id=task_id,
+            ok=False,
+            reason="race_lost",
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
         )
@@ -167,8 +178,11 @@ async def run_apply_decompose(
 
     wake_dispatcher(task.board_id)
     publish_event(
-        task.board_id, task.task_id, "decomposed",
-        title=task.title, status=task.status.value,
+        task.board_id,
+        task.task_id,
+        "decomposed",
+        title=task.title,
+        status=task.status.value,
     )
 
     return DecomposeOutcome(
@@ -210,7 +224,9 @@ async def run_apply_no_fanout(
         return DecomposeOutcome(task_id=task_id, ok=False, reason="unknown_task")
     if task.status != TaskStatus.TRIAGE:
         return DecomposeOutcome(
-            task_id=task_id, ok=False, reason="race_lost",
+            task_id=task_id,
+            ok=False,
+            reason="race_lost",
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
         )
@@ -242,8 +258,11 @@ async def run_apply_no_fanout(
 
     wake_dispatcher(task.board_id)
     publish_event(
-        task.board_id, task.task_id, "specified",
-        title=task.title, status=task.status.value,
+        task.board_id,
+        task.task_id,
+        "specified",
+        title=task.title,
+        status=task.status.value,
     )
 
     return DecomposeOutcome(

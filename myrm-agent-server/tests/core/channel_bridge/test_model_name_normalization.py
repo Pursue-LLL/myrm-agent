@@ -1,6 +1,5 @@
 """Test model name normalization for OpenAI/Anthropic/Gemini compatible providers."""
 
-
 from app.core.channel_bridge.model_resolver import _normalize_model_name
 
 

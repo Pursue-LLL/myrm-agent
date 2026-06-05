@@ -55,14 +55,10 @@ def parse_memory_type(raw: str) -> MemoryType:
     try:
         return MemoryType(raw)
     except ValueError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Invalid memory type: {raw}"
-        ) from e
+        raise HTTPException(status_code=400, detail=f"Invalid memory type: {raw}") from e
 
 
-def memory_to_item(
-    memory: AnyMemory | ProfileEntry, memory_type: MemoryType
-) -> MemoryItem:
+def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) -> MemoryItem:
     """Convert a framework memory model to an API response item."""
     base_id = getattr(memory, "id", "")
     content = getattr(memory, "content", "")

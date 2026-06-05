@@ -97,17 +97,13 @@ async def handle_room_message(
     if msg_type == "m.text":
         content = strip_matrix_mention(body, user_id) if user_id else body
     elif msg_type == "m.image":
-        media_list.append(
-            MediaAttachment(media_type=MediaType.IMAGE, url=media_url, filename=body)
-        )
+        media_list.append(MediaAttachment(media_type=MediaType.IMAGE, url=media_url, filename=body))
     elif msg_type == "m.audio":
         media_list.append(MediaAttachment(media_type=MediaType.AUDIO, url=media_url))
     elif msg_type == "m.video":
         media_list.append(MediaAttachment(media_type=MediaType.VIDEO, url=media_url))
     elif msg_type == "m.file":
-        media_list.append(
-            MediaAttachment(media_type=MediaType.DOCUMENT, url=media_url, filename=body)
-        )
+        media_list.append(MediaAttachment(media_type=MediaType.DOCUMENT, url=media_url, filename=body))
 
     if not content.strip() and not media_list:
         return
@@ -152,17 +148,17 @@ async def handle_room_message(
 
 
 _REACTION_EMOJI_MAP: dict[str, str] = {
-    "+1": "\U0001F44D",
-    "👍": "\U0001F44D",
+    "+1": "\U0001f44d",
+    "👍": "\U0001f44d",
     "✅": "\u2705",
     "❤": "\u2764",
-    "♾️": "\u267E",
-    "♾": "\u267E",
-    "⭐": "\u2B50",
-    "-1": "\U0001F44E",
-    "👎": "\U0001F44E",
-    "❌": "\u274C",
-    "🚫": "\U0001F6AB",
+    "♾️": "\u267e",
+    "♾": "\u267e",
+    "⭐": "\u2b50",
+    "-1": "\U0001f44e",
+    "👎": "\U0001f44e",
+    "❌": "\u274c",
+    "🚫": "\U0001f6ab",
 }
 
 

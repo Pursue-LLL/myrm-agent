@@ -142,9 +142,7 @@ async def _apply_tauri_dev_mode(page: Page) -> None:
 
 async def _dismiss_conflict_dialog(page: Page) -> None:
     try:
-        btn = page.locator(
-            'button:has-text("保留本地修改"), button:has-text("采用服务端数据")'
-        ).first
+        btn = page.locator('button:has-text("保留本地修改"), button:has-text("采用服务端数据")').first
         if await btn.count() > 0:
             await btn.click(force=True)
             await page.wait_for_timeout(400)
@@ -190,34 +188,27 @@ async def _add_custom_openai_like(
     api_key: str,
     model_id: str,
 ) -> None:
-    await page.get_by_role(
-        "button", name=re.compile(r"添加提供商|Add Provider")
-    ).click()
+    await page.get_by_role("button", name=re.compile(r"添加提供商|Add Provider")).click()
     dialog = page.get_by_role("dialog")
     await dialog.get_by_placeholder(re.compile(r"MyCustom|如")).fill(display_name)
     await dialog.get_by_role("button", name=re.compile(r"^添加$|^Add$")).click()
     await page.wait_for_timeout(800)
 
-    await page.get_by_placeholder(re.compile(r"https://api")).fill(
-        api_base_url.rstrip("/")
-    )
+    await page.get_by_placeholder(re.compile(r"https://api")).fill(api_base_url.rstrip("/"))
 
-    await page.locator("button.w-full.py-4").filter(
-        has_text=re.compile(r"添加|Add")
-    ).click()
+    await page.locator("button.w-full.py-4").filter(has_text=re.compile(r"添加|Add")).click()
     await page.locator('input[placeholder="sk-..."]').fill(api_key)
-    await page.locator("form").filter(
-        has=page.locator('input[placeholder="sk-..."]')
-    ).get_by_role("button", name=re.compile(r"添加|Add")).click()
+    await (
+        page.locator("form")
+        .filter(has=page.locator('input[placeholder="sk-..."]'))
+        .get_by_role("button", name=re.compile(r"添加|Add"))
+        .click()
+    )
     await page.wait_for_timeout(600)
 
     await page.get_by_role("button", name=re.compile(r"添加模型|Add Model")).click()
-    row = page.locator("div.flex.gap-2").filter(
-        has=page.locator('input[placeholder*="模型名称"], input[placeholder*="gpt-4"]')
-    )
-    await row.locator(
-        'input[placeholder*="模型名称"], input[placeholder*="gpt-4"]'
-    ).fill(model_id)
+    row = page.locator("div.flex.gap-2").filter(has=page.locator('input[placeholder*="模型名称"], input[placeholder*="gpt-4"]'))
+    await row.locator('input[placeholder*="模型名称"], input[placeholder*="gpt-4"]').fill(model_id)
     await row.get_by_role("button", name=re.compile(r"^添加$|^Add$")).click()
 
     card = _model_row(page, model_id)
@@ -227,40 +218,30 @@ async def _add_custom_openai_like(
         await _await_toggle_validate(card)
 
 
-async def _configure_builtin_provider(
-    page: Page, aria_name: str, api_key: str, model_id: str
-) -> None:
+async def _configure_builtin_provider(page: Page, aria_name: str, api_key: str, model_id: str) -> None:
     target = page.locator(f'[role="button"][aria-label="{aria_name}"]').first
     await target.scroll_into_view_if_needed()
     await target.click()
     await page.wait_for_timeout(400)
 
-    add_key = page.locator("button.w-full.py-4").filter(
-        has_text=re.compile(r"添加|Add")
-    )
+    add_key = page.locator("button.w-full.py-4").filter(has_text=re.compile(r"添加|Add"))
     if await add_key.count() > 0:
         await add_key.click()
         await page.locator('input[placeholder="sk-..."]').fill(api_key)
-        await page.locator("form").filter(
-            has=page.locator('input[placeholder="sk-..."]')
-        ).get_by_role("button", name=re.compile(r"添加|Add")).click()
+        await (
+            page.locator("form")
+            .filter(has=page.locator('input[placeholder="sk-..."]'))
+            .get_by_role("button", name=re.compile(r"添加|Add"))
+            .click()
+        )
         await page.wait_for_timeout(600)
 
-    if (
-        await page.locator("span.text-sm.font-medium")
-        .filter(has_text=re.compile(rf"^{re.escape(model_id)}$"))
-        .count()
-        == 0
-    ):
+    if await page.locator("span.text-sm.font-medium").filter(has_text=re.compile(rf"^{re.escape(model_id)}$")).count() == 0:
         await page.get_by_role("button", name=re.compile(r"添加模型|Add Model")).click()
         row = page.locator("div.flex.gap-2").filter(
-            has=page.locator(
-                'input[placeholder*="模型名称"], input[placeholder*="gpt-4"]'
-            )
+            has=page.locator('input[placeholder*="模型名称"], input[placeholder*="gpt-4"]')
         )
-        await row.locator(
-            'input[placeholder*="模型名称"], input[placeholder*="gpt-4"]'
-        ).fill(model_id)
+        await row.locator('input[placeholder*="模型名称"], input[placeholder*="gpt-4"]').fill(model_id)
         await row.get_by_role("button", name=re.compile(r"^添加$|^Add$")).click()
         await page.wait_for_timeout(400)
 
@@ -371,15 +352,10 @@ def _resolve_working_base_selection() -> dict[str, object]:
             print(f"[probe] skip {label}: {exc}")
             continue
         if _probe_model_selection_works(selection):
-            print(
-                f"[probe] using {label} model "
-                f"{selection.get('providerId')}/{selection.get('model')}"
-            )
+            print(f"[probe] using {label} model {selection.get('providerId')}/{selection.get('model')}")
             return selection
         print(f"[probe] {label} model auth failed, trying next")
-    raise RuntimeError(
-        "No working model API key in .env.test (probed BASIC_MODEL and LITE_MODEL)"
-    )
+    raise RuntimeError("No working model API key in .env.test (probed BASIC_MODEL and LITE_MODEL)")
 
 
 def _patch_provider_entry(
@@ -497,9 +473,7 @@ def _sync_providers_and_defaults_from_env() -> dict[str, object]:
         }
 
         dm_resp = client.get("/api/v1/config/defaultModelConfig")
-        dm_version = (
-            dm_resp.json().get("version") if dm_resp.status_code == 200 else None
-        )
+        dm_version = dm_resp.json().get("version") if dm_resp.status_code == 200 else None
 
         changes: list[dict[str, object]] = [
             {
@@ -529,9 +503,7 @@ def _sync_providers_and_defaults_from_env() -> dict[str, object]:
 
 
 async def _pick_default_models(page: Page, basic_mid: str, lite_mid: str) -> None:
-    blocks = page.locator("div.space-y-3").filter(
-        has=page.locator("label", has_text=re.compile(r"选择模型|Select"))
-    )
+    blocks = page.locator("div.space-y-3").filter(has=page.locator("label", has_text=re.compile(r"选择模型|Select")))
     await blocks.first.wait_for(state="visible", timeout=120_000)
     await page.wait_for_timeout(1200)
 
@@ -547,24 +519,14 @@ async def _pick_default_models(page: Page, basic_mid: str, lite_mid: str) -> Non
             timeout=60_000,
         )
         needle = want_suffix.split("/")[-1]
-        inp = (
-            page.locator('input[placeholder="搜索模型..."]')
-            .locator("visible=true")
-            .first
-        )
+        inp = page.locator('input[placeholder="搜索模型..."]').locator("visible=true").first
         await inp.fill("")
         search_token = needle if idx == 0 else "MiniMax"
         await inp.fill(search_token)
         await page.wait_for_timeout(700)
-        scroll = inp.locator(
-            'xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]'
-        )
+        scroll = inp.locator('xpath=ancestor::div[contains(@class,"bg-popover")][1]/div[contains(@class,"max-h-64")]')
         await scroll.wait_for(state="visible", timeout=30_000)
-        btn = (
-            scroll.locator("button")
-            .filter(has_text=re.compile(re.escape(needle), re.I))
-            .first
-        )
+        btn = scroll.locator("button").filter(has_text=re.compile(re.escape(needle), re.I)).first
         try:
             await btn.scroll_into_view_if_needed()
             await btn.click()
@@ -573,9 +535,7 @@ async def _pick_default_models(page: Page, basic_mid: str, lite_mid: str) -> Non
                 excerpt = (await scroll.inner_text(timeout=5000))[:1200]
             except Exception:
                 excerpt = await inp.evaluate("el => el.outerHTML.slice(0, 400)")
-            raise RuntimeError(
-                f"popover_pick_failed token={needle!r} excerpt={excerpt!r}"
-            ) from exc
+            raise RuntimeError(f"popover_pick_failed token={needle!r} excerpt={excerpt!r}") from exc
         await page.wait_for_timeout(500)
 
     await pick_nth(0, basic_mid)
@@ -586,18 +546,14 @@ async def setup_models_from_env(page: Page) -> None:
     load_dotenv(SERVER_ROOT / ".env", override=True)
     _sync_providers_and_defaults_from_env()
 
-    basic_kind, basic_mid = _split_model(
-        os.environ.get("BASIC_MODEL", "openai-like/mimo-v2.5-pro")
-    )
+    basic_kind, basic_mid = _split_model(os.environ.get("BASIC_MODEL", "openai-like/mimo-v2.5-pro"))
     _, lite_mid = _split_model(os.environ.get("LITE_MODEL", "minimax/MiniMax-M2.7"))
     basic_base = os.environ.get("BASIC_BASE_URL", "").strip()
     basic_key = os.environ.get("BASIC_API_KEY", "").strip()
     lite_key = os.environ.get("LITE_API_KEY", "").strip()
 
     if not basic_key or not lite_key:
-        raise RuntimeError(
-            "BASIC_API_KEY and LITE_API_KEY must be set in myrm-agent-server/.env.test"
-        )
+        raise RuntimeError("BASIC_API_KEY and LITE_API_KEY must be set in myrm-agent-server/.env.test")
 
     stamp = int(time.time())
     custom_name = f"E2E Basic {stamp}"
@@ -610,28 +566,20 @@ async def setup_models_from_env(page: Page) -> None:
     await _dismiss_conflict_dialog(page)
 
     # 等待 ProviderList 加载完成（骨架屏消失）
-    await page.locator('[role="button"][aria-label="MiniMax"]').first.wait_for(
-        state="visible", timeout=60_000
-    )
+    await page.locator('[role="button"][aria-label="MiniMax"]').first.wait_for(state="visible", timeout=60_000)
 
     if basic_kind.replace("-", "_") in ("openai_like", "openai-like") and basic_base:
         print(f"[配置] 添加 OpenAI-Like 供应商: {custom_name}")
-        await _add_custom_openai_like(
-            page, custom_name, basic_base, basic_key, basic_mid.split("/")[-1]
-        )
+        await _add_custom_openai_like(page, custom_name, basic_base, basic_key, basic_mid.split("/")[-1])
         await _emit_escape_burst(page)
         await _ensure_provider_main_switch_on(page, custom_name)
     else:
         print("[配置] 配置 Xiaomi MiMo (内置)...")
-        await _configure_builtin_provider(
-            page, "Xiaomi MiMo", basic_key, basic_mid.split("/")[-1]
-        )
+        await _configure_builtin_provider(page, "Xiaomi MiMo", basic_key, basic_mid.split("/")[-1])
         await _ensure_provider_main_switch_on(page, "Xiaomi MiMo")
 
     print("[配置] 配置 MiniMax...")
-    await _configure_builtin_provider(
-        page, "MiniMax", lite_key, lite_mid.split("/")[-1]
-    )
+    await _configure_builtin_provider(page, "MiniMax", lite_key, lite_mid.split("/")[-1])
     await _ensure_provider_main_switch_on(page, "MiniMax")
 
     await _goto_with_retry(page, f"{BASE_URL}/settings/models")
@@ -820,9 +768,7 @@ def _apply_workspace_compression(raw_stdout: str, workspace_dir: Path | None) ->
 
 
 def _assert_compressed_blob(blob: str) -> None:
-    masked_ok = "E2E_MASKED_VAL" in blob or (
-        "E2E_MASK_TOKEN=" in blob and "12345abcdef" not in blob
-    )
+    masked_ok = "E2E_MASKED_VAL" in blob or ("E2E_MASK_TOKEN=" in blob and "12345abcdef" not in blob)
     assert masked_ok, blob[:500]
     assert "E2E_BEGIN_LINE" in blob, blob[:500]
     assert "E2E_FINISH_LINE" in blob, blob[:500]
@@ -854,17 +800,11 @@ async def _wait_workspace_e2e_artifacts(page: Page, timeout_s: float = 300.0) ->
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         ws_dir = await _resolve_chat_workspace(page) or _latest_e2e_workspace()
-        if (
-            ws_dir
-            and (ws_dir / ".myrm/filters.yaml").is_file()
-            and (ws_dir / "run.sh").is_file()
-        ):
+        if ws_dir and (ws_dir / ".myrm/filters.yaml").is_file() and (ws_dir / "run.sh").is_file():
             print(f"[workspace] E2E artifacts ready in {ws_dir}")
             return _verify_compression_in_workspace(ws_dir)
         await asyncio.sleep(3)
-    raise TimeoutError(
-        "Timed out waiting for .myrm/filters.yaml and run.sh in session workspace"
-    )
+    raise TimeoutError("Timed out waiting for .myrm/filters.yaml and run.sh in session workspace")
 
 
 async def _get_chat_id_from_page(page: Page) -> str | None:
@@ -936,9 +876,7 @@ async def _wait_bash_output_compressed(page: Page, timeout_s: float = 360.0) -> 
         assistant_text = await _collect_assistant_text(page)
         thread_text = await _chat_thread_text(page)
         # Prefer tool stdout (DOM terminal or captured SSE chunks).
-        combined = (
-            last_terminal.strip() or sse_stdout.strip() or assistant_text or thread_text
-        )
+        combined = last_terminal.strip() or sse_stdout.strip() or assistant_text or thread_text
         if combined.strip():
             if workspace_dir is None:
                 workspace_dir = await _resolve_chat_workspace(page)
@@ -959,29 +897,12 @@ async def _wait_bash_output_compressed(page: Page, timeout_s: float = 360.0) -> 
         )
         if any(m in combined for m in fatal_markers):
             raise RuntimeError(f"Agent/backend error visible in UI: {combined[:800]!r}")
-        masked_ok = "E2E_MASKED_VAL" in combined or (
-            "E2E_MASK_TOKEN=" in combined and "12345abcdef" not in combined
-        )
-        if (
-            masked_ok
-            and "E2E_BEGIN_LINE" in combined
-            and "E2E_FINISH_LINE" in combined
-            and "E2E_DEBUG:" not in combined
-        ):
+        masked_ok = "E2E_MASKED_VAL" in combined or ("E2E_MASK_TOKEN=" in combined and "12345abcdef" not in combined)
+        if masked_ok and "E2E_BEGIN_LINE" in combined and "E2E_FINISH_LINE" in combined and "E2E_DEBUG:" not in combined:
             return combined
-        ws_dir = (
-            workspace_dir
-            or await _resolve_chat_workspace(page)
-            or _latest_e2e_workspace()
-        )
-        if (
-            ws_dir
-            and (ws_dir / "run.sh").is_file()
-            and (ws_dir / ".myrm/filters.yaml").is_file()
-        ):
-            print(
-                f"[wait] UI stream empty; verifying compression in workspace {ws_dir}"
-            )
+        ws_dir = workspace_dir or await _resolve_chat_workspace(page) or _latest_e2e_workspace()
+        if ws_dir and (ws_dir / "run.sh").is_file() and (ws_dir / ".myrm/filters.yaml").is_file():
+            print(f"[wait] UI stream empty; verifying compression in workspace {ws_dir}")
             return _verify_compression_in_workspace(ws_dir)
         await asyncio.sleep(2)
     raise TimeoutError(
@@ -1006,9 +927,7 @@ async def _chat_thread_text(page: Page) -> str:
     )
 
 
-async def _wait_user_prompt_visible(
-    page: Page, needle: str, timeout_s: float = 60.0
-) -> None:
+async def _wait_user_prompt_visible(page: Page, needle: str, timeout_s: float = 60.0) -> None:
     await page.wait_for_function(
         """(text) => (document.querySelector('main')?.innerText || '').includes(text)""",
         arg=needle,
@@ -1097,15 +1016,11 @@ async def test_bash_compressor_e2e():
             await _start_new_chat(page)
             await _select_general_assistant(page)
 
-            await page.screenshot(
-                path=str(SCREENSHOTS_DIR / "debug_before_textarea.png")
-            )
+            await page.screenshot(path=str(SCREENSHOTS_DIR / "debug_before_textarea.png"))
 
             await _install_sse_capture(page)
             await _fill_chat_input(page, PROMPT)
-            input_val = await page.locator(
-                "textarea[data-chat-input]"
-            ).first.input_value()
+            input_val = await page.locator("textarea[data-chat-input]").first.input_value()
             print(f"Input value after fill: {len(input_val)} chars")
             assert len(input_val.strip()) > 0, "Chat input is empty after fill"
 
@@ -1118,28 +1033,17 @@ async def test_bash_compressor_e2e():
 
             print("\n[测试 2/2] 验证终端 stdout 压缩特征...")
             try:
-                terminal_text = await _wait_bash_output_compressed(
-                    page, timeout_s=120.0
-                )
+                terminal_text = await _wait_bash_output_compressed(page, timeout_s=120.0)
             except TimeoutError:
                 print("[fallback] UI 无 stdout，改为 workspace 磁盘验证...")
-                terminal_text = await _wait_workspace_e2e_artifacts(
-                    page, timeout_s=180.0
-                )
-            print(
-                f"--- TERMINAL STDOUT (len={len(terminal_text)}) ---\n"
-                f"{terminal_text[:2500]}\n-----------------"
-            )
+                terminal_text = await _wait_workspace_e2e_artifacts(page, timeout_s=180.0)
+            print(f"--- TERMINAL STDOUT (len={len(terminal_text)}) ---\n{terminal_text[:2500]}\n-----------------")
 
-            await page.screenshot(
-                path=str(SCREENSHOTS_DIR / "bash_compressor_success.png")
-            )
+            await page.screenshot(path=str(SCREENSHOTS_DIR / "bash_compressor_success.png"))
             print("Bash compressor E2E passed")
 
         except Exception as exc:
-            await page.screenshot(
-                path=str(SCREENSHOTS_DIR / "bash_compressor_failed.png")
-            )
+            await page.screenshot(path=str(SCREENSHOTS_DIR / "bash_compressor_failed.png"))
             raise AssertionError(f"Bash Compressor E2E test failed: {exc}") from exc
         finally:
             await context.close()

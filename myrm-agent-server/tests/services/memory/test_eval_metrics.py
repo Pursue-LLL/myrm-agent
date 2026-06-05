@@ -60,11 +60,16 @@ class TestBuildEvalMetrics:
         migration: MemoryCommandMigrationProvenance,
     ) -> None:
         mock_get.return_value.snapshot.return_value = _make_snapshot(
-            cross_session_hits=10, total_sourced_hits=20, cross_session_hit_rate=0.5,
+            cross_session_hits=10,
+            total_sourced_hits=20,
+            cross_session_hit_rate=0.5,
         )
 
         result = insights.build_eval_metrics(
-            timeline=[], influence=[], conflicts=[], migration=migration,
+            timeline=[],
+            influence=[],
+            conflicts=[],
+            migration=migration,
         )
 
         ids = [m.id for m in result]
@@ -86,7 +91,10 @@ class TestBuildEvalMetrics:
         mock_get.return_value.snapshot.return_value = _make_snapshot()
 
         result = insights.build_eval_metrics(
-            timeline=[], influence=[], conflicts=[], migration=migration,
+            timeline=[],
+            influence=[],
+            conflicts=[],
+            migration=migration,
         )
 
         cs_metric = next(m for m in result if m.id == "cross_session_transfer")
@@ -101,11 +109,16 @@ class TestBuildEvalMetrics:
         migration: MemoryCommandMigrationProvenance,
     ) -> None:
         mock_get.return_value.snapshot.return_value = _make_snapshot(
-            cross_session_hits=3, total_sourced_hits=10, cross_session_hit_rate=0.3,
+            cross_session_hits=3,
+            total_sourced_hits=10,
+            cross_session_hit_rate=0.3,
         )
 
         result = insights.build_eval_metrics(
-            timeline=[], influence=[], conflicts=[], migration=migration,
+            timeline=[],
+            influence=[],
+            conflicts=[],
+            migration=migration,
         )
 
         cs_metric = next(m for m in result if m.id == "cross_session_transfer")
@@ -122,7 +135,10 @@ class TestBuildEvalMetrics:
         mock_get.return_value.snapshot.return_value = _make_snapshot()
 
         result = insights.build_eval_metrics(
-            timeline=[], influence=[], conflicts=[], migration=migration,
+            timeline=[],
+            influence=[],
+            conflicts=[],
+            migration=migration,
         )
 
         assert len(result) == 5

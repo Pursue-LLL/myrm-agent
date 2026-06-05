@@ -190,9 +190,7 @@ class TestBugFixes:
                 # Should have opening fence
                 assert "```" in chunk[:20], f"Chunk containing fence content should start with fence: {chunk[:50]}"
                 # Should have closing fence
-                assert chunk.rstrip().endswith("```"), (
-                    f"Chunk containing fence content should end with fence: {chunk[-20:]}"
-                )
+                assert chunk.rstrip().endswith("```"), f"Chunk containing fence content should end with fence: {chunk[-20:]}"
 
     def test_tilde_fence_support(self) -> None:
         """Enhancement: ~~~ fences should be supported (not just ```)."""

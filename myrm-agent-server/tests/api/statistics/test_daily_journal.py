@@ -52,9 +52,21 @@ class TestBuildTimeline:
         assert result[0]["title"] == "Test"
 
     def test_mixed_types_sorted_by_time(self):
-        sessions = [{"started_at": "2026-05-20T14:00:00", "chat_id": "c1", "title": "Late session", "action_mode": "chat", "total_tokens": 0}]
-        approvals = [{"created_at": "2026-05-20T09:00:00", "id": "a1", "action_type": "bash", "status": "approved", "severity": "high"}]
-        cron_runs = [{"started_at": "2026-05-20T12:00:00", "id": "cr1", "job_id": "heartbeat", "status": "success", "duration_ms": 500}]
+        sessions = [
+            {
+                "started_at": "2026-05-20T14:00:00",
+                "chat_id": "c1",
+                "title": "Late session",
+                "action_mode": "chat",
+                "total_tokens": 0,
+            }
+        ]
+        approvals = [
+            {"created_at": "2026-05-20T09:00:00", "id": "a1", "action_type": "bash", "status": "approved", "severity": "high"}
+        ]
+        cron_runs = [
+            {"started_at": "2026-05-20T12:00:00", "id": "cr1", "job_id": "heartbeat", "status": "success", "duration_ms": 500}
+        ]
         kanban_events = [{"created_at": "2026-05-20T11:00:00", "id": 1, "task_id": "t1", "kind": "created"}]
 
         result = _build_timeline(sessions, approvals, cron_runs, kanban_events)
@@ -64,7 +76,9 @@ class TestBuildTimeline:
 
     def test_null_time_sorted_to_end(self):
         """FIX 2 verification: events without time go to end of timeline."""
-        sessions = [{"started_at": "2026-05-20T08:00:00", "chat_id": "c1", "title": "Morning", "action_mode": "chat", "total_tokens": 0}]
+        sessions = [
+            {"started_at": "2026-05-20T08:00:00", "chat_id": "c1", "title": "Morning", "action_mode": "chat", "total_tokens": 0}
+        ]
         kanban_events = [{"created_at": None, "id": 1, "task_id": "t1", "kind": "created"}]
 
         result = _build_timeline(sessions, [], [], kanban_events)
@@ -74,7 +88,9 @@ class TestBuildTimeline:
         assert result[1]["time"] is None
 
     def test_multiple_null_times_at_end(self):
-        sessions = [{"started_at": "2026-05-20T10:00:00", "chat_id": "c1", "title": "S1", "action_mode": "chat", "total_tokens": 0}]
+        sessions = [
+            {"started_at": "2026-05-20T10:00:00", "chat_id": "c1", "title": "S1", "action_mode": "chat", "total_tokens": 0}
+        ]
         approvals = [{"created_at": None, "id": "a1", "action_type": "bash", "status": "pending", "severity": "low"}]
         kanban_events = [{"created_at": None, "id": 1, "task_id": "t1", "kind": "created"}]
 
@@ -134,10 +150,13 @@ class TestFetchToolCallCountDynamicDays:
         with (
             patch("app.api.statistics.daily_journal.settings") as mock_settings,
             patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict("sys.modules", {
-                "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
+                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
+                },
+            ),
         ):
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
@@ -169,10 +188,13 @@ class TestFetchToolCallCountDynamicDays:
         with (
             patch("app.api.statistics.daily_journal.settings") as mock_settings,
             patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict("sys.modules", {
-                "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
+                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
+                },
+            ),
         ):
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
@@ -208,10 +230,15 @@ class TestFetchToolCallCountDynamicDays:
         with (
             patch("app.api.statistics.daily_journal.settings") as mock_settings,
             patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict("sys.modules", {
-                "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(side_effect=RuntimeError("boom"))),
-                "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=MagicMock()),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "myrm_agent_harness.agent.event_log": MagicMock(
+                        EventLogAnalytics=MagicMock(side_effect=RuntimeError("boom"))
+                    ),
+                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=MagicMock()),
+                },
+            ),
         ):
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
@@ -240,10 +267,13 @@ class TestFetchToolCallCountDynamicDays:
         with (
             patch("app.api.statistics.daily_journal.settings") as mock_settings,
             patch("app.api.statistics.daily_journal.Path") as mock_path,
-            patch.dict("sys.modules", {
-                "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
-                "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
-            }),
+            patch.dict(
+                "sys.modules",
+                {
+                    "myrm_agent_harness.agent.event_log": MagicMock(EventLogAnalytics=MagicMock(return_value=mock_analytics)),
+                    "myrm_agent_harness.agent.event_log.backends.file_backend": MagicMock(FileEventLogBackend=mock_backend_cls),
+                },
+            ),
         ):
             mock_settings.database.event_log_dir = "/tmp/test"
             mock_path.return_value.exists.return_value = True
@@ -292,9 +322,15 @@ class TestGetDailyJournalEndpoint:
         from app.api.statistics.daily_journal import get_daily_journal
 
         chat_row = (
-            "chat-1", "Test Chat", "chat", "web", None,
+            "chat-1",
+            "Test Chat",
+            "chat",
+            "web",
+            None,
             datetime(2026, 5, 20, 10, 0, 0, tzinfo=UTC),
-            500, 0.01, 3,
+            500,
+            0.01,
+            3,
         )
 
         call_count = 0

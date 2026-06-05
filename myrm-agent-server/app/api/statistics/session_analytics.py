@@ -43,9 +43,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _build_session_memory_events(
-    db: AsyncSession, session_id: str
-) -> list[dict[str, object]]:
+async def _build_session_memory_events(db: AsyncSession, session_id: str) -> list[dict[str, object]]:
     """Load session-scoped memory ledger events for replay overlay."""
     ledger = MemoryOperationLedgerService(db)
     rows = await ledger.list_events_for_session(session_id, limit=48)
@@ -119,12 +117,8 @@ async def get_session_analytics(
         async def get_message_stats() -> dict[str, object]:
             msg_stmt = select(
                 func.count(Message.id).label("total_messages"),
-                func.sum(case((Message.role == "user", 1), else_=0)).label(
-                    "user_messages"
-                ),
-                func.sum(case((Message.role == "assistant", 1), else_=0)).label(
-                    "assistant_messages"
-                ),
+                func.sum(case((Message.role == "user", 1), else_=0)).label("user_messages"),
+                func.sum(case((Message.role == "assistant", 1), else_=0)).label("assistant_messages"),
             ).where(Message.chat_id == session_id)
             msg_result = await db.execute(msg_stmt)
             row = msg_result.one()
@@ -148,9 +142,7 @@ async def get_session_analytics(
             }
 
         async def get_event_log_data() -> dict[str, object]:
-            event_log_file = (
-                Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
-            )
+            event_log_file = Path(settings.database.event_log_dir) / f"{session_id}.jsonl"
             if not event_log_file.exists():
                 return {
                     "duration_ms": 0,
@@ -161,13 +153,9 @@ async def get_session_analytics(
 
             from myrm_agent_harness.agent.event_log import EventLogger
 
-            backend = FileEventLogBackend(
-                log_dir=Path(settings.database.event_log_dir), session_id=session_id
-            )
+            backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
             event_logger = EventLogger(backend=backend, session_id=session_id)
-            summary = await event_logger.get_session_summary(
-                events_limit=150, timeline_limit=100
-            )
+            summary = await event_logger.get_session_summary(events_limit=150, timeline_limit=100)
 
             tool_breakdown = [
                 {
@@ -203,9 +191,7 @@ async def get_session_analytics(
 
         raw_task_metrics = event_log_data["task_metrics"]
         task_metrics_for_health: dict[str, object] = (
-            {str(k): v for k, v in raw_task_metrics.items()}
-            if isinstance(raw_task_metrics, dict)
-            else {}
+            {str(k): v for k, v in raw_task_metrics.items()} if isinstance(raw_task_metrics, dict) else {}
         )
 
         result = {
@@ -281,9 +267,7 @@ async def get_session_execution_trace(
         if not event_log_file.exists():
             return success_response(data=_empty_trace_payload(session_id, memory_events))
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id=session_id
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
         trace_data["memory_events"] = memory_events
@@ -292,16 +276,12 @@ async def get_session_execution_trace(
     except Exception as e:
         if "not found" in str(e).lower():
             raise
-        raise internal_error(
-            operation="Get session execution trace", exception=e
-        ) from e
+        raise internal_error(operation="Get session execution trace", exception=e) from e
 
 
 @router.get("/usage/model-sessions")
 async def get_model_sessions(
-    model: str = Query(
-        ..., description="The full model identifier, e.g., 'openai/gpt-4o'"
-    ),
+    model: str = Query(..., description="The full model identifier, e.g., 'openai/gpt-4o'"),
     days: int = Query(30, ge=1, le=90, description="Lookback period in days"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
@@ -322,9 +302,7 @@ async def get_model_sessions(
             Message.created_at >= start_dt,
         ]
 
-        stmt = select(Message.chat_id, Message.extra_data, Message.created_at).where(
-            and_(*filters)
-        )
+        stmt = select(Message.chat_id, Message.extra_data, Message.created_at).where(and_(*filters))
         result = await db.execute(stmt)
         rows = result.all()
 
@@ -358,35 +336,23 @@ async def get_model_sessions(
 
             agg = session_aggregates[chat_id]
             agg["calls"] = int(agg["calls"]) + 1
-            agg["inputTokens"] = int(agg["inputTokens"]) + int(
-                model_data.get("prompt_tokens") or 0
-            )
-            agg["outputTokens"] = int(agg["outputTokens"]) + int(
-                model_data.get("completion_tokens") or 0
-            )
-            agg["cachedTokens"] = int(agg["cachedTokens"]) + int(
-                model_data.get("cached_tokens") or 0
-            )
-            agg["totalTokens"] = int(agg["totalTokens"]) + int(
-                model_data.get("total_tokens") or 0
-            )
+            agg["inputTokens"] = int(agg["inputTokens"]) + int(model_data.get("prompt_tokens") or 0)
+            agg["outputTokens"] = int(agg["outputTokens"]) + int(model_data.get("completion_tokens") or 0)
+            agg["cachedTokens"] = int(agg["cachedTokens"]) + int(model_data.get("cached_tokens") or 0)
+            agg["totalTokens"] = int(agg["totalTokens"]) + int(model_data.get("total_tokens") or 0)
 
             cost_raw = model_data.get("cost_usd")
             if isinstance(cost_raw, (int, float)):
                 agg["costUsd"] = float(agg["costUsd"]) + float(cost_raw)
 
-            if created_at and (
-                agg["last_used_at"] is None or created_at > agg["last_used_at"]
-            ):
+            if created_at and (agg["last_used_at"] is None or created_at > agg["last_used_at"]):
                 agg["last_used_at"] = created_at
 
         if not session_aggregates:
             return success_response(data=[])
 
         chat_ids = list(session_aggregates.keys())
-        chat_stmt = select(
-            Chat.id, Chat.title, Chat.action_mode, Chat.created_at
-        ).where(Chat.id.in_(chat_ids))
+        chat_stmt = select(Chat.id, Chat.title, Chat.action_mode, Chat.created_at).where(Chat.id.in_(chat_ids))
         chat_result = await db.execute(chat_stmt)
         chat_rows = chat_result.all()
 
@@ -403,18 +369,14 @@ async def get_model_sessions(
                     "chatId": chat_id,
                     "title": chat_row.title or "Untitled",
                     "actionMode": chat_row.action_mode,
-                    "createdAt": (
-                        chat_row.created_at.isoformat() if chat_row.created_at else None
-                    ),
+                    "createdAt": (chat_row.created_at.isoformat() if chat_row.created_at else None),
                     "calls": agg["calls"],
                     "inputTokens": agg["inputTokens"],
                     "outputTokens": agg["outputTokens"],
                     "cachedTokens": agg["cachedTokens"],
                     "totalTokens": agg["totalTokens"],
                     "costUsd": round(float(agg["costUsd"]), 6),
-                    "lastUsedAt": (
-                        agg["last_used_at"].isoformat() if agg["last_used_at"] else None
-                    ),
+                    "lastUsedAt": (agg["last_used_at"].isoformat() if agg["last_used_at"] else None),
                 }
             )
 
@@ -423,6 +385,4 @@ async def get_model_sessions(
 
         return success_response(data=results)
     except Exception as e:
-        raise internal_error(
-            operation="Get model-specific session statistics", exception=e
-        ) from e
+        raise internal_error(operation="Get model-specific session statistics", exception=e) from e

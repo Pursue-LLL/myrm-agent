@@ -70,4 +70,3 @@ async def check_stream_risk(
             media_type="text/event-stream",
             headers=SSE_RESPONSE_HEADERS,
         )
-

@@ -21,6 +21,8 @@ def _is_stop_command(content: str) -> bool:
     registry = CommandRegistry()
     resolved = registry.resolve(content)
     return resolved is not None and resolved.command_def.action == CommandAction.STOP
+
+
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken  # noqa: E402
 
 from app.channels.routing.router import AgentRouter  # noqa: E402

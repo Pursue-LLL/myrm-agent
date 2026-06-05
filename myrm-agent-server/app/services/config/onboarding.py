@@ -263,9 +263,7 @@ async def _probe_lm_studio(base_url: str = _LM_STUDIO_DEFAULT_URL) -> LocalProbe
 
         elapsed = int((time.monotonic() - start) * 1000)
         raw_models: list[dict[str, object]] = data.get("data", [])
-        models = [
-            DetectedModel(name=str(m.get("id", ""))) for m in raw_models if m.get("id")
-        ]
+        models = [DetectedModel(name=str(m.get("id", ""))) for m in raw_models if m.get("id")]
         return LocalProbeResult(
             provider="lm_studio",
             base_url=base_url,

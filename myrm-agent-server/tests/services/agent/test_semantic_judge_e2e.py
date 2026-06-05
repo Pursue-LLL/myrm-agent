@@ -152,6 +152,4 @@ class TestSemanticJudgeE2E:
         for raw, expected_done in cases:
             parsed = _parse_judge_json(raw)
             assert parsed is not None, f"Failed to parse: {raw!r}"
-            assert parsed["done"] is expected_done, (
-                f"Expected done={expected_done} for {raw!r}, got {parsed['done']}"
-            )
+            assert parsed["done"] is expected_done, f"Expected done={expected_done} for {raw!r}, got {parsed['done']}"

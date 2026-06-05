@@ -32,9 +32,7 @@ MAKE_PROMPT = (
 
 def _health_ok(client: httpx.Client) -> bool:
     try:
-        return (
-            client.get(f"{BACKEND_URL}/api/v1/health", timeout=10.0).status_code == 200
-        )
+        return client.get(f"{BACKEND_URL}/api/v1/health", timeout=10.0).status_code == 200
     except Exception:
         return False
 
@@ -43,10 +41,7 @@ def _create_agent(client: httpx.Client) -> str:
     payload = {
         "name": f"Make Filter Live {uuid.uuid4().hex[:6]}",
         "description": "Built-in make declarative compression E2E",
-        "system_prompt": (
-            "You MUST use bash_code_execute_tool for shell commands. "
-            "Follow user steps exactly."
-        ),
+        "system_prompt": ("You MUST use bash_code_execute_tool for shell commands. Follow user steps exactly."),
         "skill_ids": [],
         "mcp_ids": [],
         "security_overrides": {"yoloModeEnabled": True},
@@ -183,18 +178,14 @@ def test_bash_compressor_builtin_make_live_api() -> None:
             "memoryRequireConfirmation": False,
             "enableMemoryAutoExtraction": False,
         }
-        stdout_text, message_text, resume_payload, errors = _stream_once(
-            client, request_data
-        )
+        stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data)
         if resume_payload is not None:
             resume_request = {
                 **request_data,
                 "messageId": f"live-make-resume-{uuid.uuid4().hex[:10]}",
                 "resumeValue": resume_payload,
             }
-            stdout_resume, message_resume, _, resume_errors = _stream_once(
-                client, resume_request
-            )
+            stdout_resume, message_resume, _, resume_errors = _stream_once(client, resume_request)
             errors.extend(resume_errors)
             stdout_text = f"{stdout_text}{stdout_resume}"
             message_text = f"{message_text}{message_resume}"

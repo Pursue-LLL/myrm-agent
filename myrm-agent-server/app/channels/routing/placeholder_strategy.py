@@ -92,11 +92,7 @@ class DeferredPlaceholder:
     async def resolve_for_delivery(self, result: OutboundMessage | None) -> str | None:
         """Apply short-circuit only when defer has not completed yet."""
         if not self._done.is_set():
-            if (
-                result is not None
-                and qualifies_short_circuit(result)
-                and not self._had_activity
-            ):
+            if result is not None and qualifies_short_circuit(result) and not self._had_activity:
                 await self.cancel()
                 return None
             return await self.wait_for_id()

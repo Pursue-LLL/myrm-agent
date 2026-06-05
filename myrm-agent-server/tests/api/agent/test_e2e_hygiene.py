@@ -17,10 +17,10 @@ class TestGatewayHygieneE2E:
     def test_massive_payload_blocked(self, client: TestClient):
         """Test that a massive text payload is blocked with a 400 status."""
         model_selection = get_model_selection()
-        
+
         # Create a payload of 360,001 characters
         massive_text = "A" * 360001
-        
+
         search_request: dict[str, object] = {
             "query": massive_text,
             "message_id": "test-msg-id-hygiene",

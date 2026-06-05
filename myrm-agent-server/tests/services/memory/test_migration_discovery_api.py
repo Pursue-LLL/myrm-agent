@@ -18,7 +18,8 @@ from app.main import app
 @pytest.fixture()
 def client() -> TestClient:
     with patch(
-        "app.core.security.auth.identity.is_loopback_ip", return_value=True,
+        "app.core.security.auth.identity.is_loopback_ip",
+        return_value=True,
     ):
         yield TestClient(app)
 
@@ -34,7 +35,9 @@ class TestDiscoveryEndpointLocalMode:
     def test_discover_no_competitors(self, client: TestClient, tmp_path: Path) -> None:
         with patch(
             "app.api.migration.discovery.discover_competitors",
-            wraps=__import__("app.services.migration.competitor_discovery", fromlist=["discover_competitors"]).discover_competitors,
+            wraps=__import__(
+                "app.services.migration.competitor_discovery", fromlist=["discover_competitors"]
+            ).discover_competitors,
         ) as mock_discover:
             mock_discover.side_effect = lambda home_dir=None: __import__(
                 "app.services.migration.competitor_discovery", fromlist=["discover_competitors"]

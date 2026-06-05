@@ -15,9 +15,7 @@ from app.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -46,13 +44,16 @@ def _make_mock_params():
 @pytest.mark.asyncio
 async def test_completions_non_streaming(client: AsyncClient, api_key: str):
     """Non-streaming should return a complete JSON response."""
-    with patch(
-        "app.api.openai_compat.completions.ai_agent_service_stream",
-        new=_mock_agent_stream,
-    ), patch(
-        "app.api.openai_compat.completions._build_agent_params",
-        new_callable=AsyncMock,
-        return_value=_make_mock_params(),
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=_mock_agent_stream,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
     ):
         resp = await client.post(
             "/v1/chat/completions",
@@ -81,13 +82,16 @@ async def test_completions_streaming(client: AsyncClient, api_key: str):
         yield {"type": "message_chunk", "content": " there"}
         yield {"type": "message_end", "usage": {}}
 
-    with patch(
-        "app.api.openai_compat.completions.ai_agent_service_stream",
-        new=mock_stream_iter,
-    ), patch(
-        "app.api.openai_compat.completions._build_agent_params",
-        new_callable=AsyncMock,
-        return_value=_make_mock_params(),
+    with (
+        patch(
+            "app.api.openai_compat.completions.ai_agent_service_stream",
+            new=mock_stream_iter,
+        ),
+        patch(
+            "app.api.openai_compat.completions._build_agent_params",
+            new_callable=AsyncMock,
+            return_value=_make_mock_params(),
+        ),
     ):
         resp = await client.post(
             "/v1/chat/completions",

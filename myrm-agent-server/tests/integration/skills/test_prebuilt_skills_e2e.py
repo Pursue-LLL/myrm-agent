@@ -53,9 +53,7 @@ async def test_prebuilt_pipeline_lists_all_seeds(
     sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
     assert len(sync_result.skill_ids) >= 12
 
-    await skills_service.user_config.ensure_prebuilt_enabled_after_sync(
-        list(sync_result.skill_ids)
-    )
+    await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
 
     listed = await skills_service.list_skills()
     prebuilt_ids = {s.id for s in listed if s.type.value == "prebuilt"}

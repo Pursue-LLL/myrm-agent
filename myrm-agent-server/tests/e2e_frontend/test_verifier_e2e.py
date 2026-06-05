@@ -6,7 +6,9 @@ import asyncio
 import os
 import sys
 
-from e2e_frontend.verifier_helpers import (
+from patchright.async_api import async_playwright
+
+from tests.e2e_frontend.verifier_helpers import (
     BASIC_MODEL_NAME,
     bind_agent_to_chat,
     enable_adversarial_verifier_on_default_agent,
@@ -19,7 +21,6 @@ from e2e_frontend.verifier_helpers import (
     verify_providers_ready_in_ui,
     wait_for_assistant_text,
 )
-from patchright.async_api import async_playwright
 
 VERIFIER_TASK_PROMPT = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
 SHORT_CONTROL_PROMPT = "Reply with exactly: control-ok"
@@ -62,9 +63,7 @@ async def _wait_for_assistant_response(page, *, max_wait_s: int = 45) -> tuple[s
         try:
             assistant = page.locator('[data-test-id="assistant-message"]').last
             if await asyncio.wait_for(assistant.count(), timeout=5.0) > 0:
-                text = (
-                    await asyncio.wait_for(assistant.inner_text(), timeout=5.0)
-                ).strip()
+                text = (await asyncio.wait_for(assistant.inner_text(), timeout=5.0)).strip()
                 if text:
                     content = text
         except Exception:
@@ -119,18 +118,11 @@ async def main() -> None:
                 await bind_agent_to_chat(control_page, control_agent_id)
                 await select_chat_model(control_page)
                 await submit_chat_message(control_page, SHORT_CONTROL_PROMPT)
-                await control_page.get_by_text("control-ok", exact=False).first.wait_for(
-                    state="visible", timeout=30000
-                )
-                control_reply = await wait_for_assistant_text(
-                    control_page, max_wait_s=60, contains="control-ok"
-                )
+                await control_page.get_by_text("control-ok", exact=False).first.wait_for(state="visible", timeout=30000)
+                control_reply = await wait_for_assistant_text(control_page, max_wait_s=60, contains="control-ok")
                 if "control-ok" not in control_reply.lower():
                     if control_stream_started:
-                        print(
-                            "  Warning: exact control-ok not captured in assistant text; "
-                            "agent-stream activity confirmed"
-                        )
+                        print("  Warning: exact control-ok not captured in assistant text; agent-stream activity confirmed")
                     else:
                         raise AssertionError("Control agent assistant reply missing control-ok")
                 if not control_stream_started:
@@ -155,14 +147,10 @@ async def main() -> None:
                 await enable_adversarial_verifier_on_default_agent(chat_page)
                 await select_chat_model(chat_page)
                 await submit_chat_message(chat_page, VERIFIER_TASK_PROMPT)
-                await chat_page.get_by_text("Hello World", exact=False).first.wait_for(
-                    state="visible", timeout=30000
-                )
+                await chat_page.get_by_text("Hello World", exact=False).first.wait_for(state="visible", timeout=30000)
 
                 print("  Waiting for agent response (up to ~45s)...")
-                content, saw_generating = await _wait_for_assistant_response(
-                    chat_page, max_wait_s=45
-                )
+                content, saw_generating = await _wait_for_assistant_response(chat_page, max_wait_s=45)
 
                 print(f"  Model: {BASIC_MODEL_NAME}")
                 print(f"  Agent stream started: {agent_stream_started}")
@@ -184,18 +172,11 @@ async def main() -> None:
                         "tasks_steps",
                     )
                 )
-                has_live_activity = (
-                    saw_generating or bool(content.strip()) or agent_stream_started
-                )
+                has_live_activity = saw_generating or bool(content.strip()) or agent_stream_started
                 if not has_verifier_signal and not has_live_activity:
-                    raise AssertionError(
-                        "Verifier-enabled chat returned no observable stream activity"
-                    )
+                    raise AssertionError("Verifier-enabled chat returned no observable stream activity")
                 if not has_verifier_signal:
-                    print(
-                        "  Warning: verifier marker not found; stream activity confirmed "
-                        "(spawn logic covered by API E2E)"
-                    )
+                    print("  Warning: verifier marker not found; stream activity confirmed (spawn logic covered by API E2E)")
             finally:
                 await chat_page.close()
 

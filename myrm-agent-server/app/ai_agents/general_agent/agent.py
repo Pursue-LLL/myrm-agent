@@ -278,9 +278,7 @@ class GeneralAgent(ToolSetupMixin):
 
         return _wiki_bm25_search
 
-    def _resolve_context_binding(
-        self, effective_chat_id: str
-    ) -> ResolvedContextBinding | None:
+    def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""
 
         if not self.enable_memory:
@@ -302,9 +300,7 @@ class GeneralAgent(ToolSetupMixin):
         self,
         *,
         query: object,
-        chat_history: (
-            list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None
-        ),
+        chat_history: (list[list[str]] | list[list[str | object]] | Sequence[BaseMessage] | None),
         effective_chat_id: str,
     ) -> dict[str, object]:
         """Build server-layer runtime context passed into the harness."""
@@ -450,13 +446,9 @@ class GeneralAgent(ToolSetupMixin):
                     cleanup_session_context_files,
                 )
 
-                await cleanup_session_context_files(
-                    self._current_chat_id, self._executor
-                )
+                await cleanup_session_context_files(self._current_chat_id, self._executor)
             except Exception as e:
-                logger.warning(
-                    f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}"
-                )
+                logger.warning(f"⚠️ Context cleanup failed for chat_id={self._current_chat_id}: {e}")
 
         if self.agent is not None:
             try:

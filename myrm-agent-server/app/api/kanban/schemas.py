@@ -21,7 +21,8 @@ class BoardCreate(BaseModel):
     specify_max_tokens: int = Field(6000, ge=1500, le=32000)
     auto_specify_on_create: bool = False
     default_workdir: str | None = Field(
-        None, max_length=1024,
+        None,
+        max_length=1024,
         description="Default workspace directory for tasks on this board.",
     )
 
@@ -33,7 +34,8 @@ class BoardUpdate(BaseModel):
     specify_max_tokens: int | None = Field(None, ge=1500, le=32000)
     auto_specify_on_create: bool | None = None
     default_workdir: str | None = Field(
-        None, max_length=1024,
+        None,
+        max_length=1024,
         description="Default workspace directory for tasks on this board.",
     )
 
@@ -76,11 +78,13 @@ class TaskCreate(BaseModel):
     parent_task_id: str | None = None
     agent_id: str | None = None
     workspace_path: str | None = Field(
-        None, max_length=1024,
+        None,
+        max_length=1024,
         description="Working directory for this task. Overrides board default_workdir.",
     )
     branch: str | None = Field(
-        None, max_length=255,
+        None,
+        max_length=255,
         description="Git branch name. When set, creates an isolated worktree for this task.",
     )
     max_retries: int = Field(3, ge=0, le=20)
@@ -95,11 +99,14 @@ class TaskCreate(BaseModel):
         description="File IDs from /api/files/upload to attach to this task (max 10).",
     )
     completion_criteria: str | None = Field(
-        None, max_length=2000,
+        None,
+        max_length=2000,
         description="Natural-language acceptance criteria for completion verification",
     )
     max_runtime_seconds: int | None = Field(
-        None, ge=10, le=86400,
+        None,
+        ge=10,
+        le=86400,
         description="Per-task timeout in seconds (10s–24h). Falls back to system default when unset.",
     )
     initial_status: str | None = Field(
@@ -123,11 +130,14 @@ class TaskUpdate(BaseModel):
         description="Replace attachment file IDs. Pass [] to clear (max 10).",
     )
     max_runtime_seconds: int | None = Field(
-        None, ge=10, le=86400,
+        None,
+        ge=10,
+        le=86400,
         description="Per-task timeout in seconds (10s–24h).",
     )
     completion_criteria: str | None = Field(
-        None, max_length=2000,
+        None,
+        max_length=2000,
         description="Natural-language acceptance criteria for completion verification",
     )
 
@@ -148,7 +158,8 @@ class PromoteRequest(BaseModel):
         description="If true, skip dependency check and promote immediately.",
     )
     reason: str | None = Field(
-        None, max_length=500,
+        None,
+        max_length=500,
         description="Optional reason for force-promoting.",
     )
 
@@ -172,7 +183,8 @@ class ReclaimRequest(BaseModel):
     """Request body for manually reclaiming a RUNNING task."""
 
     reason: str | None = Field(
-        None, max_length=500,
+        None,
+        max_length=500,
         description="Human-readable reason for reclaiming the task.",
     )
     new_agent_id: str | None = Field(

@@ -36,7 +36,9 @@ def _reset_singleton() -> None:
 def _skip_agent_validation() -> None:  # type: ignore[misc]
     """Bypass agent_id validation for tests that don't test it explicitly."""
     with patch.object(
-        KanbanService, "_validate_agent_id", new_callable=AsyncMock,
+        KanbanService,
+        "_validate_agent_id",
+        new_callable=AsyncMock,
     ):
         yield
 
@@ -267,9 +269,7 @@ class TestListTasksAgentFilter:
         _create_task(client, bid, "T3", agent_id="agent-a")
         _create_task(client, bid, "T4")  # no agent
 
-        resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "agent-a"}
-        )
+        resp = client.get(f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "agent-a"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 2
@@ -290,9 +290,7 @@ class TestListTasksAgentFilter:
         bid = board["board_id"]
         _create_task(client, bid, "T1", agent_id="agent-a")
 
-        resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "ghost"}
-        )
+        resp = client.get(f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "ghost"})
         assert resp.status_code == 200
         assert resp.json()["total"] == 0
 
@@ -304,9 +302,7 @@ class TestListTasksAgentFilter:
         _create_task(client, bid, "T3", agent_id="a2")
 
         # Move t2 to running
-        client.post(
-            f"/api/v1/kanban/tasks/{t2['task_id']}/move", json={"status": "running"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{t2['task_id']}/move", json={"status": "running"})
 
         resp = client.get(
             f"/api/v1/kanban/boards/{bid}/tasks",
@@ -419,20 +415,14 @@ class TestClearAgentReferences:
         cleared = await svc.clear_agent_references("doomed")
         assert cleared == 2
 
-        resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "doomed"}
-        )
+        resp = client.get(f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "doomed"})
         assert resp.json()["total"] == 0
 
-        resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "safe"}
-        )
+        resp = client.get(f"/api/v1/kanban/boards/{bid}/tasks", params={"agent_id": "safe"})
         assert resp.json()["total"] == 1
 
     @pytest.mark.asyncio
-    async def test_clear_nonexistent_agent_returns_zero(
-        self, client: TestClient
-    ) -> None:
+    async def test_clear_nonexistent_agent_returns_zero(self, client: TestClient) -> None:
         svc = KanbanService.get_instance()
         cleared = await svc.clear_agent_references("nonexistent")
         assert cleared == 0
@@ -582,9 +572,7 @@ class TestDependencyApi:
             json={"parent_task_id": parent["task_id"]},
         )
 
-        resp = client.delete(
-            f"/api/v1/kanban/tasks/{child['task_id']}/dependencies/{parent['task_id']}"
-        )
+        resp = client.delete(f"/api/v1/kanban/tasks/{child['task_id']}/dependencies/{parent['task_id']}")
         assert resp.status_code == 204
 
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}/dependencies")
@@ -621,9 +609,7 @@ class TestDependencyApi:
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}")
         assert resp.json()["status"] == "backlog"
 
-    def test_remove_dependency_promotes_backlog_to_ready(
-        self, client: TestClient
-    ) -> None:
+    def test_remove_dependency_promotes_backlog_to_ready(self, client: TestClient) -> None:
         board = _create_board(client)
         bid = board["board_id"]
         parent = _create_task(client, bid, "Parent")
@@ -659,9 +645,7 @@ class TestDependencyApi:
         bid = board["board_id"]
         child = _create_task(client, bid, "Child")
 
-        resp = client.delete(
-            f"/api/v1/kanban/tasks/{child['task_id']}/dependencies/nonexistent"
-        )
+        resp = client.delete(f"/api/v1/kanban/tasks/{child['task_id']}/dependencies/nonexistent")
         assert resp.status_code == 404
 
     def test_multiple_parents_all_must_complete(self, client: TestClient) -> None:
@@ -678,15 +662,11 @@ class TestDependencyApi:
         child = resp.json()
         assert child["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{p1['task_id']}/move", json={"status": "completed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p1['task_id']}/move", json={"status": "completed"})
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}")
         assert resp.json()["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{p2['task_id']}/move", json={"status": "completed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p2['task_id']}/move", json={"status": "completed"})
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}")
         assert resp.json()["status"] == "ready"
 
@@ -748,9 +728,7 @@ class TestDependencyApi:
         assert resp.status_code == 201
         assert resp.json()["status"] == "ready"
 
-    def test_create_task_invalid_depends_on_fallback_ready(
-        self, client: TestClient
-    ) -> None:
+    def test_create_task_invalid_depends_on_fallback_ready(self, client: TestClient) -> None:
         """If all depends_on parents don't exist, task should fall back to READY."""
         board = _create_board(client)
         bid = board["board_id"]
@@ -790,9 +768,7 @@ class TestDependencyApi:
         child = resp.json()
         assert child["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "failed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "failed"})
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}")
         assert resp.json()["status"] == "ready"
 
@@ -808,9 +784,7 @@ class TestDependencyApi:
         )
         child = resp.json()
 
-        client.post(
-            f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "completed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "completed"})
 
         events = client.get(f"/api/v1/kanban/tasks/{child['task_id']}/events")
         kinds = [e["kind"] for e in events.json()["items"]]
@@ -830,9 +804,7 @@ class TestDependencyApi:
         child = resp.json()
         assert child["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "archived"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p['task_id']}/move", json={"status": "archived"})
         resp = client.get(f"/api/v1/kanban/tasks/{child['task_id']}")
         assert resp.json()["status"] == "ready"
 
@@ -924,18 +896,14 @@ class TestDependencyApi:
         assert b["status"] == "backlog"
         assert c["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{a['task_id']}/move", json={"status": "completed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{a['task_id']}/move", json={"status": "completed"})
         resp = client.get(f"/api/v1/kanban/tasks/{b['task_id']}")
         assert resp.json()["status"] == "ready"
 
         resp = client.get(f"/api/v1/kanban/tasks/{c['task_id']}")
         assert resp.json()["status"] == "backlog"
 
-        client.post(
-            f"/api/v1/kanban/tasks/{b['task_id']}/move", json={"status": "completed"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{b['task_id']}/move", json={"status": "completed"})
         resp = client.get(f"/api/v1/kanban/tasks/{c['task_id']}")
         assert resp.json()["status"] == "ready"
 
@@ -1119,9 +1087,7 @@ class TestBoardEdgesApi:
             f"/api/v1/kanban/tasks/{c['task_id']}/dependencies",
             json={"parent_task_id": p["task_id"]},
         )
-        client.delete(
-            f"/api/v1/kanban/tasks/{c['task_id']}/dependencies/{p['task_id']}"
-        )
+        client.delete(f"/api/v1/kanban/tasks/{c['task_id']}/dependencies/{p['task_id']}")
 
         resp = client.get(f"/api/v1/kanban/boards/{bid}/edges")
         assert resp.json()["total"] == 0
@@ -1154,9 +1120,7 @@ class TestDiagnosticsApi:
         resp = client.get("/api/v1/kanban/tasks/nonexistent/diagnostics")
         assert resp.status_code == 404
 
-    def test_list_tasks_diagnostics_summary_absent_for_healthy(
-        self, client: TestClient
-    ) -> None:
+    def test_list_tasks_diagnostics_summary_absent_for_healthy(self, client: TestClient) -> None:
         """Healthy tasks should have null diagnostics_summary."""
         board = _create_board(client)
         _create_task(client, board["board_id"], "Healthy")
@@ -1223,13 +1187,9 @@ class TestDiagnosticsApi:
         assert orphan["status"] == "backlog"
 
         # Archive p1 → orphan stays backlog (p2 still active)
-        client.post(
-            f"/api/v1/kanban/tasks/{p1['task_id']}/move", json={"status": "archived"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p1['task_id']}/move", json={"status": "archived"})
         # Archive p2 → orphan gets promoted to ready
-        client.post(
-            f"/api/v1/kanban/tasks/{p2['task_id']}/move", json={"status": "archived"}
-        )
+        client.post(f"/api/v1/kanban/tasks/{p2['task_id']}/move", json={"status": "archived"})
 
         # Check orphan status — the system promotes it since both parents are terminal
         orphan_resp = client.get(f"/api/v1/kanban/tasks/{orphan['task_id']}")
@@ -1910,7 +1870,8 @@ class TestMoveForce:
         assert data["unmet_parents"][0]["title"] == "PendingParent"
 
     def test_move_blocked_to_ready_unmet_deps_returns_409(
-        self, client: TestClient,
+        self,
+        client: TestClient,
     ) -> None:
         """BLOCKED task moving to READY with unmet deps returns 409."""
         board = _create_board(client, "MoveBlockedForce")

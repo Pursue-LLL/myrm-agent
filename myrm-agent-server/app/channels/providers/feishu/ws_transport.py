@@ -121,10 +121,7 @@ class FeishuWSTransport:
             RuntimeError: If lark-oapi SDK is not installed.
         """
         if not SDK_AVAILABLE:
-            raise RuntimeError(
-                "lark-oapi SDK is required for WebSocket transport. "
-                "Run: uv sync --extra channels-sdk"
-            )
+            raise RuntimeError("lark-oapi SDK is required for WebSocket transport. Run: uv sync --extra channels-sdk")
 
         self._loop = asyncio.get_running_loop()
         self._on_event = on_event

@@ -117,9 +117,7 @@ async def _build_agent_params(
 
     # Apply temperature override if specified
     if request.temperature is not None and params.model_cfg:
-        params.model_cfg = params.model_cfg.model_copy(
-            update={"temperature": request.temperature}
-        )
+        params.model_cfg = params.model_cfg.model_copy(update={"temperature": request.temperature})
 
     return params
 

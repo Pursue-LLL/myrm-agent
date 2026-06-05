@@ -221,14 +221,10 @@ async def verify_providers_ready_in_ui(page: Page) -> None:
     await _goto_with_retry(page, f"{FRONTEND_BASE}/settings/models")
     await page.wait_for_load_state("domcontentloaded", timeout=60000)
     basic_display = _PROVIDER_DISPLAY.get(BASIC_PROVIDER, BASIC_PROVIDER)
-    await page.get_by_role("button", name=basic_display, exact=True).wait_for(
-        state="visible", timeout=30000
-    )
+    await page.get_by_role("button", name=basic_display, exact=True).wait_for(state="visible", timeout=30000)
     await page.get_by_role("button", name=basic_display, exact=True).click()
     await page.wait_for_timeout(800)
-    await page.get_by_text(BASIC_MODEL_NAME, exact=False).first.wait_for(
-        state="visible", timeout=15000
-    )
+    await page.get_by_text(BASIC_MODEL_NAME, exact=False).first.wait_for(state="visible", timeout=15000)
 
 
 async def sync_providers_from_env() -> None:
@@ -257,11 +253,7 @@ async def sync_providers_from_env() -> None:
                 model_name=LITE_MODEL_NAME,
             )
 
-        value["defaultModelConfig"] = {
-            "baseModel": {
-                "primary": {"providerId": BASIC_PROVIDER, "model": BASIC_MODEL_NAME}
-            }
-        }
+        value["defaultModelConfig"] = {"baseModel": {"primary": {"providerId": BASIC_PROVIDER, "model": BASIC_MODEL_NAME}}}
 
         payload = {
             "changes": [
@@ -291,10 +283,7 @@ async def _prepare_chat_session(page: Page, agent_id: str) -> None:
         """
     )
     async with page.expect_response(
-        lambda response: (
-            f"/api/v1/user-agents/{agent_id}" in response.url
-            and response.request.method == "GET"
-        ),
+        lambda response: f"/api/v1/user-agents/{agent_id}" in response.url and response.request.method == "GET",
         timeout=60000,
     ) as agent_response_info:
         await _goto_with_retry(
@@ -303,9 +292,7 @@ async def _prepare_chat_session(page: Page, agent_id: str) -> None:
         )
     agent_response = await agent_response_info.value
     if agent_response.status != 200:
-        raise RuntimeError(
-            f"Failed to load agent profile {agent_id}: HTTP {agent_response.status}"
-        )
+        raise RuntimeError(f"Failed to load agent profile {agent_id}: HTTP {agent_response.status}")
     await page.wait_for_timeout(1500)
 
 
@@ -324,9 +311,7 @@ async def enable_adversarial_verifier_on_default_agent(page: Page) -> str:
 async def ensure_verifier_agent_exists() -> str:
     agent_name = "E2E Adversarial Verifier Agent"
     async with httpx.AsyncClient(base_url=BACKEND_BASE, timeout=30.0) as client:
-        listing = await client.get(
-            "/api/v1/user-agents", params={"page": 1, "page_size": 100}
-        )
+        listing = await client.get("/api/v1/user-agents", params={"page": 1, "page_size": 100})
         listing.raise_for_status()
         payload = listing.json()
         agents = payload.get("data", payload if isinstance(payload, list) else [])
@@ -361,9 +346,7 @@ async def ensure_control_agent_exists() -> str:
     """Agent profile without adversarial verification (negative control)."""
     agent_name = "E2E Control Agent (No Verifier)"
     async with httpx.AsyncClient(base_url=BACKEND_BASE, timeout=30.0) as client:
-        listing = await client.get(
-            "/api/v1/user-agents", params={"page": 1, "page_size": 100}
-        )
+        listing = await client.get("/api/v1/user-agents", params={"page": 1, "page_size": 100})
         listing.raise_for_status()
         payload = listing.json()
         agents = payload.get("data", payload if isinstance(payload, list) else [])
@@ -402,10 +385,7 @@ async def verify_agent_settings_toggle(
 ) -> None:
     """Open agent settings and confirm Adversarial Verifier switch state."""
     async with page.expect_response(
-        lambda response: (
-            f"/api/v1/user-agents/{agent_id}" in response.url
-            and response.request.method == "GET"
-        ),
+        lambda response: f"/api/v1/user-agents/{agent_id}" in response.url and response.request.method == "GET",
         timeout=60000,
     ) as agent_response_info:
         await _goto_with_retry(
@@ -414,19 +394,17 @@ async def verify_agent_settings_toggle(
         )
     agent_response = await agent_response_info.value
     if agent_response.status != 200:
-        raise RuntimeError(
-            f"Failed to load agent settings profile: HTTP {agent_response.status}"
-        )
+        raise RuntimeError(f"Failed to load agent settings profile: HTTP {agent_response.status}")
 
-    capabilities_tab = page.get_by_role("button", name="Capabilities").or_(
-        page.get_by_role("button", name="能力配置")
-    )
+    capabilities_tab = page.get_by_role("button", name="Capabilities").or_(page.get_by_role("button", name="能力配置"))
     await capabilities_tab.first.click()
     await page.wait_for_timeout(800)
 
-    await page.locator("text=Advanced Engine Parameters").or_(
-        page.locator("text=高级引擎参数")
-    ).first.wait_for(state="visible", timeout=45000)
+    await (
+        page.locator("text=Advanced Engine Parameters")
+        .or_(page.locator("text=高级引擎参数"))
+        .first.wait_for(state="visible", timeout=45000)
+    )
     label = page.get_by_text("Adversarial Verifier", exact=True)
     await label.scroll_into_view_if_needed()
     await label.wait_for(state="visible", timeout=15000)
@@ -440,9 +418,7 @@ async def verify_agent_settings_toggle(
     aria_checked = await switch.get_attribute("aria-checked")
     is_checked = aria_checked == "true"
     if is_checked != expected_enabled:
-        raise RuntimeError(
-            f"Adversarial Verifier toggle expected={expected_enabled}, actual={is_checked}"
-        )
+        raise RuntimeError(f"Adversarial Verifier toggle expected={expected_enabled}, actual={is_checked}")
 
     async with httpx.AsyncClient(base_url=BACKEND_BASE, timeout=30.0) as client:
         profile = await client.get(f"/api/v1/user-agents/{agent_id}")
@@ -451,8 +427,7 @@ async def verify_agent_settings_toggle(
         api_flag = engine_params.get("adversarial_verification") is True
         if api_flag != expected_enabled:
             raise RuntimeError(
-                "Agent profile engine_params.adversarial_verification mismatch: "
-                f"expected={expected_enabled}, actual={api_flag}"
+                f"Agent profile engine_params.adversarial_verification mismatch: expected={expected_enabled}, actual={api_flag}"
             )
 
 
@@ -471,9 +446,7 @@ async def submit_chat_message(page: Page, text: str) -> None:
     if filled.strip() != text.strip():
         raise RuntimeError("Chat input value mismatch after fill()")
 
-    send_btn = page.locator(
-        'form button[aria-label="Send"], form button[aria-label="发送"]'
-    )
+    send_btn = page.locator('form button[aria-label="Send"], form button[aria-label="发送"]')
     await send_btn.wait_for(state="visible", timeout=15000)
     await page.wait_for_function(
         """
@@ -520,9 +493,7 @@ async def wait_for_assistant_text(
         try:
             assistant = page.locator('[data-test-id="assistant-message"]').last
             if await asyncio.wait_for(assistant.count(), timeout=5.0) > 0:
-                text = (
-                    await asyncio.wait_for(assistant.inner_text(), timeout=5.0)
-                ).strip()
+                text = (await asyncio.wait_for(assistant.inner_text(), timeout=5.0)).strip()
                 if text and (contains is None or contains.lower() in text.lower()):
                     if not is_generating:
                         return text
@@ -532,9 +503,7 @@ async def wait_for_assistant_text(
             try:
                 assistant = page.locator('[data-test-id="assistant-message"]').last
                 if await asyncio.wait_for(assistant.count(), timeout=5.0) > 0:
-                    text = (
-                        await asyncio.wait_for(assistant.inner_text(), timeout=5.0)
-                    ).strip()
+                    text = (await asyncio.wait_for(assistant.inner_text(), timeout=5.0)).strip()
                     if text and (contains is None or contains.lower() in text.lower()):
                         return text
             except Exception:
@@ -548,11 +517,7 @@ async def select_chat_model(page: Page) -> None:
         await page.wait_for_load_state("domcontentloaded", timeout=60000)
         await page.wait_for_timeout(1000)
 
-    model_btn = (
-        page.locator("button")
-        .filter(has_text="Model")
-        .or_(page.locator("button").filter(has_text="模型"))
-    )
+    model_btn = page.locator("button").filter(has_text="Model").or_(page.locator("button").filter(has_text="模型"))
     if await model_btn.count() > 0:
         await model_btn.first.click()
         await page.wait_for_timeout(500)

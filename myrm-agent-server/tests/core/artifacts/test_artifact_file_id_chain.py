@@ -22,9 +22,7 @@ from app.services.deploy.deploy_packager import DeployFile
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///file:testdb_file_id_chain?mode=memory&cache=shared&uri=true"
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///file:testdb_file_id_chain?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -51,9 +49,7 @@ def deploy_client(db_session: AsyncSession) -> TestClient:
 
 
 @pytest.mark.asyncio
-async def test_upsert_processor_artifact_keys_db_row_by_file_id(
-    db_session: AsyncSession, tmp_path
-) -> None:
+async def test_upsert_processor_artifact_keys_db_row_by_file_id(db_session: AsyncSession, tmp_path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     html_file = workspace / "index.html"
@@ -82,9 +78,7 @@ async def test_upsert_processor_artifact_keys_db_row_by_file_id(
 
 
 @pytest.mark.asyncio
-async def test_ensure_artifact_for_deploy_resolves_processor_file_id(
-    db_session: AsyncSession, tmp_path
-) -> None:
+async def test_ensure_artifact_for_deploy_resolves_processor_file_id(db_session: AsyncSession, tmp_path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     html_file = workspace / "landing.html"

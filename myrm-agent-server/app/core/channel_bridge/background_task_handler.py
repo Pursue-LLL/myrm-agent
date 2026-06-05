@@ -262,11 +262,7 @@ class ChannelBackgroundTaskHandler:
         if len(result_preview) > 2000:
             result_preview = result_preview[:2000] + "\n\n...(truncated)"
 
-        content = (
-            f"**Background task completed** `{record.task_id}`\n"
-            f"_Task: {record.prompt[:100]}_\n\n"
-            f"{result_preview}"
-        )
+        content = f"**Background task completed** `{record.task_id}`\n_Task: {record.prompt[:100]}_\n\n{result_preview}"
 
         reply = OutboundMessage(
             channel=record.channel,
@@ -283,11 +279,7 @@ class ChannelBackgroundTaskHandler:
 
         bus = channel_gateway.bus
 
-        content = (
-            f"**Background task failed** `{record.task_id}`\n"
-            f"_Task: {record.prompt[:100]}_\n\n"
-            f"Error: {error}"
-        )
+        content = f"**Background task failed** `{record.task_id}`\n_Task: {record.prompt[:100]}_\n\nError: {error}"
 
         reply = OutboundMessage(
             channel=record.channel,

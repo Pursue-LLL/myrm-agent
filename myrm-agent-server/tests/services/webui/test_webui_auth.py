@@ -109,6 +109,7 @@ async def test_token_exchange_requires_admin(tmp_path: Path) -> None:
         )
         assert response.status_code == 401
 
+
 @pytest.mark.asyncio
 async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
     token = temp_token_service.generate_token()
@@ -140,10 +141,12 @@ async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
         assert change_pw.status_code == 200
 
         # Try to use old cookie, should now be unauthenticated
-        # It's local mode by default, so if not remote, loopback might bypass. 
+        # It's local mode by default, so if not remote, loopback might bypass.
         # But let's check session parsing directly.
         from app.services.webui.session import parse_session_value
+
         assert parse_session_value(cookie) is None
+
 
 def test_https_secure_cookie() -> None:
     from fastapi import Response
@@ -151,7 +154,7 @@ def test_https_secure_cookie() -> None:
     from app.services.webui.auth_service import webui_auth_service
 
     class MockURL:
-        scheme = 'https'
+        scheme = "https"
 
     class MockRequest:
         url = MockURL()

@@ -18,7 +18,7 @@ def perform_agent_search_with_auto_approve(client: TestClient, query: str):
     """Run search and automatically approve any required tool calls."""
     chat_id = str(uuid.uuid4())
     message_id = str(uuid.uuid4())
-    
+
     search_request = {
         "messageId": message_id,
         "chatId": chat_id,
@@ -27,11 +27,11 @@ def perform_agent_search_with_auto_approve(client: TestClient, query: str):
         "searchServiceCfg": get_search_service_config(),
         "actionMode": "agent",
     }
-    
+
     collected_data = []
     message_chunks = []
     tool_results = []
-    
+
     def _stream_req(req_data):
         with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data) as response:
             if response.status_code != 200:
@@ -58,31 +58,31 @@ def perform_agent_search_with_auto_approve(client: TestClient, query: str):
     _stream_req(search_request)
 
     # Check if approval is required in a loop
-    for _ in range(10): # max 10 loops to prevent infinite
+    for _ in range(10):  # max 10 loops to prevent infinite
         approval_required = False
-        for data in reversed(collected_data): # check the end of the stream
+        for data in reversed(collected_data):  # check the end of the stream
             if data.get("type") in ("approval_required", "tool_approval_request"):
                 approval_required = True
                 break
             if data.get("type") in ("message_end", "error"):
                 break
-                
+
         if approval_required:
             import logging
+
             logging.getLogger(__name__).error("\n🔧 Auto-approving tool call...")
             resume_request = search_request.copy()
-            resume_request["resumeValue"] = [{
-                "type": "approve",
-                "extensions": {"allowAlways": True}
-            }]
+            resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
             _stream_req(resume_request)
         else:
             break
-                        
+
     import logging
+
     logging.getLogger(__name__).error(f"COLLECTED TYPES: {[d.get('type') for d in collected_data]}")
     full_answer = "".join(message_chunks)
     return full_answer, collected_data, message_chunks, tool_results
+
 
 @pytest.mark.e2e
 @pytest.mark.skipif(
@@ -96,19 +96,17 @@ class TestAstAndTerminalE2E:
         """Test AST codebase search tool directly."""
         # 1. Provide a query that forces the agent to use ast_search_tool
         query = "First, use bash_code_execute_tool to create a file named `test_ast.py` containing `class TestAstClass: pass`. Then, use the ast_search_tool to find where 'TestAstClass' is defined. Only return the file path and line number."
-    
-        full_answer, collected_data, message_chunks, tool_results = perform_agent_search_with_auto_approve(
-            client, query
-        )
-    
+
+        full_answer, collected_data, message_chunks, tool_results = perform_agent_search_with_auto_approve(client, query)
+
         assert len(collected_data) > 0, "Should have events"
         has_message_end = any(d.get("type") == "message_end" for d in collected_data)
         assert has_message_end, "Should have message_end event"
-    
+
         error_events = [d for d in collected_data if d.get("type") == "error"]
         if error_events:
             pytest.fail(f"Agent execution error: {error_events[0].get('error')}")
-    
+
         assert "test_ast.py" in full_answer or len(tool_results) > 0, "Agent should find TestAstClass in test_ast.py"
         print("\n✅ Test Passed: AST Search E2E completed successfully")
 
@@ -116,20 +114,18 @@ class TestAstAndTerminalE2E:
         """Test terminal DDOS defense (SSE Throttle & Valve) with large output."""
         # 1. Instruct agent to run a bash command that generates a huge amount of text
         query = "Run a python script using bash/shell tool that prints 600,000 characters of text to stdout (e.g. `python3 -c \"print('A' * 600000)\"`). Tell me if it succeeded."
-        
-        full_answer, collected_data, message_chunks, tool_results = perform_agent_search_with_auto_approve(
-            client, query
-        )
+
+        full_answer, collected_data, message_chunks, tool_results = perform_agent_search_with_auto_approve(client, query)
 
         assert len(collected_data) > 0, "Should have events"
-        
+
         # Check for system warning in message chunks or tool steps
         warning_detected = False
         for chunk in message_chunks:
             if "System Warning: Terminal stream suspended to prevent UI freeze" in chunk:
                 warning_detected = True
                 break
-                
+
         # The warning might be emitted as a tasks_steps update
         if not warning_detected:
             for event in collected_data:
@@ -141,13 +137,13 @@ class TestAstAndTerminalE2E:
                                 if "System Warning: Terminal stream suspended" in item["text"]:
                                     warning_detected = True
                                     break
-                                
+
         # Even if the LLM output doesn't contain the raw warning, the execution should succeed without crashing the server.
         has_message_end = any(d.get("type") == "message_end" for d in collected_data)
         assert has_message_end, "Should have message_end event (no server crash)"
-        
+
         error_events = [d for d in collected_data if d.get("type") == "error"]
         if error_events:
             pytest.fail(f"Agent execution error: {error_events[0].get('error')}")
-            
+
         print("\n✅ Test Passed: Terminal DDOS Defense E2E completed successfully without crashing")

@@ -82,9 +82,7 @@ async def test_memory_e2e_real_world(client: TestClient):
 
     request_1 = {
         "messageId": str(uuid.uuid4()),
-        "query": (
-            f"请使用记忆工具把下面事实存入长期记忆（memory_save / memory_manage），不要只记在对话上下文里：{fact}"
-        ),
+        "query": (f"请使用记忆工具把下面事实存入长期记忆（memory_save / memory_manage），不要只记在对话上下文里：{fact}"),
         "chatId": chat_id_1,
         "modelSelection": get_model_selection(),
         "actionMode": "agent",
@@ -145,7 +143,7 @@ async def test_memory_e2e_real_world(client: TestClient):
         _second_msgs, _second_all = _collect_stream_slices(response_2)
 
     assert isinstance(_second_msgs, str) and isinstance(_second_all, str)
-    assert ("奥利奥" in _second_all and ("深海蓝" in _second_all or "蓝" in _second_all)), (
+    assert "奥利奥" in _second_all and ("深海蓝" in _second_all or "蓝" in _second_all), (
         "Expected streamed message or reasoning slices to contain recalled facts (cat name / color cues). "
         f"combined_stream_text={_second_all[:600]!r}"
     )

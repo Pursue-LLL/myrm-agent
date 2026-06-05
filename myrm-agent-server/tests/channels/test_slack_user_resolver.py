@@ -531,9 +531,7 @@ class TestSlackChannelConfiguration:
         """Test custom mention annotation limit is respected."""
         # Create text with 15 mentions
         text = " ".join(f"<@U{i:03d}>" for i in range(15))
-        mock_slack_channel_custom_config._user_resolver.resolve_batch.return_value = {
-            f"U{i:03d}": f"User{i}" for i in range(15)
-        }
+        mock_slack_channel_custom_config._user_resolver.resolve_batch.return_value = {f"U{i:03d}": f"User{i}" for i in range(15)}
 
         await mock_slack_channel_custom_config._annotate_mentions(text)
 

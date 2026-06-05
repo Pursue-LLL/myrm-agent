@@ -237,5 +237,3 @@ async def remove_dependency(task_id: str, parent_task_id: str) -> None:
     removed = await svc.remove_dependency(task_id, parent_task_id)
     if not removed:
         raise HTTPException(404, "Dependency not found")
-
-

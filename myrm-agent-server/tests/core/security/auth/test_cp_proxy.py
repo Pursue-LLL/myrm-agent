@@ -62,9 +62,7 @@ def test_cp_proxy_signature_contract_vectors() -> None:
 
     from app.core.security.auth.cp_proxy import compute_proxy_signature
 
-    contract_path = (
-        Path(__file__).resolve().parents[3] / "fixtures" / "cp_proxy_signature_contract.json"
-    )
+    contract_path = Path(__file__).resolve().parents[3] / "fixtures" / "cp_proxy_signature_contract.json"
     payload = json.loads(contract_path.read_text(encoding="utf-8"))
     for vector in payload["vectors"]:
         signature = compute_proxy_signature(

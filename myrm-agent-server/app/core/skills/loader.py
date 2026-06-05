@@ -49,9 +49,7 @@ class _UserSkillBackend:
 
     async def load_skills(self, skill_ids: list[str]) -> list[SkillMetadata]:
         id_set = set(skill_ids)
-        return [
-            s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set
-        ]
+        return [s for s in self._skills if s.name in id_set or s.storage_skill_id in id_set]
 
     async def get_skill_content(self, skill_name: str) -> str:
         skill = self._by_name.get(skill_name)
@@ -103,9 +101,7 @@ async def create_skill_backend(
 
     sync_result = await sync_prebuilt_seeds(storage)
     if sync_result.skill_ids:
-        await skills_service.user_config.ensure_prebuilt_enabled_after_sync(
-            list(sync_result.skill_ids)
-        )
+        await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
 
     prebuilt_backend = StorageSkillBackend(
         storage=storage,

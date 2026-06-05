@@ -72,8 +72,7 @@ def build_discord_components(msg: OutboundMessage) -> discord.ui.View | None:
                 has_items = True
             elif isinstance(item, SelectMenu):
                 options = [
-                    discord.SelectOption(label=opt.label, value=opt.value, description=opt.description)
-                    for opt in item.options
+                    discord.SelectOption(label=opt.label, value=opt.value, description=opt.description) for opt in item.options
                 ]
                 select = discord.ui.Select(
                     custom_id=f"sel:{item.action_id}",
@@ -121,9 +120,7 @@ def build_discord_embed(msg: OutboundMessage) -> discord.Embed | None:
         embed.add_field(name=" Thinking Process", value=f"```\n{reasoning_text}\n```", inline=False)
 
     if msg.tool_steps:
-        steps_text = "\n".join(
-            f"• **{step.label}**" + (f": {step.detail}" if step.detail else "") for step in msg.tool_steps
-        )
+        steps_text = "\n".join(f"• **{step.label}**" + (f": {step.detail}" if step.detail else "") for step in msg.tool_steps)
         steps_text = steps_text[:1020] + "..." if len(steps_text) > 1024 else steps_text
         embed.add_field(name=" Tool Execution", value=steps_text, inline=False)
 

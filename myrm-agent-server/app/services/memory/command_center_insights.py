@@ -334,9 +334,7 @@ class MemoryCommandCenterInsights:
 
         for profile in PROFILES.values():
             state = states.get(profile.id)
-            status = status_map.get(
-                state.status if state else ConnectorStatus.MISSING, "missing"
-            )
+            status = status_map.get(state.status if state else ConnectorStatus.MISSING, "missing")
             result.append(
                 MemoryCommandConnectorStatus(
                     id=profile.id,

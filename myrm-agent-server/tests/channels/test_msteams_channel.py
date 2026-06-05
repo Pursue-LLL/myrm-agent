@@ -698,7 +698,7 @@ class TestOutbound:
         mock_http.post = AsyncMock()
 
         key = encode_message_key("act_r", "https://svc.url", "conv_r")
-        await ch.react_to_message("conv_r", key, "\U0001F44D")
+        await ch.react_to_message("conv_r", key, "\U0001f44d")
         mock_http.post.assert_called_once()
 
     @pytest.mark.asyncio

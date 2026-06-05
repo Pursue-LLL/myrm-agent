@@ -19,11 +19,7 @@ def test_focus_flush_session_with_real_model(client: TestClient):
     """
 
     # We require a real model to run this test properly
-    if (
-        not os.getenv("BASIC_API_KEY")
-        and not os.getenv("OPENAI_API_KEY")
-        and not os.getenv("ANTHROPIC_API_KEY")
-    ):
+    if not os.getenv("BASIC_API_KEY") and not os.getenv("OPENAI_API_KEY") and not os.getenv("ANTHROPIC_API_KEY"):
         pytest.skip("Skipping real model E2E test due to missing API keys.")
 
     chat_id = f"test_chat_focus_{uuid.uuid4().hex[:8]}"
@@ -41,9 +37,7 @@ def test_focus_flush_session_with_real_model(client: TestClient):
     }
 
     full_response_1 = ""
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -71,9 +65,7 @@ def test_focus_flush_session_with_real_model(client: TestClient):
     }
 
     full_response_2 = ""
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data_2
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data_2) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -88,6 +80,4 @@ def test_focus_flush_session_with_real_model(client: TestClient):
     assert len(full_response_2) > 0, "Model should return a response"
 
     # Assert that the context was cleared, so it shouldn't know the code
-    assert (
-        "FOCUS_TEST_999" not in full_response_2
-    ), f"Model remembered the secret after focus/flush! Response: {full_response_2}"
+    assert "FOCUS_TEST_999" not in full_response_2, f"Model remembered the secret after focus/flush! Response: {full_response_2}"

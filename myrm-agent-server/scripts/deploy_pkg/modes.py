@@ -75,6 +75,7 @@ def deploy_tauri(action: str = "dev") -> bool:
 
     return True
 
+
 def deploy_sandbox() -> bool:
     """沙箱模式部署（使用 Docker）
 
@@ -122,4 +123,3 @@ def deploy_sandbox() -> bool:
     print()
 
     return True
-

@@ -47,9 +47,7 @@ class DummyChannel(BaseChannel):
         print(f"DummyChannel sending message: {msg}")
         if getattr(msg, "media", None):
             print("Raising ChannelSendError due to media")
-            raise ChannelSendError(
-                "Media not supported", channel=self.name, retriable=False
-            )
+            raise ChannelSendError("Media not supported", channel=self.name, retriable=False)
         self.sent_messages.append(msg)
         print(f"DummyChannel appended message. Total: {len(self.sent_messages)}")
 
@@ -101,9 +99,7 @@ class DummyPolicyProvider(ChannelPolicyProvider):
     async def get_group_policy(self, channel: str) -> GroupPolicy | None:
         return GroupPolicy.OPEN
 
-    async def get_group_trigger(
-        self, channel: str
-    ) -> tuple[GroupTriggerMode, list[str]]:
+    async def get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
         return GroupTriggerMode.ALL, []
 
     async def get_enabled_groups(self) -> set[str]:

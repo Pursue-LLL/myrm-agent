@@ -37,9 +37,7 @@ def _user_config_table_exists() -> bool:
         return False
     try:
         with sqlite3.connect(str(db_path)) as conn:
-            row = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_config' LIMIT 1"
-            ).fetchone()
+            row = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_config' LIMIT 1").fetchone()
             return row is not None
     except sqlite3.Error:
         return False
@@ -80,24 +78,15 @@ def webui_model_preflight_warning() -> str | None:
             detail = message.get("en") or message.get("zh") or str(exc)
         else:
             detail = str(exc)
-        return (
-            f"WebUI default model is not configured: {detail} "
-            "(Settings > Model Service)"
-        )
+        return f"WebUI default model is not configured: {detail} (Settings > Model Service)"
     except Exception as exc:
         logger.debug("WebUI model preflight check failed: %s", exc)
-        return (
-            "Could not verify WebUI model configuration. "
-            "Configure Settings > Model Service before using agents."
-        )
+        return "Could not verify WebUI model configuration. Configure Settings > Model Service before using agents."
 
     api_key = str(cfg.api_key or "").strip()
     model = str(cfg.model or "").strip()
     if not api_key or not model:
-        return (
-            "WebUI default model is incomplete (missing API key or model name). "
-            "Configure Settings > Model Service."
-        )
+        return "WebUI default model is incomplete (missing API key or model name). Configure Settings > Model Service."
     return None
 
 

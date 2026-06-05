@@ -98,9 +98,7 @@ class TestWebhookPayload:
     def test_payload_with_media(self) -> None:
         ch = WebhookChannel()
         media = MediaAttachment(media_type=MediaType.IMAGE, url="https://img.png", filename="img.png", caption="Photo")
-        msg = OutboundMessage(
-            channel="webhook", recipient_id="https://example.com", content="", user_id="u1", media=(media,)
-        )
+        msg = OutboundMessage(channel="webhook", recipient_id="https://example.com", content="", user_id="u1", media=(media,))
         payload = ch._build_payload(msg)
         assert "media" in payload
         assert len(payload["media"]) == 1  # type: ignore[arg-type]

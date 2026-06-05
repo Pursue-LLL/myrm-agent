@@ -13,9 +13,7 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -42,12 +40,8 @@ class TestSubagentGUIConfigE2E:
         }
 
         # Stream response
-        async with async_client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0
-        ) as response:
-            assert (
-                response.status_code == 200
-            ), f"Expected 200, got {response.status_code}"
+        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0) as response:
+            assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
             error_found = False
 
@@ -68,9 +62,7 @@ class TestSubagentGUIConfigE2E:
             # Verify no errors occurred
             assert not error_found, "Errors occurred during streaming"
 
-    async def test_multiple_ephemeral_subagents_accepted(
-        self, async_client: AsyncClient
-    ):
+    async def test_multiple_ephemeral_subagents_accepted(self, async_client: AsyncClient):
         """Test multiple ephemeral subagents are accepted without errors."""
         if not os.getenv("BASIC_API_KEY"):
             pytest.skip("BASIC_API_KEY not configured")
@@ -92,9 +84,7 @@ class TestSubagentGUIConfigE2E:
             },
         }
 
-        async with async_client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0
-        ) as response:
+        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0) as response:
             assert response.status_code == 200
 
             async for line in response.aiter_lines():
@@ -109,9 +99,7 @@ class TestSubagentGUIConfigE2E:
                 if data.get("event_type") == "ERROR":
                     pytest.fail(f"Unexpected error: {data}")
 
-    async def test_ephemeral_subagent_missing_display_name_accepted(
-        self, async_client: AsyncClient
-    ):
+    async def test_ephemeral_subagent_missing_display_name_accepted(self, async_client: AsyncClient):
         """Test ephemeral subagent without display_name is accepted (uses default)."""
         if not os.getenv("BASIC_API_KEY"):
             pytest.skip("BASIC_API_KEY not configured")
@@ -128,9 +116,7 @@ class TestSubagentGUIConfigE2E:
             },
         }
 
-        async with async_client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0
-        ) as response:
+        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0) as response:
             assert response.status_code == 200
 
             async for line in response.aiter_lines():
@@ -145,9 +131,7 @@ class TestSubagentGUIConfigE2E:
                 if data.get("event_type") == "ERROR":
                     pytest.fail(f"Unexpected error: {data}")
 
-    async def test_ephemeral_subagent_empty_theme_color_accepted(
-        self, async_client: AsyncClient
-    ):
+    async def test_ephemeral_subagent_empty_theme_color_accepted(self, async_client: AsyncClient):
         """Test ephemeral subagent with empty theme_color is accepted."""
         if not os.getenv("BASIC_API_KEY"):
             pytest.skip("BASIC_API_KEY not configured")
@@ -164,9 +148,7 @@ class TestSubagentGUIConfigE2E:
             },
         }
 
-        async with async_client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0
-        ) as response:
+        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=60.0) as response:
             assert response.status_code == 200
 
             # Empty theme_color should be accepted without error

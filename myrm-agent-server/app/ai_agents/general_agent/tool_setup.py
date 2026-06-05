@@ -70,9 +70,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _current_thread_id: str | None
         _current_chat_id: str | None
 
-    def _setup_search_and_basic_tools(
-        self, tools: list[object], deferred_tools: list[object]
-    ) -> None:
+    def _setup_search_and_basic_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up web search, web fetch, and basic utility tools."""
         from myrm_agent_harness.toolkits import (
             create_image_search_tool,
@@ -81,12 +79,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
         )
 
         if self.enable_web_search and self.search_service_cfg:
-            reranker_cfg = (
-                self.reranker_config if self.enable_advanced_retrieval else None
-            )
-            embedding_cfg = (
-                self.embedding_config if self.enable_advanced_retrieval else None
-            )
+            reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
+            embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
             tools.append(
                 create_web_search_tool(
                     self.search_service_cfg,
@@ -120,11 +114,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 xai_creds = resolve_xai_search_config(self.providers_dict)
                 if xai_creds:
                     api_key, base_url = xai_creds
-                    tools.append(
-                        create_x_search_tool(
-                            XSearchProviderConfig(api_key=api_key, base_url=base_url)
-                        )
-                    )
+                    tools.append(create_x_search_tool(XSearchProviderConfig(api_key=api_key, base_url=base_url)))
                     logger.info("🐦 已加载 x_search_tool (xAI Live Search)")
             except Exception as e:
                 logger.debug("x_search_tool skipped: %s", e)
@@ -146,9 +136,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_video_generation_tools(deferred_tools)
         self._setup_tts_tools(deferred_tools)
 
-    def _setup_interaction_tools(
-        self, tools: list[object], deferred_tools: list[object]
-    ) -> None:
+    def _setup_interaction_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up human-in-the-loop interaction tools."""
         try:
             from myrm_agent_harness.toolkits.interaction.clipboard_tools import (
@@ -228,11 +216,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _create_media_library_callback(self) -> MediaCallback | None:
         """Create a media_callback for persisting images to the media library."""
         return self._create_media_persist_callback(
-            model_name=(
-                self.image_generation_params.model
-                if self.image_generation_params
-                else None
-            ),
+            model_name=(self.image_generation_params.model if self.image_generation_params else None),
             source="generate",
         )
 
@@ -288,11 +272,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _create_video_media_callback(self) -> MediaCallback | None:
         """Create a media_callback for persisting generated videos to the media library."""
         return self._create_media_persist_callback(
-            model_name=(
-                self.video_generation_params.model
-                if self.video_generation_params
-                else None
-            ),
+            model_name=(self.video_generation_params.model if self.video_generation_params else None),
             source="video_generate",
         )
 
@@ -332,11 +312,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _create_tts_media_callback(self) -> MediaCallback | None:
         """Create a media_callback for persisting generated audio to the media library."""
         return self._create_media_persist_callback(
-            model_name=(
-                self.tts_params.model
-                if self.tts_params
-                else None
-            ),
+            model_name=(self.tts_params.model if self.tts_params else None),
             source="tts_generate",
         )
 
@@ -347,9 +323,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         source: str,
     ) -> MediaCallback | None:
         """Generic media persist callback factory."""
-        chat_id = (
-            self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
-        )
+        chat_id = self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
 
         async def _persist(
             media_bytes: bytes,
@@ -515,9 +489,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 vision_llm=vision_llm,
                 engine_preference=getattr(self, "browser_engine", None),
             )
-            logger.warning(
-                f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})"
-            )
+            logger.warning(f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})")
 
             browser_tools = create_browser_tools(browser_session)
             # Browser tools are high frequency if enabled
@@ -527,9 +499,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning(f"Browser tools load failed (degraded): {e}")
 
-    def _setup_computer_use_tools(
-        self, tools: list[object], deferred_tools: list[object]
-    ) -> None:
+    def _setup_computer_use_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up system-wide computer use tools (screenshot + action)."""
         try:
             from myrm_agent_harness.toolkits.computer_use import (
@@ -541,11 +511,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             constraints = _select_image_constraints(self.model_cfg.model)
-            config = (
-                ComputerUseConfig(image_constraints=constraints)
-                if constraints
-                else None
-            )
+            config = ComputerUseConfig(image_constraints=constraints) if constraints else None
             session = create_desktop_session(config=config)
             computer_tools = create_desktop_tools(session)
             deferred_tools.extend(computer_tools)
@@ -559,9 +525,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
-    def _setup_local_browser_data_tool(
-        self, tools: list[object], deferred_tools: list[object]
-    ) -> None:
+    def _setup_local_browser_data_tool(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""
         try:
             from myrm_agent_harness.toolkits import create_local_browser_data_tool
@@ -572,9 +536,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Local browser data tool load failed (degraded): %s", e)
 
-    async def _setup_local_file_search_tools(
-        self, tools: list[object], deferred_tools: list[object]
-    ) -> None:
+    async def _setup_local_file_search_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Load local file semantic search tools if directories are configured."""
         try:
             from app.services.local_file_search.service import (
@@ -595,9 +557,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             lfs_tools = create_local_file_search_tools(svc.search_engine, svc.indexer)
             deferred_tools.extend(lfs_tools)
-            logger.warning(
-                "Loaded %d local file search tools [Deferred]", len(lfs_tools)
-            )
+            logger.warning("Loaded %d local file search tools [Deferred]", len(lfs_tools))
         except Exception as e:
             logger.warning("Local file search tools load failed (degraded): %s", e)
 
@@ -625,19 +585,21 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             # Remove redundant tools to prevent LLM hallucination and save tokens
             redundant_names = {"memory_recall", "search_local_files"}
-            
+
             # Filter tools list
             original_tools_len = len(tools)
             tools[:] = [t for t in tools if getattr(t, "name", None) not in redundant_names]
-            
+
             # Filter deferred_tools list
             original_deferred_len = len(deferred_tools)
             deferred_tools[:] = [t for t in deferred_tools if getattr(t, "name", None) not in redundant_names]
-            
+
             removed_count = (original_tools_len - len(tools)) + (original_deferred_len - len(deferred_tools))
             if removed_count > 0:
-                logger.warning(f"Removed {removed_count} redundant tools (memory_recall, search_local_files) in favor of context_search_tool")
-                
+                logger.warning(
+                    f"Removed {removed_count} redundant tools (memory_recall, search_local_files) in favor of context_search_tool"
+                )
+
         except Exception as e:
             logger.warning("Context search tool load failed (degraded): %s", e)
 

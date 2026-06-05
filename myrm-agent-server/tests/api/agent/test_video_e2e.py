@@ -48,9 +48,7 @@ def perform_video_stream(
     message_chunks: list[str] = []
     status_events: list[str] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0) as response:
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
         for line in response.iter_lines():
@@ -102,9 +100,7 @@ def _skip_on_flaky_error(collected_data: list[dict[str, object]]) -> None:
     if error_events:
         first_err = error_events[0]
         error_msg = str(first_err)
-        if first_err.get("error_kind") == "format_error" or any(
-            kw in error_msg for kw in _FLAKY_SIGNALS
-        ):
+        if first_err.get("error_kind") == "format_error" or any(kw in error_msg for kw in _FLAKY_SIGNALS):
             pytest.skip(f"Environment/upstream flaky: {error_msg[:240]}")
         pytest.fail(f"Agent execution error: {error_msg}")
 
@@ -148,15 +144,10 @@ class TestVideoStreamE2E:
         has_analysis_clear = "analyzing_video_clear" in status_events
 
         if has_analysis_start:
-            assert has_analysis_clear, (
-                "If analyzing_video was emitted, analyzing_video_clear must follow"
-            )
+            assert has_analysis_clear, "If analyzing_video was emitted, analyzing_video_clear must follow"
             print("Video fallback analysis path verified: SSE events emitted correctly")
         else:
-            print(
-                "Model appears to support native video (no fallback needed), "
-                "skipping SSE event assertion"
-            )
+            print("Model appears to support native video (no fallback needed), skipping SSE event assertion")
 
     def test_video_with_text_only_query(self, client: TestClient):
         """Multimodal query with both text and video should produce coherent response."""
@@ -171,6 +162,6 @@ class TestVideoStreamE2E:
         assert len(collected_data) > 0
         if full_answer:
             normalized = full_answer.strip().upper()
-            assert any(
-                word in normalized for word in ("YES", "NO", "FIRE", "BLAZE", "FLAME")
-            ), f"Expected YES/NO/fire-related answer, got: {full_answer[:100]}"
+            assert any(word in normalized for word in ("YES", "NO", "FIRE", "BLAZE", "FLAME")), (
+                f"Expected YES/NO/fire-related answer, got: {full_answer[:100]}"
+            )

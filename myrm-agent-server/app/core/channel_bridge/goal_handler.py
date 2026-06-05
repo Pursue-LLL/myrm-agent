@@ -85,10 +85,7 @@ async def _resolve_chat_id(msg: InboundMessage) -> str | None:
 
     async with get_session() as session:
         result = await session.execute(
-            select(Chat.id)
-            .where(Chat.channel_session_key.like(f"{base_key}%"))
-            .order_by(Chat.updated_at.desc())
-            .limit(1)
+            select(Chat.id).where(Chat.channel_session_key.like(f"{base_key}%")).order_by(Chat.updated_at.desc()).limit(1)
         )
         row = result.scalar_one_or_none()
         return row
@@ -130,9 +127,7 @@ class ChannelGoalCommandHandler:
             sent_at=time.time(),
         )
 
-    async def _set_goal(
-        self, msg: InboundMessage, chat_id: str | None, objective: str
-    ) -> str:
+    async def _set_goal(self, msg: InboundMessage, chat_id: str | None, objective: str) -> str:
         from app.services.agent.goal_registry import GoalRegistry
 
         if not objective.strip():
@@ -196,9 +191,7 @@ class ChannelGoalCommandHandler:
                     )
                 )
             if parts:
-                lines.append(
-                    get_text(msg, "goal_budget_header", parts=" | ".join(parts))
-                )
+                lines.append(get_text(msg, "goal_budget_header", parts=" | ".join(parts)))
 
         return "\n".join(lines)
 
@@ -264,9 +257,7 @@ class ChannelGoalCommandHandler:
                 except ValueError:
                     return get_text(msg, "usage_subgoal_remove")
                 except IndexError:
-                    return get_text(
-                        msg, "subgoal_index_out_of_range", index=args.strip()
-                    )
+                    return get_text(msg, "subgoal_index_out_of_range", index=args.strip())
             case SubgoalSubcommand.CLEAR:
                 count = await provider.clear_subgoals(goal.goal_id)
                 return get_text(msg, "cleared_subgoals", count=count)
@@ -318,9 +309,7 @@ class ChannelGoalCommandHandler:
         await provider.update_status(goal.goal_id, GoalStatus.CANCELLED)
         return get_text(msg, "goal_cleared", objective=goal.objective[:60])
 
-    async def _set_budget(
-        self, msg: InboundMessage, chat_id: str | None, args: str
-    ) -> str:
+    async def _set_budget(self, msg: InboundMessage, chat_id: str | None, args: str) -> str:
         if not chat_id:
             return get_text(msg, "no_active_goal_set_first")
 

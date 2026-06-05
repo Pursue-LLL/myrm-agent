@@ -459,9 +459,7 @@ class ConversationRecallRepository:
                 """)
             )
         ).scalar_one()
-        segment_count = (
-            await db.execute(text("SELECT COUNT(*) FROM conversation_recall_segments"))
-        ).scalar_one()
+        segment_count = (await db.execute(text("SELECT COUNT(*) FROM conversation_recall_segments"))).scalar_one()
         missing_segments = (
             await db.execute(
                 text("""

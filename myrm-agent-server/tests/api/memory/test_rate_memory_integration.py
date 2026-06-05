@@ -27,9 +27,7 @@ def mock_manager() -> AsyncMock:
     call_count = {"n": 0}
     ratings = {"current": 0.5}
 
-    async def _rate_memory(
-        memory_id: str, score: int, collection: str | None = None
-    ) -> bool:
+    async def _rate_memory(memory_id: str, score: int, collection: str | None = None) -> bool:
         if memory_id == "nonexistent":
             return False
         clamped = max(1, min(5, score))
@@ -83,9 +81,7 @@ class TestRateMemoryAPI:
         resp = client.post("/memory/mem-123/rate", json={})
         assert resp.status_code == 422
 
-    def test_asymmetric_behavior_through_api(
-        self, client: TestClient, mock_manager: AsyncMock
-    ):
+    def test_asymmetric_behavior_through_api(self, client: TestClient, mock_manager: AsyncMock):
         """Verify asymmetric EMA propagates correctly through HTTP layer."""
         # Start at 0.5, apply negative (score=1) then positive (score=5)
         resp = client.post("/memory/mem-asym/rate", json={"score": 1})

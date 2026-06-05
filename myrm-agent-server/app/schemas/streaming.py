@@ -31,7 +31,7 @@ class SSEEnvelope(BaseModel):
     error: str | None = None
     error_type: str | None = None
     compression_exhausted: bool | None = None
-    
+
     @classmethod
     def from_any(cls, chunk: object) -> "SSEEnvelope":
         """Convert an arbitrary chunk (dict, Pydantic, Dataclass) to an SSEEnvelope."""
@@ -40,7 +40,7 @@ class SSEEnvelope(BaseModel):
             # This should rarely happen in clean architectures, but we must handle legacy strings
             # If it's already an SSE string ("data: ..."), we shouldn't re-wrap it, but from_any expects object -> envelope
             raise ValueError("String chunks should bypass from_any.")
-            
+
         if hasattr(chunk, "to_dict") and callable(chunk.to_dict):
             raw = chunk.to_dict()
         elif hasattr(chunk, "model_dump") and callable(chunk.model_dump):
@@ -49,11 +49,12 @@ class SSEEnvelope(BaseModel):
             raw = chunk
         else:
             import dataclasses
+
             if dataclasses.is_dataclass(chunk):
                 raw = dataclasses.asdict(chunk)
             else:
                 raw = {"type": "unknown", "data": str(chunk)}
-                
+
         return cls(**raw)
 
     def to_sse_chunk(self) -> str:

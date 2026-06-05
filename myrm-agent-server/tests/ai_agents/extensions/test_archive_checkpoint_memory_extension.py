@@ -56,13 +56,16 @@ class TestArchiveCheckpointNotifier:
         notifier = extension.build_archive_checkpoint_notifier()
         assert notifier is not None
 
-        with patch(
-            "app.ai_agents.extensions.archive_checkpoint_memory._record_archive_checkpoint_event",
-            new_callable=AsyncMock,
-        ) as record_event, patch(
-            "app.ai_agents.extensions.archive_checkpoint_memory._dispatch_archive_checkpoint_status",
-            new_callable=AsyncMock,
-        ) as dispatch_status:
+        with (
+            patch(
+                "app.ai_agents.extensions.archive_checkpoint_memory._record_archive_checkpoint_event",
+                new_callable=AsyncMock,
+            ) as record_event,
+            patch(
+                "app.ai_agents.extensions.archive_checkpoint_memory._dispatch_archive_checkpoint_status",
+                new_callable=AsyncMock,
+            ) as dispatch_status,
+        ):
             await notifier(record, None)
             dispatch_status.assert_awaited_once()
             await asyncio.sleep(0)

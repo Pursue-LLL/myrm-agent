@@ -65,9 +65,7 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value=None)
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(
-            _make_heartbeat_job(), "original prompt"
-        )
+        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert not has_content
         assert prompt == "original prompt"
 
@@ -77,9 +75,7 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value="")
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(
-            _make_heartbeat_job(), "original prompt"
-        )
+        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert not has_content
 
     @pytest.mark.asyncio
@@ -88,9 +84,7 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value="## Pending Commitments\n- Review PR #42")
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(
-            _make_heartbeat_job(), "original prompt"
-        )
+        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert has_content
         assert "<situation_report>" in prompt
         assert "Pending Commitments" in prompt
@@ -102,9 +96,7 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(side_effect=RuntimeError("DB error"))
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(
-            _make_heartbeat_job(), "original prompt"
-        )
+        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert has_content
         assert prompt == "original prompt"
 
@@ -144,7 +136,8 @@ class TestHeartbeatSkipLogic:
                 return_value=False,
             ),
             patch.object(
-                runner, "_inject_situation_report",
+                runner,
+                "_inject_situation_report",
                 new_callable=AsyncMock,
             ) as mock_inject,
         ):
@@ -171,7 +164,8 @@ class TestHeartbeatSkipLogic:
                 return_value=False,
             ),
             patch.object(
-                runner, "_inject_situation_report",
+                runner,
+                "_inject_situation_report",
                 new_callable=AsyncMock,
             ) as mock_inject,
         ):
@@ -196,7 +190,8 @@ class TestHeartbeatSkipLogic:
                 return_value=False,
             ),
             patch.object(
-                runner, "_inject_situation_report",
+                runner,
+                "_inject_situation_report",
                 new_callable=AsyncMock,
                 return_value=("enriched prompt", True),
             ),
@@ -240,7 +235,8 @@ class TestRunRetry:
         job = _make_heartbeat_job(max_retries=1, retry_backoff_ms=100)
 
         with patch.object(
-            runner, "_run_once",
+            runner,
+            "_run_once",
             new_callable=AsyncMock,
             side_effect=[
                 JobResult(success=False, error="transient"),
@@ -257,7 +253,8 @@ class TestRunRetry:
         job = _make_heartbeat_job(max_retries=2, retry_backoff_ms=100)
 
         with patch.object(
-            runner, "_run_once",
+            runner,
+            "_run_once",
             new_callable=AsyncMock,
             return_value=JobResult(success=False, error="persistent"),
         ):

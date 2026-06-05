@@ -16,7 +16,6 @@ def _clean_registry() -> None:
 
 
 class TestSteeringRegistry:
-
     def test_register_and_has_active(self) -> None:
         token = SteeringToken()
         SteeringRegistry.register("chat-1", token)

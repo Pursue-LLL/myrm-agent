@@ -10,9 +10,7 @@ API_PREFIX = "/api/agents"
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -57,9 +55,7 @@ async def test_snapshot_api_list_rollback_and_snapshot_saved(
     rollback_res = await async_client.post(f"{API_PREFIX}/{agent_id}/rollback")
     assert rollback_res.status_code == 200
 
-    detail_res = await async_client.get(
-        f"{API_PREFIX}/{agent_id}?show_system_prompt=true"
-    )
+    detail_res = await async_client.get(f"{API_PREFIX}/{agent_id}?show_system_prompt=true")
     assert detail_res.status_code == 200
     assert "Original prompt" in detail_res.json()["data"]["system_prompt"]
 
@@ -74,9 +70,7 @@ async def test_snapshot_api_rollback_to_id_keeps_pre_rollback(
         f"{API_PREFIX}/{agent_id}",
         json={"system_prompt": "Mutation one."},
     )
-    first_list = (await async_client.get(f"{API_PREFIX}/{agent_id}/snapshots")).json()[
-        "data"
-    ]
+    first_list = (await async_client.get(f"{API_PREFIX}/{agent_id}/snapshots")).json()["data"]
     assert len(first_list) >= 1
     target_id = first_list[-1]["id"]
 
@@ -85,23 +79,15 @@ async def test_snapshot_api_rollback_to_id_keeps_pre_rollback(
         json={"system_prompt": "Mutation two."},
     )
 
-    restore_res = await async_client.post(
-        f"{API_PREFIX}/{agent_id}/rollback/{target_id}"
-    )
+    restore_res = await async_client.post(f"{API_PREFIX}/{agent_id}/rollback/{target_id}")
     assert restore_res.status_code == 200
 
-    after_list = (await async_client.get(f"{API_PREFIX}/{agent_id}/snapshots")).json()[
-        "data"
-    ]
-    pre_rollbacks = [
-        item for item in after_list if item.get("reason") == "pre-rollback"
-    ]
+    after_list = (await async_client.get(f"{API_PREFIX}/{agent_id}/snapshots")).json()["data"]
+    pre_rollbacks = [item for item in after_list if item.get("reason") == "pre-rollback"]
     assert len(pre_rollbacks) == 1
     assert pre_rollbacks[0]["snapshot_data"]["system_prompt"] == "Mutation two."
 
-    detail_res = await async_client.get(
-        f"{API_PREFIX}/{agent_id}?show_system_prompt=true"
-    )
+    detail_res = await async_client.get(f"{API_PREFIX}/{agent_id}?show_system_prompt=true")
     assert "Original prompt" in detail_res.json()["data"]["system_prompt"]
 
 

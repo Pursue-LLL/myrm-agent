@@ -31,6 +31,7 @@ from app.channels import OutboundMessage
 from app.channels.types import ChannelCapabilities, extract_cron_context
 
 if TYPE_CHECKING:
+
     class _ChatChannelBase(Protocol):
         name: str
         capabilities: ChannelCapabilities

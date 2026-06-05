@@ -22,18 +22,18 @@ async def preview_skill_package(
     skill_id: str,
 ) -> PackagePreviewResponse:
     """Preview skill package before downloading to check for sensitive information.
-    
+
     Args:
         skill_id: Skill ID
-        
+
     Returns:
         Preview result including any redactions
     """
     result = await skill_packaging_service.package_skill(skill_id, preview_only=True)
-    
+
     if not result.success:
         raise HTTPException(status_code=404, detail=result.error)
-        
+
     redactions_response = None
     if result.redactions:
         redactions_response = {
@@ -43,17 +43,16 @@ async def preview_skill_package(
             ]
             for filename, file_redactions in result.redactions.items()
         }
-        
+
     return PackagePreviewResponse(
-        success=result.success,
-        is_safe=result.is_safe,
-        error=result.error,
-        redactions=redactions_response
+        success=result.success, is_safe=result.is_safe, error=result.error, redactions=redactions_response
     )
+
 
 class ExportSkillRequest(BaseModel):
     apply_redactions: bool = False
     ignored_redactions: dict[str, list[int]] | None = None
+
 
 @router.post("/{skill_id}/export")
 async def export_skill(
@@ -61,18 +60,16 @@ async def export_skill(
     request: ExportSkillRequest,
 ) -> Response:
     """Export skill as ZIP package
-    
+
     Args:
         skill_id: Skill ID
         request: Export options including redaction preferences
-        
+
     Returns:
         ZIP file
     """
     result = await skill_packaging_service.package_skill(
-        skill_id, 
-        apply_redactions=request.apply_redactions,
-        ignored_redactions=request.ignored_redactions
+        skill_id, apply_redactions=request.apply_redactions, ignored_redactions=request.ignored_redactions
     )
 
     if not result.success:

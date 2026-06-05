@@ -31,9 +31,7 @@ async def test_confidence_approval_flow_ast_block():
 
     async with get_session() as db:
         result_db = await db.execute(
-            select(ApprovalRecord)
-            .where(ApprovalRecord.action_type == "evolution")
-            .order_by(ApprovalRecord.created_at.desc())
+            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution").order_by(ApprovalRecord.created_at.desc())
         )
         approval = None
         review = None

@@ -140,9 +140,7 @@ async def poll_feishu_qr_register(body: QRPollRequest) -> QRPollResponse:
 
     session = _active_sessions.get(body.session_id)
     if not session:
-        raise HTTPException(
-            status_code=404, detail="Registration session not found or expired"
-        )
+        raise HTTPException(status_code=404, detail="Registration session not found or expired")
 
     reg = session.registration
 
@@ -201,17 +199,13 @@ async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
         encrypted_value = encryption_service.encrypt_config_value(config_key, value)
 
         async with get_session() as session:
-            result = await session.execute(
-                select(UserConfig).where(UserConfig.config_key == config_key)
-            )
+            result = await session.execute(select(UserConfig).where(UserConfig.config_key == config_key))
             existing = result.scalar_one_or_none()
 
             if existing:
                 existing.config_value = encrypted_value
             else:
-                session.add(
-                    UserConfig(config_key=config_key, config_value=encrypted_value)
-                )
+                session.add(UserConfig(config_key=config_key, config_value=encrypted_value))
 
             await session.commit()
 

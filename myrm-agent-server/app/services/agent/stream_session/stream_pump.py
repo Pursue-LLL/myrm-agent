@@ -14,31 +14,31 @@ from app.services.agent.streaming_support.sse_helpers import error_sse
 
 logger = logging.getLogger(__name__)
 
+
 async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
     from app.schemas.streaming import SSEEnvelope
     from app.services.project.orchestrator import project_orchestrator
 
     project_id = getattr(session.params, "project_id", None)
-    
+
     if project_id and project_orchestrator.is_locked(project_id):
-        waiting_msg = SSEEnvelope.from_any({
-            "type": "status",
-            "messageId": session.params.message_id,
-            "step_key": "waiting_for_turn",
-            "status": "waiting",
-            "data": {"message": "Waiting for other agents in the project to finish..."}
-        }).to_sse_chunk()
+        waiting_msg = SSEEnvelope.from_any(
+            {
+                "type": "status",
+                "messageId": session.params.message_id,
+                "step_key": "waiting_for_turn",
+                "status": "waiting",
+                "data": {"message": "Waiting for other agents in the project to finish..."},
+            }
+        ).to_sse_chunk()
         await buffer.append(waiting_msg)
-        
+
     if project_id:
         await project_orchestrator.acquire(project_id)
-        
-        cleared_msg = SSEEnvelope.from_any({
-            "type": "status",
-            "messageId": session.params.message_id,
-            "step_key": "waiting_for_turn_clear",
-            "status": "success"
-        }).to_sse_chunk()
+
+        cleared_msg = SSEEnvelope.from_any(
+            {"type": "status", "messageId": session.params.message_id, "step_key": "waiting_for_turn_clear", "status": "success"}
+        ).to_sse_chunk()
         await buffer.append(cleared_msg)
 
     try:
@@ -68,9 +68,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
                         session_factory = get_session_factory()
                         async with session_factory() as db:
                             await db.execute(
-                                delete(OfflineDurableTask).where(
-                                    OfflineDurableTask.chat_id == session.request.chat_id
-                                )
+                                delete(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
                             )
                             await db.commit()
                             logger.info(
@@ -90,10 +88,7 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
 
                     await SystemNotificationService.create_notification(
                         title="Task Completed (Offline Guardian)",
-                        message=(
-                            "Your background task has successfully completed. "
-                            "You can view the results in the chat."
-                        ),
+                        message=("Your background task has successfully completed. You can view the results in the chat."),
                         type="success",
                         source="offline_guardian",
                         meta_data={

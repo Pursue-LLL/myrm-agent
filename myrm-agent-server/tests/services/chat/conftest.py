@@ -9,18 +9,14 @@ from app.database.repositories.conversation_recall_repo import CONVERSATION_RECA
 
 @pytest_asyncio.fixture
 async def db_session():
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///file:testdb_chat?mode=memory&cache=shared&uri=true"
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///file:testdb_chat?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         from app.database.migrations import ensure_raw_sql_schema
 
         await ensure_raw_sql_schema(engine)
 
-    TestingSessionLocal = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    TestingSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Bind UnitOfWork to this in-memory database for repository calls.
     import app.database.repositories.uow as uow_module

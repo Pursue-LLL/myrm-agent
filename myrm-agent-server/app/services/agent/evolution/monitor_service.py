@@ -34,9 +34,7 @@ class SkillEvolutionMonitorService:
 
     async def _on_new_proposal(self, proposal: EvolutionProposal) -> None:
         """Callback invoked by the Harness when a new proposal is generated."""
-        logger.info(
-            f"New evolution proposal received for skill: {proposal.skill_id} (Score: {proposal.score})"
-        )
+        logger.info(f"New evolution proposal received for skill: {proposal.skill_id} (Score: {proposal.score})")
 
         # Persist the proposal through ConfidenceApprovalFlow so it lands on the approval-backed evolution review chain
         try:
@@ -47,9 +45,7 @@ class SkillEvolutionMonitorService:
             flow = ConfidenceApprovalFlow()
             result = await flow.process_evolution(proposal)
         except Exception as e:
-            logger.error(
-                f"Failed to persist EvolutionProposal for skill {proposal.skill_id}: {e}"
-            )
+            logger.error(f"Failed to persist EvolutionProposal for skill {proposal.skill_id}: {e}")
             return
 
         proposal_dict = proposal.to_dict()
@@ -68,11 +64,7 @@ class SkillEvolutionMonitorService:
         self._monitor = MetricMonitor(
             store=self._integration.store,
             engine=self._integration.engine,
-            llm_client=(
-                self._integration.engine._llm
-                if hasattr(self._integration.engine, "_llm")
-                else None
-            ),
+            llm_client=(self._integration.engine._llm if hasattr(self._integration.engine, "_llm") else None),
             scan_interval=5,
             on_evolution_complete=self._on_new_proposal,
         )
@@ -158,11 +150,7 @@ async def init_evolution_monitor_service() -> None:
         from app.core.channel_bridge.config_loader import load_user_configs
 
         user_configs = await load_user_configs()
-        search_service_cfg = (
-            user_configs.search_cfg
-            if user_configs.search_is_user_configured
-            else None
-        )
+        search_service_cfg = user_configs.search_cfg if user_configs.search_is_user_configured else None
 
         vector_store = await create_default_vector_store()
         embedding = get_embedding_service(embedding_cfg)
@@ -192,9 +180,7 @@ async def init_evolution_monitor_service() -> None:
         await evolution.store.sync_vectors()
 
         # Start the background queue to process evolutions
-        await evolution.start_background_queue(
-            on_proposal_callback=_on_proposal_callback
-        )
+        await evolution.start_background_queue(on_proposal_callback=_on_proposal_callback)
 
     _monitor_service = SkillEvolutionMonitorService(evolution)
     service_holder[0] = _monitor_service

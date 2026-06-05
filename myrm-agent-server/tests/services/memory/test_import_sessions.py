@@ -78,9 +78,7 @@ class _FakeMemoryManager:
             removed = [memory_id for memory_id in memory_ids if memory_id in current_ids]
             self.memory_ids_by_type[memory_type] = [memory_id for memory_id in current_ids if memory_id not in removed]
             for memory_id in removed:
-                result.deleted_refs.append(
-                    MemoryMutationRef(memory_type=memory_type, memory_id=memory_id, backend="fake")
-                )
+                result.deleted_refs.append(MemoryMutationRef(memory_type=memory_type, memory_id=memory_id, backend="fake"))
             for memory_id in memory_ids:
                 if memory_id not in removed:
                     result.missing_refs.append(
@@ -165,9 +163,7 @@ async def test_import_rollback_uses_ledger_and_blocks_changed_profile(
     assert batch.status == IMPORT_BATCH_STATUS_PARTIAL
 
     rows = (
-        await db_session.execute(
-            select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id)
-        )
+        await db_session.execute(select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id))
     ).scalars()
     statuses = {row.memory_type: row.status for row in rows}
     assert statuses == {"profile": IMPORT_ITEM_STATUS_CONFLICT, "semantic": IMPORT_ITEM_STATUS_ROLLED_BACK}
@@ -199,9 +195,7 @@ async def test_import_rollback_marks_missing_memory_item_without_false_success(
     assert batch.status == IMPORT_BATCH_STATUS_PARTIAL
 
     row = (
-        await db_session.execute(
-            select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id)
-        )
+        await db_session.execute(select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id))
     ).scalar_one()
     assert row.status == IMPORT_ITEM_STATUS_MISSING
 
@@ -246,9 +240,7 @@ async def test_profile_rollback_blocks_same_value_aba_revision(
     assert manager.profile_values["tone"] == "detailed"
 
     row = (
-        await db_session.execute(
-            select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id)
-        )
+        await db_session.execute(select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id))
     ).scalar_one()
     assert row.status == IMPORT_ITEM_STATUS_CONFLICT
 
@@ -276,9 +268,7 @@ async def test_recover_incomplete_rollback_journal_resumes_batch(
     assert batch.status == IMPORT_BATCH_STATUS_ROLLED_BACK
 
     row = (
-        await db_session.execute(
-            select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id)
-        )
+        await db_session.execute(select(MemoryImportItemModel).where(MemoryImportItemModel.batch_id == confirm.import_batch_id))
     ).scalar_one()
     assert row.status == IMPORT_ITEM_STATUS_ROLLED_BACK
 

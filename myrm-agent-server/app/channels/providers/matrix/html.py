@@ -84,9 +84,7 @@ def md_to_matrix_html(text: str) -> str | None:
     def _preserve_block(m: re.Match[str]) -> str:
         lang, code = m.group(1), m.group(2)
         tag = (
-            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>'
-            if lang
-            else f"<pre>{html.escape(code)}</pre>"
+            f'<pre><code class="language-{lang}">{html.escape(code)}</code></pre>' if lang else f"<pre>{html.escape(code)}</pre>"
         )
         preserved.append(tag)
         return f"\x00P{len(preserved) - 1}\x00"

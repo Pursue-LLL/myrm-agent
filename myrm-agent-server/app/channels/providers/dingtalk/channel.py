@@ -80,8 +80,11 @@ class DingTalkChannel(BaseChannel):
         app_secret=credential_field("clientSecret", "DINGTALK_APP_SECRET"),
         robot_code=credential_field("robotCode", "DINGTALK_ROBOT_CODE"),
         card_template_id=credential_field(
-            "cardTemplateId", "DINGTALK_CARD_TEMPLATE_ID",
-            default="", required=False, is_sensitive=False,
+            "cardTemplateId",
+            "DINGTALK_CARD_TEMPLATE_ID",
+            default="",
+            required=False,
+            is_sensitive=False,
         ),
     )
     capabilities = ChannelCapabilities(
@@ -245,8 +248,7 @@ class DingTalkChannel(BaseChannel):
             return msg
 
         codes_to_resolve = [
-            (i, att) for i, att in enumerate(msg.media)
-            if att.url and not att.url.startswith(("http://", "https://"))
+            (i, att) for i, att in enumerate(msg.media) if att.url and not att.url.startswith(("http://", "https://"))
         ]
         if not codes_to_resolve:
             return msg

@@ -106,11 +106,15 @@ class TestMatrixCollectIssues:
             access_token="tok",
             encryption="true",
         )
-        with patch(
-            "app.channels.providers.matrix.channel._MAUTRIX_AVAILABLE", True,
-        ), patch(
-            "app.channels.providers.matrix.crypto.check_e2ee_deps",
-            return_value=False,
+        with (
+            patch(
+                "app.channels.providers.matrix.channel._MAUTRIX_AVAILABLE",
+                True,
+            ),
+            patch(
+                "app.channels.providers.matrix.crypto.check_e2ee_deps",
+                return_value=False,
+            ),
         ):
             issues = ch.collect_issues()
         dep_issues = [i for i in issues if i.kind == IssueKind.DEPENDENCY]
@@ -128,9 +132,7 @@ class TestMatrixCollectIssues:
             return_value=True,
         ):
             issues = ch.collect_issues()
-        config_warnings = [
-            i for i in issues if i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.WARNING
-        ]
+        config_warnings = [i for i in issues if i.kind == IssueKind.CONFIG and i.severity == IssueSeverity.WARNING]
         assert len(config_warnings) == 1
         assert "device_id" in config_warnings[0].message
 
@@ -628,18 +630,23 @@ class TestAutoJoinDmRefresh:
         mock_client = AsyncMock()
         ch._client = mock_client
 
-        with patch(
-            "app.channels.providers.matrix.channel.auto_join",
-            new_callable=AsyncMock,
-        ), patch(
-            "app.channels.providers.matrix.channel.refresh_dm_cache",
-            new_callable=AsyncMock,
-        ) as mock_refresh:
+        with (
+            patch(
+                "app.channels.providers.matrix.channel.auto_join",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "app.channels.providers.matrix.channel.refresh_dm_cache",
+                new_callable=AsyncMock,
+            ) as mock_refresh,
+        ):
             await ch._auto_join(mock_client, "!new_room:example.com")
 
             assert "!new_room:example.com" in ch._joined_rooms
             mock_refresh.assert_called_once_with(
-                mock_client, ch._joined_rooms, ch._dm_rooms,
+                mock_client,
+                ch._joined_rooms,
+                ch._dm_rooms,
             )
 
 
@@ -668,9 +675,11 @@ class TestMembersCacheTtl:
 
         ch = MatrixChannel(homeserver="https://matrix.example.com", access_token="tok")
         mock_client = AsyncMock()
-        mock_client.get_joined_members = AsyncMock(return_value={
-            "@bob:example.com": MagicMock(displayname="Bob", display_name="Bob"),
-        })
+        mock_client.get_joined_members = AsyncMock(
+            return_value={
+                "@bob:example.com": MagicMock(displayname="Bob", display_name="Bob"),
+            }
+        )
         ch._client = mock_client
 
         ch._room_members_cache["!room:example.com"] = {"Alice": "@alice:example.com"}

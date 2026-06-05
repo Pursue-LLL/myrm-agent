@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Cpu, HardDrive, Monitor, CheckCircle2, AlertTriangle, XCircle, Download, Loader2 } from 'lucide-react';
+import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -17,6 +17,7 @@ interface HardwareRecommendation {
   req_vram_gb: number;
   fit_score: number;
   fit_level: 'perfect' | 'good' | 'fair' | 'poor';
+  is_installed?: boolean;
 }
 
 interface HardwareProfile {
@@ -28,6 +29,7 @@ interface HardwareProfile {
   gpu_name?: string;
   gpu_vram_gb?: number;
   is_unified_memory?: boolean;
+  ollama_running?: boolean;
   recommendations: HardwareRecommendation[];
 }
 
@@ -40,6 +42,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   const [profile, setProfile] = useState<HardwareProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ status: string; completed?: number; total?: number } | null>(null);
 
   // SaaS 模式下直接隐藏
   const isSaaS = getDeployMode() === 'sandbox';
@@ -70,6 +75,75 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
     fetchHardwareProfile();
   }, [isSaaS]);
+
+  const handleDownload = async (modelId: string) => {
+    const ollamaModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
+    
+    setDownloadingModel(modelId);
+    setDownloadProgress({ status: t('downloading') });
+    
+    try {
+      const res = await fetch('/api/v1/integrations/llms/hardware/ollama/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_name: ollamaModelName }),
+      });
+      
+      if (!res.ok) throw new Error('Failed to start download');
+      if (!res.body) throw new Error('No response body');
+      
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\\n').filter(line => line.trim());
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.error) {
+              throw new Error(data.error);
+            }
+            setDownloadProgress({
+              status: data.status,
+              completed: data.completed,
+              total: data.total
+            });
+          } catch {
+            // ignore parse error for incomplete chunks
+          }
+        }
+      }
+      
+      // Download complete!
+      setDownloadProgress(null);
+      setDownloadingModel(null);
+      
+      setProfile(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recommendations: prev.recommendations.map(r => 
+            r.model_id === modelId ? { ...r, is_installed: true } : r
+          )
+        };
+      });
+      
+      onApplyModel(modelId);
+      
+    } catch (err) {
+      console.error('Download failed:', err);
+      setDownloadProgress({ status: `Error: ${err instanceof Error ? err.message : 'Unknown error'}` });
+      setTimeout(() => {
+        setDownloadingModel(null);
+        setDownloadProgress(null);
+      }, 3000);
+    }
+  };
 
   if (isSaaS || (!loading && !error && profile && !profile.hardware_detected)) {
     return null; // 优雅降级：SaaS 模式或硬件检测失败时隐藏面板
@@ -156,65 +230,99 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
         {/* 推荐列表 */}
         <div className="p-6 space-y-4">
-          <h4 className="text-sm font-medium text-muted-foreground mb-3">{t('recommendedModels')}</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-medium text-muted-foreground">{t('recommendedModels')}</h4>
+          </div>
           
-          <div className="grid gap-3">
-            {profile.recommendations.map((rec, idx) => (
-              <div 
-                key={rec.model_id} 
-                className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border transition-all ${
-                  idx === 0 ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-background hover:bg-muted/50'
-                }`}
-              >
-                <div className="space-y-1.5 flex-1 pr-4">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{rec.name}</span>
-                    {idx === 0 && (
-                      <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5">
-                        {t('bestFit')}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{rec.description}</p>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <HardDrive className="w-3 h-3" />
-                      {t('reqVram')}: {rec.req_vram_gb} GB
-                    </span>
-                  </div>
-                </div>
+          {profile.ollama_running === false && (
+            <Alert variant="destructive" className="mb-4 bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{t('ollamaNotRunningTitle')}</AlertTitle>
+              <AlertDescription className="text-xs mt-1">
+                {t('ollamaNotRunningDesc')}
+              </AlertDescription>
+            </Alert>
+          )}
 
-                <div className="flex items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
-                  <div className="flex flex-col items-end gap-1 min-w-[100px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium">Fit Score:</span>
-                      <span className={`text-sm font-bold ${getFitLevelColor(rec.fit_level).split(' ')[0]}`}>
-                        {rec.fit_score}%
+          <div className="grid gap-3">
+            {profile.recommendations.map((rec, idx) => {
+              const isDownloading = downloadingModel === rec.model_id;
+              const progressPercent = isDownloading && downloadProgress?.total && downloadProgress?.completed 
+                ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) 
+                : 0;
+
+              return (
+                <div 
+                  key={rec.model_id} 
+                  className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg border transition-all ${
+                    idx === 0 ? 'bg-primary/5 border-primary/30 shadow-sm' : 'bg-background hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="space-y-1.5 flex-1 pr-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{rec.name}</span>
+                      {idx === 0 && (
+                        <Badge className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5">
+                          {t('bestFit')}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{rec.description}</p>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        <HardDrive className="w-3 h-3" />
+                        {t('reqVram')}: {rec.req_vram_gb} GB
                       </span>
                     </div>
-                    <Progress 
-                      value={rec.fit_score} 
-                      className="h-1.5 w-24" 
-                      indicatorClassName={
-                        rec.fit_level === 'perfect' || rec.fit_level === 'good' ? 'bg-green-500' :
-                        rec.fit_level === 'fair' ? 'bg-yellow-500' : 'bg-red-500'
-                      }
-                    />
                   </div>
-                  
-                  <Button 
-                    size="sm" 
-                    variant={idx === 0 ? "default" : "outline"}
-                    className="shrink-0"
-                    disabled={rec.fit_level === 'poor'}
-                    onClick={() => onApplyModel(rec.model_id)}
-                  >
-                    <Download className="w-3.5 h-3.5 mr-1.5" />
-                    {t('apply')}
-                  </Button>
+
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 mt-4 sm:mt-0 w-full sm:w-auto">
+                    <div className="flex flex-col items-end gap-1 min-w-[100px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium">Fit Score:</span>
+                        <span className={`text-sm font-bold ${getFitLevelColor(rec.fit_level).split(' ')[0]}`}>
+                          {rec.fit_score}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={rec.fit_score} 
+                        className="h-1.5 w-24" 
+                        indicatorClassName={
+                          rec.fit_level === 'perfect' || rec.fit_level === 'good' ? 'bg-green-500' :
+                          rec.fit_level === 'fair' ? 'bg-yellow-500' : 'bg-red-500'
+                        }
+                      />
+                    </div>
+                    
+                    {isDownloading ? (
+                      <div className="flex flex-col items-end gap-1 w-full sm:w-[120px]">
+                        <span className="text-[10px] text-muted-foreground truncate w-full text-right">
+                          {downloadProgress?.status || t('downloading')}
+                        </span>
+                        <Progress value={progressPercent} className="h-2 w-full" />
+                      </div>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant={rec.is_installed ? "secondary" : (idx === 0 ? "default" : "outline")}
+                        className="shrink-0 min-w-[100px]"
+                        disabled={rec.fit_level === 'poor' || profile.ollama_running === false || downloadingModel !== null}
+                        onClick={() => rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id)}
+                      >
+                        {rec.is_installed ? (
+                          t('installed')
+                        ) : (
+                          <>
+                            <Download className="w-3.5 h-3.5 mr-1.5" />
+                            {t('apply')}
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           
           {profile.recommendations.some(r => r.fit_level === 'poor') && (

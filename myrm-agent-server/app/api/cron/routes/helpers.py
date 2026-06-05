@@ -41,10 +41,12 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
     from myrm_agent_harness.toolkits.cron.manager import CronManager
 
+
 def _get_manager() -> CronManager:
     from app.core.cron.adapters.setup import get_cron_manager
 
     return get_cron_manager()
+
 
 def _to_response(job: CronJob, monitor_state: MonitorState | None = None) -> CronJobResponse:
     return CronJobResponse(
@@ -98,15 +100,18 @@ def _to_response(job: CronJob, monitor_state: MonitorState | None = None) -> Cro
         updated_at=job.updated_at,
     )
 
+
 def _active_hours_to_response(ah: ActiveHours | None) -> ActiveHoursResponse | None:
     if ah is None:
         return None
     return ActiveHoursResponse(start=ah.start, end=ah.end, tz=ah.tz)
 
+
 def _active_hours_from_request(ah: ActiveHoursCreate | None) -> ActiveHours | None:
     if ah is None:
         return None
     return ActiveHours(start=ah.start, end=ah.end, tz=ah.tz)
+
 
 def _monitor_config_to_response(mc: MonitorConfig | None, state: MonitorState | None = None) -> MonitorConfigResponse | None:
     if mc is None:
@@ -120,6 +125,7 @@ def _monitor_config_to_response(mc: MonitorConfig | None, state: MonitorState | 
         last_reset_reason=state.last_reset_reason if state else None,
     )
 
+
 def _monitor_config_from_request(mc: MonitorConfigCreate | None) -> MonitorConfig | None:
     if mc is None:
         return None
@@ -130,8 +136,10 @@ def _monitor_config_from_request(mc: MonitorConfigCreate | None) -> MonitorConfi
         enabled=mc.enabled,
     )
 
+
 def _delivery_to_response(dc: DeliveryConfig) -> DeliveryResponse:
     return DeliveryResponse(channel=dc.channel, target=dc.target, secret=dc.secret)
+
 
 def _delivery_from_request(d: DeliveryCreate | None) -> DeliveryConfig:
     if not d:
@@ -144,6 +152,7 @@ def _delivery_from_request(d: DeliveryCreate | None) -> DeliveryConfig:
 
         secret = _secrets.token_hex(32)
     return DeliveryConfig(channel=d.channel, target=d.target, secret=secret)
+
 
 def _failure_alert_to_response(
     fa: FailureAlertConfig | bool | None,
@@ -159,6 +168,7 @@ def _failure_alert_to_response(
         delivery=_delivery_to_response(fa.delivery) if fa.delivery else None,
     )
 
+
 def _failure_alert_from_request(
     fa: FailureAlertCreate | bool | None,
 ) -> FailureAlertConfig | Literal[False] | None:
@@ -173,6 +183,7 @@ def _failure_alert_from_request(
         delivery=_delivery_from_request(fa.delivery) if fa.delivery else None,
     )
 
+
 def _trigger_config_to_response(tc: TriggerConfig | None) -> TriggerConfigResponse | None:
     if tc is None:
         return None
@@ -183,6 +194,7 @@ def _trigger_config_to_response(tc: TriggerConfig | None) -> TriggerConfigRespon
             SystemEventTriggerResponse(source=s.source, event_type=s.event_type, filters=s.filters) for s in tc.system_events
         ],
     )
+
 
 def _trigger_config_from_request(tc: TriggerConfigCreate | None) -> TriggerConfig | None:
     if tc is None:
@@ -196,6 +208,7 @@ def _trigger_config_from_request(tc: TriggerConfigCreate | None) -> TriggerConfi
         return None
     return TriggerConfig(webhooks=webhooks, events=events, system_events=system_events)
 
+
 def _build_schedule(s: ScheduleCreate) -> Schedule:
     return Schedule(
         kind=ScheduleKind(s.kind),
@@ -205,6 +218,7 @@ def _build_schedule(s: ScheduleCreate) -> Schedule:
         run_at=s.run_at,
         stagger_ms=s.stagger_ms,
     )
+
 
 def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRunResponse:
     return CronRunResponse(
@@ -228,8 +242,8 @@ def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRu
         job_name=job_name,
     )
 
+
 def _get_scheduler() -> "CronScheduler":
     from app.core.cron.adapters.setup import get_cron_scheduler
 
     return get_cron_scheduler()
-

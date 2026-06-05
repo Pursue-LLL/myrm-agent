@@ -43,9 +43,7 @@ async def test_file_diff_stream_e2e(app) -> None:
     file_diff_events = []
 
     with TestClient(app) as client:
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=request_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
             assert response.status_code == 200
 
             for line in response.iter_lines():

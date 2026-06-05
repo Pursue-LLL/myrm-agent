@@ -250,13 +250,9 @@ def test_myrm_archive_memory_section_uses_import_review_path() -> None:
     assert result.summary.source == "myrm_archive"
     assert result.summary.mapped_items == 1
     assert result.summary.unmapped_items == 1
-    assert result.normalized_data == {
-        "semantic": [{"content": "Archive memory import stays review-bound.", "metadata": {}}]
-    }
+    assert result.normalized_data == {"semantic": [{"content": "Archive memory import stays review-bound.", "metadata": {}}]}
     assert result.warnings == ["myrm_archive_non_memory_sections_review_only"]
-    archive_mapping = next(
-        mapping for mapping in result.mappings if mapping.source_bucket == "archive.shared_context"
-    )
+    archive_mapping = next(mapping for mapping in result.mappings if mapping.source_bucket == "archive.shared_context")
     assert archive_mapping.status == "unsupported"
     assert archive_mapping.unmapped_count == 1
 
@@ -370,9 +366,7 @@ async def test_archive_restore_recovery_rebuilds_metadata_ledger_and_rolls_back(
     assert recovered_batch is not None
     assert recovered_batch.status == RESTORE_BATCH_STATUS_ROLLED_BACK
     item = (
-        await db_session.execute(
-            select(MemoryArchiveRestoreItemModel).where(MemoryArchiveRestoreItemModel.batch_id == batch.id)
-        )
+        await db_session.execute(select(MemoryArchiveRestoreItemModel).where(MemoryArchiveRestoreItemModel.batch_id == batch.id))
     ).scalar_one()
     assert item.status == RESTORE_ITEM_STATUS_ROLLED_BACK
 

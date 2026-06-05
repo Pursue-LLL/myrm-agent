@@ -12,9 +12,7 @@ from app.main import app
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -87,9 +85,7 @@ async def test_auth_missing_header(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_auth_invalid_key(client: AsyncClient):
     """Invalid key should return 401."""
-    resp = await client.get(
-        "/v1/models", headers={"Authorization": "Bearer sk-myrm-invalid123"}
-    )
+    resp = await client.get("/v1/models", headers={"Authorization": "Bearer sk-myrm-invalid123"})
     assert resp.status_code == 401
     assert "invalid_key" in resp.json()["detail"]["error"]["code"]
 

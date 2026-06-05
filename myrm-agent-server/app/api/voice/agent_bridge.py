@@ -83,9 +83,7 @@ class VoiceAgentBridge:
     _cancel_token: CancellationToken | None = field(default=None, repr=False)
     _current_turn: str | None = field(default=None, repr=False)
     _transcript: list[_TranscriptEntry] = field(default_factory=list, repr=False)
-    _tts_cancel_event: asyncio.Event = field(
-        default_factory=asyncio.Event, repr=False
-    )
+    _tts_cancel_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
 
     async def handle_stt_final(self, text: str) -> None:
         """Process finalized STT text: cancel prior turn, invoke Agent, TTS."""
@@ -119,7 +117,9 @@ class VoiceAgentBridge:
             await self._tts_working_hint()
 
             full_text, has_approval = await self._consume_agent_stream(
-                params, cancel_token, turn_id,
+                params,
+                cancel_token,
+                turn_id,
             )
 
             if self._current_turn != turn_id:
@@ -127,9 +127,7 @@ class VoiceAgentBridge:
                 return
 
             if full_text:
-                self._transcript.append(
-                    _TranscriptEntry(role="assistant", text=full_text)
-                )
+                self._transcript.append(_TranscriptEntry(role="assistant", text=full_text))
             elif has_approval:
                 outcome = "approval_pending"
             else:
@@ -150,7 +148,11 @@ class VoiceAgentBridge:
                 self._cancel_token = None
 
             _log_turn_latency(
-                turn_id, outcome, t_start, t_params, t_end,
+                turn_id,
+                outcome,
+                t_start,
+                t_params,
+                t_end,
             )
 
     def cancel_tts(self) -> None:
@@ -196,22 +198,14 @@ class VoiceAgentBridge:
         profile = await resolver.resolve(agent_id)
 
         if profile and profile.model:
-            agent_model_cfg = resolve_model_config(
-                configs.providers_dict, model_override=profile.model
-            )
-            agent_model_cfg = enrich_model_context_window(
-                agent_model_cfg, configs.providers_dict
-            )
+            agent_model_cfg = resolve_model_config(configs.providers_dict, model_override=profile.model)
+            agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
         else:
             agent_model_cfg = configs.model_cfg
 
-        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(
-            configs.providers_dict
-        )
+        fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
         lite_model_cfg = extract_lite_model_config(configs.providers_dict)
-        embedding_cfg, reranker_cfg = extract_retrieval_models(
-            configs.retrieval_dict
-        )
+        embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
         mcp_configs = extract_mcp_configs(configs.mcp_dict)
 
         if mcp_configs and profile:
@@ -233,10 +227,7 @@ class VoiceAgentBridge:
         if self._transcript:
             recent = self._transcript[-_MAX_TRANSCRIPT_HISTORY:]
             lines = [f"{'User' if e.role == 'user' else 'Assistant'}: {e.text}" for e in recent]
-            transcript_ctx = (
-                "\n\n[Recent voice transcript for context]\n"
-                + "\n".join(lines)
-            )
+            transcript_ctx = "\n\n[Recent voice transcript for context]\n" + "\n".join(lines)
 
         chat_id = self._chat_id or f"voice-{uuid.uuid4().hex[:12]}"
         message_id = f"vmsg-{uuid.uuid4().hex[:12]}"
@@ -250,9 +241,7 @@ class VoiceAgentBridge:
 
         skill_ids = list(profile.skill_ids) if profile else []
         subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
-        enabled_builtin_tools = (
-            list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
-        )
+        enabled_builtin_tools = list(profile.enabled_builtin_tools) if profile else list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
         return GeneralAgentParams(
             query=query + transcript_ctx,
@@ -272,9 +261,7 @@ class VoiceAgentBridge:
             enable_web_search=search_available,
             **resolve_builtin_tool_flags(enabled_builtin_tools),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
-            enable_memory_auto_extraction=bool(
-                memory_settings.get("enableMemoryAutoExtraction", True)
-            ),
+            enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction", True)),
             agent_skill_ids=skill_ids,
             subagent_ids=subagent_ids,
             channel_name="voice_bridge",
@@ -296,9 +283,7 @@ class VoiceAgentBridge:
         pending_text = ""
         has_approval = False
 
-        async for event in ai_agent_service_stream(
-            params, cancel_token=cancel_token
-        ):
+        async for event in ai_agent_service_stream(params, cancel_token=cancel_token):
             if self._current_turn != turn_id or self._closed:
                 break
 
@@ -314,20 +299,24 @@ class VoiceAgentBridge:
                     pending_text = remaining
                     for seg in segments:
                         await self._stream_tts_segment(seg, turn_id)
-                        await self._send_json({
-                            "type": "agent_response",
-                            "text": seg,
-                            "turn_id": turn_id,
-                            "done": False,
-                        })
+                        await self._send_json(
+                            {
+                                "type": "agent_response",
+                                "text": seg,
+                                "turn_id": turn_id,
+                                "done": False,
+                            }
+                        )
 
             elif event_type == "tool_use":
                 tool_name = event.get("data", {}).get("name", "") if isinstance(event.get("data"), dict) else ""
-                await self._send_json({
-                    "type": "agent_tool_use",
-                    "tool_name": tool_name,
-                    "turn_id": turn_id,
-                })
+                await self._send_json(
+                    {
+                        "type": "agent_tool_use",
+                        "tool_name": tool_name,
+                        "turn_id": turn_id,
+                    }
+                )
 
             elif event_type in ("approval_required", "tool_approval_request"):
                 has_approval = True
@@ -335,19 +324,23 @@ class VoiceAgentBridge:
 
         if pending_text.strip() and self._current_turn == turn_id:
             await self._stream_tts_segment(pending_text.strip(), turn_id)
-            await self._send_json({
-                "type": "agent_response",
-                "text": pending_text.strip(),
-                "turn_id": turn_id,
-                "done": True,
-            })
+            await self._send_json(
+                {
+                    "type": "agent_response",
+                    "text": pending_text.strip(),
+                    "turn_id": turn_id,
+                    "done": True,
+                }
+            )
 
         return "".join(full_text_parts), has_approval
 
     # ── Approval handling ─────────────────────────────────────────────
 
     async def _handle_approval_required(
-        self, event: dict[str, object], turn_id: str,
+        self,
+        event: dict[str, object],
+        turn_id: str,
     ) -> None:
         """Notify user via TTS and forward approval data through WebSocket.
 
@@ -374,7 +367,8 @@ class VoiceAgentBridge:
 
         logger.info(
             "Voice approval forwarded: turn=%s event_type=%s",
-            turn_id, event_type,
+            turn_id,
+            event_type,
         )
 
     # ── TTS helpers ───────────────────────────────────────────────────

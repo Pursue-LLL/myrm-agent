@@ -49,10 +49,10 @@ def _make_job(
         name=name,
         job_type=JobType.AGENT,
         schedule=Schedule(
-        kind=schedule_kind,
-        expr="0 * * * *" if schedule_kind == ScheduleKind.CRON else None,
-        run_at=next_run_at if schedule_kind == ScheduleKind.ONCE else None,
-    ),
+            kind=schedule_kind,
+            expr="0 * * * *" if schedule_kind == ScheduleKind.CRON else None,
+            run_at=next_run_at if schedule_kind == ScheduleKind.ONCE else None,
+        ),
         status=status,
         prompt="test",
         delivery=DeliveryConfig(channel="chat"),
@@ -65,10 +65,12 @@ class TestSystemHealthSection:
     @pytest.mark.asyncio
     async def test_no_failures_returns_none(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("job-a", consecutive_failures=0),
-            _make_job("job-b", consecutive_failures=1),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("job-a", consecutive_failures=0),
+                _make_job("job-b", consecutive_failures=1),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = SystemHealthSection()
             result = await section.build(_ctx())
@@ -77,10 +79,12 @@ class TestSystemHealthSection:
     @pytest.mark.asyncio
     async def test_failures_above_threshold_returns_content(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("healthy-job", consecutive_failures=0),
-            _make_job("failing-job", consecutive_failures=5),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("healthy-job", consecutive_failures=0),
+                _make_job("failing-job", consecutive_failures=5),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = SystemHealthSection()
             result = await section.build(_ctx())
@@ -91,9 +95,11 @@ class TestSystemHealthSection:
     @pytest.mark.asyncio
     async def test_paused_jobs_ignored(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("paused-fail", status=JobStatus.PAUSED, consecutive_failures=10),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("paused-fail", status=JobStatus.PAUSED, consecutive_failures=10),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = SystemHealthSection()
             result = await section.build(_ctx())
@@ -111,10 +117,12 @@ class TestSystemHealthSection:
     @pytest.mark.asyncio
     async def test_threshold_boundary(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("boundary-2", consecutive_failures=2),
-            _make_job("boundary-3", consecutive_failures=3),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("boundary-2", consecutive_failures=2),
+                _make_job("boundary-3", consecutive_failures=3),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = SystemHealthSection()
             result = await section.build(_ctx())
@@ -127,9 +135,11 @@ class TestPendingRemindersSection:
     @pytest.mark.asyncio
     async def test_no_active_reminders_returns_none(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("paused", status=JobStatus.PAUSED),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("paused", status=JobStatus.PAUSED),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = PendingRemindersSection()
             result = await section.build(_ctx())
@@ -139,9 +149,11 @@ class TestPendingRemindersSection:
     async def test_once_job_with_future_trigger(self) -> None:
         store = AsyncMock()
         future = datetime.now(UTC) + timedelta(hours=2)
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("reminder", schedule_kind=ScheduleKind.ONCE, next_run_at=future),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("reminder", schedule_kind=ScheduleKind.ONCE, next_run_at=future),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = PendingRemindersSection()
             result = await section.build(_ctx())
@@ -152,9 +164,11 @@ class TestPendingRemindersSection:
     @pytest.mark.asyncio
     async def test_recurring_with_failures(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("failing-cron", consecutive_failures=2),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("failing-cron", consecutive_failures=2),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = PendingRemindersSection()
             result = await section.build(_ctx())
@@ -166,9 +180,11 @@ class TestPendingRemindersSection:
         """ONCE jobs with next_run_at in the past should not appear."""
         store = AsyncMock()
         past = datetime.now(UTC) - timedelta(hours=1)
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("past-reminder", schedule_kind=ScheduleKind.ONCE, next_run_at=past),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("past-reminder", schedule_kind=ScheduleKind.ONCE, next_run_at=past),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = PendingRemindersSection()
             result = await section.build(_ctx())
@@ -177,9 +193,11 @@ class TestPendingRemindersSection:
     @pytest.mark.asyncio
     async def test_internal_jobs_skipped(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(return_value=[
-            _make_job("__heartbeat", consecutive_failures=5),
-        ])
+        store.list_jobs = AsyncMock(
+            return_value=[
+                _make_job("__heartbeat", consecutive_failures=5),
+            ]
+        )
         with patch(_CRON_STORE_PATH, return_value=store):
             section = PendingRemindersSection()
             result = await section.build(_ctx())

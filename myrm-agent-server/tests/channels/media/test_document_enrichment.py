@@ -112,14 +112,17 @@ class TestEnrichDocumentInbound:
                 ),
             )
         )
-        with             patch(
+        with (
+            patch(
                 "app.channels.media.document_enrichment._download_document_bytes",
                 new_callable=AsyncMock,
                 return_value=b"doc-bytes",
-            ), patch(
-            "app.channels.media.document_enrichment._extract_text_from_bytes",
-            new_callable=AsyncMock,
-            return_value="contract terms here",
+            ),
+            patch(
+                "app.channels.media.document_enrichment._extract_text_from_bytes",
+                new_callable=AsyncMock,
+                return_value="contract terms here",
+            ),
         ):
             result = await enrich_document_inbound(msg, None, extract_enabled=True)
 

@@ -118,9 +118,7 @@ def parse_artifact_share_token(token: str) -> ArtifactShareClaims | None:
     )
 
 
-SHAREABLE_NAME_SUFFIXES: frozenset[str] = frozenset(
-    {".html", ".htm", ".pdf", ".md", ".markdown", ".txt"}
-)
+SHAREABLE_NAME_SUFFIXES: frozenset[str] = frozenset({".html", ".htm", ".pdf", ".md", ".markdown", ".txt"})
 
 
 def is_shareable_artifact_name(name: str) -> bool:

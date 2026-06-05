@@ -82,9 +82,7 @@ async def test_run_evolution_task_e2e_no_mocks():
     await _run_evolution_task(chat_id, model_cfg)
 
     async with session_factory() as db:
-        result = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        result = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         approvals = result.scalars().all()
 
         assert len(approvals) >= 1, "Should have created at least 1 ApprovalRecord for evolution."

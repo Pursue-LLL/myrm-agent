@@ -317,9 +317,7 @@ class TestTranscribeLocal:
         path = _audio_file()
         mock_model = _mock_whisper_model()
 
-        with patch.object(
-            _LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model
-        ):
+        with patch.object(_LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model):
             try:
                 result = await transcribe(path, _voice("local"))
             finally:
@@ -343,9 +341,7 @@ class TestTranscribeLocal:
             _FakeTranscriptionInfo(language="en", duration=1.0),
         )
 
-        with patch.object(
-            _LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model
-        ):
+        with patch.object(_LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model):
             try:
                 result = await transcribe(path, _voice("local"))
             finally:
@@ -359,12 +355,12 @@ class TestTranscribeLocal:
         path = _audio_file()
         mock_model = _mock_whisper_model()
         config = VoiceConfig(
-            stt_enabled=True, stt_provider="local", stt_language="zh",
+            stt_enabled=True,
+            stt_provider="local",
+            stt_language="zh",
         )
 
-        with patch.object(
-            _LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model
-        ):
+        with patch.object(_LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model):
             try:
                 await transcribe(path, config)
             finally:
@@ -417,11 +413,14 @@ class TestLocalWhisperManager:
         mgr = _LocalWhisperManager()
         mock_model = MagicMock()
 
-        with patch(
-            "app.channels.voice.stt.WhisperModel",
-            return_value=mock_model,
-            create=True,
-        ), patch.dict("sys.modules", {"faster_whisper": SimpleNamespace(WhisperModel=lambda *a, **kw: mock_model)}):
+        with (
+            patch(
+                "app.channels.voice.stt.WhisperModel",
+                return_value=mock_model,
+                create=True,
+            ),
+            patch.dict("sys.modules", {"faster_whisper": SimpleNamespace(WhisperModel=lambda *a, **kw: mock_model)}),
+        ):
             config = _voice("local", local_model="tiny", local_device="cpu", local_compute_type="int8")
             model = await mgr.get_model(config)
             assert model is mock_model
@@ -445,16 +444,17 @@ class TestLocalAvailability:
         with patch.dict("sys.modules", {"faster_whisper": None}):
             with patch(
                 "builtins.__import__",
-                side_effect=lambda name, *a, **kw: (_ for _ in ()).throw(ImportError) if name == "faster_whisper" else __builtins__.__import__(name, *a, **kw),
+                side_effect=lambda name, *a, **kw: (
+                    (_ for _ in ()).throw(ImportError) if name == "faster_whisper" else __builtins__.__import__(name, *a, **kw)
+                ),
             ):
                 assert is_local_available() is False
 
     def test_get_local_status_not_loaded(self) -> None:
-        with patch(
-            "app.channels.voice.stt.is_local_available", return_value=False
-        ), patch(
-            "app.channels.voice.stt._whisper_manager"
-        ) as mock_mgr:
+        with (
+            patch("app.channels.voice.stt.is_local_available", return_value=False),
+            patch("app.channels.voice.stt._whisper_manager") as mock_mgr,
+        ):
             mock_mgr.is_loaded = False
             status = get_local_status()
             assert status["available"] is False
@@ -517,9 +517,7 @@ class TestTranscribeAudioBytes:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_cls.return_value = mock_client
 
-            result = await transcribe(
-                None, _voice("deepgram"), audio_bytes=audio_data
-            )
+            result = await transcribe(None, _voice("deepgram"), audio_bytes=audio_data)
 
         assert result is not None
         assert result.text == "Deepgram bytes"
@@ -758,13 +756,16 @@ class TestWhisperManagerCacheHit:
         mgr = _LocalWhisperManager()
         mock_model = MagicMock()
 
-        with patch(
-            "app.channels.voice.stt.WhisperModel",
-            return_value=mock_model,
-            create=True,
-        ), patch.dict(
-            "sys.modules",
-            {"faster_whisper": SimpleNamespace(WhisperModel=lambda *a, **kw: mock_model)},
+        with (
+            patch(
+                "app.channels.voice.stt.WhisperModel",
+                return_value=mock_model,
+                create=True,
+            ),
+            patch.dict(
+                "sys.modules",
+                {"faster_whisper": SimpleNamespace(WhisperModel=lambda *a, **kw: mock_model)},
+            ),
         ):
             config = _voice("local", local_model="tiny", local_device="cpu", local_compute_type="int8")
             model1 = await mgr.get_model(config)
@@ -832,9 +833,7 @@ class TestFallback:
                 "app.channels.voice.stt.is_local_available",
                 return_value=True,
             ),
-            patch.object(
-                _LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model
-            ),
+            patch.object(_LocalWhisperManager, "get_model", new_callable=AsyncMock, return_value=mock_model),
         ):
             try:
                 result = await transcribe(path, _voice("openai"))

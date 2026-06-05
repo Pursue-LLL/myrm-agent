@@ -18,9 +18,7 @@ router = APIRouter()
 
 
 def verify_session_token(
-    session_token: str | None = Query(
-        None, alias="token", description="Active user session token"
-    ),
+    session_token: str | None = Query(None, alias="token", description="Active user session token"),
 ) -> str:
     """Validate that the caller is authenticated and has an active session."""
     # In Local Web / Tauri desktop deployment, authentication is automatically trusted
@@ -41,9 +39,7 @@ async def render_vault_artifact(
         ...,
         description="The absolute or relative path to the WebP plot file inside the sandbox",
     ),
-    workspace: str = Query(
-        ..., description="The workspace root directory boundary for path security"
-    ),
+    workspace: str = Query(..., description="The workspace root directory boundary for path security"),
     token: str = Depends(verify_session_token),
 ) -> FileResponse:
     """Securely proxy and render WebP plotted files from the user's sandbox directory."""
@@ -62,14 +58,10 @@ async def render_vault_artifact(
 
     # Verify path security: boundary compliance and avoid dangerous files (e.g. system files)
     if is_dangerous_path(resolved):
-        raise HTTPException(
-            status_code=403, detail="Access denied: Dangerous path detected"
-        )
+        raise HTTPException(status_code=403, detail="Access denied: Dangerous path detected")
 
     if not is_within_boundary(resolved, workspace_resolved):
-        raise HTTPException(
-            status_code=403, detail="Access denied: Path is outside workspace boundary"
-        )
+        raise HTTPException(status_code=403, detail="Access denied: Path is outside workspace boundary")
 
     if not os.path.isfile(resolved):
         raise HTTPException(status_code=404, detail="Requested plot file not found")

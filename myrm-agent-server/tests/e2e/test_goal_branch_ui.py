@@ -75,12 +75,8 @@ def test_goal_branch_ui():
 
         # Clean up: switch back to main and delete test branch
         print("Switching back to main and cleaning up...")
-        subprocess.run(
-            ["git", "checkout", "main"], cwd=workspace_dir, capture_output=True
-        )
-        subprocess.run(
-            ["git", "branch", "-D", test_branch], cwd=workspace_dir, capture_output=True
-        )
+        subprocess.run(["git", "checkout", "main"], cwd=workspace_dir, capture_output=True)
+        subprocess.run(["git", "branch", "-D", test_branch], cwd=workspace_dir, capture_output=True)
 
         browser.close()
 

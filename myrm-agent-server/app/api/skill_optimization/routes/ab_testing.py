@@ -19,6 +19,7 @@ from app.services.skill_optimization.ab_test_manager import ABTestManager
 
 router = APIRouter()
 
+
 @router.get("/ab-tests")
 async def list_ab_tests(db: AsyncSession = Depends(get_db)) -> list[dict[str, object]]:
     """获取A/B测试列表"""
@@ -39,12 +40,14 @@ async def list_ab_tests(db: AsyncSession = Depends(get_db)) -> list[dict[str, ob
         for test in tests
     ]
 
+
 class ABTestStartRequest(BaseModel):
     """A/B测试启动请求"""
 
     skill_id: str
     baseline_version: int
     candidate_content: str
+
 
 @router.post("/ab-tests/start")
 async def start_ab_test(
@@ -90,6 +93,7 @@ async def start_ab_test(
         "sample_size": test_result.sample_size,
         "started_at": test_result.started_at.isoformat(),
     }
+
 
 @router.get("/ab-tests/{skill_id}/status")
 async def get_ab_test_status(
@@ -141,6 +145,7 @@ async def get_ab_test_status(
         "samples": samples,
     }
 
+
 @router.post("/ab-tests/{skill_id}/promote")
 async def promote_skill_version(
     skill_id: str,
@@ -153,6 +158,7 @@ async def promote_skill_version(
         raise HTTPException(status_code=500, detail="Failed to promote version")
 
     return {"status": "success", "promoted_version": version}
+
 
 @router.post("/ab-tests/{skill_id}/stop")
 async def stop_ab_test(
@@ -192,4 +198,3 @@ async def stop_ab_test(
         "candidate_score": score,
         "sample_size": test.sample_size,
     }
-

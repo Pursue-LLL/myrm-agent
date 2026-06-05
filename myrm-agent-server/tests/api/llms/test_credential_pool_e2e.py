@@ -151,9 +151,7 @@ async def test_strategy_case_insensitive_normalization(
 
 
 @pytest.mark.asyncio
-async def test_invalid_strategy_raises_error(
-    mock_providers: dict[str, object], monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_invalid_strategy_raises_error(mock_providers: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:
     """Test invalid strategy raises descriptive error."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
@@ -173,9 +171,7 @@ async def test_invalid_strategy_raises_error(
 
 
 @pytest.mark.asyncio
-async def test_single_key_always_uses_round_robin(
-    monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_single_key_always_uses_round_robin(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test single-key pool defaults to ROUND_ROBIN regardless of frontend choice."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",
@@ -211,9 +207,7 @@ async def test_single_key_always_uses_round_robin(
 
 
 @pytest.mark.asyncio
-async def test_strategy_affects_cache_key(
-    mock_providers: dict[str, object], monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_strategy_affects_cache_key(mock_providers: dict[str, object], monkeypatch: pytest.MonkeyPatch) -> None:
     """Test different strategies result in different cached instances."""
     monkeypatch.setattr(
         "myrm_agent_harness.toolkits.llms.core.manager.create_litellm_model",

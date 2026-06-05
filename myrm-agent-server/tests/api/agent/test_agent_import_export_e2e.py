@@ -10,9 +10,7 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -30,7 +28,7 @@ async def test_agent_import_export_e2e(async_client: AsyncClient):
         "skill_ids": ["skill-1"],
         "is_built_in": False,
     }
-    
+
     # 模拟真实路由：/api/agents 相当于代理的 /api/agents (参考 test_agent_profile_e2e.py，假设 prefix 是 /api/agents)
     response = await async_client.post("/api/agents", json=create_data)
     assert response.status_code == 200, f"Create agent failed: {response.text}"
@@ -40,15 +38,15 @@ async def test_agent_import_export_e2e(async_client: AsyncClient):
         # 2. 导出 Agent
         export_res = await async_client.get(f"/api/agents/{agent_id}/export")
         assert export_res.status_code == 200, f"Export agent failed: {export_res.text}"
-        
+
         exported_data = export_res.json()["data"]
-        
+
         # 验证导出的数据包含预期字段，并且不包含敏感/内部字段
         assert exported_data["name"] == "Export Test Agent"
         assert exported_data["system_prompt"] == "You are an export expert."
         assert exported_data["mcp_ids"] == ["mcp-1", "mcp-2"]
         assert exported_data["skill_ids"] == ["skill-1"]
-        
+
         assert "id" not in exported_data
         assert "user_id" not in exported_data
         assert "created_at" not in exported_data
@@ -57,7 +55,7 @@ async def test_agent_import_export_e2e(async_client: AsyncClient):
         # 3. 修改导出数据的名称，用于导入测试
         imported_data = exported_data.copy()
         imported_data["name"] = "Imported Test Agent"
-        
+
         # 验证导入时没有 name 会失败
         invalid_import_data = exported_data.copy()
         invalid_import_data["name"] = "   "
@@ -68,26 +66,26 @@ async def test_agent_import_export_e2e(async_client: AsyncClient):
         # 4. 执行正常的导入
         import_res = await async_client.post("/api/agents/import", json=imported_data)
         assert import_res.status_code == 200, f"Import agent failed: {import_res.text}"
-        
+
         imported_agent = import_res.json()["data"]
         imported_agent_id = imported_agent["id"]
-        
+
         # 验证导入生成的 Agent 配置和之前导出的数据一致
         assert imported_agent["id"] != agent_id  # UUID 是新生成的
         assert imported_agent["name"] == "Imported Test Agent"
         # 默认返回会隐藏 prompt，这是预期的
         assert imported_agent["system_prompt"] == "⚠️ [Hidden for security]"
-        
+
         # 再次通过 export 接口获取，验证 DB 中真实保存的 system_prompt
         verify_res = await async_client.get(f"/api/agents/{imported_agent_id}/export")
         assert verify_res.json()["data"]["system_prompt"] == "You are an export expert."
         assert imported_agent["mcp_ids"] == ["mcp-1", "mcp-2"]
         assert imported_agent["skill_ids"] == ["skill-1"]
-        assert imported_agent["is_built_in"] is False # 即使导入数据里有其他值也会被强制改为 False
+        assert imported_agent["is_built_in"] is False  # 即使导入数据里有其他值也会被强制改为 False
 
         # 5. 清理导入生成的 Agent
         await async_client.delete(f"/api/agents/{imported_agent_id}")
-        
+
     finally:
         # 清理原始测试 Agent
         await async_client.delete(f"/api/agents/{agent_id}")

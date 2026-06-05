@@ -64,4 +64,3 @@ async def test_suggest_directory_path_mode(client: AsyncClient):
     assert resp.status_code == 200
     results = resp.json()["data"]["results"]
     assert [item["relative_path"] for item in results] == ["src/components"]
-

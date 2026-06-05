@@ -124,18 +124,14 @@ async def test_archive_checkpoint_frontend_full_flow() -> None:
         browser = await playwright.chromium.launch(headless=True)
         context = await browser.new_context(locale="zh-CN")
         host = urlparse(FRONTEND_URL).hostname or "127.0.0.1"
-        await context.add_cookies(
-            [{"name": "NEXT_LOCALE", "value": "zh", "domain": host, "path": "/"}]
-        )
+        await context.add_cookies([{"name": "NEXT_LOCALE", "value": "zh", "domain": host, "path": "/"}])
         page = await context.new_page()
         page.set_default_timeout(120_000)
 
         await page.goto(f"{FRONTEND_URL}/settings/models", timeout=120_000)
         await page.wait_for_timeout(3000)
 
-        await _add_custom_openai_like(
-            page, custom_name, basic_base, basic_key, basic_mid
-        )
+        await _add_custom_openai_like(page, custom_name, basic_base, basic_key, basic_mid)
         await _emit_escape_burst(page)
         await _ensure_provider_main_switch_on(page, custom_name)
         await _configure_builtin_provider(page, "MiniMax", lite_key, lite_mid)
@@ -200,8 +196,7 @@ async def test_archive_checkpoint_frontend_full_flow() -> None:
 
         if "archive_checkpoint" not in step_keys:
             pytest.skip(
-                "Single-turn chat did not trigger archive_checkpoint pill; core agent SSE verified. "
-                f"keys={sorted(step_keys)}"
+                f"Single-turn chat did not trigger archive_checkpoint pill; core agent SSE verified. keys={sorted(step_keys)}"
             )
 
         await browser.close()

@@ -66,11 +66,14 @@ async def get_config_schema(key: str) -> dict[str, object]:
     """获取指定配置项的 JSON Schema"""
     if key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {key}")
-    
+
     model = OMNI_CONFIG_MODELS.get(key)
     if not model:
-        raise HTTPException(status_code=404, detail=f"Schema not found for config key: {key}. This config has not been migrated to Omni-Config yet.")
-        
+        raise HTTPException(
+            status_code=404,
+            detail=f"Schema not found for config key: {key}. This config has not been migrated to Omni-Config yet.",
+        )
+
     return model.model_json_schema()
 
 
@@ -258,9 +261,7 @@ async def probe_local_models_endpoint() -> dict[str, object]:
         "recommended_model": recommended_model,
         "search": search_results,
         "search_has_available": searxng_hit is not None,
-        "recommended_searxng_url": (
-            str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()
-        ),
+        "recommended_searxng_url": (str(searxng_hit.get("base_url")) if searxng_hit else get_default_searxng_api_base()),
     }
 
 
@@ -335,7 +336,7 @@ async def get_config_history(config_key: str, limit: int = Query(50, ge=1, le=10
     """获取配置历史记录 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
-        
+
     try:
         return await config_service.get_history(config_key, limit=limit)
     except Exception as e:
@@ -348,7 +349,7 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
     """回滚配置到指定版本 (Configuration Time-Machine)"""
     if config_key not in _VALID_CONFIG_KEYS:
         raise HTTPException(status_code=400, detail=f"Invalid config key: {config_key}")
-        
+
     try:
         # Get the old value from history
         from typing import cast
@@ -358,18 +359,15 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
         from app.database.connection import get_session
         from app.database.models import ConfigAuditLog
         from app.services.config.service import _decrypt_audit_log_value
-        
+
         async with get_session() as session:
-            stmt = select(ConfigAuditLog).where(
-                ConfigAuditLog.config_key == config_key,
-                ConfigAuditLog.version == version
-            )
+            stmt = select(ConfigAuditLog).where(ConfigAuditLog.config_key == config_key, ConfigAuditLog.version == version)
             result = await session.execute(stmt)
             log = result.scalar_one_or_none()
-            
+
             if not log:
                 raise HTTPException(status_code=404, detail=f"Audit log for version {version} not found")
-                
+
             new_value = _decrypt_audit_log_value(config_key, cast(dict[str, object], log.new_value))
             if new_value is None:
                 new_value = {}
@@ -385,12 +383,12 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
             value=new_value,
             device_id=device_id,
         )
-        
+
         # Invalidate caches
         invalidate_user_configs_cache()
         if config_key == "searchServices":
             invalidate_search_health_cache()
-            
+
         return record
     except HTTPException:
         raise

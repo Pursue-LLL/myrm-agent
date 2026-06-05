@@ -42,9 +42,7 @@ def _init_with_overrides(overrides: dict[str, bool]) -> FeatureSet:
 async def async_client():
     from app.main import app
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -92,11 +90,13 @@ class TestFeatureRegistration:
         assert not fs.enabled("voice_interaction")
 
     def test_override_enables_features(self):
-        fs = _init_with_overrides({
-            "deep_research": True,
-            "consensus": True,
-            "voice_interaction": True,
-        })
+        fs = _init_with_overrides(
+            {
+                "deep_research": True,
+                "consensus": True,
+                "voice_interaction": True,
+            }
+        )
         assert fs.enabled("deep_research")
         assert fs.enabled("consensus")
         assert fs.enabled("voice_interaction")
@@ -186,9 +186,7 @@ class TestVoiceAPIGate:
     """Test that STT/TTS HTTP endpoints return 403 when voice is disabled."""
 
     @pytest.mark.asyncio
-    async def test_stt_transcribe_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_stt_transcribe_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/stt/transcribe",
@@ -197,17 +195,13 @@ class TestVoiceAPIGate:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_stt_status_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_stt_status_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.get("/api/v1/stt/status")
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_tts_synthesize_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_tts_synthesize_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/tts/synthesize",
@@ -216,9 +210,7 @@ class TestVoiceAPIGate:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_tts_stream_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_tts_stream_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/tts/synthesize-stream",
@@ -227,9 +219,7 @@ class TestVoiceAPIGate:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_realtime_token_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_realtime_token_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/voice/realtime-token",
@@ -238,9 +228,7 @@ class TestVoiceAPIGate:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_realtime_tool_exec_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_realtime_tool_exec_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/voice/realtime-tool-exec",
@@ -249,9 +237,7 @@ class TestVoiceAPIGate:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_realtime_transcript_blocked_when_disabled(
-        self, async_client: AsyncClient
-    ):
+    async def test_realtime_transcript_blocked_when_disabled(self, async_client: AsyncClient):
         _init_with_overrides({"voice_interaction": False})
         response = await async_client.post(
             "/api/v1/voice/realtime-transcript",

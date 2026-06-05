@@ -16,8 +16,8 @@ from app.services.chat.handoff import HandoffResult, _build_target_session_key, 
 
 # ─── _build_target_session_key ──────────────────────────────────
 
-class TestBuildTargetSessionKey:
 
+class TestBuildTargetSessionKey:
     def test_persistent_policy(self) -> None:
         policy = SessionPolicy(mode=SessionResetMode.PERSISTENT)
         key = _build_target_session_key("telegram", "user123", policy)
@@ -44,6 +44,7 @@ class TestBuildTargetSessionKey:
 
 
 # ─── handoff_chat ───────────────────────────────────────────────
+
 
 def _make_mock_channel(connected: bool = True) -> MagicMock:
     ch = MagicMock()
@@ -183,7 +184,9 @@ async def test_handoff_success() -> None:
     with patch(_GATEWAY_PATCH) as mock_gw:
         mock_gw.bus.get_channel.return_value = _make_mock_channel()
         result = await handoff_chat(
-            chat_id, chan, policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
+            chat_id,
+            chan,
+            policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
         )
         assert result.success
         assert result.target_channel == chan
@@ -210,7 +213,10 @@ async def test_handoff_resolves_unique_conflict() -> None:
 
     old_chat_id = str(uuid.uuid4())
     await _seed_chat(
-        get_session_factory, old_chat_id, source=chan, channel_session_key=target_key,
+        get_session_factory,
+        old_chat_id,
+        source=chan,
+        channel_session_key=target_key,
     )
 
     new_chat_id = str(uuid.uuid4())
@@ -220,7 +226,9 @@ async def test_handoff_resolves_unique_conflict() -> None:
     with patch(_GATEWAY_PATCH) as mock_gw:
         mock_gw.bus.get_channel.return_value = _make_mock_channel()
         result = await handoff_chat(
-            new_chat_id, chan, policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
+            new_chat_id,
+            chan,
+            policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
         )
         assert result.success
 
@@ -251,7 +259,9 @@ async def test_handoff_preserves_agent_id() -> None:
     with patch(_GATEWAY_PATCH) as mock_gw:
         mock_gw.bus.get_channel.return_value = _make_mock_channel()
         result = await handoff_chat(
-            chat_id, chan, policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
+            chat_id,
+            chan,
+            policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
         )
         assert result.success
         assert ":agent:skill-writer" in result.target_session_key
@@ -287,7 +297,9 @@ async def test_handoff_same_source_but_no_key_allowed() -> None:
     with patch(_GATEWAY_PATCH) as mock_gw:
         mock_gw.bus.get_channel.return_value = _make_mock_channel()
         result = await handoff_chat(
-            chat_id, chan, policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
+            chat_id,
+            chan,
+            policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
         )
         assert result.success
         assert result.target_session_key == f"{chan}:dm:tg_rehandoff"
@@ -311,7 +323,9 @@ async def test_handoff_same_source_mismatched_key_allowed() -> None:
     with patch(_GATEWAY_PATCH) as mock_gw:
         mock_gw.bus.get_channel.return_value = _make_mock_channel()
         result = await handoff_chat(
-            chat_id, chan, policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
+            chat_id,
+            chan,
+            policy=SessionPolicy(mode=SessionResetMode.PERSISTENT),
         )
         assert result.success
         assert result.target_session_key == f"{chan}:dm:tg_mismatch_user"

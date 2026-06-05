@@ -125,16 +125,10 @@ class BatchMemoryResponse(BaseModel):
 class CreateMemoryRequest(BaseModel):
     """Request to create a new memory"""
 
-    memory_type: str = Field(
-        ..., description="Memory type: profile, semantic, episodic, procedural"
-    )
-    content: str = Field(
-        ..., min_length=1, max_length=2000, description="Memory content"
-    )
+    memory_type: str = Field(..., description="Memory type: profile, semantic, episodic, procedural")
+    content: str = Field(..., min_length=1, max_length=2000, description="Memory content")
     importance: float = Field(0.5, ge=0.0, le=1.0, description="Importance score")
-    tags: list[str] = Field(
-        default_factory=list, description="Tags (semantic/episodic only)"
-    )
+    tags: list[str] = Field(default_factory=list, description="Tags (semantic/episodic only)")
 
     key: str | None = Field(None, description="Attribute key (profile only)")
     value: str | None = Field(None, description="Attribute value (profile only)")
@@ -149,26 +143,16 @@ class CreateMemoryRequest(BaseModel):
 class CorrectMemoryRequest(BaseModel):
     """Request to correct a factually wrong semantic memory."""
 
-    corrected_content: str = Field(
-        ..., min_length=1, max_length=2000, description="Corrected content"
-    )
+    corrected_content: str = Field(..., min_length=1, max_length=2000, description="Corrected content")
 
 
 class UpdateMemoryRequest(BaseModel):
     """Request to update an existing memory"""
 
-    content: str | None = Field(
-        None, min_length=1, max_length=2000, description="New content"
-    )
-    reasoning: str | None = Field(
-        None, max_length=2000, description="New reasoning (Why)"
-    )
-    application: str | None = Field(
-        None, max_length=2000, description="New application (How)"
-    )
-    importance: float | None = Field(
-        None, ge=0.0, le=1.0, description="New importance score"
-    )
+    content: str | None = Field(None, min_length=1, max_length=2000, description="New content")
+    reasoning: str | None = Field(None, max_length=2000, description="New reasoning (Why)")
+    application: str | None = Field(None, max_length=2000, description="New application (How)")
+    importance: float | None = Field(None, ge=0.0, le=1.0, description="New importance score")
 
 
 class UpdateMemoryStatusRequest(BaseModel):
@@ -271,27 +255,17 @@ class AdvancedSearchRequest(BaseModel):
 
     query: str | None = Field(None, description="Search query (empty for all memories)")
     memory_types: list[str] | None = Field(None, description="Filter by memory types")
-    created_after: datetime | None = Field(
-        None, description="Filter created after date"
-    )
-    created_before: datetime | None = Field(
-        None, description="Filter created before date"
-    )
-    importance_min: float | None = Field(
-        None, ge=0.0, le=1.0, description="Minimum importance"
-    )
-    importance_max: float | None = Field(
-        None, ge=0.0, le=1.0, description="Maximum importance"
-    )
+    created_after: datetime | None = Field(None, description="Filter created after date")
+    created_before: datetime | None = Field(None, description="Filter created before date")
+    importance_min: float | None = Field(None, ge=0.0, le=1.0, description="Minimum importance")
+    importance_max: float | None = Field(None, ge=0.0, le=1.0, description="Maximum importance")
     access_count_min: int | None = Field(None, ge=0, description="Minimum access count")
     sort_by: str = Field(
         "created_at",
         description="Sort field: created_at, updated_at, importance, access_count",
     )
     sort_order: str = Field("desc", description="Sort order: asc or desc")
-    group_by: str | None = Field(
-        None, description="Group by: memory_type, date_day, date_week, date_month"
-    )
+    group_by: str | None = Field(None, description="Group by: memory_type, date_day, date_week, date_month")
     page: int = Field(1, ge=1, description="Page number")
     page_size: int = Field(20, ge=1, le=100, description="Page size (1-100)")
 

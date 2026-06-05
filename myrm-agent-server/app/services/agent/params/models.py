@@ -49,7 +49,9 @@ class AgentConfigRequest(BaseModel):
     skill_ids: list[str] = []
     skill_configs: dict[str, dict] | None = None
     enabled_builtin_tools: list[str] = ["web_search", "memory"]
-    browser_engine: str | None = Field(default=None, description="Default browser engine (e.g. chromium_patchright, firefox_camoufox)")
+    browser_engine: str | None = Field(
+        default=None, description="Default browser engine (e.g. chromium_patchright, firefox_camoufox)"
+    )
     auto_restore_domains: list[str] = []
     tool_gateway_config: ToolGatewayConfig | None = None
 

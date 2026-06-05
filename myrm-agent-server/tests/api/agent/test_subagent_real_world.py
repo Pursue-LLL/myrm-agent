@@ -70,9 +70,10 @@ async def test_real_world_concurrent_search():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],
@@ -90,11 +91,11 @@ async def test_real_world_concurrent_search():
         result = await spawn_tool.ainvoke(
             {
                 "agent_type": "search",
-                    "objective": task,
+                "objective": task,
                 "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
                 "wait": False,
             }
-    )
+        )
         results.append(result)
 
     task_ids = [r["task_id"] for r in results if "task_id" in r]
@@ -119,9 +120,10 @@ async def test_real_world_concurrency_limit():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [],
@@ -140,7 +142,7 @@ async def test_real_world_concurrency_limit():
                 "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
                 "wait": False,
             }
-    )
+        )
         tasks.append(task)
 
     results = await asyncio.gather(*tasks)
@@ -157,9 +159,10 @@ async def test_real_world_cache_across_calls():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],
@@ -171,7 +174,7 @@ async def test_real_world_cache_across_calls():
     await spawn_tool.ainvoke(
         {
             "agent_type": "search",
-                "objective": task_desc,
+            "objective": task_desc,
             "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
             "wait": True,
         }
@@ -182,7 +185,7 @@ async def test_real_world_cache_across_calls():
     result2 = await spawn_tool.ainvoke(
         {
             "agent_type": "search",
-                "objective": task_desc,
+            "objective": task_desc,
             "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
             "wait": True,
         }
@@ -220,9 +223,10 @@ async def test_real_world_error_recovery():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],
@@ -250,9 +254,10 @@ async def test_real_world_list_children():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],
@@ -293,9 +298,10 @@ async def test_real_world_context_sharing():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],
@@ -343,9 +349,10 @@ async def test_real_world_timeout_config():
     from unittest.mock import AsyncMock
 
     from myrm_agent_harness.agent.sub_agents.types import SubagentConfig
+
     catalog = AsyncMock()
     catalog.resolve = AsyncMock(return_value=SubagentConfig(system_prompt="test"))
-    
+
     spawn_tool = create_delegate_task_tool(
         parent_agent=agent,
         tool_registry_getter=lambda: [MockWebSearchTool()],

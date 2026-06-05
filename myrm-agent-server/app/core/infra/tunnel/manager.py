@@ -81,9 +81,7 @@ class TunnelManager:
         found = shutil.which("cloudflared")
         if found:
             return found
-        raise TunnelError(
-            "cloudflared binary not found. Install cloudflared or set CLOUDFLARED_PATH."
-        )
+        raise TunnelError("cloudflared binary not found. Install cloudflared or set CLOUDFLARED_PATH.")
 
     @staticmethod
     def _ensure_quick_tunnel_allowed() -> None:
@@ -92,9 +90,7 @@ class TunnelManager:
         from app.config.settings import settings
 
         if settings.cp_public_ingress_url.strip():
-            raise TunnelError(
-                "Quick Tunnel is disabled when CP_PUBLIC_INGRESS_URL is set. Use platform ingress."
-            )
+            raise TunnelError("Quick Tunnel is disabled when CP_PUBLIC_INGRESS_URL is set. Use platform ingress.")
 
     async def _load_personal_settings(self) -> dict[str, object]:
         record = await config_service.get("personalSettings")
@@ -127,9 +123,7 @@ class TunnelManager:
             raise TunnelError("Invalid tunnel target port.")
 
         if not password_protection_enabled:
-            raise TunnelError(
-                "Password protection must be enabled before starting a public tunnel."
-            )
+            raise TunnelError("Password protection must be enabled before starting a public tunnel.")
 
         self._ensure_quick_tunnel_allowed()
 
@@ -253,9 +247,7 @@ class TunnelManager:
                     stderr_lines,
                     reason=f"exited with code {exit_code}",
                 )
-                raise TunnelError(
-                    f"cloudflared exited with code {exit_code} before publishing a URL."
-                )
+                raise TunnelError(f"cloudflared exited with code {exit_code} before publishing a URL.")
             self._log_cloudflared_failure(process, stderr_lines, reason="no URL in output")
             raise TunnelError("Failed to parse tunnel URL from cloudflared output.")
 

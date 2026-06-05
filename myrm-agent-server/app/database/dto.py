@@ -344,15 +344,9 @@ class AgentSessionPolicyConfig(BaseModel):
     from personalSettings for that specific agent.
     """
 
-    mode: SessionResetModeLiteral = Field(
-        "daily", description="Session segmentation strategy: persistent | daily | idle"
-    )
-    daily_reset_hour: int = Field(
-        4, description="UTC hour for daily reset (0-23)", ge=0, le=23
-    )
-    idle_minutes: int = Field(
-        120, description="Idle threshold in minutes for idle mode", ge=1, le=10080
-    )
+    mode: SessionResetModeLiteral = Field("daily", description="Session segmentation strategy: persistent | daily | idle")
+    daily_reset_hour: int = Field(4, description="UTC hour for daily reset (0-23)", ge=0, le=23)
+    idle_minutes: int = Field(120, description="Idle threshold in minutes for idle mode", ge=1, le=10080)
 
 
 class SkillConfig(BaseModel):
@@ -405,8 +399,7 @@ class AgentBase(BaseModel):
     skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
     enabled_builtin_tools: list[str] | None = Field(None, description="启用的内置工具 ID 列表")
     browser_engine: str | None = Field(
-        None, 
-        description="浏览器引擎偏好 (如 'chromium_patchright', 'firefox_camoufox')。为空则使用系统默认。"
+        None, description="浏览器引擎偏好 (如 'chromium_patchright', 'firefox_camoufox')。为空则使用系统默认。"
     )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")

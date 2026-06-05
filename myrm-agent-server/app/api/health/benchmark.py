@@ -27,10 +27,10 @@ async def _execute_benchmarks() -> None:
     """Run all benchmarks and stream progress via SSE."""
     from myrm_agent_harness.observability.diagnostics.performance import _benchmark_hooks
     from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
-    
+
     bus = get_event_bus()
     total = len(_benchmark_hooks)
-    
+
     bus.publish(
         AppEvent(
             event_type=AppEventType.BENCHMARK_PROGRESS,
@@ -42,12 +42,12 @@ async def _execute_benchmarks() -> None:
             },
         )
     )
-    
+
     reports: list[HealthReport] = []
-    
+
     for idx, hook in enumerate(_benchmark_hooks):
         hook_name = getattr(hook, "__name__", f"hook_{idx}")
-        
+
         bus.publish(
             AppEvent(
                 event_type=AppEventType.BENCHMARK_PROGRESS,
@@ -60,7 +60,7 @@ async def _execute_benchmarks() -> None:
                 },
             )
         )
-        
+
         try:
             async with asyncio.timeout(15.0):
                 report = await hook()
@@ -83,10 +83,10 @@ async def _execute_benchmarks() -> None:
                 fix_suggestion="Check application logs for details.",
             )
             reports.append(report)
-            
+
         # Optional: Save to history if we want to track TTFT over time
         # This could be added later or done synchronously here.
-            
+
     bus.publish(
         AppEvent(
             event_type=AppEventType.BENCHMARK_PROGRESS,
@@ -104,7 +104,7 @@ async def _execute_benchmarks() -> None:
 @router.post("/benchmark")
 async def run_benchmark(background_tasks: BackgroundTasks) -> dict[str, str]:
     """Trigger an asynchronous performance benchmark suite.
-    
+
     Results are streamed via SSE (AppEventType.BENCHMARK_PROGRESS).
     """
     background_tasks.add_task(_execute_benchmarks)

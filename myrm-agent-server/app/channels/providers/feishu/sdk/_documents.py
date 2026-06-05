@@ -102,8 +102,7 @@ class FeishuDocumentsMixin:
 
         for attempt in range(max_retries):
             resp = await http.post(
-                f"{self.api_base}/drive/v1/files/{file_token}/comments/batch_query"
-                f"?file_type={file_type}&user_id_type=open_id",
+                f"{self.api_base}/drive/v1/files/{file_token}/comments/batch_query?file_type={file_type}&user_id_type=open_id",
                 headers=self._auth(token),
                 json={"comment_ids": [comment_id]},
             )
@@ -124,9 +123,7 @@ class FeishuDocumentsMixin:
                 )
                 await asyncio.sleep(retry_delay)
 
-        logger.warning(
-            "Feishu batch_query_comment failed after %d attempts", max_retries
-        )
+        logger.warning("Feishu batch_query_comment failed after %d attempts", max_retries)
         return {}
 
     async def list_comments(
@@ -242,8 +239,7 @@ class FeishuDocumentsMixin:
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.post(
-            f"{self.api_base}/drive/v1/files/{file_token}/comments/{comment_id}/replies"
-            f"?file_type={file_type}",
+            f"{self.api_base}/drive/v1/files/{file_token}/comments/{comment_id}/replies?file_type={file_type}",
             headers=self._auth(token),
             json={
                 "content": {
@@ -256,9 +252,7 @@ class FeishuDocumentsMixin:
         body = self._safe_json(resp, "reply_to_comment")
         code = int(body.get("code", -1))
         if code != 0:
-            logger.warning(
-                "Feishu reply_to_comment failed: code=%s msg=%s", code, body.get("msg")
-            )
+            logger.warning("Feishu reply_to_comment failed: code=%s msg=%s", code, body.get("msg"))
         return code == 0, code
 
     async def add_whole_comment(
@@ -298,8 +292,7 @@ class FeishuDocumentsMixin:
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.post(
-            f"{self.api_base}/drive/v2/files/{file_token}/comments/reaction"
-            f"?file_type={file_type}",
+            f"{self.api_base}/drive/v2/files/{file_token}/comments/reaction?file_type={file_type}",
             headers=self._auth(token),
             json={
                 "action": "add",
@@ -321,8 +314,7 @@ class FeishuDocumentsMixin:
         token = await self.ensure_token()
         http = self._get_http()
         resp = await http.post(
-            f"{self.api_base}/drive/v2/files/{file_token}/comments/reaction"
-            f"?file_type={file_type}",
+            f"{self.api_base}/drive/v2/files/{file_token}/comments/reaction?file_type={file_type}",
             headers=self._auth(token),
             json={
                 "action": "delete",
@@ -407,9 +399,7 @@ class FeishuDocumentsMixin:
 
     # ── Bitable ──────────────────────────────────────────────────
 
-    async def get_bitable_records(
-        self, app_token: str, table_id: str
-    ) -> dict[str, object]:
+    async def get_bitable_records(self, app_token: str, table_id: str) -> dict[str, object]:
         """Fetch records from a Feishu Bitable."""
         token = await self.ensure_token()
         http = self._get_http()
@@ -419,9 +409,7 @@ class FeishuDocumentsMixin:
         )
         return self._safe_json(resp, "get_bitable_records")
 
-    async def add_bitable_records(
-        self, app_token: str, table_id: str, records: list[dict[str, object]]
-    ) -> bool:
+    async def add_bitable_records(self, app_token: str, table_id: str, records: list[dict[str, object]]) -> bool:
         """Batch create records in a Feishu Bitable."""
         token = await self.ensure_token()
         http = self._get_http()
@@ -449,9 +437,7 @@ class FeishuDocumentsMixin:
         )
         return self._safe_json(resp, "get_docx_blocks")
 
-    async def append_docx_blocks(
-        self, document_id: str, block_id: str, children: list[dict[str, object]]
-    ) -> bool:
+    async def append_docx_blocks(self, document_id: str, block_id: str, children: list[dict[str, object]]) -> bool:
         """Append blocks as children of a specific block in a Feishu Docx document."""
         token = await self.ensure_token()
         http = self._get_http()

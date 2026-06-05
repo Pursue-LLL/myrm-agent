@@ -3,8 +3,9 @@ import logging
 import time
 from typing import Literal
 
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+import httpx
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.types import ModelConfig
@@ -207,7 +208,7 @@ class ModelInfoBatchRequest(BaseModel):
 
 class HardwareRecommendationResponse(BaseModel):
     """硬件推荐响应"""
-    
+
     hardware_detected: bool = Field(..., description="是否成功检测到硬件")
     os_type: str | None = Field(default=None, description="操作系统类型")
     cpu_arch: str | None = Field(default=None, description="CPU架构")
@@ -216,7 +217,8 @@ class HardwareRecommendationResponse(BaseModel):
     gpu_name: str | None = Field(default=None, description="GPU名称")
     gpu_vram_gb: float | None = Field(default=None, description="GPU显存(GB)")
     is_unified_memory: bool | None = Field(default=None, description="是否为统一内存(如Apple Silicon)")
-    
+
+    ollama_running: bool = Field(default=False, description="本地 Ollama 是否正在运行")
     recommendations: list[dict[str, object]] = Field(default_factory=list, description="推荐模型列表")
 
 
@@ -316,21 +318,15 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
             token_count = 0
             start = time.monotonic()
 
-            async def _stream_and_measure(
-                stream_llm: BaseChatModel, stream_msg: HumanMessage
-            ) -> None:
+            async def _stream_and_measure(stream_llm: BaseChatModel, stream_msg: HumanMessage) -> None:
                 nonlocal first_token_time, token_count
-                async for chunk in stream_llm.astream(
-                    [stream_msg], config={"tags": ["speed_test"]}
-                ):
+                async for chunk in stream_llm.astream([stream_msg], config={"tags": ["speed_test"]}):
                     if chunk.content:
                         if first_token_time is None:
                             first_token_time = time.monotonic()
                         token_count += 1
 
-            await asyncio.wait_for(
-                _stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S
-            )
+            await asyncio.wait_for(_stream_and_measure(llm, message), timeout=_SPEED_TEST_TIMEOUT_S)
             total_elapsed = time.monotonic() - start
 
             if first_token_time is None:
@@ -436,133 +432,234 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
     return success_response(data=result)
 
 
+_HARDWARE_PROFILE_CACHE: tuple[float, object] | None = None
+_HARDWARE_PROFILE_LOCK = asyncio.Lock()
+
+_MODEL_SPECS_CACHE: tuple[float, list[dict[str, object]]] | None = None
+_MODEL_SPECS_LOCK = asyncio.Lock()
+
+_FALLBACK_MODEL_SPECS = [
+    {
+        "id": "ollama/qwen2.5:0.5b",
+        "name": "Qwen 2.5 (0.5B)",
+        "description": "极速响应，适合简单任务和低配机器",
+        "req_vram_gb": 1.5,
+        "params_b": 0.5,
+    },
+    {
+        "id": "ollama/qwen2.5:3b",
+        "name": "Qwen 2.5 (3B)",
+        "description": "速度与能力的良好平衡，适合主流轻薄本",
+        "req_vram_gb": 3.0,
+        "params_b": 3.0,
+    },
+    {
+        "id": "ollama/llama3.2:8b",
+        "name": "Llama 3.2 (8B)",
+        "description": "强大的通用模型，适合主流开发机",
+        "req_vram_gb": 6.0,
+        "params_b": 8.0,
+    },
+    {
+        "id": "ollama/qwen2.5:14b",
+        "name": "Qwen 2.5 (14B)",
+        "description": "极强的推理能力，适合高配工作站",
+        "req_vram_gb": 10.0,
+        "params_b": 14.0,
+    },
+    {
+        "id": "ollama/deepseek-r1:32b",
+        "name": "DeepSeek R1 (32B)",
+        "description": "专家级推理模型，需要顶级硬件",
+        "req_vram_gb": 22.0,
+        "params_b": 32.0,
+    },
+    {
+        "id": "ollama/llama3.1:70b",
+        "name": "Llama 3.1 (70B)",
+        "description": "超大规模模型，仅限顶级工作站",
+        "req_vram_gb": 40.0,
+        "params_b": 70.0,
+    },
+]
+
+
+async def _get_cached_hardware_profile() -> object | None:
+    """获取硬件探针结果（带内存缓存，避免阻塞事件循环）"""
+    global _HARDWARE_PROFILE_CACHE
+    now = time.monotonic()
+
+    if _HARDWARE_PROFILE_CACHE and (now - _HARDWARE_PROFILE_CACHE[0]) < 3600.0:
+        return _HARDWARE_PROFILE_CACHE[1]
+
+    async with _HARDWARE_PROFILE_LOCK:
+        if _HARDWARE_PROFILE_CACHE and (now - _HARDWARE_PROFILE_CACHE[0]) < 3600.0:
+            return _HARDWARE_PROFILE_CACHE[1]
+
+        from myrm_agent_harness.runtime.maintenance import detect_hardware_profile
+
+        # 在线程池中执行同步的探针函数，避免阻塞 FastAPI
+        profile = await asyncio.to_thread(detect_hardware_profile)
+        _HARDWARE_PROFILE_CACHE = (now, profile)
+        return profile
+
+
+async def _get_dynamic_model_specs() -> list[dict[str, object]]:
+    """动态拉取模型规格字典（带本地 Fallback）"""
+    global _MODEL_SPECS_CACHE
+    now = time.monotonic()
+
+    if _MODEL_SPECS_CACHE and (now - _MODEL_SPECS_CACHE[0]) < 3600.0:
+        return _MODEL_SPECS_CACHE[1]
+
+    async with _MODEL_SPECS_LOCK:
+        if _MODEL_SPECS_CACHE and (now - _MODEL_SPECS_CACHE[0]) < 3600.0:
+            return _MODEL_SPECS_CACHE[1]
+
+        specs = _FALLBACK_MODEL_SPECS
+        try:
+            # 尝试从云端拉取，设置 3 秒超时
+            # async with httpx.AsyncClient(timeout=3.0) as client:
+            #     # TODO: 替换为真实的云端 URL，目前演示使用 Fallback
+            #     response = await client.get("https://raw.githubusercontent.com/yululiu/open-perplexity/main/cookbook_specs.json")
+            #     if response.status_code == 200:
+            #         specs = response.json()
+            pass
+        except Exception as e:
+            logger.warning(f"Failed to fetch dynamic model specs, using fallback: {e}")
+
+        _MODEL_SPECS_CACHE = (now, specs)
+        return specs
+
+
+async def _get_ollama_status() -> tuple[bool, list[str]]:
+    """探测 Ollama 状态并获取已安装模型列表"""
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            res = await client.get("http://localhost:11434/api/tags")
+            if res.status_code == 200:
+                data = res.json()
+                models = [m.get("name") for m in data.get("models", []) if "name" in m]
+                return True, models
+    except Exception:
+        pass
+    return False, []
+
+
+class OllamaPullRequest(BaseModel):
+    model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
+
+
+@router.post("/hardware/ollama/pull")
+async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
+    """代理 Ollama 的 /api/pull 接口，返回流式进度"""
+    from app.config.deploy_mode import DeployMode, get_deploy_mode
+
+    if get_deploy_mode() == DeployMode.SANDBOX:
+        raise HTTPException(status_code=403, detail="Not available in SaaS mode")
+
+    async def _stream_pull():
+        try:
+            # 使用 httpx 流式请求代理 Ollama
+            async with httpx.AsyncClient(timeout=None) as client:
+                async with client.stream(
+                    "POST", "http://localhost:11434/api/pull", json={"name": request.model_name}
+                ) as response:
+                    if response.status_code != 200:
+                        yield f'{{"error": "Ollama returned status {response.status_code}"}}\n'.encode("utf-8")
+                        return
+                    async for chunk in response.aiter_bytes():
+                        yield chunk
+        except Exception as e:
+            yield f'{{"error": "{str(e)}"}}\n'.encode("utf-8")
+
+    return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
+
+
 @router.get("/hardware/recommendations", response_model=StandardSuccessResponse)
 async def get_hardware_recommendations() -> JSONResponse:
     """
     获取基于本地硬件的模型推荐 (Fit Score)
-    
+
     在 SaaS 模式下，或硬件检测失败时，返回 hardware_detected=False
     """
-    from myrm_agent_harness.runtime.maintenance import detect_hardware_profile
-
     from app.config.deploy_mode import DeployMode, get_deploy_mode
-    
+
     # 1. 如果是 SaaS 模式，直接返回未检测（云端硬件对用户无意义）
     if get_deploy_mode() == DeployMode.SANDBOX:
         return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
-        
-    # 2. 调用 Harness 层探针获取物理硬件信息
-    profile = detect_hardware_profile()
+
+    # 2. 调用异步缓存的探针获取物理硬件信息
+    profile = await _get_cached_hardware_profile()
     if not profile:
         return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
-        
-    # 3. 基础模型规格字典 (后续可改为从云端拉取)
-    # 格式: { "model_id": {"name": "...", "params_b": 7, "quantization": "Q4_K_M", "req_vram_gb": 5.0, "provider": "ollama"} }
-    model_specs = [
-        {
-            "id": "ollama/qwen2.5:0.5b",
-            "name": "Qwen 2.5 (0.5B)",
-            "description": "极速响应，适合简单任务和低配机器",
-            "req_vram_gb": 1.5,
-            "params_b": 0.5,
-        },
-        {
-            "id": "ollama/qwen2.5:3b",
-            "name": "Qwen 2.5 (3B)",
-            "description": "速度与能力的良好平衡，适合主流轻薄本",
-            "req_vram_gb": 3.0,
-            "params_b": 3.0,
-        },
-        {
-            "id": "ollama/llama3.2:8b",
-            "name": "Llama 3.2 (8B)",
-            "description": "强大的通用模型，适合主流开发机",
-            "req_vram_gb": 6.0,
-            "params_b": 8.0,
-        },
-        {
-            "id": "ollama/qwen2.5:14b",
-            "name": "Qwen 2.5 (14B)",
-            "description": "极强的推理能力，适合高配工作站",
-            "req_vram_gb": 10.0,
-            "params_b": 14.0,
-        },
-        {
-            "id": "ollama/deepseek-r1:32b",
-            "name": "DeepSeek R1 (32B)",
-            "description": "专家级推理模型，需要顶级硬件",
-            "req_vram_gb": 22.0,
-            "params_b": 32.0,
-        },
-        {
-            "id": "ollama/llama3.1:70b",
-            "name": "Llama 3.1 (70B)",
-            "description": "超大规模模型，仅限顶级工作站",
-            "req_vram_gb": 40.0,
-            "params_b": 70.0,
-        }
-    ]
-    
-    # 4. 计算可用显存上限
-    # 如果是统一内存 (Mac)，可用显存约等于总内存减去系统保留 (通常保留 3-4GB)
-    # 如果是独立显卡，使用探针获取的 VRAM，如果获取失败则回退到总内存的一半作为估算
+
+    # 3. 动态获取模型规格字典
+    model_specs = await _get_dynamic_model_specs()
+
+    # 4. 探测 Ollama 状态
+    is_ollama_running, installed_models = await _get_ollama_status()
+
+    # 5. 计算可用显存上限
     available_vram = 0.0
-    if profile.is_unified_memory:
-        available_vram = max(0.0, profile.total_ram_gb - 4.0)
-    elif profile.has_gpu and profile.gpu_vram_gb:
-        available_vram = profile.gpu_vram_gb
+    if getattr(profile, "is_unified_memory", False):
+        available_vram = max(0.0, getattr(profile, "total_ram_gb", 0.0) - 4.0)
+    elif getattr(profile, "has_gpu", False) and getattr(profile, "gpu_vram_gb", None):
+        available_vram = getattr(profile, "gpu_vram_gb", 0.0)
     else:
-        # Fallback: Assume CPU inference or unknown GPU, cap at half of system RAM
-        available_vram = profile.total_ram_gb * 0.5
-        
-    # 5. 计算 Fit Score 和推荐列表
+        available_vram = getattr(profile, "total_ram_gb", 0.0) * 0.5
+
+    # 6. 计算 Fit Score 和推荐列表
     recommendations = []
     for spec in model_specs:
         req_vram = float(spec["req_vram_gb"])
-        
-        # Fit Score 计算逻辑:
-        # 如果可用显存 >= 需求，分数在 80-100 之间 (显存越充裕分数越高，但不过分偏好极小模型)
-        # 如果可用显存 < 需求，分数在 0-50 之间 (严重不推荐)
+        model_id = spec["id"]
+
+        # 提取用于匹配的纯模型名 (例如 "qwen2.5:0.5b")
+        ollama_model_name = model_id.split("/")[-1] if "/" in model_id else model_id
+        is_installed = ollama_model_name in installed_models
+
         if available_vram >= req_vram:
-            # 显存充裕度比率 (1.0 - 3.0+)
             ratio = available_vram / req_vram
-            
             if ratio >= 2.0:
-                score = 95  # 极度充裕，完美运行
+                score = 95
                 fit_level = "perfect"
             elif ratio >= 1.5:
-                score = 85  # 充裕，流畅运行
+                score = 85
                 fit_level = "good"
             else:
-                score = 75  # 刚好够用，可能偶尔卡顿
+                score = 75
                 fit_level = "fair"
         else:
             ratio = available_vram / req_vram
-            score = int(ratio * 50)  # 0-50 分
+            score = int(ratio * 50)
             fit_level = "poor"
-            
-        recommendations.append({
-            "model_id": spec["id"],
-            "name": spec["name"],
-            "description": spec["description"],
-            "req_vram_gb": req_vram,
-            "fit_score": score,
-            "fit_level": fit_level
-        })
-        
-    # 按分数降序排序
+
+        recommendations.append(
+            {
+                "model_id": model_id,
+                "name": spec["name"],
+                "description": spec["description"],
+                "req_vram_gb": req_vram,
+                "fit_score": score,
+                "fit_level": fit_level,
+                "is_installed": is_installed,
+            }
+        )
+
     recommendations.sort(key=lambda x: int(x["fit_score"]), reverse=True)
-    
+
     response = HardwareRecommendationResponse(
         hardware_detected=True,
-        os_type=profile.os_type,
-        cpu_arch=profile.cpu_arch,
-        total_ram_gb=round(profile.total_ram_gb, 1),
-        has_gpu=profile.has_gpu,
-        gpu_name=profile.gpu_name,
-        gpu_vram_gb=round(profile.gpu_vram_gb, 1) if profile.gpu_vram_gb else None,
-        is_unified_memory=profile.is_unified_memory,
-        recommendations=recommendations
+        os_type=getattr(profile, "os_type", None),
+        cpu_arch=getattr(profile, "cpu_arch", None),
+        total_ram_gb=round(getattr(profile, "total_ram_gb", 0.0), 1),
+        has_gpu=getattr(profile, "has_gpu", False),
+        gpu_name=getattr(profile, "gpu_name", None),
+        gpu_vram_gb=round(getattr(profile, "gpu_vram_gb", 0.0), 1) if getattr(profile, "gpu_vram_gb", None) else None,
+        is_unified_memory=getattr(profile, "is_unified_memory", False),
+        ollama_running=is_ollama_running,
+        recommendations=recommendations,
     )
-    
+
     return success_response(data=response.model_dump())

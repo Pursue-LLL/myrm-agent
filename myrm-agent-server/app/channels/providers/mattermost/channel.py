@@ -93,20 +93,20 @@ class MattermostChannel(BaseChannel, CachedGroupMixin):
     # symbol that ``parse_approval_command`` recognises, so the routing layer
     # can stay agnostic of channel-specific naming.
     _REACTION_EMOJI_MAP: dict[str, str] = {
-        "+1": "\U0001F44D",
-        "thumbsup": "\U0001F44D",
+        "+1": "\U0001f44d",
+        "thumbsup": "\U0001f44d",
         "white_check_mark": "\u2705",
         "heavy_check_mark": "\u2705",
         "heart": "\u2764",
-        "muscle": "\U0001F4AA",
-        "handshake": "\U0001F91D",
-        "infinity": "\u267E",
-        "star": "\u2B50",
-        "-1": "\U0001F44E",
-        "thumbsdown": "\U0001F44E",
-        "x": "\u274C",
-        "no_entry": "\U0001F6AB",
-        "no_entry_sign": "\U0001F6AB",
+        "muscle": "\U0001f4aa",
+        "handshake": "\U0001f91d",
+        "infinity": "\u267e",
+        "star": "\u2b50",
+        "-1": "\U0001f44e",
+        "thumbsdown": "\U0001f44e",
+        "x": "\u274c",
+        "no_entry": "\U0001f6ab",
+        "no_entry_sign": "\U0001f6ab",
     }
 
     def __init__(self, server_url: str, access_token: str, groups_cache_ttl: float = 300.0) -> None:

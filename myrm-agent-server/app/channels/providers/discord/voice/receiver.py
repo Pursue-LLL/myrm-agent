@@ -50,9 +50,7 @@ class VoiceReceiver:
         allowed_user_ids: Set[str] | None = None,
     ) -> None:
         self._vc = voice_client
-        self._allowed_user_ids: set[str] = (
-            set(allowed_user_ids) if allowed_user_ids else set()
-        )
+        self._allowed_user_ids: set[str] = set(allowed_user_ids) if allowed_user_ids else set()
         self._running = False
 
         self._secret_key: bytes = b""
@@ -271,8 +269,7 @@ class VoiceReceiver:
             candidates = [
                 m.id
                 for m in channel.members
-                if m.id != bot_id
-                and (not self._allowed_user_ids or str(m.id) in self._allowed_user_ids)
+                if m.id != bot_id and (not self._allowed_user_ids or str(m.id) in self._allowed_user_ids)
             ]
             if len(candidates) == 1:
                 uid = candidates[0]
@@ -302,10 +299,7 @@ class VoiceReceiver:
                 buf = self._buffers[ssrc]
                 buf_duration = len(buf) / _BYTES_PER_SECOND
 
-                if (
-                    silence_duration >= _SILENCE_THRESHOLD
-                    and buf_duration >= _MIN_SPEECH_DURATION
-                ):
+                if silence_duration >= _SILENCE_THRESHOLD and buf_duration >= _MIN_SPEECH_DURATION:
                     user_id = ssrc_user_map.get(ssrc, 0)
                     if not user_id:
                         user_id = self._infer_user_for_ssrc(ssrc)

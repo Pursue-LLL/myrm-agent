@@ -5,6 +5,7 @@
 
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
+import { buildToolApprovalRequest } from "@/lib/approval/buildToolApprovalRequest";
 import * as H from "./handlerDeps";
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -246,25 +247,18 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       const reviewConfig = reviewConfigs?.[i];
       const requestId = isBatch ? `${batchId}_${i}` : extensions.approval.requestId;
 
-      const approvalRequest: H.ToolApprovalRequest = {
+      const approvalRequest = buildToolApprovalRequest({
+        action,
+        reviewConfig,
         requestId,
-        toolName: action.action,
-        toolInput: action.args,
-        reason: action.description,
-        timeoutSeconds: extensions.timeout.seconds,
-        expiresAt: extensions.timeout.expiresAt,
-        timeoutBehavior: extensions.timeout.behavior || 'deny',
         messageId: data.messageId,
-        displayMode: extensions.displayMode,
+        chatId: currentChatId!,
+        actionMode: currentActionMode,
+        extensions,
         batchId: batchId || undefined,
         batchIndex: isBatch ? i : undefined,
         batchSize: isBatch ? actionRequests.length : undefined,
-        chatId: currentChatId!,
-        actionMode: currentActionMode,
-        domains: Array.isArray(action.domains) ? action.domains : undefined,
-        domainApproval: reviewConfig?.domainApproval === true ? true : undefined,
-        ptcAnnotations: action.ptc_annotations,
-      };
+      });
       H.useToolApprovalStore.getState().addRequest(approvalRequest);
     }
     return done(ctx);

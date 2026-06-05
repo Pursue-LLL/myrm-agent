@@ -1,5 +1,14 @@
 import { ApiError, apiRequest } from '@/lib/api';
-import type { ValidationResult, SearchServiceConfig, MCPServiceConfig } from '@/store/config/types';
+import { parseMcpFindingsFromApiErrorDetails } from '@/lib/utils/mcpScanFindingText';
+import type {
+  MCPScanBatchResult,
+  MCPScanResult,
+  MCPServiceConfig,
+  SearchServiceConfig,
+  ValidationResult,
+} from '@/store/config/types';
+
+export type { MCPScanBatchResult, MCPScanFinding, MCPScanResult } from '@/store/config/types';
 
 // 模型配置接口（用于验证 API）
 export interface ModelConfig {
@@ -210,16 +219,39 @@ interface MCPVerifyData {
   service_name: string;
   instructions: string | null;
   tools: MCPToolDetail[];
+  config_scan?: MCPScanResult;
+  runtime_scan?: MCPScanResult;
 }
+
+/**
+ * Static pre-flight scan for MCP configuration (no network connection).
+ */
+export const scanMCPConfig = async (config: MCPServiceConfig): Promise<MCPScanResult> => {
+  return apiRequest<MCPScanResult>('/mcp/scan', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+};
+
+export const scanMCPConfigBatch = async (configs: MCPServiceConfig[]): Promise<MCPScanBatchResult> => {
+  return apiRequest<MCPScanBatchResult>('/mcp/scan-batch', {
+    method: 'POST',
+    body: JSON.stringify({ configs }),
+  });
+};
 
 /**
  * 验证MCP服务配置
  */
-export const validateMCPConfig = async (config: MCPServiceConfig): Promise<ValidationResult> => {
+export const validateMCPConfig = async (
+  config: MCPServiceConfig,
+  acknowledgedHighRisks = false,
+): Promise<ValidationResult> => {
   const startTime = performance.now();
 
   try {
-    const data = await apiRequest<MCPVerifyData>('/mcp/verify', {
+    const query = acknowledgedHighRisks ? '?acknowledgedHighRisks=true' : '';
+    const data = await apiRequest<MCPVerifyData>(`/mcp/verify${query}`, {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -232,6 +264,16 @@ export const validateMCPConfig = async (config: MCPServiceConfig): Promise<Valid
     };
   } catch (error) {
     const latency = Math.round(performance.now() - startTime);
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        message: error.message,
+        latency,
+        scanFindings: parseMcpFindingsFromApiErrorDetails(error.details),
+        retriable: error.retriable,
+        businessCode: error.businessCode,
+      };
+    }
     const errorMessage = error instanceof Error ? error.message : '网络请求失败';
     return { success: false, message: errorMessage, latency };
   }

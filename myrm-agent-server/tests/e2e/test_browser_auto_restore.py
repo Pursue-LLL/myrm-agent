@@ -7,6 +7,7 @@ pytestmark = pytest.mark.e2e
 
 HEADERS = {"Content-Type": "application/json"}
 
+
 async def chat_with_agent(client, query, agent_id=None, chat_id=None):
     chat_payload = {"query": query, "messageId": str(uuid.uuid4()), "action_mode": "agent"}
     if agent_id:
@@ -22,6 +23,7 @@ async def chat_with_agent(client, query, agent_id=None, chat_id=None):
             if line.startswith("data: "):
                 try:
                     import json
+
                     data = json.loads(line[6:])
                     if data.get("type") == "message":
                         answer += data.get("data", "")
@@ -30,6 +32,7 @@ async def chat_with_agent(client, query, agent_id=None, chat_id=None):
                 except Exception:
                     pass
     return answer
+
 
 @pytest.mark.asyncio
 async def test_browser_auto_restore_e2e(ephemeral_server: str):
@@ -43,10 +46,7 @@ async def test_browser_auto_restore_e2e(ephemeral_server: str):
             "description": "Agent with browser auto restore domains",
             "system_prompt": "You are a helpful assistant. Use the browser to open https://example.com and tell me its title.",
             "is_built_in": False,
-            "agent_config": {
-                "enable_browser": True,
-                "auto_restore_domains": ["example.com"]
-            }
+            "agent_config": {"enable_browser": True, "auto_restore_domains": ["example.com"]},
         }
         resp = await client.post("/api/v1/user-agents", json=payload)
         assert resp.status_code == 200, f"Failed to create agent: {resp.text}"
@@ -56,9 +56,9 @@ async def test_browser_auto_restore_e2e(ephemeral_server: str):
         # Chat with the agent
         chat_id = str(uuid.uuid4())
         answer = await chat_with_agent(client, "Please open https://example.com and read the title.", agent_id, chat_id=chat_id)
-        
+
         print(f"Agent Answer: {answer}")
-        
+
         # The answer should indicate it successfully used the browser, which means
         # the auto_restore logic (which runs before tool setup) didn't crash.
         assert len(answer) > 0

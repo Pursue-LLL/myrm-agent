@@ -45,12 +45,7 @@ def _format_health_failure(health: Mapping[str, object]) -> str:
     reason = str(health.get("reason") or "unknown")
     fix_hint = _HEALTH_FIX_HINTS.get(reason, "Check the Shared Context memory health response and runtime logs.")
     payload = json.dumps(dict(health), ensure_ascii=False, sort_keys=True)
-    return (
-        "Shared Context memory smoke preflight failed.\n"
-        f"reason={reason}\n"
-        f"fix={fix_hint}\n"
-        f"health={payload}"
-    )
+    return f"Shared Context memory smoke preflight failed.\nreason={reason}\nfix={fix_hint}\nhealth={payload}"
 
 
 def test_smoke_headers_are_empty_without_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -203,12 +198,8 @@ def test_live_shared_context_chat_recall_smoke() -> None:
                 f"/memory/shared-contexts/{context_id}/bindings",
                 {"target_type": "agent", "target_id": agent_id},
             )
-            conv_bindings = smoke.get_json(
-                f"/memory/shared-contexts/bindings/targets/conversation/{chat_id}"
-            )
-            agent_bindings = smoke.get_json(
-                f"/memory/shared-contexts/bindings/targets/agent/{agent_id}"
-            )
+            conv_bindings = smoke.get_json(f"/memory/shared-contexts/bindings/targets/conversation/{chat_id}")
+            agent_bindings = smoke.get_json(f"/memory/shared-contexts/bindings/targets/agent/{agent_id}")
             assert int(conv_bindings.get("total", 0)) >= 1, conv_bindings
             assert int(agent_bindings.get("total", 0)) >= 1, agent_bindings
             proposal = smoke.post_json(

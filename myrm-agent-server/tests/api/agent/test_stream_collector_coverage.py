@@ -1,4 +1,3 @@
-
 import pytest
 
 from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS, StreamContentCollector
@@ -8,87 +7,80 @@ from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECT
 async def test_stream_collector_full_coverage():
     # Clean up state
     ACTIVE_COLLECTORS.clear()
-    
+
     collector = StreamContentCollector(chat_id="test_chat_1", sibling_group_id="sib_1")
     assert "test_chat_1" in ACTIVE_COLLECTORS
-    
+
     # Test subscribe/unsubscribe
     snapshot, q = collector.subscribe()
     assert collector.has_subscribers
     collector.unsubscribe(q)
     assert not collector.has_subscribers
-    
+
     # Subscribe again to receive events
     _, q2 = collector.subscribe()
-    
+
     # 1. Test message and reasoning
     collector.feed_event({"type": "message", "data": "Hello "})
     collector.feed_event({"type": "reasoning", "data": "Thinking "})
-    
+
     # 2. Test sources
     collector.feed_event({"type": "sources", "data": [{"url": "http://a.com"}]})
-    
+
     # 3. Test tasks_steps
-    collector.feed_event({
-        "type": "tasks_steps",
-        "step_key": "step1",
-        "tool_name": "tool1",
-        "data": [{"item": "val"}],
-        "count": 1
-    })
-    
+    collector.feed_event(
+        {"type": "tasks_steps", "step_key": "step1", "tool_name": "tool1", "data": [{"item": "val"}], "count": 1}
+    )
+
     # 4. Test token_usage
-    collector.feed_event({
-        "type": "token_usage",
-        "data": {"usage": {"prompt_tokens": 10}}
-    })
-    
+    collector.feed_event({"type": "token_usage", "data": {"usage": {"prompt_tokens": 10}}})
+
     # 5. Test message_end
-    collector.feed_event({
-        "type": "message_end",
-        "usage": {"total_tokens": 20},
-        "token_economics": {"total_cache_savings_usd": 0.01},
-        "context_budget": {"used": 50},
-        "cost_usd": 0.05,
-        "cost_status": "calculated",
-        "completion_status": "success",
-        "model": "test_model",
-        "usage_alert": {"alert": "high"}
-    })
-    
+    collector.feed_event(
+        {
+            "type": "message_end",
+            "usage": {"total_tokens": 20},
+            "token_economics": {"total_cache_savings_usd": 0.01},
+            "context_budget": {"used": 50},
+            "cost_usd": 0.05,
+            "cost_status": "calculated",
+            "completion_status": "success",
+            "model": "test_model",
+            "usage_alert": {"alert": "high"},
+        }
+    )
+
     # 6. Test routing, privacy
     collector.feed_event({"type": "routing_decision", "data": {"tier": "reasoning"}})
     collector.feed_event({"type": "privacy_level", "data": {"current_turn_level": "strict"}})
     collector.feed_event({"type": "privacy_route", "data": {"route": "local"}})
-    
+
     # 7. Test cache break
-    collector.feed_event({
-        "type": "status",
-        "step_key": "cache_break",
-        "data": {"raw_reasons": ["ttl_expiry"]}
-    })
-    
+    collector.feed_event({"type": "status", "step_key": "cache_break", "data": {"raw_reasons": ["ttl_expiry"]}})
+
     # 8. Test memory recall tool end
-    collector.feed_event({
-        "type": "tool_end",
-        "tool_name": "memory_recall_tool",
-        "cited_memory_ids": ["m1", "m2"],
-        "cited_memory_refs": [{"id": "m1", "text": "ref1"}],
-        "memory_retrieval_trace": {"id": "t1", "details": "trace1"}
-    })
-    
+    collector.feed_event(
+        {
+            "type": "tool_end",
+            "tool_name": "memory_recall_tool",
+            "cited_memory_ids": ["m1", "m2"],
+            "cited_memory_refs": [{"id": "m1", "text": "ref1"}],
+            "memory_retrieval_trace": {"id": "t1", "details": "trace1"},
+        }
+    )
+
     # 9. Test feed_sse wrapper
     collector.feed_sse('data: {"type": "message", "data": "World"}\n\n')
     # Invalid SSE
-    collector.feed_sse('invalid')
-    collector.feed_sse('data: invalid_json\n\n')
-    
+    collector.feed_sse("invalid")
+    collector.feed_sse("data: invalid_json\n\n")
+
     # Assert properties
     assert collector.content == "Hello World"
     assert collector.reasoning == "Thinking "
     assert collector.has_content is True
     assert collector.sibling_group_id == "sib_1"
-    
+
     extra = collector.extra_data
     assert extra is not None
     assert extra["sources"][0]["url"] == "http://a.com"
@@ -108,7 +100,7 @@ async def test_stream_collector_full_coverage():
     assert extra["citedMemoryIds"] == ["m1", "m2"]
     assert extra["citedMemoryRefs"][0]["id"] == "m1"
     assert extra["memoryRetrievalTraces"][0]["id"] == "t1"
-    
+
     # Cleanup
     collector.cleanup()
     assert "test_chat_1" not in ACTIVE_COLLECTORS

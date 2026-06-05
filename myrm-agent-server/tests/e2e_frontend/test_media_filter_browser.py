@@ -76,18 +76,12 @@ async def test_ui_agent_text_and_image_strip(test_image: Path) -> None:
         file_input = page.locator('input[type="file"]').first
         await file_input.set_input_files(str(test_image))
         await page.wait_for_timeout(1000)
-        await page.get_by_role("textbox", name="输入消息...").fill(
-            "E2E UI: describe image color in one word"
-        )
+        await page.get_by_role("textbox", name="输入消息...").fill("E2E UI: describe image color in one word")
         await page.get_by_role("button", name="发送").click()
 
         for _ in range(60):
             body = await page.content()
-            if (
-                "media_stripped" in body
-                or "已移除媒体" in body
-                or "Removed media" in body
-            ):
+            if "media_stripped" in body or "已移除媒体" in body or "Removed media" in body:
                 break
             if await page.get_by_role("button", name="发送").is_enabled():
                 break
@@ -97,8 +91,6 @@ async def test_ui_agent_text_and_image_strip(test_image: Path) -> None:
             pytest.fail("Timeout waiting for agent completion")
 
         body = await page.content()
-        assert (
-            "media_stripped" in body or "已移除媒体" in body or "Removed media" in body
-        )
+        assert "media_stripped" in body or "已移除媒体" in body or "Removed media" in body
 
         await browser.close()

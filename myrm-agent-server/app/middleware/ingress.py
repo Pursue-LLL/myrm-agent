@@ -43,18 +43,18 @@ class PublicIngressMiddleware:
             public_url_str = await get_public_ingress_base_url()
             if public_url_str:
                 parsed = urlparse(public_url_str)
-                
+
                 # Rewrite scheme
                 scope["scheme"] = parsed.scheme
-                
+
                 # Rewrite Host header
                 headers = scope.get("headers", [])
                 new_headers = [(k, v) for k, v in headers if k != b"host"]
                 new_headers.append((b"host", parsed.netloc.encode("utf-8")))
                 scope["headers"] = new_headers
-                
+
                 # Rewrite server tuple
                 port = parsed.port or (443 if parsed.scheme == "https" else 80)
                 scope["server"] = (parsed.hostname or "", port)
-                
+
         await self.app(scope, receive, send)

@@ -29,14 +29,10 @@ class TaskAdaptiveExtension(AgentExtension):
             digest_data = task_adaptive_digest.copy()
             hotspots_raw = digest_data.get("hotspots")
             if isinstance(hotspots_raw, list):
-                digest_data["hotspots"] = [
-                    FileHotspot(**h) if isinstance(h, dict) else h for h in hotspots_raw
-                ]
+                digest_data["hotspots"] = [FileHotspot(**h) if isinstance(h, dict) else h for h in hotspots_raw]
             anti_raw = digest_data.get("anti_patterns")
             if isinstance(anti_raw, list):
-                digest_data["anti_patterns"] = [
-                    AntiPattern(**a) if isinstance(a, dict) else a for a in anti_raw
-                ]
+                digest_data["anti_patterns"] = [AntiPattern(**a) if isinstance(a, dict) else a for a in anti_raw]
 
             digest = TraceRunDigest(**digest_data)
             self._middlewares.append(TaskAdaptiveMiddleware(trace_digest=digest))

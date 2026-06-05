@@ -11,6 +11,7 @@ from app.database.standard_responses import BusinessCode, create_error_response
 
 logger = logging.getLogger(__name__)
 
+
 async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=404,
@@ -19,6 +20,7 @@ async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
             message="Requested resource not found",
         ).model_dump(mode="json"),
     )
+
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     if isinstance(exc, ClientDisconnect):
@@ -34,4 +36,3 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
             message="Internal server error",
         ).model_dump(mode="json"),
     )
-

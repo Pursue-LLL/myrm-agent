@@ -11,6 +11,8 @@
 
 import type { ActionMode } from './sessionConfig';
 
+export type { CommandSpan } from '@/lib/approval/shellCommandDisplay';
+
 /** 工具审批请求（Permission Engine 触发） */
 export interface ToolApprovalRequest {
   requestId: string;
@@ -34,9 +36,13 @@ export interface ToolApprovalRequest {
   domainApproval?: boolean;
   /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
   ptcAnnotations?: Record<string, boolean>;
+  /** Pipeline segment highlight spans (shell approval UX) */
+  commandSpans?: { startIndex: number; endIndex: number }[];
+  /** Per-segment risk from harness risk_classifier */
+  commandSpanRisks?: ('safe' | 'unknown')[];
+  /** Sandbox workspace root for shell approvals */
+  workspaceRoot?: string;
 }
-
-/** 工具调用信息（用于 CLI Agent 权限审批和 Diff 预览） */
 export interface ToolCallInfo {
   callId: string;
   toolName: string;

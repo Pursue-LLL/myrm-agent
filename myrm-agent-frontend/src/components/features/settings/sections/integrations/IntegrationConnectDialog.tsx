@@ -17,7 +17,10 @@ import {
 import { toast } from '@/hooks/useToast';
 import useConfigStore from '@/store/useConfigStore';
 import { apiRequest } from '@/lib/api';
-import type { MCPServiceConfig } from '@/store/config/types';
+import { buildLastScanSummary, gateMcpEnable } from '@/hooks/useMcpSecurityGate';
+import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
+import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
+import type { MCPScanResult, MCPServiceConfig } from '@/store/config/types';
 import type { CatalogEntry } from './catalog-types';
 
 interface IntegrationConnectDialogProps {
@@ -30,6 +33,7 @@ interface IntegrationConnectDialogProps {
 export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
   ({ entry, locale, onClose, onConnected }) => {
     const t = useTranslations('settings.integrationCatalog.connectDialog');
+    const tSettings = useTranslations('settings');
     const hasMultiFields = entry.credentialFields && entry.credentialFields.length > 0;
 
     const [credential, setCredential] = useState('');
@@ -38,6 +42,11 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     );
     const [connecting, setConnecting] = useState(false);
     const [oauthPolling, setOauthPolling] = useState(false);
+    const [pendingCatalogAck, setPendingCatalogAck] = useState<{
+      config: MCPServiceConfig;
+      scanResult: MCPScanResult;
+      onDone: () => void;
+    } | null>(null);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const { mcpConfigs, setMCPConfigs } = useConfigStore();
 
@@ -48,6 +57,65 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     }, []);
 
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
+
+    const persistCatalogConfig = useCallback(
+      (config: MCPServiceConfig) => {
+        const exists = mcpConfigs.some((c) => c.name === config.name);
+        if (!exists) {
+          setMCPConfigs([...mcpConfigs, config]);
+        }
+        toast({ title: t('connectSuccess', { name: entry.name }) });
+        onConnected();
+      },
+      [entry.name, mcpConfigs, onConnected, setMCPConfigs, t, toast],
+    );
+
+    const runCatalogSecurityGate = useCallback(
+      async (config: MCPServiceConfig, acknowledgedHighRisks = false) => {
+        const gate = await gateMcpEnable(config, { acknowledgedHighRisks });
+        if (gate.needsAcknowledgement) {
+          setPendingCatalogAck({
+            config,
+            scanResult: gate.scanResult,
+            onDone: () =>
+              persistCatalogConfig({
+                ...config,
+                lastScanSummary: buildLastScanSummary(gate.scanResult),
+              }),
+          });
+          return false;
+        }
+        if (!gate.allowed) {
+          toast({
+            title: t('connectFailed'),
+            description: formatMcpGateBlockedMessage(
+              {
+                verifyError: gate.verifyError,
+                verifyFindings: gate.verifyFindings,
+                staticFindings: gate.scanResult.findings,
+                fallback: t('connectFailed'),
+              },
+              tSettings,
+            ),
+            variant: 'destructive',
+          });
+          return false;
+        }
+        persistCatalogConfig({
+          ...config,
+          lastScanSummary: buildLastScanSummary(gate.scanResult),
+        });
+        return true;
+      },
+      [persistCatalogConfig, t, tSettings, toast],
+    );
+
+    const handleConfirmCatalogAck = useCallback(async () => {
+      if (!pendingCatalogAck) return;
+      const { config } = pendingCatalogAck;
+      setPendingCatalogAck(null);
+      await runCatalogSecurityGate(config, true);
+    }, [pendingCatalogAck, runCatalogSecurityGate]);
 
     const handleFieldChange = useCallback((key: string, value: string) => {
       setFieldValues((prev) => ({ ...prev, [key]: value }));
@@ -80,7 +148,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
           });
 
           // 2. Open authorization URL
-          if (window.__TAURI__) {
+          if ('__TAURI__' in window) {
             const { open } = await import('@tauri-apps/plugin-shell');
             await open(startRes.authorization_url);
           } else {
@@ -104,15 +172,11 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                   enabled: true,
                   extra_params: null,
                 };
-                
-                const exists = mcpConfigs.some((c) => c.name === newConfig.name);
-                if (!exists) {
-                  setMCPConfigs([...mcpConfigs, newConfig]);
-                }
-                
-                toast({ title: t('connectSuccess', { name: entry.name }) });
+
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
                 setOauthPolling(false);
-                onConnected();
+                await runCatalogSecurityGate(newConfig);
+                return;
               } else if (statusRes.status === 'expired_or_invalid') {
                 if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
                 setOauthPolling(false);
@@ -190,9 +254,9 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
             return;
           }
 
-          setMCPConfigs([...mcpConfigs, newConfig]);
-          toast({ title: t('connectSuccess', { name: entry.name }) });
-          onConnected();
+          setConnecting(false);
+          await runCatalogSecurityGate(newConfig);
+          return;
         }
       } catch (e) {
         toast({
@@ -206,6 +270,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     }, [entry, credential, fieldValues, hasMultiFields, locale, mcpConfigs, setMCPConfigs, onConnected, t]);
 
     return (
+      <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -284,6 +349,14 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MCPScanAckDialog
+        open={!!pendingCatalogAck}
+        serverName={pendingCatalogAck?.config.name || ''}
+        findings={pendingCatalogAck?.scanResult.findings ?? []}
+        onConfirm={handleConfirmCatalogAck}
+        onCancel={() => setPendingCatalogAck(null)}
+      />
+      </>
     );
   },
 );

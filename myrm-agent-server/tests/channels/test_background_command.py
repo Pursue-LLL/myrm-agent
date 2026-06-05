@@ -343,9 +343,7 @@ class TestHandleBackgroundCommand:
         from app.channels.routing.router_commands import RouterCommandsMixin
 
         handler = MagicMock()
-        handler.spawn_background = AsyncMock(
-            side_effect=RuntimeError("Maximum concurrent background tasks reached (5).")
-        )
+        handler.spawn_background = AsyncMock(side_effect=RuntimeError("Maximum concurrent background tasks reached (5)."))
         host = self._make_host(background_handler=handler)
         msg = _make_msg()
         await RouterCommandsMixin._handle_background_command(host, msg, "another task")

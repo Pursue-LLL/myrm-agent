@@ -40,7 +40,5 @@ def get_state_manager() -> SkillStateManager:
         RuntimeError: If state manager not initialized
     """
     if _state_manager is None:
-        raise RuntimeError(
-            "SkillStateManager not initialized. Call init_state_manager() during application startup."
-        )
+        raise RuntimeError("SkillStateManager not initialized. Call init_state_manager() during application startup.")
     return _state_manager

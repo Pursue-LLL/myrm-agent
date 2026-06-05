@@ -77,9 +77,7 @@ def test_external_agent_install_unknown_backend_streams_error(client: TestClient
     assert any(e.get("type") == "success" for e in events)
 
 
-def test_external_agent_install_claude_mocked_no_network(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_external_agent_install_claude_mocked_no_network(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Install endpoint streams mocked toolchain progress (no real npm download)."""
 
     class FakeManager:

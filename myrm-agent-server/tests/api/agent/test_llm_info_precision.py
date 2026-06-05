@@ -37,14 +37,17 @@ class TestLLMInfoPrecision:
         }
 
         diagnostic_result = None
-        
+
         from unittest.mock import patch
 
         from app.core.types import ModelConfig
+
         def mock_fallback_precision(providers_dict=None):
             return ModelConfig(model=test_model, api_key="sk-123", base_url=None)
-            
-        patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_precision)
+
+        patcher = patch(
+            "app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_precision
+        )
         patcher.start()
         try:
             with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
@@ -99,13 +102,14 @@ class TestLLMInfoPrecision:
         }
 
         diagnostic_result = None
-        
+
         from unittest.mock import patch
 
         from app.core.types import ModelConfig
+
         def mock_fallback_diff(providers_dict=None):
             return ModelConfig(model=test_model, api_key="sk-123", base_url=None)
-            
+
         patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_diff)
         patcher.start()
         try:

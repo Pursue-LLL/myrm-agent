@@ -19,6 +19,7 @@ load_dotenv(override=False)
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def lite_llm_func():
     """Build a real LLM function using LITE_MODEL for integration tests."""
@@ -82,6 +83,7 @@ def zh_correction_messages() -> list[dict[str, str]]:
 # Unit tests (no LLM / no DB)
 # ---------------------------------------------------------------------------
 
+
 class TestDetectCorrectionSignals:
     """Test correction detection via Harness-layer detect_feedback_signals."""
 
@@ -90,6 +92,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         assert detect_feedback_signals(correction_messages) == FeedbackSignal.NEGATIVE
 
     def test_chinese_correction_detected(self, zh_correction_messages: list[dict[str, str]]) -> None:
@@ -97,6 +100,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         assert detect_feedback_signals(zh_correction_messages) == FeedbackSignal.NEGATIVE
 
     def test_no_correction_returns_none(self, no_correction_messages: list[dict[str, str]]) -> None:
@@ -104,6 +108,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         signal = detect_feedback_signals(no_correction_messages)
         assert signal != FeedbackSignal.NEGATIVE
 
@@ -112,6 +117,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         messages = [
             {"role": "user", "content": "Write a poem"},
             {"role": "assistant", "content": "Roses are red..."},
@@ -124,6 +130,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         assert detect_feedback_signals([]) == FeedbackSignal.NONE
 
     def test_single_message_safe(self) -> None:
@@ -131,6 +138,7 @@ class TestDetectCorrectionSignals:
             FeedbackSignal,
             detect_feedback_signals,
         )
+
         assert detect_feedback_signals([{"role": "user", "content": "hello"}]) == FeedbackSignal.NONE
 
 
@@ -216,6 +224,7 @@ class TestDefaultPolicy:
 
     def test_correction_auto_approve_in_default_policy(self) -> None:
         from app.services.memory.shared_context import _DEFAULT_POLICY
+
         assert "correction_auto_approve" in _DEFAULT_POLICY
         assert _DEFAULT_POLICY["correction_auto_approve"] is True
 
@@ -242,18 +251,19 @@ class TestPromptTemplates:
 
     def test_system_prompt_mentions_none(self) -> None:
         from app.ai_agents.general_agent.callbacks import _CORRECTION_SUMMARY_SYSTEM
+
         assert "NONE" in _CORRECTION_SUMMARY_SYSTEM
 
     def test_prompt_template_has_placeholders(self) -> None:
         from app.ai_agents.general_agent.callbacks import _CORRECTION_SUMMARY_PROMPT_TEMPLATE
+
         assert "{n}" in _CORRECTION_SUMMARY_PROMPT_TEMPLATE
         assert "{conversation}" in _CORRECTION_SUMMARY_PROMPT_TEMPLATE
 
     def test_prompt_template_formats_correctly(self) -> None:
         from app.ai_agents.general_agent.callbacks import _CORRECTION_SUMMARY_PROMPT_TEMPLATE
-        result = _CORRECTION_SUMMARY_PROMPT_TEMPLATE.format(
-            n=4, conversation="User: hi\nAI: hello"
-        )
+
+        result = _CORRECTION_SUMMARY_PROMPT_TEMPLATE.format(n=4, conversation="User: hi\nAI: hello")
         assert "4" in result
         assert "User: hi" in result
 
@@ -261,6 +271,7 @@ class TestPromptTemplates:
 # ---------------------------------------------------------------------------
 # Integration tests (real LLM, no mock)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skipif(
     not os.getenv("LITE_API_KEY"),
@@ -279,9 +290,7 @@ class TestExtractCorrectionSummaryIntegration:
         assert result, "Should extract a non-empty correction summary"
         assert len(result) > 5, "Summary should be meaningful"
         lower = result.lower()
-        assert "mindforge" in lower or "mindforce" in lower, (
-            f"Summary should mention the corrected entity, got: {result}"
-        )
+        assert "mindforge" in lower or "mindforce" in lower, f"Summary should mention the corrected entity, got: {result}"
 
     @pytest.mark.asyncio
     async def test_extracts_correction_from_chinese_conversation(
@@ -328,9 +337,7 @@ class TestCorrectionPropagationEndToEnd:
     """End-to-end test: correction detection → summary extraction."""
 
     @pytest.mark.asyncio
-    async def test_full_pipeline_with_correction(
-        self, lite_llm_func: Any, correction_messages: list[dict[str, str]]
-    ) -> None:
+    async def test_full_pipeline_with_correction(self, lite_llm_func: Any, correction_messages: list[dict[str, str]]) -> None:
         """Verify the full pipeline from detection to summary extraction."""
         from myrm_agent_harness.toolkits.memory.strategies.extractor import (
             FeedbackSignal,
@@ -347,9 +354,7 @@ class TestCorrectionPropagationEndToEnd:
         assert len(summary) > 5
         print(f"\nExtracted correction summary: {summary}")
 
-    def test_full_pipeline_without_correction(
-        self, no_correction_messages: list[dict[str, str]]
-    ) -> None:
+    def test_full_pipeline_without_correction(self, no_correction_messages: list[dict[str, str]]) -> None:
         """Verify the pipeline short-circuits when no correction is detected."""
         from myrm_agent_harness.toolkits.memory.strategies.extractor import (
             FeedbackSignal,

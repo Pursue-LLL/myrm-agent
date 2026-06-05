@@ -468,13 +468,15 @@ class TestSignalOutbound:
             "app.channels.media.downloader.MediaDownloader.download",
             new_callable=AsyncMock,
             return_value=MediaDownloadResult(
-                success=True, data=b"\x89PNG", content_type="image/png",
-                error=None, url="https://example.com/img.png", size_bytes=4,
+                success=True,
+                data=b"\x89PNG",
+                content_type="image/png",
+                error=None,
+                url="https://example.com/img.png",
+                size_bytes=4,
             ),
         ):
-            media = MediaAttachment(
-                media_type=MediaType.IMAGE, url="https://example.com/img.png", mime_type="image/png"
-            )
+            media = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", mime_type="image/png")
             msg = OutboundMessage(channel="signal", user_id="u1", recipient_id="+9999", content="Photo", media=(media,))
             result = await ch.send(msg)
             assert result is not None
@@ -635,8 +637,12 @@ class TestSignalOutbound:
             "app.channels.media.downloader.MediaDownloader.download",
             new_callable=AsyncMock,
             return_value=MediaDownloadResult(
-                success=False, data=None, content_type=None,
-                error=None, url="https://example.com/bad.png", size_bytes=0,
+                success=False,
+                data=None,
+                content_type=None,
+                error=None,
+                url="https://example.com/bad.png",
+                size_bytes=0,
             ),
         ):
             media = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/bad.png")
@@ -1167,7 +1173,7 @@ class TestReplyTo:
     @pytest.mark.asyncio
     async def test_data_message_reaction(self) -> None:
         ch, received = _make_channel()
-        thumbs_up = "\U0001F44D"
+        thumbs_up = "\U0001f44d"
         payload = _wrap_envelope(
             sourceNumber="+9999999999",
             dataMessage={

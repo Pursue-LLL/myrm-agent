@@ -56,9 +56,11 @@ app.add_exception_handler(Exception, general_exception_handler)
 register_exception_handlers(app)
 register_database_operational_handlers(app)
 
+
 @app.get("/health")
 async def health_check() -> str:
     return "ok"
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -14,9 +14,11 @@ class MockProfileResolver:
             return self.profile
         return None
 
+
 class MockResolvedProfile:
     def __init__(self):
         from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+
         self.system_prompt = "Custom system prompt"
         self.skill_ids = ["skill1", "skill2"]
         self.subagent_ids = ["sub1"]
@@ -29,6 +31,7 @@ class MockResolvedProfile:
         self.auto_restore_domains = ()
         self.memory_decay_profile = None
 
+
 @pytest.mark.asyncio
 async def test_server_eval_executor_profile(tmp_path):
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -38,7 +41,7 @@ async def test_server_eval_executor_profile(tmp_path):
     import app.ai_agents.agents as agent_types_mod
     from app.ai_agents.agents import GeneralAgentParams
     from app.core.types import ModelConfig
-    
+
     agent_types_mod.EmbeddingConfig = EmbeddingConfig
     agent_types_mod.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()
@@ -51,9 +54,10 @@ async def test_server_eval_executor_profile(tmp_path):
         # Mock the async generator for the agent's ainvoke
         async def mock_ainvoke(*args, **kwargs):
             yield {"agent": {"messages": [{"content": "Hello eval"}]}}
-        
+
         mock_agent = MagicMock()
         from unittest.mock import AsyncMock
+
         mock_agent.close = AsyncMock()
         mock_agent.process_stream = mock_ainvoke
         mock_agent_factory.return_value = mock_agent
@@ -73,11 +77,11 @@ async def test_server_eval_executor_profile(tmp_path):
 
                 # Execute with a fake message
                 response = await executor.execute("Hello")
-                
+
                 # Assert that the profile settings were parsed
                 assert response is not None
                 assert mock_agent_factory.called
-                
+
                 # Verify params passed to create_general_agent
                 params = mock_agent_factory.call_args[0][0]
                 assert params.agent_id == "mock_id"

@@ -82,9 +82,7 @@ class TestIsDuplicate:
 
         now = time.monotonic()
         with patch("time.monotonic", return_value=now + _DEDUP_TTL + 1):
-            router._seen_messages = {
-                k: v for k, v in router._seen_messages.items() if (now + _DEDUP_TTL + 1) - v <= _DEDUP_TTL
-            }
+            router._seen_messages = {k: v for k, v in router._seen_messages.items() if (now + _DEDUP_TTL + 1) - v <= _DEDUP_TTL}
 
         assert router._is_duplicate(msg) is False
 

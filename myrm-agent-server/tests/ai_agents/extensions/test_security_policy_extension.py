@@ -1,6 +1,5 @@
 """Tests for SecurityPolicyExtension — custom PII fields passthrough."""
 
-
 from app.ai_agents.extensions.security_policy_extension import SecurityPolicyExtension
 
 

@@ -77,9 +77,7 @@ async def _emit_subagent_tree(session_id: str) -> None:
         storage = SubagentCheckpointStorage()
         try:
             checkpoints = await storage.list_checkpoints(session_id=session_id)
-            active_task_ids = {
-                c.get("task_id") for c in children_data if isinstance(c, dict)
-            }
+            active_task_ids = {c.get("task_id") for c in children_data if isinstance(c, dict)}
             for c in checkpoints:
                 if c.task_id not in active_task_ids:
                     status = "interrupted" if c.interruption_reason else "checkpoint"
@@ -179,7 +177,6 @@ async def _handle_resource_event(event: ResourceMetricsEvent) -> None:
         logger.error("Failed to publish memory history: %s", e)
 
 
-
 async def _handle_skill_failure_event(event: SkillFailureEvent) -> None:
     try:
         from app.services.agent.evolution.skill_immune_service import (
@@ -215,6 +212,7 @@ def setup_harness_bridge() -> None:
     from myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery import (
         OrphanRecoveryManager,
     )
+
     OrphanRecoveryManager.get_instance().schedule_scan()
 
     logger.info("Harness event bridge setup complete.")

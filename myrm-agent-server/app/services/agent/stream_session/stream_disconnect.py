@@ -35,9 +35,7 @@ def build_disconnect_checker(session: AgentStreamSession) -> Callable[[], Awaita
                     session_factory = get_session_factory()
                     async with session_factory() as db:
                         exists = await db.execute(
-                            select(OfflineDurableTask).where(
-                                OfflineDurableTask.chat_id == session.request.chat_id
-                            )
+                            select(OfflineDurableTask).where(OfflineDurableTask.chat_id == session.request.chat_id)
                         )
                         if not exists.scalars().first():
                             task = OfflineDurableTask(

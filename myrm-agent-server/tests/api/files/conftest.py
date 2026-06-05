@@ -14,9 +14,7 @@ from app.database.models import Base
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncSession:
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///file:testdb_artifact_api?mode=memory&cache=shared&uri=true"
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///file:testdb_artifact_api?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -71,9 +71,7 @@ async def sync_integration(req: SyncRequest) -> list[SyncResultItem]:
     """Trigger data sync from external service integrations."""
     svc = await _get_service()
     if req.provider_id:
-        result = await svc.sync_provider(
-            req.provider_id, account_key=req.account_key, max_items=req.max_items
-        )
+        result = await svc.sync_provider(req.provider_id, account_key=req.account_key, max_items=req.max_items)
         results = [result]
     else:
         results = await svc.sync_all(max_items=req.max_items)

@@ -75,9 +75,7 @@ class TestSqliteInboundJournal:
 
     def test_scan_excludes_expired(self, journal: SqliteInboundJournal) -> None:
         fresh = _make_entry(entry_id="fresh", ttl_seconds=600)
-        expired = _make_entry(
-            entry_id="expired", ttl_seconds=1, created_at=time.time() - 100
-        )
+        expired = _make_entry(entry_id="expired", ttl_seconds=1, created_at=time.time() - 100)
 
         journal.write(fresh)
         journal.write(expired)
@@ -87,9 +85,7 @@ class TestSqliteInboundJournal:
         assert pending[0].id == "fresh"
 
     def test_scan_with_max_age_override(self, journal: SqliteInboundJournal) -> None:
-        old = _make_entry(
-            entry_id="old", ttl_seconds=3600, created_at=time.time() - 120
-        )
+        old = _make_entry(entry_id="old", ttl_seconds=3600, created_at=time.time() - 120)
         journal.write(old)
 
         assert len(journal.scan_pending(max_age_seconds=60)) == 0
@@ -97,12 +93,8 @@ class TestSqliteInboundJournal:
 
     def test_prune_expired(self, journal: SqliteInboundJournal) -> None:
         fresh = _make_entry(entry_id="fresh", ttl_seconds=600)
-        expired1 = _make_entry(
-            entry_id="exp1", ttl_seconds=1, created_at=time.time() - 100
-        )
-        expired2 = _make_entry(
-            entry_id="exp2", ttl_seconds=5, created_at=time.time() - 100
-        )
+        expired1 = _make_entry(entry_id="exp1", ttl_seconds=1, created_at=time.time() - 100)
+        expired2 = _make_entry(entry_id="exp2", ttl_seconds=5, created_at=time.time() - 100)
 
         journal.write(fresh)
         journal.write(expired1)
@@ -126,9 +118,7 @@ class TestSqliteInboundJournal:
         assert len(pending) == 1
         assert pending[0].content == "updated"
 
-    def test_multiple_entries_ordered_by_created_at(
-        self, journal: SqliteInboundJournal
-    ) -> None:
+    def test_multiple_entries_ordered_by_created_at(self, journal: SqliteInboundJournal) -> None:
         now = time.time()
         journal.write(_make_entry(entry_id="c", created_at=now - 10))
         journal.write(_make_entry(entry_id="a", created_at=now - 30))
@@ -288,9 +278,7 @@ class TestThreadSafety:
         pending = journal.scan_pending()
         assert len(pending) == 80
 
-    def test_concurrent_write_and_acknowledge(
-        self, journal: SqliteInboundJournal
-    ) -> None:
+    def test_concurrent_write_and_acknowledge(self, journal: SqliteInboundJournal) -> None:
         for i in range(20):
             journal.write(_make_entry(entry_id=f"pre-{i}"))
 

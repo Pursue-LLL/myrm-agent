@@ -215,10 +215,11 @@ class AgentFactory:
 
         if params.tool_gateway_config:
             from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
+
             gateway_cfg = ToolGatewayConfig.model_validate(params.tool_gateway_config)
             if params.search_service_cfg:
                 params.search_service_cfg.gateway_config = gateway_cfg
-            
+
             # Inject gateway config into image and video generation params
             if params.image_generation:
                 params.image_generation.gateway_config = params.tool_gateway_config
@@ -308,6 +309,7 @@ class AgentFactory:
             search_depth=params.search_depth,
             notify_targets=params.notify_targets,
         )
+
 
 __all__ = [
     "AgentFactory",

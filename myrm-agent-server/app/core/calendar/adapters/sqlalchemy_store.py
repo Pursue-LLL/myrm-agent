@@ -101,7 +101,7 @@ class SqlAlchemyCalendarStore:
         **kwargs: object,
     ) -> list[dict[str, object]]:
         """Return free/busy information for a list of users.
-        
+
         Currently implements local db lookups for simulation.
         If a real provider like Feishu is attached to kwargs, it could delegate there.
         """
@@ -109,9 +109,7 @@ class SqlAlchemyCalendarStore:
             all_results = []
             for uid in user_ids:
                 stmt = select(CalendarEventModel).where(
-                    CalendarEventModel.start_at < end,
-                    CalendarEventModel.end_at > start,
-                    CalendarEventModel.status == "confirmed"
+                    CalendarEventModel.start_at < end, CalendarEventModel.end_at > start, CalendarEventModel.status == "confirmed"
                 )
                 # If your model stores users/attendees, filter by uid here.
                 # Since CalendarEventModel may not have full user mapping in base,
@@ -119,11 +117,7 @@ class SqlAlchemyCalendarStore:
                 result = await session.execute(stmt)
                 events = result.scalars().all()
                 busy_slots = [
-                    {"start": e.start_at.isoformat(), "end": e.end_at.isoformat()}
-                    for e in events if e.start_at and e.end_at
+                    {"start": e.start_at.isoformat(), "end": e.end_at.isoformat()} for e in events if e.start_at and e.end_at
                 ]
-                all_results.append({
-                    "user_id": uid,
-                    "busy_slots": busy_slots
-                })
+                all_results.append({"user_id": uid, "busy_slots": busy_slots})
             return all_results

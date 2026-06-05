@@ -188,9 +188,7 @@ def get_checkpointer() -> "BaseCheckpointSaver[str]":
         logger = logging.getLogger(__name__)
         _checkpointer = MemorySaver()
         logger.warning("🔖 Checkpointer: MemorySaver (lazy fallback)")
-        logger.warning(
-            "   Note: Checkpointer should be initialized in app/server/lifespan startup"
-        )
+        logger.warning("   Note: Checkpointer should be initialized in app/server/lifespan startup")
 
     return _checkpointer
 

@@ -33,9 +33,7 @@ def perform_browser_action(
     collected_data: list[dict] = []
     message_chunks: list[str] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_payload
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_payload) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -70,8 +68,8 @@ def perform_browser_action(
 @pytest.mark.integration
 def test_browser_vision_verification_e2e(client: TestClient):
     """Test browser navigation with vision verification.
-    
-    This test asks the agent to navigate to example.com and verify that the 
+
+    This test asks the agent to navigate to example.com and verify that the
     domain is indeed example.com. It expects the agent to use the browser_navigate_tool
     with verify_goal, which will trigger the 3-layer VisionVerifier funnel.
     """
@@ -79,20 +77,21 @@ def test_browser_vision_verification_e2e(client: TestClient):
         "Please navigate to https://example.com and verify that the page title or "
         "main heading says 'Example Domain'. Use the browser tool and provide a verify_goal."
     )
-    
+
     full_message, collected_data = perform_browser_action(client, query)
-    
+
     # Check that a tool call was made
-    tool_calls = [
-        d for d in collected_data
-        if d.get("type") == "tasks_steps" and "browser" in str(d.get("tool_name", ""))
-    ]
+    tool_calls = [d for d in collected_data if d.get("type") == "tasks_steps" and "browser" in str(d.get("tool_name", ""))]
 
     assert len(tool_calls) > 0, f"Agent did not call any browser tools. Collected data: {json.dumps(collected_data, indent=2)}"
 
     # Check that the final message contains verification info
-    if "Verification passed" in full_message or "Verification failed" in full_message or "Vision verification skipped" in full_message:
+    if (
+        "Verification passed" in full_message
+        or "Verification failed" in full_message
+        or "Vision verification skipped" in full_message
+    ):
         pass
-    
+
     # The test passes if the tool was called successfully
     pass

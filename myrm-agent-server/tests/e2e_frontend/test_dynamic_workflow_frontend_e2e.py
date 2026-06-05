@@ -40,9 +40,7 @@ async def _clear_pending_approvals() -> None:
 
 
 async def _find_visible_workflow_toggle(page):
-    buttons = page.locator(
-        'button[aria-label="动态工作流模式"], button[aria-label="Dynamic Workflow Mode"]'
-    )
+    buttons = page.locator('button[aria-label="动态工作流模式"], button[aria-label="Dynamic Workflow Mode"]')
     await buttons.first.wait_for(state="attached", timeout=60000)
     for index in range(await buttons.count()):
         candidate = buttons.nth(index)

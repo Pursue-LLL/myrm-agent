@@ -54,9 +54,7 @@ class TestStatusProviderProtocol:
 
     def test_protocol_is_runtime_checkable(self) -> None:
         class MockProvider:
-            async def get_session_status(
-                self, channel: str, peer_id: str
-            ) -> SessionStatus | None:
+            async def get_session_status(self, channel: str, peer_id: str) -> SessionStatus | None:
                 return None
 
         assert isinstance(MockProvider(), StatusProvider)
@@ -124,9 +122,7 @@ class TestHandleStatusCommand:
     @pytest.mark.asyncio
     async def test_status_shows_running_agent(self, inbound_msg: InboundMessage) -> None:
         mock_provider = AsyncMock()
-        mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=500
-        )
+        mock_provider.get_session_status.return_value = SessionStatus(session_id="s1", total_tokens=500)
 
         host = self._make_host(
             status_provider=mock_provider,
@@ -142,9 +138,7 @@ class TestHandleStatusCommand:
         import time
 
         mock_provider = AsyncMock()
-        mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=100
-        )
+        mock_provider.get_session_status.return_value = SessionStatus(session_id="s1", total_tokens=100)
 
         host = self._make_host(
             status_provider=mock_provider,
@@ -189,7 +183,8 @@ class TestHandleStatusCommand:
     async def test_status_shows_queued_messages(self, inbound_msg: InboundMessage) -> None:
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=100,
+            session_id="s1",
+            total_tokens=100,
         )
         host = self._make_host(status_provider=mock_provider)
         host._gate.pending_count.return_value = 3
@@ -204,7 +199,8 @@ class TestHandleStatusCommand:
     async def test_status_hides_queued_when_zero(self, inbound_msg: InboundMessage) -> None:
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=100,
+            session_id="s1",
+            total_tokens=100,
         )
         host = self._make_host(status_provider=mock_provider)
         await RouterCommandsMixin._handle_status_command(host, inbound_msg)
@@ -218,7 +214,8 @@ class TestHandleStatusCommand:
 
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=50,
+            session_id="s1",
+            total_tokens=50,
         )
         host = self._make_host(
             status_provider=mock_provider,
@@ -235,7 +232,8 @@ class TestHandleStatusCommand:
     async def test_status_yolo_expired_cleanup(self, inbound_msg: InboundMessage) -> None:
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=50,
+            session_id="s1",
+            total_tokens=50,
         )
         yolo_state: dict[str, tuple[float, float | None]] = {
             "telegram:user123": (0.0, 1.0),
@@ -262,7 +260,8 @@ class TestHandleStatusCommand:
         )
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="gs1", total_tokens=3000,
+            session_id="gs1",
+            total_tokens=3000,
         )
         host = self._make_host(status_provider=mock_provider)
         await RouterCommandsMixin._handle_status_command(host, group_msg)
@@ -285,7 +284,8 @@ class TestHandleStatusCommand:
         )
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=0,
+            session_id="s1",
+            total_tokens=0,
         )
         host = self._make_host(status_provider=mock_provider)
         await RouterCommandsMixin._handle_status_command(host, group_msg)
@@ -298,7 +298,8 @@ class TestHandleStatusCommand:
         """DM messages should NOT set reply_to_id."""
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=0,
+            session_id="s1",
+            total_tokens=0,
         )
         host = self._make_host(status_provider=mock_provider)
         await RouterCommandsMixin._handle_status_command(host, inbound_msg)
@@ -313,7 +314,8 @@ class TestHandleStatusCommand:
 
         mock_provider = AsyncMock()
         mock_provider.get_session_status.return_value = SessionStatus(
-            session_id="s1", total_tokens=0,
+            session_id="s1",
+            total_tokens=0,
         )
         host = self._make_host(
             status_provider=mock_provider,

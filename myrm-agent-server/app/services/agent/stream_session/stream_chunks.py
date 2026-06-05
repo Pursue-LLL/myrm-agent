@@ -110,8 +110,7 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
         }
         try:
             has_images = any(
-                isinstance(item, dict) and item.get("type") in ("image_url", "image")
-                for item in session.params.query
+                isinstance(item, dict) and item.get("type") in ("image_url", "image") for item in session.params.query
             )
             has_videos = any(
                 isinstance(item, dict) and item.get("type") == "video_url" for item in session.params.query

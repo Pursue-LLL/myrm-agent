@@ -213,8 +213,10 @@ class TestCuratorHistoryEndpoint:
 
     def test_history_after_manual_run(self, client, _patch_data_dir: Path):
         """Running /curator/run should create a history entry."""
-        with patch("app.core.skills.curator_service.get_stats_collector"), \
-             patch("app.core.skills.curator_service.DEFAULT_LOCAL_SKILL_PATHS", [str(_patch_data_dir)]):
+        with (
+            patch("app.core.skills.curator_service.get_stats_collector"),
+            patch("app.core.skills.curator_service.DEFAULT_LOCAL_SKILL_PATHS", [str(_patch_data_dir)]),
+        ):
             response = client.post("/api/v1/skills/curator/run")
             assert response.status_code == 200
 

@@ -63,7 +63,8 @@ class SMSChannel(BaseChannel):
         account_sid=credential_field("accountSid", "TWILIO_ACCOUNT_SID"),
         auth_token=credential_field("authToken", "TWILIO_AUTH_TOKEN"),
         phone_number=credential_field(
-            "phoneNumber", "TWILIO_PHONE_NUMBER",
+            "phoneNumber",
+            "TWILIO_PHONE_NUMBER",
             help_text="E.164 format, e.g. +15551234567",
         ),
     )

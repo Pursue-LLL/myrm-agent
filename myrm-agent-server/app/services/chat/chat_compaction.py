@@ -31,9 +31,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
     @staticmethod
     async def update_compaction_summary(chat_id: str, summary: str) -> None:
         async with UnitOfWork() as uow:
-            await _ChatServiceBase._cr(uow).update_chat_fields(
-                chat_id, {"compacted_summary": summary}
-            )
+            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"compacted_summary": summary})
             sess = uow.session
             assert sess is not None
             await sess.flush()
@@ -61,24 +59,16 @@ class _ChatCompactionMixin(_ChatServiceBase):
                     return
                 snapshot_id = latest_msg.id
 
-                chat = await _ChatServiceBase._cr(uow).get_chat_by_id(
-                    chat_id, load_messages=False
-                )
+                chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
                 if not chat:
                     return
 
-                age_seconds = (
-                    datetime.utcnow() - latest_msg.created_at
-                ).total_seconds()
+                age_seconds = (datetime.utcnow() - latest_msg.created_at).total_seconds()
                 if age_seconds < 290:
-                    logger.info(
-                        f"❄️ [Drain] Cache still hot for {chat_id}, deferring drain."
-                    )
+                    logger.info(f"❄️ [Drain] Cache still hot for {chat_id}, deferring drain.")
                     return
 
-            logger.info(
-                f"❄️ [Drain] Cache is cold for {chat_id}, starting offline summarization for snapshot {snapshot_id}."
-            )
+            logger.info(f"❄️ [Drain] Cache is cold for {chat_id}, starting offline summarization for snapshot {snapshot_id}.")
 
             async with UnitOfWork() as uow:
                 all_msgs = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
@@ -99,9 +89,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
                     langchain_msgs.append(AIMessage(content=m.content))
                 elif m.role == "tool":
                     tc_id = m.extra_data.get("tool_call_id", "") if m.extra_data else ""
-                    langchain_msgs.append(
-                        ToolMessage(content=m.content, tool_call_id=str(tc_id))
-                    )
+                    langchain_msgs.append(ToolMessage(content=m.content, tool_call_id=str(tc_id)))
 
             from myrm_agent_harness.agent.context_management.infra.schemas import (
                 ContextConfig,
@@ -124,20 +112,14 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 default_model_cfg = providers_dict.get("defaultModelConfig", {})
                 if isinstance(default_model_cfg, dict):
                     lite_model = default_model_cfg.get("liteModel") or {}
-                    selection = lite_model.get("primary") or lite_model.get(
-                        "selection"
-                    )
+                    selection = lite_model.get("primary") or lite_model.get("selection")
                     if selection and isinstance(selection, dict):
                         provider_id = selection.get("providerId")
                         model = selection.get("model")
                         if provider_id and model:
-                            ms = ModelSelection(
-                                provider_id=str(provider_id), model=str(model)
-                            )
+                            ms = ModelSelection(provider_id=str(provider_id), model=str(model))
                             try:
-                                model_cfg = await _resolve_model_config(
-                                    ms, providers_dict
-                                )
+                                model_cfg = await _resolve_model_config(ms, providers_dict)
                             except Exception:
                                 pass
             if not model_cfg:
@@ -145,14 +127,10 @@ class _ChatCompactionMixin(_ChatServiceBase):
 
                 model_cfg = resolve_model_config(providers_dict)
 
-            llm = await llm_manager.get_llm_from_config(
-                model_cfg, api_keys=getattr(model_cfg, "api_keys", None)
-            )
+            llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=getattr(model_cfg, "api_keys", None))
 
             context_config = ContextConfig(max_context_tokens=128000)
-            _, summary = await generate_structured_summary(
-                langchain_msgs, llm, chat_id, config=context_config
-            )
+            _, summary = await generate_structured_summary(langchain_msgs, llm, chat_id, config=context_config)
 
             async with UnitOfWork() as uow:
                 current_chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
@@ -167,14 +145,9 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 )
 
                 if success:
-                    logger.info(
-                        f"✅ [Drain] Optimistic MVCC update successful for chat {chat_id}, new snapshot: {snapshot_id}"
-                    )
+                    logger.info(f"✅ [Drain] Optimistic MVCC update successful for chat {chat_id}, new snapshot: {snapshot_id}")
                 else:
-                    logger.info(
-                        f"⚠️ [Drain] MVCC update failed for chat {chat_id} "
-                        f"(concurrent modification), discarding summary."
-                    )
+                    logger.info(f"⚠️ [Drain] MVCC update failed for chat {chat_id} (concurrent modification), discarding summary.")
 
         except Exception as e:
             logger.error(f"❌ [Drain] Background drain failed for {chat_id}: {e}")

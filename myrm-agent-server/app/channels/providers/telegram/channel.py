@@ -629,7 +629,10 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         """Create a Forum topic. Returns the message_thread_id or None on failure."""
         try:
             result = await self._client.create_forum_topic(
-                chat_id, name, icon_color=icon_color, icon_custom_emoji_id=icon_custom_emoji_id,
+                chat_id,
+                name,
+                icon_color=icon_color,
+                icon_custom_emoji_id=icon_custom_emoji_id,
             )
             thread_id = result.get("message_thread_id")
             if isinstance(thread_id, int):
@@ -723,7 +726,9 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         if await self.rename_topic(chat_id, message_thread_id, current_name):
             logger.info(
                 "TelegramChannel: synced topic name %s -> %s in chat %s",
-                cached, current_name, chat_id,
+                cached,
+                current_name,
+                chat_id,
             )
 
     def collect_issues(self) -> list[ChannelIssue]:
@@ -810,16 +815,16 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
             self._user_topic_map[map_key] = int(msg.thread_id)
 
             if msg.sender_name:
-                task = asyncio.create_task(
-                    self.sync_topic_name(msg.chat_id, int(msg.thread_id), msg.sender_name)
-                )
+                task = asyncio.create_task(self.sync_topic_name(msg.chat_id, int(msg.thread_id), msg.sender_name))
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
             return msg
 
         if not msg.thread_id and msg.sender_id:
             thread_id = await self.ensure_topic_for_user(
-                msg.chat_id, msg.sender_name or "", msg.sender_id,
+                msg.chat_id,
+                msg.sender_name or "",
+                msg.sender_id,
             )
             if thread_id is not None:
                 return InboundMessage(

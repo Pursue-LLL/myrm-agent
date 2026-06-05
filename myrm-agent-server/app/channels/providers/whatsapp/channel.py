@@ -557,9 +557,7 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
 
         from_jid = str(event.get("from", ""))
         target_msg_id = str(event.get("messageId", ""))
-        sender = _prefer_pn_jid(
-            from_jid, event.get("fromAlt") or self._lid_to_pn.get(from_jid)
-        )
+        sender = _prefer_pn_jid(from_jid, event.get("fromAlt") or self._lid_to_pn.get(from_jid))
 
         inbound = self._build_inbound(
             sender_id=sender,

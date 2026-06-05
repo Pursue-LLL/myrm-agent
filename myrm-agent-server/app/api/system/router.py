@@ -5,6 +5,7 @@
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
+
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.utils import get_local_ip
@@ -45,11 +46,7 @@ def _to_tunnel_response(status: TunnelStatus) -> TunnelStatusResponse:
 
 class GatewayHealthRequest(BaseModel):
     gateway_token: str | None = Field(
-        None,
-        min_length=1,
-        max_length=512,
-        pattern=r"^[A-Za-z0-9_\-\.\~]+$",
-        description="Unified Tool Gateway Token (PAT)"
+        None, min_length=1, max_length=512, pattern=r"^[A-Za-z0-9_\-\.\~]+$", description="Unified Tool Gateway Token (PAT)"
     )
 
 
@@ -62,37 +59,22 @@ async def get_gateway_health(
     # Control Plane URL is required
     control_plane_url = settings.control_plane.effective_url()
     if not control_plane_url:
-        return {
-            "status": "error",
-            "message": "Control Plane URL is not configured."
-        }
+        return {"status": "error", "message": "Control Plane URL is not configured."}
 
     if not gateway_token:
-        return {
-            "status": "error",
-            "message": "Gateway PAT token is required."
-        }
-        
+        return {"status": "error", "message": "Gateway PAT token is required."}
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
-                f"{control_plane_url}/v1/tool_relay/health",
-                headers={"Authorization": f"Bearer {gateway_token}"},
-                timeout=10.0
+                f"{control_plane_url}/v1/tool_relay/health", headers={"Authorization": f"Bearer {gateway_token}"}, timeout=10.0
             )
             response.raise_for_status()
             return response.json()
     except httpx.HTTPStatusError as e:
-        return {
-            "status": "error",
-            "message": f"Gateway returned error: {e.response.status_code}",
-            "details": e.response.text
-        }
+        return {"status": "error", "message": f"Gateway returned error: {e.response.status_code}", "details": e.response.text}
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to connect to Gateway: {str(e)}"
-        }
+        return {"status": "error", "message": f"Failed to connect to Gateway: {str(e)}"}
 
 
 @router.get("/ingress-url")

@@ -192,9 +192,7 @@ class TestVoiceAgentBridgeHandleSttFinal:
 
         mock_params = MagicMock()
 
-        async def fake_stream(
-            params: object, cancel_token: object
-        ) -> AsyncIterator[dict[str, object]]:
+        async def fake_stream(params: object, cancel_token: object) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Hello."}
 
         with (
@@ -236,7 +234,8 @@ class TestVoiceAgentBridgeHandleSttFinal:
         mock_params = MagicMock()
 
         async def fake_stream_with_approval(
-            params: object, cancel_token: object,
+            params: object,
+            cancel_token: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "approval_required",
@@ -265,7 +264,8 @@ class TestVoiceAgentBridgeHandleSttFinal:
         mock_params = MagicMock()
 
         async def fake_stream_tool_approval(
-            params: object, cancel_token: object,
+            params: object,
+            cancel_token: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {
                 "type": "tool_approval_request",
@@ -456,7 +456,8 @@ class TestConsumeAgentStreamApproval:
         mock_params = MagicMock()
 
         async def fake_stream(
-            params: object, cancel_token: object,
+            params: object,
+            cancel_token: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "I need to run a command."}
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
@@ -470,7 +471,9 @@ class TestConsumeAgentStreamApproval:
             ),
         ):
             full_text, has_approval = await bridge._consume_agent_stream(
-                mock_params, MagicMock(), "turn-1",
+                mock_params,
+                MagicMock(),
+                "turn-1",
             )
 
         assert full_text == "I need to run a command."
@@ -485,7 +488,8 @@ class TestConsumeAgentStreamApproval:
         mock_params = MagicMock()
 
         async def fake_stream(
-            params: object, cancel_token: object,
+            params: object,
+            cancel_token: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "approval_required", "data": {"action_type": "bash"}}
             yield {"type": "tool_approval_request", "data": {"actionRequests": []}}
@@ -499,7 +503,9 @@ class TestConsumeAgentStreamApproval:
             ),
         ):
             full_text, has_approval = await bridge._consume_agent_stream(
-                mock_params, MagicMock(), "turn-1",
+                mock_params,
+                MagicMock(),
+                "turn-1",
             )
 
         assert full_text == ""
@@ -513,7 +519,8 @@ class TestConsumeAgentStreamApproval:
         mock_params = MagicMock()
 
         async def fake_stream(
-            params: object, cancel_token: object,
+            params: object,
+            cancel_token: object,
         ) -> AsyncIterator[dict[str, object]]:
             yield {"type": "message", "data": "Running command."}
             yield {"type": "approval_required", "data": {}}

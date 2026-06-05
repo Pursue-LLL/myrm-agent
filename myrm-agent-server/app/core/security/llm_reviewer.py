@@ -67,9 +67,7 @@ class DynamicLLMSecurityReviewer(SecurityReviewerProtocol):
                 trusted_domains=trusted_domains,
             )
         except Exception as e:
-            logger.warning(
-                "Dynamic transcript classifier failed to initialize LLM: %s", e
-            )
+            logger.warning("Dynamic transcript classifier failed to initialize LLM: %s", e)
             from myrm_agent_harness.agent.security.types import ReviewDecision
 
             return ReviewResult(

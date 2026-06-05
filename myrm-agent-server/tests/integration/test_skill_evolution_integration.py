@@ -56,15 +56,16 @@ def mock_llm():
                             anti_fragmentation_score=1.0,
                             redundancy_score=1.0,
                             is_general=True,
-                            reasoning="Mocked"
+                            reasoning="Mocked",
                         )
                     return schema(
                         accuracy_score=1.0,
                         anti_fragmentation_score=1.0,
                         redundancy_score=1.0,
                         is_general=True,
-                        reasoning="Mocked"
+                        reasoning="Mocked",
                     )
+
                 def invoke(self, *args, **kwargs):
                     if hasattr(schema, "model_construct"):
                         return schema.model_construct(
@@ -72,15 +73,16 @@ def mock_llm():
                             anti_fragmentation_score=1.0,
                             redundancy_score=1.0,
                             is_general=True,
-                            reasoning="Mocked"
+                            reasoning="Mocked",
                         )
                     return schema(
                         accuracy_score=1.0,
                         anti_fragmentation_score=1.0,
                         redundancy_score=1.0,
                         is_general=True,
-                        reasoning="Mocked"
+                        reasoning="Mocked",
                     )
+
             return StructuredMockLLM()
 
         async def ainvoke(self, messages, **kwargs):

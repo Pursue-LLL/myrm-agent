@@ -14,9 +14,7 @@ def create_tiny_dummy_image_b64() -> str:
     return "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
 
 
-def perform_fallback_test(
-    client: TestClient, query: list[dict[str, object]]
-) -> tuple[str, list[dict[str, object]], bool]:
+def perform_fallback_test(client: TestClient, query: list[dict[str, object]]) -> tuple[str, list[dict[str, object]], bool]:
     """执行包含图片的请求并收集响应"""
 
     # 1. 构造主模型
@@ -30,9 +28,7 @@ def perform_fallback_test(
     # 2. 将 BASIC_MODEL 设置为 Vision Fallback Model
     vision_fallback_selection = get_model_selection()
     vision_fallback_selection["model"] = "qwen-vl-plus"
-    vision_fallback_selection["providerId"] = (
-        "dashscope"  # 明确使用 dashscope 避免前缀问题
-    )
+    vision_fallback_selection["providerId"] = "dashscope"  # 明确使用 dashscope 避免前缀问题
 
     search_request: dict[str, object] = {
         "messageId": "test_msg_001",
@@ -51,9 +47,7 @@ def perform_fallback_test(
     message_chunks: list[str] = []
     analyzing_image_seen = False
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=search_request
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -106,8 +100,6 @@ def test_vision_fallback_routing(client: TestClient) -> None:
 
     full_message, data, seen_analyzing = perform_fallback_test(client, query)
 
-    assert (
-        seen_analyzing
-    ), "Did not see 'analyzing_image' status event, fallback might not have been triggered."
+    assert seen_analyzing, "Did not see 'analyzing_image' status event, fallback might not have been triggered."
     # We do not assert full_message because the user's API key might not support the specific model or might hit rate limits.
     # The routing logic is verified if analyzing_image was emitted.

@@ -59,9 +59,7 @@ async def stale_turns(session_factory, test_chat):
 
 
 @pytest.mark.asyncio
-async def test_recover_stale_agent_turns_marks_interrupted(
-    session_factory, stale_turns
-):
+async def test_recover_stale_agent_turns_marks_interrupted(session_factory, stale_turns):
     """PENDING and RUNNING turns should be marked as INTERRUPTED."""
     from app.server.warmup import _recover_stale_agent_turns
 
@@ -71,9 +69,7 @@ async def test_recover_stale_agent_turns_marks_interrupted(
     async with session_factory() as db:
         from sqlalchemy import select
 
-        result = await db.execute(
-            select(AgentTurn).where(AgentTurn.id.in_(list(stale_turns.values())))
-        )
+        result = await db.execute(select(AgentTurn).where(AgentTurn.id.in_(list(stale_turns.values()))))
         turns = {t.id: t for t in result.scalars().all()}
 
     pending_turn = turns[stale_turns["pending"]]
@@ -110,9 +106,7 @@ async def test_recover_stale_agent_turns_idempotent(session_factory, stale_turns
     async with session_factory() as db:
         from sqlalchemy import select
 
-        result = await db.execute(
-            select(AgentTurn).where(AgentTurn.id == stale_turns["pending"])
-        )
+        result = await db.execute(select(AgentTurn).where(AgentTurn.id == stale_turns["pending"]))
         turn = result.scalar_one()
 
     assert turn.status == TurnStatus.INTERRUPTED.value
@@ -140,18 +134,14 @@ async def test_recover_no_stale_turns_succeeds(session_factory, test_chat):
 
 
 @pytest.mark.asyncio
-async def test_recover_preserves_completed_at_for_terminal_turns(
-    session_factory, stale_turns
-):
+async def test_recover_preserves_completed_at_for_terminal_turns(session_factory, stale_turns):
     """Terminal turns (completed/error/cancelled) should keep their original completed_at."""
     from app.server.warmup import _recover_stale_agent_turns
 
     async with session_factory() as db:
         from sqlalchemy import select
 
-        result = await db.execute(
-            select(AgentTurn).where(AgentTurn.id == stale_turns["completed"])
-        )
+        result = await db.execute(select(AgentTurn).where(AgentTurn.id == stale_turns["completed"]))
         original_completed_at = result.scalar_one().completed_at
 
     with patch("app.config.deploy_mode.is_local_mode", return_value=True):
@@ -160,9 +150,7 @@ async def test_recover_preserves_completed_at_for_terminal_turns(
     async with session_factory() as db:
         from sqlalchemy import select
 
-        result = await db.execute(
-            select(AgentTurn).where(AgentTurn.id == stale_turns["completed"])
-        )
+        result = await db.execute(select(AgentTurn).where(AgentTurn.id == stale_turns["completed"]))
         after_recovery = result.scalar_one()
 
     assert after_recovery.completed_at == original_completed_at

@@ -36,6 +36,7 @@ async def yield_stream_exception_chunks(
             if session.request.chat_id:
                 try:
                     from app.platform_utils import get_checkpointer
+
                     cp = get_checkpointer()
                     chat_id = session.request.chat_id
                     for tid in (chat_id, f"chat_{chat_id}"):
@@ -64,9 +65,8 @@ async def yield_stream_exception_chunks(
                 from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
                     get_background_registry,
                 )
-                killed = await get_background_registry().kill_session_jobs(
-                    session.request.chat_id
-                )
+
+                killed = await get_background_registry().kill_session_jobs(session.request.chat_id)
                 if killed:
                     logger.info(
                         "CancelledError path killed %d background job(s) for chat_id=%s",
@@ -93,6 +93,7 @@ async def yield_stream_exception_chunks(
         logger.error("Agent LLM error: %s", exc)
         lang = session.params.locale or "en"
         from app.core.errors.llm_errors import generate_recovery_actions
+
         diagnostic_result = exc.diagnostic_result or {}
         recovery_actions = generate_recovery_actions(exc.error_code, lang)
         error_type = exc.error_code.name if hasattr(exc.error_code, "name") else str(exc.error_code)
@@ -133,13 +134,13 @@ async def finalize_agent_stream_session(
 
         content = session.collector.content
         extra_data = session.collector.extra_data or {}
-        
+
         # Parse and strip citations
         citations = list(set(re.findall(r"<cite:([^>]+)>", content)))
         if citations:
             content = re.sub(r"<cite:[^>]+>", "", content)
             extra_data["citations"] = citations
-            
+
             try:
                 manager = get_memory_manager()
                 if manager:
@@ -190,4 +191,3 @@ async def finalize_agent_stream_session(
 
         GoalRegistry.unregister(session.request.chat_id)
     session.collector.cleanup()
-

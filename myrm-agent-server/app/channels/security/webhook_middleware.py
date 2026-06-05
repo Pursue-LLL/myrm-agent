@@ -89,9 +89,7 @@ class WebhookSecurityMiddleware:
         self._rate_limiter = rate_limiter
         self._inflight_limiter = inflight_limiter
         self._allowed_content_types = (
-            list(allowed_content_types)
-            if allowed_content_types
-            else ["application/json", "application/x-www-form-urlencoded"]
+            list(allowed_content_types) if allowed_content_types else ["application/json", "application/x-www-form-urlencoded"]
         )
 
     async def process_request(
@@ -506,10 +504,7 @@ class WebhookSecurityMiddleware:
                         status_code=413,
                         error_type="body-too-large",
                         title="Request Body Too Large",
-                        detail=(
-                            f"Content-Length {length} exceeds pre-auth limit"
-                            f" of {self._limits.body_limit_pre_auth} bytes"
-                        ),
+                        detail=(f"Content-Length {length} exceeds pre-auth limit of {self._limits.body_limit_pre_auth} bytes"),
                         trace_id=trace_id,
                     )
             except ValueError:

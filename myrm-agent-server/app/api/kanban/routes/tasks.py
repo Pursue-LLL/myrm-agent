@@ -58,9 +58,7 @@ async def list_tasks(
         except ValueError:
             raise HTTPException(400, f"Invalid status: {status_filter}") from None
 
-    tasks = await svc.list_tasks(
-        board_id, status=status, agent_id=agent_id, limit=limit, offset=offset
-    )
+    tasks = await svc.list_tasks(board_id, status=status, agent_id=agent_id, limit=limit, offset=offset)
     task_ids = [t.task_id for t in tasks]
     stats, att_map = await svc.store.batch_task_stats(task_ids), await _batch_load_attachment_ids(task_ids)
 
@@ -137,7 +135,8 @@ async def create_task(board_id: str, body: TaskCreate) -> TaskResponse:
             initial_status = TaskStatus(body.initial_status)
         except ValueError:
             raise HTTPException(
-                400, f"Invalid initial_status: {body.initial_status}",
+                400,
+                f"Invalid initial_status: {body.initial_status}",
             ) from None
 
     try:
@@ -232,7 +231,8 @@ async def move_task(task_id: str, body: TaskMoveRequest) -> TaskResponse:
             except ValueError:
                 raise HTTPException(400, f"Invalid block_kind: {body.block_kind}") from None
         task = await svc.move_task(
-            task_id, target_status,
+            task_id,
+            target_status,
             force=body.force,
             block_kind=block_kind,
             blocked_reason=body.blocked_reason,
@@ -266,10 +266,7 @@ async def promote_task(task_id: str, body: PromoteRequest) -> PromoteResponse:
         promoted=result.promoted,
         forced=result.forced,
         reason=result.reason,
-        unmet_parents=[
-            {"task_id": p["task_id"], "title": p["title"], "status": p["status"]}
-            for p in result.unmet_parents
-        ],
+        unmet_parents=[{"task_id": p["task_id"], "title": p["title"], "status": p["status"]} for p in result.unmet_parents],
     )
 
 
@@ -278,7 +275,9 @@ async def reclaim_task(task_id: str, body: ReclaimRequest) -> ReclaimResponse:
     svc = get_kanban_service()
     try:
         task = await svc.reclaim_task(
-            task_id, reason=body.reason, new_agent_id=body.new_agent_id,
+            task_id,
+            reason=body.reason,
+            new_agent_id=body.new_agent_id,
         )
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -293,5 +292,3 @@ async def delete_task(task_id: str) -> None:
     deleted = await svc.delete_task(task_id)
     if not deleted:
         raise HTTPException(404, f"Task {task_id} not found")
-
-

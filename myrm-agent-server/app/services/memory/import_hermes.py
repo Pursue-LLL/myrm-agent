@@ -52,14 +52,16 @@ def dry_run_hermes(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if persona_items:
             normalized.setdefault("profile", []).extend(persona_items)
             mapped_items += len(persona_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="SOUL.md",
-            target_bucket="profile",
-            status="mapped" if persona_items else "unsupported",
-            item_count=1,
-            imported_count=len(persona_items),
-            reason="" if persona_items else "SOUL.md was empty or unparseable.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="SOUL.md",
+                target_bucket="profile",
+                status="mapped" if persona_items else "unsupported",
+                item_count=1,
+                imported_count=len(persona_items),
+                reason="" if persona_items else "SOUL.md was empty or unparseable.",
+            )
+        )
 
     memory_md = _get_str(payload, "memory_md")
     if memory_md:
@@ -67,14 +69,16 @@ def dry_run_hermes(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if semantic_items:
             normalized.setdefault("semantic", []).extend(semantic_items)
             mapped_items += len(semantic_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="MEMORY.md",
-            target_bucket="semantic",
-            status="mapped" if semantic_items else "unsupported",
-            item_count=max(len(semantic_items), 1),
-            imported_count=len(semantic_items),
-            reason="" if semantic_items else "MEMORY.md was empty or unparseable.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="MEMORY.md",
+                target_bucket="semantic",
+                status="mapped" if semantic_items else "unsupported",
+                item_count=max(len(semantic_items), 1),
+                imported_count=len(semantic_items),
+                reason="" if semantic_items else "MEMORY.md was empty or unparseable.",
+            )
+        )
 
     user_md = _get_str(payload, "user_md")
     if user_md:
@@ -82,37 +86,43 @@ def dry_run_hermes(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if profile_items:
             normalized.setdefault("profile", []).extend(profile_items)
             mapped_items += len(profile_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="USER.md",
-            target_bucket="profile",
-            status="mapped" if profile_items else "unsupported",
-            item_count=max(len(profile_items), 1),
-            imported_count=len(profile_items),
-            reason="" if profile_items else "USER.md was empty or unparseable.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="USER.md",
+                target_bucket="profile",
+                status="mapped" if profile_items else "unsupported",
+                item_count=max(len(profile_items), 1),
+                imported_count=len(profile_items),
+                reason="" if profile_items else "USER.md was empty or unparseable.",
+            )
+        )
 
     agents_md = _get_str(payload, "agents_md")
     if agents_md:
         unmapped_items += 1
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="AGENTS.md",
-            status="unsupported",
-            item_count=1,
-            unmapped_count=1,
-            reason="AGENTS.md is agent configuration; archived for manual review only.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="AGENTS.md",
+                status="unsupported",
+                item_count=1,
+                unmapped_count=1,
+                reason="AGENTS.md is agent configuration; archived for manual review only.",
+            )
+        )
 
     skills = payload.get("skills")
     if isinstance(skills, list) and skills:
         skill_items = _parse_skills(skills)
         unmapped_items += len(skill_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="skills",
-            status="unsupported",
-            item_count=len(skill_items),
-            unmapped_count=len(skill_items),
-            reason="Skills are migrated through the skill migration review pipeline, not the memory import path.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="skills",
+                status="unsupported",
+                item_count=len(skill_items),
+                unmapped_count=len(skill_items),
+                reason="Skills are migrated through the skill migration review pipeline, not the memory import path.",
+            )
+        )
         warnings.append("hermes_skills_detected")
 
     env_keys = payload.get("env_keys")
@@ -141,15 +151,17 @@ def _parse_soul_md(content: str) -> list[dict[str, object]]:
     content = content.strip()
     if not content:
         return []
-    return [{
-        "content": content,
-        "memory_type": "profile",
-        "importance": 0.9,
-        "confidence": 0.8,
-        "tags": ["persona", "hermes_soul"],
-        "created_at": iso_or_now(None),
-        "metadata": build_metadata("hermes", {"file": "SOUL.md"}, ("file",)),
-    }]
+    return [
+        {
+            "content": content,
+            "memory_type": "profile",
+            "importance": 0.9,
+            "confidence": 0.8,
+            "tags": ["persona", "hermes_soul"],
+            "created_at": iso_or_now(None),
+            "metadata": build_metadata("hermes", {"file": "SOUL.md"}, ("file",)),
+        }
+    ]
 
 
 def _parse_memory_md(content: str) -> list[dict[str, object]]:
@@ -172,24 +184,30 @@ def _parse_memory_md(content: str) -> list[dict[str, object]]:
                 tags = ["hermes_memory"]
                 if current_section:
                     tags.append(current_section.lower().replace(" ", "_"))
-                items.append({
-                    "content": text,
-                    "importance": 0.7,
-                    "confidence": 0.75,
-                    "tags": tags,
-                    "created_at": iso_or_now(None),
-                    "metadata": build_metadata("hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")),
-                })
+                items.append(
+                    {
+                        "content": text,
+                        "importance": 0.7,
+                        "confidence": 0.75,
+                        "tags": tags,
+                        "created_at": iso_or_now(None),
+                        "metadata": build_metadata(
+                            "hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")
+                        ),
+                    }
+                )
 
     if not items and content.strip():
-        items.append({
-            "content": content.strip(),
-            "importance": 0.7,
-            "confidence": 0.7,
-            "tags": ["hermes_memory"],
-            "created_at": iso_or_now(None),
-            "metadata": build_metadata("hermes", {"file": "MEMORY.md"}, ("file",)),
-        })
+        items.append(
+            {
+                "content": content.strip(),
+                "importance": 0.7,
+                "confidence": 0.7,
+                "tags": ["hermes_memory"],
+                "created_at": iso_or_now(None),
+                "metadata": build_metadata("hermes", {"file": "MEMORY.md"}, ("file",)),
+            }
+        )
 
     return items
 
@@ -205,26 +223,30 @@ def _parse_user_md(content: str) -> list[dict[str, object]]:
         if item_match:
             text = item_match.group(1).strip()
             if text:
-                items.append({
-                    "content": text,
-                    "memory_type": "profile",
-                    "importance": 0.8,
-                    "confidence": 0.8,
-                    "tags": ["hermes_user", "preference"],
-                    "created_at": iso_or_now(None),
-                    "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
-                })
+                items.append(
+                    {
+                        "content": text,
+                        "memory_type": "profile",
+                        "importance": 0.8,
+                        "confidence": 0.8,
+                        "tags": ["hermes_user", "preference"],
+                        "created_at": iso_or_now(None),
+                        "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
+                    }
+                )
 
     if not items and content.strip():
-        items.append({
-            "content": content.strip(),
-            "memory_type": "profile",
-            "importance": 0.8,
-            "confidence": 0.75,
-            "tags": ["hermes_user"],
-            "created_at": iso_or_now(None),
-            "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
-        })
+        items.append(
+            {
+                "content": content.strip(),
+                "memory_type": "profile",
+                "importance": 0.8,
+                "confidence": 0.75,
+                "tags": ["hermes_user"],
+                "created_at": iso_or_now(None),
+                "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
+            }
+        )
 
     return items
 
@@ -232,8 +254,4 @@ def _parse_user_md(content: str) -> list[dict[str, object]]:
 def _parse_skills(skills: list[object]) -> list[dict[str, object]]:
     """Extract skill metadata for mapping info (not imported via memory path)."""
 
-    return [
-        {"name": skill.get("name", "unknown"), "source": "hermes"}
-        for skill in skills
-        if isinstance(skill, dict)
-    ]
+    return [{"name": skill.get("name", "unknown"), "source": "hermes"} for skill in skills if isinstance(skill, dict)]

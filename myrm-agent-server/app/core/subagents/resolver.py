@@ -72,7 +72,9 @@ class SubagentModelResolver(ModelResolver):
                 target_tier = RoutingTier(complexity_tier.lower())
                 logger.info(f"[SubagentModelResolver] Using explicit complexity_tier: {target_tier.value}")
             except ValueError:
-                logger.warning(f"[SubagentModelResolver] Invalid complexity_tier '{complexity_tier}', falling back to auto-routing.")
+                logger.warning(
+                    f"[SubagentModelResolver] Invalid complexity_tier '{complexity_tier}', falling back to auto-routing."
+                )
 
         if not target_tier:
             # Auto-route based on task description
@@ -83,7 +85,9 @@ class SubagentModelResolver(ModelResolver):
                 reasoning_model_cfg=self.reasoning_model_cfg,
             )
             target_tier = routing_result.tier
-            logger.info(f"[SubagentModelResolver] Auto-routed task to tier: {target_tier.value} (reason: {routing_result.reason})")
+            logger.info(
+                f"[SubagentModelResolver] Auto-routed task to tier: {target_tier.value} (reason: {routing_result.reason})"
+            )
 
         # 3. Select the best config for the tier
         selected_cfg = self.standard_model_cfg

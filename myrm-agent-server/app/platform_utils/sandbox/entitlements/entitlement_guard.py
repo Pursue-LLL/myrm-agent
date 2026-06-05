@@ -102,9 +102,7 @@ def require_public_ingress_entitlement() -> None:
     if entitlements is None:
         return
     if not entitlements.enable_public_ingress:
-        raise EntitlementGuardError(
-            "Public ingress is not available on the current plan. Upgrade to Companion or above."
-        )
+        raise EntitlementGuardError("Public ingress is not available on the current plan. Upgrade to Companion or above.")
 
 
 def require_subagent_entitlement() -> None:
@@ -112,9 +110,7 @@ def require_subagent_entitlement() -> None:
     if entitlements is None:
         return
     if not entitlements.enable_subagent:
-        raise EntitlementGuardError(
-            "Sub-agents are not available on the current plan. Upgrade to Companion or above."
-        )
+        raise EntitlementGuardError("Sub-agents are not available on the current plan. Upgrade to Companion or above.")
 
 
 def require_vnc_entitlement() -> None:
@@ -122,6 +118,4 @@ def require_vnc_entitlement() -> None:
     if entitlements is None:
         return
     if not entitlements.enable_vnc:
-        raise EntitlementGuardError(
-            "Visual desktop (VNC) is not available on the current plan. Upgrade to Pro or above."
-        )
+        raise EntitlementGuardError("Visual desktop (VNC) is not available on the current plan. Upgrade to Pro or above.")

@@ -69,9 +69,7 @@ async def get_audit_logs(
         out: list[AuditLogResponse] = []
         for log in logs:
             md_raw = log.metadata
-            metadata: dict[str, object] = (
-                {str(k): v for k, v in md_raw.items()} if isinstance(md_raw, dict) else {}
-            )
+            metadata: dict[str, object] = {str(k): v for k, v in md_raw.items()} if isinstance(md_raw, dict) else {}
             out.append(
                 AuditLogResponse(
                     id=log.id,

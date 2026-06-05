@@ -45,9 +45,7 @@ class DiscordChannelConfig:
         self.voice_auto_join_channel = voice_auto_join_channel
         self.voice_text_channel = voice_text_channel
         self.voice_follow_users: list[str] = voice_follow_users or []
-        self.voice_allowed_channels: list[tuple[str, str]] = (
-            self._parse_allowed_channels(voice_allowed_channels)
-        )
+        self.voice_allowed_channels: list[tuple[str, str]] = self._parse_allowed_channels(voice_allowed_channels)
 
     @staticmethod
     def _parse_allowed_channels(

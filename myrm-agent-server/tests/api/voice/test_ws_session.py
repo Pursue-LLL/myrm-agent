@@ -169,13 +169,13 @@ class TestStreamingSTT:
     """Tests for the streaming STT path (Deepgram mock)."""
 
     def test_streaming_stt_relays_transcripts(self, client: TestClient) -> None:
-        dg_response = json.dumps({
-            "type": "Results",
-            "is_final": True,
-            "channel": {
-                "alternatives": [{"transcript": "hello world"}]
-            },
-        })
+        dg_response = json.dumps(
+            {
+                "type": "Results",
+                "is_final": True,
+                "channel": {"alternatives": [{"transcript": "hello world"}]},
+            }
+        )
         fake_dg = _FakeDgWs(responses=[dg_response])
 
         with (
@@ -193,13 +193,13 @@ class TestStreamingSTT:
                 ws.send_text(json.dumps({"type": "close"}))
 
     def test_streaming_stt_interim_results(self, client: TestClient) -> None:
-        dg_response = json.dumps({
-            "type": "Results",
-            "is_final": False,
-            "channel": {
-                "alternatives": [{"transcript": "partial"}]
-            },
-        })
+        dg_response = json.dumps(
+            {
+                "type": "Results",
+                "is_final": False,
+                "channel": {"alternatives": [{"transcript": "partial"}]},
+            }
+        )
         fake_dg = _FakeDgWs(responses=[dg_response])
 
         with (
@@ -217,13 +217,13 @@ class TestStreamingSTT:
                 ws.send_text(json.dumps({"type": "close"}))
 
     def test_streaming_stt_empty_transcript_skipped(self, client: TestClient) -> None:
-        dg_response = json.dumps({
-            "type": "Results",
-            "is_final": True,
-            "channel": {
-                "alternatives": [{"transcript": "  "}]
-            },
-        })
+        dg_response = json.dumps(
+            {
+                "type": "Results",
+                "is_final": True,
+                "channel": {"alternatives": [{"transcript": "  "}]},
+            }
+        )
         fake_dg = _FakeDgWs(responses=[dg_response])
 
         with (
@@ -260,11 +260,13 @@ class TestStreamingSTT:
                 assert "STT connection failed" in data["message"]
 
     def test_streaming_stt_with_keyterms(self, client: TestClient) -> None:
-        dg_response = json.dumps({
-            "type": "Results",
-            "is_final": True,
-            "channel": {"alternatives": [{"transcript": "test keyword"}]},
-        })
+        dg_response = json.dumps(
+            {
+                "type": "Results",
+                "is_final": True,
+                "channel": {"alternatives": [{"transcript": "test keyword"}]},
+            }
+        )
         fake_dg = _FakeDgWs(responses=[dg_response])
 
         with (
@@ -272,10 +274,14 @@ class TestStreamingSTT:
             patch("websockets.connect", return_value=fake_dg),
         ):
             with client.websocket_connect("/ws/voice/session") as ws:
-                ws.send_text(json.dumps({
-                    "type": "config",
-                    "keyterms": ["keyword1", " ", "keyword2"],
-                }))
+                ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "config",
+                            "keyterms": ["keyword1", " ", "keyword2"],
+                        }
+                    )
+                )
 
                 msg = ws.receive_text()
                 data = json.loads(msg)
@@ -349,9 +355,7 @@ class TestTTSFlow:
     def test_tts_request_triggers_synthesis(self, client: TestClient) -> None:
         chunks_sent: list[bytes] = []
 
-        async def fake_synthesize_stream(
-            text: str, config: object
-        ) -> AsyncIterator[bytes]:
+        async def fake_synthesize_stream(text: str, config: object) -> AsyncIterator[bytes]:
             for i in range(3):
                 chunk = f"audio_chunk_{i}".encode()
                 chunks_sent.append(chunk)
@@ -377,9 +381,7 @@ class TestTTSFlow:
                     ws.send_text(json.dumps({"type": "close"}))
 
     def test_tts_cancel_interrupts(self, client: TestClient) -> None:
-        async def slow_synthesize(
-            text: str, config: object
-        ) -> AsyncIterator[bytes]:
+        async def slow_synthesize(text: str, config: object) -> AsyncIterator[bytes]:
             for i in range(100):
                 yield f"chunk_{i}".encode()
                 await asyncio.sleep(0.01)
@@ -403,9 +405,7 @@ class TestTTSFlow:
                     ws.send_text(json.dumps({"type": "close"}))
 
     def test_tts_synthesis_error_handled(self, client: TestClient) -> None:
-        async def failing_synthesize(
-            text: str, config: object
-        ) -> AsyncIterator[bytes]:
+        async def failing_synthesize(text: str, config: object) -> AsyncIterator[bytes]:
             raise RuntimeError("TTS provider error")
             yield b""  # type: ignore[misc]
 

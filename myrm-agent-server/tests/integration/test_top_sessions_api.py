@@ -162,7 +162,6 @@ def test_top_sessions_by_duration(test_client, setup_diverse_sessions, monkeypat
     """Test /api/v1/statistics/top-sessions?metric=duration."""
     event_log_dir = setup_diverse_sessions
 
-
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
         str(event_log_dir),
@@ -189,7 +188,6 @@ def test_top_sessions_by_tokens(test_client, setup_diverse_sessions, monkeypatch
     """Test /api/v1/statistics/top-sessions?metric=tokens."""
     event_log_dir = setup_diverse_sessions
 
-
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
         str(event_log_dir),
@@ -212,7 +210,6 @@ def test_top_sessions_by_tokens(test_client, setup_diverse_sessions, monkeypatch
 def test_top_sessions_by_messages(test_client, setup_diverse_sessions, monkeypatch):
     """Test /api/v1/statistics/top-sessions?metric=messages."""
     event_log_dir = setup_diverse_sessions
-
 
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
@@ -237,7 +234,6 @@ def test_top_sessions_by_tool_calls(test_client, setup_diverse_sessions, monkeyp
     """Test /api/v1/statistics/top-sessions?metric=tool_calls."""
     event_log_dir = setup_diverse_sessions
 
-
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
         str(event_log_dir),
@@ -261,7 +257,6 @@ def test_top_sessions_invalid_metric(test_client, setup_diverse_sessions, monkey
     """Test API with invalid metric returns error."""
     event_log_dir = setup_diverse_sessions
 
-
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
         str(event_log_dir),
@@ -279,7 +274,6 @@ def test_top_sessions_empty_data(test_client, tmp_path, monkeypatch):
     """Test API with no EventLog data."""
     empty_log_dir = tmp_path / "empty_logs"
     empty_log_dir.mkdir()
-
 
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",
@@ -301,7 +295,6 @@ def test_top_sessions_empty_data(test_client, tmp_path, monkeypatch):
 def test_top_sessions_boundary_params(test_client, setup_diverse_sessions, monkeypatch):
     """Test boundary values for limit parameter."""
     event_log_dir = setup_diverse_sessions
-
 
     monkeypatch.setattr(
         "app.config.settings.settings.database.event_log_dir",

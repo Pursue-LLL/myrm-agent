@@ -167,9 +167,10 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     # === Phase 3: Async warmup (background, non-blocking) ===
     logger.info("[Startup] Starting background warmup...")
     asyncio.create_task(run_async_warmup())
-    
+
     try:
         from app.services.agent.goal_registry import GoalRegistry
+
         GoalRegistry.start_branch_watcher()
         logger.info("[Startup] Branch watcher started")
     except Exception as e:
@@ -213,9 +214,7 @@ async def _phase_1a_sequential() -> None:
             logger.info("[Startup] Database restored from backup successfully")
         # 3. 降级到内存
         else:
-            logger.warning(
-                "[Startup] Database rescue failed, degrading to in-memory mode"
-            )
+            logger.warning("[Startup] Database rescue failed, degrading to in-memory mode")
             system_status.database_degraded = True
             settings.database.sqlite_path = ":memory:"
             await reset_database_engine()
@@ -248,15 +247,11 @@ async def _phase_1a_sequential() -> None:
             async with get_session() as db:
                 stats = await migrate_configs_to_encrypted(db)
                 if stats["migrated"] > 0:
-                    logger.info(
-                        f"[Startup] Config encryption migration complete: {stats}"
-                    )
+                    logger.info(f"[Startup] Config encryption migration complete: {stats}")
                 else:
                     logger.debug(f"[Startup] No configs to migrate: {stats}")
         except Exception as e:
-            logger.warning(
-                "[Startup] Config encryption migration failed (non-critical): %s", e
-            )
+            logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
 
 
 async def _phase_1b_parallel() -> None:
@@ -332,18 +327,14 @@ async def _phase_1b_parallel() -> None:
         )
         from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-        workspace_svc = create_workspace_service(
-            root_dir=Path(settings.database.harness_dir)
-        )
+        workspace_svc = create_workspace_service(root_dir=Path(settings.database.harness_dir))
         sandboxes_root = workspace_svc.workspaces_root
 
         if sandboxes_root.exists():
             scheduler = ContextCleanupScheduler(sandboxes_root, interval_hours=24)
             scheduler.start()
             _context_cleanup_scheduler_instance = scheduler
-            logger.info(
-                "[Startup] Context cleanup task started (root: %s)", sandboxes_root
-            )
+            logger.info("[Startup] Context cleanup task started (root: %s)", sandboxes_root)
         else:
             logger.debug(
                 "[Startup] Sandboxes root not found, skip cleanup task: %s",
@@ -360,13 +351,9 @@ async def _phase_1b_parallel() -> None:
         if optimization_scheduler:
             set_optimization_scheduler(optimization_scheduler)
             await optimization_scheduler.start_monitoring()
-            logger.info(
-                "[Startup] OptimizationScheduler initialized and worker started successfully"
-            )
+            logger.info("[Startup] OptimizationScheduler initialized and worker started successfully")
         else:
-            logger.warning(
-                "[Startup] OptimizationScheduler initialization skipped (dependencies missing)"
-            )
+            logger.warning("[Startup] OptimizationScheduler initialization skipped (dependencies missing)")
 
     async def _init_idle_handlers_task() -> None:
         from app.core.infra.idle_handlers import register_all_idle_handlers
@@ -382,9 +369,7 @@ async def _phase_1b_parallel() -> None:
         storage = get_storage_provider()
         sync_result = await sync_prebuilt_seeds(storage)
         if sync_result.skill_ids:
-            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(
-                list(sync_result.skill_ids)
-            )
+            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
 
     async def _init_builtin_agents() -> None:
         from app.services.agent.builtin_initializer import initialize_builtin_agents
@@ -406,16 +391,13 @@ async def _phase_1b_parallel() -> None:
         try:
             reviewer = DynamicLLMSecurityReviewer(timeout_seconds=3.0)
             register_security_reviewer(reviewer)
-            logger.info(
-                "[Startup] DynamicLLMSecurityReviewer initialized and registered"
-            )
+            logger.info("[Startup] DynamicLLMSecurityReviewer initialized and registered")
         except Exception as e:
-            logger.warning(
-                "[Startup] Failed to initialize DynamicLLMSecurityReviewer: %s", e
-            )
+            logger.warning("[Startup] Failed to initialize DynamicLLMSecurityReviewer: %s", e)
 
     async def _init_vault_credentials_task() -> None:
         from app.services.security.vault_credential_service import VaultCredentialService
+
         try:
             service = VaultCredentialService()
             await service.sync_all_to_vault()
@@ -496,6 +478,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
 
     try:
         from app.services.agent.goal_registry import GoalRegistry
+
         GoalRegistry.stop_branch_watcher()
     except Exception as e:
         logger.error("[Shutdown] Branch watcher stop failed: %s", e)
@@ -577,9 +560,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
             async with engine.begin() as conn:
                 await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception as e:
-            logger.warning(
-                "[Shutdown] Database WAL checkpoint failed (ignoring): %s", e
-            )
+            logger.warning("[Shutdown] Database WAL checkpoint failed (ignoring): %s", e)
         await engine.dispose()
         logger.info("[Shutdown] Database engine disposed")
 
@@ -600,9 +581,7 @@ def _apply_code_execution_config() -> None:
     ce = settings.code_execution
     allowed_hosts: frozenset[str] | None = None
     if ce.allowed_hosts:
-        allowed_hosts = frozenset(
-            h.strip() for h in ce.allowed_hosts.split(",") if h.strip()
-        )
+        allowed_hosts = frozenset(h.strip() for h in ce.allowed_hosts.split(",") if h.strip())
 
     config = ExecutionConfig(
         network=NetworkConfig(

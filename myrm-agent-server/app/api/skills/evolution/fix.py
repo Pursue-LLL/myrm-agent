@@ -50,9 +50,7 @@ async def fix_skill(
 
     evolution = get_global_evolution_integration()
     if evolution is None or evolution.engine is None:
-        raise HTTPException(
-            status_code=503, detail="Evolution engine not initialized. Please try again later."
-        )
+        raise HTTPException(status_code=503, detail="Evolution engine not initialized. Please try again later.")
 
     async def _run_fix() -> None:
         try:
@@ -88,13 +86,9 @@ async def fix_skill(
 
                     flow = ConfidenceApprovalFlow()
                     await flow.process_evolution(proposal=proposal)
-                    logger.info(
-                        "FIX evolution for skill '%s' submitted for review", skill_id
-                    )
+                    logger.info("FIX evolution for skill '%s' submitted for review", skill_id)
         except Exception:
-            logger.exception(
-                "FIX evolution background task failed for skill '%s'", skill_id
-            )
+            logger.exception("FIX evolution background task failed for skill '%s'", skill_id)
 
     asyncio.create_task(_run_fix())
 

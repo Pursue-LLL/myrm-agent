@@ -16,9 +16,7 @@ from tests.api.agent.utils import get_model_selection, get_search_service_config
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -31,9 +29,7 @@ async def async_client(app):
 class TestEngineLimitE2E:
     """End-to-End tests for Engine Limits."""
 
-    async def test_max_tool_calls_limit(
-        self, async_client: AsyncClient, client: TestClient
-    ):
+    async def test_max_tool_calls_limit(self, async_client: AsyncClient, client: TestClient):
         """Test that max_tool_calls limit triggers ENGINE_LIMIT_REACHED."""
         # 1. Create an agent with max_tool_calls = 1
         create_payload = {
@@ -73,9 +69,7 @@ class TestEngineLimitE2E:
             limit_reached_event = None
             approval_required = False
 
-            with client.stream(
-                "POST", "/api/v1/agents/agent-stream", json=search_request
-            ) as stream_response:
+            with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as stream_response:
                 for line in stream_response.iter_lines():
                     if line and line.startswith("data: "):
                         try:
@@ -97,12 +91,8 @@ class TestEngineLimitE2E:
             if approval_required:
                 print("\n🔧 Auto-approving tool call...")
                 resume_request = search_request.copy()
-                resume_request["resumeValue"] = [
-                    {"type": "approve", "extensions": {"allowAlways": True}}
-                ]
-                with client.stream(
-                    "POST", "/api/v1/agents/agent-stream", json=resume_request
-                ) as stream_response:
+                resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
+                with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_request) as stream_response:
                     for line in stream_response.iter_lines():
                         if line and line.startswith("data: "):
                             try:
@@ -117,14 +107,10 @@ class TestEngineLimitE2E:
                                 pass
 
             # Verify the event was emitted
-            assert (
-                limit_reached_event is not None
-            ), "ENGINE_LIMIT_REACHED event should be emitted"
+            assert limit_reached_event is not None, "ENGINE_LIMIT_REACHED event should be emitted"
             assert limit_reached_event["data"]["limit_type"] == "max_tool_calls"
 
-            print(
-                "\n✅ Test Passed: max_tool_calls limit triggered ENGINE_LIMIT_REACHED"
-            )
+            print("\n✅ Test Passed: max_tool_calls limit triggered ENGINE_LIMIT_REACHED")
 
         finally:
             # Cleanup

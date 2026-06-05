@@ -189,11 +189,7 @@ async def update_memory(
 
     try:
         updated = await manager.update_memory(
-            memory_id, 
-            content=body.content, 
-            importance=body.importance,
-            reasoning=body.reasoning,
-            application=body.application
+            memory_id, content=body.content, importance=body.importance, reasoning=body.reasoning, application=body.application
         )
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
@@ -424,5 +420,3 @@ async def update_memory_status(
     )
     mt = MemoryType(getattr(updated, "memory_type", "semantic"))
     return memory_to_item(updated, mt)
-
-

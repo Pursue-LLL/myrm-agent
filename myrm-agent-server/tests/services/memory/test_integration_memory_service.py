@@ -87,9 +87,7 @@ class TestRemoveTreesByProviderEdgeCases:
         tree1 = MagicMock(id="tree-ok")
         tree2 = MagicMock(id="tree-fail")
         mock_tree_manager.list_trees.return_value = [tree1, tree2]
-        mock_tree_manager.remove_tree = AsyncMock(
-            side_effect=[5, RuntimeError("graph store error")]
-        )
+        mock_tree_manager.remove_tree = AsyncMock(side_effect=[5, RuntimeError("graph store error")])
 
         with pytest.raises(RuntimeError, match="graph store error"):
             await service.remove_trees_by_provider("broken-provider")
@@ -115,9 +113,7 @@ class TestRemoveTree:
         result = await service.remove_tree("tree-123")
 
         assert result == 8
-        mock_vector_store.delete_by_filter.assert_called_once_with(
-            "integration_memory", {"tree_id": "tree-123"}
-        )
+        mock_vector_store.delete_by_filter.assert_called_once_with("integration_memory", {"tree_id": "tree-123"})
         mock_tree_manager.remove_tree.assert_called_once_with("tree-123")
 
     @pytest.mark.asyncio
@@ -139,7 +135,7 @@ class TestAutoSeedKnowledge:
     async def test_empty_new_items_returns_early(self, service):
         """If new_items is empty, should return early."""
         from myrm_agent_harness.toolkits.memory.integration.types import IntegrationSyncResult
+
         result = IntegrationSyncResult(tree_id="t1", provider="slack", new_items=[])
         await service._auto_seed_knowledge(result)
         # Should not raise or do anything
-

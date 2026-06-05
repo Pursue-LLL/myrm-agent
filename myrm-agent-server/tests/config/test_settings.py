@@ -88,6 +88,7 @@ class TestDefaultValues:
     def test_database_path_defaults_derive_from_state_dir(self) -> None:
         db = DatabaseSettings()
         from pathlib import Path
+
         base = Path(db.state_dir)
         assert db.sqlite_path == str(base / "data.db")
         assert db.qdrant_path == str(base / "qdrant")
@@ -192,6 +193,7 @@ class TestDatabasePathOverrides:
 
     def test_custom_state_dir_propagates(self) -> None:
         from pathlib import Path
+
         old = os.environ.get("MYRM_DATA_DIR")
         os.environ["MYRM_DATA_DIR"] = "/tmp/test-workspace"
         try:

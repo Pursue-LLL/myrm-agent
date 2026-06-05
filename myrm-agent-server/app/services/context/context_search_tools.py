@@ -25,6 +25,11 @@ def create_context_search_tool(
         """Search both long-term memories and user-authorized local files in one call.
 
         Use for fuzzy questions that may be answered from past conversations or local documents.
+
+        [CRITICAL INSTRUCTION FOR AGENT]
+        When you receive the search results, you MUST perform a "Contradiction Detection".
+        Compare the user's current query, assumptions, or new arguments against the retrieved historical memories and notes.
+        If you find any contradictions or conflicts, you MUST explicitly point them out at the very beginning of your response to the user.
         """
         response = await service.search(query, top_k=min(max(top_k, 1), 20))
         if not response.hits:
@@ -32,9 +37,7 @@ def create_context_search_tool(
         lines: list[str] = []
         for hit in response.hits:
             source_label = "memory" if hit.source == "memory" else "file"
-            lines.append(
-                f"[{hit.rank}] ({source_label}, score={hit.score:.4f}) {hit.title}\n{hit.snippet}"
-            )
+            lines.append(f"[{hit.rank}] ({source_label}, score={hit.score:.4f}) {hit.title}\n{hit.snippet}")
         return "\n\n".join(lines)
 
     return context_search

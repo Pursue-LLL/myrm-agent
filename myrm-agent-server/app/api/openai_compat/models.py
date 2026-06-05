@@ -83,9 +83,7 @@ async def list_models(
     ]
 
     async with get_session() as session:
-        result = await session.execute(
-            select(Agent.id, Agent.name).where(Agent.is_active.is_(True))
-        )
+        result = await session.execute(select(Agent.id, Agent.name).where(Agent.is_active.is_(True)))
         agents = result.all()
 
         for agent_id, agent_name in agents:

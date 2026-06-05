@@ -245,9 +245,7 @@ class LocalFileSearchService:
         if target is None:
             return False
 
-        self._config.directories = [
-            d for d in self._config.directories if d.id != directory_id
-        ]
+        self._config.directories = [d for d in self._config.directories if d.id != directory_id]
         await self.save_config()
 
         if self._indexer:

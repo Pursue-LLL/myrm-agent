@@ -201,7 +201,6 @@ class RiskRuleService:
             return int(result.rowcount or 0)
         return 0
 
-
     async def batch_import(
         self,
         session: AsyncSession,
@@ -235,7 +234,6 @@ class RiskRuleService:
                 rule_id=rule_id,
                 display_name=str(data.get("display_name", rule_id)),
                 description=data.get("description"),
-
                 pattern=str(data["pattern"]),
                 severity=str(data.get("severity", "medium")),
                 action=str(data.get("action", "block")),
@@ -268,23 +266,15 @@ class RiskRuleService:
                 continue
             rule = RiskRule(
                 rule_id=d["rule_id"],
-
                 display_name=d["display_name"],
-
                 description=d.get("description"),
-
                 pattern=d["pattern"],
-
                 severity=d["severity"],
-
                 action=d["action"],
-
                 category=d["category"],
-
                 is_enabled=True,
                 is_builtin=True,
                 sort_order=d.get("sort_order", 0),
-
             )
             session.add(rule)
             inserted += 1

@@ -71,7 +71,13 @@ def _extract_bearer_token(authorization: str | None) -> str:
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail={"error": {"message": "Invalid Authorization format. Expected: Bearer sk-...", "type": "auth_error", "code": "invalid_format"}},
+            detail={
+                "error": {
+                    "message": "Invalid Authorization format. Expected: Bearer sk-...",
+                    "type": "auth_error",
+                    "code": "invalid_format",
+                }
+            },
         )
 
     raw_key = authorization[7:].strip()
@@ -88,9 +94,7 @@ async def _verify_strict(raw_key: str) -> str:
     key_hash = _hash_key(raw_key)
 
     async with get_session() as session:
-        result = await session.execute(
-            select(APIKey).where(APIKey.key_hash == key_hash)
-        )
+        result = await session.execute(select(APIKey).where(APIKey.key_hash == key_hash))
         api_key = result.scalar_one_or_none()
 
         if api_key is None:

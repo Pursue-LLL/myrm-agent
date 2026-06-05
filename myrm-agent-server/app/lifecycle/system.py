@@ -1,4 +1,5 @@
 """Application lifecycle management."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,11 +11,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 async def start_channel_gateway() -> None:
     """启动 Channel Gateway（支持多种聊天平台集成）"""
     from app.core.channel_bridge.setup import start_channel_gateway as _start_gateway
 
     await _start_gateway()
+
 
 async def init_risk_rules() -> None:
     """Seed built-in risk rules and initialize the detection engine."""
@@ -34,6 +37,7 @@ async def init_risk_rules() -> None:
     except Exception as e:
         logger.error("Risk rule initialization failed: %s", e)
 
+
 async def init_allowlist_store() -> None:
     """初始化白名单持久化存储（HITL 审批系统）。
 
@@ -50,6 +54,7 @@ async def init_allowlist_store() -> None:
         logger.info("Allowlist store: Database (persistent)")
     except Exception as e:
         logger.error("Allowlist store initialization failed: %s", e)
+
 
 async def resume_durable_offline_tasks() -> None:
     """Resume interrupted background tasks on server startup.
@@ -100,6 +105,7 @@ async def resume_durable_offline_tasks() -> None:
 
                         from app.services.agent.params import _extract_text_from_query
                         from app.services.agent.params.models import MultimodalQuery
+
                         if not task_record.serialized_params:
                             logger.warning(
                                 "Skipping offline resume for task %s: missing serialized_params",
@@ -172,8 +178,11 @@ async def resume_durable_offline_tasks() -> None:
                         # Cleanup the registration
                         try:
                             from sqlalchemy import delete
+
                             async with session_factory() as cleanup_db:
-                                await cleanup_db.execute(delete(OfflineDurableTask).where(OfflineDurableTask.id == task_record.id))
+                                await cleanup_db.execute(
+                                    delete(OfflineDurableTask).where(OfflineDurableTask.id == task_record.id)
+                                )
                                 await cleanup_db.commit()
                         except Exception as e:
                             logger.error(f"Failed to cleanup task record {task_record.chat_id}: {e}")
@@ -182,6 +191,7 @@ async def resume_durable_offline_tasks() -> None:
 
     except Exception as e:
         logger.error(f"Failed to initialize durable offline tasks: {e}", exc_info=True)
+
 
 async def start_idle_task_listeners() -> None:
     """Forward IdleTaskProgressEvent from Harness to Server EventBus."""
@@ -213,9 +223,15 @@ async def start_idle_task_listeners() -> None:
             # If task completed successfully, save to offline inbox
             if event.status == "completed":
                 # Special handling for skill extraction (Instinct Engine)
-                if event.task_name == "session_evidence_extraction" and event.data and "proposal" in event.data and event.data["proposal"]:
+                if (
+                    event.task_name == "session_evidence_extraction"
+                    and event.data
+                    and "proposal" in event.data
+                    and event.data["proposal"]
+                ):
                     proposal = event.data["proposal"]
                     from app.services.approvals.registry import ApprovalRegistry
+
                     try:
                         await ApprovalRegistry.create_approval(
                             agent_id=proposal.get("agent_id", "default"),
@@ -225,11 +241,13 @@ async def start_idle_task_listeners() -> None:
                                 "skill_name": proposal.get("skill_id"),
                                 "description": proposal.get("reasoning"),
                                 "content": proposal.get("proposed_content"),
-                                "score": proposal.get("score")
+                                "score": proposal.get("score"),
                             },
                             reason="Background Observer instinctively extracted a new skill proposal based on your recent corrections.",
                         )
-                        logger.info("Successfully registered skill_draft approval for extracted proposal %s", proposal.get("skill_id"))
+                        logger.info(
+                            "Successfully registered skill_draft approval for extracted proposal %s", proposal.get("skill_id")
+                        )
                     except Exception as e:
                         logger.error("Failed to register skill_draft approval: %s", e, exc_info=True)
 
@@ -266,4 +284,3 @@ async def start_idle_task_listeners() -> None:
         logger.info("Idle task listeners successfully started")
     except Exception as e:
         logger.error(f"Failed to start idle task listeners: {e}", exc_info=True)
-

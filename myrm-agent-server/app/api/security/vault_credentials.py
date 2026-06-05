@@ -61,13 +61,15 @@ async def create_credential(req: VaultCredentialCreate) -> VaultCredentialRespon
     """Create a new vault credential."""
     if not req.password and not req.totp_seed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must provide either password or totp_seed.")
-        
+
     try:
         service = VaultCredentialService()
         existing = await service.get_credential(req.label)
         if existing:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Credential with label '{req.label}' already exists.")
-            
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=f"Credential with label '{req.label}' already exists."
+            )
+
         cred = await service.save_credential(
             label=req.label,
             password=req.password,
@@ -90,7 +92,7 @@ async def update_credential(label: str, req: VaultCredentialUpdate) -> VaultCred
         existing = await service.get_credential(label)
         if not existing:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{label}' not found.")
-            
+
         cred = await service.save_credential(
             label=label,
             password=req.password,

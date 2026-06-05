@@ -21,9 +21,7 @@ from app.channels.routing.command_registry import (
 from app.channels.types import InboundMessage, OutboundMessage
 
 
-def _make_msg(
-    content: str = "", channel: str = "test", sender: str = "user1"
-) -> InboundMessage:
+def _make_msg(content: str = "", channel: str = "test", sender: str = "user1") -> InboundMessage:
     return InboundMessage(channel=channel, sender_id=sender, content=content)
 
 
@@ -83,19 +81,13 @@ class TestGoalCommandHandlerProtocol:
 
     def test_protocol_is_runtime_checkable(self) -> None:
         class MockHandler:
-            async def handle_goal(
-                self, msg: InboundMessage, subcommand: GoalSubcommand, args: str
-            ) -> str:
+            async def handle_goal(self, msg: InboundMessage, subcommand: GoalSubcommand, args: str) -> str:
                 return "ok"
 
-            async def handle_subgoal(
-                self, msg: InboundMessage, subcommand: SubgoalSubcommand, args: str
-            ) -> str:
+            async def handle_subgoal(self, msg: InboundMessage, subcommand: SubgoalSubcommand, args: str) -> str:
                 return "ok"
 
-            async def get_kickoff_message(
-                self, msg: InboundMessage, goal_text: str
-            ) -> InboundMessage | None:
+            async def get_kickoff_message(self, msg: InboundMessage, goal_text: str) -> InboundMessage | None:
                 return None
 
         handler = MockHandler()
@@ -237,9 +229,7 @@ class TestHandleGoalCommand:
         )
 
         handler = MagicMock()
-        handler.handle_goal = AsyncMock(
-            return_value="**目标：** 整理文档\n**状态：** 运行中"
-        )
+        handler.handle_goal = AsyncMock(return_value="**目标：** 整理文档\n**状态：** 运行中")
         host = self._make_host(goal_handler=handler)
         msg = InboundMessage(
             channel="feishu",
@@ -458,9 +448,7 @@ class TestGoalEdgeCases:
             msg = _make_msg()
             await RouterCommandsMixin._handle_goal_command(host, msg, alias)
             call_args = handler.handle_goal.call_args
-            assert (
-                call_args[0][1] == GoalSubcommand.CLEAR
-            ), f"'{alias}' should map to CLEAR"
+            assert call_args[0][1] == GoalSubcommand.CLEAR, f"'{alias}' should map to CLEAR"
 
     @pytest.mark.asyncio
     async def test_mid_run_allows_safe_commands(self) -> None:

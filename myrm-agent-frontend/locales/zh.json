@@ -1236,6 +1236,10 @@
         "bestFit": "最佳匹配",
         "reqVram": "需显存",
         "apply": "一键应用",
+        "installed": "已安装",
+        "downloading": "下载中...",
+        "ollamaNotRunningTitle": "Ollama 未运行",
+        "ollamaNotRunningDesc": "请先安装并启动 Ollama，才能一键下载和使用本地模型。",
         "warningTitle": "硬件限制警告",
         "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。"
       },
@@ -2006,9 +2010,9 @@
         "acceptUpstreamSuccess": "已应用上游更新",
         "acceptUpstreamFailed": "应用上游更新失败",
         "confirmResetTitle": "恢复默认",
-        "confirmResetDesc": "您对\u300c{name}\u300d的本地修改将被永久覆盖为内置默认版本。此操作不可撤销。",
+        "confirmResetDesc": "您对「{name}」的本地修改将被永久覆盖为内置默认版本。此操作不可撤销。",
         "confirmAcceptTitle": "应用上游更新",
-        "confirmAcceptDesc": "您对\u300c{name}\u300d的本地修改将被替换为最新上游版本。此操作不可撤销。",
+        "confirmAcceptDesc": "您对「{name}」的本地修改将被替换为最新上游版本。此操作不可撤销。",
         "confirmAction": "继续",
         "cancelAction": "取消"
       },
@@ -2178,25 +2182,25 @@
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"
         },
         "export": {
-      "title": "导出技能: {name}",
-      "description": "在导出前预览内容。敏感信息将被自动脱敏。",
-      "scanning": "正在扫描敏感信息...",
-      "safeTitle": "可以安全导出",
-      "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
-      "warningTitle": "检测到敏感信息",
-      "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
-      "diffPreview": "脱敏预览",
-      "cancel": "取消",
-      "exportOriginal": "导出原版 (不安全)",
-      "exportRedacted": "导出脱敏版 (安全)",
-      "export": "导出",
-      "previewFailed": "预览技能失败",
-      "exportSuccess": "技能导出成功",
-      "exportFailed": "导出技能失败",
-      "toggleAll": "全选 / 全不选"
+          "title": "导出技能: {name}",
+          "description": "在导出前预览内容。敏感信息将被自动脱敏。",
+          "scanning": "正在扫描敏感信息...",
+          "safeTitle": "可以安全导出",
+          "safeDescription": "未在此技能中检测到敏感信息（API Keys、绝对路径）。",
+          "warningTitle": "检测到敏感信息",
+          "warningDescription": "我们发现了潜在的敏感信息。强烈建议导出脱敏后的版本。",
+          "diffPreview": "脱敏预览",
+          "cancel": "取消",
+          "exportOriginal": "导出原版 (不安全)",
+          "exportRedacted": "导出脱敏版 (安全)",
+          "export": "导出",
+          "previewFailed": "预览技能失败",
+          "exportSuccess": "技能导出成功",
+          "exportFailed": "导出技能失败",
+          "toggleAll": "全选 / 全不选"
         }
       },
-  "upload": {
+      "upload": {
         "title": "上传自定义技能",
         "dropzone": "拖拽压缩包到此处，或点击选择",
         "dropzoneHint": "支持 .zip 或 .skill 格式",
@@ -2646,6 +2650,8 @@
       "itemCount": "{count} 项",
       "versionMismatch": "版本提示：导入文件版本为 {version}，将自动兼容处理",
       "invalidFormat": "无效的配置文件格式",
+      "mcpImportSecurityBlocked": "导入已阻止：某个 MCP 配置未通过安全扫描",
+      "mcpImportSecurityAckRequired": "导入已阻止：请先在 MCP 设置中确认高风险配置",
       "parseError": "配置文件解析失败",
       "importSuccess": "配置导入成功"
     },
@@ -2907,6 +2913,44 @@
     "mcpSaveSuccessDesc": "MCP 服务配置已保存",
     "mcpValidationFailed": "验证失败",
     "mcpValidationError": "验证出错",
+    "mcpScanBlocked": "安全扫描已阻止保存此 MCP 配置",
+    "mcpScanFindingsTitle": "安全扫描发现",
+    "mcpScanRunning": "正在进行安全扫描...",
+    "mcpScanAckTitle": "高风险 MCP 配置",
+    "mcpScanAckDesc": "安全扫描在「{name}」中发现 {count} 项高风险问题，确认后继续。",
+    "mcpScanAckConfirm": "我已了解风险并继续",
+    "mcpThreat": {
+      "prompt_injection": "检测到提示词注入内容（试图覆盖系统指令）",
+      "name_injection": "名称中包含注入式内容（URL 或指令文本）",
+      "concealment_instruction": "检测到隐瞒/隐藏类指令",
+      "data_exfiltration": "检测到数据外泄或外联请求",
+      "credential_harvesting": "检测到窃取凭证或敏感文件的隐藏指令",
+      "context_leak": "检测到泄露系统提示或对话上下文的指令",
+      "arbitrary_execution": "检测到执行任意命令/脚本的指令",
+      "risky_mcp_profile": "该 MCP 类型具有较高系统访问风险",
+      "suspicious_url": "参数中包含可疑外联或数据收集 URL",
+      "sensitive_path": "参数引用了敏感系统路径",
+      "hardcoded_secret": "配置中存在明文密钥或令牌",
+      "credential_exposure": "检测到可能的凭证泄露",
+      "supply_chain": "供应链风险（如未 pin 的 npx 包）",
+      "supply_chain_malware": "软件包存在已知恶意软件公告"
+    },
+    "mcpThreatRec": {
+      "prompt_injection": "请勿启用该 MCP，并联系管理员",
+      "name_injection": "请使用简短字母数字标识，不要包含 URL 或指令文本",
+      "concealment_instruction": "请保持禁用，直到确认内容可信",
+      "data_exfiltration": "请从描述中移除外联抓取指令",
+      "credential_harvesting": "请移除窃取凭证或敏感文件的隐藏指令",
+      "context_leak": "请移除泄露系统提示或上下文的指令",
+      "arbitrary_execution": "请移除执行任意命令的指令",
+      "risky_mcp_profile": "请限制访问范围并在了解风险后确认启用",
+      "suspicious_url": "请移除不可信的外部回调 URL",
+      "sensitive_path": "请将文件系统 MCP 限制在非敏感目录",
+      "hardcoded_secret": "请改用 {{secret:KEY}} 引用密钥",
+      "credential_exposure": "请改用 {{secret:KEY}} 引用密钥",
+      "supply_chain": "请在参数中 pin 包名和版本",
+      "supply_chain_malware": "请移除被标记的软件包并使用已验证依赖"
+    },
     "mcpDeleteFailed": "删除失败",
     "mcpDeleteSuccess": "服务已删除",
     "mcpDeleteSuccessDesc": "已从配置中移除该 MCP 服务",
@@ -6501,7 +6545,8 @@
       "approveSuccess": "迁移已批准",
       "approveFailed": "批准失败",
       "rejectSuccess": "迁移已拒绝",
-      "rejectFailed": "拒绝失败"
+      "rejectFailed": "拒绝失败",
+      "bindTargetAgent": "On approve, skills bind to agent: {name}"
     },
     "archiveRestore": {
       "title": "恢复记忆归档",
@@ -7102,9 +7147,9 @@
       "tooManyAttempts": "失败尝试次数过多，请稍后再试。",
       "footerInfo": "为了安全，密码经过哈希处理，绝不以明文存储。",
       "autoLogin": "正在自动认证...",
-    "autoLoginFailed": "自动登录失败，请使用密码登录。"
-  },
-  "oauth": {
+      "autoLoginFailed": "自动登录失败，请使用密码登录。"
+    },
+    "oauth": {
       "title": "正在登录",
       "description": "正在完成安全登录…",
       "failed": "登录失败",
@@ -8981,6 +9026,7 @@
     "tool": "工具",
     "parameters": "参数",
     "reason": "原因",
+    "workspaceLabel": "工作区",
     "expiresIn": "{seconds}秒后过期",
     "expired": "已过期",
     "expiredToast": "审批已超时，操作已自动拒绝",
@@ -10258,7 +10304,29 @@
       "ready": "已连接",
       "manual_config_required": "配置已生成",
       "missing": "未连接"
-    }
+    },
+    "mcpConnectTimeout": "Connect timeout (seconds)",
+    "mcpExecuteTimeout": "Execute timeout (seconds)",
+    "mcpTlsSection": "TLS / mTLS",
+    "mcpTlsConfigured": "Configured",
+    "mcpSslVerify": "SSL Verify",
+    "mcpSslVerifyPlaceholder": "true (default) / false / CA bundle path (PEM file or directory)",
+    "mcpSslVerifyWarning": "TLS verification is disabled. This exposes connections to man-in-the-middle attacks. Only use for local development.",
+    "mcpClientCert": "Client Certificate",
+    "mcpClientCertPlaceholder": "/path/to/client.pem",
+    "mcpClientKey": "Client Key",
+    "mcpClientKeyPlaceholder": "/path/to/client-key.pem (optional if bundled in cert)",
+    "mcpClientKeyPassword": "Client Key Passphrase",
+    "mcpClientKeyPasswordPlaceholder": "Passphrase for the encrypted client key (optional)",
+    "mcpTlsHint": "For mTLS: provide client cert and optionally a separate key. Paths support ~ expansion.",
+    "mcpHeadersSection": "HTTP Headers",
+    "mcpHeadersConfigured": "Configured",
+    "mcpHeadersHint": "Use {{secret:KEY_NAME}} to reference secrets stored in Agent Secrets.",
+    "mcpHeaderKeyPlaceholder": "Header name (e.g. Authorization)",
+    "mcpHeaderValuePlaceholder": "Value or {{secret:API_KEY}}",
+    "mcpHeaderAdd": "Add Header",
+    "mcpSecretRefSaveHint": "Configuration saved",
+    "mcpSecretRefSaveHintDesc": "Secret references in headers will be resolved at runtime."
   },
   "securityDashboard": {
     "title": "安全仪表盘",
@@ -10359,5 +10427,521 @@
     "modeAgent": "AI 智能体",
     "sidecarFailedTitle": "CLI 运行器不可用",
     "sidecarUnavailable": "CLI 不可用"
+  },
+  "checkpoint": {
+    "title": "Checkpoints",
+    "confirmDelete": "Are you sure you want to delete this checkpoint?",
+    "confirmCleanup": "Are you sure you want to cleanup old checkpoints (7 days TTL)?",
+    "resumable": "Resumable",
+    "notResumable": "Not Resumable",
+    "progress": "Progress",
+    "lastTool": "Last Tool",
+    "resume": "Resume",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "refresh": "Refresh",
+    "cleanup": "Cleanup Old",
+    "cleaning": "Cleaning...",
+    "loadError": "Failed to load checkpoints",
+    "resumeError": "Failed to resume checkpoint",
+    "deleteError": "Failed to delete checkpoint",
+    "cleanupError": "Failed to cleanup checkpoints",
+    "resumeSuccess": "Checkpoint resumed successfully",
+    "resumeSuccessDesc": "Task {taskId} resumed",
+    "cleanupSuccess": "Cleaned up {deleted} checkpoints",
+    "loading": "Loading checkpoints...",
+    "empty": "No checkpoints found",
+    "noCheckpoints": "No checkpoints found",
+    "total": "Total {count} checkpoints",
+    "description": "Manage saved checkpoints and resume interrupted Agent tasks",
+    "savedCheckpoints": "Saved Checkpoints",
+    "savedCheckpointsDesc": "All checkpoints are automatically saved when an Agent task is interrupted"
+  },
+  "about": {
+    "title": "About",
+    "slogan": "Core products open-source, powerful, and extensible AI assistant platform",
+    "version": "Version",
+    "introduction": {
+      "title": "Project Introduction",
+      "description": "MyrmAgent's core products (Server, Frontend, Desktop) are open source under the MIT License."
+    },
+    "features": {
+      "powerful": {
+        "title": "Powerful AI Capabilities",
+        "description": "Supports multiple LLMs, integrates MCP protocol, skill system, and knowledge base to build an all-in-one AI assistant"
+      },
+      "secure": {
+        "title": "Security & Privacy",
+        "description": "Supports end-to-end encryption and local deployment — your data is fully under your control"
+      },
+      "extensible": {
+        "title": "Highly Extensible",
+        "description": "Flexible plugin system, custom skills, and MCP services to easily extend AI capabilities"
+      },
+      "opensource": {
+        "title": "Core Products Open-Source",
+        "description": "Server, Frontend, Desktop are open-source, community-driven, continuously iterated — contributions welcome"
+      }
+    },
+    "changelog": {
+      "title": "Changelog",
+      "description": "View the latest updates and improvements to MyrmAgent",
+      "v0_1_0": {
+        "item1": "First public release",
+        "item2": "Multi-model service, agent, skill, and knowledge base support",
+        "item3": "MCP protocol integration for extended AI capabilities",
+        "item4": "Modern UI design with dark mode support"
+      }
+    },
+    "techStack": {
+      "title": "Tech Stack",
+      "description": "MyrmAgent is built on a modern tech stack",
+      "frontend": "Frontend",
+      "backend": "Backend",
+      "ai": "AI Technology"
+    },
+    "links": {
+      "title": "Related Links",
+      "description": "Get more information and support",
+      "website": {
+        "title": "Official Website",
+        "description": "Visit the MyrmAgent official website"
+      },
+      "github": {
+        "title": "GitHub Repository",
+        "description": "View source code, report issues, contribute code"
+      },
+      "documentation": {
+        "title": "Documentation",
+        "description": "View detailed usage guides and API documentation"
+      },
+      "community": {
+        "title": "Community Discussion",
+        "description": "Join the community to connect with developers and users"
+      }
+    },
+    "license": {
+      "title": "License & Copyright",
+      "type": "MIT License (Core Products)",
+      "description": "Server, Frontend, and Desktop in this repository are released under the MIT License.",
+      "copyright": "© {year} MyrmAgent. All rights reserved."
+    }
+  },
+  "budget": {
+    "title": "Budget Control",
+    "description": "Multi-dimensional spend limits with intelligent mid-conversation termination",
+    "save": "Save",
+    "todaySpend": "Today's Spend",
+    "sessionSpend": "Session Spend",
+    "statusWarning": "Approaching budget limit — agent has been notified",
+    "statusFinalization": "Budget nearly exhausted — agent will conclude response",
+    "statusExceeded": "Budget exceeded — execution blocked",
+    "ecoModeHint": "Eco mode activated: optimizing context compression to save tokens",
+    "enableLabel": "Enable Budget Control",
+    "enableDesc": "Multi-dimensional monitoring and limiting of LLM spend",
+    "sessionLimit": "Session Limit",
+    "sessionLimitDesc": "Maximum spend per conversation (USD)",
+    "dailyLimit": "Daily Limit",
+    "dailyLimitDesc": "Maximum spend per day (USD)",
+    "perCallLimit": "Per-Call Limit",
+    "perCallLimitDesc": "Maximum spend per LLM call (USD)",
+    "warningThreshold": "Warning Threshold",
+    "warningThresholdDesc": "Alert when spend reaches this percentage",
+    "actionOnExceeded": "Action on Exceeded",
+    "actionOnExceededDesc": "How to handle budget overruns",
+    "actionFinalize": "Graceful Finalization",
+    "actionWarn": "Warn Only",
+    "actionBlock": "Block Requests",
+    "optional": "Optional"
+  },
+  "dlq": {
+    "title": "Dead Letter Queue (DLQ)",
+    "description": "Manage messages that failed after retries, with manual intervention support.",
+    "refresh": "Refresh",
+    "channel": "Channel",
+    "recipient": "Recipient",
+    "content": "Content",
+    "error": "Error",
+    "time": "Time",
+    "actions": "Actions",
+    "retry": "Retry",
+    "delete": "Delete",
+    "empty": "No failed messages",
+    "noText": "No text content",
+    "retrySuccess": "Message re-queued for retry",
+    "retryFailed": "Retry failed",
+    "deleteSuccess": "Message deleted",
+    "deleteFailed": "Delete failed",
+    "fetchFailed": "Failed to fetch failed messages",
+    "retryAll": "Retry All",
+    "deleteAll": "Clear All",
+    "retryAllConfirmTitle": "Confirm retry all?",
+    "retryAllConfirmDesc": "This will re-queue all failed messages for sending. Continue?",
+    "deleteAllConfirmTitle": "Confirm clear all?",
+    "deleteAllConfirmDesc": "This will permanently delete all messages in the dead letter queue. This action cannot be undone. Continue?",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "experimentalFeatures": {
+    "title": "Experimental Features",
+    "description": "Enable or disable experimental features. These features are under active development and may be unstable.",
+    "experimentalBadge": "Experimental",
+    "newBadge": "New",
+    "noFeatures": "No experimental features available.",
+    "customized": "Custom settings (overrides defaults)",
+    "fetchError": "Failed to load experimental features",
+    "enabledSuccess": "Enabled feature {name}",
+    "disabledSuccess": "Disabled feature {name}",
+    "toggleError": "Failed to toggle feature {name}"
+  },
+  "sections": {
+    "channelRouting": {
+      "title": "Channel Routing",
+      "description": "Manage dedicated Agent bindings for different channel groups",
+      "connectedChannels": "Connected Channels",
+      "noConnectedChannels": "No connected channels",
+      "routingFor": "Routing for {channel}",
+      "globalDefaultAgent": "Global Default Agent",
+      "globalDefaultAgentDesc": "Threads without dedicated bindings will fall back to this Agent.",
+      "noDefaultAgent": "-- No Default Agent --",
+      "topicBindings": "Topic Bindings",
+      "noActiveTopics": "No active topics in this channel.",
+      "inheritGlobalDefault": "-- Inherit Global Default --",
+      "selectChannelPrompt": "Select a channel to configure routing",
+      "sharedContexts": {
+        "targetLabel": "Channel"
+      },
+      "toasts": {
+        "agentBound": "Agent bound successfully",
+        "threadSharingUpdated": "Thread sharing mode updated",
+        "globalAgentSet": "Global agent set successfully"
+      },
+      "errors": {
+        "initialLoad": "Failed to load channels or agents",
+        "topicsLoad": "Failed to load topics for this channel",
+        "agentBind": "Failed to bind agent",
+        "threadSharing": "Failed to set sharing mode",
+        "globalAgent": "Failed to set global agent"
+      },
+      "threadSharing": {
+        "label": "Thread Sharing Mode",
+        "isolated": "Isolated",
+        "isolatedDesc": "Each user has independent conversation history",
+        "shared": "Shared",
+        "sharedDesc": "All users in a topic share the same conversation history",
+        "tooltip": "Suitable for collaborative scenarios like Discord forums or Telegram topics"
+      }
+    }
+  },
+  "sessionAnalytics": {
+    "duration": "Duration",
+    "messages": "Messages",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "toolBreakdown": "Tool Usage Breakdown",
+    "eventsTimeline": "Events Timeline",
+    "yes": "Yes",
+    "no": "No",
+    "performance": "Performance",
+    "contextHealth": {
+      "title": "Context Health",
+      "description": "Shows compaction stability and prompt cache reuse health.",
+      "status": {
+        "inactive": "Inactive",
+        "healthy": "Healthy",
+        "warning": "Warning",
+        "critical": "Critical"
+      },
+      "compaction": {
+        "title": "Compaction",
+        "description": "Savings, refetch cost, and integrity risk.",
+        "count": "Runs",
+        "saved": "Saved",
+        "netSaved": "Net Saved",
+        "efficiency": "Efficiency",
+        "refetch": "Refetch",
+        "dedup": "Dedup Gain",
+        "integrity": "Integrity Skips",
+        "persisted": "Persisted",
+        "lastCompacted": "Last Compacted"
+      },
+      "pruning": {
+        "title": "Cache Pruning",
+        "description": "Archived stale tool results after prompt cache expiry.",
+        "archived": "Archived",
+        "archiveWritten": "Archive Writes",
+        "archiveReused": "Archive Reuse",
+        "softTrimmed": "Soft Trimmed",
+        "offloadFailed": "Offload Failed",
+        "deferred": "Deferred",
+        "archiveDeferred": "Archive Deferred",
+        "refetch": "Archive Reads",
+        "restoreRequested": "Restore Requests",
+        "restoreAllowed": "Restore Allowed",
+        "restoreBlocked": "Restore Blocked",
+        "restoreBlockedRatio": "Blocked Ratio",
+        "restoreResults": "Restore Results",
+        "restoreResultTokens": "Restored Tokens",
+        "restoreCostRatio": "Restore Cost",
+        "restoreRoiRatio": "Restore ROI",
+        "refetchTokens": "Read Cost",
+        "saved": "Saved",
+        "netSaved": "Net Saved",
+        "refetchRatio": "Read Ratio",
+        "writtenBytes": "Written Bytes",
+        "reusedBytes": "Reused Bytes",
+        "originalTokens": "Original Tokens",
+        "archiveSummaryQueued": "Summary Queued",
+        "archiveSummarySucceeded": "Summary Stored",
+        "archiveSummaryFailed": "Summary Failed",
+        "archiveSummarySkipped": "Summary Skipped",
+        "backoff": "Adaptive Backoff",
+        "backoffReasons": "Backoff Reasons",
+        "backoffActive": "Reduced strength",
+        "backoffInactive": "Normal strength",
+        "backoffReasonLabels": {
+          "negativeNetSavings": "Negative net savings",
+          "highRefetchRatio": "High archive read ratio",
+          "highRestoreCostRatio": "High restore cost",
+          "lowRestoreRoiRatio": "Low retained ROI",
+          "unknown": "Adaptive safety trigger"
+        },
+        "failureKinds": "Failure Kinds",
+        "deferredReasons": "Deferred Reasons",
+        "archiveDeferredReasons": "Archive Budget Reasons",
+        "archiveDeferredSoftTrimmed": "{count} archive-deferred items were still trimmed.",
+        "recentRestoreBlocks": "Recent Restore Blocks",
+        "restoreRange": "Read range",
+        "restoreGuidance": "Guidance",
+        "restoreFallback": "Fallback",
+        "restoreHintReasons": {
+          "errorKeyword": "Error section",
+          "sectionHeading": "Section",
+          "codeBlock": "Code block",
+          "tableRange": "Table",
+          "listRange": "List",
+          "chunk": "Chunk",
+          "range": "Range"
+        },
+        "contentFeatures": {
+          "jsonKeys": "JSON keys",
+          "jsonArray": "JSON items",
+          "markdownHeadings": "Headings",
+          "codeBlocks": "Code blocks",
+          "tables": "Tables",
+          "lists": "Lists",
+          "chunks": "Chunks",
+          "unknown": "Structure"
+        },
+        "restoreRangeSubmitted": "Range queued",
+        "restoreRangeFailed": "Submit failed",
+        "restoreRangeRequiresActiveSession": "Open target session",
+        "restoreActiveSessionRequired": "The active chat is not this session ({sessionId}); opening the target session will prefill the restore instruction.",
+        "restorePrompt": "Read the archived context range `{restoreArg}` and continue from that recovered evidence.",
+        "copyRestoreArg": "Copy restore range",
+        "restoreArgCopied": "Copied",
+        "copyRestoreArgUnavailable": "Copy unavailable",
+        "copyRestoreArgFailed": "Copy failed",
+        "restoreReasons": {
+          "archiveRestoreRangeRequired": "Full archive restore requires a range",
+          "archiveRefetchPathBudgetExceeded": "Path restore limit reached",
+          "archiveRefetchTokenBudgetExceeded": "Restore token budget reached",
+          "archiveRefetchSessionMismatch": "Archive belongs to another session",
+          "archiveRestoreSizeProbeFailed": "Archive size check failed",
+          "unknown": "Archive restore blocked"
+        },
+        "signals": {
+          "inactive": "Not active",
+          "restoreBlocked": "Restore needs a smaller range",
+          "adaptiveBackoff": "Pruning strength reduced",
+          "restoreCostHigh": "Restore cost is high",
+          "cacheColdArchived": "Cold cache with restorable archives",
+          "archiveAvailable": "Restorable archive available",
+          "cacheHotSkip": "Hot cache protected",
+          "archiveDeferred": "Archive budget deferred",
+          "softTrimmed": "Soft trim active",
+          "monitoring": "Monitoring"
+        },
+        "caption": "Archive reads are tracked in net savings.",
+        "offloadWarning": "Archive writes failed; pruning is degraded to safer trimming.",
+        "deferredWarning": "Some pruning candidates were deferred by the pass budget.",
+        "archiveDeferredWarning": "Some archive writes were deferred without fallback trimming.",
+        "restoreBlockedWarning": "Archive restore was blocked by the session budget; read a narrower range.",
+        "adaptiveBackoffWarning": "Pruning strength was reduced because {reasons}.",
+        "negativeSavingsWarning": "Archive reads cost more tokens than pruning saved.",
+        "restoreCostWarning": "Restored tokens are consuming too much of the pruning savings; avoid aggressive pruning for this session.",
+        "refetchWarning": "Archive reads are high; pruning may be too aggressive for this session."
+      },
+      "cache": {
+        "title": "Prompt Cache",
+        "description": "Prefix reuse efficiency for this session.",
+        "calls": "Calls",
+        "inputTokens": "Input",
+        "cachedTokens": "Cached",
+        "hitRate": "Hit Rate",
+        "provider": "Provider",
+        "ttl": "Retention TTL",
+        "policy": "Retention Policy",
+        "observation": "Retention Signal",
+        "sample": "Observation Sample",
+        "observationStates": {
+          "observed": "Observed",
+          "estimated": "Estimated",
+          "insufficientData": "Insufficient data"
+        },
+        "sampleSources": {
+          "dominantModel": "Dominant model",
+          "sessionAggregate": "Session aggregate"
+        },
+        "caption": "Higher hit rate usually means a more stable prefix, lower cost, and lower latency."
+      }
+    },
+    "close": "Close",
+    "trace": {
+      "title": "Execution Replay",
+      "enterReplay": "Enter Replay",
+      "exitReplay": "Exit Replay Mode",
+      "loading": "Loading...",
+      "input": "Task Input",
+      "output": "Task Output",
+      "events": "events",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "outcome": {
+        "success": "Success",
+        "failure": "Failure",
+        "cancelled": "Cancelled",
+        "unknown": "Unknown"
+      }
+    },
+    "replay": {
+      "title": "Session Replay",
+      "chatView": "UI State",
+      "mindView": "Mind Window",
+      "inspector": "Payload Inspector",
+      "seekToError": "Seek to Error",
+      "play": "Play",
+      "pause": "Pause",
+      "speed": "Playback speed",
+      "scrubber": "Timeline scrubber",
+      "errorMarker": "Error",
+      "keyboardHint": "Space: play/pause · ←/→: step frame",
+      "running": "running...",
+      "latestTool": "Latest Tool: {name}",
+      "result": "Result",
+      "emptyState": "No messages yet at this point",
+      "noPayload": "Drag to an event frame",
+      "userMessage": "User Message",
+      "assistantMessage": "Assistant Message",
+      "loading": "Loading replay data...",
+      "humanFeedback": "Human approval",
+      "humanFeedbackTitle": "Human Feedback",
+      "llmCallTitle": "LLM Call: {model}",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "promptPreview": "Prompt Preview",
+      "memoryEventTitle": "Memory: {phase}",
+      "preCompactEventTitle": "Pre-Compaction Recall",
+      "toolFailed": "Tool execution failed",
+      "scrubSnapHint": "Release to snap to nearest event",
+      "marker": {
+        "tool": "Tool",
+        "llm": "LLM",
+        "message": "Message",
+        "memory": "Memory",
+        "error": "Error"
+      }
+    }
+  },
+  "systemHealth": {
+    "benchmark": {
+      "title": "Performance Benchmark",
+      "description": "Test LLM first-token latency, embedding speed, and external API network latency.",
+      "start": "Start Deep Test",
+      "running": "Testing...",
+      "starting": "Preparing test suite..."
+    },
+    "trend": {
+      "title": "System Health Trends",
+      "description": "Historical health status and component performance",
+      "fetchError": "Failed to fetch historical health data",
+      "unknownError": "Unknown error",
+      "errorPrefix": "Error",
+      "timeRange": {
+        "label": "Time Range",
+        "last24h": "Last 24 hours",
+        "last7d": "Last 7 days",
+        "last30d": "Last 30 days"
+      },
+      "loading": "Loading historical data...",
+      "noData": "No health data for the selected time range.",
+      "tooltip": {
+        "time": "Time",
+        "score": "Health Score",
+        "clickHint": "Click a data point to view detailed component report"
+      },
+      "modal": {
+        "title": "Health Report Details",
+        "score": "Score",
+        "totalComponents": "Components Evaluated",
+        "components": "components",
+        "noDetails": "No component details for this record."
+      }
+    },
+    "doctor": {
+      "title": "System Health Diagnostics",
+      "description": "Real-time health telemetry for service components and framework layer",
+      "loading": "Running diagnostics...",
+      "unknownError": "Unknown error",
+      "unreachable": "System diagnostics unreachable: {error}",
+      "retry": "Retry",
+      "searchPlaceholder": "Search components...",
+      "filterPlaceholder": "Filter by status",
+      "filterAll": "All Statuses",
+      "filterPass": "Pass Only",
+      "filterFail": "Fail Only",
+      "filterWarn": "Warn Only",
+      "healthScore": "System Health: {score}%",
+      "healthSummary": "{pass} pass / {fail} fail / {warn} warn",
+      "statusHealthy": "Healthy",
+      "statusDegraded": "Degraded",
+      "statusCritical": "Critical",
+      "healthy": "Healthy",
+      "repairTitle": "Guided Repair",
+      "layerHarness": "Harness Framework Layer",
+      "layerServer": "Server Business Layer",
+      "noProbes": "No registered diagnostic probes.",
+      "errors": {
+        "ERR_DLQ_CRITICAL": {
+          "message": "Message delivery queue has critical failures ({failed_count} failed)."
+        },
+        "OK_DLQ_HEALTHY": {
+          "message": "Message delivery queue is operating normally ({failed_count} failed)."
+        },
+        "WARN_DLQ_UNAVAILABLE": {
+          "message": "Dead letter queue (DLQ) is not configured or initialized."
+        },
+        "ERR_DLQ_CHECK_FAILED": {
+          "message": "Error encountered while running message delivery health check."
+        },
+        "ERR_PROBE_CRASH": {
+          "message": "Probe execution crashed unexpectedly."
+        }
+      }
+    },
+    "repair": {
+      "whyAppears": "Why this appears",
+      "expectedEffect": "Expected Effect",
+      "safetyBoundary": "Safety Boundary",
+      "preview": "Preview",
+      "confirmRepair": "Confirm Repair",
+      "advisoryOnly": "Advisory Only",
+      "executeFailed": "Failed to execute repair action",
+      "risk": {
+        "low": "Low Risk",
+        "medium": "Medium Risk",
+        "high": "High Risk"
+      }
+    }
   }
 }

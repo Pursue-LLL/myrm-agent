@@ -45,14 +45,10 @@ class MascotLRUCacheCleanupService:
                             entry.unlink(missing_ok=True)
                             removed_count += 1
                         except OSError as e:
-                            logger.error(
-                                f"Failed to delete expired plot file {entry}: {e}"
-                            )
+                            logger.error(f"Failed to delete expired plot file {entry}: {e}")
 
             if removed_count > 0:
-                logger.info(
-                    f"MascotLRUCacheCleanupService: Cleaned up {removed_count} expired plot files."
-                )
+                logger.info(f"MascotLRUCacheCleanupService: Cleaned up {removed_count} expired plot files.")
         except Exception as e:
             logger.error(f"Error during mascot plot cache cleanup: {e}", exc_info=True)
 

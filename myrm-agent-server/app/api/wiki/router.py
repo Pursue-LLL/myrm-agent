@@ -244,7 +244,7 @@ async def list_concepts(
                 concept_names.append(str(rel.with_suffix("")).replace("\\", "/"))
             except ValueError:
                 concept_names.append(p.stem)
-                
+
         total = len(concept_names)
 
         sliced = concept_names[offset : offset + limit]
@@ -254,17 +254,15 @@ async def list_concepts(
 
 
 @router.get("/tree", response_model=list[TreeNode])
-async def get_wiki_tree(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> list[TreeNode]:
+async def get_wiki_tree(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> list[TreeNode]:
     """Get the full directory tree of the wiki concepts."""
     concepts_dir = archiver._structure.concepts_dir
-    
+
     def build_tree(dir_path: Path, rel_base: Path) -> list[TreeNode]:
         nodes = []
         if not dir_path.exists():
             return nodes
-            
+
         for item in sorted(dir_path.iterdir(), key=lambda x: (not x.is_dir(), x.name)):
             if item.is_dir():
                 rel_id = str(item.relative_to(rel_base)).replace("\\", "/")
@@ -280,8 +278,7 @@ async def get_wiki_tree(
 
 @router.post("/tree/folder", response_model=OperationResult)
 async def create_wiki_folder(
-    request: CreateFolderRequest,
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
+    request: CreateFolderRequest, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
 ) -> OperationResult:
     """Create a new folder in the wiki concepts directory."""
     safe_path = archiver._structure._sanitize_path(request.path)
@@ -295,19 +292,18 @@ async def create_wiki_folder(
 
 @router.put("/tree/move", response_model=OperationResult)
 async def move_wiki_node(
-    request: MoveNodeRequest,
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
+    request: MoveNodeRequest, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
 ) -> OperationResult:
     """Move a file or folder and update relative links."""
     safe_source = archiver._structure._sanitize_path(request.source_path)
     safe_target = archiver._structure._sanitize_path(request.target_path)
-    
+
     concepts_dir = archiver._structure.concepts_dir
-    
+
     # Check if source is a file or dir
     source_file = concepts_dir / f"{safe_source}.md"
     source_dir = concepts_dir / safe_source
-    
+
     if source_file.exists():
         old_path = source_file
         new_path = concepts_dir / f"{safe_target}.md"
@@ -316,19 +312,20 @@ async def move_wiki_node(
         new_path = concepts_dir / safe_target
     else:
         raise HTTPException(status_code=404, detail="Source not found")
-        
+
     if new_path.exists():
         raise HTTPException(status_code=400, detail="Target already exists")
-        
+
     try:
         new_path.parent.mkdir(parents=True, exist_ok=True)
         old_path.rename(new_path)
-        
+
         # Refactor links
         from myrm_agent_harness.toolkits.wiki.core.refactor import LinkRefactorEngine
+
         engine = LinkRefactorEngine(concepts_dir)
         updated_count = engine.refactor_links(old_path, new_path)
-        
+
         # Update indexer
         if old_path.is_file():
             await archiver._query_engine._indexer.delete(safe_source)
@@ -340,18 +337,18 @@ async def move_wiki_node(
             for md_file in new_path.rglob("*.md"):
                 rel_new = md_file.relative_to(concepts_dir)
                 concept_new = str(rel_new.with_suffix("")).replace("\\", "/")
-                
+
                 # Calculate old concept name
                 rel_to_new_dir = md_file.relative_to(new_path)
                 old_md_file = old_path / rel_to_new_dir
                 rel_old = old_md_file.relative_to(concepts_dir)
                 concept_old = str(rel_old.with_suffix("")).replace("\\", "/")
-                
+
                 await archiver._query_engine._indexer.delete(concept_old)
                 content = md_file.read_text(encoding="utf-8")
                 await archiver._query_engine._indexer.upsert(concept_new, content)
                 archiver._query_engine._indexer.extract_and_upsert_edges(concept_new, content)
-            
+
         return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -370,11 +367,8 @@ async def delete_wiki_folder(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-
 @router.get("/concepts/{name:path}", response_model=ConceptResponse)
-async def get_concept(
-    name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> ConceptResponse:
+async def get_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> ConceptResponse:
     """Get content of a specific concept."""
     path = archiver._structure.resolve_concept_file_path(name)
     if path is None or not path.exists():
@@ -398,9 +392,7 @@ async def update_concept(
 
 
 @router.delete("/concepts/{name:path}", response_model=OperationResult)
-async def delete_concept(
-    name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> OperationResult:
+async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
     """Delete a concept file manually."""
     path = archiver._structure.get_concept_file_path(name)
     if not path.exists():
@@ -417,9 +409,7 @@ async def delete_concept(
 
 
 @router.get("/queue", response_model=QueueStatusResponse)
-async def get_queue_status(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> QueueStatusResponse:
+async def get_queue_status(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> QueueStatusResponse:
     """Get ingestion queue statistics and pending items."""
     stats = archiver._queue.get_stats()
     items = archiver._queue.get_pending_items(limit=20)
@@ -427,18 +417,14 @@ async def get_queue_status(
 
 
 @router.post("/queue/cancel", response_model=OperationResult)
-async def cancel_queue(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> OperationResult:
+async def cancel_queue(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
     """Cancel all pending ingestion jobs."""
     count = archiver._queue.cancel_pending()
     return OperationResult(success=True, message=f"Cancelled {count} jobs")
 
 
 @router.post("/queue/retry", response_model=OperationResult)
-async def retry_queue_failed(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> OperationResult:
+async def retry_queue_failed(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
     """Reset all failed jobs back to pending."""
     count = archiver._queue.reset_failed()
     return OperationResult(success=True, message=f"Reset {count} failed jobs to pending")
@@ -448,9 +434,7 @@ async def retry_queue_failed(
 
 
 @router.get("/pending", response_model=PendingEditsResponse)
-async def get_pending_edits(
-    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> PendingEditsResponse:
+async def get_pending_edits(archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> PendingEditsResponse:
     """Get stats and list of pending Wiki edits (HITL)."""
     stats = archiver._pending_mgr.get_stats()
     edits = archiver._pending_mgr.get_pending_edits(limit=50)

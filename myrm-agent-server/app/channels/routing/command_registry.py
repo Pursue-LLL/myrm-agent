@@ -68,10 +68,7 @@ class CommandRegistry:
         canonical = cmd.name.lower()
 
         if not canonical or " " in canonical or canonical.startswith("/"):
-            raise ValueError(
-                f"Invalid command name '{cmd.name}': "
-                "must be non-empty, without spaces or leading '/'"
-            )
+            raise ValueError(f"Invalid command name '{cmd.name}': must be non-empty, without spaces or leading '/'")
 
         existing = self._lookup.get(canonical)
         if existing is not None:
@@ -89,14 +86,11 @@ class CommandRegistry:
             alias_lower = alias.lower()
             if not alias_lower or " " in alias_lower or alias_lower.startswith("/"):
                 raise ValueError(
-                    f"Invalid alias '{alias}' for command '{cmd.name}': "
-                    "must be non-empty, without spaces or leading '/'"
+                    f"Invalid alias '{alias}' for command '{cmd.name}': must be non-empty, without spaces or leading '/'"
                 )
             alias_existing = self._lookup.get(alias_lower)
             if alias_existing is not None and alias_existing.kind == CommandKind.SYSTEM:
-                raise ValueError(
-                    f"Cannot overwrite system command alias '/{alias_lower}'"
-                )
+                raise ValueError(f"Cannot overwrite system command alias '/{alias_lower}'")
 
         self._lookup[canonical] = cmd
         for alias in cmd.aliases:
@@ -170,11 +164,7 @@ class CommandRegistry:
         lines: list[str] = []
         for category in sorted(by_category):
             cat_key = f"cat_{category.replace(' ', '_')}"
-            cat_label = (
-                channel_t(locale, cat_key)
-                if channel_t(locale, cat_key) != cat_key
-                else category
-            )
+            cat_label = channel_t(locale, cat_key) if channel_t(locale, cat_key) != cat_key else category
             lines.append(f"\n**{cat_label}**")
             for cmd in by_category[category]:
                 args = f" {cmd.args_pattern}" if cmd.args_pattern else ""

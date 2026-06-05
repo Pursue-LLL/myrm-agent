@@ -171,9 +171,7 @@ class IncrementalEditor:
     def __init__(self) -> None:
         self._last_sent: dict[str, str] = {}
 
-    def compute_update(
-        self, session_key: str, full_text: str
-    ) -> tuple[int, str] | None:
+    def compute_update(self, session_key: str, full_text: str) -> tuple[int, str] | None:
         """Compute incremental update for streaming text.
 
         Args:
@@ -352,9 +350,7 @@ class ProgressEstimator:
         else:
             return "chat"
 
-    def estimate_progress(
-        self, session_key: str, current_output_length: int
-    ) -> ProgressInfo | None:
+    def estimate_progress(self, session_key: str, current_output_length: int) -> ProgressInfo | None:
         """Estimate current progress and remaining time.
 
         Args:
@@ -381,9 +377,7 @@ class ProgressEstimator:
             remaining = total_estimated - elapsed
             remaining_seconds = max(int(remaining), 1)
 
-        return ProgressInfo(
-            percentage=int(progress * 100), remaining_seconds=remaining_seconds
-        )
+        return ProgressInfo(percentage=int(progress * 100), remaining_seconds=remaining_seconds)
 
     def cleanup(self, session_key: str) -> None:
         """Cleanup session state after completion."""
@@ -396,11 +390,7 @@ class ProgressEstimator:
             Number of sessions cleaned up
         """
         now = time.monotonic()
-        expired = [
-            key
-            for key, session in self._sessions.items()
-            if now - session.start_time > self._session_ttl
-        ]
+        expired = [key for key, session in self._sessions.items() if now - session.start_time > self._session_ttl]
 
         for key in expired:
             self._sessions.pop(key, None)
@@ -517,9 +507,7 @@ class StreamCoordinator:
             elif self._chunker._is_inside_code_fence(full_text):
                 reason = "inside_code_fence"
             else:
-                reason = (
-                    f"block_size:{len(full_text)}<{self._chunker.config.block_size}"
-                )
+                reason = f"block_size:{len(full_text)}<{self._chunker.config.block_size}"
             return UpdateDecision(should_send=False, reason=reason)
 
         base_interval = self._throttler.get_interval()
@@ -550,11 +538,7 @@ class StreamCoordinator:
             Number of sessions cleaned up
         """
         now = time.monotonic()
-        expired = [
-            key
-            for key, timestamp in self._session_timestamps.items()
-            if now - timestamp > self._session_ttl
-        ]
+        expired = [key for key, timestamp in self._session_timestamps.items() if now - timestamp > self._session_ttl]
 
         for key in expired:
             self._editor.cleanup(key)

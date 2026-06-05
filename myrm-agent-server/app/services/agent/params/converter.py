@@ -178,14 +178,15 @@ async def prevalidate_archive_restore_actions(request: AgentRequest) -> None:
         chat = await ChatService.get_chat_metadata(request.chat_id)
         if chat:
             chat_loaded = True
-            
+
             if chat.project_id:
                 from app.services.project.project_service import ProjectService
+
                 project = await ProjectService.get_project(chat.project_id)
                 if project and project.workspace_path:
                     chat_workspace_dir = project.workspace_path
                     db_had_workspace = True
-            
+
             if not chat_workspace_dir and chat.workspace_dir:
                 chat_workspace_dir = chat.workspace_dir
                 db_had_workspace = True
@@ -423,7 +424,11 @@ async def convert_to_general_agent_params(
                     f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
                 )
             # Inject Hybrid Routing Rules if both browser and computer_use are enabled
-            if resolved.enabled_builtin_tools and "browser" in resolved.enabled_builtin_tools and "computer_use" in resolved.enabled_builtin_tools:
+            if (
+                resolved.enabled_builtin_tools
+                and "browser" in resolved.enabled_builtin_tools
+                and "computer_use" in resolved.enabled_builtin_tools
+            ):
                 hybrid_routing_rule = (
                     "\n\n[HYBRID EXECUTION ROUTING RULES]\n"
                     "You have both 'browser' and 'computer_use' (desktop) tools available. You MUST follow these strict routing rules:\n"
@@ -432,7 +437,9 @@ async def convert_to_general_agent_params(
                     "3. ONLY use 'desktop_snapshot' and 'desktop_interact_tool' when dealing with native OS dialogs (e.g., File Upload/Save dialogs, OS permission prompts) or browser extensions that 'browser_interact_tool' cannot see.\n"
                     "4. If 'browser_snapshot' or 'browser_interact_tool' warns you that an OS dialog is blocking the page, immediately switch to 'desktop_snapshot' and 'desktop_interact_tool'."
                 )
-                user_instructions = f"{user_instructions}{hybrid_routing_rule}" if user_instructions else hybrid_routing_rule.strip()
+                user_instructions = (
+                    f"{user_instructions}{hybrid_routing_rule}" if user_instructions else hybrid_routing_rule.strip()
+                )
 
             agent_skill_ids = list(resolved.skill_ids)
             agent_skill_configs = resolved.skill_configs
@@ -485,9 +492,7 @@ async def convert_to_general_agent_params(
                     leader_id=request.agent_id,
                     dynamic_discovery=is_dynamic_team,
                 )
-                user_instructions = (
-                    f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
-                )
+                user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
             from app.ai_agents.personality_templates import (
                 DEFAULT_PERSONALITY_STYLE,
@@ -511,11 +516,14 @@ async def convert_to_general_agent_params(
     if mcp_configs and resolved:
         from app.services.agent.params.mcp_selection import apply_agent_mcp_selection
 
-        mcp_configs = apply_agent_mcp_selection(
-            mcp_configs,
-            mcp_ids=resolved.mcp_ids or None,
-            mcp_tool_selections=resolved.mcp_tool_selections or None,
-        ) or None
+        mcp_configs = (
+            apply_agent_mcp_selection(
+                mcp_configs,
+                mcp_ids=resolved.mcp_ids or None,
+                mcp_tool_selections=resolved.mcp_tool_selections or None,
+            )
+            or None
+        )
 
     if request.engine_params:
         if engine_params:
@@ -571,7 +579,9 @@ async def convert_to_general_agent_params(
 
     ps_dict = configs.personal_settings_dict if configs else None
     voice_dict = configs.voice_dict if configs else None
-    image_gen_params, video_gen_params, tts_params = _extract_media_generation_params(ps_dict, providers_dict, enabled_builtin_tools, voice_dict)
+    image_gen_params, video_gen_params, tts_params = _extract_media_generation_params(
+        ps_dict, providers_dict, enabled_builtin_tools, voice_dict
+    )
 
     code_exec_allow_network = _extract_code_execution_network(ps_dict)
 
@@ -637,14 +647,15 @@ async def convert_to_general_agent_params(
                     jit_subagents = chat.ephemeral_subagents
                 if chat.task_adaptive_digest:
                     task_adaptive_digest = chat.task_adaptive_digest
-                
+
                 if chat.project_id:
                     from app.services.project.project_service import ProjectService
+
                     project = await ProjectService.get_project(chat.project_id)
                     if project and project.workspace_path:
                         chat_workspace_dir = project.workspace_path
                         db_had_workspace = True
-                
+
                 if not chat_workspace_dir and chat.workspace_dir:
                     chat_workspace_dir = chat.workspace_dir
                     db_had_workspace = True
@@ -711,10 +722,11 @@ async def convert_to_general_agent_params(
     if request.mentioned_agent_ids:
         try:
             from app.services.agent.agent_service import AgentService
+
             mentioned_names = []
             if jit_subagents is None:
                 jit_subagents = {}
-                
+
             for aid in request.mentioned_agent_ids:
                 agent = await AgentService.get_agent_by_id(aid)
                 if agent and agent.display_name:
@@ -723,9 +735,9 @@ async def convert_to_general_agent_params(
                     jit_subagents[aid] = {
                         "name": agent.display_name,
                         "description": agent.description or "Mentioned agent",
-                        "agent_id": aid
+                        "agent_id": aid,
                     }
-            
+
             if mentioned_names:
                 names_str = ", ".join(mentioned_names)
                 directive = (
@@ -797,7 +809,9 @@ async def convert_to_general_agent_params(
         browser_engine=browser_engine,
         enable_memory=False if request.incognito_mode else request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
-        enable_memory_auto_extraction=False if request.incognito_mode else (request.enable_memory and request.enable_memory_auto_extraction),
+        enable_memory_auto_extraction=False
+        if request.incognito_mode
+        else (request.enable_memory and request.enable_memory_auto_extraction),
         incognito_mode=request.incognito_mode,
         enable_advanced_retrieval=request.enable_advanced_retrieval if not is_fast_search else False,
         embedding_config=embedding_cfg if not is_fast_search else None,

@@ -85,10 +85,7 @@ async def enrich_image_inbound(
             msg.sender_id,
         )
 
-    tasks = [
-        _download_and_encode(att, msg, get_channel_fn)
-        for att in selected
-    ]
+    tasks = [_download_and_encode(att, msg, get_channel_fn) for att in selected]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     image_data_list: list[dict[str, str]] = []
@@ -165,9 +162,7 @@ async def _download_image_bytes(
     """Download image bytes from URL, path, or channel-specific file_id."""
     photo_file_id = msg.metadata.get("photo_file_id")
     if photo_file_id and callable(get_channel_fn):
-        result = await _download_via_channel_api(
-            str(photo_file_id), msg.channel, get_channel_fn
-        )
+        result = await _download_via_channel_api(str(photo_file_id), msg.channel, get_channel_fn)
         if result is not None:
             return result
 

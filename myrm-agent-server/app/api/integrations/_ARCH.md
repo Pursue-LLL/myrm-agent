@@ -14,14 +14,14 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `router.py` | ✅ 入口 | 子路由注册 |
-| `llms.py` | ✅ 核心 | LLM 提供商验证（连接测试、模型列表、轻量可达性探测 `/check-reachability` 含 30s TTL 缓存、批量流式测速 `/speed-test` 测 TTFT+TPS） |
-| `mcp.py` | ✅ 核心 | MCP 服务器验证（SSRF 防护、响应验证） |
+| `llms.py` | ✅ 核心 | LLM 提供商验证（连接测试、模型列表、轻量可达性探测 `/check-reachability` 含 30s TTL 缓存、批量流式测速 `/speed-test` 测 TTFT+TPS、硬件感知推荐 `/hardware/recommendations` 含探针缓存与 Ollama 状态同步、Ollama 流式下载代理 `/hardware/ollama/pull`） |
+| `mcp.py` | ✅ 核心 | MCP 静态扫描（`POST /mcp/scan`、`POST /mcp/scan-batch`）、verify 四段管线（静态→OSV→动态→runtime surface）；posture block 返回 400 + 结构化 findings |
 | `retrieval.py` | ✅ 核心 | 检索服务验证（Embedding、Reranker） |
 | `search.py` | ✅ 辅助 | 搜索服务验证 |
 | `catalog.py` | ✅ 核心 | Integration Catalog API（预配置服务目录浏览/搜索） |
 | `integration_memory.py` | ✅ 核心 | Integration Memory API（同步/浏览/状态/删除集成记忆数据树，支持按 provider 批量清除） |
 | `oauth.py` | ✅ 核心 | OAuth 凭证管理（AES-256-GCM 加密存储、CRUD、断开时可选清除同步数据） |
-| `mcp_oauth.py` | ✅ 核心 | MCP OAuth 2.0 + PKCE 授权流 API（/start 生成授权 URL、/callback 换取 token、/status 查询状态、DELETE 断开授权） |
+| `mcp_oauth.py` | ✅ 核心 | MCP OAuth 2.0 + PKCE 授权流 API（/start 生成授权 URL、/callback 接收授权回调并返回 HTML、/status/{state} 前端轮询状态、/status 查询全部状态、DELETE 断开授权）。采用后端统一接管回调+前端轮询架构，完美兼容 Web 与 Tauri。 |
 | `im_contacts.py` | ✅ 辅助 | IM 联系人同步（飞书/钉钉等通讯录数据） |
 
 ---

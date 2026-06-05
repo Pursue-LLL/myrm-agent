@@ -66,9 +66,7 @@ class BudgetPolicy(BaseModel):
     per_call_limit_usd: float | None = Field(default=None, ge=0.01, le=1000.0)
     warning_threshold: float = Field(default=0.8, ge=0.1, le=1.0)
     finalization_reserve_pct: float = Field(default=0.15, ge=0.05, le=0.5)
-    action_on_exceeded: str = Field(
-        default="finalize", pattern=r"^(warn|block|finalize)$"
-    )
+    action_on_exceeded: str = Field(default="finalize", pattern=r"^(warn|block|finalize)$")
 
 
 class _BudgetGuardWrapper:
@@ -142,19 +140,13 @@ def _emit_budget_sse(status: str, cost: float, limit: float, dimension: str) -> 
 
         pct = round((cost / limit) * 100, 1) if limit > 0 else 100.0
 
-        event_type = (
-            AppEventType.BUDGET_UPDATED
-            if status == "update"
-            else AppEventType.BUDGET_ALERT
-        )
+        event_type = AppEventType.BUDGET_UPDATED if status == "update" else AppEventType.BUDGET_ALERT
 
         get_event_bus().publish(
             AppEvent(
                 event_type=event_type,
                 data={
-                    "subtype": (
-                        "budget_alert" if status != "update" else "budget_update"
-                    ),
+                    "subtype": ("budget_alert" if status != "update" else "budget_update"),
                     "status": status,
                     "dimension": dimension,
                     "today_cost": round(cost, 6),
@@ -173,9 +165,7 @@ async def load_budget_policy() -> BudgetPolicy:
     """Load budget policy from DB. Returns default (disabled) if not configured."""
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == BUDGET_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
         if row is None:
             return BudgetPolicy()
@@ -192,9 +182,7 @@ async def save_budget_policy(policy: BudgetPolicy) -> None:
 
     session_factory = get_session_factory()
     async with session_factory() as session:
-        result = await session.execute(
-            select(UserConfig).where(UserConfig.config_key == BUDGET_CONFIG_KEY)
-        )
+        result = await session.execute(select(UserConfig).where(UserConfig.config_key == BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
 
@@ -243,9 +231,7 @@ async def _query_today_cost() -> float:
             total: float = float(result.scalar_one())
         return total
     except Exception as e:
-        logger.warning(
-            "Failed to recover today's cost from DB, starting from $0: %s", e
-        )
+        logger.warning("Failed to recover today's cost from DB, starting from $0: %s", e)
         return 0.0
 
 

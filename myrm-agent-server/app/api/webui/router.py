@@ -48,7 +48,7 @@ async def get_qrcode_image_endpoint(
             target_url = f"http://{host}:{port}"
 
         # 生成 URL（不包含 Token，安全考虑）
-        
+
         # 生成二维码图片
         qr_image = generate_qrcode_image(target_url, size=settings.webui.qrcode_size)
 

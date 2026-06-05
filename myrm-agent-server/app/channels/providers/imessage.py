@@ -51,20 +51,20 @@ _MEDIA_TIMEOUT = 30.0
 _MAX_TEXT_LENGTH = 10000
 
 _TAPBACK_MAP: dict[str, int] = {
-    "\u2764\uFE0F": 2000,
-    "\U0001F44D": 2001,
-    "\U0001F44E": 2002,
-    "\U0001F602": 2003,
+    "\u2764\ufe0f": 2000,
+    "\U0001f44d": 2001,
+    "\U0001f44e": 2002,
+    "\U0001f602": 2003,
     "\u2757": 2004,
-    "\u203C\uFE0F": 2004,
+    "\u203c\ufe0f": 2004,
     "\u2753": 2005,
-    "\U0001F440": 2001,
+    "\U0001f440": 2001,
 }
 _TAPBACK_CODE_TO_EMOJI: dict[int, str] = {
-    2000: "\u2764\uFE0F",
-    2001: "\U0001F44D",
-    2002: "\U0001F44E",
-    2003: "\U0001F602",
+    2000: "\u2764\ufe0f",
+    2001: "\U0001f44d",
+    2002: "\U0001f44e",
+    2003: "\U0001f602",
     2004: "\u2757",
     2005: "\u2753",
 }
@@ -145,7 +145,8 @@ class IMessageChannel(BaseChannel):
         self._status = ChannelStatus.DEGRADED
         self._set_connected(False)
         logger.error(
-            " [iMessage startfailure] cannotconnectto BlueBubbles , checkitswhetheralreadyinbackgroundline (URL: %s)", self._api_url
+            " [iMessage startfailure] cannotconnectto BlueBubbles , checkitswhetheralreadyinbackgroundline (URL: %s)",
+            self._api_url,
         )
         raise ChannelConnectionError(
             f"Failed to connect to BlueBubbles bridge at {self._api_url} after {max_retries} attempts",
@@ -231,11 +232,7 @@ class IMessageChannel(BaseChannel):
                 mime = str(att.get("mimeType", ""))
                 mt = _mime_to_media_type(mime)
                 att_guid = str(att.get("guid", ""))
-                url = (
-                    f"{self._api_url}/api/v1/attachment/{att_guid}/download?password={self._password}"
-                    if att_guid
-                    else None
-                )
+                url = f"{self._api_url}/api/v1/attachment/{att_guid}/download?password={self._password}" if att_guid else None
                 transfer_name = att.get("transferName")
                 fname = str(transfer_name) if transfer_name else None
                 media_list.append(

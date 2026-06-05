@@ -139,10 +139,7 @@ class TestEnrichImageInbound:
     @pytest.mark.asyncio
     async def test_caps_at_max_images(self) -> None:
         jpeg_header = b"\xff\xd8\xff\xe0" + b"\x00" * 100
-        atts = tuple(
-            MediaAttachment(media_type=MediaType.IMAGE, url=f"https://example.com/img{i}.jpg")
-            for i in range(6)
-        )
+        atts = tuple(MediaAttachment(media_type=MediaType.IMAGE, url=f"https://example.com/img{i}.jpg") for i in range(6))
         msg = _make_msg(media=atts)
 
         with patch(
@@ -219,9 +216,7 @@ class TestDownloadAndEncode:
             result = await _download_and_encode(att, msg, None)
 
         assert result is not None
-        assert result["mime_type"] == "image/png", (
-            "Sniffed MIME (image/png) should override platform-declared image/webp"
-        )
+        assert result["mime_type"] == "image/png", "Sniffed MIME (image/png) should override platform-declared image/webp"
         assert result["data_url"].startswith("data:image/png;base64,")
 
     @pytest.mark.asyncio
@@ -361,8 +356,9 @@ class TestReadLocalFile:
             Path(path).unlink()
 
     def test_read_exception_returns_none(self) -> None:
-        with patch("pathlib.Path.is_file", return_value=True), patch(
-            "pathlib.Path.read_bytes", side_effect=PermissionError("Access denied")
+        with (
+            patch("pathlib.Path.is_file", return_value=True),
+            patch("pathlib.Path.read_bytes", side_effect=PermissionError("Access denied")),
         ):
             result = _read_local_file("/protected/image.jpg")
         assert result is None

@@ -133,9 +133,7 @@ def parse_callback(
             if item.text:
                 text_parts.append(item.text)
             if item.download_code and item.type == "picture":
-                media_list.append(
-                    MediaAttachment(media_type=MediaType.IMAGE, url=item.download_code)
-                )
+                media_list.append(MediaAttachment(media_type=MediaType.IMAGE, url=item.download_code))
         content = "".join(text_parts)
     elif msg_type == "picture" and payload.content:
         if payload.content.download_code:

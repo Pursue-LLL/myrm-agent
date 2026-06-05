@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def get_locale_from_metadata(metadata: dict[str, object] | None) -> str:
     """Resolve locale from a metadata dict (inbound/outbound messages)."""
     from myrm_agent_harness.utils.locale import normalize_locale
@@ -68,6 +69,7 @@ def resolve_message_locale(msg: InboundMessage) -> str:
         platform_locale=platform_val,
         channel=msg.channel,
     )
+
 
 def get_text(msg: InboundMessage, key: str, **kwargs: Any) -> str:
     """Translate a catalog key using the locale from an InboundMessage."""

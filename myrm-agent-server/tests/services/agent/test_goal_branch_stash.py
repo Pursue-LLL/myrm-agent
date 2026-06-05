@@ -50,10 +50,9 @@ def mock_storage():
 async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
     session_id = "test-branch-stash-session"
 
-    with patch(
-        "app.services.agent.goal_registry.get_current_git_branch", new_callable=AsyncMock
-    ) as mock_branch_getter, patch(
-        "app.platform_utils.get_storage_provider", return_value=mock_storage
+    with (
+        patch("app.services.agent.goal_registry.get_current_git_branch", new_callable=AsyncMock) as mock_branch_getter,
+        patch("app.platform_utils.get_storage_provider", return_value=mock_storage),
     ):
         # Ensure GoalRegistry has a clean provider for this session
         GoalRegistry.unregister(session_id)
@@ -62,9 +61,7 @@ async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
         # 1. Start on branch_a and create an active goal
         mock_branch_getter.return_value = "branch_a"
         await check_and_handle_branch_stash(session_id)
-        goal = await provider.create_goal(
-            session_id=session_id, objective="Build auth module"
-        )
+        goal = await provider.create_goal(session_id=session_id, objective="Build auth module")
 
         # Verify goal is active on branch_a
         assert goal.status == GoalStatus.ACTIVE
@@ -72,11 +69,12 @@ async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
         # 2. Switch to branch_b (which has a stash to force branch_a to pause)
         mock_branch_getter.return_value = "branch_b"
         from myrm_agent_harness.agent.goals.storage import _GOAL_NAMESPACE
+
         await mock_storage.write(f"{_GOAL_NAMESPACE}_stash/{session_id}/branch_b", b"dummy")
-        
+
         # Trigger branch perception stash
         await check_and_handle_branch_stash(session_id)
-        
+
         # Goal for branch_a should now be stashed & PAUSED
         goal_a = await provider.get_goal(goal.goal_id)
         assert goal_a.status == GoalStatus.PAUSED

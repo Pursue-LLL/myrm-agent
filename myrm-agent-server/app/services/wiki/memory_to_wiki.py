@@ -97,9 +97,7 @@ class MemoryToWikiArchiver:
             import os
 
             public_vols_env = os.getenv("MYRM_PUBLIC_WIKI_VOLUMES", "")
-            public_dirs = [
-                Path(v.strip()) for v in public_vols_env.split(";") if v.strip()
-            ]
+            public_dirs = [Path(v.strip()) for v in public_vols_env.split(";") if v.strip()]
 
         self._structure = WikiStructure(resolved_wiki_dir, public_dirs=public_dirs)
         self._structure.ensure_structure()
@@ -169,7 +167,8 @@ class MemoryToWikiArchiver:
                 return False
 
             import uuid
-            session_id = notes.get('session_id', 'unknown')
+
+            session_id = notes.get("session_id", "unknown")
             file_name = f"conversation_{session_id}_{uuid.uuid4().hex[:8]}.md"
             raw_path = self._structure.get_raw_file_path(file_name)
             raw_path.write_text(content, encoding="utf-8")

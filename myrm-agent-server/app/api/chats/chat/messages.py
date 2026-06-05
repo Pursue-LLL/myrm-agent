@@ -25,12 +25,8 @@ async def search_messages(
     q: str = Query(..., min_length=1, max_length=200, description="Search query"),
     limit: int = Query(20, ge=1, le=100, description="Max results"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
-    since: datetime | None = Query(
-        None, description="Only messages after this time (ISO 8601)"
-    ),
-    until: datetime | None = Query(
-        None, description="Only messages before this time (ISO 8601)"
-    ),
+    since: datetime | None = Query(None, description="Only messages after this time (ISO 8601)"),
+    until: datetime | None = Query(None, description="Only messages before this time (ISO 8601)"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Full-text search across all chat messages using FTS5.
@@ -54,9 +50,7 @@ async def search_messages(
 @router.get("/{chat_id}/messages", response_model=StandardSuccessResponse)
 async def get_chat_messages(
     chat_id: str,
-    before: str | None = Query(
-        None, description="Cursor: load messages before this message ID"
-    ),
+    before: str | None = Query(None, description="Cursor: load messages before this message ID"),
     limit: int = Query(50, ge=1, le=100, description="Messages per page"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
@@ -88,7 +82,7 @@ async def get_chat_messages(
             metadata = msg.extra_data or {}
             if msg.role == "assistant":
                 content, think_reasoning = extract_and_strip_think_blocks(content)
-                #优先使用 think blocks 中的 reasoning_content
+                # 优先使用 think blocks 中的 reasoning_content
                 if think_reasoning:
                     metadata = dict(metadata)
                     metadata["reasoning_content"] = think_reasoning
@@ -213,9 +207,7 @@ async def export_chat(
         raise internal_error(operation="Export chat", exception=e) from e
 
 
-async def _build_tool_summary(
-    chat_id: str, db: AsyncSession
-) -> dict[str, object] | None:
+async def _build_tool_summary(chat_id: str, db: AsyncSession) -> dict[str, object] | None:
     """Aggregate tool call statistics from AgentTurn/AgentEvent tables.
 
     Returns None when no turn data exists (e.g. sandbox mode where TurnManager is disabled).
@@ -227,19 +219,14 @@ async def _build_tool_summary(
     from app.database.models.agent_event import AgentEvent, AgentTurn
     from app.services.event.types import EventType
 
-    turn_rows = (
-        await db.execute(
-            select(AgentTurn.id).where(AgentTurn.chat_id == chat_id)
-        )
-    ).scalars().all()
+    turn_rows = (await db.execute(select(AgentTurn.id).where(AgentTurn.chat_id == chat_id))).scalars().all()
 
     if not turn_rows:
         return None
 
     events = (
         await db.execute(
-            select(AgentEvent.tool_name, AgentEvent.duration_ms)
-            .where(
+            select(AgentEvent.tool_name, AgentEvent.duration_ms).where(
                 AgentEvent.turn_id.in_(turn_rows),
                 AgentEvent.tool_name.isnot(None),
                 AgentEvent.event_type == EventType.TOOL_CALL_END.value,
@@ -250,9 +237,7 @@ async def _build_tool_summary(
     if not events:
         return None
 
-    tool_buckets: dict[str, dict[str, int]] = defaultdict(
-        lambda: {"count": 0, "totalMs": 0}
-    )
+    tool_buckets: dict[str, dict[str, int]] = defaultdict(lambda: {"count": 0, "totalMs": 0})
     total_calls = 0
     total_ms = 0
     for tool_name, duration_ms in events:
@@ -263,10 +248,7 @@ async def _build_tool_summary(
         total_ms += duration_ms or 0
 
     tools_used = sorted(
-        [
-            {"name": name, "count": b["count"], "totalMs": b["totalMs"]}
-            for name, b in tool_buckets.items()
-        ],
+        [{"name": name, "count": b["count"], "totalMs": b["totalMs"]} for name, b in tool_buckets.items()],
         key=lambda x: x["count"],
         reverse=True,
     )

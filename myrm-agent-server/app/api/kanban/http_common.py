@@ -56,7 +56,8 @@ async def _batch_load_attachment_ids(task_ids: list[str]) -> dict[str, list[str]
 
     async with get_session() as session:
         stmt = select(
-            KanbanTaskModel.id, KanbanTaskModel.attachment_ids_json,
+            KanbanTaskModel.id,
+            KanbanTaskModel.attachment_ids_json,
         ).where(
             KanbanTaskModel.id.in_(task_ids),
             KanbanTaskModel.attachment_ids_json.is_not(None),
@@ -122,8 +123,10 @@ async def _resolve_attachments(ids: list[str]) -> list[AttachmentInfo]:
         except Exception:
             pass
         return AttachmentInfo(
-            file_id=fid, filename=filename,
-            content_type=content_type, url=url,
+            file_id=fid,
+            filename=filename,
+            content_type=content_type,
+            url=url,
         )
 
     return list(await asyncio.gather(*(_resolve_one(fid) for fid in ids)))
@@ -168,5 +171,3 @@ async def _task_to_response(
         updated_at=task.updated_at,
         completed_at=task.completed_at,
     )
-
-

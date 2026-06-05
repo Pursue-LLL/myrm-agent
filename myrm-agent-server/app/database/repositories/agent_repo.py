@@ -60,10 +60,10 @@ class AgentRepository:
                 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
                 from app.core.security.master_key import MasterKeyProvider
-                
+
                 master_key = MasterKeyProvider.get_master_key()
                 derived_key = ConfigCrypto.derive_key(master_key)
-                
+
                 encrypted_token = gateway_config["auth_token"]
                 # Try to decrypt. If it fails, it might be plaintext (legacy)
                 try:
@@ -74,6 +74,7 @@ class AgentRepository:
                     pass
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).warning(f"Failed to initialize crypto for gateway auth_token: {e}")
 
         return AgentProfile(
@@ -138,7 +139,7 @@ class AgentRepository:
             raise ValueError(f"Agent with ID {profile.id} already exists")
 
         meta = profile.metadata or {}
-        
+
         # Encrypt tool_gateway_config.auth_token if present
         gateway_config = meta.get("tool_gateway_config")
         if gateway_config and isinstance(gateway_config, dict) and gateway_config.get("auth_token"):
@@ -146,16 +147,17 @@ class AgentRepository:
                 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
                 from app.core.security.master_key import MasterKeyProvider
-                
+
                 master_key = MasterKeyProvider.get_master_key()
                 derived_key = ConfigCrypto.derive_key(master_key)
-                
+
                 # Encrypt the token and replace it in the dict
                 raw_token = gateway_config["auth_token"]
                 encrypted_token = ConfigCrypto.encrypt_value({"value": raw_token}, derived_key)
                 gateway_config["auth_token"] = encrypted_token
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).error(f"Failed to encrypt gateway auth_token: {e}")
                 # We should probably fail hard here to prevent plaintext saving, but for safety we just remove it
                 # if encryption fails, to avoid leaking.
@@ -300,9 +302,7 @@ class AgentRepository:
                 agent.mcp_servers = cast(list[str], metadata["mcp_ids"])
             if "mcp_tool_selections" in metadata:
                 raw_sel = metadata["mcp_tool_selections"]
-                agent.mcp_tool_selections = (
-                    cast(dict[str, list[str]], raw_sel) if isinstance(raw_sel, dict) else None
-                )
+                agent.mcp_tool_selections = cast(dict[str, list[str]], raw_sel) if isinstance(raw_sel, dict) else None
             if "enabled_builtin_tools" in metadata:
                 agent.enabled_builtin_tools = cast(list[str], metadata["enabled_builtin_tools"])
             if "home_directory" in metadata:
@@ -352,19 +352,22 @@ class AgentRepository:
                     # Wait, if the user sends the SAME config back, it might be the placeholder or already encrypted.
                     # Usually frontend sends raw token or empty.
                     raw_token = gateway_config["auth_token"]
-                    if not raw_token.startswith("ey"): # Basic heuristic to avoid double encrypting if frontend sends back encrypted
+                    if not raw_token.startswith(
+                        "ey"
+                    ):  # Basic heuristic to avoid double encrypting if frontend sends back encrypted
                         try:
                             from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
                             from app.core.security.master_key import MasterKeyProvider
-                            
+
                             master_key = MasterKeyProvider.get_master_key()
                             derived_key = ConfigCrypto.derive_key(master_key)
-                            
+
                             encrypted_token = ConfigCrypto.encrypt_value({"value": raw_token}, derived_key)
                             gateway_config["auth_token"] = encrypted_token
                         except Exception as e:
                             import logging
+
                             logging.getLogger(__name__).error(f"Failed to encrypt gateway auth_token: {e}")
                             gateway_config.pop("auth_token", None)
                 agent.tool_gateway_config = gateway_config

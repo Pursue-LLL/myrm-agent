@@ -373,7 +373,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "You are a terminal programming expert capable of operating local directories to write and modify code. "
             "Use your command execution tools to list files, read code, and run tests. Ensure you stay within your designated working directory."
         ),
-        default_skill_ids=("systematic-debugging", "test-driven-development")
+        default_skill_ids=("systematic-debugging", "test-driven-development"),
     ),
     _BuiltInAgentSpec(
         id="builtin-hr_screener",
@@ -402,6 +402,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
     ),
 )
 
+
 async def initialize_builtin_agents() -> None:
     """Create or update built-in agents at startup.
 
@@ -413,14 +414,8 @@ async def initialize_builtin_agents() -> None:
     Called once at server startup (lifespan Phase 1b).
     """
     async with get_session() as db:
-        existing_result = await db.execute(
-            select(Agent).where(
-                Agent.id.in_([spec.id for spec in _BUILTIN_AGENTS])
-            )
-        )
-        existing_map: dict[str, Agent] = {
-            a.id: a for a in existing_result.scalars().all()
-        }
+        existing_result = await db.execute(select(Agent).where(Agent.id.in_([spec.id for spec in _BUILTIN_AGENTS])))
+        existing_map: dict[str, Agent] = {a.id: a for a in existing_result.scalars().all()}
 
         created_count = 0
         updated_count = 0
@@ -502,7 +497,8 @@ async def initialize_builtin_agents() -> None:
             await db.commit()
             logger.info(
                 "[Startup] Built-in agents: %d created, %d updated",
-                created_count, updated_count,
+                created_count,
+                updated_count,
             )
         else:
             logger.debug("[Startup] All built-in agents up to date")

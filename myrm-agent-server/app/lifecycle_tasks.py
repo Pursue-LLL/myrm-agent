@@ -29,15 +29,15 @@ async def _start_vault_gc() -> None:
     import asyncio
     import time
     from pathlib import Path
-    
+
     # Check if vault directory exists
     ws_root = getattr(settings, "workspace_root", None)
     workspace_root = Path(ws_root) if ws_root else Path.cwd()
     vault_dir = workspace_root / ".myrm" / "vault"
-    
+
     gc_interval_seconds = 3600  # Check every hour
     expire_seconds = 7 * 24 * 3600  # 7 days
-    
+
     while True:
         try:
             if vault_dir.exists():
@@ -56,7 +56,7 @@ async def _start_vault_gc() -> None:
                     logger.info("Vault GC completed: Deleted %d expired files from %s", deleted_count, vault_dir)
         except Exception as e:
             logger.error("Vault GC task encountered an error: %s", e)
-            
+
         await asyncio.sleep(gc_interval_seconds)
 
 

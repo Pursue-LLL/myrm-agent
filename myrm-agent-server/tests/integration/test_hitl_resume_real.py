@@ -187,8 +187,7 @@ class TestHITLResumeReal:
             msg_id = f"msg-{uuid.uuid4().hex}"
             request_data = {
                 "query": (
-                    f"Use the write_file tool to create 'test{i}.txt' "
-                    f"with content 'test content {i}'. You MUST call write_file."
+                    f"Use the write_file tool to create 'test{i}.txt' with content 'test content {i}'. You MUST call write_file."
                 ),
                 "chatId": chat_id,
                 "messageId": msg_id,

@@ -42,8 +42,14 @@ class TestFormatMessage:
     def test_health_alert(self) -> None:
         event = AppEvent(
             event_type=AppEventType.HEALTH_ALERT,
-            data={"component": "llm_provider", "status": "fail", "message": "API key invalid",
-                  "detail": "", "fix_suggestion": "", "layer": "server"},
+            data={
+                "component": "llm_provider",
+                "status": "fail",
+                "message": "API key invalid",
+                "detail": "",
+                "fix_suggestion": "",
+                "layer": "server",
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -53,8 +59,14 @@ class TestFormatMessage:
     def test_budget_alert(self) -> None:
         event = AppEvent(
             event_type=AppEventType.BUDGET_ALERT,
-            data={"subtype": "budget_alert", "status": "warning", "today_cost": 8.5,
-                  "daily_limit": 10.0, "remaining": 1.5, "pct": 85.0},
+            data={
+                "subtype": "budget_alert",
+                "status": "warning",
+                "today_cost": 8.5,
+                "daily_limit": 10.0,
+                "remaining": 1.5,
+                "pct": 85.0,
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -102,8 +114,7 @@ class TestFormatMessage:
     def test_config_health_warning(self) -> None:
         event = AppEvent(
             event_type=AppEventType.CONFIG_HEALTH_WARNING,
-            data={"user_id": "u1", "missing_items": ["api_key"], "suggestions": ["Add key"],
-                  "checked_at": "2026-04-29"},
+            data={"user_id": "u1", "missing_items": ["api_key"], "suggestions": ["Add key"], "checked_at": "2026-04-29"},
         )
         result = _format_message(event)
         assert result is not None
@@ -222,8 +233,13 @@ class TestFormatMessage:
     def test_kanban_task_completed_from_dispatcher(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "task_completed",
-                  "title": "Write Report", "detail": "Report generated at /docs/report.pdf"},
+            data={
+                "board_id": "b1",
+                "task_id": "t1",
+                "action": "task_completed",
+                "title": "Write Report",
+                "detail": "Report generated at /docs/report.pdf",
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -233,8 +249,13 @@ class TestFormatMessage:
     def test_kanban_task_blocked_from_dispatcher(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "task_blocked",
-                  "title": "Deploy Service", "detail": "Auto-blocked after 3 failures"},
+            data={
+                "board_id": "b1",
+                "task_id": "t1",
+                "action": "task_blocked",
+                "title": "Deploy Service",
+                "detail": "Auto-blocked after 3 failures",
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -244,8 +265,7 @@ class TestFormatMessage:
     def test_kanban_task_failed_from_dispatcher(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "task_failed",
-                  "title": "Code Review"},
+            data={"board_id": "b1", "task_id": "t1", "action": "task_failed", "title": "Code Review"},
         )
         result = _format_message(event)
         assert result is not None
@@ -254,8 +274,14 @@ class TestFormatMessage:
     def test_kanban_moved_to_completed(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "Analysis", "status": "completed", "detail": "Done"},
+            data={
+                "board_id": "b1",
+                "task_id": "t1",
+                "action": "moved",
+                "title": "Analysis",
+                "status": "completed",
+                "detail": "Done",
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -264,8 +290,7 @@ class TestFormatMessage:
     def test_kanban_moved_to_ready_skipped(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "Task", "status": "ready"},
+            data={"board_id": "b1", "task_id": "t1", "action": "moved", "title": "Task", "status": "ready"},
         )
         assert _format_message(event) is None
 
@@ -287,8 +312,7 @@ class TestFormatMessage:
         long_detail = "x" * 300
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "task_completed",
-                  "title": "LongTask", "detail": long_detail},
+            data={"board_id": "b1", "task_id": "t1", "action": "task_completed", "title": "LongTask", "detail": long_detail},
         )
         result = _format_message(event)
         assert result is not None
@@ -297,8 +321,14 @@ class TestFormatMessage:
     def test_kanban_moved_to_blocked(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "BlockedTask", "status": "blocked", "detail": "Resource unavailable"},
+            data={
+                "board_id": "b1",
+                "task_id": "t1",
+                "action": "moved",
+                "title": "BlockedTask",
+                "status": "blocked",
+                "detail": "Resource unavailable",
+            },
         )
         result = _format_message(event)
         assert result is not None
@@ -308,8 +338,7 @@ class TestFormatMessage:
     def test_kanban_moved_to_failed(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "FailedTask", "status": "failed"},
+            data={"board_id": "b1", "task_id": "t1", "action": "moved", "title": "FailedTask", "status": "failed"},
         )
         result = _format_message(event)
         assert result is not None
@@ -369,8 +398,7 @@ class TestFormatMessage:
     def test_kanban_no_detail_no_suffix(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "task_completed",
-                  "title": "Clean", "detail": ""},
+            data={"board_id": "b1", "task_id": "t1", "action": "task_completed", "title": "Clean", "detail": ""},
         )
         result = _format_message(event)
         assert result is not None
@@ -380,16 +408,14 @@ class TestFormatMessage:
     def test_kanban_moved_to_running_skipped(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "T", "status": "running"},
+            data={"board_id": "b1", "task_id": "t1", "action": "moved", "title": "T", "status": "running"},
         )
         assert _format_message(event) is None
 
     def test_kanban_moved_to_backlog_skipped(self) -> None:
         event = AppEvent(
             event_type=AppEventType.KANBAN_TASK_UPDATED,
-            data={"board_id": "b1", "task_id": "t1", "action": "moved",
-                  "title": "T", "status": "backlog"},
+            data={"board_id": "b1", "task_id": "t1", "action": "moved", "title": "T", "status": "backlog"},
         )
         assert _format_message(event) is None
 
@@ -432,11 +458,19 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.HEALTH_ALERT,
-                data={"component": "test", "status": "fail", "message": "down",
-                      "detail": "", "fix_suggestion": "", "layer": "server"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.HEALTH_ALERT,
+                    data={
+                        "component": "test",
+                        "status": "fail",
+                        "message": "down",
+                        "detail": "",
+                        "fix_suggestion": "",
+                        "layer": "server",
+                    },
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -464,11 +498,19 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.HEALTH_ALERT,
-                data={"component": "test", "status": "fail", "message": "down",
-                      "detail": "", "fix_suggestion": "", "layer": "server"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.HEALTH_ALERT,
+                    data={
+                        "component": "test",
+                        "status": "fail",
+                        "message": "down",
+                        "detail": "",
+                        "fix_suggestion": "",
+                        "layer": "server",
+                    },
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -495,10 +537,12 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.IDLE_STATUS,
-                data={"session_id": "s1", "status": "running"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.IDLE_STATUS,
+                    data={"session_id": "s1", "status": "running"},
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -523,11 +567,19 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.HEALTH_ALERT,
-                data={"component": "test", "status": "fail", "message": "err",
-                      "detail": "", "fix_suggestion": "", "layer": "server"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.HEALTH_ALERT,
+                    data={
+                        "component": "test",
+                        "status": "fail",
+                        "message": "err",
+                        "detail": "",
+                        "fix_suggestion": "",
+                        "layer": "server",
+                    },
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -566,11 +618,12 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.KANBAN_TASK_UPDATED,
-                data={"board_id": "b1", "task_id": "t1",
-                      "action": "task_completed", "title": "My Task"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.KANBAN_TASK_UPDATED,
+                    data={"board_id": "b1", "task_id": "t1", "action": "task_completed", "title": "My Task"},
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -599,11 +652,12 @@ class TestNotificationDispatcher:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.KANBAN_TASK_UPDATED,
-                data={"board_id": "b1", "task_id": "t1",
-                      "action": "created", "title": "New Task"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.KANBAN_TASK_UPDATED,
+                    data={"board_id": "b1", "task_id": "t1", "action": "created", "title": "New Task"},
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()
@@ -638,14 +692,16 @@ class TestLoadNotificationTargets:
 
         from app.core.notifications.dispatcher import _load_notification_targets
 
-        row = SimpleNamespace(config_value={
-            "notificationDeliveries": [
-                {"channel": "telegram", "target": "123"},
-                {"channel": "whatsapp", "target": "456"},
-                "invalid_item",
-                {"channel": "", "target": "789"},
-            ]
-        })
+        row = SimpleNamespace(
+            config_value={
+                "notificationDeliveries": [
+                    {"channel": "telegram", "target": "123"},
+                    {"channel": "whatsapp", "target": "456"},
+                    "invalid_item",
+                    {"channel": "", "target": "789"},
+                ]
+            }
+        )
 
         mock_session = AsyncMock()
         sync_result = MagicMock()
@@ -739,11 +795,12 @@ class TestMultiTargetDispatch:
         ):
             await dispatcher.start()
 
-            bus.publish(AppEvent(
-                event_type=AppEventType.KANBAN_TASK_UPDATED,
-                data={"board_id": "b1", "task_id": "t1",
-                      "action": "task_completed", "title": "Multi-Target"},
-            ))
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.KANBAN_TASK_UPDATED,
+                    data={"board_id": "b1", "task_id": "t1", "action": "task_completed", "title": "Multi-Target"},
+                )
+            )
 
             await asyncio.sleep(0.1)
             await dispatcher.stop()

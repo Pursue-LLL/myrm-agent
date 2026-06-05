@@ -58,6 +58,7 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
 
     Uses request.override() with HumanMessage (non-persistent, cache-safe).
     """
+
     name = "citation_rules_middleware"
 
     def wrap_model_call(

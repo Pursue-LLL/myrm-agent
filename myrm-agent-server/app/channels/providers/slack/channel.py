@@ -251,9 +251,7 @@ class SlackChannel(BaseChannel):
 
     async def send(self, msg: OutboundMessage) -> str | None:
         channel_id = msg.recipient_id
-        thread_ts = msg.thread_id or (
-            msg.metadata.get("thread_ts") if msg.metadata else None
-        )
+        thread_ts = msg.thread_id or (msg.metadata.get("thread_ts") if msg.metadata else None)
         last_ts: str | None = None
 
         if msg.content:
@@ -369,9 +367,7 @@ class SlackChannel(BaseChannel):
         """Verify Slack request signature."""
         return verify_slack_signature(self._signing_secret, body, timestamp, signature)
 
-    async def handle_event(
-        self, event_data: dict[str, object]
-    ) -> dict[str, str] | None:
+    async def handle_event(self, event_data: dict[str, object]) -> dict[str, str] | None:
         """Process a Slack Events API callback or interactive payload."""
         if event_data.get("type") == "url_verification":
             return {"challenge": str(event_data.get("challenge", ""))}
@@ -397,12 +393,20 @@ class SlackChannel(BaseChannel):
         return None
 
     _SLACK_EMOJI_MAP: dict[str, str] = {
-        "+1": "👍", "thumbsup": "👍",
-        "-1": "👎", "thumbsdown": "👎",
-        "white_check_mark": "✅", "heavy_check_mark": "✅",
-        "x": "❌", "no_entry": "🚫", "no_entry_sign": "🚫",
-        "heart": "❤️", "handshake": "🤝", "muscle": "💪",
-        "infinity": "♾", "star": "⭐",
+        "+1": "👍",
+        "thumbsup": "👍",
+        "-1": "👎",
+        "thumbsdown": "👎",
+        "white_check_mark": "✅",
+        "heavy_check_mark": "✅",
+        "x": "❌",
+        "no_entry": "🚫",
+        "no_entry_sign": "🚫",
+        "heart": "❤️",
+        "handshake": "🤝",
+        "muscle": "💪",
+        "infinity": "♾",
+        "star": "⭐",
     }
 
     def _parse_reaction_event(self, event: dict[str, object]) -> InboundMessage | None:
@@ -449,14 +453,10 @@ class SlackChannel(BaseChannel):
             sent_at=sent_at,
             sent_timezone="UTC",
             chat_id=str(parsed["channel_id"]),
-            sender_name=(
-                str(parsed["sender_name"]) if parsed.get("sender_name") else None
-            ),
+            sender_name=(str(parsed["sender_name"]) if parsed.get("sender_name") else None),
             is_group=True,
             mentioned=True,
-            metadata=(
-                dict(parsed["metadata"]) if isinstance(parsed["metadata"], dict) else {}
-            ),
+            metadata=(dict(parsed["metadata"]) if isinstance(parsed["metadata"], dict) else {}),
             message_id=str(parsed["message_ts"]),
         )
         await self._emit_inbound(inbound)
@@ -471,9 +471,7 @@ class SlackChannel(BaseChannel):
             self._thread_parent_cache.pop(oldest_key, None)
             self._cache_eviction_counter.add(1)
 
-    def _get_cached_parent(
-        self, channel_id: str, thread_ts: str
-    ) -> ReplyContext | None | object:
+    def _get_cached_parent(self, channel_id: str, thread_ts: str) -> ReplyContext | None | object:
         """Get cached thread parent with TTL refresh on access.
 
         Returns:
@@ -494,9 +492,7 @@ class SlackChannel(BaseChannel):
         self._cache_miss_counter.add(1)
         return object()  # Sentinel for cache miss
 
-    async def _fetch_thread_parent(
-        self, channel_id: str, thread_ts: str
-    ) -> ReplyContext | None:
+    async def _fetch_thread_parent(self, channel_id: str, thread_ts: str) -> ReplyContext | None:
         """Fetch Slack thread parent message and parse into structured ReplyContext.
 
         Uses conversations.history API to retrieve the parent message by timestamp.
@@ -516,9 +512,7 @@ class SlackChannel(BaseChannel):
             )
             data = resp.json()
             if not data.get("ok"):
-                logger.debug(
-                    "Failed to fetch thread parent (API error): %s", data.get("error")
-                )
+                logger.debug("Failed to fetch thread parent (API error): %s", data.get("error"))
                 return None
 
             messages = data.get("messages", [])
@@ -530,9 +524,7 @@ class SlackChannel(BaseChannel):
                 return None
 
             text = str(parent_msg.get("text", ""))
-            content = (
-                text  # Keep original text for mention detection in auto-reply logic
-            )
+            content = text  # Keep original text for mention detection in auto-reply logic
 
             media_list: list[MediaAttachment] = []
             files = parent_msg.get("files", [])
@@ -545,17 +537,11 @@ class SlackChannel(BaseChannel):
                     filename = str(f.get("name", ""))
 
                     if mimetype.startswith("image/"):
-                        media_list.append(
-                            MediaAttachment(media_type=MediaType.IMAGE, url=url or None)
-                        )
+                        media_list.append(MediaAttachment(media_type=MediaType.IMAGE, url=url or None))
                     elif mimetype.startswith("video/"):
-                        media_list.append(
-                            MediaAttachment(media_type=MediaType.VIDEO, url=url or None)
-                        )
+                        media_list.append(MediaAttachment(media_type=MediaType.VIDEO, url=url or None))
                     elif mimetype.startswith("audio/"):
-                        media_list.append(
-                            MediaAttachment(media_type=MediaType.AUDIO, url=url or None)
-                        )
+                        media_list.append(MediaAttachment(media_type=MediaType.AUDIO, url=url or None))
                     else:
                         media_list.append(
                             MediaAttachment(
@@ -588,9 +574,7 @@ class SlackChannel(BaseChannel):
                 timestamp=timestamp,
             )
         except Exception:
-            logger.debug(
-                "Failed to fetch thread parent %s in %s", thread_ts, channel_id
-            )
+            logger.debug("Failed to fetch thread parent %s in %s", thread_ts, channel_id)
             return None
 
     async def _annotate_mentions(self, text: str) -> str:
@@ -639,9 +623,7 @@ class SlackChannel(BaseChannel):
             mention_ids = mention_ids[: self._mention_annotation_limit]
 
         # 3. Batch resolve with concurrency limit
-        names = await self._user_resolver.resolve_batch(
-            mention_ids, max_concurrent=self._user_resolver_max_concurrent
-        )
+        names = await self._user_resolver.resolve_batch(mention_ids, max_concurrent=self._user_resolver_max_concurrent)
 
         # 4. Replace mentions in text
         def replace_fn(match: re.Match[str]) -> str:
@@ -653,9 +635,7 @@ class SlackChannel(BaseChannel):
 
         return mention_pattern.sub(replace_fn, text)
 
-    async def _parse_message_event(
-        self, event: dict[str, object]
-    ) -> InboundMessage | None:
+    async def _parse_message_event(self, event: dict[str, object]) -> InboundMessage | None:
         user_id = str(event.get("user", ""))
         if user_id == self._bot_user_id or not user_id:
             return None
@@ -687,9 +667,7 @@ class SlackChannel(BaseChannel):
         reply_to = None
         if thread_ts:
             # Auto-reply if bot has participated in this thread
-            if not self._require_thread_mention and self._thread_tracker.contains(
-                str(thread_ts)
-            ):
+            if not self._require_thread_mention and self._thread_tracker.contains(str(thread_ts)):
                 mentioned = True
 
             # Check cache first
@@ -710,9 +688,7 @@ class SlackChannel(BaseChannel):
             # Thread auto-reply: Check if thread should auto-respond without @mention
             if not mentioned and not self._require_thread_mention and reply_to:
                 parent_has_mention = (
-                    reply_to.content and f"<@{self._bot_user_id}>" in reply_to.content
-                    if reply_to.content
-                    else False
+                    reply_to.content and f"<@{self._bot_user_id}>" in reply_to.content if reply_to.content else False
                 )
 
                 # Auto-reply if bot-initiated or parent has @mention
@@ -775,15 +751,10 @@ class SlackChannel(BaseChannel):
                         msg = self._parse_reaction_event(event)
                         if msg:
                             await self._emit_inbound(msg)
-                elif (
-                    payload_type == "interactive"
-                    and inner.get("type") == "block_actions"
-                ):
+                elif payload_type == "interactive" and inner.get("type") == "block_actions":
                     await self._handle_block_actions(inner)
 
-    async def fetch_history(
-        self, chat_id: str, limit: int = 15
-    ) -> list[InboundMessage]:
+    async def fetch_history(self, chat_id: str, limit: int = 15) -> list[InboundMessage]:
         """Fetch recent historical messages from Slack channel."""
         try:
             resp = await self._api._http.post(

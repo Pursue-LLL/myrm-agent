@@ -83,11 +83,7 @@ def _encrypt_credentials(
 
 
 async def _load_row(db: AsyncSession) -> UserConfig | None:
-    return (
-        (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY)))
-        .scalars()
-        .first()
-    )
+    return (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
 
 
 @router.get("", response_model=list[OAuthCredentialItem])
@@ -155,9 +151,7 @@ async def delete_oauth_credential(
         if svc:
             trees_removed = await svc.remove_trees_by_provider(issuer)
 
-    logger.info(
-        "Deleted OAuth integration for '%s' (trees_removed=%d)", issuer, trees_removed
-    )
+    logger.info("Deleted OAuth integration for '%s' (trees_removed=%d)", issuer, trees_removed)
     return {
         "status": "success",
         "message": f"Successfully deleted integration '{issuer}'",

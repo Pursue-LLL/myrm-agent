@@ -34,11 +34,7 @@ class TestAutoRestoreDomains:
             "messageId": "test_msg_auto_restore",
             "query": query,
             "modelSelection": model_selection,
-            "agentConfig": {
-                "skillIds": [],
-                "enabledBuiltinTools": ["web_search", "browser"],
-                "autoRestoreDomains": test_domains
-            }
+            "agentConfig": {"skillIds": [], "enabledBuiltinTools": ["web_search", "browser"], "autoRestoreDomains": test_domains},
         }
 
         # 捕获 INFO 级别的日志
@@ -72,5 +68,5 @@ class TestAutoRestoreDomains:
             if "BrowserSession created: context_key=" in record.message:
                 log_found = True
                 break
-        
+
         assert log_found, "The BrowserSession creation log was not found."

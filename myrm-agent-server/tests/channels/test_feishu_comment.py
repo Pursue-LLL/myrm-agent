@@ -421,9 +421,7 @@ class TestExtractReplyText:
         assert _extract_reply_text(reply) == "hellohttps://x.com@u1"
 
     def test_string_content_json(self) -> None:
-        reply: dict[str, object] = {
-            "content": json.dumps({"elements": [{"type": "text_run", "text_run": {"text": "hi"}}]})
-        }
+        reply: dict[str, object] = {"content": json.dumps({"elements": [{"type": "text_run", "text_run": {"text": "hi"}}]})}
         assert _extract_reply_text(reply) == "hi"
 
     def test_string_content_invalid_json(self) -> None:
@@ -507,9 +505,7 @@ class TestExtractSemanticText:
         assert _extract_semantic_text(reply) == "@"
 
     def test_docs_link(self) -> None:
-        reply: dict[str, object] = {
-            "content": {"elements": [{"type": "docs_link", "docs_link": {"url": "https://example.com"}}]}
-        }
+        reply: dict[str, object] = {"content": {"elements": [{"type": "docs_link", "docs_link": {"url": "https://example.com"}}]}}
         assert "https://example.com" in _extract_semantic_text(reply)
 
     def test_docs_link_non_dict(self) -> None:
@@ -536,11 +532,15 @@ class TestGetReplyUserId:
 
 class TestExtractDocsLinks:
     def test_extracts_feishu_links(self) -> None:
-        replies: list[dict[str, object]] = [{
-            "content": {"elements": [
-                {"type": "docs_link", "docs_link": {"url": "https://feishu.cn/docx/abcdefghij1234567890"}},
-            ]}
-        }]
+        replies: list[dict[str, object]] = [
+            {
+                "content": {
+                    "elements": [
+                        {"type": "docs_link", "docs_link": {"url": "https://feishu.cn/docx/abcdefghij1234567890"}},
+                    ]
+                }
+            }
+        ]
         links = _extract_docs_links(replies)
         assert len(links) == 1
         assert links[0]["doc_type"] == "docx"
@@ -555,17 +555,23 @@ class TestExtractDocsLinks:
         assert len(_extract_docs_links(replies)) == 1
 
     def test_ignores_non_feishu_urls(self) -> None:
-        replies: list[dict[str, object]] = [{
-            "content": {"elements": [{"type": "docs_link", "docs_link": {"url": "https://google.com/doc/abc"}}]}
-        }]
+        replies: list[dict[str, object]] = [
+            {"content": {"elements": [{"type": "docs_link", "docs_link": {"url": "https://google.com/doc/abc"}}]}}
+        ]
         assert len(_extract_docs_links(replies)) == 0
 
     def test_string_content(self) -> None:
-        replies: list[dict[str, object]] = [{
-            "content": json.dumps({"elements": [
-                {"type": "docs_link", "docs_link": {"url": "https://larkoffice.com/wiki/abcdefghij1234567890"}},
-            ]})
-        }]
+        replies: list[dict[str, object]] = [
+            {
+                "content": json.dumps(
+                    {
+                        "elements": [
+                            {"type": "docs_link", "docs_link": {"url": "https://larkoffice.com/wiki/abcdefghij1234567890"}},
+                        ]
+                    }
+                )
+            }
+        ]
         links = _extract_docs_links(replies)
         assert len(links) == 1
 
@@ -598,11 +604,15 @@ class TestExtractDocsLinks:
         assert len(_extract_docs_links(replies)) == 0
 
     def test_link_type_also_works(self) -> None:
-        replies: list[dict[str, object]] = [{
-            "content": {"elements": [
-                {"type": "link", "link": {"url": "https://feishu.cn/sheet/abcdefghij1234567890"}},
-            ]}
-        }]
+        replies: list[dict[str, object]] = [
+            {
+                "content": {
+                    "elements": [
+                        {"type": "link", "link": {"url": "https://feishu.cn/sheet/abcdefghij1234567890"}},
+                    ]
+                }
+            }
+        ]
         links = _extract_docs_links(replies)
         assert len(links) == 1
         assert links[0]["doc_type"] == "sheet"
@@ -650,7 +660,9 @@ class TestFormatReferencedDocs:
         assert "same as current document" in result
 
     def test_resolved_token(self) -> None:
-        links = [{"doc_type": "wiki", "token": "wiki_tok", "resolved_token": "real_tok", "url": "https://feishu.cn/wiki/wiki_tok"}]
+        links = [
+            {"doc_type": "wiki", "token": "wiki_tok", "resolved_token": "real_tok", "url": "https://feishu.cn/wiki/wiki_tok"}
+        ]
         result = _format_referenced_docs(links)
         assert "real_tok" in result
 
@@ -814,8 +826,14 @@ class TestCommentHandlerEdgeCases:
             {
                 "reply_list": {
                     "replies": [
-                        {"user_id": {"open_id": "ou_sender"}, "content": {"elements": [{"type": "text_run", "text_run": {"text": "question?"}}]}},
-                        {"user_id": {"open_id": "ou_bot"}, "content": {"elements": [{"type": "text_run", "text_run": {"text": "answer"}}]}},
+                        {
+                            "user_id": {"open_id": "ou_sender"},
+                            "content": {"elements": [{"type": "text_run", "text_run": {"text": "question?"}}]},
+                        },
+                        {
+                            "user_id": {"open_id": "ou_bot"},
+                            "content": {"elements": [{"type": "text_run", "text_run": {"text": "answer"}}]},
+                        },
                     ]
                 }
             }
@@ -856,7 +874,10 @@ class TestCommentHandlerEdgeCases:
             {
                 "reply_list": {
                     "replies": [
-                        {"user_id": {"open_id": "ou_someone"}, "content": {"elements": [{"type": "text_run", "text_run": {"text": "hello"}}]}},
+                        {
+                            "user_id": {"open_id": "ou_someone"},
+                            "content": {"elements": [{"type": "text_run", "text_run": {"text": "hello"}}]},
+                        },
                     ]
                 }
             }
@@ -890,7 +911,15 @@ class TestCommentHandlerEdgeCases:
         client.query_document_meta.return_value = {"title": "Doc", "url": ""}
         client.batch_query_comment.return_value = {"is_whole": True}
         client.list_comments.return_value = [
-            {"reply_list": json.dumps({"replies": [{"user_id": "ou_sender", "content": {"elements": [{"type": "text_run", "text_run": {"text": "hi"}}]}}]})}
+            {
+                "reply_list": json.dumps(
+                    {
+                        "replies": [
+                            {"user_id": "ou_sender", "content": {"elements": [{"type": "text_run", "text_run": {"text": "hi"}}]}}
+                        ]
+                    }
+                )
+            }
         ]
         client.add_comment_reaction.return_value = True
         client.delete_comment_reaction.return_value = True
@@ -922,7 +951,11 @@ class TestCommentHandlerEdgeCases:
         client.query_document_meta.return_value = {"title": "Doc", "url": ""}
         client.batch_query_comment.return_value = {"is_whole": False, "quote": "quoted"}
         client.list_comment_replies.return_value = [
-            {"reply_id": "r1", "user_id": {"open_id": "ou_sender"}, "content": {"elements": [{"type": "text_run", "text_run": {"text": "my msg"}}]}},
+            {
+                "reply_id": "r1",
+                "user_id": {"open_id": "ou_sender"},
+                "content": {"elements": [{"type": "text_run", "text_run": {"text": "my msg"}}]},
+            },
         ]
         client.add_comment_reaction.return_value = True
         client.delete_comment_reaction.return_value = True

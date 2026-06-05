@@ -128,7 +128,6 @@ async def extract_pdf(
             max_pages=body.max_pages,
             min_text_chars=body.min_text_chars,
             table_format=body.table_format,
-
         )
         from app.services.files.content_extraction import extract_pdf_from_path
 

@@ -100,11 +100,11 @@ class TestTgModels:
             "message_id": 11,
             "from": {"id": 42},
             "chat": {"id": -100, "type": "private"},
-            "sticker": {"file_id": "stk_1", "emoji": "\U0001F60A"},
+            "sticker": {"file_id": "stk_1", "emoji": "\U0001f60a"},
         }
         msg = TgMessage.model_validate(raw)
         assert msg.sticker is not None
-        assert msg.sticker.emoji == "\U0001F60A"
+        assert msg.sticker.emoji == "\U0001f60a"
 
     def test_message_with_location(self) -> None:
         raw = {
@@ -288,12 +288,12 @@ class TestParseUpdate:
                 "message_id": 18,
                 "from": {"id": 42},
                 "chat": {"id": 42, "type": "private"},
-                "sticker": {"file_id": "stk_1", "emoji": "\U0001F60A"},
+                "sticker": {"file_id": "stk_1", "emoji": "\U0001f60a"},
             },
         }
         msg = ch._parse_update(raw)
         assert msg is not None
-        assert msg.content == "\U0001F60A"
+        assert msg.content == "\U0001f60a"
         assert msg.metadata.get("is_sticker") is True
 
     def test_group_message_with_mention(self) -> None:
@@ -523,14 +523,14 @@ class TestParseUpdate:
                     "message_id": 39,
                     "from": {"id": 99},
                     "chat": {"id": 42, "type": "private"},
-                    "sticker": {"file_id": "stk1", "emoji": "\U0001F602"},
+                    "sticker": {"file_id": "stk1", "emoji": "\U0001f602"},
                 },
             },
         }
         msg = ch._parse_update(raw)
         assert msg is not None
         assert msg.reply_to is not None
-        assert msg.reply_to.content == "\U0001F602"
+        assert msg.reply_to.content == "\U0001f602"
         assert len(msg.reply_to.media) == 1
         assert msg.reply_to.media[0].media_type == MediaType.IMAGE
 
@@ -787,12 +787,12 @@ class TestParseUpdate:
                 "message_id": 42,
                 "user": {"id": 99, "username": "bob"},
                 "date": 1700000000,
-                "new_reaction": [{"type": "emoji", "emoji": "\U0001F44D"}],
+                "new_reaction": [{"type": "emoji", "emoji": "\U0001f44d"}],
             },
         }
         msg = ch._parse_update(raw)
         assert msg is not None
-        assert msg.content == "\U0001F44D"
+        assert msg.content == "\U0001f44d"
         assert msg.sender_id == "99"
         assert msg.chat_id == "-100"
         assert msg.is_group is True
@@ -809,12 +809,12 @@ class TestParseUpdate:
                 "message_id": 10,
                 "user": {"id": 42, "username": "alice"},
                 "date": 1700000000,
-                "new_reaction": [{"type": "emoji", "emoji": "\u2764\uFE0F"}],
+                "new_reaction": [{"type": "emoji", "emoji": "\u2764\ufe0f"}],
             },
         }
         msg = ch._parse_update(raw)
         assert msg is not None
-        assert msg.content == "\u2764\uFE0F"
+        assert msg.content == "\u2764\ufe0f"
         assert msg.is_group is False
 
     def test_message_reaction_no_user_returns_none(self) -> None:
@@ -826,7 +826,7 @@ class TestParseUpdate:
                 "message_id": 42,
                 "user": None,
                 "date": 1700000000,
-                "new_reaction": [{"type": "emoji", "emoji": "\U0001F44D"}],
+                "new_reaction": [{"type": "emoji", "emoji": "\U0001f44d"}],
             },
         }
         assert ch._parse_update(raw) is None
@@ -870,14 +870,14 @@ class TestParseUpdate:
                 "user": {"id": 99},
                 "date": 1700000000,
                 "new_reaction": [
-                    {"type": "emoji", "emoji": "\u2764\uFE0F"},
-                    {"type": "emoji", "emoji": "\U0001F44D"},
+                    {"type": "emoji", "emoji": "\u2764\ufe0f"},
+                    {"type": "emoji", "emoji": "\U0001f44d"},
                 ],
             },
         }
         msg = ch._parse_update(raw)
         assert msg is not None
-        assert msg.content == "\u2764\uFE0F"
+        assert msg.content == "\u2764\ufe0f"
 
 
 class TestBufferOrEmit:
@@ -1434,9 +1434,7 @@ class TestTelegramChannelOutbound:
     async def test_edit_message_not_modified(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
-        ch._client.edit_message_text = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: message is not modified")
-        )
+        ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message is not modified"))
 
         await ch.edit_message("42", "100", "Same text")
 
@@ -1764,9 +1762,7 @@ class TestTelegramEditPlaceholderParseError:
     async def test_edit_placeholder_not_modified(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
-        ch._client.edit_message_text = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: message is not modified")
-        )
+        ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message is not modified"))
 
         msg = OutboundMessage(channel="telegram", user_id="u1", recipient_id="42", content="Same")
         await ch.edit_placeholder_message("42", "100", msg)
@@ -1803,9 +1799,7 @@ class TestTelegramEditPlaceholderParseError:
     async def test_edit_placeholder_other_error(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
-        ch._client.edit_message_text = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: message to edit not found")
-        )
+        ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message to edit not found"))
 
         msg = OutboundMessage(channel="telegram", user_id="u1", recipient_id="42", content="text")
         await ch.edit_placeholder_message("42", "100", msg)
@@ -1842,9 +1836,7 @@ class TestTelegramEditMessageInner:
     async def test_edit_other_error_logs(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
-        ch._client.edit_message_text = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: message to edit not found")
-        )
+        ch._client.edit_message_text = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: message to edit not found"))
 
         await ch.edit_message("42", "100", "text")
 
@@ -2109,9 +2101,7 @@ class TestTelegramDraftStreaming:
     async def test_try_send_draft_chat_restriction_not_global(self) -> None:
         ch = _make_channel()
         ch._client = MagicMock()
-        ch._client.send_message_draft = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: can't be used in groups")
-        )
+        ch._client.send_message_draft = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: can't be used in groups"))
 
         result = await ch._try_send_draft("42", "text")
         assert result is None
@@ -2303,9 +2293,7 @@ class TestForumTopicChannel:
     @pytest.mark.asyncio
     async def test_create_topic_success(self) -> None:
         ch = _make_topic_channel()
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 99, "name": "Alice"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
         result = await ch.create_topic("-100123", "Alice")
         assert result == 99
         assert ch._topic_name_cache["-100123:99"] == "Alice"
@@ -2313,9 +2301,7 @@ class TestForumTopicChannel:
     @pytest.mark.asyncio
     async def test_create_topic_failure(self) -> None:
         ch = _make_topic_channel()
-        ch._client.create_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(403, "Forbidden: not enough rights")
-        )
+        ch._client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Forbidden: not enough rights"))
         result = await ch.create_topic("-100123", "Alice")
         assert result is None
 
@@ -2336,9 +2322,7 @@ class TestForumTopicChannel:
     @pytest.mark.asyncio
     async def test_rename_topic_failure(self) -> None:
         ch = _make_topic_channel()
-        ch._client.edit_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(400, "Bad Request: topic not found")
-        )
+        ch._client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Bad Request: topic not found"))
         assert await ch.rename_topic("-100123", 99, "Bob") is False
 
     @pytest.mark.asyncio
@@ -2350,9 +2334,7 @@ class TestForumTopicChannel:
     @pytest.mark.asyncio
     async def test_close_topic_failure(self) -> None:
         ch = _make_topic_channel()
-        ch._client.close_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(400, "error")
-        )
+        ch._client.close_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
         assert await ch.close_topic("-100123", 99) is False
 
     @pytest.mark.asyncio
@@ -2364,9 +2346,7 @@ class TestForumTopicChannel:
     @pytest.mark.asyncio
     async def test_reopen_topic_failure(self) -> None:
         ch = _make_topic_channel()
-        ch._client.reopen_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(400, "error")
-        )
+        ch._client.reopen_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "error"))
         assert await ch.reopen_topic("-100123", 99) is False
 
 
@@ -2382,9 +2362,7 @@ class TestAutoTopicCreation:
     @pytest.mark.asyncio
     async def test_ensure_topic_creates(self) -> None:
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 55, "name": "Alice"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
         result = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert result == 55
         assert ch._user_topic_map["-100123:42"] == 55
@@ -2393,9 +2371,7 @@ class TestAutoTopicCreation:
     async def test_ensure_topic_reuses_existing(self) -> None:
         """Second call for same user should reuse cached topic, not create new one."""
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 55, "name": "Alice"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 55, "name": "Alice"})
         first = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         second = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert first == second == 55
@@ -2447,9 +2423,7 @@ class TestAutoTopicCreation:
         from app.channels.types import InboundMessage
 
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 77, "name": "Bob"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 77, "name": "Bob"})
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2531,21 +2505,15 @@ class TestFromCredentialsAutoTopic:
         assert ch._auto_topic is False
 
     def test_auto_topic_true(self) -> None:
-        ch = TelegramChannel.from_credentials(
-            {"token": "test:tok", "auto_topic": "true"}
-        )
+        ch = TelegramChannel.from_credentials({"token": "test:tok", "auto_topic": "true"})
         assert ch._auto_topic is True
 
     def test_auto_topic_yes(self) -> None:
-        ch = TelegramChannel.from_credentials(
-            {"token": "test:tok", "auto_topic": "yes"}
-        )
+        ch = TelegramChannel.from_credentials({"token": "test:tok", "auto_topic": "yes"})
         assert ch._auto_topic is True
 
     def test_auto_topic_1(self) -> None:
-        ch = TelegramChannel.from_credentials(
-            {"token": "test:tok", "auto_topic": "1"}
-        )
+        ch = TelegramChannel.from_credentials({"token": "test:tok", "auto_topic": "1"})
         assert ch._auto_topic is True
 
 
@@ -2556,9 +2524,7 @@ class TestAutoTopicEdgeCases:
     async def test_ensure_topic_create_fails(self) -> None:
         """ensure_topic_for_user returns None when create_topic fails."""
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(403, "Bot is not admin")
-        )
+        ch._client.create_forum_topic = AsyncMock(side_effect=TelegramApiError(403, "Bot is not admin"))
         result = await ch.ensure_topic_for_user("-100123", "Alice", "42")
         assert result is None
         assert "-100123:42" not in ch._user_topic_map
@@ -2603,9 +2569,7 @@ class TestAutoTopicEdgeCases:
         """sync_topic_name handles rename failure gracefully."""
         ch = _make_topic_channel(auto_topic=True)
         ch._topic_name_cache["-100123:99"] = "Old"
-        ch._client.edit_forum_topic = AsyncMock(
-            side_effect=TelegramApiError(400, "Topic not found")
-        )
+        ch._client.edit_forum_topic = AsyncMock(side_effect=TelegramApiError(400, "Topic not found"))
         await ch.sync_topic_name("-100123", 99, "New Name")
         assert ch._topic_name_cache["-100123:99"] == "Old"
 
@@ -2622,29 +2586,28 @@ class TestAutoTopicEdgeCases:
     async def test_create_topic_with_icon(self) -> None:
         """create_topic passes icon parameters to API."""
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 88, "name": "Test"}
-        )
-        result = await ch.create_topic(
-            "-100123", "Test", icon_color=0x6FB9F0, icon_custom_emoji_id="5368324170671202286"
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 88, "name": "Test"})
+        result = await ch.create_topic("-100123", "Test", icon_color=0x6FB9F0, icon_custom_emoji_id="5368324170671202286")
         assert result == 88
         ch._client.create_forum_topic.assert_called_once_with(
-            "-100123", "Test",
-            icon_color=0x6FB9F0, icon_custom_emoji_id="5368324170671202286",
+            "-100123",
+            "Test",
+            icon_color=0x6FB9F0,
+            icon_custom_emoji_id="5368324170671202286",
         )
 
     @pytest.mark.asyncio
     async def test_ensure_topic_empty_sender_name(self) -> None:
         """Fallback to 'User {id}' when sender_name is empty."""
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 66, "name": "User 42"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 66, "name": "User 42"})
         result = await ch.ensure_topic_for_user("-100123", "", "42")
         assert result == 66
         ch._client.create_forum_topic.assert_called_once_with(
-            "-100123", "User 42", icon_color=None, icon_custom_emoji_id=None,
+            "-100123",
+            "User 42",
+            icon_color=None,
+            icon_custom_emoji_id=None,
         )
 
     @pytest.mark.asyncio
@@ -2653,9 +2616,7 @@ class TestAutoTopicEdgeCases:
         from app.channels.types import InboundMessage
 
         ch = _make_topic_channel(auto_topic=True)
-        ch._client.create_forum_topic = AsyncMock(
-            return_value={"message_thread_id": 99, "name": "Alice"}
-        )
+        ch._client.create_forum_topic = AsyncMock(return_value={"message_thread_id": 99, "name": "Alice"})
         msg = InboundMessage(
             channel="telegram",
             sender_id="42",
@@ -2763,9 +2724,7 @@ class TestPollLoopConflictRecovery:
         ch._status = ChannelStatus.RUNNING
         ch._offset = 0
         ch._client = MagicMock()
-        ch._client.get_updates = AsyncMock(
-            side_effect=TelegramApiError(409, "Conflict: terminated by other getUpdates request")
-        )
+        ch._client.get_updates = AsyncMock(side_effect=TelegramApiError(409, "Conflict: terminated by other getUpdates request"))
 
         with patch.object(_tg_inbound_mod.asyncio, "sleep", new_callable=AsyncMock):
             await ch._poll_loop()
@@ -2791,10 +2750,12 @@ class TestPollLoopConflictRecovery:
             if call_count <= 2:
                 raise TelegramApiError(409, "Conflict: terminated by other getUpdates request")
             if call_count == 3:
-                return [{"update_id": 1, "message": {
-                    "message_id": 1, "from": {"id": 42},
-                    "chat": {"id": 42, "type": "private"}, "text": "hello"
-                }}]
+                return [
+                    {
+                        "update_id": 1,
+                        "message": {"message_id": 1, "from": {"id": 42}, "chat": {"id": 42, "type": "private"}, "text": "hello"},
+                    }
+                ]
             ch._status = ChannelStatus.STOPPED
             return []
 
@@ -2962,10 +2923,17 @@ class TestPollLoopNetworkRecovery:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return [{"update_id": 100, "message": {
-                    "message_id": 1, "from": {"id": 42, "username": "alice"},
-                    "chat": {"id": 42, "type": "private"}, "text": "hello"
-                }}]
+                return [
+                    {
+                        "update_id": 100,
+                        "message": {
+                            "message_id": 1,
+                            "from": {"id": 42, "username": "alice"},
+                            "chat": {"id": 42, "type": "private"},
+                            "text": "hello",
+                        },
+                    }
+                ]
             ch._status = ChannelStatus.STOPPED
             return []
 

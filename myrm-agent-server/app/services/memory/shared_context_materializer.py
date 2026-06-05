@@ -33,11 +33,7 @@ _DEFAULT_IMPORTANCE = 0.5
 
 def _scalar_metadata(metadata: dict[str, object]) -> dict[str, ScalarMetadataValue]:
     """Keep only scalar metadata accepted by Harness BaseMemory."""
-    return {
-        key: value
-        for key, value in metadata.items()
-        if isinstance(key, str) and isinstance(value, str | int | float | bool)
-    }
+    return {key: value for key, value in metadata.items() if isinstance(key, str) and isinstance(value, str | int | float | bool)}
 
 
 def _string_list(value: object) -> list[str]:

@@ -71,11 +71,7 @@ async def mock_artifact(db_session):
     )
     db_session.add(version)
     await db_session.commit()
-    loaded = await db_session.execute(
-        select(Artifact)
-        .options(selectinload(Artifact.versions))
-        .where(Artifact.id == artifact.id)
-    )
+    loaded = await db_session.execute(select(Artifact).options(selectinload(Artifact.versions)).where(Artifact.id == artifact.id))
     return loaded.scalar_one()
 
 
@@ -97,32 +93,32 @@ async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session)
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
         with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                mock_vercel_instance = mock_vercel_class.return_value
-                mock_vercel_instance.deploy = AsyncMock(
-                    return_value={
-                        "deployment_id": "dep_123",
-                        "url": "https://test.vercel.app",
-                        "project_id": "prj_456",
-                        "status": "READY",
-                    }
-                )
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(
+                return_value={
+                    "deployment_id": "dep_123",
+                    "url": "https://test.vercel.app",
+                    "project_id": "prj_456",
+                    "status": "READY",
+                }
+            )
 
-                response = deploy_client.post(
-                    f"/{mock_artifact.id}/deploy",
-                    json={"token": "test_token", "platform": "vercel"},
-                )
+            response = deploy_client.post(
+                f"/{mock_artifact.id}/deploy",
+                json={"token": "test_token", "platform": "vercel"},
+            )
 
-                assert response.status_code == 200
-                data = response.json()
-                assert data["deployment_id"] == "dep_123"
-                assert data["url"] == "https://test.vercel.app"
-                assert data["deployment_version_id"] is not None
-                assert data["latest_version_id"] is not None
+            assert response.status_code == 200
+            data = response.json()
+            assert data["deployment_id"] == "dep_123"
+            assert data["url"] == "https://test.vercel.app"
+            assert data["deployment_version_id"] is not None
+            assert data["latest_version_id"] is not None
 
-                await db_session.refresh(mock_artifact)
-                assert mock_artifact.deployment_url == "https://test.vercel.app"
-                assert mock_artifact.deployment_status == "READY"
-                assert mock_artifact.deployment_version_id is not None
+            await db_session.refresh(mock_artifact)
+            assert mock_artifact.deployment_url == "https://test.vercel.app"
+            assert mock_artifact.deployment_status == "READY"
+            assert mock_artifact.deployment_version_id is not None
 
 
 @pytest.mark.asyncio
@@ -181,17 +177,17 @@ async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artif
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
         with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                mock_vercel_instance = mock_vercel_class.return_value
-                mock_vercel_instance.deploy = AsyncMock(side_effect=Exception("Invalid token"))
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(side_effect=Exception("Invalid token"))
 
-                response = deploy_client.post(
-                    f"/{mock_artifact.id}/deploy",
-                    json={"token": "bad_token", "platform": "vercel"},
-                )
+            response = deploy_client.post(
+                f"/{mock_artifact.id}/deploy",
+                json={"token": "bad_token", "platform": "vercel"},
+            )
 
-                assert response.status_code == 500
-                await db_session.refresh(mock_artifact)
-                assert mock_artifact.deployment_status == "ERROR"
+            assert response.status_code == 500
+            await db_session.refresh(mock_artifact)
+            assert mock_artifact.deployment_status == "ERROR"
 
 
 @pytest.mark.asyncio
@@ -202,25 +198,25 @@ async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_sessio
     }
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
         with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                mock_vercel_instance = mock_vercel_class.return_value
-                mock_vercel_instance.deploy = AsyncMock(
-                    return_value={
-                        "deployment_id": "dep_dir",
-                        "url": "https://dir.vercel.app",
-                        "project_id": "prj_dir",
-                        "status": "READY",
-                    }
-                )
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(
+                return_value={
+                    "deployment_id": "dep_dir",
+                    "url": "https://dir.vercel.app",
+                    "project_id": "prj_dir",
+                    "status": "READY",
+                }
+            )
 
-                response = deploy_client.post(
-                    f"/{mock_artifact.id}/deploy",
-                    json={"token": "test_token", "platform": "vercel"},
-                )
+            response = deploy_client.post(
+                f"/{mock_artifact.id}/deploy",
+                json={"token": "test_token", "platform": "vercel"},
+            )
 
-                assert response.status_code == 200
-                call_kwargs = mock_vercel_instance.deploy.call_args.kwargs
-                assert "index.html" in call_kwargs["files"]
-                assert "style.css" in call_kwargs["files"]
+            assert response.status_code == 200
+            call_kwargs = mock_vercel_instance.deploy.call_args.kwargs
+            assert "index.html" in call_kwargs["files"]
+            assert "style.css" in call_kwargs["files"]
 
 
 @pytest.mark.asyncio
@@ -252,9 +248,7 @@ async def test_deployment_status_ws_auth_success(deploy_client, db_session):
                     db_session.add(artifact)
                     await db_session.commit()
 
-                    with deploy_client.websocket_connect(
-                        f"/{artifact_id}/deploy/status/dep_123"
-                    ) as ws:
+                    with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
                         ws.send_json({"type": "auth"})
                         data = ws.receive_json()
                         assert data["status"] == "READY"
@@ -263,9 +257,7 @@ async def test_deployment_status_ws_auth_success(deploy_client, db_session):
 
 def test_deployment_status_ws_invalid_auth_payload(deploy_client):
     artifact_id = str(uuid.uuid4())
-    with deploy_client.websocket_connect(
-        f"/{artifact_id}/deploy/status/dep_123"
-    ) as ws:
+    with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
         ws.send_json({"type": "invalid"})
         with pytest.raises(Exception, match=".*"):
             ws.receive_json()
@@ -279,9 +271,7 @@ def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
     with patch("app.api.files.deploy_api.get_session", session_override):
         with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value=None):
             artifact_id = str(uuid.uuid4())
-            with deploy_client.websocket_connect(
-                f"/{artifact_id}/deploy/status/dep_123"
-            ) as ws:
+            with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
                 ws.send_json({"type": "auth"})
                 with pytest.raises(Exception, match=".*"):
                     ws.receive_json()
@@ -316,9 +306,7 @@ def test_save_and_get_vercel_credentials(deploy_client):
 
 
 @pytest.mark.asyncio
-async def test_deploy_uses_stored_credentials_when_token_empty(
-    deploy_client, mock_artifact, db_session
-):
+async def test_deploy_uses_stored_credentials_when_token_empty(deploy_client, mock_artifact, db_session):
     with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "stored-token"}, False)
@@ -377,20 +365,20 @@ async def test_deploy_uses_platform_token_in_sandbox(deploy_client, mock_artifac
     with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value="platform-token"):
         with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
             with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                    mock_vercel_instance = mock_vercel_class.return_value
-                    mock_vercel_instance.deploy = AsyncMock(
-                        return_value={
-                            "deployment_id": "dep_platform",
-                            "url": "https://platform.vercel.app",
-                            "status": "READY",
-                            "project_id": "prj_platform",
-                        }
-                    )
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.deploy = AsyncMock(
+                    return_value={
+                        "deployment_id": "dep_platform",
+                        "url": "https://platform.vercel.app",
+                        "status": "READY",
+                        "project_id": "prj_platform",
+                    }
+                )
 
-                    response = deploy_client.post(
-                        f"/{mock_artifact.id}/deploy",
-                        json={"token": "", "platform": "vercel"},
-                    )
+                response = deploy_client.post(
+                    f"/{mock_artifact.id}/deploy",
+                    json={"token": "", "platform": "vercel"},
+                )
 
-                    assert response.status_code == 200
-                    mock_vercel_class.assert_called_once_with(token="platform-token")
+                assert response.status_code == 200
+                mock_vercel_class.assert_called_once_with(token="platform-token")

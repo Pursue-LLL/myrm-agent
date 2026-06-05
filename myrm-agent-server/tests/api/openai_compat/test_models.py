@@ -82,21 +82,19 @@ class TestModelsEndpoint:
 
     @pytest.fixture
     async def client(self):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
     @pytest.fixture
     async def api_key(self, client: AsyncClient) -> str:
-        resp = await client.post(
-            "/api/v1/api-keys", json={"name": "Models Test"}
-        )
+        resp = await client.post("/api/v1/api-keys", json={"name": "Models Test"})
         return resp.json()["key"]
 
     @pytest.mark.asyncio
     async def test_always_includes_default(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         resp = await client.get(
             "/v1/models",
@@ -109,7 +107,9 @@ class TestModelsEndpoint:
 
     @pytest.mark.asyncio
     async def test_no_duplicate_model_ids(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         """De-duplication: model IDs should be unique."""
         resp = await client.get(
@@ -122,7 +122,9 @@ class TestModelsEndpoint:
 
     @pytest.mark.asyncio
     async def test_includes_provider_models_when_available(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         """When provider config exists, provider models should appear."""
         mock_configs = MagicMock()
@@ -148,7 +150,9 @@ class TestModelsEndpoint:
 
     @pytest.mark.asyncio
     async def test_provider_load_failure_graceful(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         """When provider config fails to load, endpoint should still return agents."""
         with patch(

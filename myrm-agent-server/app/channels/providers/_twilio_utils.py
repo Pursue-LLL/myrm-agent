@@ -71,15 +71,11 @@ def port_variant_url(url: str) -> str | None:
 
     if parsed.port == default_port:
         return urllib.parse.urlunparse(
-            (parsed.scheme, parsed.hostname or "", parsed.path,
-             parsed.params, parsed.query, parsed.fragment)
+            (parsed.scheme, parsed.hostname or "", parsed.path, parsed.params, parsed.query, parsed.fragment)
         )
     elif parsed.port is None:
         netloc = f"{parsed.hostname}:{default_port}"
-        return urllib.parse.urlunparse(
-            (parsed.scheme, netloc, parsed.path,
-             parsed.params, parsed.query, parsed.fragment)
-        )
+        return urllib.parse.urlunparse((parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment))
 
     return None
 

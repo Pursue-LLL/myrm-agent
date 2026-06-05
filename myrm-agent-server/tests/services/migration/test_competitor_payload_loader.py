@@ -97,11 +97,7 @@ class TestCompetitorPayloadLoader:
         )
         memory_entries = loaded.get("openclaw_memory")
         assert isinstance(memory_entries, list)
-        contents = [
-            str(entry.get("content", ""))
-            for entry in memory_entries
-            if isinstance(entry, dict)
-        ]
+        contents = [str(entry.get("content", "")) for entry in memory_entries if isinstance(entry, dict)]
         assert any("Workspace memory bullet" in item for item in contents)
         assert any("dark mode" in item for item in contents)
 

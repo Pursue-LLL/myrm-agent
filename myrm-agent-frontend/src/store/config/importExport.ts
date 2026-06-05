@@ -1,3 +1,5 @@
+import { gateMcpConfigBatch } from '@/hooks/useMcpSecurityGate';
+
 import { ConfigState, SearchServiceConfigItem, MCPServiceConfig } from './types';
 import { ProviderConfig, DefaultModelConfig, CustomModelInfo } from './providerTypes';
 import { migrateProvidersBundle } from './providerIdentityMigration';
@@ -105,6 +107,14 @@ export const importConfig = async (
     }
 
     if (config.mcpConfigs && Array.isArray(config.mcpConfigs) && setters.setMCPConfigs) {
+      const mcpList = config.mcpConfigs as MCPServiceConfig[];
+      const batchGate = await gateMcpConfigBatch(mcpList);
+      if (batchGate.blocked) {
+        return { success: false, messageKey: 'mcpImportSecurityBlocked' };
+      }
+      if (batchGate.needsAcknowledgement) {
+        return { success: false, messageKey: 'mcpImportSecurityAckRequired' };
+      }
       setters.setMCPConfigs(config.mcpConfigs);
     }
 

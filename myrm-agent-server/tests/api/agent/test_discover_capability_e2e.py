@@ -1,6 +1,5 @@
 """E2E Test for Unified Capability Discovery Gateway."""
 
-
 import pytest
 from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.base_agent import BaseAgent
@@ -26,9 +25,7 @@ async def test_discover_capability_e2e_real_model():
 
     class DummyDeferredTool(BaseTool):
         name: str = "dummy_native_tool"
-        description: str = (
-            "A dummy native tool for testing. Use this tool if the user asks to test the dummy capability."
-        )
+        description: str = "A dummy native tool for testing. Use this tool if the user asks to test the dummy capability."
         args_schema: type[BaseModel] = DummyInput
 
         def _run(self, arg1: str) -> str:
@@ -42,17 +39,11 @@ async def test_discover_capability_e2e_real_model():
 
     api_key = os.environ.get("BASIC_API_KEY", "").strip()
     if not api_key:
-        pytest.skip(
-            "BASIC_API_KEY not found in environment (see myrm-agent-server/.env.test)"
-        )
+        pytest.skip("BASIC_API_KEY not found in environment (see myrm-agent-server/.env.test)")
 
     base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
-    raw_model = (
-        os.environ.get("DISCOVER_CAPABILITY_E2E_MODEL")
-        or os.environ.get("BASIC_MODEL")
-        or "gpt-4o-mini"
-    ).strip()
-    
+    raw_model = (os.environ.get("DISCOVER_CAPABILITY_E2E_MODEL") or os.environ.get("BASIC_MODEL") or "gpt-4o-mini").strip()
+
     llm = create_litellm_model(
         model=_convert_litellm_model(raw_model),
         api_key=api_key,
@@ -94,12 +85,12 @@ async def test_discover_capability_e2e_real_model():
     final_response = "".join(message_chunks).strip() or None
 
     discover_hits = {"discover_capability_tool"}
-    assert any(
-        name in discover_hits for name in tool_calls_made
-    ), f"Agent did not call discover_capability (got {tool_calls_made!r})"
+    assert any(name in discover_hits for name in tool_calls_made), (
+        f"Agent did not call discover_capability (got {tool_calls_made!r})"
+    )
 
     lower = (final_response or "").lower()
     assert final_response is not None, "Agent did not produce a final response"
-    assert (
-        "dummy_native_tool" in lower or "autmounttools" in lower or "autmount" in lower
-    ), f"Unexpected final response: {final_response!r}"
+    assert "dummy_native_tool" in lower or "autmounttools" in lower or "autmount" in lower, (
+        f"Unexpected final response: {final_response!r}"
+    )

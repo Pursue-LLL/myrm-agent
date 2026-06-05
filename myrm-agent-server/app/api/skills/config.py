@@ -22,6 +22,7 @@ from app.core.skills.store.service import skills_service
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 @router.get("/config", response_model=UserSkillConfigResponse)
 async def get_user_skill_config() -> UserSkillConfigResponse:
     """Get user skill configuration (enabled prebuilt skills and local skill paths)."""
@@ -33,6 +34,7 @@ async def get_user_skill_config() -> UserSkillConfigResponse:
         enabled_local_skill_ids=config.enabled_local_skill_ids,
         updated_at=config.updated_at.isoformat(),
     )
+
 
 @router.put("/config", response_model=UserSkillConfigResponse)
 async def update_user_skill_config(
@@ -50,6 +52,7 @@ async def update_user_skill_config(
         enabled_local_skill_ids=config.enabled_local_skill_ids,
         updated_at=config.updated_at.isoformat(),
     )
+
 
 @router.post("/{skill_id}/enable", response_model=EnableSkillResponse)
 async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillResponse:
@@ -145,6 +148,7 @@ async def enable_skill(skill_id: str, force: bool = False) -> EnableSkillRespons
         scan_findings=scan_responses,
     )
 
+
 @router.post("/{skill_id}/disable", response_model=EnableSkillResponse)
 async def disable_skill(skill_id: str) -> EnableSkillResponse:
     """Disable a skill (no scan required)."""
@@ -161,6 +165,7 @@ async def disable_skill(skill_id: str) -> EnableSkillResponse:
     _audit_skill_action("disable", skill_id)
     return EnableSkillResponse(skill_id=skill_id, enabled=False)
 
+
 @router.post("/{skill_id}/trust")
 async def trust_skill(skill_id: str) -> dict[str, str]:
     """Elevate a skill to TRUSTED after user security review."""
@@ -173,6 +178,7 @@ async def trust_skill(skill_id: str) -> dict[str, str]:
     _audit_skill_action("trust", skill_id)
     return {"skill_id": skill_id, "trust": "trusted"}
 
+
 @router.delete("/{skill_id}/trust")
 async def untrust_skill(skill_id: str) -> dict[str, str]:
     """Revoke user trust from a skill, reverting to its original trust level."""
@@ -180,6 +186,7 @@ async def untrust_skill(skill_id: str) -> dict[str, str]:
     bump_skill_config_version()
     _audit_skill_action("untrust", skill_id)
     return {"skill_id": skill_id, "trust": "revoked"}
+
 
 @router.post("/{skill_id}/rollback")
 async def rollback_skill_evolution(skill_id: str) -> dict[str, str]:
@@ -221,6 +228,7 @@ async def rollback_skill_evolution(skill_id: str) -> dict[str, str]:
     bump_skill_config_version()
     _audit_skill_action("rollback", skill_id)
     return {"skill_id": skill_id, "status": "rolled_back"}
+
 
 @router.post("/{skill_id}/evolution-lock")
 async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str, str | bool]:
@@ -267,6 +275,7 @@ async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str,
     _audit_skill_action(action, skill_id)
     return {"skill_id": skill_id, "evolution_locked": locked}
 
+
 @router.get("/{skill_id}/env", response_model=SkillEnvVarsResponse)
 async def get_skill_env_vars(skill_id: str) -> SkillEnvVarsResponse:
     """Get configured env vars for a skill."""
@@ -283,6 +292,7 @@ async def get_skill_env_vars(skill_id: str) -> SkillEnvVarsResponse:
         required_env=skill.requires.env,
         primary_env=skill.primary_env,
     )
+
 
 @router.put("/{skill_id}/env", response_model=SkillEnvVarsResponse)
 async def update_skill_env_vars(
@@ -306,6 +316,7 @@ async def update_skill_env_vars(
         primary_env=skill.primary_env,
     )
 
+
 @router.get("/config-version", response_model=SkillConfigVersionResponse)
 async def get_config_version() -> SkillConfigVersionResponse:
     """Return skill config version for hot-reload detection.
@@ -315,6 +326,7 @@ async def get_config_version() -> SkillConfigVersionResponse:
     """
     return SkillConfigVersionResponse(version=get_skill_config_version())
 
+
 @router.get("/available", response_model=SkillListResponse)
 async def get_user_available_skills() -> SkillListResponse:
     """Get user's available skills (enabled prebuilt + local skills)."""
@@ -323,4 +335,3 @@ async def get_user_available_skills() -> SkillListResponse:
         skills=[skill_to_response(s) for s in skills],
         total=len(skills),
     )
-

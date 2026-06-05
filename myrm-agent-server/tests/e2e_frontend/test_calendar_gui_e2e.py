@@ -7,23 +7,14 @@ from patchright.async_api import async_playwright
 from tests.e2e_frontend.credentials import require_basic_llm_credentials, require_lite_llm_credentials
 
 
-async def configure_provider(
-    page, provider_name, api_url, api_key, model_name, is_custom=False
-):
+async def configure_provider(page, provider_name, api_url, api_key, model_name, is_custom=False):
     print(f"Configuring {provider_name}...")
     try:
         if is_custom:
-            add_provider_btn = page.locator("button").filter(
-                has_text="添加自定义提供商"
-            )
+            add_provider_btn = page.locator("button").filter(has_text="添加自定义提供商")
             if await add_provider_btn.count() == 0:
-                add_provider_btn = page.locator("button").filter(
-                    has_text="添加自定义助手"
-                )
-            if (
-                await add_provider_btn.count() > 0
-                and await add_provider_btn.first.is_visible()
-            ):
+                add_provider_btn = page.locator("button").filter(has_text="添加自定义助手")
+            if await add_provider_btn.count() > 0 and await add_provider_btn.first.is_visible():
                 await add_provider_btn.first.click(force=True, timeout=2000)
                 await page.wait_for_timeout(1000)
 
@@ -97,9 +88,7 @@ async def main():
 
         try:
             print("Navigating to http://127.0.0.1:3000 ...")
-            await page.goto(
-                "http://127.0.0.1:3000", wait_until="domcontentloaded", timeout=60000
-            )
+            await page.goto("http://127.0.0.1:3000", wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)
 
             adopt = page.get_by_role("button", name="采用服务端数据")
@@ -112,28 +101,16 @@ async def main():
 
             # --- Configure Providers ---
             print("Configuring providers...")
-            await page.goto(
-                "http://127.0.0.1:3000/settings/models", wait_until="domcontentloaded"
-            )
+            await page.goto("http://127.0.0.1:3000/settings/models", wait_until="domcontentloaded")
             await page.wait_for_timeout(2000)
 
-            (
-                basic_model.split("/")[0] if "/" in basic_model else "xiaomi_mimo"
-            )
-            basic_model_name = (
-                basic_model.split("/")[1] if "/" in basic_model else basic_model
-            )
-            await configure_provider(
-                page, "Xiaomi MiMo", basic_base_url, basic_api_key, basic_model_name
-            )
+            (basic_model.split("/")[0] if "/" in basic_model else "xiaomi_mimo")
+            basic_model_name = basic_model.split("/")[1] if "/" in basic_model else basic_model
+            await configure_provider(page, "Xiaomi MiMo", basic_base_url, basic_api_key, basic_model_name)
 
             lite_model.split("/")[0] if "/" in lite_model else "minimax"
-            lite_model_name = (
-                lite_model.split("/")[1] if "/" in lite_model else lite_model
-            )
-            await configure_provider(
-                page, "MiniMax", lite_base_url, lite_api_key, lite_model_name
-            )
+            lite_model_name = lite_model.split("/")[1] if "/" in lite_model else lite_model
+            await configure_provider(page, "MiniMax", lite_base_url, lite_api_key, lite_model_name)
 
             # --- Test Calendar Agent Scheduling ---
             print("Testing Calendar Tool from Frontend UI...")
@@ -142,9 +119,7 @@ async def main():
 
             # Click the Agent button
             if await page.get_by_role("radio", name="智能代理").count() > 0:
-                await page.get_by_role("radio", name="智能代理").click(
-                    force=True, timeout=2000
-                )
+                await page.get_by_role("radio", name="智能代理").click(force=True, timeout=2000)
                 await page.wait_for_timeout(500)
 
             chat_input = None

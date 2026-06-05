@@ -76,6 +76,7 @@ logger = logging.getLogger(__name__)
 # Initialize and register the snapshot interceptor
 set_execution_interceptor(SnapshotInterceptor())
 
+
 class ChannelAgentExecutor:
     """Executes Agent tasks for inbound channel messages.
 
@@ -144,8 +145,7 @@ class ChannelAgentExecutor:
 
             if await should_block_execution():
                 logger.warning(
-                    "Channel execution blocked: daily budget exceeded (block policy), "
-                    "channel=%s chat_id=%s",
+                    "Channel execution blocked: daily budget exceeded (block policy), channel=%s chat_id=%s",
                     msg.channel,
                     msg.chat_id,
                 )
@@ -158,18 +158,12 @@ class ChannelAgentExecutor:
 
             query = build_channel_inbound_query(msg)
 
-            embedding_cfg, reranker_cfg = extract_retrieval_models(
-                configs.retrieval_dict
-            )
+            embedding_cfg, reranker_cfg = extract_retrieval_models(configs.retrieval_dict)
             memory_settings = configs.personal_settings_dict or {}
             mcp_configs = extract_mcp_configs(configs.mcp_dict)
             lite_model_cfg = extract_lite_model_config(configs.providers_dict)
-            fallback_model_cfg, fallback_lite_model_cfg = (
-                extract_fallback_model_configs(configs.providers_dict)
-            )
-            user_instructions = extract_user_instructions(
-                configs.personal_settings_dict
-            )
+            fallback_model_cfg, fallback_lite_model_cfg = extract_fallback_model_configs(configs.providers_dict)
+            user_instructions = extract_user_instructions(configs.personal_settings_dict)
 
             agent_skill_ids: list[str] = []
             agent_subagent_ids: list[str] | None = None
@@ -188,9 +182,7 @@ class ChannelAgentExecutor:
 
             if topic_context and topic_context.agent_id:
                 resolved_agent_id = topic_context.agent_id
-                resolved_profile = await get_agent_profile_resolver().resolve(
-                    topic_context.agent_id
-                )
+                resolved_profile = await get_agent_profile_resolver().resolve(topic_context.agent_id)
                 if resolved_profile:
                     if resolved_profile.system_prompt:
                         user_instructions = (
@@ -199,48 +191,28 @@ class ChannelAgentExecutor:
                             else resolved_profile.system_prompt
                         )
                     agent_skill_ids = list(resolved_profile.skill_ids)
-                    agent_subagent_ids = (
-                        list(resolved_profile.subagent_ids)
-                        if resolved_profile.subagent_ids
-                        else None
-                    )
+                    agent_subagent_ids = list(resolved_profile.subagent_ids) if resolved_profile.subagent_ids else None
                     agent_max_iterations = resolved_profile.max_iterations
                     agent_engine_params = resolved_profile.engine_params
                     enabled_builtin_tools = list(resolved_profile.enabled_builtin_tools)
                     auto_restore_domains = list(resolved_profile.auto_restore_domains)
                     raw_decay = resolved_profile.memory_decay_profile
-                    memory_decay_profile = (
-                        raw_decay if isinstance(raw_decay, str) else None
-                    )
+                    memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
 
-            if (
-                resolved_profile
-                and resolved_profile.agent_type == "team"
-                and agent_subagent_ids
-            ):
+            if resolved_profile and resolved_profile.agent_type == "team" and agent_subagent_ids:
                 from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
-                leader_protocol = await build_leader_protocol_prompt(
-                    agent_subagent_ids
-                )
-                user_instructions = (
-                    f"{user_instructions}\n\n{leader_protocol}"
-                    if user_instructions
-                    else leader_protocol
-                )
+                leader_protocol = await build_leader_protocol_prompt(agent_subagent_ids)
+                user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 
             # Inject channel capability constraints into system prompt
             if hasattr(msg, "channel_capabilities") and msg.channel_capabilities:
                 caps = msg.channel_capabilities
                 warnings = []
                 if not caps.media:
-                    warnings.append(
-                        "- DO NOT attempt to generate or send any images, video, or audio."
-                    )
+                    warnings.append("- DO NOT attempt to generate or send any images, video, or audio.")
                 if not caps.file_upload:
-                    warnings.append(
-                        "- DO NOT attempt to generate or send any files or documents (like CSV, PDF, etc.)."
-                    )
+                    warnings.append("- DO NOT attempt to generate or send any files or documents (like CSV, PDF, etc.).")
                 if not caps.markdown:
                     warnings.append(
                         "- DO NOT use Markdown formatting (like bold, italics, links, or code blocks). Use plain text only."
@@ -252,11 +224,7 @@ class ChannelAgentExecutor:
                         + "\n".join(warnings)
                         + "\nDescribe things using text instead."
                     )
-                    user_instructions = (
-                        f"{user_instructions}\n\n{warning_str}"
-                        if user_instructions
-                        else warning_str
-                    )
+                    user_instructions = f"{user_instructions}\n\n{warning_str}" if user_instructions else warning_str
 
             # Inject personality style: metadata (temp command) > agent config > default
             from app.ai_agents.personality_templates import (
@@ -271,21 +239,12 @@ class ChannelAgentExecutor:
                 or DEFAULT_PERSONALITY_STYLE
             )
             personality_style_key = str(raw_ps)
-            if (
-                personality_style_key != DEFAULT_PERSONALITY_STYLE
-                and personality_style_key in PERSONALITY_TEMPLATES
-            ):
+            if personality_style_key != DEFAULT_PERSONALITY_STYLE and personality_style_key in PERSONALITY_TEMPLATES:
                 try:
-                    template = get_personality_template(
-                        personality_style_key
-                    )  # key validated against template map
-                    personality_suffix = (
-                        f"\n\n**Communication Style**: {template.system_prompt_suffix}"
-                    )
+                    template = get_personality_template(personality_style_key)  # key validated against template map
+                    personality_suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
                     user_instructions = (
-                        f"{user_instructions}{personality_suffix}"
-                        if user_instructions
-                        else personality_suffix.strip()
+                        f"{user_instructions}{personality_suffix}" if user_instructions else personality_suffix.strip()
                     )
                 except Exception as e:
                     logger.warning(
@@ -295,19 +254,11 @@ class ChannelAgentExecutor:
                     )
 
             session_policy = extract_session_policy(configs.personal_settings_dict)
-            if (
-                resolved_profile
-                and resolved_profile.session_policy
-                and isinstance(resolved_profile.session_policy, dict)
-            ):
+            if resolved_profile and resolved_profile.session_policy and isinstance(resolved_profile.session_policy, dict):
                 session_policy = session_policy_from_agent_dict(resolved_profile.session_policy)
 
             force_new = bool(msg.metadata.get("force_new_epoch"))
-            thread_sharing_mode = (
-                topic_context.thread_sharing_mode
-                if topic_context
-                else ThreadSharingMode.ISOLATED
-            )
+            thread_sharing_mode = topic_context.thread_sharing_mode if topic_context else ThreadSharingMode.ISOLATED
             session_key = await resolve_session_key(
                 msg,
                 session_policy,
@@ -328,15 +279,11 @@ class ChannelAgentExecutor:
                 if not existing_chat:
                     is_cold_start = True
                 else:
-                    existing_hist = await ChatService.load_channel_history(
-                        existing_chat.id, api_key=None
-                    )
+                    existing_hist = await ChatService.load_channel_history(existing_chat.id, api_key=None)
                     if not existing_hist:
                         is_cold_start = True
             except Exception as e:
-                logger.warning(
-                    "Error checking cold-start for session %s: %s", session_key, e
-                )
+                logger.warning("Error checking cold-start for session %s: %s", session_key, e)
 
             if is_cold_start and session_key not in self._backfill_locks:
                 self._backfill_locks.add(session_key)
@@ -348,41 +295,28 @@ class ChannelAgentExecutor:
                         channel_inst = gateway.bus.channels.get(msg.channel)
                         if channel_inst and hasattr(channel_inst, "fetch_history"):
                             backfill_limit = 15
-                            if msg.metadata and isinstance(
-                                msg.metadata.get("backfill_limit"), int
-                            ):
+                            if msg.metadata and isinstance(msg.metadata.get("backfill_limit"), int):
                                 backfill_limit = msg.metadata["backfill_limit"]
 
                             if backfill_limit > 0:
-                                hist_msgs = await channel_inst.fetch_history(
-                                    msg.chat_id, limit=backfill_limit
-                                )
+                                hist_msgs = await channel_inst.fetch_history(msg.chat_id, limit=backfill_limit)
                                 if hist_msgs:
                                     chat = await ChatService.get_or_create_channel_chat(
                                         session_key,
                                         msg.channel,
                                         agent_id=resolved_agent_id,
                                     )
-                                    base_time = (
-                                        msg.sent_at - (len(hist_msgs) * 0.001) - 1.0
-                                    )
+                                    base_time = msg.sent_at - (len(hist_msgs) * 0.001) - 1.0
 
                                     for i, h_msg in enumerate(hist_msgs):
                                         truncated_content = h_msg.content
-                                        if (
-                                            truncated_content
-                                            and len(truncated_content) > 500
-                                        ):
-                                            truncated_content = (
-                                                truncated_content[:500] + "..."
-                                            )
+                                        if truncated_content and len(truncated_content) > 500:
+                                            truncated_content = truncated_content[:500] + "..."
 
                                         if not truncated_content and not h_msg.media:
                                             continue
 
-                                        smoothed_time = datetime.fromtimestamp(
-                                            base_time + (i * 0.001), tz=timezone.utc
-                                        )
+                                        smoothed_time = datetime.fromtimestamp(base_time + (i * 0.001), tz=timezone.utc)
 
                                         await ChatService.append_message(
                                             chat.id,
@@ -458,9 +392,7 @@ class ChannelAgentExecutor:
                     configs.providers_dict,
                     model_override=resolved_profile.model,
                 )
-                agent_model_cfg = enrich_model_context_window(
-                    agent_model_cfg, configs.providers_dict
-                )
+                agent_model_cfg = enrich_model_context_window(agent_model_cfg, configs.providers_dict)
             else:
                 agent_model_cfg = configs.model_cfg
 
@@ -484,13 +416,11 @@ class ChannelAgentExecutor:
                     err_msg = get_text(msg, "search_not_configured")
                 else:
                     err_msg = get_text(msg, "search_unreachable")
-                yield msg.get_or_create_correlation_context().create_reply(
-                    content=err_msg
-                )
+                yield msg.get_or_create_correlation_context().create_reply(content=err_msg)
                 return
 
             from app.ai_agents.general_agent.context import set_current_agent_id, set_current_chat_id, set_current_turn_id
-            
+
             # Set context for snapshot interceptor
             turn_id = msg.metadata.get("turn_id") or msg.message_id or "unknown"
             set_current_turn_id(turn_id)
@@ -518,27 +448,17 @@ class ChannelAgentExecutor:
                 **resolve_builtin_tool_flags(enabled_builtin_tools),
                 auto_restore_domains=auto_restore_domains,
                 enable_advanced_retrieval=bool(
-                    configs.retrieval_dict.get("enableAdvancedRetrieval")
-                    if configs.retrieval_dict
-                    else False
+                    configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False
                 ),
-                memory_require_confirmation=bool(
-                    memory_settings.get("memoryRequireConfirmation")
-                ),
-                enable_memory_auto_extraction=bool(
-                    memory_settings.get("enableMemoryAutoExtraction")
-                ),
-                security_config_raw=self._build_security_config(
-                    configs.security_config_dict, msg.metadata
-                ),
+                memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
+                enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
+                security_config_raw=self._build_security_config(configs.security_config_dict, msg.metadata),
                 agent_security_raw=(
                     {str(k): v for k, v in resolved_profile.security_overrides.items()}
                     if resolved_profile and resolved_profile.security_overrides
                     else None
                 ),
-                memory_policy=(
-                    resolved_profile.memory_policy if resolved_profile else None
-                ),
+                memory_policy=(resolved_profile.memory_policy if resolved_profile else None),
                 memory_decay_profile=memory_decay_profile,
                 engine_params=agent_engine_params,
                 max_iterations=agent_max_iterations,
@@ -548,15 +468,9 @@ class ChannelAgentExecutor:
                 memory_task_id=memory_identity.task_id,
                 memory_shared_context_ids=memory_shared_context_ids,
                 timezone=user_timezone,
-                external_agents_config=extract_external_agents(
-                    configs.external_agents_dict
-                ),
-                code_execution_allow_network=_extract_code_exec_network(
-                    memory_settings
-                ),
-                notify_targets=(
-                    resolved_profile.notify_targets if resolved_profile else ()
-                ),
+                external_agents_config=extract_external_agents(configs.external_agents_dict),
+                code_execution_allow_network=_extract_code_exec_network(memory_settings),
+                notify_targets=(resolved_profile.notify_targets if resolved_profile else ()),
             )
 
             agent = AgentFactory.create_general_agent(params)
@@ -585,23 +499,17 @@ class ChannelAgentExecutor:
                 store = CredentialsStore()
                 creds_dict = await store.get(msg.channel)
                 if creds_dict:
-                    token = creds_dict.get("user_access_token") or creds_dict.get(
-                        "access_token"
-                    )
+                    token = creds_dict.get("user_access_token") or creds_dict.get("access_token")
                     if token:
 
-                        async def _channel_token_refresher() -> (
-                            EphemeralUserCredential | None
-                        ):
+                        async def _channel_token_refresher() -> EphemeralUserCredential | None:
                             logger.info(
                                 "Channel token refresher callback triggered for '%s'",
                                 msg.channel,
                             )
                             fresh_creds = await store.get(msg.channel)
                             if fresh_creds:
-                                fresh_token = fresh_creds.get(
-                                    "user_access_token"
-                                ) or fresh_creds.get("access_token")
+                                fresh_token = fresh_creds.get("user_access_token") or fresh_creds.get("access_token")
                                 if fresh_token:
                                     return EphemeralUserCredential(
                                         issuer=msg.channel,
@@ -620,9 +528,7 @@ class ChannelAgentExecutor:
                             )
                         )
             except Exception as e:
-                logger.warning(
-                    "Failed to resolve channel credentials for session: %s", e
-                )
+                logger.warning("Failed to resolve channel credentials for session: %s", e)
 
             token_ctx = user_credentials_ctx.set(tuple(credentials_list))
 
@@ -694,56 +600,29 @@ class ChannelAgentExecutor:
                     if isinstance(data, dict):
                         action_requests = data.get("actionRequests", [])
                         extensions = data.get("extensions", {})
-                        timeout_info = (
-                            extensions.get("timeout", {})
-                            if isinstance(extensions, dict)
-                            else {}
-                        )
-                        timeout_secs = (
-                            timeout_info.get("seconds", 300)
-                            if isinstance(timeout_info, dict)
-                            else 300
-                        )
-                        timeout_behavior = (
-                            timeout_info.get("behavior", "deny")
-                            if isinstance(timeout_info, dict)
-                            else "deny"
-                        )
+                        timeout_info = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
+                        timeout_secs = timeout_info.get("seconds", 300) if isinstance(timeout_info, dict) else 300
+                        timeout_behavior = timeout_info.get("behavior", "deny") if isinstance(timeout_info, dict) else "deny"
 
                         if isinstance(action_requests, list) and action_requests:
-                            tool_names = [
-                                str(req.get("action", "unknown"))
-                                for req in action_requests
-                                if isinstance(req, dict)
-                            ]
+                            tool_names = [str(req.get("action", "unknown")) for req in action_requests if isinstance(req, dict)]
                             reasons = [
                                 str(req.get("description", ""))
                                 for req in action_requests
                                 if isinstance(req, dict) and req.get("description")
                             ]
-                            tools_str = (
-                                ", ".join(tool_names) if tool_names else "unknown"
-                            )
+                            tools_str = ", ".join(tool_names) if tool_names else "unknown"
                             reason_str = "; ".join(reasons) if reasons else ""
                         else:
                             tools_str = str(data.get("tool_name", "unknown"))
                             reason_str = str(data.get("reason", ""))
 
-                        timeout_action = (
-                            "auto-approve"
-                            if timeout_behavior == "allow"
-                            else "auto-deny"
-                        )
+                        timeout_action = "auto-approve" if timeout_behavior == "allow" else "auto-deny"
                         label = f"{tools_str} needs approval: {reason_str}\n⏱ Timeout: {timeout_secs}s ({timeout_action})"
 
-                        is_batch = (
-                            isinstance(action_requests, list)
-                            and len(action_requests) > 1
-                        )
+                        is_batch = isinstance(action_requests, list) and len(action_requests) > 1
                         quick_replies: tuple[QuickReply, ...] = (
-                            QuickReply(
-                                label="✅ Approve", text="/approve", required=True
-                            ),
+                            QuickReply(label="✅ Approve", text="/approve", required=True),
                             QuickReply(label="❌ Deny", text="/deny", required=True),
                         )
                         if is_batch:
@@ -753,9 +632,7 @@ class ChannelAgentExecutor:
                                     text="/approve",
                                     required=True,
                                 ),
-                                QuickReply(
-                                    label="❌ Deny All", text="/deny", required=True
-                                ),
+                                QuickReply(label="❌ Deny All", text="/deny", required=True),
                                 QuickReply(
                                     label="📋 Batch",
                                     text=f"/batch {','.join('a' for _ in action_requests)}",
@@ -778,9 +655,7 @@ class ChannelAgentExecutor:
                 elif event_type == "error":
                     error_msg = str(event.get("error", "Unknown error"))
                     error_type = str(event.get("error_type", ""))
-                    acc.error_message = (
-                        f"{error_type}: {error_msg}" if error_type else error_msg
-                    )
+                    acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
 
             content = strip_internal_markers("".join(acc.chunks))
 
@@ -793,18 +668,12 @@ class ChannelAgentExecutor:
                     )
                     content = f"[Error] {acc.error_message}"
                 else:
-                    logger.warning(
-                        "ChannelAgentExecutor: empty LLM response for %s", msg.sender_id
-                    )
+                    logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
                     content = "[No response generated]"
 
-            await persist_assistant_message(
-                chat_id, content, timezone=msg.sent_timezone
-            )
+            await persist_assistant_message(chat_id, content, timezone=msg.sent_timezone)
             if not chat_history:
-                auto_title = bool(
-                    memory_settings.get("enableAutoTitleGeneration", True)
-                )
+                auto_title = bool(memory_settings.get("enableAutoTitleGeneration", True))
                 asyncio.create_task(
                     generate_channel_title(
                         chat_id,
@@ -834,7 +703,9 @@ class ChannelAgentExecutor:
                 try:
                     img_bytes = b64.b64decode(acc.last_image_base64)
                     tmp = tempfile.NamedTemporaryFile(
-                        suffix=f".{ext}", prefix="screenshot_", delete=False,
+                        suffix=f".{ext}",
+                        prefix="screenshot_",
+                        delete=False,
                     )
                     tmp.write(img_bytes)
                     tmp.close()
@@ -873,9 +744,7 @@ class ChannelAgentExecutor:
             )
             locale = resolve_message_locale(msg)
             lang_key = "zh" if is_chinese(locale) else "en"
-            friendly_msg = exc.user_friendly_message.get(
-                lang_key
-            ) or exc.user_friendly_message.get("en", str(exc))
+            friendly_msg = exc.user_friendly_message.get(lang_key) or exc.user_friendly_message.get("en", str(exc))
 
             error_metadata = {
                 "error_type": exc.error_code,
@@ -889,9 +758,7 @@ class ChannelAgentExecutor:
                 metadata=error_metadata,
             )
         except MyrmLLMError as exc:
-            logger.error(
-                "ChannelAgentExecutor: LLM error for %s: %s", msg.sender_id, exc
-            )
+            logger.error("ChannelAgentExecutor: LLM error for %s: %s", msg.sender_id, exc)
 
             locale = resolve_message_locale(msg)
             lang_key = "zh" if is_chinese(locale) else "en"
@@ -906,9 +773,7 @@ class ChannelAgentExecutor:
 
             if exc.context and "cooldown_remaining_ms" in exc.context:
                 retry_after_seconds = int(exc.context["cooldown_remaining_ms"]) / 1000
-                friendly_msg += get_text(
-                    msg, "cooldown_retry", seconds=retry_after_seconds
-                )
+                friendly_msg += get_text(msg, "cooldown_retry", seconds=retry_after_seconds)
 
             if resolution_steps:
                 steps_text = "\n".join(f"• {step}" for step in resolution_steps[:3])
@@ -921,11 +786,7 @@ class ChannelAgentExecutor:
 
             # 4. Rich Interactive Error Recovery for Headless Channels
             components = []
-            if (
-                msg.channel_capabilities
-                and msg.channel_capabilities.buttons
-                and recovery_actions
-            ):
+            if msg.channel_capabilities and msg.channel_capabilities.buttons and recovery_actions:
                 from app.channels.types.messages import (
                     ActionButton,
                 )

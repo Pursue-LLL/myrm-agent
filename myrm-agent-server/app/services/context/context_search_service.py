@@ -135,9 +135,7 @@ def _rrf_merge(lists: list[list[_RankedCandidate]], *, top_k: int) -> list[_Scor
     for candidates in lists:
         for candidate in candidates:
             payloads[candidate.key] = candidate
-            scores[candidate.key] = scores.get(candidate.key, 0.0) + 1.0 / (
-                _RRF_K + candidate.rank + 1
-            )
+            scores[candidate.key] = scores.get(candidate.key, 0.0) + 1.0 / (_RRF_K + candidate.rank + 1)
     ordered = sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_k]
     return [
         _ScoredCandidate(

@@ -87,9 +87,7 @@ def dry_run_agentmemory(payload: dict[str, object]) -> MemoryImportDryRunResult:
         normalized["episodic"].extend(
             _observation_to_episodic(session_id, entry) for entry in raw_entries if isinstance(entry, dict)
         )
-    normalized["procedural"].extend(
-        _procedural_to_procedural(item) for item in procedural_memories if isinstance(item, dict)
-    )
+    normalized["procedural"].extend(_procedural_to_procedural(item) for item in procedural_memories if isinstance(item, dict))
     normalized = {bucket: entries for bucket, entries in normalized.items() if entries}
 
     mappings = [

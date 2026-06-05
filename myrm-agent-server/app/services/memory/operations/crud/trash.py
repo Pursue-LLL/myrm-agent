@@ -56,11 +56,14 @@ async def list_trash_memories(
             for m in memories:
                 if getattr(m, "status", None) == MemoryStatus.ARCHIVED:
                     item = memory_to_item(m, mem_type)
-                    item.metadata = {**(item.metadata or {}), **{
-                        k: getattr(m, "metadata", {}).get(k, "")
-                        for k in ("archived_at", "archive_expires_at", "archive_reason")
-                        if getattr(m, "metadata", {}).get(k)
-                    }}
+                    item.metadata = {
+                        **(item.metadata or {}),
+                        **{
+                            k: getattr(m, "metadata", {}).get(k, "")
+                            for k in ("archived_at", "archive_expires_at", "archive_reason")
+                            if getattr(m, "metadata", {}).get(k)
+                        },
+                    }
                     all_archived.append(item)
         except Exception as e:
             logger.warning("Error listing archived %s memories: %s", mem_type, e)
@@ -74,8 +77,12 @@ async def list_trash_memories(
     return MemoryListPaginatedResponse(
         items=paginated,
         pagination=PaginationInfo(
-            page=page, page_size=page_size, total=total,
-            total_pages=total_pages, has_next=page < total_pages, has_prev=page > 1,
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_prev=page > 1,
         ),
     )
 
@@ -131,5 +138,3 @@ async def purge_trashed_memory(
         metadata={"purged": True},
     )
     return create_success_response(data={"purged": True, "memory_id": memory_id})
-
-

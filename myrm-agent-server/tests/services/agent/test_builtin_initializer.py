@@ -298,9 +298,7 @@ async def test_update_regular_agent_can_set_builtin_flag(test_db: sessionmaker):
     from app.database.dto import AgentUpdate
     from app.services.agent.agent_service import AgentService
 
-    result = await AgentService.update_agent(
-        "regular-agent-1", AgentUpdate(is_built_in=True)
-    )
+    result = await AgentService.update_agent("regular-agent-1", AgentUpdate(is_built_in=True))
     assert result is not None
     assert result.profile.built_in is True
 
@@ -345,9 +343,7 @@ async def test_update_nonexistent_agent_returns_none(test_db: sessionmaker):
     from app.database.dto import AgentUpdate
     from app.services.agent.agent_service import AgentService
 
-    result = await AgentService.update_agent(
-        "nonexistent-id", AgentUpdate(name="Ghost")
-    )
+    result = await AgentService.update_agent("nonexistent-id", AgentUpdate(name="Ghost"))
     assert result is None
 
 
@@ -357,9 +353,7 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
     await initialize_builtin_agents()
 
     async with test_db() as session:
-        result = await session.execute(
-            select(Agent).where(Agent.id.in_(["builtin-fast-search", "builtin-deep-search"]))
-        )
+        result = await session.execute(select(Agent).where(Agent.id.in_(["builtin-fast-search", "builtin-deep-search"])))
         agents = {a.id: a for a in result.scalars().all()}
 
     fast = agents["builtin-fast-search"]
@@ -407,9 +401,7 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
     await initialize_builtin_agents()
 
     async with test_db() as session:
-        result = await session.execute(
-            select(Agent).where(Agent.id == "builtin-fast-search")
-        )
+        result = await session.execute(select(Agent).where(Agent.id == "builtin-fast-search"))
         agent = result.scalar_one()
 
     assert agent.enabled_builtin_tools == ["web_search"]

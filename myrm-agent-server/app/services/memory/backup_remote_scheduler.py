@@ -43,7 +43,9 @@ async def _upload_with_retry(
                 delay = _RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
                 logger.warning(
                     "Upload attempt %d/%d failed, retrying in %.1fs",
-                    attempt, _MAX_UPLOAD_RETRIES, delay,
+                    attempt,
+                    _MAX_UPLOAD_RETRIES,
+                    delay,
                 )
                 await asyncio.sleep(delay)
         except Exception as e:
@@ -51,7 +53,10 @@ async def _upload_with_retry(
                 delay = _RETRY_BASE_DELAY_S * (2 ** (attempt - 1))
                 logger.warning(
                     "Upload attempt %d/%d error: %s, retrying in %.1fs",
-                    attempt, _MAX_UPLOAD_RETRIES, e, delay,
+                    attempt,
+                    _MAX_UPLOAD_RETRIES,
+                    e,
+                    delay,
                 )
                 await asyncio.sleep(delay)
             else:
@@ -97,9 +102,7 @@ async def run_remote_backup(
             create_exportable_backup,
         )
 
-        local_backup_path = await create_exportable_backup(
-            local_strategy, backup_filename
-        )
+        local_backup_path = await create_exportable_backup(local_strategy, backup_filename)
 
         if local_backup_path is None:
             return {
@@ -204,10 +207,7 @@ async def _rotate_backups(
     try:
         all_files = await strategy.list_files()
 
-        device_files = [
-            f for f in all_files
-            if hostname in f.file_name and device_type in f.file_name
-        ]
+        device_files = [f for f in all_files if hostname in f.file_name and device_type in f.file_name]
 
         if len(device_files) <= max_backups:
             return

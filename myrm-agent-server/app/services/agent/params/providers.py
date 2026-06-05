@@ -61,16 +61,10 @@ def _camel_to_snake(name: str) -> str:
     return re.sub(r"(?<=[a-z0-9])([A-Z])", r"_\1", name).lower()
 
 
-def _parse_camel_dict(
-    raw: dict[str, object], model_cls: type[BaseModel]
-) -> dict[str, object]:
+def _parse_camel_dict(raw: dict[str, object], model_cls: type[BaseModel]) -> dict[str, object]:
     """Convert camelCase dict keys to snake_case, filtering to valid model fields."""
     field_names = model_cls.model_fields.keys()
-    return {
-        _camel_to_snake(k): v
-        for k, v in raw.items()
-        if _camel_to_snake(k) in field_names
-    }
+    return {_camel_to_snake(k): v for k, v in raw.items() if _camel_to_snake(k) in field_names}
 
 
 def _find_provider_api_key(

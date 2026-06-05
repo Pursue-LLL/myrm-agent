@@ -73,9 +73,7 @@ class TestClarificationWaiter:
 
     @pytest.mark.asyncio
     async def test_timeout_returns_none(self, monkeypatch):
-        monkeypatch.setattr(
-            "app.services.agent.streaming.CLARIFICATION_TIMEOUT_SECONDS", 0.1
-        )
+        monkeypatch.setattr("app.services.agent.streaming.CLARIFICATION_TIMEOUT_SECONDS", 0.1)
         waiter = ClarificationWaiter.register("msg-6")
         result = await waiter.wait_for_answer()
         assert result is None

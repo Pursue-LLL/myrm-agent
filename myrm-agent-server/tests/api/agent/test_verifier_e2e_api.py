@@ -17,9 +17,7 @@ from tests.api.agent.utils import get_model_selection
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -54,9 +52,7 @@ def perform_verifier_task(
     tool_call_count = 0
     verification_events = 0
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_payload
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_payload) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -205,15 +201,19 @@ def _build_verifier_mock_patches():
             workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX,
         )
 
-    return patch(
-        "myrm_agent_harness.toolkits.llms.adapters.chat_model.ChatLiteLLM.ainvoke",
-        new=mock_ainvoke_func,
-    ), patch(
-        "app.ai_agents.subagent_catalog.DatabaseSubagentCatalog.resolve",
-        new=mock_resolve,
-    ), patch(
-        "myrm_agent_harness.toolkits.code_execution.executors.readonly_proxy.ReadonlyExecutorProxy",
-        _TestReadonlyExecutorProxy,
+    return (
+        patch(
+            "myrm_agent_harness.toolkits.llms.adapters.chat_model.ChatLiteLLM.ainvoke",
+            new=mock_ainvoke_func,
+        ),
+        patch(
+            "app.ai_agents.subagent_catalog.DatabaseSubagentCatalog.resolve",
+            new=mock_resolve,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.code_execution.executors.readonly_proxy.ReadonlyExecutorProxy",
+            _TestReadonlyExecutorProxy,
+        ),
     )
 
 
@@ -264,4 +264,3 @@ class TestAdversarialVerifier:
         assert verification_events > 0, "Expected Verifier to spawn and emit UI events"
         assert "PASS" in full_answer or "FAIL" in full_answer or len(full_answer) > 0
         print("\n✅ Test Passed: Adversarial Verifier E2E Execution")
-

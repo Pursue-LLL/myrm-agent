@@ -32,9 +32,7 @@ pytestmark = [
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
 
@@ -117,11 +115,7 @@ async def test_e2e_streaming(client: AsyncClient, api_key: str):
     assert chunks[0]["choices"][0]["delta"].get("role") == "assistant"
 
     # Should have content chunks
-    content_parts = [
-        c["choices"][0]["delta"].get("content", "")
-        for c in chunks
-        if c["choices"][0]["delta"].get("content")
-    ]
+    content_parts = [c["choices"][0]["delta"].get("content", "") for c in chunks if c["choices"][0]["delta"].get("content")]
     full_content = "".join(content_parts)
     assert len(full_content) > 0
 
@@ -134,9 +128,7 @@ async def test_e2e_streaming(client: AsyncClient, api_key: str):
 @pytest.mark.timeout(120)
 async def test_e2e_models_endpoint(client: AsyncClient, api_key: str):
     """GET /v1/models should return available models including default."""
-    resp = await client.get(
-        "/v1/models", headers={"Authorization": f"Bearer {api_key}"}
-    )
+    resp = await client.get("/v1/models", headers={"Authorization": f"Bearer {api_key}"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["object"] == "list"

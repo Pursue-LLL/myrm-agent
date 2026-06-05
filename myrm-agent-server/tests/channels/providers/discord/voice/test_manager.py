@@ -84,9 +84,7 @@ class TestVoiceManagerJoinLeave:
 
         channel.connect = AsyncMock(return_value=mock_vc)
 
-        with patch(
-            "app.channels.providers.discord.voice.manager.VoiceReceiver"
-        ) as MockReceiver:
+        with patch("app.channels.providers.discord.voice.manager.VoiceReceiver") as MockReceiver:
             mock_receiver = MagicMock()
             mock_receiver.running = False
             MockReceiver.return_value = mock_receiver
@@ -117,9 +115,7 @@ class TestVoiceManagerJoinLeave:
         mock_vc.user.id = 1
         channel.connect = AsyncMock(return_value=mock_vc)
 
-        with patch(
-            "app.channels.providers.discord.voice.manager.VoiceReceiver"
-        ) as MockReceiver:
+        with patch("app.channels.providers.discord.voice.manager.VoiceReceiver") as MockReceiver:
             mock_receiver = MagicMock()
             mock_receiver.running = False
             MockReceiver.return_value = mock_receiver
@@ -595,12 +591,8 @@ class TestProcessVoiceInput:
                 "_resolve_display_name",
                 return_value="Alice",
             ),
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -633,12 +625,8 @@ class TestProcessVoiceInput:
 
         with (
             patch.object(VoiceManager, "_resolve_display_name", return_value="Bob"),
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -665,12 +653,8 @@ class TestProcessVoiceInput:
 
         with (
             patch.object(VoiceManager, "_resolve_display_name", return_value="X"),
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -695,12 +679,8 @@ class TestProcessVoiceInput:
         mock_result.text = ""
 
         with (
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -722,12 +702,8 @@ class TestProcessVoiceInput:
         mgr = VoiceManager(client, on_voice_input=cb)
 
         with (
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -748,9 +724,7 @@ class TestProcessVoiceInput:
         cb = AsyncMock()
         mgr = VoiceManager(client, on_voice_input=cb)
 
-        with patch(
-            "app.channels.providers.discord.voice.manager.asyncio"
-        ) as mock_asyncio:
+        with patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = AsyncMock(side_effect=RuntimeError("ffmpeg fail"))
             mock_asyncio.sleep = asyncio.sleep
 
@@ -768,12 +742,8 @@ class TestProcessVoiceInput:
 
         with (
             patch.object(VoiceManager, "_resolve_display_name", return_value="X"),
-            patch(
-                "app.channels.providers.discord.voice.manager.VoiceReceiver"
-            ),
-            patch(
-                "app.channels.providers.discord.voice.manager.asyncio"
-            ) as mock_asyncio,
+            patch("app.channels.providers.discord.voice.manager.VoiceReceiver"),
+            patch("app.channels.providers.discord.voice.manager.asyncio") as mock_asyncio,
             patch(
                 "app.channels.voice.stt.transcribe",
                 new_callable=AsyncMock,
@@ -815,9 +785,7 @@ class TestVoiceManagerFollowIntegration:
         after.channel.id = 200
         after.channel.name = "test-vc"
 
-        with patch.object(
-            mgr._follow, "handle_followed_user_update", new_callable=AsyncMock
-        ) as mock_follow:
+        with patch.object(mgr._follow, "handle_followed_user_update", new_callable=AsyncMock) as mock_follow:
             await mgr.on_voice_state_update(member, before, after)
         mock_follow.assert_awaited_once_with(member, before, after)
 
@@ -836,9 +804,7 @@ class TestVoiceManagerFollowIntegration:
         after = MagicMock()
         after.channel = None
 
-        with patch.object(
-            mgr, "_handle_bot_voice_update", new_callable=AsyncMock
-        ) as mock_bot:
+        with patch.object(mgr, "_handle_bot_voice_update", new_callable=AsyncMock) as mock_bot:
             await mgr.on_voice_state_update(member, before, after)
         mock_bot.assert_awaited_once_with(member, before, after)
 
@@ -885,9 +851,7 @@ class TestBotVoiceUpdateManager:
         after.channel = MagicMock()
         after.channel.id = 200
 
-        with patch.object(
-            mgr._follow, "handle_bot_voice_update", new_callable=AsyncMock
-        ) as mock_follow_bot:
+        with patch.object(mgr._follow, "handle_bot_voice_update", new_callable=AsyncMock) as mock_follow_bot:
             await mgr._handle_bot_voice_update(member, before, after)
         mock_follow_bot.assert_awaited_once()
 
@@ -941,9 +905,7 @@ class TestBargeIn:
         player.is_playing = True
         mgr._active_players[1] = player
         mgr._active_play_texts[1] = "Hello world how are you today"
-        result = mgr._handle_barge_in(
-            1, "Hello world how are you today", "hello world how are you today"
-        )
+        result = mgr._handle_barge_in(1, "Hello world how are you today", "hello world how are you today")
         assert result is True
 
     def test_barge_in_real_interruption(self) -> None:
@@ -1029,9 +991,7 @@ class TestStartReconciliation:
     async def test_start_reconciliation_delegates(self) -> None:
         client = MagicMock()
         mgr = VoiceManager(client, follow_user_ids={"100"})
-        with patch.object(
-            mgr._follow, "start_reconciliation", new_callable=AsyncMock
-        ) as mock_start:
+        with patch.object(mgr._follow, "start_reconciliation", new_callable=AsyncMock) as mock_start:
             await mgr.start_reconciliation()
         mock_start.assert_awaited_once()
 
@@ -1054,9 +1014,7 @@ class TestBotVoiceUpdateListenTask:
         listen_task.done.return_value = False
         listen_task.cancel = MagicMock()
 
-        state = _GuildVoiceState(
-            voice_client=mock_vc, receiver=mock_receiver
-        )
+        state = _GuildVoiceState(voice_client=mock_vc, receiver=mock_receiver)
         state.listen_task = listen_task
         mgr._guilds[1] = state
 
@@ -1081,9 +1039,7 @@ class TestShouldLeaveGuildNoChannel:
         mock_vc = MagicMock()
         mock_vc.channel = None
         mock_receiver = MagicMock()
-        mgr._guilds[1] = _GuildVoiceState(
-            voice_client=mock_vc, receiver=mock_receiver
-        )
+        mgr._guilds[1] = _GuildVoiceState(voice_client=mock_vc, receiver=mock_receiver)
         result = await mgr._should_leave_guild(1)
         assert result is True
 

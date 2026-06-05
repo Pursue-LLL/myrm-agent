@@ -13,9 +13,11 @@ from app.main import app
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 def auth_headers():
     return {"Authorization": "Bearer test_token"}
+
 
 @pytest.fixture(autouse=True)
 def override_auth():
@@ -24,12 +26,13 @@ def override_auth():
         yield
     app.dependency_overrides.pop(get_deploy_identity, None)
 
+
 @pytest.fixture(autouse=True)
 def override_memory_manager():
     mock_manager = AsyncMock()
     mock_manager.has_vector = True
     mock_manager.has_relational = True
-    
+
     # Mock get_profile_attribute for TasteSummary
     async def mock_get_profile(key):
         if key == "reply_style":
@@ -39,20 +42,22 @@ def override_memory_manager():
         if key == "proactivity":
             return "high"
         return None
+
     mock_manager.get_profile_attribute.side_effect = mock_get_profile
-    
+
     # Mock update_memory for status patch
     mock_updated_mem = SemanticMemory(content="test", metadata={"status": "disabled"})
     mock_updated_mem.id = "test_id"
     mock_updated_mem.status = MemoryStatus.DISABLED
     mock_manager.update_memory.return_value = mock_updated_mem
-    
+
     # Mock search for get memories
     mock_manager.search.return_value = []
-    
+
     app.dependency_overrides[get_crud_memory_manager] = lambda: mock_manager
     yield mock_manager
     app.dependency_overrides.pop(get_crud_memory_manager, None)
+
 
 @pytest.mark.asyncio
 async def test_taste_summary_and_status_api(client: TestClient, auth_headers: dict[str, str], override_memory_manager: AsyncMock):

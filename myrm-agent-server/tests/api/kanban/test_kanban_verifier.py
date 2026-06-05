@@ -190,12 +190,14 @@ class TestKanbanCompletionVerifier:
     @patch("litellm.acompletion", new_callable=AsyncMock)
     async def test_judge_empty_response_uses_reasoning(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
         mock_llm.return_value = SimpleNamespace(
-            choices=[SimpleNamespace(
-                message=SimpleNamespace(
-                    content="",
-                    reasoning_content='{"done": true, "reason": "ok from reasoning"}',
-                ),
-            )],
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content="",
+                        reasoning_content='{"done": true, "reason": "ok from reasoning"}',
+                    ),
+                )
+            ],
         )
         verifier = KanbanCompletionVerifier()
         result = await verifier.verify(_make_task(criteria="check"), "done")

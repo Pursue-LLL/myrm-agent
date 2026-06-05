@@ -116,9 +116,7 @@ class RetryPolicy:
 
         for attempt in range(self._config.max_retries + 1):
             if attempt > 0:
-                delay = self._config.base_delay * (
-                    self._config.backoff_multiplier ** (attempt - 1)
-                )
+                delay = self._config.base_delay * (self._config.backoff_multiplier ** (attempt - 1))
 
                 if on_retry_callback and self._config.ui_feedback:
                     try:

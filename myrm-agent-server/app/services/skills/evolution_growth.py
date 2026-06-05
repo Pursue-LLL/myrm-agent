@@ -49,11 +49,7 @@ def _resolve_skill_identity(proposal: EvolutionProposal) -> tuple[str, str]:
 def _build_reason(proposal: EvolutionProposal) -> str:
     reason = proposal.reasoning.strip()
     if proposal.task_context.strip():
-        return (
-            f"{reason}\n\n[Task Context]: {proposal.task_context.strip()}"
-            if reason
-            else proposal.task_context.strip()
-        )
+        return f"{reason}\n\n[Task Context]: {proposal.task_context.strip()}" if reason else proposal.task_context.strip()
     return reason
 
 

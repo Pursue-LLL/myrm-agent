@@ -55,9 +55,7 @@ def _make_manager_dependency(*, approval_required: bool) -> _ManagerDep:
             )
         except Exception as e:
             logger.warning(f"MemoryManager creation failed: {e}")
-            raise HTTPException(
-                status_code=503, detail="Memory system unavailable"
-            ) from e
+            raise HTTPException(status_code=503, detail="Memory system unavailable") from e
 
     return _dep
 

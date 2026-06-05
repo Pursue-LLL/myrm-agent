@@ -137,9 +137,7 @@ class ChannelTestBase(ABC):
         ch = self.create_channel()
         has_override = type(ch).react_to_message is not BaseChannel.react_to_message
         if has_override:
-            assert ch.capabilities.reactions, (
-                f"{type(ch).__name__} overrides react_to_message but capabilities.reactions=False"
-            )
+            assert ch.capabilities.reactions, f"{type(ch).__name__} overrides react_to_message but capabilities.reactions=False"
 
     def test_initial_status_is_idle(self) -> None:
         ch = self.create_channel()
@@ -207,9 +205,7 @@ class ChannelTestBase(ABC):
         ch = self.create_channel()
         has_override = type(ch).create_thread is not BaseChannel.create_thread
         if has_override:
-            assert ch.capabilities.threads, (
-                f"{type(ch).__name__} overrides create_thread but capabilities.threads=False"
-            )
+            assert ch.capabilities.threads, f"{type(ch).__name__} overrides create_thread but capabilities.threads=False"
 
     def test_typing_implies_typing_capability(self) -> None:
         """If channel overrides start_typing, capabilities.typing_indicator should be True."""
@@ -248,6 +244,4 @@ class ChannelTestBase(ABC):
         """health_check() should return a bool."""
         ch = self.create_channel()
         result = await ch.health_check()
-        assert isinstance(result, bool), (
-            f"{type(ch).__name__}.health_check() returned {type(result).__name__}, expected bool"
-        )
+        assert isinstance(result, bool), f"{type(ch).__name__}.health_check() returned {type(result).__name__}, expected bool"

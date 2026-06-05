@@ -27,9 +27,7 @@ def perform_agent_stream(
     tool_call_count = 0
     heartbeat_count = 0
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
         assert response.status_code == 200
 
         for line in response.iter_lines():
@@ -69,22 +67,15 @@ class TestGeneralAgentStream:
     def test_agent_stream_heartbeat_and_empty_response(self, client: TestClient):
         # Prefer a deterministic completion-style prompt so E2E does not depend on
         # external search quotas (Tavily) or flaky tool recovery paths.
-        query = (
-            "Reply using only ASCII letters: literally OK — no punctuation, markdown, quotes, "
-            "web search, or tool calls."
-        )
+        query = "Reply using only ASCII letters: literally OK — no punctuation, markdown, quotes, web search, or tool calls."
         full_answer, collected_data, _ = perform_agent_stream(client, query)
 
         assert len(collected_data) > 0
 
         # Stream lifecycle progress probe (confirms SSE opened before agent work)
         progress_events = [d for d in collected_data if d.get("type") == "progress"]
-        assert (
-            len(progress_events) > 0
-        ), "Should have received an instant progress event"
-        assert (
-            progress_events[0].get("data", {}).get("status") == "started"
-        ), "First progress event should indicate 'started'"
+        assert len(progress_events) > 0, "Should have received an instant progress event"
+        assert progress_events[0].get("data", {}).get("status") == "started", "First progress event should indicate 'started'"
 
         error_events = [d for d in collected_data if d.get("type") == "error"]
         if error_events:
@@ -109,30 +100,22 @@ class TestGeneralAgentStream:
                 "SearchAPIError",
                 "ToolExecutionError",
             )
-            if first_err.get("error_kind") in ("format_error", "auth_permanent") or any(
-                kw in error_msg for kw in flaky_signals
-            ):
+            if first_err.get("error_kind") in ("format_error", "auth_permanent") or any(kw in error_msg for kw in flaky_signals):
                 pytest.skip(f"Environment/upstream flaky: {error_msg[:240]}")
             pytest.fail(f"Agent execution error: {error_msg}")
 
         if not full_answer:
             # For some reasoning models, the entire response might be in 'reasoning'
             # Or the answer is in tool calls. As long as we got data and didn't fail.
-            assert (
-                len(collected_data) > 10
-            ), "Should have collected sufficient stream events"
+            assert len(collected_data) > 10, "Should have collected sufficient stream events"
         else:
             assert full_answer, "Should have answer"
 
         # Verify mascot_status integration
         # Each event yielded from streaming should contain a mascot_status attribute
         # representing current emotional mapping status.
-        mascot_statuses = [
-            d.get("mascot_status") for d in collected_data if "mascot_status" in d
-        ]
-        assert (
-            len(mascot_statuses) > 0
-        ), "Streaming events should contain mascot_status injection"
+        mascot_statuses = [d.get("mascot_status") for d in collected_data if "mascot_status" in d]
+        assert len(mascot_statuses) > 0, "Streaming events should contain mascot_status injection"
 
         # Valid mascot statuses defined in MascotStatus enum
         valid_statuses = {"sleeping", "thinking", "dizzy", "celebrating", "panting"}

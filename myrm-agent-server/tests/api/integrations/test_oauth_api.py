@@ -101,9 +101,7 @@ class TestOAuthDeleteClearSyncedMemory:
             mock_row.is_encrypted = False
             mock_load.return_value = mock_row
 
-            response = client.delete(
-                f"{API_PREFIX}/oauth/github?clear_synced_memory=true"
-            )
+            response = client.delete(f"{API_PREFIX}/oauth/github?clear_synced_memory=true")
             assert response.status_code == 200
             data = response.json()
             assert data["trees_removed"] == 5

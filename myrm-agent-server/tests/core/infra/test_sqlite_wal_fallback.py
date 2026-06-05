@@ -24,6 +24,7 @@ class MockCursor:
     def close(self):
         pass
 
+
 class MockConnection:
     def __init__(self):
         self._cursor = MockCursor()
@@ -33,6 +34,7 @@ class MockConnection:
 
     def close(self):
         pass
+
 
 def test_sqlite_wal_fallback_unit(tmp_path: Path):
     """Verify set_sqlite_pragma gracefully degrades to DELETE mode when WAL fails
@@ -53,7 +55,9 @@ def test_sqlite_wal_fallback_unit(tmp_path: Path):
     assert system_status.database_degraded is True
     timeout_pragma = [p for p in mock_conn._cursor.recorded_pragmas if "busy_timeout" in p]
     assert len(timeout_pragma) > 0
-    assert str(base_timeout_ms * 3) in timeout_pragma[0], f"Expected 3x busy_timeout ({base_timeout_ms * 3}), got {timeout_pragma[0]}"
+    assert str(base_timeout_ms * 3) in timeout_pragma[0], (
+        f"Expected 3x busy_timeout ({base_timeout_ms * 3}), got {timeout_pragma[0]}"
+    )
 
     sync_pragma = [p for p in mock_conn._cursor.recorded_pragmas if "synchronous" in p]
     assert len(sync_pragma) > 0

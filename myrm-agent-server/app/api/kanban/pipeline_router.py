@@ -72,10 +72,7 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
             PipelineQuestionGroupResponse(
                 group=g.group,
                 group_label=g.group_label,
-                questions=[
-                    PipelineQuestionResponse(id=q.id, type=q.type, label=q.label, options=q.options)
-                    for q in g.questions
-                ],
+                questions=[PipelineQuestionResponse(id=q.id, type=q.type, label=q.label, options=q.options) for q in g.questions],
             )
             for g in spec.discovery_questions
         ],

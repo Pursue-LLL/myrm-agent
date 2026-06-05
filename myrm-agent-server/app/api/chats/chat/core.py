@@ -40,7 +40,11 @@ async def get_chats(
     """获取聊天历史列表（支持分页、来源和项目过滤）"""
     try:
         chats, total = await ChatService.get_chat_list(
-            page, page_size, source=source, project_id=project_id, unassigned=unassigned,
+            page,
+            page_size,
+            source=source,
+            project_id=project_id,
+            unassigned=unassigned,
         )
 
         chat_items = [
@@ -348,11 +352,7 @@ async def update_chat_recall_exclusion(
         from app.services.memory.operation_ledger import MemoryOperationLedgerService
 
         kind = MemoryOperationKind.FORGET if body.excluded else MemoryOperationKind.WRITE
-        summary = (
-            "Conversation excluded from recall."
-            if body.excluded
-            else "Conversation restored to recall."
-        )
+        summary = "Conversation excluded from recall." if body.excluded else "Conversation restored to recall."
         async with get_session() as db:
             await MemoryOperationLedgerService(db).record_event(
                 kind=kind,
@@ -371,6 +371,7 @@ async def update_chat_recall_exclusion(
     except Exception as e:
         raise internal_error(operation="Update chat recall exclusion", exception=e) from e
 
+
 @router.get("/{chat_id}/fission", response_model=StandardSuccessResponse)
 async def get_fission_topology(
     chat_id: str,
@@ -386,17 +387,13 @@ async def get_fission_topology(
             .limit(1)
         )
         record = result.scalar_one_or_none()
-        
+
         if not record:
             # Not found is ok, just return null
             return success_response(data=None)
-            
-        data = {
-            "fission_id": record.fission_id,
-            "nodes": record.nodes,
-            "total_cost_usd": record.total_cost_usd
-        }
-        
+
+        data = {"fission_id": record.fission_id, "nodes": record.nodes, "total_cost_usd": record.total_cost_usd}
+
         return success_response(data=data)
     except Exception as e:
         raise internal_error(operation="Get Fission Topology", exception=e) from e

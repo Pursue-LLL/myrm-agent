@@ -42,21 +42,21 @@ _HTML_ENTITIES: dict[str, str] = {
 }
 
 EMOJI_TO_TEAMS_REACTION: dict[str, str] = {
-    "\U0001F44D": "like",
-    "\U0001F44E": "like",
-    "\u2764\uFE0F": "heart",
-    "\U0001FAF6": "heart",
-    "\U0001F602": "laugh",
-    "\U0001F923": "laugh",
-    "\U0001F62E": "surprised",
-    "\U0001F632": "surprised",
-    "\U0001F622": "sad",
-    "\U0001F62D": "sad",
-    "\U0001F620": "angry",
-    "\U0001F621": "angry",
-    "\U0001F440": "like",
+    "\U0001f44d": "like",
+    "\U0001f44e": "like",
+    "\u2764\ufe0f": "heart",
+    "\U0001faf6": "heart",
+    "\U0001f602": "laugh",
+    "\U0001f923": "laugh",
+    "\U0001f62e": "surprised",
+    "\U0001f632": "surprised",
+    "\U0001f622": "sad",
+    "\U0001f62d": "sad",
+    "\U0001f620": "angry",
+    "\U0001f621": "angry",
+    "\U0001f440": "like",
     "\u2705": "like",
-    "\U0001F914": "like",
+    "\U0001f914": "like",
 }
 
 

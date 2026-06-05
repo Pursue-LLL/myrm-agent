@@ -22,9 +22,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_E2EE_INSTALL_HINT = (
-    "Run: uv sync --extra matrix --extra matrix-e2ee (requires libolm C library)"
-)
+_E2EE_INSTALL_HINT = "Run: uv sync --extra matrix --extra matrix-e2ee (requires libolm C library)"
 
 
 def check_e2ee_deps() -> bool:
@@ -217,8 +215,7 @@ async def _verify_keys_after_upload(client: object, local_ed25519: str | None) -
             server_ed = _extract_server_ed25519(dev)
             if server_ed != local_ed25519:
                 logger.error(
-                    "Matrix: device %s has immutable identity keys that "
-                    "don't match this installation.",
+                    "Matrix: device %s has immutable identity keys that don't match this installation.",
                     client.device_id,
                 )
                 return False
@@ -291,14 +288,12 @@ async def _handle_cross_signing(
             try:
                 new_recovery_key = await olm.generate_recovery_key()
                 logger.warning(
-                    "Matrix: bootstrapped cross-signing. "
-                    "SAVE THIS RECOVERY KEY for future restarts: %s",
+                    "Matrix: bootstrapped cross-signing. SAVE THIS RECOVERY KEY for future restarts: %s",
                     new_recovery_key,
                 )
             except Exception as exc:
                 logger.warning(
-                    "Matrix: cross-signing bootstrap failed "
-                    "(non-fatal — clients may show 'not verified by its owner'): %s",
+                    "Matrix: cross-signing bootstrap failed (non-fatal — clients may show 'not verified by its owner'): %s",
                     exc,
                 )
 

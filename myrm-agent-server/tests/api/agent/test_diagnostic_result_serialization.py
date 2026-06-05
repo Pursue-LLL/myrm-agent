@@ -122,7 +122,9 @@ class TestDiagnosticResultSerialization:
             def mock_fallback_locale(providers_dict=None, locale=request_locale):
                 return ModelConfig(model=f"invalid-model-{locale}", api_key="sk-123", base_url=None)
 
-            patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_locale)
+            patcher = patch(
+                "app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_locale
+            )
             patcher.start()
             try:
                 with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:

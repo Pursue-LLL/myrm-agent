@@ -98,9 +98,7 @@ def register_custom_model_pricing(providers_dict: dict[str, object] | None) -> i
         input_cost_per_m = info.get("input_cost_per_million")
         output_cost_per_m = info.get("output_cost_per_million")
 
-        if not isinstance(input_cost_per_m, (int, float)) or not isinstance(
-            output_cost_per_m, (int, float)
-        ):
+        if not isinstance(input_cost_per_m, (int, float)) or not isinstance(output_cost_per_m, (int, float)):
             continue
         if input_cost_per_m <= 0 and output_cost_per_m <= 0:
             continue
@@ -159,9 +157,7 @@ def _fallback_model_from_providers(
         providers_raw = providers_dict.get("providers")
         if isinstance(providers_raw, list):
             providers = providers_raw
-    providers_by_id = {
-        str(p.get("id", "")): p for p in providers if isinstance(p, dict)
-    }
+    providers_by_id = {str(p.get("id", "")): p for p in providers if isinstance(p, dict)}
 
     default_model_cfg = {}
     if isinstance(providers_dict, dict):
@@ -179,9 +175,7 @@ def _fallback_model_from_providers(
                 if all_keys:
                     ptype = str(provider.get("providerType", "")) or None
                     full_model = _to_litellm_model(pid, model, ptype)
-                    api_url = str(
-                        provider.get("apiUrl") or provider.get("baseURL") or ""
-                    )
+                    api_url = str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
                     logger.debug("model_resolver: using default model %s", full_model)
                     return ModelConfig(
@@ -206,9 +200,7 @@ def _fallback_model_from_providers(
     )
 
 
-def _resolve_override(
-    providers_dict: dict[str, object], model_name: str
-) -> "ModelConfig | None":
+def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "ModelConfig | None":
     """Try to build a ModelConfig from providers for the given LiteLLM model name."""
     from app.core.types import ModelConfig
 
@@ -233,9 +225,7 @@ def _resolve_override(
         ptype = str(p.get("providerType", ""))
 
         is_exact = pid == provider_id
-        is_compat = provider_id in openai_compat_ids and (
-            pid in openai_compat_ids or ptype == provider_id
-        )
+        is_compat = provider_id in openai_compat_ids and (pid in openai_compat_ids or ptype == provider_id)
         if not is_exact and not is_compat:
             continue
 
@@ -295,9 +285,7 @@ def _extract_all_active_keys(provider: dict[str, object]) -> list[str]:
     return out
 
 
-def _to_litellm_model(
-    provider: str, model: str, provider_type: str | None = None
-) -> str:
+def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:
     """Convert provider + model to LiteLLM format (wrapper for framework-level converter)."""
     return str(to_litellm_model(provider, model, provider_type))
 

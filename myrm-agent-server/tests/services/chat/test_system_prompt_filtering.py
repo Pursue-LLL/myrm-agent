@@ -173,9 +173,7 @@ async def test_api_filters_system_messages_if_present(db_session, test_chat):
     assert len(all_messages) == 3
 
     # Simulate API layer filtering (same logic as chat.py:143)
-    filtered_messages = [
-        msg for msg in all_messages if msg.role in ("user", "assistant")
-    ]
+    filtered_messages = [msg for msg in all_messages if msg.role in ("user", "assistant")]
 
     # Verify system message was filtered out
     assert len(filtered_messages) == 2

@@ -38,12 +38,14 @@ def test_tunnel_start_rejects_without_password(client: TestClient) -> None:
 def test_tunnel_status_when_idle(client: TestClient) -> None:
     with patch("app.api.system.router.get_tunnel_manager") as mock_manager_factory:
         mock_manager = mock_manager_factory.return_value
-        mock_manager.get_status = AsyncMock(return_value=TunnelStatus(
-            running=False,
-            url=None,
-            target_port=None,
-            ingress_synced=False,
-        ))
+        mock_manager.get_status = AsyncMock(
+            return_value=TunnelStatus(
+                running=False,
+                url=None,
+                target_port=None,
+                ingress_synced=False,
+            )
+        )
 
         response = client.get("/api/v1/system/tunnel/status")
 

@@ -53,19 +53,9 @@ async def test_stream_with_swarm_fission_resume_loop() -> None:
             events.append(event)
 
     assert execute_mock.await_count == 1
-    running = next(
-        e
-        for e in events
-        if e.get("type") == "tasks_steps" and e.get("status") == "running"
-    )
-    assert running.get("data") == [
-        {"text": "Task A", "agent_type": "research", "task_index": 0}
-    ]
-    completed = next(
-        e
-        for e in events
-        if e.get("type") == "tasks_steps" and e.get("status") == "completed"
-    )
+    running = next(e for e in events if e.get("type") == "tasks_steps" and e.get("status") == "running")
+    assert running.get("data") == [{"text": "Task A", "agent_type": "research", "task_index": 0}]
+    completed = next(e for e in events if e.get("type") == "tasks_steps" and e.get("status") == "completed")
     assert completed.get("failed_count") == 0
     assert completed.get("completed_count") == 1
     assert any(event.get("type") == "message" for event in events)
@@ -118,11 +108,7 @@ async def test_stream_with_swarm_fission_partial_failure_emits_fields() -> None:
         ):
             events.append(event)
 
-    completed = next(
-        e
-        for e in events
-        if e.get("type") == "tasks_steps" and e.get("status") == "partial_success"
-    )
+    completed = next(e for e in events if e.get("type") == "tasks_steps" and e.get("status") == "partial_success")
     assert completed.get("failed_count") == 1
     assert completed.get("partial_success") is True
 
@@ -167,7 +153,4 @@ async def test_stream_with_swarm_fission_delegate_missing_emits_error() -> None:
         ):
             events.append(event)
 
-    assert any(
-        event.get("type") == "error" and event.get("error_type") == "swarm_fission"
-        for event in events
-    )
+    assert any(event.get("type") == "error" and event.get("error_type") == "swarm_fission" for event in events)

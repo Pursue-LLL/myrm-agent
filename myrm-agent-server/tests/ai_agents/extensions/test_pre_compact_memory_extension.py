@@ -79,13 +79,16 @@ class TestPreCompactCallbackExecution:
         mock_service = MagicMock()
         mock_service.build_injection = AsyncMock(return_value=injection)
 
-        with patch(
-            "app.ai_agents.extensions.pre_compact_memory.MemoryPreCompactService",
-            return_value=mock_service,
-        ), patch(
-            "app.ai_agents.extensions.pre_compact_memory._record_pre_compact_event",
-            new_callable=AsyncMock,
-        ) as record_event:
+        with (
+            patch(
+                "app.ai_agents.extensions.pre_compact_memory.MemoryPreCompactService",
+                return_value=mock_service,
+            ),
+            patch(
+                "app.ai_agents.extensions.pre_compact_memory._record_pre_compact_event",
+                new_callable=AsyncMock,
+            ) as record_event,
+        ):
             cb = extension.build_pre_compact_callback()
             assert cb is not None
             result = await cb(

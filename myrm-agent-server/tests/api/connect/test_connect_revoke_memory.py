@@ -53,9 +53,7 @@ class TestConnectRevokeClearMemory:
         mock_mem_svc.remove_trees_by_provider = AsyncMock(return_value=7)
 
         with (
-            patch(
-                "app.api.connect.router.get_connect_service"
-            ) as mock_get_svc,
+            patch("app.api.connect.router.get_connect_service") as mock_get_svc,
             patch(
                 "app.services.memory.integration_memory.get_integration_memory_service",
                 new=AsyncMock(return_value=mock_mem_svc),
@@ -78,9 +76,7 @@ class TestConnectRevokeClearMemory:
     def test_revoke_clear_but_service_none(self, client: TestClient):
         """When memory service not initialized, gracefully returns 0."""
         with (
-            patch(
-                "app.api.connect.router.get_connect_service"
-            ) as mock_get_svc,
+            patch("app.api.connect.router.get_connect_service") as mock_get_svc,
             patch(
                 "app.services.memory.integration_memory.get_integration_memory_service",
                 new=AsyncMock(return_value=None),

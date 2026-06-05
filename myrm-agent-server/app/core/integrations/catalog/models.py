@@ -80,9 +80,7 @@ class MCPPreConfig(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     name: str = Field(..., description="MCP server name")
-    type: Literal["sse", "stdio", "streamable_http"] = Field(
-        ..., description="Transport type"
-    )
+    type: Literal["sse", "stdio", "streamable_http"] = Field(..., description="Transport type")
     url: str | None = Field(default=None, description="Server URL (SSE/HTTP)")
     command: str | None = Field(default=None, description="Command (stdio)")
     args: list[str] | None = Field(default=None, description="Arguments (stdio)")
@@ -117,9 +115,7 @@ class CatalogEntry(BaseModel):
     icon: str = Field(..., description="Icon identifier for frontend rendering")
     category: str = Field(..., description="Category slug (productivity, development, etc.)")
     connector_type: ConnectorType = Field(..., description="Underlying engine")
-    mcp_config: MCPPreConfig | None = Field(
-        default=None, description="MCP config template (when connector_type=mcp)"
-    )
+    mcp_config: MCPPreConfig | None = Field(default=None, description="MCP config template (when connector_type=mcp)")
     openapi_config: OpenAPIPreConfig | None = Field(
         default=None, description="OpenAPI config template (when connector_type=openapi)"
     )

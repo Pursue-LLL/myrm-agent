@@ -70,8 +70,8 @@ _DEFAULT_QUEUE_SIZE = 256
 _DEFAULT_DLQ_ALERT_THRESHOLD = 100
 
 # Global context var for implicit routing lineage across async tasks
-_correlation_context_var: contextvars.ContextVar[CorrelationContext | None] = (
-    contextvars.ContextVar("correlation_context", default=None)
+_correlation_context_var: contextvars.ContextVar[CorrelationContext | None] = contextvars.ContextVar(
+    "correlation_context", default=None
 )
 
 
@@ -94,11 +94,7 @@ def _apply_correlation_context(msg: OutboundMessage) -> OutboundMessage:
         return msg
 
     # If the message already has the exact same context, no need to replace
-    if (
-        msg.correlation_context == ctx
-        and msg.channel == ctx.channel
-        and msg.recipient_id == ctx.chat_id
-    ):
+    if msg.correlation_context == ctx and msg.channel == ctx.channel and msg.recipient_id == ctx.chat_id:
         return msg
 
     # Correct the routing using the immutable lineage context
@@ -112,9 +108,7 @@ def _apply_correlation_context(msg: OutboundMessage) -> OutboundMessage:
 
 def create_default_message_bus(
     dlq_dir: Path | None = None,
-    on_permanent_failure: (
-        Callable[[QueuedDelivery, str], Awaitable[None]] | None
-    ) = None,
+    on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
     **kwargs: object,
 ) -> MessageBus:
     """Create a MessageBus with default configuration.
@@ -220,19 +214,13 @@ def downgrade_components(msg: OutboundMessage, channel: BaseChannel) -> Outbound
 
         for m in msg.media:
             is_document = m.media_type == MediaType.DOCUMENT
-            should_strip = (is_document and not caps.file_upload) or (
-                not is_document and not caps.media
-            )
+            should_strip = (is_document and not caps.file_upload) or (not is_document and not caps.media)
 
             if should_strip:
                 if m.url:
-                    media_fallback_parts.append(
-                        f"[{m.media_type.value.capitalize()}: {m.url}]"
-                    )
+                    media_fallback_parts.append(f"[{m.media_type.value.capitalize()}: {m.url}]")
                 elif m.path:
-                    media_fallback_parts.append(
-                        f"[{m.media_type.value.capitalize()} attachment omitted (unsupported channel)]"
-                    )
+                    media_fallback_parts.append(f"[{m.media_type.value.capitalize()} attachment omitted (unsupported channel)]")
             else:
                 keep_media_list.append(m)
 
@@ -270,14 +258,10 @@ class MessageBus:
         max_queue_size: int = _DEFAULT_QUEUE_SIZE,
         dlq_dir: Path | None = None,
         dlq_alert_cooldown_sec: int = 3600,
-        on_permanent_failure: (
-            Callable[[QueuedDelivery, str], Awaitable[None]] | None
-        ) = None,
+        on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
     ) -> None:
         self._max_queue_size = max_queue_size
-        self._outbound: (
-            asyncio.PriorityQueue[tuple[int, int, OutboundMessage]] | None
-        ) = None
+        self._outbound: asyncio.PriorityQueue[tuple[int, int, OutboundMessage]] | None = None
         self._outbound_seq = 0
         self._inbound: asyncio.Queue[InboundMessage] | None = None
         self._channels: dict[str, BaseChannel] = {}
@@ -356,9 +340,7 @@ class MessageBus:
             self._outbound_seq += 1
             self._outbound.put_nowait((msg.priority, self._outbound_seq, msg))
         except asyncio.QueueFull:
-            logger.warning(
-                "Outbound queue full, dropping message for channel '%s'", msg.channel
-            )
+            logger.warning("Outbound queue full, dropping message for channel '%s'", msg.channel)
 
     async def send_tracked(self, msg: OutboundMessage) -> str | None:
         """Send a message directly (bypassing the queue) and return its platform message_id.
@@ -370,9 +352,7 @@ class MessageBus:
         msg = _apply_correlation_context(msg)
         channel = self._channels.get(msg.channel)
         if not channel:
-            logger.warning(
-                "No channel registered for '%s', cannot send_tracked", msg.channel
-            )
+            logger.warning("No channel registered for '%s', cannot send_tracked", msg.channel)
             return None
         if channel.status == ChannelStatus.DISABLED:
             logger.debug("Channel '%s' is disabled, cannot send_tracked", msg.channel)
@@ -403,14 +383,10 @@ class MessageBus:
             return result
         except Exception as e:
             channel.activity.record_error()
-            logger.warning(
-                "Channel '%s' send_tracked failed after retries: %s", msg.channel, e
-            )
+            logger.warning("Channel '%s' send_tracked failed after retries: %s", msg.channel, e)
             return None
 
-    async def edit_channel_message(
-        self, channel_name: str, chat_id: str, message_id: str, content: str
-    ) -> bool:
+    async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
         """Edit a previously sent message on a channel. Returns True if successful."""
         channel = self._channels.get(channel_name)
         if not channel:
@@ -459,9 +435,7 @@ class MessageBus:
         try:
             self._inbound.put_nowait(msg)
         except asyncio.QueueFull:
-            logger.warning(
-                "Inbound queue full, dropping message from channel '%s'", msg.channel
-            )
+            logger.warning("Inbound queue full, dropping message from channel '%s'", msg.channel)
 
     async def start(self) -> None:
         """Start the outbound dispatch loop."""
@@ -476,9 +450,7 @@ class MessageBus:
                 on_permanent_failure=self.on_permanent_failure,
             )
             await self._dlq.start()
-        logger.info(
-            "MessageBus started (channels: %s)", ", ".join(self._channels) or "none"
-        )
+        logger.info("MessageBus started (channels: %s)", ", ".join(self._channels) or "none")
 
     async def stop(self) -> None:
         """Stop the dispatch loop."""
@@ -506,9 +478,7 @@ class MessageBus:
         assert self._outbound is not None
         while self._running:
             try:
-                _priority, _seq, msg = await asyncio.wait_for(
-                    self._outbound.get(), timeout=1.0
-                )
+                _priority, _seq, msg = await asyncio.wait_for(self._outbound.get(), timeout=1.0)
             except TimeoutError:
                 continue
             except asyncio.CancelledError:
@@ -516,9 +486,7 @@ class MessageBus:
 
             channel = self._channels.get(msg.channel)
             if not channel:
-                logger.warning(
-                    "No channel registered for '%s', dropping message", msg.channel
-                )
+                logger.warning("No channel registered for '%s', dropping message", msg.channel)
                 continue
             if channel.status == ChannelStatus.DISABLED:
                 logger.debug("Channel '%s' is disabled, dropping message", msg.channel)
@@ -567,9 +535,7 @@ class MessageBus:
             except Exception as e:
                 channel.activity.record_error()
                 channel.health.record_failure(str(e))
-                logger.warning(
-                    "Channel '%s' send failed after retries: %s", msg.channel, e
-                )
+                logger.warning("Channel '%s' send failed after retries: %s", msg.channel, e)
                 # DLQ: send failed after all retries, save to DLQ directory
                 if self._dlq_dir is not None:
                     try:
@@ -587,22 +553,15 @@ class MessageBus:
                             last_error=str(e),
                         )
                         await move_to_failed(delivery, base_dir=self._dlq_dir)
-                        logger.debug(
-                            "Message added to DLQ for channel '%s'", msg.channel
-                        )
+                        logger.debug("Message added to DLQ for channel '%s'", msg.channel)
 
                         # Emit event if DLQ size exceeds threshold
                         if self._dlq:
                             dlq_count = await self._dlq.get_failed_count()
                             if dlq_count >= _DEFAULT_DLQ_ALERT_THRESHOLD:
                                 now = time.time()
-                                last_alert_time = self._last_dlq_alert_times.get(
-                                    msg.channel, 0.0
-                                )
-                                if (
-                                    now - last_alert_time
-                                    >= self._dlq_alert_cooldown_sec
-                                ):
+                                last_alert_time = self._last_dlq_alert_times.get(msg.channel, 0.0)
+                                if now - last_alert_time >= self._dlq_alert_cooldown_sec:
                                     self._last_dlq_alert_times[msg.channel] = now
                                     self.events.emit(
                                         "DLQ_THRESHOLD_EXCEEDED",

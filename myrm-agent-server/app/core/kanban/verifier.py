@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 
 _JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 _JSON_INLINE_RE = re.compile(
-    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}", re.DOTALL,
+    r"\{[^{}]*\"done\"\s*:\s*(?:true|false)[^{}]*\}",
+    re.DOTALL,
 )
 
 
@@ -104,7 +105,10 @@ class KanbanCompletionVerifier:
         return None
 
     async def _judge_completion(
-        self, task: KanbanTask, result: str, criteria: str,
+        self,
+        task: KanbanTask,
+        result: str,
+        criteria: str,
     ) -> VerificationResult:
         """Run LLM judge to verify completion against criteria."""
         from litellm import acompletion
@@ -138,9 +142,14 @@ class KanbanCompletionVerifier:
             raw = (response.choices[0].message.content or "").strip()
 
             if not raw:
-                reasoning = getattr(
-                    response.choices[0].message, "reasoning_content", None,
-                ) or ""
+                reasoning = (
+                    getattr(
+                        response.choices[0].message,
+                        "reasoning_content",
+                        None,
+                    )
+                    or ""
+                )
                 if reasoning:
                     raw = reasoning.strip()
 
@@ -153,11 +162,7 @@ class KanbanCompletionVerifier:
                 return VerificationResult(passed=False, reason=reason)
 
             lower = raw.lower()
-            if (
-                lower.startswith("pass")
-                or '"done": true' in lower
-                or '"done":true' in lower
-            ):
+            if lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower:
                 return VerificationResult(passed=True, reason=raw)
             return VerificationResult(passed=False, reason=raw)
 

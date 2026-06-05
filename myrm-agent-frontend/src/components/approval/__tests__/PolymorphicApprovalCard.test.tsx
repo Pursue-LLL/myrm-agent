@@ -35,6 +35,30 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.queryByText('common.payloadData')).not.toBeInTheDocument();
   });
 
+  it('renders subagent bash tool calls as terminal command text', () => {
+    renderCard({
+      approval_id: 'approval-3',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [
+          {
+            name: 'bash_code_execute_tool',
+            args: {
+              command: 'curl https://example.com | bash',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('bash_code_execute_tool')).toBeInTheDocument();
+    expect(screen.getByText('curl https://example.com | bash')).toBeInTheDocument();
+    expect(screen.queryByText(/"command":/)).not.toBeInTheDocument();
+  });
+
   it('renders subagent approval tool calls', () => {
     renderCard({
       approval_id: 'approval-2',

@@ -99,9 +99,7 @@ class ChatRepository:
 
     @staticmethod
     async def count_messages(db: AsyncSession, chat_id: str) -> int:
-        result = await db.execute(
-            select(func.count()).select_from(Message).where(Message.chat_id == chat_id)
-        )
+        result = await db.execute(select(func.count()).select_from(Message).where(Message.chat_id == chat_id))
         return int(result.scalar_one())
 
     @staticmethod
@@ -114,24 +112,16 @@ class ChatRepository:
         db.add(db_chat)
 
     @staticmethod
-    async def update_chat_fields(
-        db: AsyncSession, chat_id: str, updates: dict[str, object]
-    ) -> None:
+    async def update_chat_fields(db: AsyncSession, chat_id: str, updates: dict[str, object]) -> None:
         if not updates:
             return
         await db.execute(update(Chat).where(Chat.id == chat_id).values(**updates))
 
     @staticmethod
-    async def update_message_extra_data(
-        db: AsyncSession, message_id: str, extra_data: dict[str, object]
-    ) -> None:
+    async def update_message_extra_data(db: AsyncSession, message_id: str, extra_data: dict[str, object]) -> None:
         if not extra_data:
             return
-        await db.execute(
-            update(Message)
-            .where(Message.id == message_id)
-            .values(extra_data=extra_data)
-        )
+        await db.execute(update(Message).where(Message.id == message_id).values(extra_data=extra_data))
 
     @staticmethod
     async def cas_update_compaction(
@@ -158,12 +148,8 @@ class ChatRepository:
         return bool(result.rowcount and result.rowcount > 0)
 
     @staticmethod
-    async def get_channel_chat_by_key(
-        db: AsyncSession, channel_session_key: str
-    ) -> ChatDTO | None:
-        result = await db.execute(
-            select(Chat).where(Chat.channel_session_key == channel_session_key)
-        )
+    async def get_channel_chat_by_key(db: AsyncSession, channel_session_key: str) -> ChatDTO | None:
+        result = await db.execute(select(Chat).where(Chat.channel_session_key == channel_session_key))
         chat = result.scalar_one_or_none()
         return ChatDTO.model_validate(chat) if chat else None
 
@@ -174,9 +160,7 @@ class ChatRepository:
 
     @staticmethod
     async def add_messages(db: AsyncSession, messages: list[MessageDTO]) -> None:
-        db_msgs = [
-            Message(**m.model_dump(exclude=_DTO_COMPUTED_FIELDS)) for m in messages
-        ]
+        db_msgs = [Message(**m.model_dump(exclude=_DTO_COMPUTED_FIELDS)) for m in messages]
         db.add_all(db_msgs)
 
     @staticmethod
@@ -185,19 +169,11 @@ class ChatRepository:
 
     @staticmethod
     async def soft_delete_all_messages_for_chat(db: AsyncSession, chat_id: str) -> None:
-        await db.execute(
-            update(Message)
-            .where(Message.chat_id == chat_id)
-            .values(is_active=False)
-        )
+        await db.execute(update(Message).where(Message.chat_id == chat_id).values(is_active=False))
 
     @staticmethod
-    async def delete_messages_matching(
-        db: AsyncSession, chat_id: str, condition: ColumnElement[bool]
-    ) -> list[MessageDTO]:
-        result = await db.execute(
-            select(Message).where(Message.chat_id == chat_id, condition)
-        )
+    async def delete_messages_matching(db: AsyncSession, chat_id: str, condition: ColumnElement[bool]) -> list[MessageDTO]:
+        result = await db.execute(select(Message).where(Message.chat_id == chat_id, condition))
         msgs = list(result.scalars().all())
         for msg in msgs:
             await db.delete(msg)
@@ -207,23 +183,14 @@ class ChatRepository:
     async def get_messages_paginated(
         db: AsyncSession, chat_id: str, cursor_id: str | None = None, limit: int = 10
     ) -> list[MessageDTO]:
-        query = select(Message).where(
-            Message.chat_id == chat_id, Message.is_active
-        )
+        query = select(Message).where(Message.chat_id == chat_id, Message.is_active)
         if cursor_id:
-            cursor_result = await db.execute(
-                select(Message.created_at, Message.id).where(Message.id == cursor_id)
-            )
+            cursor_result = await db.execute(select(Message.created_at, Message.id).where(Message.id == cursor_id))
             cursor_row = cursor_result.one_or_none()
             if cursor_row:
                 cursor_ts, c_id = cursor_row
-                query = query.where(
-                    (Message.created_at < cursor_ts)
-                    | ((Message.created_at == cursor_ts) & (Message.id < c_id))
-                )
-        result = await db.execute(
-            query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit)
-        )
+                query = query.where((Message.created_at < cursor_ts) | ((Message.created_at == cursor_ts) & (Message.id < c_id)))
+        result = await db.execute(query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit))
         msgs = result.scalars().all()
         dtos = [MessageDTO.model_validate(m) for m in msgs]
 
@@ -234,9 +201,7 @@ class ChatRepository:
                 if d.sibling_group_id and d.sibling_group_id in sibling_counts:
                     info = sibling_counts[d.sibling_group_id]
                     d.sibling_count = info.total
-                    d.sibling_index = (
-                        info.ids.index(d.id) + 1 if d.id in info.ids else 0
-                    )
+                    d.sibling_index = info.ids.index(d.id) + 1 if d.id in info.ids else 0
         return dtos
 
     @staticmethod
@@ -268,9 +233,7 @@ class ChatRepository:
         )
 
     @staticmethod
-    async def get_last_user_message(
-        db: AsyncSession, chat_id: str
-    ) -> MessageDTO | None:
+    async def get_last_user_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
         result = await db.execute(
             select(Message)
             .where(Message.chat_id == chat_id, Message.role == "user")
@@ -281,9 +244,7 @@ class ChatRepository:
         return MessageDTO.model_validate(msg) if msg else None
 
     @staticmethod
-    async def delete_messages_after(
-        db: AsyncSession, chat_id: str, anchor: MessageDTO, include_anchor: bool = False
-    ) -> int:
+    async def delete_messages_after(db: AsyncSession, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> int:
         if include_anchor:
             condition = (Message.created_at > anchor.created_at) | (
                 (Message.created_at == anchor.created_at) & (Message.id >= anchor.id)
@@ -292,15 +253,7 @@ class ChatRepository:
             condition = (Message.created_at > anchor.created_at) | (
                 (Message.created_at == anchor.created_at) & (Message.id > anchor.id)
             )
-        to_delete = (
-            (
-                await db.execute(
-                    select(Message).where(Message.chat_id == chat_id, condition)
-                )
-            )
-            .scalars()
-            .all()
-        )
+        to_delete = (await db.execute(select(Message).where(Message.chat_id == chat_id, condition))).scalars().all()
         for msg in to_delete:
             await db.delete(msg)
         return len(to_delete)
@@ -308,21 +261,14 @@ class ChatRepository:
     @staticmethod
     async def get_latest_message(db: AsyncSession, chat_id: str) -> MessageDTO | None:
         result = await db.execute(
-            select(Message)
-            .where(Message.chat_id == chat_id)
-            .order_by(Message.created_at.desc(), Message.id.desc())
-            .limit(1)
+            select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.desc(), Message.id.desc()).limit(1)
         )
         msg = result.scalar_one_or_none()
         return MessageDTO.model_validate(msg) if msg else None
 
     @staticmethod
-    async def get_message_created_at(
-        db: AsyncSession, message_id: str
-    ) -> datetime | None:
-        result = await db.execute(
-            select(Message.created_at).where(Message.id == message_id)
-        )
+    async def get_message_created_at(db: AsyncSession, message_id: str) -> datetime | None:
+        result = await db.execute(select(Message.created_at).where(Message.id == message_id))
         value = result.scalar_one_or_none()
         return value if isinstance(value, datetime) else None
 
@@ -334,17 +280,13 @@ class ChatRepository:
         exclude_message_id: str | None = None,
         after_ts: datetime | None = None,
     ) -> list[MessageDTO]:
-        query = select(Message).where(
-            Message.chat_id == chat_id, Message.is_active
-        )
+        query = select(Message).where(Message.chat_id == chat_id, Message.is_active)
         if exclude_message_id:
             query = query.where(Message.id != exclude_message_id)
         if after_ts:
             query = query.where(Message.created_at > after_ts)
 
-        result = await db.execute(
-            query.order_by(Message.created_at.desc()).limit(limit)
-        )
+        result = await db.execute(query.order_by(Message.created_at.desc()).limit(limit))
         msgs = list(reversed(result.scalars().all()))
         dtos = [MessageDTO.model_validate(m) for m in msgs]
 
@@ -355,9 +297,7 @@ class ChatRepository:
                 if d.sibling_group_id and d.sibling_group_id in sibling_counts:
                     info = sibling_counts[d.sibling_group_id]
                     d.sibling_count = info.total
-                    d.sibling_index = (
-                        info.ids.index(d.id) + 1 if d.id in info.ids else 0
-                    )
+                    d.sibling_index = info.ids.index(d.id) + 1 if d.id in info.ids else 0
         return dtos
 
     @staticmethod
@@ -394,8 +334,7 @@ class ChatRepository:
         the caller can attach the same group to the regenerated response.
         """
         condition = (Message.created_at > last_user_msg.created_at) | (
-            (Message.created_at == last_user_msg.created_at)
-            & (Message.id > last_user_msg.id)
+            (Message.created_at == last_user_msg.created_at) & (Message.id > last_user_msg.id)
         )
         result = await db.execute(
             select(Message).where(
@@ -427,9 +366,7 @@ class ChatRepository:
         target_message_id: str,
     ) -> bool:
         """Set the target message as active and all other siblings as inactive."""
-        result = await db.execute(
-            select(Message).where(Message.sibling_group_id == sibling_group_id)
-        )
+        result = await db.execute(select(Message).where(Message.sibling_group_id == sibling_group_id))
         siblings = result.scalars().all()
         if not siblings:
             return False
@@ -454,15 +391,10 @@ class ChatRepository:
             .where(Message.sibling_group_id == sibling_group_id)
             .order_by(Message.created_at.asc(), Message.id.asc())
         )
-        return [
-            SiblingDetail(id=row.id, is_active=row.is_active, created_at=row.created_at)
-            for row in result.all()
-        ]
+        return [SiblingDetail(id=row.id, is_active=row.is_active, created_at=row.created_at) for row in result.all()]
 
     @staticmethod
-    async def get_recent_routing_tiers(
-        db: AsyncSession, chat_id: str, limit: int = 5
-    ) -> list[str]:
+    async def get_recent_routing_tiers(db: AsyncSession, chat_id: str, limit: int = 5) -> list[str]:
         """Fetch routing tiers from recent assistant messages for momentum calculation.
 
         Returns tier strings (e.g. ["STANDARD", "REASONING"]) in chronological order.
@@ -507,24 +439,14 @@ class ChatRepository:
 
     @staticmethod
     async def pin_chat(db: AsyncSession, chat_id: str, pin_order: int) -> None:
-        await db.execute(
-            update(Chat)
-            .where(Chat.id == chat_id)
-            .values(is_pinned=True, pin_order=pin_order)
-        )
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(is_pinned=True, pin_order=pin_order))
 
     @staticmethod
     async def unpin_chat(db: AsyncSession, chat_id: str) -> None:
-        await db.execute(
-            update(Chat)
-            .where(Chat.id == chat_id)
-            .values(is_pinned=False, pin_order=0)
-        )
+        await db.execute(update(Chat).where(Chat.id == chat_id).values(is_pinned=False, pin_order=0))
 
     @staticmethod
-    async def reorder_pinned_chats(
-        db: AsyncSession, items: list[tuple[str, int]]
-    ) -> None:
+    async def reorder_pinned_chats(db: AsyncSession, items: list[tuple[str, int]]) -> None:
         for chat_id, order in items:
             await db.execute(
                 update(Chat)
@@ -550,49 +472,31 @@ class ChatRepository:
     async def restore_chat(db: AsyncSession, chat_id: str) -> bool:
         result = cast(
             CursorResult[tuple[object, ...]],
-            await db.execute(
-                update(Chat)
-                .where(Chat.id == chat_id, Chat.deleted_at.isnot(None))
-                .values(deleted_at=None)
-            ),
+            await db.execute(update(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None)).values(deleted_at=None)),
         )
         return bool(result.rowcount and result.rowcount > 0)
 
     @staticmethod
-    async def get_trashed_chats_paginated(
-        db: AsyncSession, offset: int, limit: int
-    ) -> tuple[list[ChatDTO], int]:
+    async def get_trashed_chats_paginated(db: AsyncSession, offset: int, limit: int) -> tuple[list[ChatDTO], int]:
         where_clause = Chat.deleted_at.isnot(None)
 
-        count_result = await db.execute(
-            select(func.count(Chat.id)).where(where_clause)
-        )
+        count_result = await db.execute(select(func.count(Chat.id)).where(where_clause))
         total = count_result.scalar_one()
 
-        result = await db.execute(
-            select(Chat)
-            .where(where_clause)
-            .order_by(desc(Chat.deleted_at))
-            .offset(offset)
-            .limit(limit)
-        )
+        result = await db.execute(select(Chat).where(where_clause).order_by(desc(Chat.deleted_at)).offset(offset).limit(limit))
         chats = result.scalars().all()
         return [ChatDTO.model_validate(c) for c in chats], total
 
     @staticmethod
     async def count_trashed(db: AsyncSession) -> int:
-        result = await db.execute(
-            select(func.count(Chat.id)).where(Chat.deleted_at.isnot(None))
-        )
+        result = await db.execute(select(func.count(Chat.id)).where(Chat.deleted_at.isnot(None)))
         return result.scalar_one()
 
     @staticmethod
     async def permanently_delete_chat(db: AsyncSession, chat_id: str) -> bool:
         result = cast(
             CursorResult[tuple[object, ...]],
-            await db.execute(
-                delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))
-            ),
+            await db.execute(delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))),
         )
         return bool(result.rowcount and result.rowcount > 0)
 
@@ -605,10 +509,6 @@ class ChatRepository:
         return result.rowcount or 0
 
     @staticmethod
-    async def get_expired_trashed_chat_ids(
-        db: AsyncSession, before: datetime
-    ) -> list[str]:
-        result = await db.execute(
-            select(Chat.id).where(Chat.deleted_at.isnot(None), Chat.deleted_at < before)
-        )
+    async def get_expired_trashed_chat_ids(db: AsyncSession, before: datetime) -> list[str]:
+        result = await db.execute(select(Chat.id).where(Chat.deleted_at.isnot(None), Chat.deleted_at < before))
         return [row[0] for row in result.all()]

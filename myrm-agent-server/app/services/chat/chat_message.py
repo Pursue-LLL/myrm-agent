@@ -47,9 +47,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         sibling_group_id: str | None = None,
     ) -> MessageDTO:
         if role not in ALLOWED_MESSAGE_ROLES:
-            raise ValueError(
-                f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}"
-            )
+            raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
 
         try:
             from app.core.eval.service import mark_chat_activity
@@ -131,22 +129,14 @@ class _ChatMessageMixin(_ChatServiceBase):
                 await sess.flush()
             else:
                 field_updates: dict[str, object] = {}
-                if (
-                    ephemeral_subagents is not None
-                    and chat.ephemeral_subagents != ephemeral_subagents
-                ):
+                if ephemeral_subagents is not None and chat.ephemeral_subagents != ephemeral_subagents:
                     field_updates["ephemeral_subagents"] = ephemeral_subagents
-                if (
-                    task_adaptive_digest is not None
-                    and chat.task_adaptive_digest != task_adaptive_digest
-                ):
+                if task_adaptive_digest is not None and chat.task_adaptive_digest != task_adaptive_digest:
                     field_updates["task_adaptive_digest"] = task_adaptive_digest
                 if agent_id and chat.agent_id != agent_id:
                     field_updates["agent_id"] = agent_id
                 if field_updates:
-                    await _ChatServiceBase._cr(uow).update_chat_fields(
-                        chat_id, field_updates
-                    )
+                    await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, field_updates)
 
             msg = MessageDTO(
                 id=message_id or str(uuid4()),
@@ -187,9 +177,7 @@ class _ChatMessageMixin(_ChatServiceBase):
     ) -> tuple[list[MessageDTO], bool]:
         limit = min(limit, 100)
         async with UnitOfWork() as uow:
-            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(
-                chat_id, before, limit + 1
-            )
+            messages = await _ChatServiceBase._cr(uow).get_messages_paginated(chat_id, before, limit + 1)
             has_more = len(messages) > limit
             result_msgs = list(reversed(messages[:limit]))
             return (result_msgs, has_more)
@@ -243,41 +231,27 @@ class _ChatMessageMixin(_ChatServiceBase):
 
                 from app.config.settings import settings
 
-                event_log_file = (
-                    Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"
-                )
+                event_log_file = Path(settings.database.event_log_dir) / f"{chat_id}.jsonl"
                 if event_log_file.exists():
                     backend = FileEventLogBackend(
                         log_dir=Path(settings.database.event_log_dir),
                         session_id=chat_id,
                     )
-                    summary = await get_session_summary(
-                        backend, session_id=chat_id, events_limit=150, timeline_limit=10
-                    )
+                    summary = await get_session_summary(backend, session_id=chat_id, events_limit=150, timeline_limit=10)
                     if summary.token_economics:
                         usage_updates = {
                             "total_calls": summary.token_economics.get("call_count", 0),
-                            "total_tokens": summary.token_economics.get(
-                                "total_tokens", 0
-                            ),
-                            "total_usd": summary.token_economics.get(
-                                "total_cost_usd", 0.0
-                            ),
+                            "total_tokens": summary.token_economics.get("total_tokens", 0),
+                            "total_usd": summary.token_economics.get("total_cost_usd", 0.0),
                         }
                         # update_chat_fields is in _ChatCrudMixin; use UnitOfWork directly
                         async with UnitOfWork() as uow:
-                            await _ChatServiceBase._cr(uow).update_chat_fields(
-                                chat_id, usage_updates
-                            )
+                            await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, usage_updates)
             except Exception as err:
-                logger.error(
-                    f"Failed to sync usage ledger to DB for chat {chat_id}: {err}"
-                )
+                logger.error(f"Failed to sync usage ledger to DB for chat {chat_id}: {err}")
 
         except Exception as e:
-            logger.error(
-                "Failed to persist assistant message for chat %s: %s", chat_id, e
-            )
+            logger.error("Failed to persist assistant message for chat %s: %s", chat_id, e)
 
 
 async def _record_memory_influence_event(

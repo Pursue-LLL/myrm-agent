@@ -129,9 +129,7 @@ class DeployFile:
 
 def _is_remote_reference(value: str) -> bool:
     trimmed = value.strip()
-    return bool(
-        re.match(r"^(?:[a-z][a-z0-9+.-]*:|//|#|data:|mailto:|tel:|javascript:)", trimmed, re.I)
-    )
+    return bool(re.match(r"^(?:[a-z][a-z0-9+.-]*:|//|#|data:|mailto:|tel:|javascript:)", trimmed, re.I))
 
 
 def _strip_reference_query(value: str) -> str:
@@ -321,9 +319,7 @@ def collect_deploy_files(
         files[entry_name] = deploy_file
         if allowed_root is not None:
             hint = entry_hint or obj_path
-            files, total_bytes = _merge_disk_assets(
-                files, total_bytes, allowed_root=allowed_root, entry_hint=hint
-            )
+            files, total_bytes = _merge_disk_assets(files, total_bytes, allowed_root=allowed_root, entry_hint=hint)
         return files
 
     if obj_path.is_dir():
@@ -334,10 +330,7 @@ def collect_deploy_files(
             if not _is_allowed_static_file(file_path):
                 continue
             relative = file_path.relative_to(root)
-            if any(
-                part in EXCLUDED_DIRECTORY_NAMES or part in SENSITIVE_DIRECTORY_NAMES
-                for part in relative.parts[:-1]
-            ):
+            if any(part in EXCLUDED_DIRECTORY_NAMES or part in SENSITIVE_DIRECTORY_NAMES for part in relative.parts[:-1]):
                 continue
             entry_name = _normalize_entry_name(file_path.resolve(), root)
             deploy_file, total_bytes = _read_file_entry(file_path, entry_name, total_bytes)

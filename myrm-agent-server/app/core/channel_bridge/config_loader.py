@@ -142,17 +142,11 @@ async def load_user_configs() -> UserConfigs:
                 try:
                     if isinstance(value, str):
                         value = service.decrypt(value)
-                    elif isinstance(value, dict) and isinstance(
-                        value.get("_cipher"), str
-                    ):
+                    elif isinstance(value, dict) and isinstance(value.get("_cipher"), str):
                         value = service.decrypt(value["_cipher"])
 
                     # Handle double encryption
-                    if (
-                        isinstance(value, dict)
-                        and "_cipher" in value
-                        and len(value) == 1
-                    ):
+                    if isinstance(value, dict) and "_cipher" in value and len(value) == 1:
                         inner = value["_cipher"]
                         if isinstance(inner, str):
                             logger.warning(

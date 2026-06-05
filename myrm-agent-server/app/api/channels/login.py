@@ -242,7 +242,7 @@ async def stream_login_state(session_id: str, request: Request) -> StreamingResp
                     )
                     event_data["credentials_saved"] = True
 
-                yield f"event: login_state\ndata: {orjson.dumps(event_data).decode("utf-8")}\n\n"
+                yield f"event: login_state\ndata: {orjson.dumps(event_data).decode('utf-8')}\n\n"
 
                 if event.state.status in (
                     LoginStatus.SUCCESS,
@@ -267,7 +267,7 @@ async def stream_login_state(session_id: str, request: Request) -> StreamingResp
                 },
                 "channel_name": session.channel_name,
             }
-            yield f"event: login_state\ndata: {orjson.dumps(error_event).decode("utf-8")}\n\n"
+            yield f"event: login_state\ndata: {orjson.dumps(error_event).decode('utf-8')}\n\n"
 
         finally:
             await session_store.delete_session(session_id)

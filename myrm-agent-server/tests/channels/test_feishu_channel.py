@@ -737,7 +737,7 @@ class TestReactionInbound:
         }
         await ch.handle_webhook_event(event_data)
         assert len(received) == 1
-        assert received[0].content == "\U0001F44D"
+        assert received[0].content == "\U0001f44d"
         assert received[0].message_id == "om_msg_target"
         assert received[0].metadata.get("reaction") is True
         assert received[0].metadata.get("target_message_id") == "om_msg_target"
@@ -860,7 +860,7 @@ class TestReactionInbound:
         }
         await ch.handle_webhook_event(event_data)
         assert len(received) == 1
-        assert received[0].content == "\u2764\uFE0F"
+        assert received[0].content == "\u2764\ufe0f"
 
     @pytest.mark.asyncio
     async def test_reaction_type_not_dict_filtered(self) -> None:
@@ -894,7 +894,7 @@ class TestReactToMessage:
         ch = _make_channel()
         mock = _mock_client(ch)
         mock.add_reaction.return_value = "react_id_1"
-        await ch.react_to_message("oc_chat1", "om_msg1", "\U0001F44D")
+        await ch.react_to_message("oc_chat1", "om_msg1", "\U0001f44d")
         mock.add_reaction.assert_called_once()
         assert ch._reaction_ids["om_msg1"] == "react_id_1"
 

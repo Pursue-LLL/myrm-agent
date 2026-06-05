@@ -32,9 +32,7 @@ def workspace_with_rules(tmp_path: Path) -> Path:
 
     cursor_rules = tmp_path / ".cursor" / "rules"
     cursor_rules.mkdir(parents=True)
-    (cursor_rules / "style.mdc").write_text(
-        "---\nmodel: gpt-4\n---\nUse consistent naming"
-    )
+    (cursor_rules / "style.mdc").write_text("---\nmodel: gpt-4\n---\nUse consistent naming")
 
     return tmp_path
 
@@ -70,9 +68,7 @@ class TestWorkspaceRulesEndpoint:
         assert "AGENTS.md" in sources
         assert ".cursorrules" in sources
 
-    def test_rule_item_schema(
-        self, client: TestClient, workspace_with_rules: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rule_item_schema(self, client: TestClient, workspace_with_rules: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "app.api.dependencies.get_workspace_root",
             lambda: workspace_with_rules,
@@ -118,9 +114,7 @@ class TestWorkspaceRulesEndpoint:
         for rule in mdc_rules:
             assert rule["char_count"] < 50
 
-    def test_truncation_flag_for_large_file(
-        self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_truncation_flag_for_large_file(self, client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         large_content = "x" * 9000
         (tmp_path / "AGENTS.md").write_text(large_content)
 

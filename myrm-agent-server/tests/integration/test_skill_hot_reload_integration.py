@@ -1,6 +1,5 @@
 """Integration test for skill hot reload functionality."""
 
-
 import pytest
 from myrm_agent_harness.backends.skills.snapshot import SQLiteSkillSnapshot
 

@@ -46,9 +46,7 @@ logger = logging.getLogger("app.channels.routing.router")
 class RouterCommandsMixin:
     """Mixin: task cancellation and slash-command handlers from the consume loop."""
 
-    async def _cancel_active_task(
-        self: RouterCommandsHost, msg: InboundMessage
-    ) -> None:
+    async def _cancel_active_task(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Cancel the active agent task for the sender's chat session."""
         chat_id = msg.chat_id or msg.sender_id
         key = f"{msg.channel}:{chat_id}"
@@ -61,11 +59,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "no_active_task_to_stop"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -88,16 +82,10 @@ class RouterCommandsMixin:
             content=get_text(msg, "execution_stopped"),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
-        logger.warning(
-            "AgentRouter: /stop cancelled task for %s/%s", msg.channel, chat_id
-        )
+        logger.warning("AgentRouter: /stop cancelled task for %s/%s", msg.channel, chat_id)
 
     def _has_pending_approval(self: RouterCommandsHost, msg: InboundMessage) -> bool:
         """Check if the session has a pending approval request.
@@ -110,9 +98,7 @@ class RouterCommandsMixin:
         state_key = routing_session_key(msg.channel, chat_id)
         return self._active_tasks.get(state_key) is not None
 
-    def _is_reaction_approval_valid(
-        self: RouterCommandsHost, msg: InboundMessage
-    ) -> bool:
+    def _is_reaction_approval_valid(self: RouterCommandsHost, msg: InboundMessage) -> bool:
         """Validate an inbound emoji reaction as an approval command.
 
         Layered checks (a single failure aborts the approval):
@@ -157,8 +143,7 @@ class RouterCommandsMixin:
             return True
 
         logger.info(
-            "Reaction approval denied for actor %s on %s/%s "
-            "(requester=%s, co_approvers=%d)",
+            "Reaction approval denied for actor %s on %s/%s (requester=%s, co_approvers=%d)",
             actor,
             msg.channel,
             chat_id,
@@ -196,11 +181,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "no_pending_approval"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -210,9 +191,7 @@ class RouterCommandsMixin:
             decisions: list[dict[str, object]] = [entry]
             status_msg = self._status_for_single_decision(msg, decision)
         else:
-            decisions = [
-                self._build_decision_entry(d, msg.channel, batch=True) for d in decision
-            ]
+            decisions = [self._build_decision_entry(d, msg.channel, batch=True) for d in decision]
             status_msg = self._status_for_batch_decision(msg, decision)
 
         resume_value: dict[str, object] = {"decisions": decisions}
@@ -225,16 +204,12 @@ class RouterCommandsMixin:
 
         approval_mid = self._approval_msg_ids.pop(session_key, None)
         if approval_mid:
-            await self._bus.edit_channel_message(
-                msg.channel, chat_id, approval_mid, status_msg
-            )
+            await self._bus.edit_channel_message(msg.channel, chat_id, approval_mid, status_msg)
 
         self._gate.submit(resume_msg)
 
     @staticmethod
-    def _build_decision_entry(
-        decision: ApprovalDecision, channel: str, *, batch: bool = False
-    ) -> dict[str, object]:
+    def _build_decision_entry(decision: ApprovalDecision, channel: str, *, batch: bool = False) -> dict[str, object]:
         """Translate the three-tier decision into the harness decision dict.
 
         The harness ``apply_approval_decisions`` reads ``allowAlways`` from
@@ -252,9 +227,7 @@ class RouterCommandsMixin:
         }
 
     @staticmethod
-    def _status_for_single_decision(
-        msg: InboundMessage, decision: ApprovalDecision
-    ) -> str:
+    def _status_for_single_decision(msg: InboundMessage, decision: ApprovalDecision) -> str:
         if decision == "allow_always":
             return get_text(msg, "approval_always_processing")
         if decision == "allow_once":
@@ -262,9 +235,7 @@ class RouterCommandsMixin:
         return get_text(msg, "approval_denial_processing")
 
     @staticmethod
-    def _status_for_batch_decision(
-        msg: InboundMessage, decisions: list[ApprovalDecision]
-    ) -> str:
+    def _status_for_batch_decision(msg: InboundMessage, decisions: list[ApprovalDecision]) -> str:
         approve_count = sum(1 for d in decisions if d != "deny")
         always_count = sum(1 for d in decisions if d == "allow_always")
         reject_count = len(decisions) - approve_count
@@ -283,15 +254,11 @@ class RouterCommandsMixin:
             reject_count=reject_count,
         )
 
-    async def _handle_new_session(
-        self: RouterCommandsHost, msg: InboundMessage
-    ) -> None:
+    async def _handle_new_session(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Handle /new command: mark peer so next message creates a fresh Chat."""
         await handle_new_session(msg, self._bus, self._new_session_peers)
 
-    async def _handle_compact(
-        self: RouterCommandsHost, msg: InboundMessage, raw_args: str = ""
-    ) -> None:
+    async def _handle_compact(self: RouterCommandsHost, msg: InboundMessage, raw_args: str = "") -> None:
         """Handle /compact command: compress chat context to reduce token cost."""
         await handle_compact(
             msg,
@@ -303,9 +270,7 @@ class RouterCommandsMixin:
 
     async def _handle_retry(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Handle /retry command: delete last assistant turn and re-execute with original query."""
-        retried_msg = await handle_retry(
-            msg, self._bus, self._resolver, self._retry_handler
-        )
+        retried_msg = await handle_retry(msg, self._bus, self._resolver, self._retry_handler)
         if retried_msg is not None:
             self._gate.submit(retried_msg)
 
@@ -313,9 +278,7 @@ class RouterCommandsMixin:
         """Handle /undo command: delete the entire last turn."""
         await handle_undo(msg, self._bus, self._resolver, self._undo_handler)
 
-    async def _handle_topic_command(
-        self: RouterCommandsHost, msg: InboundMessage, cmd: TopicCommand
-    ) -> None:
+    async def _handle_topic_command(self: RouterCommandsHost, msg: InboundMessage, cmd: TopicCommand) -> None:
         """Handle /bind, /unbind, /topic commands for topic management."""
         await handle_topic_command(msg, cmd, self._bus, self._topic_resolver)
 
@@ -344,9 +307,7 @@ class RouterCommandsMixin:
                     elapsed = time.time() - enabled_at
                     remaining = timeout_val - elapsed
                     if remaining > 0:
-                        content = get_text(
-                            msg, "yolo_on_expires", seconds=int(remaining)
-                        )
+                        content = get_text(msg, "yolo_on_expires", seconds=int(remaining))
                     else:
                         del self._session_yolo[session_key]
                         content = get_text(msg, "yolo_off_expired")
@@ -359,11 +320,7 @@ class RouterCommandsMixin:
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -399,17 +356,11 @@ class RouterCommandsMixin:
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
-    _DEFAULT_PERSONALITY_STYLES: frozenset[str] = frozenset(
-        _ALL_PERSONALITY_KEYS
-    )
+    _DEFAULT_PERSONALITY_STYLES: frozenset[str] = frozenset(_ALL_PERSONALITY_KEYS)
     _DEFAULT_STYLE = "professional"
 
     async def _handle_personality_command(
@@ -455,11 +406,7 @@ class RouterCommandsMixin:
                     lines.append(f" {desc}\n")
                 content = "\n".join(lines)
             else:
-                content = (
-                    get_text(msg, "personality_list_fallback")
-                    + "\n"
-                    + "\n".join(f"- {s}" for s in sorted(valid_styles))
-                )
+                content = get_text(msg, "personality_list_fallback") + "\n" + "\n".join(f"- {s}" for s in sorted(valid_styles))
 
             current = self._session_personality.get(session_key)
             if current:
@@ -492,11 +439,7 @@ class RouterCommandsMixin:
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
@@ -517,11 +460,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "usage_steer"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -536,11 +475,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "steering_applied", preview=preview),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
         else:
@@ -564,11 +499,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "usage_queue"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -588,11 +519,7 @@ class RouterCommandsMixin:
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
@@ -612,11 +539,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "goal_management_not_available"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -650,11 +573,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "agent_is_running_goal"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -667,11 +586,7 @@ class RouterCommandsMixin:
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
@@ -698,11 +613,7 @@ class RouterCommandsMixin:
                     content=get_text(msg, "goal_system_not_configured"),
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=(
-                        (msg.message_id or str(msg.metadata.get("message_id", "")))
-                        if msg.is_group
-                        else None
-                    ),
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
                 )
             )
             return
@@ -734,11 +645,7 @@ class RouterCommandsMixin:
                     content=reply_content,
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=(
-                        (msg.message_id or str(msg.metadata.get("message_id", "")))
-                        if msg.is_group
-                        else None
-                    ),
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
                 )
             )
 
@@ -758,11 +665,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "background_tasks_not_available"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -776,11 +679,7 @@ class RouterCommandsMixin:
                 content=get_text(msg, "usage_btw"),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -810,11 +709,7 @@ class RouterCommandsMixin:
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
 
@@ -836,11 +731,7 @@ class RouterCommandsMixin:
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
 
@@ -864,11 +755,7 @@ class RouterCommandsMixin:
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
 
@@ -885,17 +772,11 @@ class RouterCommandsMixin:
                 content=content,
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
 
-    async def _handle_handoff_command(
-        self: RouterCommandsHost, msg: InboundMessage, raw_args: str
-    ) -> None:
+    async def _handle_handoff_command(self: RouterCommandsHost, msg: InboundMessage, raw_args: str) -> None:
         """Handle /handoff <target_channel>: transfer conversation to another platform."""
         chat_id = msg.chat_id or msg.sender_id
         target = raw_args.strip()
@@ -929,17 +810,11 @@ class RouterCommandsMixin:
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
-    async def _handle_status_command(
-        self: RouterCommandsHost, msg: InboundMessage
-    ) -> None:
+    async def _handle_status_command(self: RouterCommandsHost, msg: InboundMessage) -> None:
         """Handle /status command: show current session status without interrupting agent."""
         chat_id = msg.chat_id or msg.sender_id
         session_key = routing_session_key(msg.channel, chat_id)
@@ -950,15 +825,11 @@ class RouterCommandsMixin:
         if provider:
             status = await provider.get_session_status(msg.channel, chat_id)
             if status:
-                lines.append(
-                    get_text(msg, "status_session", session_id=status.session_id[:12])
-                )
+                lines.append(get_text(msg, "status_session", session_id=status.session_id[:12]))
                 if status.title:
                     lines.append(get_text(msg, "status_title", title=status.title))
                 if status.created_at:
-                    lines.append(
-                        get_text(msg, "status_created", created_at=status.created_at)
-                    )
+                    lines.append(get_text(msg, "status_created", created_at=status.created_at))
                 if status.last_activity:
                     lines.append(
                         get_text(
@@ -968,23 +839,13 @@ class RouterCommandsMixin:
                         )
                     )
                 if status.model_name:
-                    lines.append(
-                        get_text(msg, "status_model", model_name=status.model_name)
-                    )
-                lines.append(
-                    get_text(
-                        msg, "status_tokens", total_tokens=f"{status.total_tokens:,}"
-                    )
-                )
+                    lines.append(get_text(msg, "status_model", model_name=status.model_name))
+                lines.append(get_text(msg, "status_tokens", total_tokens=f"{status.total_tokens:,}"))
             else:
                 lines.append(get_text(msg, "status_no_session"))
 
         is_running = self._active_tasks.get(session_key) is not None
-        lines.append(
-            get_text(msg, "status_agent_running")
-            if is_running
-            else get_text(msg, "status_agent_idle")
-        )
+        lines.append(get_text(msg, "status_agent_running") if is_running else get_text(msg, "status_agent_idle"))
 
         queued = self._gate.pending_count(session_key)
         if queued > 0:
@@ -996,9 +857,7 @@ class RouterCommandsMixin:
             if timeout_val:
                 remaining = timeout_val - (time.time() - enabled_at)
                 if remaining > 0:
-                    lines.append(
-                        get_text(msg, "status_yolo_expires", seconds=int(remaining))
-                    )
+                    lines.append(get_text(msg, "status_yolo_expires", seconds=int(remaining)))
                 else:
                     del self._session_yolo[session_key]
             else:
@@ -1010,10 +869,6 @@ class RouterCommandsMixin:
             content="\n".join(lines),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)

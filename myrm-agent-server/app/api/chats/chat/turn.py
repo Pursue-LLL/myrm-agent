@@ -154,4 +154,3 @@ async def undo_last_turn(
         raise
     except Exception as e:
         raise internal_error(operation="Undo last turn", exception=e) from e
-

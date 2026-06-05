@@ -232,6 +232,7 @@ class TestChatServiceSearch:
         for item in items:
             assert expected_fields.issubset(item.keys())
 
+
 # ─────────────────────────────────────────────
 # 3. API endpoint tests (route registration)
 # ─────────────────────────────────────────────

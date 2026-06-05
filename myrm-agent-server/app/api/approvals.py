@@ -69,9 +69,7 @@ async def list_pending_approvals(
     offset: int = Query(0, ge=0),
 ) -> ApprovalListResponse:
     records = await ApprovalRegistry.list_pending(limit=limit, offset=offset)
-    return ApprovalListResponse(
-        approvals=[ApprovalRecordResponse.from_orm(r) for r in records]
-    )
+    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in records])
 
 
 @router.post("/{approval_id}/resolve")
@@ -88,9 +86,7 @@ async def resolve_approval(
     )
 
     if not record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
     # If it's a LangGraph interrupt, we must resume the agent!
     if record.thread_id:
@@ -200,6 +196,4 @@ async def batch_resolve_approvals(
         except Exception as e:
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 
-    return ApprovalListResponse(
-        approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records]
-    )
+    return ApprovalListResponse(approvals=[ApprovalRecordResponse.from_orm(r) for r in resolved_records])

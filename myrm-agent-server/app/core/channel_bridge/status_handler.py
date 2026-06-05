@@ -81,9 +81,7 @@ class ChannelStatusProvider:
             )
 
     @staticmethod
-    async def _resolve_model_name(
-        db: "AsyncSession", agent_id: str | None
-    ) -> str | None:
+    async def _resolve_model_name(db: "AsyncSession", agent_id: str | None) -> str | None:
         """Resolve model name from agent's model_selection config.
 
         Reuses the existing DB session to avoid an extra connection.
@@ -93,9 +91,7 @@ class ChannelStatusProvider:
         try:
             from app.database.models import Agent
 
-            agent = (
-                await db.execute(select(Agent).where(Agent.id == agent_id))
-            ).scalar_one_or_none()
+            agent = (await db.execute(select(Agent).where(Agent.id == agent_id))).scalar_one_or_none()
             if not agent or not agent.model_selection:
                 return None
             return agent.model_selection.get("model") or agent.model_selection.get("modelId")

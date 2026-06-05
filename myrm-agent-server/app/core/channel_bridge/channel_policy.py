@@ -161,7 +161,12 @@ class SqlChannelPolicyProvider:
         now = time.monotonic()
         cached = _cache_store["data"]
         cached_ts = _cache_store["ts"]
-        if cached is not None and isinstance(cached, dict) and isinstance(cached_ts, float) and (now - cached_ts) < _CACHE_TTL_SECONDS:
+        if (
+            cached is not None
+            and isinstance(cached, dict)
+            and isinstance(cached_ts, float)
+            and (now - cached_ts) < _CACHE_TTL_SECONDS
+        ):
             return {str(k): v for k, v in cached.items()}
 
         from app.database.connection import get_session

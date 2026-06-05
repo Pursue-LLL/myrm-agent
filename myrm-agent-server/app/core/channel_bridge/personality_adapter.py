@@ -24,4 +24,3 @@ class AppPersonalityProvider:
             return None
         key: PersonalityStyle = style  # narrowed by membership on Literal-keyed dict
         return PERSONALITY_TEMPLATES[key]
-

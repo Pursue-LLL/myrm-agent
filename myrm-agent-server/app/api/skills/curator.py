@@ -110,14 +110,10 @@ async def update_skill_lifecycle(
 
     if action == "pin":
         collector.set_pinned(skill_path, pinned=True)
-        return LifecycleActionResponse(
-            skill_name=skill_name, action="pin", new_status=stats.lifecycle_status, pinned=True
-        )
+        return LifecycleActionResponse(skill_name=skill_name, action="pin", new_status=stats.lifecycle_status, pinned=True)
     elif action == "unpin":
         collector.set_pinned(skill_path, pinned=False)
-        return LifecycleActionResponse(
-            skill_name=skill_name, action="unpin", new_status=stats.lifecycle_status, pinned=False
-        )
+        return LifecycleActionResponse(skill_name=skill_name, action="unpin", new_status=stats.lifecycle_status, pinned=False)
     elif action == "restore":
         collector.update_lifecycle_status(skill_path, SkillLifecycleStatus.ACTIVE)
         return LifecycleActionResponse(

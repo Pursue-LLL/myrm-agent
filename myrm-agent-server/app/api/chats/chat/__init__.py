@@ -1,4 +1,5 @@
 """聊天API接口"""
+
 from fastapi import APIRouter
 
 from .catchup import router as catchup_router

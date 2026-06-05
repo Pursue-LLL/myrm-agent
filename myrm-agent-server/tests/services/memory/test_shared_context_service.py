@@ -34,9 +34,7 @@ from app.services.memory.shared_context_materializer import (
 
 
 class _FakeSharedMemoryManager:
-    def __init__(
-        self, existing_results: list[MemorySearchResult] | None = None
-    ) -> None:
+    def __init__(self, existing_results: list[MemorySearchResult] | None = None) -> None:
         self.existing_results = existing_results or []
         self.stored: list[tuple[SemanticMemory | EpisodicMemory, bool]] = []
 
@@ -87,19 +85,11 @@ async def test_shared_context_bindings_resolve_active_contexts_in_target_priorit
     agent_context = await service.create_context(name="Customer A")
     channel_context = await service.create_context(name="Telegram Ops")
 
-    await service.bind_context(
-        context_id=channel_context.id, target_type="channel", target_id="telegram"
-    )
-    await service.bind_context(
-        context_id=agent_context.id, target_type="agent", target_id="planner"
-    )
-    await service.bind_context(
-        context_id=agent_context.id, target_type="channel", target_id="telegram"
-    )
+    await service.bind_context(context_id=channel_context.id, target_type="channel", target_id="telegram")
+    await service.bind_context(context_id=agent_context.id, target_type="agent", target_id="planner")
+    await service.bind_context(context_id=agent_context.id, target_type="channel", target_id="telegram")
 
-    resolved = await service.resolve_active_context_ids(
-        [("agent", "planner"), ("channel", "telegram")]
-    )
+    resolved = await service.resolve_active_context_ids([("agent", "planner"), ("channel", "telegram")])
 
     assert resolved == [agent_context.id, channel_context.id]
     assert shared_context_namespaces(resolved) == [
@@ -114,9 +104,7 @@ async def test_archived_shared_context_is_not_resolved(
 ) -> None:
     service = SharedContextService(db_session)
     context = await service.create_context(name="Old Project")
-    await service.bind_context(
-        context_id=context.id, target_type="agent", target_id="planner"
-    )
+    await service.bind_context(context_id=context.id, target_type="agent", target_id="planner")
     await service.archive_context(context.id)
 
     resolved = await service.resolve_active_context_ids([("agent", "planner")])
@@ -131,16 +119,10 @@ async def test_shared_context_bindings_can_be_listed_by_target(
     service = SharedContextService(db_session)
     agent_context = await service.create_context(name="Agent Playbook")
     channel_context = await service.create_context(name="Channel Playbook")
-    await service.bind_context(
-        context_id=agent_context.id, target_type="agent", target_id="planner"
-    )
-    await service.bind_context(
-        context_id=channel_context.id, target_type="channel", target_id="telegram"
-    )
+    await service.bind_context(context_id=agent_context.id, target_type="agent", target_id="planner")
+    await service.bind_context(context_id=channel_context.id, target_type="channel", target_id="telegram")
 
-    bindings = await service.list_bindings_for_target(
-        target_type="agent", target_id="planner"
-    )
+    bindings = await service.list_bindings_for_target(target_type="agent", target_id="planner")
 
     assert [binding.context_id for binding in bindings] == [agent_context.id]
 
@@ -212,9 +194,7 @@ async def test_shared_context_write_proposal_can_be_edited_before_approval(
     assert updated.metadata_json == {"importance": 0.8, "tags": ["edited"]}
 
     await service.set_write_proposal_status(proposal.id, "approved")
-    with pytest.raises(
-        ValueError, match="Shared context write proposal is not pending"
-    ):
+    with pytest.raises(ValueError, match="Shared context write proposal is not pending"):
         await service.update_write_proposal(proposal.id, content="Too late.")
 
 
@@ -256,9 +236,7 @@ async def test_shared_context_proposal_materializer_writes_audited_semantic_memo
         fake_create_memory_manager,
     )
 
-    approved = await SharedContextProposalMaterializer(
-        db_session
-    ).approve_write_proposal(proposal.id)
+    approved = await SharedContextProposalMaterializer(db_session).approve_write_proposal(proposal.id)
 
     assert approved is not None
     assert approved.status == "approved"
@@ -318,9 +296,7 @@ async def test_shared_context_proposal_materializer_is_idempotent_when_memory_ex
         fake_create_memory_manager,
     )
 
-    approved = await SharedContextProposalMaterializer(
-        db_session
-    ).approve_write_proposal(proposal.id)
+    approved = await SharedContextProposalMaterializer(db_session).approve_write_proposal(proposal.id)
 
     assert approved is not None
     assert approved.status == "approved"

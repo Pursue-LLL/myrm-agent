@@ -26,12 +26,14 @@ async def try_stream_reconnect(request: AgentRequest, http_request: Request) -> 
     if not await registry.has_buffer(request.message_id):
         logger.warning("Client reconnect failed: no active buffer for %s", request.message_id)
         return StreamingResponse(
-            iter([
-                error_sse(
-                    "Session expired or server restarted. Please refresh.",
-                    request.message_id,
-                )
-            ]),
+            iter(
+                [
+                    error_sse(
+                        "Session expired or server restarted. Please refresh.",
+                        request.message_id,
+                    )
+                ]
+            ),
             media_type="text/event-stream",
             headers=SSE_RESPONSE_HEADERS,
         )

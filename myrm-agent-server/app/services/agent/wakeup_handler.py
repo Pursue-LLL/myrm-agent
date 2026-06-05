@@ -29,9 +29,7 @@ logger = logging.getLogger(__name__)
 class ServerWakeupHandler:
     """Handles async wakeup events from the Harness framework in the background."""
 
-    async def on_async_wakeup(
-        self, result: SubAgentResult, agent_id: str, session_id: str | None
-    ) -> None:
+    async def on_async_wakeup(self, result: SubAgentResult, agent_id: str, session_id: str | None) -> None:
         """Called by Harness when a background subagent (wait=False) completes.
 
         This will:
@@ -39,21 +37,15 @@ class ServerWakeupHandler:
         2. Trigger a new agent execution in the background.
         """
         if not session_id:
-            logger.warning(
-                "Wakeup handler received event without session_id. Ignoring."
-            )
+            logger.warning("Wakeup handler received event without session_id. Ignoring.")
             return
 
-        logger.info(
-            f"🚀 ServerWakeupHandler received wakeup for session {session_id}, task {result.task_id}"
-        )
+        logger.info(f"🚀 ServerWakeupHandler received wakeup for session {session_id}, task {result.task_id}")
 
         # We must schedule this as a background task to avoid blocking the harness cleanup hook
         asyncio.create_task(self._process_wakeup(result, agent_id, session_id))
 
-    async def _process_wakeup(
-        self, result: SubAgentResult, agent_id: str, session_id: str
-    ) -> None:
+    async def _process_wakeup(self, result: SubAgentResult, agent_id: str, session_id: str) -> None:
         """Process the wakeup event in a detached background task."""
         try:
             # 1. Format the result
@@ -77,7 +69,9 @@ class ServerWakeupHandler:
             # But the best way is to append it as a system/tool completion.
             # ChatService.ensure_chat_and_append_user_message is usually for human inputs.
             # We'll use append_user_message but prefix it to make it clear it's a system notification.
-            system_notification = f"<system_notification type='async_result' task_id='{result.task_id}'>\n{content}\n</system_notification>"
+            system_notification = (
+                f"<system_notification type='async_result' task_id='{result.task_id}'>\n{content}\n</system_notification>"
+            )
 
             await ChatService.ensure_chat_and_append_user_message(
                 chat_id=session_id,
@@ -127,9 +121,7 @@ class ServerWakeupHandler:
             )
 
             # Load history
-            chat_history = await ChatService.load_web_chat_history(
-                session_id, api_key=None
-            )
+            chat_history = await ChatService.load_web_chat_history(session_id, api_key=None)
 
             normalized_history: list[list[str | dict[str, object]]] = []
             for turn in chat_history:
@@ -189,9 +181,7 @@ class ServerWakeupHandler:
                             headless_stream = gateway.execute_stream(
                                 raw_stream,
                                 agent_type="headless_wakeup",
-                                session_id=(
-                                    f"{session_id}_headless" if session_id else None
-                                ),
+                                session_id=(f"{session_id}_headless" if session_id else None),
                                 agent_instance=agent,
                             )
 
@@ -202,9 +192,7 @@ class ServerWakeupHandler:
                                     payload = chunk.model_dump()
                                 elif hasattr(chunk, "to_dict"):
                                     payload = chunk.to_dict()
-                                elif isinstance(chunk, str) and chunk.startswith(
-                                    "data: "
-                                ):
+                                elif isinstance(chunk, str) and chunk.startswith("data: "):
                                     try:
                                         payload = json.loads(chunk[6:].strip())
                                     except Exception:
@@ -228,18 +216,12 @@ class ServerWakeupHandler:
                                         },
                                     )
                                 )
-                            logger.info(
-                                f"✅ Headless wakeup agent run completed for session {session_id}"
-                            )
+                            logger.info(f"✅ Headless wakeup agent run completed for session {session_id}")
                             break  # Success, exit retry loop
                         except Exception as e:
-                            logger.error(
-                                f"Headless wakeup stream error on attempt {attempt + 1}/{max_retries}: {e}"
-                            )
+                            logger.error(f"Headless wakeup stream error on attempt {attempt + 1}/{max_retries}: {e}")
                             if attempt < max_retries - 1:
-                                await asyncio.sleep(
-                                    2**attempt
-                                )  # Exponential backoff: 1s, 2s
+                                await asyncio.sleep(2**attempt)  # Exponential backoff: 1s, 2s
                             else:
                                 logger.error(
                                     f"❌ Headless wakeup failed permanently for session {session_id} after {max_retries} attempts."
@@ -257,6 +239,4 @@ class ServerWakeupHandler:
             asyncio.create_task(consume_stream())
 
         except Exception as e:
-            logger.error(
-                f"Failed to start headless agent run for session {session_id}: {e}"
-            )
+            logger.error(f"Failed to start headless agent run for session {session_id}: {e}")

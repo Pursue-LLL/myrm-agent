@@ -549,9 +549,7 @@ class TestCreateDiagnosticEngine:
         }
 
     def test_custom_thresholds(self) -> None:
-        engine = create_diagnostic_engine(
-            DiagnosticThresholds(stranded_ready_hours=1.0)
-        )
+        engine = create_diagnostic_engine(DiagnosticThresholds(stranded_ready_hours=1.0))
         task = _make_task(status=TaskStatus.READY, hours_ago=2)
         result = engine.evaluate(task)
         assert any(d.rule_id == "stranded_in_ready" for d in result)
@@ -562,13 +560,15 @@ class TestCardFastRules:
         assert "dead_dependency" not in CARD_FAST_RULES
 
     def test_includes_card_fast_rules(self) -> None:
-        assert CARD_FAST_RULES == frozenset({
-            "stranded_in_ready",
-            "repeated_failures",
-            "stuck_in_blocked",
-            "stranded_in_triage",
-            "block_unblock_cycling",
-        })
+        assert CARD_FAST_RULES == frozenset(
+            {
+                "stranded_in_ready",
+                "repeated_failures",
+                "stuck_in_blocked",
+                "stranded_in_triage",
+                "block_unblock_cycling",
+            }
+        )
 
 
 class TestComputeDiagnosticsSummary:

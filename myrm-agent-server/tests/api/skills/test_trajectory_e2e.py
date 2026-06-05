@@ -26,9 +26,7 @@ async def test_trajectory_end_to_end_flow(client: TestClient):
 
     # 1. Create a mock proposal with trajectory
     skill_id = f"test_skill_{uuid.uuid4().hex[:8]}"
-    trajectory_markdown = (
-        "## 会话概览\n- 会话 ID: test_session\n\n## 根因分析\n**失败模式**: `timeout`"
-    )
+    trajectory_markdown = "## 会话概览\n- 会话 ID: test_session\n\n## 根因分析\n**失败模式**: `timeout`"
 
     proposal = EvolutionProposal(
         skill_id=skill_id,

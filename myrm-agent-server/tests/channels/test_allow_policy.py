@@ -255,8 +255,11 @@ class TestChatOverrides:
             chat_overrides={"c1": ChatPolicyOverride(group_policy=ChatPolicy.DENY)},
         )
         msg = InboundMessage(
-            channel="test", sender_id="user1", content="hi",
-            chat_id=None, is_group=True,
+            channel="test",
+            sender_id="user1",
+            content="hi",
+            chat_id=None,
+            is_group=True,
         )
         assert _allowed(policy, msg)
 
@@ -266,9 +269,7 @@ class TestChatOverrides:
             bot_policy=ChatPolicy.ALLOW,
             chat_overrides={"strict_bot_chat": ChatPolicyOverride(bot_policy=ChatPolicy.MENTION_ONLY)},
         )
-        assert policy.evaluate(
-            _msg(is_bot=True, chat_id="strict_bot_chat", mentioned=False)
-        ) == FilterReason.BOT_NOT_MENTIONED
+        assert policy.evaluate(_msg(is_bot=True, chat_id="strict_bot_chat", mentioned=False)) == FilterReason.BOT_NOT_MENTIONED
         assert _allowed(policy, _msg(is_bot=True, chat_id="strict_bot_chat", mentioned=True))
 
     def test_override_does_not_affect_dm_policy(self) -> None:
@@ -379,9 +380,7 @@ class TestCombinationScenarios:
             bot_policy=ChatPolicy.ALLOW,
             chat_overrides={"c1": ChatPolicyOverride(bot_policy=ChatPolicy.ALLOW)},
         )
-        assert policy.evaluate(
-            _msg(sender_id="evil_bot", is_bot=True, chat_id="c1")
-        ) == FilterReason.DENYLISTED
+        assert policy.evaluate(_msg(sender_id="evil_bot", is_bot=True, chat_id="c1")) == FilterReason.DENYLISTED
 
     def test_allowlist_plus_group_deny(self) -> None:
         """Allowlisted human blocked by group DENY policy."""
@@ -389,9 +388,7 @@ class TestCombinationScenarios:
             allowlist=frozenset({"vip"}),
             group_policy=ChatPolicy.DENY,
         )
-        assert policy.evaluate(
-            _msg(sender_id="vip", is_group=True)
-        ) == FilterReason.CHAT_DENIED
+        assert policy.evaluate(_msg(sender_id="vip", is_group=True)) == FilterReason.CHAT_DENIED
 
     def test_allowlist_plus_dm_allow(self) -> None:
         """Allowlisted human passes in DM with ALLOW policy."""
@@ -409,9 +406,7 @@ class TestCombinationScenarios:
     def test_full_pipeline_human_group_needs_mention(self) -> None:
         """Human group: no denylist, no allowlist, group_policy=MENTION_ONLY → needs mention."""
         policy = AllowPolicy()
-        assert policy.evaluate(
-            _msg(sender_id="user1", is_group=True, mentioned=False)
-        ) == FilterReason.CHAT_NOT_MENTIONED
+        assert policy.evaluate(_msg(sender_id="user1", is_group=True, mentioned=False)) == FilterReason.CHAT_NOT_MENTIONED
         assert _allowed(policy, _msg(sender_id="user1", is_group=True, mentioned=True))
 
     def test_full_pipeline_bot_default_denied(self) -> None:
@@ -426,6 +421,4 @@ class TestCombinationScenarios:
             chat_overrides={"open_chat": ChatPolicyOverride(group_policy=ChatPolicy.ALLOW)},
         )
         assert _allowed(policy, _msg(is_group=True, chat_id="open_chat", mentioned=False))
-        assert policy.evaluate(
-            _msg(is_group=True, chat_id="other", mentioned=False)
-        ) == FilterReason.CHAT_NOT_MENTIONED
+        assert policy.evaluate(_msg(is_group=True, chat_id="other", mentioned=False)) == FilterReason.CHAT_NOT_MENTIONED

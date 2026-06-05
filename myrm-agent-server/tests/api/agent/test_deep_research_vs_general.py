@@ -106,6 +106,7 @@ async def _collect_deep_research_response(query: str) -> dict[str, object]:
     from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 
     from tests.api.agent.utils import _convert_litellm_model
+
     llm = create_litellm_model(
         model=_convert_litellm_model(BASIC_MODEL),
         api_key=BASIC_API_KEY,

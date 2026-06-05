@@ -50,11 +50,7 @@ async def _test_agent_bridge_persistence(page) -> None:
     await page.wait_for_timeout(1500)
     key = "voiceAgentBridgeEnabled"
 
-    title = (
-        page.locator("p.text-sm.font-medium")
-        .filter(has_text=re.compile(r"Agent Bridge", re.I))
-        .first
-    )
+    title = page.locator("p.text-sm.font-medium").filter(has_text=re.compile(r"Agent Bridge", re.I)).first
     await title.scroll_into_view_if_needed()
     await title.wait_for(state="visible", timeout=30_000)
     row = title.locator("xpath=ancestor::div[contains(@class,'justify-between')][1]")
@@ -82,9 +78,7 @@ async def _test_voice_ws_agent_bridge() -> None:
     origin = FRONTEND.replace("127.0.0.1", "localhost")
     async with websockets.connect(
         BACKEND_WS,
-        additional_headers={
-            "Origin": origin if origin.startswith("http") else f"http://{origin}"
-        },
+        additional_headers={"Origin": origin if origin.startswith("http") else f"http://{origin}"},
     ) as ws:
         await ws.send(
             json.dumps(
@@ -110,9 +104,7 @@ async def _sync_minimax_backend(cfg: dict[str, str]) -> None:
     """Push MiniMax provider + base default to backend config (complements UI setup)."""
     import httpx
 
-    async with httpx.AsyncClient(
-        base_url="http://127.0.0.1:8080", timeout=30.0
-    ) as client:
+    async with httpx.AsyncClient(base_url="http://127.0.0.1:8080", timeout=30.0) as client:
         current = await client.get("/api/v1/config/providers")
         current.raise_for_status()
         body = current.json()
@@ -145,9 +137,7 @@ async def _sync_minimax_backend(cfg: dict[str, str]) -> None:
         else:
             raise RuntimeError(f"Provider {provider_id} not found in backend config")
 
-        value["defaultModelConfig"] = {
-            "baseModel": {"primary": {"providerId": provider_id, "model": model_name}}
-        }
+        value["defaultModelConfig"] = {"baseModel": {"primary": {"providerId": provider_id, "model": model_name}}}
         payload = {
             "changes": [
                 {
@@ -185,9 +175,7 @@ async def _verify_lite_agent_stream() -> None:
     chunks: list[str] = []
     errors: list[str] = []
     async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream(
-            "POST", f"{FRONTEND}/api/v1/agents/agent-stream", json=req
-        ) as resp:
+        async with client.stream("POST", f"{FRONTEND}/api/v1/agents/agent-stream", json=req) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
@@ -202,17 +190,13 @@ async def _verify_lite_agent_stream() -> None:
                     errors.append(str(payload.get("error", "")))
     answer = "".join(chunks)
     if errors or not re.search(r"\bOK\b", answer, re.I):
-        raise RuntimeError(
-            f"agent_stream_api_failed answer={answer[:120]!r} errors={errors[:2]}"
-        )
+        raise RuntimeError(f"agent_stream_api_failed answer={answer[:120]!r} errors={errors[:2]}")
     print("agent_stream_api: PASS")
 
 
 async def main() -> None:
     cfg = _effective_env()
-    os.environ.setdefault(
-        "PLAYWRIGHT_BROWSERS_PATH", str(Path.home() / "Library/Caches/ms-playwright")
-    )
+    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(Path.home() / "Library/Caches/ms-playwright"))
     await provider_flow._wait_health(FRONTEND)
     await _sync_minimax_backend(cfg)
 
@@ -224,38 +208,24 @@ async def main() -> None:
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         ctx = await browser.new_context(locale="zh-CN")
-        await ctx.add_cookies(
-            [{"name": "NEXT_LOCALE", "value": "zh", "domain": "127.0.0.1", "path": "/"}]
-        )
+        await ctx.add_cookies([{"name": "NEXT_LOCALE", "value": "zh", "domain": "127.0.0.1", "path": "/"}])
         page = await ctx.new_page()
         page.set_default_timeout(120_000)
 
         # --- Settings: providers ---
         await page.goto(f"{FRONTEND}/settings/models", timeout=120_000)
         await page.wait_for_timeout(3000)
-        if (
-            cfg["basic_kind"].replace("-", "_") in ("openai_like", "openai-like")
-            or "/" not in os.environ["BASIC_MODEL"]
-        ):
-            await provider_flow._add_custom_openai_like(
-                page, custom_name, cfg["basic_url"], cfg["basic_key"], cfg["basic_mid"]
-            )
+        if cfg["basic_kind"].replace("-", "_") in ("openai_like", "openai-like") or "/" not in os.environ["BASIC_MODEL"]:
+            await provider_flow._add_custom_openai_like(page, custom_name, cfg["basic_url"], cfg["basic_key"], cfg["basic_mid"])
             await provider_flow._ensure_provider_main_switch_on(page, custom_name)
         else:
-            await provider_flow._configure_builtin_provider(
-                page, "Xiaomi MiMo", cfg["basic_key"], cfg["basic_mid"]
-            )
-        await provider_flow._configure_builtin_provider(
-            page, "MiniMax", cfg["lite_key"], cfg["lite_mid"]
-        )
+            await provider_flow._configure_builtin_provider(page, "Xiaomi MiMo", cfg["basic_key"], cfg["basic_mid"])
+        await provider_flow._configure_builtin_provider(page, "MiniMax", cfg["lite_key"], cfg["lite_mid"])
         await provider_flow._ensure_provider_main_switch_on(page, "MiniMax")
         await provider_flow._enable_model_toggle(page, cfg["lite_mid"])
         await page.goto(f"{FRONTEND}/settings/models")
         await page.wait_for_timeout(800)
-        if (
-            cfg["basic_kind"].replace("-", "_") in ("openai_like", "openai-like")
-            or "/" not in os.environ["BASIC_MODEL"]
-        ):
+        if cfg["basic_kind"].replace("-", "_") in ("openai_like", "openai-like") or "/" not in os.environ["BASIC_MODEL"]:
             await provider_flow._select_provider(page, custom_name)
             await provider_flow._enable_model_toggle(page, cfg["basic_mid"])
             await provider_flow._ensure_provider_main_switch_on(page, custom_name)
@@ -288,9 +258,7 @@ async def main() -> None:
         if ui_chat_ok:
             print(f"chat_smoke: PASS ({chat_out})")
         else:
-            print(
-                "chat_smoke_ui: SKIP (transient frontend connection; API check follows)"
-            )
+            print("chat_smoke_ui: SKIP (transient frontend connection; API check follows)")
 
         await _verify_lite_agent_stream()
 

@@ -17,15 +17,15 @@ async def test_bash_streaming_and_grep_exit_code(client):
         "description": "Agent for testing bash tool",
         "agent_type": "general",
         "system_prompt": "You are a helpful assistant. You MUST use the bash_code_execute_tool to execute the command provided by the user. Do not use any other tools.",
-        "skills": ["bash_code_execute_tool"]
+        "skills": ["bash_code_execute_tool"],
     }
-    
+
     response = client.post("/api/agents", json=agent_payload)
     assert response.status_code == 200
     agent_data = response.json()
     agent_id = agent_data.get("data", {}).get("id") or agent_data.get("id")
     assert agent_id is not None, f"Failed to get agent_id from response: {agent_data}"
-    
+
     # Test 1: Streaming output
     # By default, tools require approval. We will just check if the agent attempts to use the tool
     # and if the tool call is correctly formatted.
@@ -34,11 +34,11 @@ async def test_bash_streaming_and_grep_exit_code(client):
         "message": "Please use bash_code_execute_tool to run exactly this command: `echo 'streaming_test_start' && sleep 1 && echo 'streaming_test_end'`",
         "messageId": str(uuid.uuid4()),
         "stream": True,
-        "sessionId": "test_session_bash_123"
+        "sessionId": "test_session_bash_123",
     }
-    
+
     tool_calls = []
-    
+
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
@@ -52,15 +52,15 @@ async def test_bash_streaming_and_grep_exit_code(client):
                         tool_calls.append(data)
                 except json.JSONDecodeError:
                     continue
-                    
+
     # Verify the agent attempted to call the bash tool
     print(f"Tool calls received: {tool_calls}")
-    
+
     # The agent might be suspended for approval, which is fine.
     # We just want to ensure the agent framework correctly parsed the intent and
     # attempted to call the bash_code_execute_tool.
     # We can't easily test the actual streaming output without an approval flow in this test setup.
     # But we know the streaming logic was tested manually and the grep exit code logic was tested via unit tests.
-    
+
     # Just to make the test pass and show we did something
     assert True

@@ -33,9 +33,9 @@ class ReactionPolicy:
     """
 
     level: ReactionLevel = ReactionLevel.FULL
-    processing_emoji: str = "\U0001F440"
+    processing_emoji: str = "\U0001f440"
     completion_emoji: str = "\u2705"
-    failure_emoji: str = "\u274C"
+    failure_emoji: str = "\u274c"
 
     @property
     def should_processing(self) -> bool:

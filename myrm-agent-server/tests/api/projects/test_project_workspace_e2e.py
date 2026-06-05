@@ -22,6 +22,7 @@ async def async_client() -> httpx.AsyncClient:
     ) as client:
         yield client
 
+
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.skipif(
@@ -56,10 +57,8 @@ class TestProjectWorkspaceE2E:
 
         collected_data = []
         message_chunks = []
-        
-        async with async_client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=search_request
-        ) as response:
+
+        async with async_client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
             assert response.status_code == 200
             async for line in response.aiter_lines():
                 if not line or not line.startswith("data: "):
@@ -80,6 +79,6 @@ class TestProjectWorkspaceE2E:
         check_e2e_errors(collected_data)
         has_message_end = any(d.get("type") == "message_end" for d in collected_data)
         assert has_message_end, "Should have message_end event"
-        
+
         # Clean up
         await async_client.delete(f"/api/v1/projects/{project_id}")

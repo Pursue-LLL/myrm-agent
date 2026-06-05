@@ -16,6 +16,7 @@ API_PREFIX = "/api/v1"
 def client():
     """Create test client from the real application."""
     import app.services.connect.service as svc
+
     svc._service = None
     return TestClient(_app)
 
@@ -51,15 +52,11 @@ class TestConnectGenerateAPI:
     """Test POST /connect/generate endpoint."""
 
     def test_generate_config_returns_200(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"})
         assert response.status_code == 200
 
     def test_generate_returns_token(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"})
         data = response.json()
         assert data["token"].startswith("myrm_mcp_")
         assert data["mcp_url"].endswith("/mcp")
@@ -67,15 +64,11 @@ class TestConnectGenerateAPI:
         assert data["instructions"]
 
     def test_generate_unknown_profile_returns_error(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "nonexistent"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "nonexistent"})
         assert response.status_code in (400, 422, 500)
 
     def test_generate_codex_returns_toml(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "codex"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "codex"})
         data = response.json()
         assert data["config_json"]["_format"] == "toml"
         assert "[mcp_servers.myrm-memory]" in data["config_json"]["_toml_snippet"]

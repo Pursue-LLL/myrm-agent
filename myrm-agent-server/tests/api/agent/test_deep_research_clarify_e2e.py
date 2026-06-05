@@ -85,9 +85,7 @@ class TestDeepResearchClarifyE2E:
         message_chunks = []
         has_clarify_event = False
 
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=search_request
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
             assert response.status_code == 200
 
             for line in response.iter_lines():
@@ -116,27 +114,18 @@ class TestDeepResearchClarifyE2E:
 
                     if event_type == "message":
                         metadata = data.get("metadata", {})
-                        if (
-                            isinstance(metadata, dict)
-                            and metadata.get("phase") == "clarify"
-                        ):
+                        if isinstance(metadata, dict) and metadata.get("phase") == "clarify":
                             print(f"\n  ❓ 收到澄清问题: {data.get('data')}")
                             has_clarify_event = True
                             clarification_received.set()
-                        elif (
-                            isinstance(metadata, dict)
-                            and metadata.get("phase") == "report"
-                        ):
+                        elif isinstance(metadata, dict) and metadata.get("phase") == "report":
                             content = data.get("data", "")
                             if content:
                                 message_chunks.append(content)
 
                     elif event_type == "status":
                         status_data = data.get("data", {})
-                        if (
-                            isinstance(status_data, dict)
-                            and status_data.get("phase") == "clarify"
-                        ):
+                        if isinstance(status_data, dict) and status_data.get("phase") == "clarify":
                             print(f"  ⏳ 澄清状态: {status_data.get('status')}")
 
                 except json.JSONDecodeError as e:
@@ -155,9 +144,7 @@ class TestDeepResearchClarifyE2E:
         assert full_report, "Should have generated a final report after clarification"
 
         # 验证包含我们回答的内容
-        assert (
-            "LangChain" in full_report
-            or "LlamaIndex" in full_report
-            or len(full_report) > 100
-        ), "Report should reflect the clarified topic"
+        assert "LangChain" in full_report or "LlamaIndex" in full_report or len(full_report) > 100, (
+            "Report should reflect the clarified topic"
+        )
         print("\n✅ 测试通过：Deep Research 澄清流程正常")

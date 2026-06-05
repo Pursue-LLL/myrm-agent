@@ -29,9 +29,7 @@ def _skip_if_no_api_key() -> None:
         pytest.skip("BASIC_API_KEY not set, skipping e2e test")
 
 
-def _post_with_retry(
-    client: TestClient, json_body: dict[str, object], retries: int = MAX_RETRIES
-) -> object:
+def _post_with_retry(client: TestClient, json_body: dict[str, object], retries: int = MAX_RETRIES) -> object:
     """Retry LLM-backed API call to handle transient failures (empty responses)."""
     last_resp = None
     for attempt in range(retries):

@@ -386,9 +386,7 @@ class BaseChannel(ABC, EventEmitter):
     async def react_to_message(self, chat_id: str, message_id: str, emoji: str) -> None:
         """Add/remove a reaction emoji on a message. Empty emoji removes the reaction."""
 
-    async def send_placeholder(
-        self, chat_id: str, text: str, *, thread_id: str | None = None
-    ) -> str | None:
+    async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         """Send a placeholder message and return its message_id for later editing.
 
         Returns None if the channel does not support message editing.
@@ -543,9 +541,7 @@ class BaseChannel(ABC, EventEmitter):
         if self._inbound_handler:
             await self._inbound_handler(msg)
         else:
-            logger.warning(
-                "Channel '%s': inbound message dropped (no handler)", self.name
-            )
+            logger.warning("Channel '%s': inbound message dropped (no handler)", self.name)
 
     async def _debounce_emit(self, msg: InboundMessage) -> None:
         """Buffer messages per chat_id and dispatch after debounce window."""
@@ -575,24 +571,18 @@ class BaseChannel(ABC, EventEmitter):
         if self._dedup_mode == DedupMode.LRU:
             while len(self._seen_msg_ids) > self._dedup_capacity:
                 self._seen_msg_ids.popitem(last=False)
-                self._dedup_eviction_counter.add(
-                    1, {"channel": self.name, "mode": "lru"}
-                )
+                self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "lru"})
         else:
             while self._seen_msg_ids:
                 oldest_key, oldest_ts = next(iter(self._seen_msg_ids.items()))
                 if now - oldest_ts > self._dedup_ttl:
                     self._seen_msg_ids.pop(oldest_key)
-                    self._dedup_eviction_counter.add(
-                        1, {"channel": self.name, "mode": "ttl"}
-                    )
+                    self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "ttl"})
                 else:
                     break
             while len(self._seen_msg_ids) > _DEFAULT_DEDUP_CAPACITY:
                 self._seen_msg_ids.popitem(last=False)
-                self._dedup_eviction_counter.add(
-                    1, {"channel": self.name, "mode": "ttl_capacity"}
-                )
+                self._dedup_eviction_counter.add(1, {"channel": self.name, "mode": "ttl_capacity"})
 
     def register_routes(self, registrar: object) -> None:
         """Register channel-specific HTTP routes.
@@ -737,9 +727,7 @@ class BaseChannel(ABC, EventEmitter):
         """
         raise NotImplementedError(f"{self.name} does not support OAuth2 callback")
 
-    async def fetch_history(
-        self, chat_id: str, limit: int = 15
-    ) -> list[InboundMessage]:
+    async def fetch_history(self, chat_id: str, limit: int = 15) -> list[InboundMessage]:
         """Fetch recent historical messages from the platform's chat/thread.
 
         Subclasses (like Discord, Slack, etc.) should override this method to

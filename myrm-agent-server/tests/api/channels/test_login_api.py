@@ -264,7 +264,9 @@ class TestOAuth2Callback:
         assert resp.status_code == 200
         assert resp.json()["status"] == "success"
         mock_ch.handle_oauth2_callback.assert_called_once_with(
-            code="auth123", state="state456", error=None,
+            code="auth123",
+            state="state456",
+            error=None,
         )
 
     def test_callback_channel_not_found(self, client):

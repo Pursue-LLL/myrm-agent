@@ -1,4 +1,5 @@
 """Application lifecycle management."""
+
 from __future__ import annotations
 
 import asyncio
@@ -20,6 +21,7 @@ _login_session_cleanup_scheduler: AsyncScheduler | None = None
 
 _auth_log_cleanup_scheduler: AsyncScheduler | None = None
 
+
 async def _auth_log_cleanup_job() -> None:
     """Periodic auth audit log cleanup (removes old archived logs)."""
 
@@ -33,6 +35,7 @@ async def _auth_log_cleanup_job() -> None:
         rotator.cleanup_old_logs(archive_dir, settings.auth_audit_log_retention_days)
     except Exception as exc:
         logger.warning("Auth log cleanup failed: %s", exc)
+
 
 async def _context_cleanup_job() -> None:
     """Daily context file cleanup task (module-level for APScheduler serialization)."""
@@ -65,6 +68,7 @@ async def _context_cleanup_job() -> None:
     except Exception as e:
         logger.error(f"Context cleanup failed: {e}", exc_info=True)
 
+
 async def start_cron_scheduler() -> None:
     """启动 Cron Scheduler（定时任务调度器）"""
     from app.core.cron.adapters.setup import get_cron_scheduler
@@ -72,7 +76,9 @@ async def start_cron_scheduler() -> None:
     await get_cron_scheduler().start()
     logger.info("Cron scheduler started")
 
+
 _context_cleanup_scheduler_task: asyncio.Task[None] | None = None
+
 
 async def start_context_cleanup_scheduler() -> None:
     """Start context file cleanup scheduler with session-aware strategy.
@@ -110,6 +116,7 @@ async def start_context_cleanup_scheduler() -> None:
     except Exception as e:
         logger.error(f"Failed to start context cleanup scheduler: {e}", exc_info=True)
 
+
 async def stop_context_cleanup_scheduler() -> None:
     """Stop the context cleanup scheduler gracefully."""
     global _context_cleanup_scheduler, _context_cleanup_scheduler_task
@@ -130,6 +137,7 @@ async def stop_context_cleanup_scheduler() -> None:
         _context_cleanup_scheduler = None
         _context_cleanup_scheduler_task = None
 
+
 async def start_context_compaction_telemetry_dispatcher() -> None:
     """Start server-side batching dispatcher for context compaction telemetry."""
     from app.services.agent.context_compaction_telemetry import (
@@ -138,6 +146,7 @@ async def start_context_compaction_telemetry_dispatcher() -> None:
 
     await _start_dispatcher()
 
+
 async def stop_context_compaction_telemetry_dispatcher() -> None:
     """Stop server-side batching dispatcher for context compaction telemetry."""
     from app.services.agent.context_compaction_telemetry import (
@@ -145,6 +154,7 @@ async def stop_context_compaction_telemetry_dispatcher() -> None:
     )
 
     await _stop_dispatcher()
+
 
 async def _approval_ttl_job() -> None:
     """Periodic approval TTL job (rejects expired approvals)."""
@@ -157,7 +167,9 @@ async def _approval_ttl_job() -> None:
     except Exception as exc:
         logger.warning("Approval TTL cleanup failed: %s", exc)
 
+
 _approval_ttl_scheduler_task: asyncio.Task[None] | None = None
+
 
 async def start_approval_ttl_scheduler() -> None:
     """Start approval TTL auto-downgrade scheduler (every 5 minutes)."""
@@ -183,6 +195,7 @@ async def start_approval_ttl_scheduler() -> None:
     except Exception as exc:
         logger.error("Failed to start approval TTL scheduler: %s", exc)
 
+
 async def stop_approval_ttl_scheduler() -> None:
     """Stop the approval TTL scheduler."""
     global _approval_ttl_scheduler_task
@@ -202,6 +215,7 @@ async def stop_approval_ttl_scheduler() -> None:
     finally:
         _approval_ttl_scheduler_task = None
 
+
 async def _login_session_cleanup_job() -> None:
     """Periodic login session cleanup (removes expired sessions)."""
     from app.api.channels.login import session_store
@@ -212,6 +226,7 @@ async def _login_session_cleanup_job() -> None:
             logger.info("Login session cleanup: %d expired sessions removed", deleted)
     except Exception as exc:
         logger.warning("Login session cleanup failed: %s", exc)
+
 
 async def _db_maintenance_job() -> None:
     """Periodic database maintenance (every 6h).
@@ -310,9 +325,7 @@ async def _db_maintenance_job() -> None:
 
                 from app.database.models import Chat
 
-                await session.execute(
-                    sa_delete(Chat).where(Chat.id.in_(expired_ids))
-                )
+                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_ids)))
                 await session.commit()
                 logger.info("Chat trash auto-purge: %d expired chats permanently deleted", len(expired_ids))
 
@@ -328,6 +341,7 @@ async def _db_maintenance_job() -> None:
                     logger.warning("Chat trash auto-purge workspace cleanup failed (chat=%s): %s", cid, ws_err)
     except Exception as e:
         logger.warning("Chat trash auto-purge failed: %s", e)
+
 
 async def _incognito_cleanup_job() -> None:
     """Incognito chat auto-purge: permanently delete incognito chats older than 1 hour"""
@@ -352,11 +366,11 @@ async def _incognito_cleanup_job() -> None:
                 for cid in expired_incognito_ids:
                     await ConversationRecallIndexService.delete_chat(session, cid)
 
-                await session.execute(
-                    sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids))
-                )
+                await session.execute(sa_delete(Chat).where(Chat.id.in_(expired_incognito_ids)))
                 await session.commit()
-                logger.info("Incognito chat auto-purge: %d expired incognito chats permanently deleted", len(expired_incognito_ids))
+                logger.info(
+                    "Incognito chat auto-purge: %d expired incognito chats permanently deleted", len(expired_incognito_ids)
+                )
 
         if expired_incognito_ids:
             from app.services.chat.chat_crud import _ChatCrudMixin
@@ -371,7 +385,9 @@ async def _incognito_cleanup_job() -> None:
     except Exception as e:
         logger.warning("Incognito chat auto-purge failed: %s", e)
 
+
 _db_maintenance_scheduler_task: asyncio.Task[None] | None = None
+
 
 async def start_db_maintenance_scheduler() -> None:
     """Start database maintenance scheduler (every 6 hours)."""
@@ -405,7 +421,9 @@ async def start_db_maintenance_scheduler() -> None:
     except Exception as e:
         logger.error("Failed to start DB maintenance scheduler: %s", e)
 
+
 _login_session_cleanup_scheduler_task: asyncio.Task[None] | None = None
+
 
 async def start_login_session_cleanup_scheduler() -> None:
     """Start login session cleanup scheduler (every 5 minutes)."""
@@ -434,6 +452,7 @@ async def start_login_session_cleanup_scheduler() -> None:
     except Exception as exc:
         logger.error("Failed to start login session cleanup scheduler: %s", exc)
 
+
 async def stop_login_session_cleanup_scheduler() -> None:
     """Stop the login session cleanup scheduler."""
     global _login_session_cleanup_scheduler, _login_session_cleanup_scheduler_task
@@ -454,7 +473,9 @@ async def stop_login_session_cleanup_scheduler() -> None:
         _login_session_cleanup_scheduler = None
         _login_session_cleanup_scheduler_task = None
 
+
 _auth_log_cleanup_scheduler_task: asyncio.Task[None] | None = None
+
 
 async def start_auth_log_cleanup_scheduler() -> None:
     """Start auth audit log cleanup scheduler (daily at 4:00 AM)."""
@@ -483,6 +504,7 @@ async def start_auth_log_cleanup_scheduler() -> None:
     except Exception as exc:
         logger.error("Failed to start auth log cleanup scheduler: %s", exc)
 
+
 async def stop_auth_log_cleanup_scheduler() -> None:
     """Stop the auth log cleanup scheduler."""
     global _auth_log_cleanup_scheduler, _auth_log_cleanup_scheduler_task
@@ -502,6 +524,7 @@ async def stop_auth_log_cleanup_scheduler() -> None:
     finally:
         _auth_log_cleanup_scheduler = None
         _auth_log_cleanup_scheduler_task = None
+
 
 async def stop_db_maintenance_scheduler() -> None:
     """Stop the database maintenance scheduler."""

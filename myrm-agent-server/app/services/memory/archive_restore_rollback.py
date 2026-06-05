@@ -105,7 +105,9 @@ class MemoryArchiveRestoreRollbacker:
         memory_items = [
             item
             for item in items
-            if item.section == "memory" and item.status == RESTORE_ITEM_STATUS_RESTORED and not item.item_kind.endswith(".profile")
+            if item.section == "memory"
+            and item.status == RESTORE_ITEM_STATUS_RESTORED
+            and not item.item_kind.endswith(".profile")
         ]
         ids_by_type = _memory_ids_by_type(memory_items)
         result = await manager.delete_memories_by_ids(ids_by_type)
@@ -113,7 +115,9 @@ class MemoryArchiveRestoreRollbacker:
         missing = {(ref.memory_type, ref.memory_id) for ref in result.missing_refs}
         failed = {(ref.memory_type, ref.memory_id) for ref in result.failed_refs + result.forbidden_refs}
         for item in memory_items:
-            refs.append(self._mark_memory_item(item, deleted=deleted, missing=missing, failed=failed, rolled_back_at=rolled_back_at))
+            refs.append(
+                self._mark_memory_item(item, deleted=deleted, missing=missing, failed=failed, rolled_back_at=rolled_back_at)
+            )
         for item in _profile_items(items):
             refs.append(await self._rollback_profile_item(manager, item, rolled_back_at))
         return refs
@@ -134,7 +138,13 @@ class MemoryArchiveRestoreRollbacker:
         if item_refs and item_refs.issubset(deleted):
             mark_restore_item(item, status=RESTORE_ITEM_STATUS_ROLLED_BACK, rolled_back_at=rolled_back_at)
             return item_to_ref(item, RESTORE_ITEM_STATUS_ROLLED_BACK)
-        status = RESTORE_ITEM_STATUS_MISSING if item_refs & missing else RESTORE_ITEM_STATUS_FAILED if item_refs & failed else RESTORE_ITEM_STATUS_MISSING
+        status = (
+            RESTORE_ITEM_STATUS_MISSING
+            if item_refs & missing
+            else RESTORE_ITEM_STATUS_FAILED
+            if item_refs & failed
+            else RESTORE_ITEM_STATUS_MISSING
+        )
         mark_restore_item(item, status=status, rolled_back_at=rolled_back_at, reason="memory_target_not_deleted")
         return item_to_ref(item, status, "memory_target_not_deleted")
 
@@ -147,22 +157,30 @@ class MemoryArchiveRestoreRollbacker:
         metadata = object_dict(item.metadata_json)
         profile_key = str(metadata.get("profile_key") or "")
         if not profile_key:
-            mark_restore_item(item, status=RESTORE_ITEM_STATUS_FAILED, rolled_back_at=rolled_back_at, reason="profile_key_missing")
+            mark_restore_item(
+                item, status=RESTORE_ITEM_STATUS_FAILED, rolled_back_at=rolled_back_at, reason="profile_key_missing"
+            )
             return item_to_ref(item, RESTORE_ITEM_STATUS_FAILED, "profile_key_missing")
         current = await manager.get_profile_attribute_snapshot(profile_key)
         imported_revision = str(metadata.get("profile_imported_revision") or "")
         imported_value = metadata.get("profile_imported_value")
         imported_present = bool(metadata.get("profile_imported_present"))
         if imported_revision and (not current.exists or current.revision != imported_revision):
-            mark_restore_item(item, status=RESTORE_ITEM_STATUS_CONFLICT, rolled_back_at=rolled_back_at, reason="profile_changed_after_restore")
+            mark_restore_item(
+                item, status=RESTORE_ITEM_STATUS_CONFLICT, rolled_back_at=rolled_back_at, reason="profile_changed_after_restore"
+            )
             return item_to_ref(item, RESTORE_ITEM_STATUS_CONFLICT, "profile_changed_after_restore")
         if not imported_revision and imported_present and current.value != imported_value:
-            mark_restore_item(item, status=RESTORE_ITEM_STATUS_CONFLICT, rolled_back_at=rolled_back_at, reason="profile_changed_after_restore")
+            mark_restore_item(
+                item, status=RESTORE_ITEM_STATUS_CONFLICT, rolled_back_at=rolled_back_at, reason="profile_changed_after_restore"
+            )
             return item_to_ref(item, RESTORE_ITEM_STATUS_CONFLICT, "profile_changed_after_restore")
         restore_value = str(metadata.get("profile_previous_value")) if metadata.get("profile_previous_present") else None
         restored_count = await manager.restore_profile_attributes({profile_key: restore_value})
         status = RESTORE_ITEM_STATUS_ROLLED_BACK if restored_count else RESTORE_ITEM_STATUS_FAILED
-        mark_restore_item(item, status=status, rolled_back_at=rolled_back_at, reason="" if restored_count else "profile_restore_failed")
+        mark_restore_item(
+            item, status=status, rolled_back_at=rolled_back_at, reason="" if restored_count else "profile_restore_failed"
+        )
         return item_to_ref(item, status, "" if restored_count else "profile_restore_failed")
 
     async def _rollback_orm_items(
@@ -173,11 +191,15 @@ class MemoryArchiveRestoreRollbacker:
     ) -> list[MemoryArchiveRestoreMutationRef]:
         refs: list[MemoryArchiveRestoreMutationRef] = []
         for item_kind, model in _rollback_models():
-            for item in [entry for entry in items if entry.item_kind == item_kind and entry.status == RESTORE_ITEM_STATUS_RESTORED]:
+            for item in [
+                entry for entry in items if entry.item_kind == item_kind and entry.status == RESTORE_ITEM_STATUS_RESTORED
+            ]:
                 target_id = item.target_id or ""
                 row = await self._db.get(model, target_id)
                 if row is None:
-                    mark_restore_item(item, status=RESTORE_ITEM_STATUS_MISSING, rolled_back_at=rolled_back_at, reason="target_missing")
+                    mark_restore_item(
+                        item, status=RESTORE_ITEM_STATUS_MISSING, rolled_back_at=rolled_back_at, reason="target_missing"
+                    )
                     refs.append(item_to_ref(item, RESTORE_ITEM_STATUS_MISSING, "target_missing"))
                     continue
                 await self._db.delete(row)

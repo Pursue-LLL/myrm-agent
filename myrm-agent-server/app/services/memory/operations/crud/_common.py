@@ -41,5 +41,3 @@ async def _record_memory_event(
             metadata=metadata,
             commit=True,
         )
-
-

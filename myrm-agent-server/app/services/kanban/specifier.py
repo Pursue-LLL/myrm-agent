@@ -157,11 +157,7 @@ class PlatformTaskSpecifier:
                 persisted=False,
             )
 
-        system_prompt = (
-            _SYSTEM_PROMPT_ZH
-            if has_cjk(task.title) or has_cjk(task.description)
-            else _SYSTEM_PROMPT_EN
-        )
+        system_prompt = _SYSTEM_PROMPT_ZH if has_cjk(task.title) or has_cjk(task.description) else _SYSTEM_PROMPT_EN
         user_msg = _USER_TEMPLATE.format(
             task_id=task.task_id,
             title=truncate(task.title or "", _MAX_TITLE_FORWARD),
@@ -227,11 +223,7 @@ class PlatformTaskSpecifier:
 
         title_val = parsed.get("title")
         body_val = parsed.get("body")
-        new_title = (
-            title_val.strip()
-            if isinstance(title_val, str) and title_val.strip()
-            else None
-        )
+        new_title = title_val.strip() if isinstance(title_val, str) and title_val.strip() else None
         new_body = body_val if isinstance(body_val, str) and body_val.strip() else None
 
         if new_title is None and new_body is None:
@@ -254,5 +246,3 @@ class PlatformTaskSpecifier:
             completion_tokens=completion_tokens,
             persisted=False,
         )
-
-

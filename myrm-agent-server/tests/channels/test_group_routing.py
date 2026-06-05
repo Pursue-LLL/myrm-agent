@@ -32,9 +32,7 @@ class FakePairingStore:
     async def resolve(self, channel: str, sender_id: str) -> str | None:
         return None
 
-    async def bind(
-        self, channel: str, sender_id: str, user_id: str, *, status: PairingStatus = PairingStatus.ACTIVE
-    ) -> None:
+    async def bind(self, channel: str, sender_id: str, user_id: str, *, status: PairingStatus = PairingStatus.ACTIVE) -> None:
         pass
 
     async def unbind(self, channel: str, sender_id: str) -> None:

@@ -90,11 +90,7 @@ async def _fetch_sessions(
     chat_ids = [r[0] for r in rows]
     msg_counts: dict[str, int] = {}
     if chat_ids:
-        msg_stmt = (
-            select(Message.chat_id, func.count(Message.id))
-            .where(Message.chat_id.in_(chat_ids))
-            .group_by(Message.chat_id)
-        )
+        msg_stmt = select(Message.chat_id, func.count(Message.id)).where(Message.chat_id.in_(chat_ids)).group_by(Message.chat_id)
         msg_result = await db.execute(msg_stmt)
         msg_counts = dict(msg_result.all())
 
@@ -115,9 +111,7 @@ async def _fetch_sessions(
     ]
 
 
-async def _fetch_approvals(
-    db: AsyncSession, start: datetime, end: datetime
-) -> list[dict[str, object]]:
+async def _fetch_approvals(db: AsyncSession, start: datetime, end: datetime) -> list[dict[str, object]]:
     stmt = (
         select(
             ApprovalRecord.id,
@@ -146,9 +140,7 @@ async def _fetch_approvals(
     ]
 
 
-async def _fetch_cron_runs(
-    db: AsyncSession, start: datetime, end: datetime
-) -> list[dict[str, object]]:
+async def _fetch_cron_runs(db: AsyncSession, start: datetime, end: datetime) -> list[dict[str, object]]:
     stmt = (
         select(
             CronRunModel.id,
@@ -177,9 +169,7 @@ async def _fetch_cron_runs(
     ]
 
 
-async def _fetch_kanban_events(
-    db: AsyncSession, start: datetime, end: datetime
-) -> list[dict[str, object]]:
+async def _fetch_kanban_events(db: AsyncSession, start: datetime, end: datetime) -> list[dict[str, object]]:
     stmt = (
         select(
             KanbanTaskEventModel.id,
@@ -241,40 +231,48 @@ def _build_timeline(
     timeline: list[dict[str, object]] = []
 
     for s in sessions:
-        timeline.append({
-            "time": s["started_at"],
-            "type": "session",
-            "title": s["title"],
-            "detail": {
-                "chat_id": s["chat_id"],
-                "action_mode": s["action_mode"],
-                "tokens": s["total_tokens"],
-            },
-        })
+        timeline.append(
+            {
+                "time": s["started_at"],
+                "type": "session",
+                "title": s["title"],
+                "detail": {
+                    "chat_id": s["chat_id"],
+                    "action_mode": s["action_mode"],
+                    "tokens": s["total_tokens"],
+                },
+            }
+        )
 
     for a in approvals:
-        timeline.append({
-            "time": a["created_at"],
-            "type": "approval",
-            "title": f"{a['action_type']} — {a['status']}",
-            "detail": {"id": a["id"], "severity": a["severity"]},
-        })
+        timeline.append(
+            {
+                "time": a["created_at"],
+                "type": "approval",
+                "title": f"{a['action_type']} — {a['status']}",
+                "detail": {"id": a["id"], "severity": a["severity"]},
+            }
+        )
 
     for c in cron_runs:
-        timeline.append({
-            "time": c["started_at"],
-            "type": "cron_run",
-            "title": f"Cron {c['job_id']} — {c['status']}",
-            "detail": {"id": c["id"], "duration_ms": c["duration_ms"]},
-        })
+        timeline.append(
+            {
+                "time": c["started_at"],
+                "type": "cron_run",
+                "title": f"Cron {c['job_id']} — {c['status']}",
+                "detail": {"id": c["id"], "duration_ms": c["duration_ms"]},
+            }
+        )
 
     for k in kanban_events:
-        timeline.append({
-            "time": k["created_at"],
-            "type": "kanban",
-            "title": f"Task {k['task_id']} — {k['kind']}",
-            "detail": {"id": k["id"]},
-        })
+        timeline.append(
+            {
+                "time": k["created_at"],
+                "type": "kanban",
+                "title": f"Task {k['task_id']} — {k['kind']}",
+                "detail": {"id": k["id"]},
+            }
+        )
 
     timeline.sort(key=lambda x: x.get("time") or "9999-12-31T23:59:59")
     return timeline
@@ -293,12 +291,8 @@ def _build_source_breakdown(sessions: list[dict[str, object]]) -> dict[str, int]
 
 @router.get("/daily-journal")
 async def get_daily_journal(
-    date: str = Query(
-        ..., description="Date in YYYY-MM-DD format"
-    ),
-    agent_id: str | None = Query(
-        None, description="Optional agent ID to filter sessions"
-    ),
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    agent_id: str | None = Query(None, description="Optional agent ID to filter sessions"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Get consolidated daily work journal for a single day.
@@ -321,24 +315,26 @@ async def get_daily_journal(
         total_tokens = sum(int(s.get("total_tokens", 0)) for s in sessions)
         total_usd = sum(float(s.get("total_usd", 0)) for s in sessions)
 
-        return success_response(data={
-            "date": date,
-            "overview": {
-                "total_sessions": len(sessions),
-                "total_tokens": total_tokens,
-                "total_cost_usd": round(total_usd, 6),
-                "total_tool_calls": tool_calls,
-                "total_approvals": len(approvals),
-                "total_cron_runs": len(cron_runs),
-                "total_kanban_events": len(kanban_events),
-                "sessions_by_source": _build_source_breakdown(sessions),
-            },
-            "sessions": sessions,
-            "approvals": approvals,
-            "cron_runs": cron_runs,
-            "kanban_events": kanban_events,
-            "timeline": _build_timeline(sessions, approvals, cron_runs, kanban_events),
-        })
+        return success_response(
+            data={
+                "date": date,
+                "overview": {
+                    "total_sessions": len(sessions),
+                    "total_tokens": total_tokens,
+                    "total_cost_usd": round(total_usd, 6),
+                    "total_tool_calls": tool_calls,
+                    "total_approvals": len(approvals),
+                    "total_cron_runs": len(cron_runs),
+                    "total_kanban_events": len(kanban_events),
+                    "sessions_by_source": _build_source_breakdown(sessions),
+                },
+                "sessions": sessions,
+                "approvals": approvals,
+                "cron_runs": cron_runs,
+                "kanban_events": kanban_events,
+                "timeline": _build_timeline(sessions, approvals, cron_runs, kanban_events),
+            }
+        )
     except StandardHTTPException:
         raise
     except Exception as exc:

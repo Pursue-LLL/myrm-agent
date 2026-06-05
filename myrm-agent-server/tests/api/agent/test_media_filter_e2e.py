@@ -45,9 +45,7 @@ def _collect_stream(
     status_events: list[str] = []
     collected: list[dict[str, object]] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=180.0) as response:
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -90,15 +88,11 @@ def test_proactive_media_stripped_when_vision_disabled(client: TestClient) -> No
     selection = {**get_model_selection(), "supportsVision": False}
     status_events, collected = _collect_stream(
         client,
-        _build_image_query(
-            "E2E: reply with one word RED if you see red, else NOIMAGE."
-        ),
+        _build_image_query("E2E: reply with one word RED if you see red, else NOIMAGE."),
         selection,
     )
     _skip_on_flaky(collected)
-    assert (
-        "media_stripped" in status_events
-    ), f"Expected media_stripped in STATUS events, got: {status_events}"
+    assert "media_stripped" in status_events, f"Expected media_stripped in STATUS events, got: {status_events}"
 
 
 @pytest.mark.e2e
@@ -146,6 +140,4 @@ def test_no_media_stripped_when_vision_enabled(client: TestClient) -> None:
         selection,
     )
     _skip_on_flaky(collected)
-    assert (
-        "media_stripped" not in status_events
-    ), f"Unexpected media_stripped when vision enabled: {status_events}"
+    assert "media_stripped" not in status_events, f"Unexpected media_stripped when vision enabled: {status_events}"

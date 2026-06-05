@@ -570,9 +570,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_send_placeholder_dm(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._chat_sender_map["conv1"] = "user123"
@@ -587,9 +585,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_send_placeholder_group(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._group_conversations.add("grp1")
@@ -603,9 +599,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_send_placeholder_api_fail_returns_none(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._chat_sender_map["conv1"] = "user1"
@@ -617,9 +611,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_edit_message_streaming(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._api.streaming_update = AsyncMock(return_value=True)
@@ -638,9 +630,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_edit_placeholder_message_finalize(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._api.streaming_update = AsyncMock(return_value=True)
@@ -653,9 +643,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_finalize_active_cards(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._api.streaming_update = AsyncMock(return_value=True)
@@ -668,9 +656,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_send_placeholder_finalizes_old_cards(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._chat_sender_map["conv1"] = "user1"
@@ -685,9 +671,7 @@ class TestDingTalkStreamingCard:
 
     @pytest.mark.asyncio
     async def test_stop_finalizes_cards(self) -> None:
-        ch = DingTalkChannel(
-            app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema"
-        )
+        ch = DingTalkChannel(app_key="key", app_secret="secret", robot_code="bot1", card_template_id="tpl.schema")
         ch._api._access_token = "tok"
         ch._api._token_expires_at = float("inf")
         ch._status = ChannelStatus.RUNNING
@@ -1015,9 +999,7 @@ class TestDingTalkApiClient:
         resp.status_code = 200
         client._http.post.return_value = resp
 
-        result = await client.create_and_deliver_card(
-            "tpl_123", "track_abc", "dtv1.card//IM_GROUP.conv1", is_group=True
-        )
+        result = await client.create_and_deliver_card("tpl_123", "track_abc", "dtv1.card//IM_GROUP.conv1", is_group=True)
         assert result is True
         call_kwargs = client._http.post.call_args
         body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
@@ -1032,9 +1014,7 @@ class TestDingTalkApiClient:
         resp.status_code = 200
         client._http.post.return_value = resp
 
-        result = await client.create_and_deliver_card(
-            "tpl_123", "track_dm", "dtv1.card//IM_ROBOT.user1", is_group=False
-        )
+        result = await client.create_and_deliver_card("tpl_123", "track_dm", "dtv1.card//IM_ROBOT.user1", is_group=False)
         assert result is True
         call_kwargs = client._http.post.call_args
         body = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
@@ -1049,9 +1029,7 @@ class TestDingTalkApiClient:
         resp.text = "Bad Request"
         client._http.post.return_value = resp
 
-        result = await client.create_and_deliver_card(
-            "tpl_123", "track_fail", "dtv1.card//IM_GROUP.conv1", is_group=True
-        )
+        result = await client.create_and_deliver_card("tpl_123", "track_fail", "dtv1.card//IM_GROUP.conv1", is_group=True)
         assert result is False
 
     @pytest.mark.asyncio
@@ -1170,9 +1148,7 @@ class TestDingTalkResolveMediaCodes:
     async def test_resolve_media_codes_converts_download_code(self) -> None:
         ch = DingTalkChannel(app_key="k", app_secret="s")
         ch._api = MagicMock()
-        ch._api.resolve_download_code = AsyncMock(
-            return_value="https://dtfile.com/resolved.jpg"
-        )
+        ch._api.resolve_download_code = AsyncMock(return_value="https://dtfile.com/resolved.jpg")
 
         msg = InboundMessage(
             channel="dingtalk",

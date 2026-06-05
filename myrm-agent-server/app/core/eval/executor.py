@@ -196,8 +196,7 @@ class LocalEvalExecutor:
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
             channel_name="eval",
-            enable_web_search=configs.search_is_user_configured
-            and await verify_search_service_available(configs.search_cfg),
+            enable_web_search=configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg),
             **resolve_builtin_tool_flags(enabled_builtin_tools),
             auto_restore_domains=auto_restore_domains,
             unattended_mode=True,

@@ -54,6 +54,7 @@ def perform_agent_stream(
     full_answer = "".join(message_chunks)
     return full_answer, collected_data, tool_call_count
 
+
 @pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
@@ -62,9 +63,7 @@ def perform_agent_stream(
 class TestCalendarE2E:
     def test_calendar_agent_invokes_free_busy_tool(self, client: TestClient):
         # We explicitly ask the agent to call the calendar tool to find meeting slots.
-        query = (
-            "请调用 find_optimal_meeting_slots 工具，帮我排期一下明天下午有没有时间可以开会。只调用工具即可。"
-        )
+        query = "请调用 find_optimal_meeting_slots 工具，帮我排期一下明天下午有没有时间可以开会。只调用工具即可。"
         full_answer, collected_data, tool_call_count = perform_agent_stream(client, query)
 
         assert len(collected_data) > 0
@@ -91,10 +90,10 @@ class TestCalendarE2E:
             if event.get("type") == "tasks_steps" and event.get("tool_name") == "find_optimal_meeting_slots":
                 tool_called = True
                 break
-            
+
             # also check if the model output the raw tool call for some reason
             if event.get("type") == "message" and "find_optimal_meeting_slots" in str(event.get("data", "")):
                 tool_called = True
                 break
-                
+
         assert tool_called, "The agent must invoke the find_optimal_meeting_slots tool."

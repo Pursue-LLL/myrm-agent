@@ -102,9 +102,7 @@ class VoiceManager:
     ) -> None:
         self._client = client
         self._voice_timeout = voice_timeout
-        self._allowed_user_ids: set[str] = (
-            set(allowed_user_ids) if allowed_user_ids else set()
-        )
+        self._allowed_user_ids: set[str] = set(allowed_user_ids) if allowed_user_ids else set()
         self._on_voice_input = on_voice_input
         self._voice_wake_words = [w.lower() for w in (voice_wake_words or [])]
         self._voice_barge_in_enabled = voice_barge_in_enabled
@@ -167,10 +165,7 @@ class VoiceManager:
             if guild_id in self._guilds:
                 state = self._guilds[guild_id]
                 if state.voice_client.is_connected():
-                    if (
-                        state.voice_client.channel
-                        and state.voice_client.channel.id == channel.id
-                    ):
+                    if state.voice_client.channel and state.voice_client.channel.id == channel.id:
                         if text_channel_id:
                             state.text_channel_id = text_channel_id
                         return True
@@ -264,9 +259,7 @@ class VoiceManager:
             return
         non_bot_members = [m for m in bot_channel.members if not m.bot]
         if not non_bot_members and guild_id not in self._follow.followed_guilds:
-            logger.info(
-                "All users left voice channel in guild %d, disconnecting", guild_id
-            )
+            logger.info("All users left voice channel in guild %d, disconnecting", guild_id)
             await self.leave(guild_id)
 
     async def _handle_bot_voice_update(
@@ -287,9 +280,7 @@ class VoiceManager:
                     state.receiver.stop()
             logger.info("Bot was disconnected from voice in guild %d", guild_id)
 
-        await self._follow.handle_bot_voice_update(
-            guild_id, before.channel, after.channel
-        )
+        await self._follow.handle_bot_voice_update(guild_id, before.channel, after.channel)
 
     async def _should_leave_guild(self, guild_id: int) -> bool:
         """Check if bot should leave: True when no non-bot members remain."""
@@ -318,9 +309,7 @@ class VoiceManager:
                     last_keepalive = now
                     try:
                         if state.voice_client.is_connected():
-                            state.voice_client.send_audio_packet(
-                                b"\xf8\xff\xfe", encode=False
-                            )
+                            state.voice_client.send_audio_packet(b"\xf8\xff\xfe", encode=False)
                     except Exception:
                         pass
 
@@ -336,22 +325,15 @@ class VoiceManager:
 
                 completed = state.receiver.check_silence()
                 for user_id, pcm_data in completed:
-                    if (
-                        self._allowed_user_ids
-                        and str(user_id) not in self._allowed_user_ids
-                    ):
+                    if self._allowed_user_ids and str(user_id) not in self._allowed_user_ids:
                         continue
                     state.last_speech_at = time.monotonic()
-                    await self._process_voice_input(
-                        guild_id, user_id, pcm_data, state.text_channel_id
-                    )
+                    await self._process_voice_input(guild_id, user_id, pcm_data, state.text_channel_id)
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(
-                "Voice listen loop error in guild %d: %s", guild_id, e, exc_info=True
-            )
+            logger.error("Voice listen loop error in guild %d: %s", guild_id, e, exc_info=True)
 
     def _resolve_display_name(self, guild_id: int, user_id: int) -> str:
         """Resolve a user's display name from guild membership."""
@@ -374,9 +356,7 @@ class VoiceManager:
     ) -> None:
         """Convert PCM -> WAV -> STT -> callback."""
         try:
-            wav_bytes = await asyncio.to_thread(
-                VoiceReceiver.pcm_to_wav_bytes, pcm_data
-            )
+            wav_bytes = await asyncio.to_thread(VoiceReceiver.pcm_to_wav_bytes, pcm_data)
 
             from app.channels.types import VoiceConfig
             from app.channels.voice.stt import transcribe
@@ -420,9 +400,7 @@ class VoiceManager:
         except Exception as e:
             logger.warning("Voice input processing failed: %s", e, exc_info=True)
 
-    def _handle_barge_in(
-        self, guild_id: int, transcript: str, transcript_lower: str
-    ) -> bool:
+    def _handle_barge_in(self, guild_id: int, transcript: str, transcript_lower: str) -> bool:
         """Check for echo/barge-in. Returns True if input should be discarded."""
         player = self._active_players.get(guild_id)
         if not player or not getattr(player, "is_playing", False):
@@ -437,9 +415,7 @@ class VoiceManager:
             clean_playback = re.sub(r"[^\w\s]", "", playback_text.lower()).strip()
 
             if clean_transcript and clean_playback:
-                match = difflib.SequenceMatcher(
-                    None, clean_transcript, clean_playback
-                ).find_longest_match(
+                match = difflib.SequenceMatcher(None, clean_transcript, clean_playback).find_longest_match(
                     0, len(clean_transcript), 0, len(clean_playback)
                 )
 

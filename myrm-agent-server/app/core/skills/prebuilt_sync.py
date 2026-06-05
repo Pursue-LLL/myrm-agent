@@ -205,9 +205,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 skill.has_upstream_update = True
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
-                logger.info(
-                    "Preserved user copy of prebuilt skill %s (migration, marked upstream update)", skill_id
-                )
+                logger.info("Preserved user copy of prebuilt skill %s (migration, marked upstream update)", skill_id)
             continue
 
         if current_hash != origin_hash:

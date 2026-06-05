@@ -49,36 +49,64 @@ ROSTER = [{"name": "coder", "description": "Writes code"}, {"name": "reviewer", 
 
 class TestNormalizeAssignee:
     def test_valid_assignee(self) -> None:
-        assert _normalize_assignee(
-            "coder", default_assignee="default", valid_names={"coder", "reviewer"},
-        ) == "coder"
+        assert (
+            _normalize_assignee(
+                "coder",
+                default_assignee="default",
+                valid_names={"coder", "reviewer"},
+            )
+            == "coder"
+        )
 
     def test_invalid_assignee_falls_back(self) -> None:
-        assert _normalize_assignee(
-            "unknown", default_assignee="default", valid_names={"coder"},
-        ) == "default"
+        assert (
+            _normalize_assignee(
+                "unknown",
+                default_assignee="default",
+                valid_names={"coder"},
+            )
+            == "default"
+        )
 
     def test_empty_string_falls_back(self) -> None:
-        assert _normalize_assignee(
-            "", default_assignee="default", valid_names={"coder"},
-        ) == "default"
+        assert (
+            _normalize_assignee(
+                "",
+                default_assignee="default",
+                valid_names={"coder"},
+            )
+            == "default"
+        )
 
     def test_none_falls_back(self) -> None:
-        assert _normalize_assignee(
-            None, default_assignee="default", valid_names={"coder"},
-        ) == "default"
+        assert (
+            _normalize_assignee(
+                None,
+                default_assignee="default",
+                valid_names={"coder"},
+            )
+            == "default"
+        )
 
     def test_whitespace_stripped(self) -> None:
-        assert _normalize_assignee(
-            "  coder  ", default_assignee="default", valid_names={"coder"},
-        ) == "coder"
+        assert (
+            _normalize_assignee(
+                "  coder  ",
+                default_assignee="default",
+                valid_names={"coder"},
+            )
+            == "coder"
+        )
 
 
 @pytest.mark.asyncio
 async def test_rejects_non_triage_task() -> None:
     d = PlatformTaskDecomposer()
     task = KanbanTask(
-        task_id="t1", board_id="b1", title="x", status=TaskStatus.READY,
+        task_id="t1",
+        board_id="b1",
+        title="x",
+        status=TaskStatus.READY,
     )
     outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
     assert not outcome.ok
@@ -105,10 +133,14 @@ async def test_fanout_true_parses_children() -> None:
     task = _make_triage_task()
     content = '{"fanout": true, "rationale": "split", "tasks": [{"title": "T1", "body": "B1", "assignee": "coder", "parents": []}, {"title": "T2", "body": "B2", "assignee": "reviewer", "parents": [0]}]}'
     llm_resp = _make_llm_response(content)
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert outcome.ok
@@ -124,12 +156,18 @@ async def test_fanout_true_parses_children() -> None:
 async def test_fanout_false_returns_spec() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    content = '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
+    content = (
+        '{"fanout": false, "rationale": "single task", "title": "Refined title", "body": "Detailed body", "assignee": "coder"}'
+    )
     llm_resp = _make_llm_response(content)
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert outcome.ok
@@ -147,10 +185,14 @@ async def test_fanout_false_empty_title_body_returns_not_ok() -> None:
     task = _make_triage_task()
     content = '{"fanout": false, "rationale": "cannot decompose"}'
     llm_resp = _make_llm_response(content)
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert not outcome.ok
@@ -165,10 +207,14 @@ async def test_fanout_false_invalid_assignee_falls_back() -> None:
     task = _make_triage_task()
     content = '{"fanout": false, "rationale": "ok", "title": "T", "body": "B", "assignee": "nonexistent"}'
     llm_resp = _make_llm_response(content)
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert outcome.ok
@@ -180,10 +226,14 @@ async def test_malformed_json_returns_parse_failed() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
     llm_resp = _make_llm_response("This is plain text, no JSON.")
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert not outcome.ok
@@ -196,10 +246,14 @@ async def test_empty_tasks_list_returns_not_ok() -> None:
     task = _make_triage_task()
     content = '{"fanout": true, "rationale": "split", "tasks": []}'
     llm_resp = _make_llm_response(content)
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, return_value=llm_resp),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert not outcome.ok
@@ -210,10 +264,14 @@ async def test_empty_tasks_list_returns_not_ok() -> None:
 async def test_llm_error_returns_not_ok() -> None:
     d = PlatformTaskDecomposer()
     task = _make_triage_task()
-    with patch(
-        "app.services.agent.platform_config.build_platform_litellm_kwargs",
-        new_callable=AsyncMock, return_value={"model": "gpt-4o"},
-    ), patch("litellm.acompletion", new_callable=AsyncMock, side_effect=ConnectionError("fail")):
+    with (
+        patch(
+            "app.services.agent.platform_config.build_platform_litellm_kwargs",
+            new_callable=AsyncMock,
+            return_value={"model": "gpt-4o"},
+        ),
+        patch("litellm.acompletion", new_callable=AsyncMock, side_effect=ConnectionError("fail")),
+    ):
         outcome = await d.decompose(task, roster=ROSTER, default_assignee="default")
 
     assert not outcome.ok

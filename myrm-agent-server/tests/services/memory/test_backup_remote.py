@@ -445,12 +445,7 @@ class TestExportableBackupFormat:
         original = {
             "version": 2,
             "created_at": datetime.now(UTC).isoformat(),
-            "collections": {
-                "memory_semantic": [
-                    {"id": str(i), "text": f"memory content {i}" * 20}
-                    for i in range(50)
-                ]
-            },
+            "collections": {"memory_semantic": [{"id": str(i), "text": f"memory content {i}" * 20} for i in range(50)]},
         }
         json_bytes = json.dumps(original, ensure_ascii=False).encode("utf-8")
         compressed = gzip.compress(json_bytes, compresslevel=6)

@@ -11,6 +11,7 @@ from app.core.memory.adapters.setup import create_memory_manager, resolve_contex
 def _patch_memory_path(path: str):
     """Patch settings.database.memory_base_path and qdrant_path for testing."""
     from unittest.mock import patch as mock_patch
+
     qdrant_path = str(Path(path) / "vector_store")
     return mock_patch.multiple(
         "app.config.settings.settings.database",

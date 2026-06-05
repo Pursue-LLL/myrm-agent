@@ -23,18 +23,12 @@ from tests.api.agent.utils import (
 )
 
 
-def _run_agent_until_settled(
-    client: TestClient, req_data: dict[str, object]
-) -> list[dict[str, object]]:
+def _run_agent_until_settled(client: TestClient, req_data: dict[str, object]) -> list[dict[str, object]]:
     collected_data: list[dict[str, object]] = []
     for _round_idx in range(5):
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=req_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data) as response:
             if response.status_code != 200:
-                print(
-                    f"Error {response.status_code}: {response.read().decode('utf-8')}"
-                )
+                print(f"Error {response.status_code}: {response.read().decode('utf-8')}")
             assert response.status_code == 200
             for line in response.iter_lines():
                 print(f"Raw line: {line!r}", flush=True)
@@ -49,15 +43,12 @@ def _run_agent_until_settled(
                     continue
 
         approval_required = any(
-            data.get("type") in ("approval_required", "tool_approval_request")
-            for data in collected_data[-10:]
+            data.get("type") in ("approval_required", "tool_approval_request") for data in collected_data[-10:]
         )
         if not approval_required:
             break
 
-        req_data["resumeValue"] = [
-            {"type": "approve", "extensions": {"allowAlways": True}}
-        ]
+        req_data["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
 
     error_events = [d for d in collected_data if d.get("type") == "error"]
     if error_events:
@@ -95,9 +86,7 @@ def _poll_target_artifact(
 class TestArtifactE2E:
     """Artifact E2E Tests"""
 
-    def test_artifact_lifecycle(
-        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_artifact_lifecycle(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test the full lifecycle of an artifact."""
         monkeypatch.setenv("BASIC_MODEL", "minimax/MiniMax-M2.7")
         monkeypatch.setenv("BASIC_API_KEY", os.environ.get("LITE_API_KEY", ""))
@@ -122,15 +111,11 @@ class TestArtifactE2E:
                 "agentConfig": {"enabledBuiltinTools": ["file_write_tool"]},
             }
             _run_agent_until_settled(client, req_data)
-            target_artifact = _poll_target_artifact(
-                client, filename="hello_artifact.md"
-            )
+            target_artifact = _poll_target_artifact(client, filename="hello_artifact.md")
             if target_artifact is not None:
                 break
 
-        assert (
-            target_artifact is not None
-        ), "hello_artifact.md was not found after 3 attempts"
+        assert target_artifact is not None, "hello_artifact.md was not found after 3 attempts"
 
         artifact_id = str(target_artifact["id"])
         res = client.get(f"/api/v1/files/artifacts/{artifact_id}/versions")

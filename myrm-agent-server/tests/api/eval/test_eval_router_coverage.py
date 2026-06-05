@@ -12,15 +12,16 @@ def client() -> Generator[TestClient, None, None]:
     with TestClient(app) as test_client:
         yield test_client
 
+
 def test_eval_router_coverage(client: TestClient):
     # Test dataset exceptions
     with patch("app.api.eval.router.save_eval_cases", return_value=False):
         res = client.put("/api/v1/eval/datasets/test", json={"content": "{}"})
         assert res.status_code == 500
-        
+
         res2 = client.put("/api/v1/eval/cases", json={"content": "{}"})
         assert res2.status_code == 500
-        
+
     with patch("app.api.eval.router.capture_case_from_chat", return_value=False):
         res3 = client.post("/api/v1/eval/cases/from-chat/123")
         assert res3.status_code == 500
@@ -47,25 +48,25 @@ def test_eval_router_coverage(client: TestClient):
     with patch("app.api.eval.router.get_latest_report_summary", return_value={"type": "summary"}):
         res8 = client.get("/api/v1/eval/reports/latest")
         assert res8.status_code == 200
-        
+
     with patch("app.api.eval.router.get_all_report_summaries", return_value=[{"type": "summary"}]):
         res9 = client.get("/api/v1/eval/reports")
         assert res9.status_code == 200
 
     res10 = client.get("/api/v1/eval/reports/invalid.txt")
     assert res10.status_code == 400
-        
+
     import tempfile
     from pathlib import Path
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
         test_file = tmp_path / "test.jsonl"
         test_file.write_text('{"type": "summary"}\n{"type": "result"}')
-        
+
         with patch("app.core.eval.service.DEFAULT_REPORTS_DIR", tmp_path):
             res11 = client.get("/api/v1/eval/reports/test.jsonl")
             assert res11.status_code == 200
-            
+
             res12 = client.get("/api/v1/eval/reports/nonexistent.jsonl")
             assert res12.status_code == 404

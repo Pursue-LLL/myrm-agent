@@ -55,9 +55,7 @@ class TestFormatConverterRegistry:
 
     def test_auto_fallback_first_success(self) -> None:
         FormatConverterRegistry.register("markdown", "target", lambda t: f"MD:{t}")
-        result = FormatConverterRegistry.auto_fallback(
-            "text", "target", fallback_chain=["rich", "markdown", "plaintext"]
-        )
+        result = FormatConverterRegistry.auto_fallback("text", "target", fallback_chain=["rich", "markdown", "plaintext"])
         assert result == "MD:text"
 
     def test_auto_fallback_skip_failed(self) -> None:

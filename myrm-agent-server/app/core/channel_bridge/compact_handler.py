@@ -36,9 +36,7 @@ from app.services.chat.compact_service import compact_chat
 class ChannelCompactHandler:
     """Business-layer CompactHandler for /compact command."""
 
-    async def __call__(
-        self, msg: InboundMessage, user_id: str, *, focus_topic: str = ""
-    ) -> CompactResult:
+    async def __call__(self, msg: InboundMessage, user_id: str, *, focus_topic: str = "") -> CompactResult:
         configs = await load_user_configs()
         session_policy = SessionPolicy()
         if configs.personal_settings_dict:

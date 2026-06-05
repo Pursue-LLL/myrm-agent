@@ -56,7 +56,12 @@ async def send_media(
     elif att.url:
         if att.url.startswith("mxc://"):
             return await send_media_event(
-                client, room_id, att.url, filename, content_type, att.media_type,
+                client,
+                room_id,
+                att.url,
+                filename,
+                content_type,
+                att.media_type,
             )
         return None
 
@@ -64,12 +69,17 @@ async def send_media(
         return None
 
     upload_data, encrypted_file = await _maybe_encrypt_attachment(
-        client, RoomID(room_id), data, encryption,
+        client,
+        RoomID(room_id),
+        data,
+        encryption,
     )
 
     try:
         mxc_url = await client.upload_media(  # type: ignore[union-attr]
-            upload_data, mime_type=content_type, filename=filename,
+            upload_data,
+            mime_type=content_type,
+            filename=filename,
             size=len(upload_data),
         )
     except Exception as exc:
@@ -77,8 +87,14 @@ async def send_media(
         return None
 
     return await send_media_event(
-        client, room_id, str(mxc_url), filename, content_type, att.media_type,
-        encrypted_file=encrypted_file, file_size=len(data),
+        client,
+        room_id,
+        str(mxc_url),
+        filename,
+        content_type,
+        att.media_type,
+        encrypted_file=encrypted_file,
+        file_size=len(data),
     )
 
 
@@ -154,7 +170,9 @@ async def send_media_event(
     try:
         event_id = await asyncio.wait_for(
             client.send_message_event(  # type: ignore[union-attr]
-                RoomID(room_id), EventType.ROOM_MESSAGE, payload,
+                RoomID(room_id),
+                EventType.ROOM_MESSAGE,
+                payload,
             ),
             timeout=_SEND_TIMEOUT,
         )

@@ -54,9 +54,7 @@ async def start_auth_alert_monitor() -> None:
 
     caps = get_deployment_capabilities()
     if not (caps.enables_auth_audit or is_webui_remote_mode()):
-        logger.debug(
-            "Auth alert monitor skipped (local mode, no external attack surface)"
-        )
+        logger.debug("Auth alert monitor skipped (local mode, no external attack surface)")
         return
 
     if _auth_alert_monitor_task is not None:
@@ -192,9 +190,7 @@ async def _health_history_recorder_job() -> None:
 
         harness_raw = health_data.get("harness", [])
         server_raw = health_data.get("server", [])
-        harness_list: list[object] = (
-            harness_raw if isinstance(harness_raw, list) else []
-        )
+        harness_list: list[object] = harness_raw if isinstance(harness_raw, list) else []
         server_list: list[object] = server_raw if isinstance(server_raw, list) else []
         all_reports: list[object] = harness_list + server_list
         total_count = len(all_reports)
@@ -285,9 +281,7 @@ async def start_health_history_recorder() -> None:
                 try:
                     await _health_history_recorder_job()
                 except Exception as e:
-                    logger.error(
-                        "Health history recorder job failed: %s", e, exc_info=True
-                    )
+                    logger.error("Health history recorder job failed: %s", e, exc_info=True)
 
                 await asyncio.sleep(180)
         except asyncio.CancelledError:

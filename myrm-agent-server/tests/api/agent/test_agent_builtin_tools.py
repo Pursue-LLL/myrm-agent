@@ -211,8 +211,7 @@ class TestGeneralAgentParamsEnableWiki:
 
     def test_all_builtin_tool_flags(self) -> None:
         """Verify all builtin tool flags produce correct boolean values from a tool list."""
-        tools = ["web_search", "browser", "computer_use",
-                 "file_ops", "code_execute", "wiki"]
+        tools = ["web_search", "browser", "computer_use", "file_ops", "code_execute", "wiki"]
 
         assert ("browser" in tools) is True
         assert ("computer_use" in tools) is True

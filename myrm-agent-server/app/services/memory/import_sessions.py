@@ -459,13 +459,10 @@ class MemoryImportSessionService:
         result = await self._db.execute(select(MemoryImportDryRunModel.status, MemoryImportDryRunModel.expires_at))
         for status, expires_at in result.all():
             effective_status = (
-                DRY_RUN_STATUS_EXPIRED
-                if status == DRY_RUN_STATUS_PENDING and _as_aware(expires_at) <= now
-                else str(status)
+                DRY_RUN_STATUS_EXPIRED if status == DRY_RUN_STATUS_PENDING and _as_aware(expires_at) <= now else str(status)
             )
             metrics[effective_status] = metrics.get(effective_status, 0) + 1
         return metrics
-
 
     async def get_pending_session_metadata(self, dry_run_id: str) -> dict[str, object]:
         """Return metadata stored on a pending dry-run session (e.g. migration instruction plan)."""

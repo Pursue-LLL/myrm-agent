@@ -12,9 +12,7 @@ from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 async def async_client(app):
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -25,9 +23,7 @@ async def test_generate_prompt_e2e(async_client: AsyncClient):
     response = await async_client.post("/api/agents/generate-prompt", json={})
     assert response.status_code == 422  # Pydantic validation error
 
-    response = await async_client.post(
-        "/api/agents/generate-prompt", json={"intent": ""}
-    )
+    response = await async_client.post("/api/agents/generate-prompt", json={"intent": ""})
     assert response.status_code == 400
     assert "Intent cannot be empty" in response.json()["detail"]
 
@@ -53,9 +49,7 @@ async def test_generate_prompt_e2e(async_client: AsyncClient):
         assert len(buffer) > 0
         # 验证是否符合 SSEEnvelope 格式
         lines = buffer.split("\n\n")
-        first_valid_line = next(
-            (line for line in lines if line.startswith("data: ")), None
-        )
+        first_valid_line = next((line for line in lines if line.startswith("data: ")), None)
         assert first_valid_line is not None
         data = json.loads(first_valid_line[6:])
         assert data["type"] == "content" or data["type"] == "error"

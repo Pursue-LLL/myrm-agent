@@ -112,9 +112,7 @@ async def create_api_key(body: CreateKeyRequest) -> CreateKeyResponse:
 async def list_api_keys() -> list[KeyInfo]:
     """List all API keys (without secrets)."""
     async with get_session() as session:
-        result = await session.execute(
-            select(APIKey).order_by(APIKey.created_at.desc())
-        )
+        result = await session.execute(select(APIKey).order_by(APIKey.created_at.desc()))
         keys = result.scalars().all()
 
         return [
@@ -137,12 +135,7 @@ async def list_api_keys() -> list[KeyInfo]:
 async def revoke_api_key(key_id: int) -> dict[str, str]:
     """Revoke an API key (soft-disable, preserves history)."""
     async with get_session() as session:
-        result = await session.execute(
-            update(APIKey)
-            .where(APIKey.id == key_id)
-            .values(is_active=False)
-            .returning(APIKey.id)
-        )
+        result = await session.execute(update(APIKey).where(APIKey.id == key_id).values(is_active=False).returning(APIKey.id))
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=404, detail="API key not found")
         await session.commit()
@@ -153,9 +146,7 @@ async def revoke_api_key(key_id: int) -> dict[str, str]:
 async def delete_api_key(key_id: int) -> dict[str, str]:
     """Permanently delete an API key."""
     async with get_session() as session:
-        result = await session.execute(
-            delete(APIKey).where(APIKey.id == key_id).returning(APIKey.id)
-        )
+        result = await session.execute(delete(APIKey).where(APIKey.id == key_id).returning(APIKey.id))
         if result.scalar_one_or_none() is None:
             raise HTTPException(status_code=404, detail="API key not found")
         await session.commit()

@@ -47,14 +47,16 @@ def dry_run_cursor(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if procedural_items:
             normalized["procedural"] = procedural_items
             mapped_items += len(procedural_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="cursor_rules",
-            target_bucket="procedural",
-            status="mapped" if procedural_items else "unsupported",
-            item_count=len(rules),
-            imported_count=len(procedural_items),
-            reason="" if procedural_items else "No valid rules found.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="cursor_rules",
+                target_bucket="procedural",
+                status="mapped" if procedural_items else "unsupported",
+                item_count=len(rules),
+                imported_count=len(procedural_items),
+                reason="" if procedural_items else "No valid rules found.",
+            )
+        )
 
     settings = payload.get("cursor_settings")
     if isinstance(settings, dict) and settings:
@@ -62,14 +64,16 @@ def dry_run_cursor(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if profile_items:
             normalized.setdefault("profile", []).extend(profile_items)
             mapped_items += len(profile_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="cursor_settings",
-            target_bucket="profile",
-            status="mapped" if profile_items else "unsupported",
-            item_count=1,
-            imported_count=len(profile_items),
-            reason="" if profile_items else "No importable settings found.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="cursor_settings",
+                target_bucket="profile",
+                status="mapped" if profile_items else "unsupported",
+                item_count=1,
+                imported_count=len(profile_items),
+                reason="" if profile_items else "No importable settings found.",
+            )
+        )
 
     if not normalized:
         unmapped_items += 1
@@ -99,15 +103,17 @@ def _parse_rules(rules: list[object]) -> list[dict[str, object]]:
         if not content:
             continue
 
-        items.append({
-            "content": f"{name}\n{content}".strip() if name != "Cursor rule" else content,
-            "trigger": f"When working on project: {name}",
-            "action": content[:500],
-            "priority": 7,
-            "trigger_keywords": [tag for tag in [text(rule.get("globs")), "cursor_rule"] if tag],
-            "created_at": iso_or_now(rule.get("created_at")),
-            "metadata": build_metadata("cursor", rule, ("name", "globs", "alwaysApply")),
-        })
+        items.append(
+            {
+                "content": f"{name}\n{content}".strip() if name != "Cursor rule" else content,
+                "trigger": f"When working on project: {name}",
+                "action": content[:500],
+                "priority": 7,
+                "trigger_keywords": [tag for tag in [text(rule.get("globs")), "cursor_rule"] if tag],
+                "created_at": iso_or_now(rule.get("created_at")),
+                "metadata": build_metadata("cursor", rule, ("name", "globs", "alwaysApply")),
+            }
+        )
     return items
 
 
@@ -121,26 +127,30 @@ def _parse_settings(settings: object) -> list[dict[str, object]]:
 
     preferred_language = text(typed.get("preferredLanguage"))
     if preferred_language:
-        items.append({
-            "content": f"Preferred programming language: {preferred_language}",
-            "memory_type": "profile",
-            "importance": 0.7,
-            "confidence": 0.9,
-            "tags": ["cursor_preference", "language"],
-            "created_at": iso_or_now(None),
-            "metadata": build_metadata("cursor", typed, ("preferredLanguage",)),
-        })
+        items.append(
+            {
+                "content": f"Preferred programming language: {preferred_language}",
+                "memory_type": "profile",
+                "importance": 0.7,
+                "confidence": 0.9,
+                "tags": ["cursor_preference", "language"],
+                "created_at": iso_or_now(None),
+                "metadata": build_metadata("cursor", typed, ("preferredLanguage",)),
+            }
+        )
 
     theme = text(typed.get("theme")) or text(typed.get("workbench.colorTheme"))
     if theme:
-        items.append({
-            "content": f"Preferred editor theme: {theme}",
-            "memory_type": "profile",
-            "importance": 0.3,
-            "confidence": 0.9,
-            "tags": ["cursor_preference", "theme"],
-            "created_at": iso_or_now(None),
-            "metadata": build_metadata("cursor", {"theme": theme}, ("theme",)),
-        })
+        items.append(
+            {
+                "content": f"Preferred editor theme: {theme}",
+                "memory_type": "profile",
+                "importance": 0.3,
+                "confidence": 0.9,
+                "tags": ["cursor_preference", "theme"],
+                "created_at": iso_or_now(None),
+                "metadata": build_metadata("cursor", {"theme": theme}, ("theme",)),
+            }
+        )
 
     return items

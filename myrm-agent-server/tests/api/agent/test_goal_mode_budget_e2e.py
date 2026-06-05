@@ -38,9 +38,7 @@ def perform_agent_stream(
     message_chunks = []
     goal_status = None
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=request_data
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
         assert response.status_code == 200
         for line in response.iter_lines():
             if line and line.startswith("data: "):
@@ -79,36 +77,24 @@ class TestGoalModeBudgetE2E:
         budget = {"maxTokens": 5}
         query = "Hello, please reply with a long sentence."
 
-        answer, events, goal_status = perform_agent_stream(
-            client, query, chat_id, goal_budget=budget
-        )
+        answer, events, goal_status = perform_agent_stream(client, query, chat_id, goal_budget=budget)
 
         # 验证是否返回了 goal_status
         assert goal_status is not None, "message_end should contain goal_status"
 
         # 验证状态是否变成了 budget_limited
-        assert (
-            goal_status["status"] == "budget_limited"
-        ), "Goal should be budget_limited after exhausting 5 tokens"
-        assert (
-            goal_status["tokens_used"] >= 5
-        ), "Tokens used should be at least the budget"
+        assert goal_status["status"] == "budget_limited", "Goal should be budget_limited after exhausting 5 tokens"
+        assert goal_status["tokens_used"] >= 5, "Tokens used should be at least the budget"
 
         goal_status["goal_id"]
 
         # 验证系统级通知消息 (The backend sends a warning message when budget is limited)
         warning_msg = "\n\n**预算已耗尽，任务自动暂停。**"
-        has_warning = any(
-            d.get("type") == "message" and d.get("data") == warning_msg for d in events
-        )
-        assert (
-            has_warning
-        ), "Should yield a budget limited warning message to the chat stream"
+        has_warning = any(d.get("type") == "message" and d.get("data") == warning_msg for d in events)
+        assert has_warning, "Should yield a budget limited warning message to the chat stream"
 
         # 2. 追加预算
-        add_budget_response = client.post(
-            f"/api/v1/goals/{chat_id}/budget", json={"additional_tokens": 100000}
-        )
+        add_budget_response = client.post(f"/api/v1/goals/{chat_id}/budget", json={"additional_tokens": 100000})
         if add_budget_response.status_code != 200:
             print("ERROR response:", add_budget_response.json())
         assert add_budget_response.status_code == 200
@@ -117,9 +103,7 @@ class TestGoalModeBudgetE2E:
         assert budget_data["new_budget"]["max_tokens"] >= 100005
 
         # 3. 恢复状态
-        resume_response = client.post(
-            f"/api/v1/goals/{chat_id}/status", json={"action": "resume"}
-        )
+        resume_response = client.post(f"/api/v1/goals/{chat_id}/status", json={"action": "resume"})
         assert resume_response.status_code == 200
         resume_data = resume_response.json()
         assert resume_data["status"] == "success"
@@ -134,9 +118,7 @@ class TestGoalModeBudgetE2E:
             "active",
             "paused",
         ], "Goal should not be budget_limited anymore"
-        assert (
-            goal_status2["tokens_used"] > goal_status["tokens_used"]
-        ), "Tokens used should have increased"
+        assert goal_status2["tokens_used"] > goal_status["tokens_used"], "Tokens used should have increased"
         assert goal_status2["budget"]["max_tokens"] >= 100005
 
     def test_goal_mode_without_max_tokens_does_not_crash(self, client: TestClient):

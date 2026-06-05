@@ -8,6 +8,7 @@ from .providers import _find_provider_api_key, _parse_camel_dict, _resolve_image
 
 logger = logging.getLogger(__name__)
 
+
 def _extract_media_generation_params(
     personal_settings_dict: dict[str, object] | None,
     providers_dict: dict[str, object] | None,
@@ -57,4 +58,3 @@ def _extract_media_generation_params(
             tts_params.api_key = _find_provider_api_key(providers_dict, tts_params.provider)
 
     return image_params, video_params, tts_params
-

@@ -86,7 +86,7 @@ def parse_comment_recipient(recipient_id: str) -> CommentRouteInfo | None:
     """
     if not recipient_id.startswith(COMMENT_DOC_PREFIX):
         return None
-    rest = recipient_id[len(COMMENT_DOC_PREFIX):]
+    rest = recipient_id[len(COMMENT_DOC_PREFIX) :]
     parts = rest.split(":", 3)
     if len(parts) != 4:
         logger.warning("Malformed comment recipient_id: %s", recipient_id)
@@ -136,7 +136,10 @@ async def deliver_comment_reply(
             ok = await client.add_whole_comment(route.file_token, route.file_type, chunk)
         else:
             success, code = await client.reply_to_comment(
-                route.file_token, route.file_type, route.comment_id, chunk,
+                route.file_token,
+                route.file_type,
+                route.comment_id,
+                chunk,
             )
             if success:
                 ok = True
@@ -218,22 +221,25 @@ class CommentHandler:
 
         logger.info(
             "Feishu comment: notice=%s file=%s:%s comment=%s from=%s",
-            notice_type, file_type, file_token, comment_id, from_open_id,
+            notice_type,
+            file_type,
+            file_token,
+            comment_id,
+            from_open_id,
         )
 
         if reply_id:
             asyncio.ensure_future(
                 self._client.add_comment_reaction(
-                    file_token, file_type, reply_id, "OK",
+                    file_token,
+                    file_type,
+                    reply_id,
+                    "OK",
                 )
             )
 
-        meta_task = asyncio.ensure_future(
-            self._client.query_document_meta(file_token, file_type)
-        )
-        comment_task = asyncio.ensure_future(
-            self._client.batch_query_comment(file_token, file_type, comment_id)
-        )
+        meta_task = asyncio.ensure_future(self._client.query_document_meta(file_token, file_type))
+        comment_task = asyncio.ensure_future(self._client.batch_query_comment(file_token, file_type, comment_id))
         doc_meta, comment_detail = await asyncio.gather(meta_task, comment_task)
 
         doc_title = str(doc_meta.get("title", "Untitled"))
@@ -242,13 +248,23 @@ class CommentHandler:
 
         if is_whole:
             prompt = await self._build_whole_prompt(
-                file_token, file_type, doc_title, doc_url,
-                from_open_id, comment_detail,
+                file_token,
+                file_type,
+                doc_title,
+                doc_url,
+                from_open_id,
+                comment_detail,
             )
         else:
             prompt = await self._build_local_prompt(
-                file_token, file_type, comment_id, reply_id,
-                doc_title, doc_url, from_open_id, comment_detail,
+                file_token,
+                file_type,
+                comment_id,
+                reply_id,
+                doc_title,
+                doc_url,
+                from_open_id,
+                comment_detail,
             )
 
         chat_id = encode_comment_chat_id(file_type, file_token, comment_id, is_whole)
@@ -279,7 +295,10 @@ class CommentHandler:
 
         if reply_id:
             await self._client.delete_comment_reaction(
-                file_token, file_type, reply_id, "OK",
+                file_token,
+                file_type,
+                reply_id,
+                "OK",
             )
 
     async def _build_whole_prompt(
@@ -293,7 +312,9 @@ class CommentHandler:
     ) -> str:
         """Build prompt for whole-document comment."""
         whole_comments = await self._client.list_comments(
-            file_token, file_type, is_whole=True,
+            file_token,
+            file_type,
+            is_whole=True,
         )
         timeline: list[_TimelineEntry] = []
         current_text = ""
@@ -363,7 +384,9 @@ class CommentHandler:
     ) -> str:
         """Build prompt for local (quoted-text) comment."""
         replies = await self._client.list_comment_replies(
-            file_token, file_type, comment_id,
+            file_token,
+            file_type,
+            comment_id,
             expect_reply_id=reply_id,
         )
 

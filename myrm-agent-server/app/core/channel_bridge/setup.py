@@ -196,16 +196,9 @@ async def _load_instance_credentials(channel_name: str) -> dict[str, str] | None
     creds_id = f"{channel_name}-credentials"
     try:
         async with get_session() as session:
-            row = (
-                await session.execute(
-                    select(UserConfig).where(UserConfig.id == creds_id)
-                )
-            ).scalar_one_or_none()
+            row = (await session.execute(select(UserConfig).where(UserConfig.id == creds_id))).scalar_one_or_none()
             if row and isinstance(row.config_value, dict):
-                return {
-                    re.sub(r"([A-Z])", r"_\1", k).lower(): str(v)
-                    for k, v in row.config_value.items()
-                }
+                return {re.sub(r"([A-Z])", r"_\1", k).lower(): str(v) for k, v in row.config_value.items()}
     except Exception:
         logger.debug("No instance credentials for %s", channel_name)
     return None
@@ -278,9 +271,7 @@ async def _load_sticker_vision_service() -> object | None:
             return None
 
         providers_dict_raw = await _load_single_config("providers")
-        providers_dict = (
-            providers_dict_raw if isinstance(providers_dict_raw, dict) else {}
-        )
+        providers_dict = providers_dict_raw if isinstance(providers_dict_raw, dict) else {}
 
         litellm_model = f"{provider_id}/{model_name}"
         model_cfg = resolve_model_config(providers_dict, model_override=litellm_model)
@@ -304,9 +295,7 @@ async def _load_sticker_vision_service() -> object | None:
         logger.info("Sticker vision enabled: model=%s", model_cfg.model)
         return svc
     except Exception:
-        logger.warning(
-            "Failed to load sticker vision service, stickers will use emoji only"
-        )
+        logger.warning("Failed to load sticker vision service, stickers will use emoji only")
         return None
 
 
@@ -319,9 +308,7 @@ async def _load_voice_config() -> VoiceConfig | None:
         voice_dict = await load_voice_config_only()
         voice = extract_voice_config(voice_dict)
         if voice:
-            logger.info(
-                "Voice config loaded: STT=%s TTS=%s", voice.stt_enabled, voice.tts_mode
-            )
+            logger.info("Voice config loaded: STT=%s TTS=%s", voice.stt_enabled, voice.tts_mode)
         return voice
     except Exception:
         logger.exception("Failed to load voice config")
@@ -337,9 +324,7 @@ def _on_channel_status_change(
     from app.channels.types import ChannelStatus
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-    if not isinstance(old_status, ChannelStatus) or not isinstance(
-        new_status, ChannelStatus
-    ):
+    if not isinstance(old_status, ChannelStatus) or not isinstance(new_status, ChannelStatus):
         return
 
     event_type: AppEventType | None = None
@@ -359,11 +344,7 @@ def _on_connection_change(channel_name: str, connected: bool) -> None:
     """Publish channel connection state change events to SSE."""
     from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-    event_type = (
-        AppEventType.CHANNEL_CONNECTED
-        if connected
-        else AppEventType.CHANNEL_DISCONNECTED
-    )
+    event_type = AppEventType.CHANNEL_CONNECTED if connected else AppEventType.CHANNEL_DISCONNECTED
     event = AppEvent(
         event_type=event_type,
         data={
@@ -460,8 +441,7 @@ async def _load_skill_command_bindings() -> tuple[CommandDef, ...]:
                 commands.append(
                     CommandDef(
                         name=binding.command_name,
-                        description=binding.description
-                        or f"Invoke skill: {binding.skill_id}",
+                        description=binding.description or f"Invoke skill: {binding.skill_id}",
                         kind=CommandKind.SKILL,
                         aliases=binding.aliases,
                         skill_id=binding.skill_id,

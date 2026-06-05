@@ -100,10 +100,7 @@ async def _record_archive_checkpoint_event(*, chat_id: str, record: ArchiveCheck
             await MemoryOperationLedgerService(db).record_event(
                 kind=MemoryOperationKind.WRITE,
                 status=MemoryOperationStatus.SUCCESS,
-                summary=(
-                    f"Archive checkpoint stored for {record.tool_name} "
-                    f"({record.archive_path})"
-                )[:240],
+                summary=(f"Archive checkpoint stored for {record.tool_name} ({record.archive_path})")[:240],
                 source="cache_ttl_prune_processor",
                 target_kind="chat",
                 target_id=chat_id,

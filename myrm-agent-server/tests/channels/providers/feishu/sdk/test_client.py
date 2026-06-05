@@ -16,6 +16,7 @@ from app.channels.providers.feishu.sdk.exceptions import (
 
 # ── Fixtures ─────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def client() -> FeishuClient:
     return FeishuClient("test_app_id", "test_app_secret")
@@ -41,6 +42,7 @@ def _mock_response(
 
 # ── Init & Config ────────────────────────────────────────────────
 
+
 class TestInit:
     def test_default_api_base(self, client: FeishuClient) -> None:
         assert "feishu.cn" in client.api_base
@@ -61,6 +63,7 @@ class TestInit:
 
 
 # ── HTTP Client ──────────────────────────────────────────────────
+
 
 class TestHttpClient:
     def test_get_http_creates_client(self, client: FeishuClient) -> None:
@@ -86,6 +89,7 @@ class TestHttpClient:
 
 
 # ── Token Management ─────────────────────────────────────────────
+
 
 class TestTokenManagement:
     @pytest.mark.asyncio
@@ -156,6 +160,7 @@ class TestTokenManagement:
 
 # ── Safe JSON ────────────────────────────────────────────────────
 
+
 class TestSafeJson:
     def test_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0, "data": {"id": "123"}})
@@ -184,6 +189,7 @@ class TestSafeJson:
 
 # ── Auth Header ──────────────────────────────────────────────────
 
+
 class TestAuth:
     def test_auth_header(self, client: FeishuClient) -> None:
         headers = client._auth("my_token")
@@ -191,6 +197,7 @@ class TestAuth:
 
 
 # ── Verify Connectivity ─────────────────────────────────────────
+
 
 class TestVerifyConnectivity:
     @pytest.mark.asyncio
@@ -210,6 +217,7 @@ class TestVerifyConnectivity:
 
 
 # ── Fetch Bot Info ───────────────────────────────────────────────
+
 
 class TestFetchBotInfo:
     @pytest.mark.asyncio

@@ -126,8 +126,6 @@ async def get_batch_optimization_status(
     status = scheduler.get_batch_status(batch_task_id)
 
     if status is None:
-        raise HTTPException(
-            status_code=404, detail=f"Batch task not found: {batch_task_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Batch task not found: {batch_task_id}")
 
     return cast(dict[str, object], status)

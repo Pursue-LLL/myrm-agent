@@ -9,6 +9,7 @@ load_dotenv(override=True)
 
 BASE_URL = "http://localhost:3000"
 
+
 @pytest.fixture(scope="function")
 async def browser_page():
     """启动浏览器并返回页面对象"""
@@ -21,6 +22,7 @@ async def browser_page():
 
         await context.close()
         await browser.close()
+
 
 @pytest.mark.asyncio
 @pytest.mark.e2e
@@ -47,7 +49,9 @@ async def test_omni_config_e2e(browser_page: Page):
         # 查找 "获取原始网页" (Fetch Raw Webpage) 的 Switch
         # SchemaForm 会根据 schema 渲染标题和描述
         page_text = await page.inner_text("body")
-        assert "抓取原始网页" in page_text or "获取原始网页" in page_text or "Fetch Raw Webpage" in page_text, "SchemaForm did not render expected properties"
+        assert "抓取原始网页" in page_text or "获取原始网页" in page_text or "Fetch Raw Webpage" in page_text, (
+            "SchemaForm did not render expected properties"
+        )
 
         await page.screenshot(path=str(screenshots_dir / "omni_test1_schemaform.png"))
         print("✓ SchemaForm 渲染验证通过")
@@ -60,12 +64,12 @@ async def test_omni_config_e2e(browser_page: Page):
     try:
         # 找到 "抓取原始网页" 的开关
         # 由于是 SchemaForm 渲染，我们可以通过 label 找到对应的 switch
-        cost_estimation_label = page.locator('label', has_text="抓取原始网页")
+        cost_estimation_label = page.locator("label", has_text="抓取原始网页")
         if await cost_estimation_label.count() == 0:
-            cost_estimation_label = page.locator('label', has_text="Fetch Raw Webpage")
+            cost_estimation_label = page.locator("label", has_text="Fetch Raw Webpage")
 
         # 找到包含该 label 的整行，然后找到其中的 switch button
-        row_locator = page.locator('div.flex.items-start.justify-between', has=cost_estimation_label)
+        row_locator = page.locator("div.flex.items-start.justify-between", has=cost_estimation_label)
         switch_btn = row_locator.locator('button[role="switch"]')
 
         # 获取初始状态
@@ -74,7 +78,7 @@ async def test_omni_config_e2e(browser_page: Page):
 
         # 点击切换状态
         await switch_btn.click()
-        await asyncio.sleep(2) # 等待自动保存
+        await asyncio.sleep(2)  # 等待自动保存
 
         # 获取修改后的状态
         new_state = await switch_btn.get_attribute("aria-checked")
@@ -136,11 +140,11 @@ async def test_omni_config_e2e(browser_page: Page):
             await asyncio.sleep(1)
 
         # 重新获取开关状态，验证是否回滚到初始状态
-        cost_estimation_label = page.locator('label', has_text="抓取原始网页")
+        cost_estimation_label = page.locator("label", has_text="抓取原始网页")
         if await cost_estimation_label.count() == 0:
-            cost_estimation_label = page.locator('label', has_text="Fetch Raw Webpage")
-            
-        row_locator = page.locator('div.flex.items-start.justify-between', has=cost_estimation_label)
+            cost_estimation_label = page.locator("label", has_text="Fetch Raw Webpage")
+
+        row_locator = page.locator("div.flex.items-start.justify-between", has=cost_estimation_label)
         switch_btn = row_locator.locator('button[role="switch"]')
         restored_state = await switch_btn.get_attribute("aria-checked")
         print(f"  - 回滚后状态: {restored_state}")

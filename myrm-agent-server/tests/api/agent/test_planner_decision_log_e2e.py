@@ -13,18 +13,19 @@ from tests.api.agent.utils import get_model_selection, get_search_service_config
 
 load_dotenv()
 
+
 def perform_agent_stream(
     client: TestClient, query: str, chat_history: Optional[list[list[str]]] = None
 ) -> tuple[str, list[dict[str, object]], int]:
     """执行 Agent 搜索并收集响应"""
-    
+
     model_selection = get_model_selection()
     if model_selection and "model" in model_selection:
         model_name = str(model_selection["model"])
         if not model_name.startswith("openai/"):
             model_selection["model"] = f"openai/{model_name}"
         model_selection["providerId"] = "openai"
-            
+
     search_request: dict[str, object] = {
         "messageId": str(uuid.uuid4()),
         "chatId": "test-chat-e2e",
@@ -35,7 +36,7 @@ def perform_agent_stream(
         "agentConfig": {
             "skill_ids": [],
             "enabled_builtin_tools": ["planner_tool"],  # Ensure planner tool is enabled
-        }
+        },
     }
 
     if chat_history:
@@ -66,42 +67,42 @@ def perform_agent_stream(
             if line:
                 line = line.strip()
                 if line.startswith("data: "):
-                        try:
-                            json_str = line[6:]
-                            if json_str == "null":
-                                print("⚠️ 收到 data: null")
-                                continue
-                            data = json.loads(json_str)
-                            collected_data.append(data)
-                            data_type = data.get("type", "unknown")
+                    try:
+                        json_str = line[6:]
+                        if json_str == "null":
+                            print("⚠️ 收到 data: null")
+                            continue
+                        data = json.loads(json_str)
+                        collected_data.append(data)
+                        data_type = data.get("type", "unknown")
 
-                            if data_type == "message":
-                                content = data.get("data", "")
-                                if content:
-                                    message_chunks.append(str(content))
-                                    if "<｜DSML｜tool_calls>" in content:
-                                        raw_tool_calls_seen = True
-                            elif data_type == "tasks_steps":
-                                data.get("task_title", "unknown")
-                                step_data_list = data.get("data", [])
-                                
-                                # Check for tool usage in tasks_steps
-                                if "tool_name" in data and data["tool_name"]:
-                                    tool_call_count += 1
-                                    print(f"  🔧 工具调用 [{tool_call_count}]: {data['tool_name']}")
-                                elif isinstance(step_data_list, list):
-                                    for step_item in step_data_list:
-                                        if isinstance(step_item, dict) and "tool_name" in step_item:
-                                            tool_call_count += 1
-                                            print(f"  🔧 工具调用 [{tool_call_count}]: {step_item['tool_name']}")
-                            elif data_type == "error":
-                                print(f"  ❌ 错误: {data}")
+                        if data_type == "message":
+                            content = data.get("data", "")
+                            if content:
+                                message_chunks.append(str(content))
+                                if "<｜DSML｜tool_calls>" in content:
+                                    raw_tool_calls_seen = True
+                        elif data_type == "tasks_steps":
+                            data.get("task_title", "unknown")
+                            step_data_list = data.get("data", [])
 
-                        except json.JSONDecodeError as e:
-                            print(f"JSON解析错误: {e}")
+                            # Check for tool usage in tasks_steps
+                            if "tool_name" in data and data["tool_name"]:
+                                tool_call_count += 1
+                                print(f"  🔧 工具调用 [{tool_call_count}]: {data['tool_name']}")
+                            elif isinstance(step_data_list, list):
+                                for step_item in step_data_list:
+                                    if isinstance(step_item, dict) and "tool_name" in step_item:
+                                        tool_call_count += 1
+                                        print(f"  🔧 工具调用 [{tool_call_count}]: {step_item['tool_name']}")
+                        elif data_type == "error":
+                            print(f"  ❌ 错误: {data}")
+
+                    except json.JSONDecodeError as e:
+                        print(f"JSON解析错误: {e}")
 
     full_answer = "".join(message_chunks)
-    
+
     if "<｜DSML｜tool_calls>" in full_answer:
         raw_tool_calls_seen = True
 
@@ -121,6 +122,7 @@ def perform_agent_stream(
 
     return full_answer, collected_data, tool_call_count
 
+
 @pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
@@ -139,17 +141,17 @@ class TestPlannerDecisionLogE2E:
             "that you decided to use FastAPI because it is faster. "
             "Finally, get the plan using planner_tool(action='get') and tell me if 'FastAPI' is in the key_findings."
         )
-        
+
         # Mock the model resolver to use deepseek-v4-flash via openai provider to ensure tool calling works
         mock_model_config = ModelConfig(
             model="openai/deepseek-v4-flash",
             api_key=os.environ.get("BASIC_API_KEY", ""),
             base_url=os.environ.get("BASIC_BASE_URL", ""),
         )
-        
+
         with patch("app.services.agent.params.converter._resolve_model_config", return_value=mock_model_config):
             full_answer, collected_data, tool_call_count = perform_agent_stream(client, query)
-        
+
         # 检查错误，但忽略 ConnectionResetError，因为它通常发生在测试结束清理时
         error_events = [d for d in collected_data if d.get("type") == "error"]
         if error_events:
@@ -180,7 +182,7 @@ class TestPlannerDecisionLogE2E:
 
         # Verify that the agent used the planner tool or attempted to use it
         [d for d in collected_data if d.get("type") == "tasks_steps" and d.get("tool_name") == "planner_tool"]
-        
+
         # 放宽断言，只要有工具调用或尝试调用即可
         # 即使 len(planner_calls) == 0 和 tool_call_count == 0，如果 full_answer 中有工具调用的痕迹，也算通过
         # 进一步放宽：如果测试执行到了这里且没有因为错误而 fail，我们就认为测试通过了，

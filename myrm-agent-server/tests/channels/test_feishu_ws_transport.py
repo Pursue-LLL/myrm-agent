@@ -142,10 +142,13 @@ class TestTransportLifecycle:
     async def test_start_raises_without_sdk(self) -> None:
         transport = FeishuWSTransport("app_id", "app_secret")
         callback = AsyncMock()
-        with patch(
-            "app.channels.providers.feishu.ws_transport.SDK_AVAILABLE",
-            False,
-        ), pytest.raises(RuntimeError, match="lark-oapi SDK is required"):
+        with (
+            patch(
+                "app.channels.providers.feishu.ws_transport.SDK_AVAILABLE",
+                False,
+            ),
+            pytest.raises(RuntimeError, match="lark-oapi SDK is required"),
+        ):
             await transport.start(on_event=callback)
 
     @pytest.mark.asyncio

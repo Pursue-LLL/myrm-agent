@@ -19,4 +19,3 @@ POSTGRES_USER = "myrmagent"
 POSTGRES_PASSWORD = "myrmagent"
 
 POSTGRES_DB = "myrmagent"
-

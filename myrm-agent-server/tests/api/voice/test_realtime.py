@@ -39,10 +39,7 @@ def _providers(
             {
                 "id": provider_id,
                 "apiUrl": api_url,
-                "apiKeys": [
-                    {"id": f"k{i}", "key": k, "isActive": active, "remark": ""}
-                    for i, (k, active) in enumerate(keys)
-                ],
+                "apiKeys": [{"id": f"k{i}", "key": k, "isActive": active, "remark": ""} for i, (k, active) in enumerate(keys)],
                 "enabledModels": [],
             }
         ],
@@ -87,9 +84,7 @@ class TestExtractOpenaiApiKey:
 
 class TestExtractOpenaiBaseUrl:
     def test_extracts_api_url(self) -> None:
-        assert _extract_openai_base_url(_providers(api_url="https://proxy.example.com/v1/")) == (
-            "https://proxy.example.com/v1"
-        )
+        assert _extract_openai_base_url(_providers(api_url="https://proxy.example.com/v1/")) == ("https://proxy.example.com/v1")
 
     def test_strips_trailing_slash(self) -> None:
         assert _extract_openai_base_url(_providers(api_url="https://api.example.com/")) == "https://api.example.com"
@@ -143,9 +138,7 @@ async def test_create_realtime_token_success() -> None:
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.return_value = {
-        "client_secret": {"value": "ek-test-secret", "expires_at": 1717000000}
-    }
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-test-secret", "expires_at": 1717000000}}
 
     mock_client = AsyncMock()
     mock_client.post = AsyncMock(return_value=mock_resp)
@@ -229,9 +222,7 @@ async def test_persist_transcript_success() -> None:
     from app.api.voice.realtime import persist_realtime_transcript
 
     mock_append = AsyncMock()
-    with patch(
-        "app.services.chat.ChatService.append_message", mock_append
-    ):
+    with patch("app.services.chat.ChatService.append_message", mock_append):
         result = await persist_realtime_transcript(
             RealtimeTranscriptRequest(
                 chat_id="chat-123",
@@ -252,9 +243,7 @@ async def test_persist_transcript_skips_empty() -> None:
     from app.api.voice.realtime import persist_realtime_transcript
 
     mock_append = AsyncMock()
-    with patch(
-        "app.services.chat.ChatService.append_message", mock_append
-    ):
+    with patch("app.services.chat.ChatService.append_message", mock_append):
         result = await persist_realtime_transcript(
             RealtimeTranscriptRequest(
                 chat_id="chat-123",
@@ -288,9 +277,7 @@ async def test_execute_tool_success() -> None:
         patch("app.ai_agents.agents.GeneralAgentParams", MagicMock()),
         patch("app.services.agent.streaming.ai_agent_service_stream", mock_stream),
     ):
-        result = await execute_realtime_tool(
-            RealtimeToolExecRequest(tool_name="weather", arguments={"city": "Tokyo"})
-        )
+        result = await execute_realtime_tool(RealtimeToolExecRequest(tool_name="weather", arguments={"city": "Tokyo"}))
 
     assert result.error is None
     assert "sunny" in str(result.result)
@@ -304,9 +291,7 @@ async def test_execute_tool_failure() -> None:
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(side_effect=RuntimeError("Config error")),
     ):
-        result = await execute_realtime_tool(
-            RealtimeToolExecRequest(tool_name="failing_tool", arguments={})
-        )
+        result = await execute_realtime_tool(RealtimeToolExecRequest(tool_name="failing_tool", arguments={}))
 
     assert result.error is not None
     assert "Config error" in result.error

@@ -43,12 +43,8 @@ class ContextBundleService:
         registry = facade.index()
         registry.register(MemorySceneHealthBackend(facade.memory_path()))
         registry.register(LocalFileSearchSceneHealthBackend(_probe_local_file_search_health))
-        registry.register(
-            StaticSceneHealthBackend(ContextScene.OFFLOAD, _path_writable_status(facade.offload_root()))
-        )
-        registry.register(
-            StaticSceneHealthBackend(ContextScene.ARCHIVE, _path_writable_status(facade.archive_path()))
-        )
+        registry.register(StaticSceneHealthBackend(ContextScene.OFFLOAD, _path_writable_status(facade.offload_root())))
+        registry.register(StaticSceneHealthBackend(ContextScene.ARCHIVE, _path_writable_status(facade.archive_path())))
         return facade
 
     async def get_health(self) -> ContextBundleHealthResponse:

@@ -18,11 +18,11 @@ from PIL import Image
 
 def _create_test_image(path: str) -> None:
     """Create a simple 400x300 test image."""
-    img = Image.new('RGB', (400, 300), color=(200, 220, 240))
+    img = Image.new("RGB", (400, 300), color=(200, 220, 240))
     for x in range(100, 300):
         for y in range(75, 225):
             img.putpixel((x, y), (50, 100, 150))
-    img.save(path, format='PNG')
+    img.save(path, format="PNG")
 
 
 async def _setup_and_upload(page: Page, image_path: str) -> None:
@@ -31,25 +31,41 @@ async def _setup_and_upload(page: Page, image_path: str) -> None:
 
     # Mock only the exact backend config endpoint
     async def handle_config(route):
-        if '/api/' in route.request.url or ':8080' in route.request.url:
-            await route.fulfill(json={
-                "configs": {
-                    "providers": {"key": "providers", "value": {"providers": [
-                        {"id": "test-provider", "name": "Test", "isBuiltIn": True,
-                         "isEnabled": True, "apiKeys": ["sk-test"],
-                         "apiUrl": "https://example.com/v1",
-                         "enabledModels": ["test-vision"], "availableModels": ["test-vision"],
-                         "routingProfile": "test-provider"}
-                    ]}},
-                    "defaultModelConfig": {"key": "defaultModelConfig", "value": {
-                        "baseModel": {"primary": {"providerId": "test-provider", "model": "test-vision"}}
-                    }},
-                    "customModelInfo": {"key": "customModelInfo", "value": {
-                        "test-provider/test-vision": {"id": "test-vision", "name": "test-vision",
-                                                       "supports_vision": True}
-                    }}
+        if "/api/" in route.request.url or ":8080" in route.request.url:
+            await route.fulfill(
+                json={
+                    "configs": {
+                        "providers": {
+                            "key": "providers",
+                            "value": {
+                                "providers": [
+                                    {
+                                        "id": "test-provider",
+                                        "name": "Test",
+                                        "isBuiltIn": True,
+                                        "isEnabled": True,
+                                        "apiKeys": ["sk-test"],
+                                        "apiUrl": "https://example.com/v1",
+                                        "enabledModels": ["test-vision"],
+                                        "availableModels": ["test-vision"],
+                                        "routingProfile": "test-provider",
+                                    }
+                                ]
+                            },
+                        },
+                        "defaultModelConfig": {
+                            "key": "defaultModelConfig",
+                            "value": {"baseModel": {"primary": {"providerId": "test-provider", "model": "test-vision"}}},
+                        },
+                        "customModelInfo": {
+                            "key": "customModelInfo",
+                            "value": {
+                                "test-provider/test-vision": {"id": "test-vision", "name": "test-vision", "supports_vision": True}
+                            },
+                        },
+                    }
                 }
-            })
+            )
         else:
             await route.continue_()
 
@@ -82,7 +98,7 @@ async def _setup_and_upload(page: Page, image_path: str) -> None:
     # Dismiss any dialog
     dialog = page.locator('[role="alertdialog"]')
     if await dialog.count() > 0:
-        btn = dialog.locator('button').last
+        btn = dialog.locator("button").last
         if await btn.count() > 0:
             await btn.click()
             await page.wait_for_timeout(500)
@@ -100,11 +116,11 @@ async def _test_annotation_workflow(page: Page, image_path: str) -> None:
     thumbnail = page.locator(f'img[alt="{file_name}"]')
 
     # Step 1: Hover thumbnail to reveal edit button
-    container = thumbnail.locator('..')
+    container = thumbnail.locator("..")
     await container.hover()
     await page.wait_for_timeout(500)
 
-    edit_btn = container.locator('button').first
+    edit_btn = container.locator("button").first
     await edit_btn.wait_for(state="visible", timeout=5_000)
     print("  [PASS] Edit button visible on hover")
 
@@ -113,14 +129,14 @@ async def _test_annotation_workflow(page: Page, image_path: str) -> None:
     await page.wait_for_timeout(1000)
 
     # Verify modal opened (annotation editor uses a fixed overlay)
-    canvas = page.locator('canvas')
+    canvas = page.locator("canvas")
     await canvas.first.wait_for(state="visible", timeout=5_000)
     print("  [PASS] Annotation editor opened with canvas")
 
     # Step 3: Verify toolbar is present
     # The toolbar should have multiple buttons for tools
     fixed_overlay = page.locator('.fixed.inset-0, [data-testid="annotation-editor"]').first
-    toolbar_buttons = fixed_overlay.locator('button')
+    toolbar_buttons = fixed_overlay.locator("button")
     btn_count = await toolbar_buttons.count()
     assert btn_count >= 8, f"Expected at least 8 toolbar buttons, got {btn_count}"
     print(f"  [PASS] Toolbar has {btn_count} buttons")
@@ -129,10 +145,10 @@ async def _test_annotation_workflow(page: Page, image_path: str) -> None:
     canvas_el = canvas.first
     box = await canvas_el.bounding_box()
     if box:
-        sx = box['x'] + box['width'] * 0.25
-        sy = box['y'] + box['height'] * 0.25
-        ex = box['x'] + box['width'] * 0.75
-        ey = box['y'] + box['height'] * 0.75
+        sx = box["x"] + box["width"] * 0.25
+        sy = box["y"] + box["height"] * 0.25
+        ex = box["x"] + box["width"] * 0.75
+        ey = box["y"] + box["height"] * 0.75
         await page.mouse.move(sx, sy)
         await page.mouse.down()
         await page.mouse.move(ex, ey, steps=10)
@@ -152,9 +168,9 @@ async def _test_annotation_workflow(page: Page, image_path: str) -> None:
     for i in range(btn_count - 1, max(btn_count - 5, -1), -1):
         btn = toolbar_buttons.nth(i)
         text = (await btn.inner_text()).strip().lower()
-        title = (await btn.get_attribute('title') or '').lower()
-        aria = (await btn.get_attribute('aria-label') or '').lower()
-        if any(word in f"{text}{title}{aria}" for word in ['save', '保存', 'check', '确认']):
+        title = (await btn.get_attribute("title") or "").lower()
+        aria = (await btn.get_attribute("aria-label") or "").lower()
+        if any(word in f"{text}{title}{aria}" for word in ["save", "保存", "check", "确认"]):
             await btn.click()
             save_clicked = True
             break
@@ -209,6 +225,7 @@ async def test_annotation_editor_e2e(tmp_path: Path) -> None:
 if __name__ == "__main__":
     os.environ["MYRM_E2E_REAL_FRONTEND_STACK"] = "1"
     import tempfile
+
     tmp = tempfile.mkdtemp()
     image_path = str(Path(tmp) / "test_annotate.png")
     _create_test_image(image_path)

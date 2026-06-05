@@ -115,9 +115,7 @@ class ProfileManager:
         """Get a single profile by key."""
         session_factory = get_session_factory()
         async with session_factory() as session:
-            result = await session.execute(
-                select(SecurityProfile).where(SecurityProfile.profile_key == profile_key)
-            )
+            result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == profile_key))
             profile = result.scalar_one_or_none()
             return _to_dict(profile) if profile else None
 
@@ -125,9 +123,7 @@ class ProfileManager:
         """Get the currently active profile."""
         session_factory = get_session_factory()
         async with session_factory() as session:
-            result = await session.execute(
-                select(SecurityProfile).where(SecurityProfile.is_active.is_(True))
-            )
+            result = await session.execute(select(SecurityProfile).where(SecurityProfile.is_active.is_(True)))
             profile = result.scalar_one_or_none()
             return _to_dict(profile) if profile else None
 
@@ -136,13 +132,9 @@ class ProfileManager:
         session_factory = get_session_factory()
         async with session_factory() as session:
             # Deactivate all
-            await session.execute(
-                update(SecurityProfile).values(is_active=False)
-            )
+            await session.execute(update(SecurityProfile).values(is_active=False))
             # Activate target
-            result = await session.execute(
-                select(SecurityProfile).where(SecurityProfile.profile_key == profile_key)
-            )
+            result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == profile_key))
             profile = result.scalar_one_or_none()
             if profile is None:
                 await session.commit()
@@ -170,9 +162,7 @@ class ProfileManager:
 
         session_factory = get_session_factory()
         async with session_factory() as session:
-            result = await session.execute(
-                select(SecurityProfile).where(SecurityProfile.profile_key == profile_key)
-            )
+            result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == profile_key))
             existing = result.scalar_one_or_none()
 
             if existing:
@@ -207,9 +197,7 @@ class ProfileManager:
 
         session_factory = get_session_factory()
         async with session_factory() as session:
-            result = await session.execute(
-                select(SecurityProfile).where(SecurityProfile.profile_key == profile_key)
-            )
+            result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == profile_key))
             profile = result.scalar_one_or_none()
             if profile is None:
                 return False
@@ -239,9 +227,7 @@ class ProfileManager:
         async with session_factory() as session:
             for builtin in _BUILTIN_PROFILES:
                 key = str(builtin["profile_key"])
-                result = await session.execute(
-                    select(SecurityProfile).where(SecurityProfile.profile_key == key)
-                )
+                result = await session.execute(select(SecurityProfile).where(SecurityProfile.profile_key == key))
                 if result.scalar_one_or_none() is None:
                     profile = SecurityProfile(
                         id=str(uuid.uuid4()),

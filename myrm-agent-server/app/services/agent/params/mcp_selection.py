@@ -88,6 +88,8 @@ def apply_agent_mcp_selection(
     if len(result) != original_count or tool_injected:
         logger.debug(
             "MCP selection: %d servers -> %d, tool_include injected for %d",
-            original_count, len(result), tool_injected,
+            original_count,
+            len(result),
+            tool_injected,
         )
     return result

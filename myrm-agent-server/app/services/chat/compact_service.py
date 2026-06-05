@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 _MIN_MESSAGES_TO_COMPACT = 10
 _compaction_locks: weakref.WeakValueDictionary[str, asyncio.Lock] = weakref.WeakValueDictionary()
 
+
 def _get_compaction_lock(chat_id: str) -> asyncio.Lock:
     lock = _compaction_locks.get(chat_id)
     if lock is None:
@@ -123,18 +124,15 @@ async def _do_persist_to_db(
 
     if current_compacted_before_id and current_compacted_before_id != effective_before_id:
         ts_result = await db.execute(
-            select(Message.id, Message.created_at)
-            .where(Message.id.in_([current_compacted_before_id, effective_before_id]))
+            select(Message.id, Message.created_at).where(Message.id.in_([current_compacted_before_id, effective_before_id]))
         )
         timestamps = {row[0]: row[1] for row in ts_result.all()}
-        
+
         current_ts = timestamps.get(current_compacted_before_id)
         target_ts = timestamps.get(effective_before_id)
-        
+
         if current_ts and target_ts and current_ts >= target_ts:
-            logger.warning(
-                "⚠️ [persist_compaction] DB has a newer or equal compaction boundary. Aborting overwrite."
-            )
+            logger.warning("⚠️ [persist_compaction] DB has a newer or equal compaction boundary. Aborting overwrite.")
             return effective_before_id
 
     await db.execute(

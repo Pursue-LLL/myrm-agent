@@ -55,11 +55,7 @@ class DatabaseMCPOAuthTokenStore:
 
     async def _load_tokens(self) -> dict[str, dict[str, object]]:
         async with get_session() as db:
-            row = (
-                (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY)))
-                .scalars()
-                .first()
-            )
+            row = (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
             if not row:
                 return {}
 
@@ -73,6 +69,7 @@ class DatabaseMCPOAuthTokenStore:
 
             if isinstance(data, str):
                 import json
+
                 try:
                     data = json.loads(data)
                 except Exception:
@@ -86,11 +83,7 @@ class DatabaseMCPOAuthTokenStore:
         final_value = {"_cipher": enc_value} if is_enc and isinstance(enc_value, str) else enc_value
 
         async with get_session() as db:
-            row = (
-                (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY)))
-                .scalars()
-                .first()
-            )
+            row = (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
             if row:
                 row.config_value = final_value
                 row.is_encrypted = is_enc
@@ -127,9 +120,7 @@ class DatabaseMCPOAuthTokenStore:
         await self._save_tokens(tokens)
         logger.info("Saved MCP OAuth token for '%s'", server_name)
 
-    async def save_token_with_config(
-        self, server_name: str, token: MCPOAuthToken, oauth_config: MCPOAuthConfig
-    ) -> None:
+    async def save_token_with_config(self, server_name: str, token: MCPOAuthToken, oauth_config: MCPOAuthConfig) -> None:
         """Persist token together with the OAuth server config for later refresh."""
         tokens = await self._load_tokens()
         data = token.model_dump()
@@ -189,7 +180,9 @@ class DatabaseMCPOAuthTokenStore:
                     if resp.status_code != 200:
                         logger.error(
                             "MCP OAuth refresh failed for '%s': %d %s",
-                            server_name, resp.status_code, resp.text[:200],
+                            server_name,
+                            resp.status_code,
+                            resp.text[:200],
                         )
                         return None
 
@@ -207,7 +200,8 @@ class DatabaseMCPOAuthTokenStore:
             except Exception:
                 logger.error(
                     "MCP OAuth refresh request failed for '%s'",
-                    server_name, exc_info=True,
+                    server_name,
+                    exc_info=True,
                 )
                 return None
 

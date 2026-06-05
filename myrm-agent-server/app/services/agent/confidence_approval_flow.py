@@ -136,9 +136,7 @@ class ConfidenceApprovalFlow:
         approved = False
         if should_auto_approve:
             try:
-                await approve_evolution_review_record(
-                    review_record.id, auto_approved=True
-                )
+                await approve_evolution_review_record(review_record.id, auto_approved=True)
                 logger.info(
                     "Auto-merged evolution %s for skill %s",
                     review_record.id,
@@ -149,9 +147,7 @@ class ConfidenceApprovalFlow:
 
                 publish_skill_evolved_event(
                     skill_name=skill_name,
-                    evolution_type=getattr(
-                        proposal.evolution_type, "value", proposal.evolution_type
-                    ),
+                    evolution_type=getattr(proposal.evolution_type, "value", proposal.evolution_type),
                     description="Auto-learned skill from background evolution.",
                     evolution_id=review_record.id,
                 )
@@ -159,9 +155,7 @@ class ConfidenceApprovalFlow:
                 approved = True
                 requires_manual_review = False
             except EvolutionApplyError as exc:
-                logger.error(
-                    "Failed to auto-merge evolution %s: %s", review_record.id, exc
-                )
+                logger.error("Failed to auto-merge evolution %s: %s", review_record.id, exc)
                 requires_manual_review = True
 
         return ApprovalResult(
@@ -178,18 +172,10 @@ class ConfidenceApprovalFlow:
         parts: list[str] = []
         for signal in risk_signals:
             if signal.startswith("diff_range:"):
-                parts.append(
-                    "Change exceeds 50% threshold — carefully review the diff to confirm correctness."
-                )
+                parts.append("Change exceeds 50% threshold — carefully review the diff to confirm correctness.")
             elif signal.startswith("low_effective_rate:"):
-                parts.append(
-                    "This skill has low historical success rate — verify the improvement direction is correct."
-                )
-        return (
-            " ".join(parts)
-            if parts
-            else "Review the diff and approve or reject the proposal."
-        )
+                parts.append("This skill has low historical success rate — verify the improvement direction is correct.")
+        return " ".join(parts) if parts else "Review the diff and approve or reject the proposal."
 
     @staticmethod
     def _evaluate_risk_signals(
@@ -210,12 +196,7 @@ class ConfidenceApprovalFlow:
         # Signal 2: Historical effective rate — low-quality skills need human oversight
         if skill_record is not None and hasattr(skill_record, "metrics"):
             metrics = skill_record.metrics
-            if (
-                metrics.applied_count >= MIN_APPLIED_FOR_RATE_SIGNAL
-                and metrics.effective_rate < EFFECTIVE_RATE_THRESHOLD
-            ):
-                signals.append(
-                    f"low_effective_rate:{metrics.effective_rate:.0%}({metrics.applied_count}runs)"
-                )
+            if metrics.applied_count >= MIN_APPLIED_FOR_RATE_SIGNAL and metrics.effective_rate < EFFECTIVE_RATE_THRESHOLD:
+                signals.append(f"low_effective_rate:{metrics.effective_rate:.0%}({metrics.applied_count}runs)")
 
         return signals

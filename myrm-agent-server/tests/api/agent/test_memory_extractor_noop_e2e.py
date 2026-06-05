@@ -14,6 +14,7 @@ def _exhaust_stream(resp):
     for _line in resp.iter_lines():
         pass
 
+
 @pytest.mark.e2e
 @pytest.mark.timeout(360)
 @pytest.mark.skipif(
@@ -46,7 +47,7 @@ async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
 
     # Need at least 4 messages (2 turns) to bypass quality filter length check in some cases
     # We will just send a valuable constraint now.
-    
+
     valuable_fact = "我的工作强制要求使用 Python 3.14 版本，绝对不能用更老的版本。"
     req_valuable = {
         "messageId": str(uuid.uuid4()),
@@ -62,7 +63,7 @@ async def test_memory_extractor_noop_and_valuable_e2e(client: TestClient):
     with client.stream("POST", "/api/v1/agents/agent-stream", json=req_valuable, timeout=120.0) as r2:
         assert r2.status_code == 200
         _exhaust_stream(r2)
-        
+
     req_trigger = {
         "messageId": str(uuid.uuid4()),
         "query": "这就对了",

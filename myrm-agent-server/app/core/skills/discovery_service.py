@@ -111,23 +111,23 @@ class SkillDiscoveryService:
         try:
             installed_versions = await self._get_installed_versions()
             installed_names = {k for k in installed_versions.keys()}
-            
+
             refs = await analyze_github_url(url, token=self._github_token)
-            
+
             async def _fetch_metadata(r: GitHubRef) -> dict[str, object]:
                 base = f"https://github.com/{r.owner}/{r.repo}"
                 name = r.subdirectory.split("/")[-1] if r.subdirectory else r.repo
                 full_url = f"{base}/tree/{r.ref}/{r.subdirectory}" if (r.subdirectory and r.ref) else base
                 description = ""
-                
+
                 # Fetch raw SKILL.md to get true name and description
                 raw_base = f"https://raw.githubusercontent.com/{r.owner}/{r.repo}/{r.ref or 'HEAD'}"
                 raw_path = f"{r.subdirectory}/SKILL.md" if r.subdirectory else "SKILL.md"
-                
+
                 headers = {}
                 if self._github_token:
                     headers["Authorization"] = f"token {self._github_token}"
-                    
+
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     try:
                         resp = await client.get(f"{raw_base}/{raw_path}", headers=headers)
@@ -142,21 +142,16 @@ class SkillDiscoveryService:
                                     description = str(frontmatter.get("description", description))
                     except Exception as e:
                         logger.debug("Failed to fetch SKILL.md for %s: %s", raw_path, e)
-                
+
                 is_installed = name.lower() in installed_names
-                return {
-                    "url": full_url,
-                    "name": name,
-                    "description": description,
-                    "is_installed": is_installed
-                }
+                return {"url": full_url, "name": name, "description": description, "is_installed": is_installed}
 
             sem = asyncio.Semaphore(10)
 
             async def _bounded_fetch(r: GitHubRef) -> dict[str, object]:
                 async with sem:
                     return await _fetch_metadata(r)
-            
+
             results = await asyncio.gather(*[_bounded_fetch(r) for r in refs])
             return list(results)
         except Exception as e:

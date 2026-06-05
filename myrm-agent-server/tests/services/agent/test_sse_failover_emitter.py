@@ -162,9 +162,9 @@ async def test_merge_interleaves_failover_event_mid_stream():
     # First main chunk first, then failover (interleaved), then second main.
     assert out[0] == "data: first\n\n"
     parsed = [_try_parse_sse_chunk(chunk) for chunk in out]
-    assert any(
-        p is not None and p.get("type") == MODEL_FAILOVER_EVENT_TYPE for p in parsed
-    ), "expected a model_failover SSE chunk in the merged stream"
+    assert any(p is not None and p.get("type") == MODEL_FAILOVER_EVENT_TYPE for p in parsed), (
+        "expected a model_failover SSE chunk in the merged stream"
+    )
     assert out[-1] == "data: second\n\n"
 
 
@@ -184,11 +184,7 @@ async def test_merge_drains_pending_events_when_main_finishes():
     async for chunk in merge_stream_with_emitter(_main(), emitter):
         out.append(chunk)
 
-    types = [
-        p.get("type")
-        for c in out
-        if (p := _try_parse_sse_chunk(c)) is not None
-    ]
+    types = [p.get("type") for c in out if (p := _try_parse_sse_chunk(c)) is not None]
     assert MODEL_FAILOVER_EVENT_TYPE in types
     assert MODEL_RECOVERY_EVENT_TYPE in types
     assert "data: only\n\n" in out
@@ -227,11 +223,7 @@ async def test_merge_surfaces_failover_when_main_is_blocked():
     main_release.set()
     out = await asyncio.wait_for(consumer, timeout=2.0)
 
-    types = [
-        p.get("type")
-        for c in out
-        if (p := _try_parse_sse_chunk(c)) is not None
-    ]
+    types = [p.get("type") for c in out if (p := _try_parse_sse_chunk(c)) is not None]
     assert MODEL_FAILOVER_EVENT_TYPE in types
     assert "data: late\n\n" in out
 

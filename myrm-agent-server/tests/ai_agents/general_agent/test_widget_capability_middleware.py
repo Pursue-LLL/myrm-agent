@@ -96,11 +96,13 @@ class TestWidgetCapabilityMiddleware:
                 SystemMessage(content=WIDGET_CAPABILITY_PROMPT),
                 HumanMessage(content="q"),
             ],
-            state={"messages": [
-                SystemMessage(content="core prompt"),
-                SystemMessage(content=WIDGET_CAPABILITY_PROMPT),
-                HumanMessage(content="q"),
-            ]},
+            state={
+                "messages": [
+                    SystemMessage(content="core prompt"),
+                    SystemMessage(content=WIDGET_CAPABILITY_PROMPT),
+                    HumanMessage(content="q"),
+                ]
+            },
         )
 
         await mw.awrap_model_call(request, mock_handler)

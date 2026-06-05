@@ -184,7 +184,7 @@ class TestTelegramClient:
     async def test_set_message_reaction(self) -> None:
         client = _mock_client()
         client._http.post = AsyncMock(return_value=_ok_response(True))
-        await client.set_message_reaction(123, 42, [{"type": "emoji", "emoji": "\U0001F44D"}])
+        await client.set_message_reaction(123, 42, [{"type": "emoji", "emoji": "\U0001f44d"}])
 
     @pytest.mark.asyncio
     async def test_answer_callback_query(self) -> None:
@@ -675,24 +675,16 @@ class TestForumTopicApi:
     @pytest.mark.asyncio
     async def test_create_forum_topic(self) -> None:
         client = _mock_client()
-        client._http.post = AsyncMock(
-            return_value=_ok_response({"message_thread_id": 42, "name": "Test Topic"})
-        )
-        result = await client.create_forum_topic(
-            -100123, "Test Topic", icon_color=0x6FB9F0
-        )
+        client._http.post = AsyncMock(return_value=_ok_response({"message_thread_id": 42, "name": "Test Topic"}))
+        result = await client.create_forum_topic(-100123, "Test Topic", icon_color=0x6FB9F0)
         assert result["message_thread_id"] == 42
         assert result["name"] == "Test Topic"
 
     @pytest.mark.asyncio
     async def test_create_forum_topic_with_emoji(self) -> None:
         client = _mock_client()
-        client._http.post = AsyncMock(
-            return_value=_ok_response({"message_thread_id": 43, "name": "Dev"})
-        )
-        result = await client.create_forum_topic(
-            -100123, "Dev", icon_custom_emoji_id="5368324170671202286"
-        )
+        client._http.post = AsyncMock(return_value=_ok_response({"message_thread_id": 43, "name": "Dev"}))
+        result = await client.create_forum_topic(-100123, "Dev", icon_custom_emoji_id="5368324170671202286")
         assert result["message_thread_id"] == 43
 
     @pytest.mark.asyncio
@@ -706,9 +698,7 @@ class TestForumTopicApi:
     async def test_edit_forum_topic_icon_only(self) -> None:
         client = _mock_client()
         client._http.post = AsyncMock(return_value=_ok_response(True))
-        result = await client.edit_forum_topic(
-            -100123, 42, icon_custom_emoji_id="5368324170671202286"
-        )
+        result = await client.edit_forum_topic(-100123, 42, icon_custom_emoji_id="5368324170671202286")
         assert result is True
 
     @pytest.mark.asyncio
@@ -732,8 +722,6 @@ class TestForumTopicApi:
     @pytest.mark.asyncio
     async def test_create_forum_topic_permission_error(self) -> None:
         client = _mock_client()
-        client._http.post = AsyncMock(
-            return_value=_error_response(403, "Forbidden: not enough rights")
-        )
+        client._http.post = AsyncMock(return_value=_error_response(403, "Forbidden: not enough rights"))
         with pytest.raises(TelegramApiError, match="not enough rights"):
             await client.create_forum_topic(-100123, "Forbidden Topic")

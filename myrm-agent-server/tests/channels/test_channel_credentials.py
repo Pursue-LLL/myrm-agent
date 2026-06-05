@@ -93,9 +93,7 @@ class TestResolveCredentials:
         assert result == {"app_id": "db_id", "secret": "db_secret"}
 
     @pytest.mark.asyncio()
-    async def test_partial_source_uses_default_for_missing(
-        self, spec: ChannelCredentialSpec
-    ) -> None:
+    async def test_partial_source_uses_default_for_missing(self, spec: ChannelCredentialSpec) -> None:
         """DB has app_id but not secret → secret falls back to field default."""
         source: CredentialSource = AsyncMock(return_value={"appId": "db_id"})
         result = await resolve_credentials(spec, source)
@@ -103,9 +101,7 @@ class TestResolveCredentials:
         assert result["secret"] == "default_secret"
 
     @pytest.mark.asyncio()
-    async def test_partial_source_no_env_fallback(
-        self, spec: ChannelCredentialSpec, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_partial_source_no_env_fallback(self, spec: ChannelCredentialSpec, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing DB fields do not fall back to environment variables."""
         monkeypatch.setenv("TEST_SECRET", "env_secret")
         source: CredentialSource = AsyncMock(return_value={"appId": "db_id"})

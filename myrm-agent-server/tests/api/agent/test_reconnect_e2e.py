@@ -26,9 +26,7 @@ HEADERS = {
 @pytest.fixture
 async def async_client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """使用真实的 HTTP 客户端连接外部或本地运行的服务器"""
-    async with httpx.AsyncClient(
-        base_url=BASE_URL, headers=HEADERS, timeout=120.0
-    ) as client:
+    async with httpx.AsyncClient(base_url=BASE_URL, headers=HEADERS, timeout=120.0) as client:
         yield client
 
 
@@ -65,18 +63,12 @@ async def test_agent_stream_disconnect_and_reconnect(
     # 1. 模拟首次请求并中途强制断开
     # ==========================
     try:
-        async with async_client.stream(
-            "POST", url, json=payload, timeout=20.0
-        ) as response:
+        async with async_client.stream("POST", url, json=payload, timeout=20.0) as response:
             if response.status_code != 200:
-                print(
-                    f"\n[Test] 首次连接已中断（符合预期）: Expected 200, got {response.status_code}"
-                )
+                print(f"\n[Test] 首次连接已中断（符合预期）: Expected 200, got {response.status_code}")
                 err_text = await response.aread()
                 print(f"Error text: {err_text}")
-                assert (
-                    response.status_code == 200
-                ), f"Expected 200, got {response.status_code}"
+                assert response.status_code == 200, f"Expected 200, got {response.status_code}"
 
             async for chunk in response.aiter_text():
                 if chunk.strip():
@@ -90,9 +82,7 @@ async def test_agent_stream_disconnect_and_reconnect(
 
                     # 接收到3个有效chunk后，我们主动引发异常/Break来强制关闭这个流连接
                     if chunks_received >= 3:
-                        print(
-                            f"\n[Test] 收到第 {chunks_received} 个数据块，准备断开连接..."
-                        )
+                        print(f"\n[Test] 收到第 {chunks_received} 个数据块，准备断开连接...")
                         break
     except Exception as e:
         print(f"\n[Test] 首次连接已中断（符合预期）: {e}")
@@ -117,28 +107,19 @@ async def test_agent_stream_disconnect_and_reconnect(
 
     # 因为这是新的请求，我们需要一个新的 httpx context
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=60.0) as client_resume:
-        async with client_resume.stream(
-            "POST", url, json=payload, headers=headers
-        ) as response:
+        async with client_resume.stream("POST", url, json=payload, headers=headers) as response:
             # 重连如果不导致500，说明 UNIQUE 冲突已解决
-            assert (
-                response.status_code == 200
-            ), f"Reconnect expected 200, got {response.status_code}. Possible DB UNIQUE constraint conflict!"
+            assert response.status_code == 200, (
+                f"Reconnect expected 200, got {response.status_code}. Possible DB UNIQUE constraint conflict!"
+            )
 
             async for chunk in response.aiter_text():
                 if chunk.strip():
                     print(f"[RECONNECT CHUNK] {chunk}")
                     reconnect_chunks += 1
-                    if (
-                        "message_completed" in chunk
-                        or "task_completed" in chunk
-                        or "DONE" in chunk
-                        or "message_end" in chunk
-                    ):
+                    if "message_completed" in chunk or "task_completed" in chunk or "DONE" in chunk or "message_end" in chunk:
                         task_completed = True
 
     print(f"\n[Test] 重连后收到了 {reconnect_chunks} 个数据块。")
     assert task_completed, "重连后未收到任务完成的信号！任务可能死在后台了。"
-    print(
-        "\n✅ 测试通过：客户端断线重连恢复逻辑 (Persistent Server) 运行完美，无数据冲突。"
-    )
+    print("\n✅ 测试通过：客户端断线重连恢复逻辑 (Persistent Server) 运行完美，无数据冲突。")

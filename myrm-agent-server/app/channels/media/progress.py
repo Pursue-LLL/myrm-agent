@@ -175,9 +175,7 @@ class LoggingProgressCallback:
             if self._last_milestone < milestone <= progress:
                 size_mb = total_bytes / (1024 * 1024)
                 downloaded_mb = downloaded_bytes / (1024 * 1024)
-                self._logger.info(
-                    "Download progress: %d%% (%.1fMB/%.1fMB)", int(milestone * 100), downloaded_mb, size_mb
-                )
+                self._logger.info("Download progress: %d%% (%.1fMB/%.1fMB)", int(milestone * 100), downloaded_mb, size_mb)
                 self._last_milestone = milestone
                 break
 

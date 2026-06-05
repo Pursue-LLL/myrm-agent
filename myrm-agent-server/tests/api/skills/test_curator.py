@@ -16,17 +16,13 @@ def test_curator_config_get(client: TestClient):
 
 
 def test_curator_config_update(client: TestClient):
-    response = client.patch(
-        "/api/v1/skills/curator/config", json={"enabled": False, "interval_hours": 24}
-    )
+    response = client.patch("/api/v1/skills/curator/config", json={"enabled": False, "interval_hours": 24})
     assert response.status_code == 200
     data = response.json()
     assert data["enabled"] is False
     assert data["interval_hours"] == 24
 
-    response = client.patch(
-        "/api/v1/skills/curator/config", json={"enabled": True, "interval_hours": 168}
-    )
+    response = client.patch("/api/v1/skills/curator/config", json={"enabled": True, "interval_hours": 168})
     assert response.status_code == 200
 
 
@@ -240,6 +236,7 @@ def test_consolidation_preview_with_actions(client: TestClient):
 
 def test_consolidation_execute_empty(client: TestClient):
     """Execute should return empty result when nothing to consolidate."""
+
     async def mock_execute():
         return {
             "success_count": 0,
@@ -261,6 +258,7 @@ def test_consolidation_execute_empty(client: TestClient):
 
 def test_consolidation_execute_with_results(client: TestClient):
     """Execute should return results when consolidation is performed."""
+
     async def mock_execute():
         return {
             "success_count": 2,

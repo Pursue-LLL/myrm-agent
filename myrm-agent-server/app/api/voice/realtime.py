@@ -42,8 +42,16 @@ _DEFAULT_REALTIME_MODEL = "gpt-realtime-2"
 _DEFAULT_REALTIME_VOICE = "verse"
 
 REALTIME_VOICES = (
-    "alloy", "ash", "ballad", "cedar", "coral",
-    "echo", "marin", "sage", "shimmer", "verse",
+    "alloy",
+    "ash",
+    "ballad",
+    "cedar",
+    "coral",
+    "echo",
+    "marin",
+    "sage",
+    "shimmer",
+    "verse",
 )
 
 
@@ -176,6 +184,7 @@ async def execute_realtime_tool(req: RealtimeToolExecRequest) -> RealtimeToolExe
         )
 
         from app.core.channel_bridge.config_parsers import extract_lite_model_config
+
         lite_model = extract_lite_model_config(providers)
 
         from app.ai_agents.agents import GeneralAgentParams
@@ -291,6 +300,7 @@ def _extract_openai_base_url(providers: dict[str, object]) -> str | None:
 def _safe_json_str(obj: object) -> str:
     """Serialize to JSON string safely."""
     import json
+
     try:
         return json.dumps(obj, ensure_ascii=False, default=str)
     except Exception:

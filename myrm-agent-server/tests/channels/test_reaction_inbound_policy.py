@@ -43,8 +43,7 @@ from app.channels.types import InboundMessage
 REACTION_CAPABLE_CHANNELS: list[str] = sorted(
     name
     for name in CHANNEL_META.keys()
-    if not isinstance(get_channel_class(name).capabilities, property)
-    and get_channel_class(name).capabilities.reactions
+    if not isinstance(get_channel_class(name).capabilities, property) and get_channel_class(name).capabilities.reactions
 )
 
 
@@ -63,7 +62,7 @@ class TestReactionInboundPolicyInvariant:
         msg = InboundMessage(
             channel="any",
             sender_id="user_1",
-            content="\U0001F44D",
+            content="\U0001f44d",
             chat_id="chat_1",
             is_group=is_group,
             mentioned=True,
@@ -81,7 +80,7 @@ class TestReactionInboundPolicyInvariant:
         msg = InboundMessage(
             channel="any",
             sender_id="user_1",
-            content="\U0001F44D",
+            content="\U0001f44d",
             chat_id="chat_1",
             is_group=True,
             mentioned=False,
@@ -132,9 +131,7 @@ class TestReactionConstructionSiteContract:
                     offending.append((path, i + 1))
 
         if construction_sites == 0:
-            pytest.skip(
-                f"{channel_name}: outbound-only reactions (no inbound webhook)"
-            )
+            pytest.skip(f"{channel_name}: outbound-only reactions (no inbound webhook)")
 
         assert not offending, (
             f"{channel_name}: reaction inbound site missing mentioned=True at "
@@ -162,8 +159,7 @@ class TestThreeTierEmojiCoverage:
                 id="slack",
             ),
             pytest.param(
-                "app.channels.providers.mattermost.channel."
-                "MattermostChannel._REACTION_EMOJI_MAP",
+                "app.channels.providers.mattermost.channel.MattermostChannel._REACTION_EMOJI_MAP",
                 None,
                 id="mattermost",
             ),
@@ -207,21 +203,17 @@ class TestThreeTierEmojiCoverage:
 
         decoded_emojis = {value for value in table.values()}
 
-        approve_once = {"\U0001F44D", "\u2764", "\u2705", "\U0001F91D", "\U0001F4AA"}
-        approve_always = {"\u267E", "\u2B50"}
-        deny_set = {"\U0001F44E", "\u274C", "\U0001F6AB"}
+        approve_once = {"\U0001f44d", "\u2764", "\u2705", "\U0001f91d", "\U0001f4aa"}
+        approve_always = {"\u267e", "\u2b50"}
+        deny_set = {"\U0001f44e", "\u274c", "\U0001f6ab"}
 
         # Strip variation selectors before comparing — Slack stores "❤️" with
         # FE0F, the canonical decision vocabulary stores "❤".
-        normalised = {value.replace("\uFE0F", "") for value in decoded_emojis}
+        normalised = {value.replace("\ufe0f", "") for value in decoded_emojis}
 
-        assert normalised & approve_once, (
-            f"{table_path}: zero emoji maps to allow_once decision"
-        )
+        assert normalised & approve_once, f"{table_path}: zero emoji maps to allow_once decision"
         assert normalised & approve_always, (
             f"{table_path}: zero emoji maps to allow_always decision; "
             f"users will not be able to grant 'Always allow' via reactions"
         )
-        assert normalised & deny_set, (
-            f"{table_path}: zero emoji maps to deny decision"
-        )
+        assert normalised & deny_set, f"{table_path}: zero emoji maps to deny decision"

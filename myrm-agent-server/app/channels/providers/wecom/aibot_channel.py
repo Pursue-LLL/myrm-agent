@@ -58,6 +58,7 @@ _MAX_TEXT_LENGTH = 20000
 @dataclass
 class WeComStreamState:
     """State for a streaming WeCom AI Bot message."""
+
     stream_id: str
     chat_id: str
     req_id: str
@@ -236,10 +237,7 @@ class WeComAiBotChannel(BaseChannel):
         stream_id = uuid.uuid4().hex[:16]
 
         self._active_streams[stream_id] = WeComStreamState(
-            stream_id=stream_id,
-            chat_id=chat_id,
-            req_id=req_id,
-            last_full_text=text
+            stream_id=stream_id, chat_id=chat_id, req_id=req_id, last_full_text=text
         )
 
         await self._send_respond_msg(req_id, text, finish=False, stream_id=stream_id)
@@ -380,7 +378,9 @@ class WeComAiBotChannel(BaseChannel):
                         if total_duration > 280.0:
                             fallback_suffix = "\n\n> *(处理时间较长，已转入后台运行，稍后推送最终结果)*"
                             safe_len = _MAX_TEXT_LENGTH - len(fallback_suffix)
-                            safe_text = state.last_full_text[:safe_len] if len(state.last_full_text) > safe_len else state.last_full_text
+                            safe_text = (
+                                state.last_full_text[:safe_len] if len(state.last_full_text) > safe_len else state.last_full_text
+                            )
                             fallback_text = safe_text + fallback_suffix
 
                             await self._send_respond_msg(state.req_id, fallback_text, finish=True, stream_id=stream_id)

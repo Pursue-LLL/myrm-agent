@@ -192,9 +192,7 @@ class TestMemoryRulesConditionalInjection:
 
     def test_both_disabled_full_mode_still_has_core_rules(self) -> None:
         """enable_answer_tool=False + enable_memory=False still has core rules."""
-        prompt = get_core_system_prompt(
-            "full", enable_answer_tool=False, enable_memory=False
-        )
+        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
         assert "<identity>" in prompt
         assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
@@ -203,15 +201,14 @@ class TestMemoryRulesConditionalInjection:
 
     def test_both_disabled_no_answer_tool_references(self) -> None:
         """No answer tool references when both features disabled."""
-        prompt = get_core_system_prompt(
-            "full", enable_answer_tool=False, enable_memory=False
-        )
+        prompt = get_core_system_prompt("full", enable_answer_tool=False, enable_memory=False)
         assert "answer_tool_required" not in prompt
 
     def test_invalid_mode_with_memory_disabled_falls_back(self) -> None:
         """Unknown mode + enable_memory=False falls back to full without memory."""
         result = get_core_system_prompt(
-            "unknown_mode", enable_memory=False  # type: ignore[arg-type]
+            "unknown_mode",
+            enable_memory=False,  # type: ignore[arg-type]
         )
         expected = get_core_system_prompt("full", enable_memory=False)
         assert result is expected

@@ -21,6 +21,7 @@ from app.database.connection import get_db
 
 router = APIRouter()
 
+
 class DashboardResponse(BaseModel):
     """仪表盘数据"""
 
@@ -29,6 +30,7 @@ class DashboardResponse(BaseModel):
     top_skills: list[dict[str, object]]
     bottom_skills: list[dict[str, object]]
 
+
 class QualityReportResponse(BaseModel):
     """质量报告"""
 
@@ -36,6 +38,7 @@ class QualityReportResponse(BaseModel):
     skill_name: str
     quality_score: dict[str, object]
     recommendation: str
+
 
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard(db: AsyncSession = Depends(get_db)) -> DashboardResponse:
@@ -59,6 +62,7 @@ async def get_dashboard(db: AsyncSession = Depends(get_db)) -> DashboardResponse
         bottom_skills=bottom_skills,
     )
 
+
 @router.get("/quality/{skill_id}", response_model=QualityReportResponse)
 async def get_skill_quality(skill_id: str, db: AsyncSession = Depends(get_db)) -> QualityReportResponse:
     """获取skill质量报告"""
@@ -70,9 +74,7 @@ async def get_skill_quality(skill_id: str, db: AsyncSession = Depends(get_db)) -
         raise HTTPException(status_code=404, detail=f"No quality data found for skill {skill_id}")
 
     qs_raw = latest_quality.quality_score
-    quality_score: dict[str, object] = (
-        {str(k): v for k, v in qs_raw.items()} if isinstance(qs_raw, dict) else {"raw": qs_raw}
-    )
+    quality_score: dict[str, object] = {str(k): v for k, v in qs_raw.items()} if isinstance(qs_raw, dict) else {"raw": qs_raw}
     overall_raw = quality_score.get("overall_score", 0.0)
     overall_score = float(overall_raw) if isinstance(overall_raw, (int, float)) else 0.0
 
@@ -89,6 +91,7 @@ async def get_skill_quality(skill_id: str, db: AsyncSession = Depends(get_db)) -
         quality_score=quality_score,
         recommendation=recommendation,
     )
+
 
 @router.get("/quality-history/{skill_id}")
 async def get_quality_history(
@@ -119,6 +122,7 @@ async def get_quality_history(
         ],
     }
 
+
 @router.get("/global-metrics")
 async def get_global_metrics(
     aggregator: Annotated[InMemoryAggregator, Depends(get_aggregator)],
@@ -131,6 +135,7 @@ async def get_global_metrics(
     result: dict[str, object] = {str(k): v for k, v in asdict(metrics).items()}
     result["calculated_at"] = metrics.calculated_at.isoformat()
     return result
+
 
 @router.get("/aggregate-by-skill")
 async def get_aggregate_by_skill(
@@ -154,4 +159,3 @@ async def get_aggregate_by_skill(
         result.append(d)
 
     return {"aggregates": result, "count": len(result)}
-

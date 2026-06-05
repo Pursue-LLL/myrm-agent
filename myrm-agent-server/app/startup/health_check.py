@@ -22,9 +22,7 @@ def run_startup_health_check(
         force_recovery: Allow dangerous recovery actions (SQLite WAL deletion)
     """
     if skip_health_check or os.getenv("SKIP_HEALTH_CHECK", "").lower() == "true":
-        print(
-            "[Health] Health checks skipped (--skip-health-check or SKIP_HEALTH_CHECK=true)"
-        )
+        print("[Health] Health checks skipped (--skip-health-check or SKIP_HEALTH_CHECK=true)")
         return
 
     import asyncio

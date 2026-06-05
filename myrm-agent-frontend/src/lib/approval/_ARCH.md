@@ -15,6 +15,8 @@
 | `resolveDesktopOverlayTarget.ts` | 最早过期 desktop ready 态 + AttentionBar 主 request 共用选择 |
 | `approvalBulkGroups.ts` | bulk approve/reject 的分组（batchId / messageId） |
 | `approvalDecision.ts` | resume decision payload 构建 |
+| `buildToolApprovalRequest.ts` | SSE/WS actionRequest → ToolApprovalRequest（含 commandSpans/risks/workspaceRoot） |
+| `shellCommandDisplay.ts` | shell 工具名识别、命令文本提取、span 校验、zipSpansWithRisks |
 | `resumeApprovalStream.ts` | 通过 SSE resume 恢复执行 |
 
 ## 依赖
@@ -34,4 +36,6 @@
 - `chat-window/VisualApprovalPendingCard.tsx`：snapshot loading 占位
 - `chat-window/VisualApprovalArtifactCard.tsx`：截图 + BBox + 审批操作
 - `chat-window/ToolApprovalDialog.tsx`：modal 审批（非 visual / handover）
+- `chat-window/approval/ShellCommandDisplay.tsx`：shell 命令终端展示 + pipeline span 高亮
+- `components/approval/PolymorphicApprovalCard.tsx`：SubAgent 批量审批（复用 ShellCommandDisplay）
 - `chat-window/MobileStatusBoard.tsx`：移动端复用同一 surface 规则

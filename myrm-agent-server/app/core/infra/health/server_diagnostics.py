@@ -46,7 +46,7 @@ class DLQDiagnostic(DiagnosticProtocol):
                     message="Message delivery is healthy.",
                     detail=f"DLQ has {failed_count} failed message(s).",
                 )
-            
+
             # Not initialized yet or unavailable
             return HealthReport(
                 component_name="DLQ",
@@ -96,6 +96,7 @@ class ServerDiagnosticsManager:
 
 # Singleton instance for quick access
 _server_manager = ServerDiagnosticsManager()
+
 
 async def run_server_diagnostics() -> Sequence[HealthReport]:
     """Run all Server-level diagnostic probes and return their reports."""

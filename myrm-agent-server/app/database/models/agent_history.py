@@ -41,8 +41,6 @@ class AgentProfileHistory(Base):
 
     snapshot_data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     agent: Mapped["Agent"] = relationship("Agent")

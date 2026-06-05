@@ -39,9 +39,7 @@ class MCPSecretAuthProvider:
         self._secret_store = secret_store
         self._agent_id = agent_id
 
-    async def get_auth_headers(
-        self, server_name: str, server_url: str
-    ) -> dict[str, str]:
+    async def get_auth_headers(self, server_name: str, server_url: str) -> dict[str, str]:
         """Return headers with all ``{{secret:KEY}}`` references resolved."""
         if not self._header_templates:
             return {}
@@ -55,9 +53,7 @@ class MCPSecretAuthProvider:
 
             value = template
             for key_name in refs:
-                secret_value = await self._secret_store.get_secret(
-                    self._agent_id, key_name
-                )
+                secret_value = await self._secret_store.get_secret(self._agent_id, key_name)
                 if secret_value is None:
                     logger.warning(
                         "MCP '%s': header '%s' references secret '%s' "

@@ -57,7 +57,7 @@ def _evict_expired_pending() -> None:
         expired = [k for k, v in _pending_auth.items() if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS]
         for k in expired:
             del _pending_auth[k]
-            
+
     if len(_successful_auth) > _MAX_PENDING:
         expired_success = [k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS]
         for k in expired_success:
@@ -124,31 +124,43 @@ async def start_mcp_oauth(body: MCPOAuthStartRequest, request: Request) -> JSONR
     }
 
     logger.info("MCP OAuth flow started for '%s'", body.server_name)
-    return success_response(data={
-        "authorization_url": auth_url,
-        "state": state,
-    })
+    return success_response(
+        data={
+            "authorization_url": auth_url,
+            "state": state,
+        }
+    )
 
 
 @router.get("/callback")
 @limiter.limit("10/minute")
-async def handle_mcp_oauth_callback(request: Request, code: str, state: str, error: str | None = None, error_description: str | None = None) -> HTMLResponse:
+async def handle_mcp_oauth_callback(
+    request: Request, code: str, state: str, error: str | None = None, error_description: str | None = None
+) -> HTMLResponse:
     """Exchange authorization code for OAuth tokens.
 
     Validates CSRF state, exchanges the code using PKCE code_verifier,
     and persists the resulting tokens (encrypted).
     """
     if error:
-        return HTMLResponse(content=f"<html><body><h1>Authorization failed</h1><p>{error_description or error}</p></body></html>", status_code=400)
+        return HTMLResponse(
+            content=f"<html><body><h1>Authorization failed</h1><p>{error_description or error}</p></body></html>", status_code=400
+        )
 
     pending = _pending_auth.pop(state, None)
     if not pending:
-        return HTMLResponse(content="<html><body><h1>Invalid or expired OAuth state. Please restart the authorization flow.</h1></body></html>", status_code=400)
+        return HTMLResponse(
+            content="<html><body><h1>Invalid or expired OAuth state. Please restart the authorization flow.</h1></body></html>",
+            status_code=400,
+        )
 
     server_name = pending["server_name"]
     created_at = float(pending.get("created_at", "0"))
     if time.time() - created_at > 600:
-        return HTMLResponse(content="<html><body><h1>OAuth authorization timed out (10 minutes). Please restart.</h1></body></html>", status_code=400)
+        return HTMLResponse(
+            content="<html><body><h1>OAuth authorization timed out (10 minutes). Please restart.</h1></body></html>",
+            status_code=400,
+        )
 
     token_data: dict[str, str] = {
         "grant_type": "authorization_code",
@@ -167,9 +179,14 @@ async def handle_mcp_oauth_callback(request: Request, code: str, state: str, err
             if resp.status_code != 200:
                 logger.error(
                     "MCP OAuth token exchange failed for '%s': %d %s",
-                    server_name, resp.status_code, resp.text[:300],
+                    server_name,
+                    resp.status_code,
+                    resp.text[:300],
                 )
-                return HTMLResponse(content=f"<html><body><h1>Token exchange failed (HTTP {resp.status_code}).</h1><p>The authorization server rejected the request.</p></body></html>", status_code=400)
+                return HTMLResponse(
+                    content=f"<html><body><h1>Token exchange failed (HTTP {resp.status_code}).</h1><p>The authorization server rejected the request.</p></body></html>",
+                    status_code=400,
+                )
 
             result = resp.json()
             token = MCPOAuthToken(
@@ -192,7 +209,8 @@ async def handle_mcp_oauth_callback(request: Request, code: str, state: str, err
             _successful_auth[state] = time.time()
 
             logger.info("MCP OAuth completed for '%s'", server_name)
-            return HTMLResponse(content="""
+            return HTMLResponse(
+                content="""
                 <html>
                 <head><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#f9fafb;margin:0;color:#111827;}</style></head>
                 <body>
@@ -204,11 +222,14 @@ async def handle_mcp_oauth_callback(request: Request, code: str, state: str, err
                     </div>
                 </body>
                 </html>
-            """)
+            """
+            )
 
     except httpx.HTTPError as exc:
         logger.error("MCP OAuth token exchange network error: %s", exc)
-        return HTMLResponse(content=f"<html><body><h1>Network error during token exchange</h1><p>{exc}</p></body></html>", status_code=500)
+        return HTMLResponse(
+            content=f"<html><body><h1>Network error during token exchange</h1><p>{exc}</p></body></html>", status_code=500
+        )
 
 
 @router.get("/status/{state}")

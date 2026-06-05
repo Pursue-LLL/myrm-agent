@@ -363,16 +363,19 @@ class TestIMessageSend:
 
         ch = _make_channel()
         resp = _ok_json({"data": {"guid": "att-sent-001"}})
-        with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=resp), patch(
-            "app.channels.media.MediaDownloader.download",
-            new_callable=AsyncMock,
-            return_value=MediaDownloadResult(
-                success=True,
-                data=b"imgdata",
-                content_type="image/jpeg",
-                error=None,
-                url="https://img.example.com/1.jpg",
-                size_bytes=7,
+        with (
+            patch.object(ch._http, "post", new_callable=AsyncMock, return_value=resp),
+            patch(
+                "app.channels.media.MediaDownloader.download",
+                new_callable=AsyncMock,
+                return_value=MediaDownloadResult(
+                    success=True,
+                    data=b"imgdata",
+                    content_type="image/jpeg",
+                    error=None,
+                    url="https://img.example.com/1.jpg",
+                    size_bytes=7,
+                ),
             ),
         ):
             msg = OutboundMessage(
@@ -392,8 +395,12 @@ class TestIMessageSend:
             "app.channels.media.downloader.MediaDownloader.download",
             new_callable=AsyncMock,
             return_value=MediaDownloadResult(
-                success=False, data=None, content_type=None,
-                error=None, url="https://img.example.com/1.jpg", size_bytes=0,
+                success=False,
+                data=None,
+                content_type=None,
+                error=None,
+                url="https://img.example.com/1.jpg",
+                size_bytes=0,
             ),
         ):
             msg = OutboundMessage(
@@ -409,14 +416,21 @@ class TestIMessageSend:
     @pytest.mark.asyncio
     async def test_send_attachment_http_error(self) -> None:
         ch = _make_channel()
-        with patch(
-            "app.channels.media.downloader.MediaDownloader.download",
-            new_callable=AsyncMock,
-            return_value=MediaDownloadResult(
-                success=True, data=b"imgdata", content_type="image/jpeg",
-                error=None, url="https://img.example.com/1.jpg", size_bytes=7,
+        with (
+            patch(
+                "app.channels.media.downloader.MediaDownloader.download",
+                new_callable=AsyncMock,
+                return_value=MediaDownloadResult(
+                    success=True,
+                    data=b"imgdata",
+                    content_type="image/jpeg",
+                    error=None,
+                    url="https://img.example.com/1.jpg",
+                    size_bytes=7,
+                ),
             ),
-        ), patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_resp(500)):
+            patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_err_resp(500)),
+        ):
             msg = OutboundMessage(
                 channel="imessage",
                 recipient_id="chat1",
@@ -475,7 +489,7 @@ class TestIMessageTapbackInbound:
         }
         await ch.handle_webhook(event)
         assert len(emitted) == 1
-        assert emitted[0].content == "\U0001F44D"
+        assert emitted[0].content == "\U0001f44d"
         assert emitted[0].message_id == "msg-target-001"
         assert emitted[0].metadata.get("reaction") is True
         assert emitted[0].metadata.get("target_message_id") == "msg-target-001"
@@ -500,7 +514,7 @@ class TestIMessageTapbackInbound:
         }
         await ch.handle_webhook(event)
         assert len(emitted) == 1
-        assert emitted[0].content == "\u2764\uFE0F"
+        assert emitted[0].content == "\u2764\ufe0f"
 
     @pytest.mark.asyncio
     async def test_tapback_removal_ignored(self) -> None:
@@ -589,7 +603,7 @@ class TestIMessageTapbackInbound:
         await ch.handle_webhook(event)
         assert len(emitted) == 1
         assert emitted[0].is_group is True
-        assert emitted[0].content == "\U0001F44E"
+        assert emitted[0].content == "\U0001f44e"
         assert emitted[0].metadata.get("target_message_id") == "msg-target-006"
 
     @pytest.mark.asyncio
@@ -664,7 +678,7 @@ class TestIMessageReactions:
     async def test_react_known_emoji(self) -> None:
         ch = _make_channel()
         with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.react_to_message("chat1", "msg1", "\u2764\uFE0F")
+            await ch.react_to_message("chat1", "msg1", "\u2764\ufe0f")
         payload = mock_post.call_args.kwargs.get("json", {})
         assert payload["reaction"] == 2000
 
@@ -672,7 +686,7 @@ class TestIMessageReactions:
     async def test_react_unknown_emoji_defaults(self) -> None:
         ch = _make_channel()
         with patch.object(ch._http, "post", new_callable=AsyncMock, return_value=_ok_json()) as mock_post:
-            await ch.react_to_message("chat1", "msg1", "\U0001F525")
+            await ch.react_to_message("chat1", "msg1", "\U0001f525")
         payload = mock_post.call_args.kwargs.get("json", {})
         assert payload["reaction"] == 2001
 

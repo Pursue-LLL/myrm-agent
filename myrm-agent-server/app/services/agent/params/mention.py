@@ -34,12 +34,28 @@ logger = logging.getLogger(__name__)
 _MENTION_MAX_FILES = 10
 _LINE_RANGE_PATTERN = re.compile(r"^(.+?):(\d+)(?:-(\d+))?$")
 _MENTION_MAX_INLINE_BYTES = 100 * 1024  # 100KB per file
-_MENTION_MAX_TOTAL_BYTES = 500 * 1024   # 500KB total
+_MENTION_MAX_TOTAL_BYTES = 500 * 1024  # 500KB total
 _DOCUMENT_EXTENSIONS = {".docx", ".xlsx", ".xls", ".pptx", ".ppt"}
 _BINARY_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico",
-    ".mp3", ".mp4", ".avi", ".mov", ".zip", ".tar", ".gz",
-    ".exe", ".dll", ".so", ".bin", ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".ico",
+    ".mp3",
+    ".mp4",
+    ".avi",
+    ".mov",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".exe",
+    ".dll",
+    ".so",
+    ".bin",
+    ".pdf",
 }
 _FOLDER_TREE_MAX_ENTRIES = 200
 _FOLDER_TREE_EXCLUDED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".pytest_cache", ".mypy_cache"}
@@ -48,25 +64,25 @@ _URL_FETCH_TIMEOUT = 30
 
 def _read_file_lines(file_path: str, start_line: int | None, end_line: int | None) -> str:
     """Read specific lines from a file.
-    
+
     Args:
         file_path: Absolute path to the file
         start_line: Starting line number (1-indexed), None for full file
         end_line: Ending line number (1-indexed, inclusive), None for full file
-    
+
     Returns:
         File content or specified line range
     """
     with open(file_path, encoding="utf-8", errors="replace") as f:
         if start_line is None:
             return f.read()
-        
+
         lines = f.readlines()
         total_lines = len(lines)
-        
+
         start_idx = max(0, start_line - 1)
         end_idx = min(total_lines, end_line) if end_line else total_lines
-        
+
         return "".join(lines[start_idx:end_idx])
 
 
@@ -110,7 +126,7 @@ async def _build_mentioned_file_context(
 
 def _get_git_staged_diff(workspace_dir: str) -> str:
     """Get git staged diff (git diff --cached) for current workspace.
-    
+
     Returns empty string if not a git repo, or if no staged changes, or on error.
     """
     try:
@@ -136,24 +152,24 @@ def _get_git_staged_diff(workspace_dir: str) -> str:
 
 def _get_folder_tree(abs_path: str, workspace_dir: str) -> str:
     """Generate folder tree structure (limited to _FOLDER_TREE_MAX_ENTRIES).
-    
+
     Filters out common excluded directories like .git, node_modules, __pycache__.
     Returns empty string if path doesn't exist or is not a directory.
     """
     if not os.path.exists(abs_path) or not os.path.isdir(abs_path):
         return ""
-    
+
     lines: list[str] = []
     total_entries = 0
-    
+
     try:
         for root, dirs, files in os.walk(abs_path):
             dirs[:] = [d for d in dirs if d not in _FOLDER_TREE_EXCLUDED_DIRS]
-            
+
             rel_root = os.path.relpath(root, workspace_dir)
             if rel_root == ".":
                 rel_root = ""
-            
+
             for d in sorted(dirs):
                 if total_entries >= _FOLDER_TREE_MAX_ENTRIES:
                     lines.append("... (truncated)")
@@ -161,7 +177,7 @@ def _get_folder_tree(abs_path: str, workspace_dir: str) -> str:
                 dir_path = os.path.join(rel_root, d) if rel_root else d
                 lines.append(f"- {dir_path}/")
                 total_entries += 1
-            
+
             for f in sorted(files):
                 if total_entries >= _FOLDER_TREE_MAX_ENTRIES:
                     lines.append("... (truncated)")
@@ -173,18 +189,18 @@ def _get_folder_tree(abs_path: str, workspace_dir: str) -> str:
     except Exception as e:
         logger.warning("Failed to generate folder tree for %s: %s", abs_path, e)
         return ""
-    
+
     return "\n".join(lines)
 
 
 async def _fetch_url_content(url: str) -> str:
     """Fetch URL content using CrawlEngine.
-    
+
     Returns empty string on error or if URL is blocked by SSRF protection.
     """
     try:
         from myrm_agent_harness.toolkits.web_fetch.engine import CrawlEngine
-        
+
         engine = CrawlEngine()
         doc = await engine.crawl(url)
         if doc and doc.page_content:
@@ -213,7 +229,7 @@ async def _build_mention_reference_context(
     total_bytes = 0
     total_tokens = 0
     warnings: list[str] = []
-    
+
     # Token budget limits (25% soft, 50% hard)
     soft_limit = int(max_context_tokens * 0.25) if max_context_tokens else 999_999_999
     hard_limit = int(max_context_tokens * 0.50) if max_context_tokens else 999_999_999
@@ -227,7 +243,7 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part("@staged", "git-diff", diff_content))
                     total_bytes += diff_bytes
                 else:
-                    parts.append(_xml_metadata("@staged", "git-diff", f'Diff too large ({_format_size(diff_bytes)})'))
+                    parts.append(_xml_metadata("@staged", "git-diff", f"Diff too large ({_format_size(diff_bytes)})"))
             else:
                 parts.append('<mentioned_file path="@staged" type="git-diff">No staged changes</mentioned_file>')
             continue
@@ -249,7 +265,7 @@ async def _build_mention_reference_context(
                         parts.append(_xml_part("@diff", "git-diff", diff_content))
                         total_bytes += diff_bytes
                     else:
-                        parts.append(_xml_metadata("@diff", "git-diff", f'Diff too large ({_format_size(diff_bytes)})'))
+                        parts.append(_xml_metadata("@diff", "git-diff", f"Diff too large ({_format_size(diff_bytes)})"))
                 else:
                     parts.append('<mentioned_file path="@diff" type="git-diff">No unstaged changes</mentioned_file>')
             except Exception as e:
@@ -277,7 +293,7 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part(display_path, "folder-tree", tree_content))
                     total_bytes += tree_bytes
                 else:
-                    parts.append(_xml_metadata(display_path, "folder-tree", f'Tree too large ({_format_size(tree_bytes)})'))
+                    parts.append(_xml_metadata(display_path, "folder-tree", f"Tree too large ({_format_size(tree_bytes)})"))
             else:
                 parts.append(_xml_error(display_path, "folder not found or empty"))
             continue
@@ -292,7 +308,7 @@ async def _build_mention_reference_context(
                     parts.append(_xml_part(display_path, "url", url_content))
                     total_bytes += url_bytes
                 else:
-                    parts.append(_xml_metadata(display_path, "url", f'Content too large ({_format_size(url_bytes)})'))
+                    parts.append(_xml_metadata(display_path, "url", f"Content too large ({_format_size(url_bytes)})"))
             else:
                 parts.append(_xml_error(display_path, "failed to fetch URL"))
             continue
@@ -329,22 +345,19 @@ async def _build_mention_reference_context(
 
     if not parts:
         return "", [], 0
-    
+
     # Calculate total tokens
     final_content = "\n\n<mentioned_files>\n" + "\n".join(parts) + "\n</mentioned_files>"
     total_tokens = get_token_count(final_content)
-    
+
     # Check budget limits
     if total_tokens > hard_limit:
         warnings.append(
-            f"Context size {total_tokens} tokens exceeds 50% limit ({hard_limit} tokens), "
-            f"some references may have been truncated"
+            f"Context size {total_tokens} tokens exceeds 50% limit ({hard_limit} tokens), some references may have been truncated"
         )
     elif total_tokens > soft_limit:
-        warnings.append(
-            f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)"
-        )
-    
+        warnings.append(f"Warning: Context size {total_tokens} tokens exceeds 25% soft limit ({soft_limit} tokens)")
+
     return final_content, warnings, total_tokens
 
 
@@ -474,12 +487,15 @@ def _parse_document(path: str, ext: str) -> str | None:
     try:
         if ext == ".docx":
             from myrm_agent_harness.toolkits.file_parsers import DocxParser
+
             return DocxParser()._parse_sync(path)
         if ext in (".xlsx", ".xls"):
             from myrm_agent_harness.toolkits.file_parsers import ExcelParser
+
             return ExcelParser()._parse_sync(path)
         if ext in (".pptx", ".ppt"):
             from myrm_agent_harness.toolkits.file_parsers import PptxParser
+
             return PptxParser()._parse_sync(path)
     except Exception as e:
         logger.warning("Failed to parse document %s: %s", path, e)
@@ -495,26 +511,15 @@ def _format_size(size_bytes: int) -> str:
 
 
 def _can_inline(content_bytes: int, current_total_bytes: int) -> bool:
-    return (
-        content_bytes <= _MENTION_MAX_INLINE_BYTES
-        and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
-    )
+    return content_bytes <= _MENTION_MAX_INLINE_BYTES and current_total_bytes + content_bytes <= _MENTION_MAX_TOTAL_BYTES
 
 
 def _xml_part(path: str, part_type: str, content: str) -> str:
-    return (
-        f"<mentioned_file path={quoteattr(path)} type={quoteattr(part_type)}>\n"
-        f"{escape(content)}\n"
-        f"</mentioned_file>"
-    )
+    return f"<mentioned_file path={quoteattr(path)} type={quoteattr(part_type)}>\n{escape(content)}\n</mentioned_file>"
 
 
 def _xml_metadata(path: str, part_type: str, message: str) -> str:
-    return (
-        f"<mentioned_file path={quoteattr(path)} type={quoteattr(part_type)}>"
-        f"{escape(message)}"
-        f"</mentioned_file>"
-    )
+    return f"<mentioned_file path={quoteattr(path)} type={quoteattr(part_type)}>{escape(message)}</mentioned_file>"
 
 
 def _xml_error(path: str, message: str) -> str:

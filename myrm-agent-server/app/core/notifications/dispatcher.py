@@ -57,7 +57,9 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
     AppEventType.WECHAT_SESSION_EXPIRED: ("[Myrm AI] WeChat session expired. Please re-login in Settings → Channels."),
     AppEventType.CONFIG_HEALTH_WARNING: ("[Myrm AI] Configuration issue detected.\nMissing: {missing_items}"),
     AppEventType.SYSTEM_NOTIFICATION: ("[Myrm AI] {title}: {message}"),
-    AppEventType.GOAL_TERMINAL: ("[Myrm AI] Goal {status}: {objective}\n{files_modified} files · {total_tokens:,} tokens · ${total_cost_usd:.2f}"),
+    AppEventType.GOAL_TERMINAL: (
+        "[Myrm AI] Goal {status}: {objective}\n{files_modified} files · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
+    ),
     AppEventType.GOAL_DEQUEUED: ("[Myrm AI] Next goal started: {objective}"),
 }
 

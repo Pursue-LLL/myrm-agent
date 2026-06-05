@@ -65,7 +65,7 @@ class TestMatrixReactionHandler:
     async def test_known_emoji_passes_through(self) -> None:
         received = await _capture(_reaction_event(key="👍"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44D"
+        assert received[0].content == "\U0001f44d"
         assert received[0].channel == "matrix"
         assert received[0].sender_id == "@alice:matrix.org"
         assert received[0].metadata["reaction"] is True
@@ -77,19 +77,19 @@ class TestMatrixReactionHandler:
     async def test_plus_one_alias_maps_to_thumbsup(self) -> None:
         received = await _capture(_reaction_event(key="+1"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44D"
+        assert received[0].content == "\U0001f44d"
 
     @pytest.mark.asyncio
     async def test_infinity_with_variation_selector(self) -> None:
-        received = await _capture(_reaction_event(key="\u267E\uFE0F"))
+        received = await _capture(_reaction_event(key="\u267e\ufe0f"))
         assert len(received) == 1
-        assert received[0].content == "\u267E"
+        assert received[0].content == "\u267e"
 
     @pytest.mark.asyncio
     async def test_thumbsdown_maps_to_deny(self) -> None:
         received = await _capture(_reaction_event(key="-1"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44E"
+        assert received[0].content == "\U0001f44e"
 
     @pytest.mark.asyncio
     async def test_unknown_key_passes_through_unchanged(self) -> None:

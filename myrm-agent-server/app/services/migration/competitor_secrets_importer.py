@@ -85,14 +85,8 @@ def _seed_provider_stubs(
 ) -> list[dict[str, object]]:
     """Append minimal provider rows for env keys that have no matching slot."""
 
-    typed: list[dict[str, object]] = [
-        provider for provider in providers_raw if isinstance(provider, dict)
-    ]
-    existing_ids = {
-        str(provider.get("id", "")).strip()
-        for provider in typed
-        if str(provider.get("id", "")).strip()
-    }
+    typed: list[dict[str, object]] = [provider for provider in providers_raw if isinstance(provider, dict)]
+    existing_ids = {str(provider.get("id", "")).strip() for provider in typed if str(provider.get("id", "")).strip()}
     for env_name, secret_value in secrets.items():
         provider_id = _ENV_TO_PROVIDER_ID[env_name]
         if provider_id in existing_ids:
@@ -173,12 +167,14 @@ async def import_competitor_secrets(root: Path) -> dict[str, object]:
                 api_keys[0]["key"] = secret_value
                 api_keys[0]["isActive"] = True
             else:
-                api_keys = [{
-                    "id": str(uuid.uuid4()),
-                    "key": secret_value,
-                    "remark": "Imported from competitor migration",
-                    "isActive": True,
-                }]
+                api_keys = [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "key": secret_value,
+                        "remark": "Imported from competitor migration",
+                        "isActive": True,
+                    }
+                ]
             provider["apiKeys"] = api_keys
             provider["isEnabled"] = True
             imported.append(env_name)

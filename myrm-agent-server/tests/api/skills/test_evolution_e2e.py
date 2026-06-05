@@ -128,7 +128,7 @@ async def test_auto_skill_evolution_e2e(client: TestClient):
         for msg in mock_messages:
             db.add(msg)
         await db.commit()
-        
+
         # Verify insertion
         msgs = await ChatService.get_all_messages(chat_id)
         print(f"Inserted {len(msgs)} messages for chat {chat_id}")

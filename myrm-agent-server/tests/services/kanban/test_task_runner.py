@@ -31,25 +31,24 @@ async def test_kanban_task_runner_uses_unattended_mode():
 
     mock_model_cfg = ModelConfig(model="test-model", api_key="test-key")
 
-    with patch(
-        "app.ai_agents.agents.AgentFactory.create_general_agent"
-    ) as mock_create_agent, patch(
-        "app.services.kanban.task_runner.build_task_context", new_callable=AsyncMock
-    ) as mock_build_context, patch.object(
-        runner, "_resolve_profile", new_callable=AsyncMock
-    ) as mock_resolve_profile, patch(
-        "app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock
-    ) as mock_load_user_configs, patch(
-        "app.core.channel_bridge.model_resolver.resolve_model_config",
-        return_value=mock_model_cfg,
-    ), patch(
-        "app.core.channel_bridge.model_resolver.enrich_model_context_window",
-        return_value=mock_model_cfg,
-    ), patch(
-        "app.services.agent.swarm_fission_resume.stream_with_swarm_fission_resume",
-        new_callable=AsyncMock,
-    ) as mock_stream:
-
+    with (
+        patch("app.ai_agents.agents.AgentFactory.create_general_agent") as mock_create_agent,
+        patch("app.services.kanban.task_runner.build_task_context", new_callable=AsyncMock) as mock_build_context,
+        patch.object(runner, "_resolve_profile", new_callable=AsyncMock) as mock_resolve_profile,
+        patch("app.core.channel_bridge.config_loader.load_user_configs", new_callable=AsyncMock) as mock_load_user_configs,
+        patch(
+            "app.core.channel_bridge.model_resolver.resolve_model_config",
+            return_value=mock_model_cfg,
+        ),
+        patch(
+            "app.core.channel_bridge.model_resolver.enrich_model_context_window",
+            return_value=mock_model_cfg,
+        ),
+        patch(
+            "app.services.agent.swarm_fission_resume.stream_with_swarm_fission_resume",
+            new_callable=AsyncMock,
+        ) as mock_stream,
+    ):
         mock_build_context.return_value = "test context"
         mock_resolve_profile.return_value = None
 
@@ -75,9 +74,7 @@ async def test_kanban_task_runner_uses_unattended_mode():
         params = mock_create_agent.call_args[0][0]
 
         assert isinstance(params, GeneralAgentParams)
-        assert (
-            params.unattended_mode is True
-        ), "Kanban tasks must run in unattended_mode to prevent blocking"
+        assert params.unattended_mode is True, "Kanban tasks must run in unattended_mode to prevent blocking"
 
 
 class TestResolvedProfile:
@@ -378,9 +375,7 @@ class TestBuildMultimodalRealExtraction:
         task = KanbanTask(task_id="t1", board_id="b1", title="T")
 
         mock_file = MagicMock()
-        mock_file.content_type = (
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        )
+        mock_file.content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         mock_file.filename = "spec.docx"
 
         mock_fs = MagicMock()

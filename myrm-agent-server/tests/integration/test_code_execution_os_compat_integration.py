@@ -59,7 +59,8 @@ def test_os_compat_process_group_kwargs_on_host() -> None:
 async def test_os_compat_kill_process_group_no_crash() -> None:
     """kill_process_group on dead PID must not raise."""
     proc = await asyncio.create_subprocess_exec(
-        "sleep", "60",
+        "sleep",
+        "60",
         **os_compat.get_process_group_kwargs(),  # type: ignore[arg-type]
     )
     pid = proc.pid

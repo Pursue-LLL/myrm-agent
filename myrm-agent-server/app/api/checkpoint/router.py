@@ -284,9 +284,7 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
     Automatically takes a pre-rollback snapshot before restoring.
     """
     try:
-        result = await _file_snapshot_store.restore(
-            request.snapshot_id, files=request.files
-        )
+        result = await _file_snapshot_store.restore(request.snapshot_id, files=request.files)
         return FileSnapshotRestoreResponse(
             success=result.success,
             snapshot_id=result.snapshot_id,

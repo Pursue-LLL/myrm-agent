@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 class SafeDict(dict):
     """A dictionary that returns the key wrapped in braces for missing keys."""
+
     def __missing__(self, key: str) -> str:
         return f"{{{key}}}"
 
@@ -131,9 +132,7 @@ class I18nEngine:
                     if isinstance(val, str):
                         return val.format_map(safe_kwargs)
                     elif isinstance(val, list):
-                        return [
-                            v.format_map(safe_kwargs) if isinstance(v, str) else v for v in val
-                        ]
+                        return [v.format_map(safe_kwargs) if isinstance(v, str) else v for v in val]
                     return val
                 except Exception as exc:
                     logger.warning("JSON format failed: key=%r locale=%r error=%s", key, loc, exc)
@@ -146,9 +145,7 @@ class I18nEngine:
             if val != key:
                 return val
         except Exception as exc:
-            logger.warning(
-                "i18n format failed: key=%r locale=%r error=%s", key, target_locale, exc
-            )
+            logger.warning("i18n format failed: key=%r locale=%r error=%s", key, target_locale, exc)
 
         logger.debug("i18n miss: key=%r locale=%r", key, target_locale)
         return key

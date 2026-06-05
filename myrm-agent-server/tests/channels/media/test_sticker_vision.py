@@ -171,7 +171,8 @@ class TestStickerVisionService:
     @pytest.mark.asyncio
     async def test_prompt_includes_set_name(self, service: StickerVisionService, engine: _FakeEngine) -> None:
         await service.describe(
-            "f1", "u1",
+            "f1",
+            "u1",
             downloader=_FakeDownloader(),  # type: ignore[arg-type]
             set_name="FunnyPepe",
         )

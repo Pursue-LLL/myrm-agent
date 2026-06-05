@@ -70,9 +70,7 @@ class TestEmitBudgetSse:
         assert event.data["pct"] == 100.0
 
     def test_silent_on_exception(self) -> None:
-        with patch(
-            "app.services.event.app_event_bus.get_event_bus", side_effect=RuntimeError("test")
-        ):
+        with patch("app.services.event.app_event_bus.get_event_bus", side_effect=RuntimeError("test")):
             _emit_budget_sse("warning", cost=1.0, limit=10.0, dimension="daily")
 
 
@@ -133,9 +131,7 @@ class TestBudgetGuardWrapper:
     def test_wrapper_emits_sse_on_exceeded(self) -> None:
         bus = EventBus()
         q = bus.subscribe()
-        policy = BudgetPolicy(
-            enabled=True, daily_limit_usd=10.0, session_limit_usd=None
-        )
+        policy = BudgetPolicy(enabled=True, daily_limit_usd=10.0, session_limit_usd=None)
 
         with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
             wrapper = _BudgetGuardWrapper(policy)
@@ -182,19 +178,13 @@ class TestSaveBudgetPolicyDbRecovery:
 
         enforcer._guard_instance = None
         with (
-            patch.object(
-                enforcer, "_query_today_cost", new_callable=AsyncMock, return_value=4.2
-            ),
+            patch.object(enforcer, "_query_today_cost", new_callable=AsyncMock, return_value=4.2),
             patch(
                 "app.services.budget.enforcer.get_session_factory",
                 return_value=mock_factory,
             ),
         ):
-            await enforcer.save_budget_policy(
-                BudgetPolicy(
-                    enabled=True, daily_limit_usd=10.0, action_on_exceeded="block"
-                )
-            )
+            await enforcer.save_budget_policy(BudgetPolicy(enabled=True, daily_limit_usd=10.0, action_on_exceeded="block"))
 
         assert enforcer._guard_instance is not None
         assert enforcer._guard_instance.guard.daily_cost == pytest.approx(4.2)
@@ -238,9 +228,7 @@ class TestShouldBlockExecution:
 
         policy = BudgetPolicy(enabled=True, action_on_exceeded="warn")
 
-        with patch.object(
-            enforcer, "load_budget_policy", new_callable=AsyncMock, return_value=policy
-        ):
+        with patch.object(enforcer, "load_budget_policy", new_callable=AsyncMock, return_value=policy):
             result = await enforcer.should_block_execution()
         assert result is False
 
@@ -250,9 +238,7 @@ class TestShouldBlockExecution:
 
         policy = BudgetPolicy(enabled=False)
 
-        with patch.object(
-            enforcer, "load_budget_policy", new_callable=AsyncMock, return_value=policy
-        ):
+        with patch.object(enforcer, "load_budget_policy", new_callable=AsyncMock, return_value=policy):
             result = await enforcer.should_block_execution()
         assert result is False
 
@@ -297,9 +283,7 @@ class TestShouldBlockExecution:
                 new_callable=AsyncMock,
                 return_value=policy,
             ),
-            patch.object(
-                enforcer, "get_budget_guard", new_callable=AsyncMock, return_value=None
-            ),
+            patch.object(enforcer, "get_budget_guard", new_callable=AsyncMock, return_value=None),
         ):
             result = await enforcer.should_block_execution()
         assert result is False

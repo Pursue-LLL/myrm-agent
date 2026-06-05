@@ -276,9 +276,7 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
 
         conv_this_q = select(func.count()).select_from(Chat).where(Chat.created_at >= week_start)
         conv_prev_q = (
-            select(func.count())
-            .select_from(Chat)
-            .where(and_(Chat.created_at >= prev_week_start, Chat.created_at < week_start))
+            select(func.count()).select_from(Chat).where(and_(Chat.created_at >= prev_week_start, Chat.created_at < week_start))
         )
 
         msg_this_q = select(func.count(Message.id)).where(

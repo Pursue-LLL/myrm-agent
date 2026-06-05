@@ -191,14 +191,12 @@ class TestCatalogRegistry:
         """API_KEY entries must have env_key or credential_fields for credential injection."""
         for entry in registry.list_all():
             if entry.auth.type == AuthType.API_KEY:
-                assert (
-                    entry.auth.env_key or entry.auth.credential_fields
-                ), f"Entry {entry.id} requires API key but missing both env_key and credential_fields"
+                assert entry.auth.env_key or entry.auth.credential_fields, (
+                    f"Entry {entry.id} requires API key but missing both env_key and credential_fields"
+                )
 
     def test_oauth_entries_have_help_url(self, registry: CatalogRegistry) -> None:
         """OAuth entries must have help_url for users to obtain credentials."""
         for entry in registry.list_all():
             if entry.auth.type == AuthType.OAUTH2:
-                assert (
-                    entry.auth.help_url
-                ), f"Entry {entry.id} uses OAuth2 but missing help_url"
+                assert entry.auth.help_url, f"Entry {entry.id} uses OAuth2 but missing help_url"

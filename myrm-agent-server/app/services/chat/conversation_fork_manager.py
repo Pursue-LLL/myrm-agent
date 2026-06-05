@@ -250,8 +250,7 @@ class ConversationForkManager:
                 )
             except Exception as cp_err:
                 logger.warning(
-                    "Fork rollback: failed to clean orphaned checkpoint "
-                    "(thread_id=%s): %s",
+                    "Fork rollback: failed to clean orphaned checkpoint (thread_id=%s): %s",
                     new_chat_id,
                     cp_err,
                 )

@@ -200,16 +200,12 @@ class _VoiceSession:
 
             async with websockets.connect(
                 dg_url,
-                additional_headers={
-                    "Authorization": f"Token {self._voice_config.stt_api_key}"
-                },
+                additional_headers={"Authorization": f"Token {self._voice_config.stt_api_key}"},
                 ping_interval=20,
                 close_timeout=5,
             ) as dg_ws:
                 audio_relay = asyncio.create_task(self._relay_client_audio(dg_ws))
-                transcript_relay = asyncio.create_task(
-                    self._relay_deepgram_transcripts(dg_ws)
-                )
+                transcript_relay = asyncio.create_task(self._relay_deepgram_transcripts(dg_ws))
 
                 done, pending = await asyncio.wait(
                     {audio_relay, transcript_relay},
@@ -234,9 +230,7 @@ class _VoiceSession:
         try:
             while not self._closed:
                 try:
-                    msg = await asyncio.wait_for(
-                        self._ws.receive(), timeout=_SESSION_IDLE_TIMEOUT
-                    )
+                    msg = await asyncio.wait_for(self._ws.receive(), timeout=_SESSION_IDLE_TIMEOUT)
                 except asyncio.TimeoutError:
                     logger.info("Voice session idle timeout")
                     break
@@ -307,9 +301,7 @@ class _VoiceSession:
 
                 is_final = data.get("is_final", False)
                 if is_final and self._agent_bridge:
-                    task = asyncio.create_task(
-                        self._agent_bridge.handle_stt_final(text)
-                    )
+                    task = asyncio.create_task(self._agent_bridge.handle_stt_final(text))
                     task.add_done_callback(self._on_bridge_task_done)
                 else:
                     event_type = "stt_final" if is_final else "stt_interim"
@@ -356,11 +348,13 @@ class _VoiceSession:
 
     async def _run_batch_stt(self) -> None:
         """Batch STT for providers without streaming support."""
-        await self._send_json({
-            "type": "info",
-            "message": "streaming_unavailable",
-            "fallback": "batch",
-        })
+        await self._send_json(
+            {
+                "type": "info",
+                "message": "streaming_unavailable",
+                "fallback": "batch",
+            }
+        )
 
         try:
             while not self._closed:
@@ -369,9 +363,7 @@ class _VoiceSession:
 
                 while True:
                     try:
-                        msg = await asyncio.wait_for(
-                            self._ws.receive(), timeout=_SESSION_IDLE_TIMEOUT
-                        )
+                        msg = await asyncio.wait_for(self._ws.receive(), timeout=_SESSION_IDLE_TIMEOUT)
                     except asyncio.TimeoutError:
                         self._closed = True
                         return
@@ -384,10 +376,12 @@ class _VoiceSession:
                         chunk = msg["bytes"]
                         total_size += len(chunk)
                         if total_size > 25 * 1024 * 1024:
-                            await self._send_json({
-                                "type": "error",
-                                "message": "Audio too large",
-                            })
+                            await self._send_json(
+                                {
+                                    "type": "error",
+                                    "message": "Audio too large",
+                                }
+                            )
                             return
                         chunks.append(chunk)
 
@@ -412,9 +406,7 @@ class _VoiceSession:
                 text = await self._batch_transcribe(audio_blob)
                 if text:
                     if self._agent_bridge:
-                        task = asyncio.create_task(
-                            self._agent_bridge.handle_stt_final(text)
-                        )
+                        task = asyncio.create_task(self._agent_bridge.handle_stt_final(text))
                         task.add_done_callback(self._on_bridge_task_done)
                     else:
                         await self._send_json({"type": "stt_final", "text": text})
@@ -451,9 +443,7 @@ class _VoiceSession:
             return
         logger.error("Agent bridge task failed: %s", exc, exc_info=exc)
         if not self._closed:
-            asyncio.create_task(
-                self._send_json({"type": "error", "message": "Agent processing failed"})
-            )
+            asyncio.create_task(self._send_json({"type": "error", "message": "Agent processing failed"}))
 
     # ── Helpers ──────────────────────────────────────────────────────────
 

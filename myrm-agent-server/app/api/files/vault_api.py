@@ -19,30 +19,27 @@ async def get_vault_object_content(
     workspace_root: Path = Depends(get_workspace_root),
 ) -> Response:
     """Retrieve the raw binary/text content of a vault object.
-    
-    This is the non-blocking GET endpoint used by the frontend to asynchronously 
-    download massive artifacts (pointers like vault://uuid) without 
+
+    This is the non-blocking GET endpoint used by the frontend to asynchronously
+    download massive artifacts (pointers like vault://uuid) without
     clogging the SSE stream.
     """
     try:
         vault = ArtifactVault(str(workspace_root))
         uri = f"{VAULT_PREFIX}{obj_id}"
-        
+
         meta = vault.get_meta(uri)
         if not meta:
             raise HTTPException(status_code=404, detail="Vault object metadata not found or expired")
-            
+
         obj_path = vault.get_object_path(obj_id)
         if not obj_path.exists():
             raise HTTPException(status_code=404, detail="Vault object content not found on disk")
-        
+
         disposition = "attachment" if download == 1 else "inline"
-        
+
         return FileResponse(
-            path=str(obj_path),
-            media_type=meta.content_type,
-            filename=meta.filename,
-            content_disposition_type=disposition
+            path=str(obj_path), media_type=meta.content_type, filename=meta.filename, content_disposition_type=disposition
         )
     except HTTPException:
         raise
@@ -60,11 +57,11 @@ async def get_vault_object_meta(
     try:
         vault = ArtifactVault(str(workspace_root))
         uri = f"{VAULT_PREFIX}{obj_id}"
-        
+
         meta = vault.get_meta(uri)
         if not meta:
             raise HTTPException(status_code=404, detail="Vault object metadata not found")
-            
+
         raw = meta.to_dict()
         if isinstance(raw, dict):
             return {str(k): v for k, v in raw.items()}

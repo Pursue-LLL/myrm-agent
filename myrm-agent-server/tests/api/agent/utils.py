@@ -55,9 +55,7 @@ def check_e2e_errors(collected_data: list[dict[str, object]]) -> None:
     2. 工具执行失败内嵌在其他事件中（如搜索配额耗尽 → Iteration limit reached），
        不会发出顶层 error 事件，需扫描完整事件流的强信号关键字。
     """
-    error_events = [
-        d for d in collected_data if isinstance(d, dict) and d.get("type") == "error"
-    ]
+    error_events = [d for d in collected_data if isinstance(d, dict) and d.get("type") == "error"]
     if error_events:
         error_msg = str(error_events[0].get("error", "") or error_events[0].get("data", ""))
         if any(kw.lower() in error_msg.lower() for kw in _ENV_SKIP_KEYWORDS):
@@ -189,11 +187,7 @@ def get_deploy_mode() -> str:
 def build_memory_e2e_embedding_retrieval_dict() -> dict[str, object] | None:
     """Minimal ``retrievalDict`` for memory E2E when only BASIC_* embedding fallbacks exist."""
     secrets = load_test_secrets()
-    api_key = (
-        secrets.get("EMBEDDING_API_KEY")
-        or secrets.get("OPENAI_API_KEY")
-        or secrets.basic_api_key
-    )
+    api_key = secrets.get("EMBEDDING_API_KEY") or secrets.get("OPENAI_API_KEY") or secrets.basic_api_key
     if not api_key:
         return None
 
@@ -239,9 +233,7 @@ def perform_agent_search(
     message_chunks: list[str] = []
     tool_results: list[str] = []
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=search_request
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -263,9 +255,7 @@ def perform_agent_search(
                         data_type = data.get("type", "unknown")
 
                         if len(collected_data) == 1:
-                            print(
-                                f"\n  🔍 第一个事件完整内容: {json.dumps(data, ensure_ascii=False, indent=2)}\n"
-                            )
+                            print(f"\n  🔍 第一个事件完整内容: {json.dumps(data, ensure_ascii=False, indent=2)}\n")
 
                         if data_type == "message":
                             content = data.get("data", "")
@@ -275,9 +265,7 @@ def perform_agent_search(
                         elif data_type == "sources":
                             sources_data = data.get("data", [])
                             tool_results.append(str(sources_data))
-                            print(
-                                f"  🔍 搜索来源: {len(sources_data) if isinstance(sources_data, list) else 0} 个结果"
-                            )
+                            print(f"  🔍 搜索来源: {len(sources_data) if isinstance(sources_data, list) else 0} 个结果")
                         elif data_type == "tasks_steps":
                             task_title = data.get("task_title", "unknown")
                             step_data_list = data.get("data", [])
@@ -288,18 +276,12 @@ def perform_agent_search(
                                     if isinstance(step_item, dict):
                                         if "text" in step_item:
                                             text = step_item["text"]
-                                            print(
-                                                f"     项{idx + 1}: {str(text)[:80]}..."
-                                            )
+                                            print(f"     项{idx + 1}: {str(text)[:80]}...")
                                         elif "url" in step_item:
                                             url = step_item["url"]
-                                            print(
-                                                f"     项{idx + 1}: URL - {str(url)[:80]}..."
-                                            )
+                                            print(f"     项{idx + 1}: URL - {str(url)[:80]}...")
                                         else:
-                                            print(
-                                                f"     项{idx + 1}: {str(step_item)[:80]}..."
-                                            )
+                                            print(f"     项{idx + 1}: {str(step_item)[:80]}...")
                         else:
                             print(f"  📋 事件: {data_type}")
                             if data_type == "error":

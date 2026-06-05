@@ -15,9 +15,10 @@ from .base import Base
 
 class ConfigAuditLog(Base):
     """配置审计日志表 (Configuration Time-Machine)
-    
+
     记录每次配置变更的历史，支持回滚。
     """
+
     __tablename__ = "config_audit_logs"
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
@@ -26,7 +27,7 @@ class ConfigAuditLog(Base):
     new_value: Mapped[dict] = mapped_column(JSON, nullable=False)
     version: Mapped[str] = mapped_column(String(50), nullable=False)
     device_id: Mapped[str] = mapped_column(String(100), nullable=False)
-    
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 

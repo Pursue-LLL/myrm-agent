@@ -89,10 +89,7 @@ class TestNativeJsonDryRun:
         assert len(result.normalized_data["semantic"]) == 2
 
     def test_all_supported_buckets(self) -> None:
-        payload = {
-            bucket: [{"content": f"{bucket} item"}]
-            for bucket in SUPPORTED_NATIVE_BUCKETS
-        }
+        payload = {bucket: [{"content": f"{bucket} item"}] for bucket in SUPPORTED_NATIVE_BUCKETS}
         result = build_memory_import_dry_run(payload, source="native_json")
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == len(SUPPORTED_NATIVE_BUCKETS)
@@ -193,9 +190,7 @@ class TestAgentMemoryDryRun:
             "memories": [],
             "summaries": [],
             "observations": {},
-            "proceduralMemories": [
-                {"name": "Deploy", "steps": ["build", "push"], "triggerCondition": "deploy request"}
-            ],
+            "proceduralMemories": [{"name": "Deploy", "steps": ["build", "push"], "triggerCondition": "deploy request"}],
         }
         result = build_memory_import_dry_run(payload, source="agentmemory")
         assert "procedural" in result.normalized_data

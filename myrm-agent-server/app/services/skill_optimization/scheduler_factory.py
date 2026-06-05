@@ -121,7 +121,6 @@ async def create_optimization_scheduler() -> OptimizationScheduler | None:
             logger.info("Using InMemoryStorage for skill optimization (development)")
             storage = InMemoryStorage()
 
-
         scheduler = OptimizationScheduler(
             optimizer=optimizer,
             execution_provider=execution_provider,

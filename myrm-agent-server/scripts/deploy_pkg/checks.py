@@ -15,6 +15,7 @@ def check_python_version() -> bool:
         print_info("需要 Python 3.11 或更高版本")
         return False
 
+
 def check_uv_installed() -> bool:
     """检查 uv 是否安装"""
     if command_exists("uv"):
@@ -32,6 +33,7 @@ def check_uv_installed() -> bool:
             print_info("请手动安装: pip install uv")
             return False
 
+
 def check_docker_installed() -> bool:
     """检查 Docker 是否安装并运行"""
     if command_exists("docker"):
@@ -48,7 +50,7 @@ def check_docker_installed() -> bool:
         print_info("请安装 Docker: https://docs.docker.com/get-docker/")
         return False
 
+
 def check_postgres_installed() -> bool:
     """检查 PostgreSQL 是否安装"""
     return command_exists("psql")
-

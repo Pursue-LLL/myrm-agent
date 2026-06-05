@@ -102,9 +102,7 @@ class ToolStep:
     detail: str | None = None
 
 
-def render_components_as_text(
-    components: tuple[ComponentRow, ...], *, locale: str = "en"
-) -> str:
+def render_components_as_text(components: tuple[ComponentRow, ...], *, locale: str = "en") -> str:
     """Render interactive components as plain-text fallback.
 
     Used by channels that do not support native interactive components.
@@ -126,11 +124,7 @@ def render_components_as_text(
                 if comp.url:
                     lines.append(f"• {comp.label} → {comp.url}")
                 else:
-                    cmd = (
-                        comp.action_id.split(":", 1)[1]
-                        if ":" in comp.action_id
-                        else comp.action_id
-                    )
+                    cmd = comp.action_id.split(":", 1)[1] if ":" in comp.action_id else comp.action_id
                     lines.append(f"• {comp.label} → /{cmd}")
             elif isinstance(comp, SelectMenu):
                 opts = ", ".join(o.label for o in comp.options)
@@ -139,9 +133,7 @@ def render_components_as_text(
     return "\n".join(lines)
 
 
-def render_quick_replies_as_text(
-    quick_replies: tuple[QuickReply, ...], *, locale: str = "en"
-) -> str:
+def render_quick_replies_as_text(quick_replies: tuple[QuickReply, ...], *, locale: str = "en") -> str:
     """Render quick-reply chips as a numbered text list with reply instructions.
 
     Args:

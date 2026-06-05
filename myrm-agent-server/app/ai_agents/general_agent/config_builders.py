@@ -29,11 +29,8 @@ def build_privacy_routing_config(privacy_routing_raw: dict[str, object] | None) 
         local_base_url=str(raw["localBaseUrl"]) if raw.get("localBaseUrl") else None,
         local_api_key=str(raw["localApiKey"]) if raw.get("localApiKey") else None,
         s2_strategy=str(raw.get("s2Strategy", "cloud_after_redact")),
-
         s3_strategy=str(raw.get("s3Strategy", "local")),
-
         local_fallback=str(raw.get("localFallback", "block")),
-
     )
 
 

@@ -14,9 +14,9 @@ def test_incognito_mode_stream(client: TestClient):
         "model_selection": model_selection,
         "enable_memory": True,
         "incognito_mode": True,
-        "timezone": "UTC"
+        "timezone": "UTC",
     }
-    
+
     with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
         assert response.status_code == 200
         content = response.read().decode("utf-8")

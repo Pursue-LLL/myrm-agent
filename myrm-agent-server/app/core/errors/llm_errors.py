@@ -77,9 +77,7 @@ _ACTION_TRANSLATIONS["de"] = _ACTION_TRANSLATIONS["en"]
 # ============================================================================
 
 
-def generate_recovery_actions(
-    error_code: FailoverReason, locale: str = "en"
-) -> list[dict[str, str]]:
+def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") -> list[dict[str, str]]:
     """Generate recovery actions with localized labels and business URLs.
 
     Args:

@@ -31,6 +31,7 @@ class GoalSubcommand(StrEnum):
     CLEAR = "clear"
     BUDGET = "budget"
 
+
 @unique
 class SubgoalSubcommand(StrEnum):
     """Parsed /subgoal subcommand actions."""

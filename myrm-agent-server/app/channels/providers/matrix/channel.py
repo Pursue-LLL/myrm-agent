@@ -74,20 +74,12 @@ class MatrixChannel(BaseChannel):
     credential_spec = credential_spec(
         "matrixCredentials",
         homeserver=credential_field("homeserverUrl", "MATRIX_HOMESERVER"),
-        access_token=credential_field(
-            "accessToken", "MATRIX_ACCESS_TOKEN", required=False
-        ),
+        access_token=credential_field("accessToken", "MATRIX_ACCESS_TOKEN", required=False),
         user_id=credential_field("userId", "MATRIX_USER_ID", required=False),
-        password=credential_field(
-            "password", "MATRIX_PASSWORD", required=False, is_sensitive=True
-        ),
+        password=credential_field("password", "MATRIX_PASSWORD", required=False, is_sensitive=True),
         device_id=credential_field("deviceId", "MATRIX_DEVICE_ID", required=False),
-        encryption=credential_field(
-            "encryption", "MATRIX_ENCRYPTION", default="false", required=False
-        ),
-        proxy=credential_field(
-            "proxy", "MATRIX_PROXY", default="", required=False, is_sensitive=False
-        ),
+        encryption=credential_field("encryption", "MATRIX_ENCRYPTION", default="false", required=False),
+        proxy=credential_field("proxy", "MATRIX_PROXY", default="", required=False, is_sensitive=False),
     )
     capabilities = ChannelCapabilities(
         text=True,
@@ -144,10 +136,7 @@ class MatrixChannel(BaseChannel):
             return
 
         if not _MAUTRIX_AVAILABLE:
-            logger.error(
-                "Matrix: mautrix not installed. "
-                "Run: uv sync --extra matrix (add --extra matrix-e2ee for E2EE)"
-            )
+            logger.error("Matrix: mautrix not installed. Run: uv sync --extra matrix (add --extra matrix-e2ee for E2EE)")
             self._status = ChannelStatus.ERROR
             return
 
@@ -166,20 +155,30 @@ class MatrixChannel(BaseChannel):
         from mautrix.types import UserID
 
         session = create_aiohttp_session(self._proxy)
-        api = HTTPAPI(base_url=self._homeserver, token=self._access_token or "",
-                      client_session=session)
+        api = HTTPAPI(base_url=self._homeserver, token=self._access_token or "", client_session=session)
         client = Client(
             mxid=UserID(self._user_id) if self._user_id else UserID(""),
-            device_id=self._device_id or None, api=api,
-            state_store=MemoryStateStore(), sync_store=MemorySyncStore(),
+            device_id=self._device_id or None,
+            api=api,
+            state_store=MemoryStateStore(),
+            sync_store=MemorySyncStore(),
         )
 
         self._user_id, self._access_token = await authenticate(
-            client, api, session, access_token=self._access_token,
-            user_id=self._user_id, password=self._password, device_id=self._device_id,
+            client,
+            api,
+            session,
+            access_token=self._access_token,
+            user_id=self._user_id,
+            password=self._password,
+            device_id=self._device_id,
         )
         await initial_sync(
-            client, self._joined_rooms, self._dm_rooms, self._encryption, self._auto_join,
+            client,
+            self._joined_rooms,
+            self._dm_rooms,
+            self._encryption,
+            self._auto_join,
         )
         if self._encryption:
             await self._setup_encryption(client, session)
@@ -194,9 +193,7 @@ class MatrixChannel(BaseChannel):
         self._bot_id = self._user_id
         self._status = ChannelStatus.RUNNING
         self._set_connected(True)
-        self._sync_task = asyncio.create_task(
-            run_sync_loop(client, lambda: self._status, self._auto_join)
-        )
+        self._sync_task = asyncio.create_task(run_sync_loop(client, lambda: self._status, self._auto_join))
         logger.info("MatrixChannel: started (user=%s, e2ee=%s)", self._user_id, self._encryption)
 
     async def _setup_encryption(self, client: object, session: object) -> None:
@@ -384,7 +381,10 @@ class MatrixChannel(BaseChannel):
         return last_event_id
 
     async def _send_text(
-        self, room_id: str, text: str, reply_to_id: str | None = None,
+        self,
+        room_id: str,
+        text: str,
+        reply_to_id: str | None = None,
     ) -> str | None:
         if not self._client:
             return None
@@ -400,7 +400,9 @@ class MatrixChannel(BaseChannel):
         try:
             event_id = await asyncio.wait_for(
                 self._client.send_message_event(
-                    RoomID(room_id), EventType.ROOM_MESSAGE, payload,
+                    RoomID(room_id),
+                    EventType.ROOM_MESSAGE,
+                    payload,
                 ),
                 timeout=_SEND_TIMEOUT,
             )
@@ -414,7 +416,9 @@ class MatrixChannel(BaseChannel):
                 await self._client.crypto.share_keys()
                 event_id = await asyncio.wait_for(
                     self._client.send_message_event(
-                        RoomID(room_id), EventType.ROOM_MESSAGE, payload,
+                        RoomID(room_id),
+                        EventType.ROOM_MESSAGE,
+                        payload,
                     ),
                     timeout=_SEND_TIMEOUT,
                 )
@@ -436,7 +440,9 @@ class MatrixChannel(BaseChannel):
         try:
             await asyncio.wait_for(
                 self._client.send_message_event(
-                    RoomID(chat_id), EventType.ROOM_MESSAGE, payload,
+                    RoomID(chat_id),
+                    EventType.ROOM_MESSAGE,
+                    payload,
                 ),
                 timeout=_SEND_TIMEOUT,
             )
@@ -463,7 +469,9 @@ class MatrixChannel(BaseChannel):
         }
         try:
             await self._client.send_message_event(
-                RoomID(chat_id), EventType.find("m.reaction"), payload,
+                RoomID(chat_id),
+                EventType.find("m.reaction"),
+                payload,
             )
         except Exception as exc:
             logger.debug("Matrix react failed: %s", exc)
@@ -495,9 +503,7 @@ class MatrixChannel(BaseChannel):
             result: dict[str, str] = {}
             if isinstance(members, dict):
                 for user_id, info in members.items():
-                    displayname = getattr(info, "displayname", None) or getattr(
-                        info, "display_name", None
-                    )
+                    displayname = getattr(info, "displayname", None) or getattr(info, "display_name", None)
                     if displayname:
                         result[displayname] = str(user_id)
             self._room_members_cache[room_id] = result

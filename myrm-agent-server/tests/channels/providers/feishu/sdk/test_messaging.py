@@ -51,7 +51,7 @@ class TestSendMessage:
     async def test_with_reply_in_thread(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0, "data": {"message_id": "msg_002"}})
         client._http.post = AsyncMock(return_value=resp)
-        msg_id = await client.send_message("chat_123", "text", '{}', reply_in_thread=True)
+        msg_id = await client.send_message("chat_123", "text", "{}", reply_in_thread=True)
         assert msg_id == "msg_002"
         body = client._http.post.call_args.kwargs.get("json", {})
         assert body.get("reply_in_thread") is True
@@ -100,7 +100,7 @@ class TestReplyMessage:
     async def test_with_reply_in_thread(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0, "data": {"message_id": "reply_002"}})
         client._http.post = AsyncMock(return_value=resp)
-        msg_id = await client.reply_message("orig_msg", "text", '{}', reply_in_thread=True)
+        msg_id = await client.reply_message("orig_msg", "text", "{}", reply_in_thread=True)
         assert msg_id == "reply_002"
 
     @pytest.mark.asyncio
@@ -115,14 +115,14 @@ class TestReplyMessage:
         resp = _mock_response(500, {"msg": "server error"})
         client._http.post = AsyncMock(return_value=resp)
         with pytest.raises(FeishuSendError) as exc_info:
-            await client.reply_message("orig_msg", "text", '{}')
+            await client.reply_message("orig_msg", "text", "{}")
         assert exc_info.value.retriable is True
 
     @pytest.mark.asyncio
     async def test_api_error_returns_none(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 99, "msg": "param error"})
         client._http.post = AsyncMock(return_value=resp)
-        result = await client.reply_message("orig_msg", "text", '{}')
+        result = await client.reply_message("orig_msg", "text", "{}")
         assert result is None
 
 
@@ -159,14 +159,14 @@ class TestEditDeleteMessage:
     async def test_patch_success(self, client: FeishuClient) -> None:
         resp = _mock_response(200, {"code": 0})
         client._http.patch = AsyncMock(return_value=resp)
-        result = await client.patch_message("msg_001", "interactive", '{}')
+        result = await client.patch_message("msg_001", "interactive", "{}")
         assert result is True
 
     @pytest.mark.asyncio
     async def test_patch_failure(self, client: FeishuClient) -> None:
         resp = _mock_response(400)
         client._http.patch = AsyncMock(return_value=resp)
-        result = await client.patch_message("msg_001", "interactive", '{}')
+        result = await client.patch_message("msg_001", "interactive", "{}")
         assert result is False
 
     @pytest.mark.asyncio
@@ -217,10 +217,13 @@ class TestReactions:
 class TestGetMessage:
     @pytest.mark.asyncio
     async def test_success(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {
-            "code": 0,
-            "data": {"items": [{"message_id": "msg_001", "body": {"content": "hi"}}]},
-        })
+        resp = _mock_response(
+            200,
+            {
+                "code": 0,
+                "data": {"items": [{"message_id": "msg_001", "body": {"content": "hi"}}]},
+            },
+        )
         client._http.get = AsyncMock(return_value=resp)
         msg = await client.get_message("msg_001")
         assert msg is not None and msg["message_id"] == "msg_001"
@@ -311,10 +314,13 @@ class TestMedia:
 class TestFreeBusy:
     @pytest.mark.asyncio
     async def test_success_with_busy_slots(self, client: FeishuClient) -> None:
-        resp = _mock_response(200, {
-            "code": 0,
-            "data": {"freebusy_list": [{"start_time": "10:00", "end_time": "11:00"}]},
-        })
+        resp = _mock_response(
+            200,
+            {
+                "code": 0,
+                "data": {"freebusy_list": [{"start_time": "10:00", "end_time": "11:00"}]},
+            },
+        )
         client._http.post = AsyncMock(return_value=resp)
         result = await client.get_freebusy(["ou_user1"], "2026-01-01", "2026-01-02")
         assert len(result) == 1
@@ -341,7 +347,9 @@ class TestFreeBusy:
         resp = _mock_response(200, {"code": 0, "data": {"freebusy_list": []}})
         client._http.post = AsyncMock(return_value=resp)
         result = await client.get_freebusy(
-            ["ou_user1"], "2026-01-01", "2026-01-02",
+            ["ou_user1"],
+            "2026-01-01",
+            "2026-01-02",
             user_access_token="user_tok",
         )
         assert len(result) == 1
@@ -351,14 +359,19 @@ class TestFreeBusy:
 
     @pytest.mark.asyncio
     async def test_multiple_users(self, client: FeishuClient) -> None:
-        resp1 = _mock_response(200, {
-            "code": 0,
-            "data": {"freebusy_list": [{"start_time": "9:00", "end_time": "10:00"}]},
-        })
+        resp1 = _mock_response(
+            200,
+            {
+                "code": 0,
+                "data": {"freebusy_list": [{"start_time": "9:00", "end_time": "10:00"}]},
+            },
+        )
         resp2 = _mock_response(200, {"code": 0, "data": {"freebusy_list": []}})
         client._http.post = AsyncMock(side_effect=[resp1, resp2])
         result = await client.get_freebusy(
-            ["ou_user1", "ou_user2"], "2026-01-01", "2026-01-02",
+            ["ou_user1", "ou_user2"],
+            "2026-01-01",
+            "2026-01-02",
         )
         assert len(result) == 2
         assert len(result[0]["busy_slots"]) == 1

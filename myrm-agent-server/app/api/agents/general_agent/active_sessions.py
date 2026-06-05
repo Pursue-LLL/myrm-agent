@@ -24,12 +24,10 @@ async def attach_to_chat(chat_id: str, request: Request) -> StreamingResponse:
     (OfflineDurableTask) and receive real-time SSE events.
     """
     from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
-    
+
     collector = ACTIVE_COLLECTORS.get(chat_id)
     if not collector:
-        raise HTTPException(
-            status_code=404, detail="No active task found for this chat in memory"
-        )
+        raise HTTPException(status_code=404, detail="No active task found for this chat in memory")
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         snapshot, q = collector.subscribe()
@@ -38,6 +36,7 @@ async def attach_to_chat(chat_id: str, request: Request) -> StreamingResponse:
         try:
             # 1. Yield the full snapshot first
             from app.schemas.streaming import SSEEnvelope
+
             yield SSEEnvelope(type="catchup_snapshot", data=snapshot).to_sse_chunk()
 
             # 2. Yield real-time events

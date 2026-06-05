@@ -13,39 +13,41 @@ def client():
     from fastapi import FastAPI
 
     from app.api.goals.router import router as goals_router
-    
+
     app = FastAPI()
     app.include_router(goals_router, prefix="/api/v1")
-    
+
     # Mock get_storage_provider to avoid DB issues in tests
     from unittest.mock import patch
 
     from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
-    
+
     with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend("/tmp/test_storage")):
         with patch("app.api.goals.router.get_features") as mock_features:
             mock_features.return_value.get_bool.return_value = True
             with TestClient(app) as client:
                 yield client
 
+
 @pytest.mark.asyncio
 async def test_get_goal_status_none(client: TestClient):
     """Test getting goal status when no goal exists."""
     session_id = "test_session_none"
-    
+
     response = client.get(f"/api/v1/goals/{session_id}/status")
     assert response.status_code == 200
     assert response.json() == {"goal": None}
+
 
 @pytest.mark.asyncio
 async def test_goal_status_lifecycle(client: TestClient):
     """Test the full lifecycle of a goal via API."""
     session_id = f"test_session_lifecycle_{uuid.uuid4().hex}"
-    
+
     # 1. Create a goal provider and a goal manually (simulating agent stream start)
     provider = GoalRegistry.get_or_create_provider(session_id)
     goal = await provider.create_goal(session_id, "Test API Goal")
-    
+
     # 2. Get status
     response = client.get(f"/api/v1/goals/{session_id}/status")
     assert response.status_code == 200
@@ -53,146 +55,122 @@ async def test_goal_status_lifecycle(client: TestClient):
     assert data["goal"] is not None
     assert data["goal"]["goal_id"] == goal.goal_id
     assert data["goal"]["status"] == "active"
-    
+
     # 3. Pause goal
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "pause"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "pause"})
     assert response.status_code == 200
     assert response.json()["new_status"] == "paused"
-    
+
     # Verify via get
     response = client.get(f"/api/v1/goals/{session_id}/status")
     assert response.json()["goal"]["status"] == "paused"
-    
+
     # 4. Resume goal
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "resume"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "resume"})
     assert response.status_code == 200
     assert response.json()["new_status"] == "active"
-    
+
     # 5. Cancel goal
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "cancel"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "cancel"})
     assert response.status_code == 200
     assert response.json()["new_status"] == "cancelled"
-    
+
     # 6. Approve goal (force complete)
     # First, make it active again (just for testing logic, since cancelled is terminal in theory)
     # Wait, let's create a new goal for approve/reject testing
     GoalRegistry.unregister(session_id)
-    
+
     provider = GoalRegistry.get_or_create_provider(session_id)
     goal2 = await provider.create_goal(session_id, "Test Approve/Reject Goal")
-    
+
     # Needs human review status usually set by agent
     await provider.update_status(goal2.goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
-    
+
     # Reject
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "reject"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "reject"})
     assert response.status_code == 200
     assert response.json()["new_status"] == "active"
-    
+
     # Approve
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "approve"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "approve"})
     assert response.status_code == 200
     assert response.json()["new_status"] == "complete"
-    
+
     # Cleanup
     GoalRegistry.unregister(session_id)
+
 
 @pytest.mark.asyncio
 async def test_update_status_invalid_action(client: TestClient):
     """Test updating status with invalid action."""
     session_id = f"test_session_invalid_{uuid.uuid4().hex}"
-    
+
     provider = GoalRegistry.get_or_create_provider(session_id)
-    
+
     # Check if goal already exists from previous test run
     goal = await provider.get_active_goal(session_id)
     if not goal:
         goal = await provider.create_goal(session_id, "Test API Goal")
-    
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "invalid_action"}
-    )
+
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "invalid_action"})
     assert response.status_code == 400
     assert "Invalid action" in response.json()["detail"]
-    
+
     GoalRegistry.unregister(session_id)
+
 
 @pytest.mark.asyncio
 async def test_update_status_no_active_goal(client: TestClient):
     """Test updating status when no active goal exists."""
     session_id = f"test_session_no_active_{uuid.uuid4().hex}"
-    
+
     # Create provider but no goal
     GoalRegistry.get_or_create_provider(session_id)
-    
-    response = client.post(
-        f"/api/v1/goals/{session_id}/status",
-        json={"action": "pause"}
-    )
+
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "pause"})
     assert response.status_code == 404
     assert "No active goal found" in response.json()["detail"]
-    
+
     GoalRegistry.unregister(session_id)
+
 
 @pytest.mark.asyncio
 async def test_subgoal_api(client: TestClient):
     """Test the subgoal management API endpoints."""
     session_id = f"test_session_subgoals_{uuid.uuid4().hex}"
-    
+
     provider = GoalRegistry.get_or_create_provider(session_id)
     await provider.create_goal(session_id, "Test Subgoal API Goal")
-    
+
     # 1. Add subgoal
-    response = client.post(
-        f"/api/v1/goals/{session_id}/subgoals",
-        json={"text": "First Subgoal"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/subgoals", json={"text": "First Subgoal"})
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
     assert data["subgoal"]["text"] == "First Subgoal"
-    
+
     # 2. Add another subgoal
-    response = client.post(
-        f"/api/v1/goals/{session_id}/subgoals",
-        json={"text": "Second Subgoal"}
-    )
+    response = client.post(f"/api/v1/goals/{session_id}/subgoals", json={"text": "Second Subgoal"})
     assert response.status_code == 200
-    
+
     # 3. Remove subgoal
     response = client.delete(f"/api/v1/goals/{session_id}/subgoals/0")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
     assert data["removed"]["text"] == "First Subgoal"
-    
+
     # Verify removal invalid index
     response = client.delete(f"/api/v1/goals/{session_id}/subgoals/5")
     assert response.status_code == 404
-    
+
     # 4. Clear subgoals
     response = client.delete(f"/api/v1/goals/{session_id}/subgoals")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
     assert data["cleared_count"] == 1
-    
+
     GoalRegistry.unregister(session_id)
 
 

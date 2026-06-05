@@ -168,7 +168,9 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             monitor_config=_h._monitor_config_from_request(body.monitor_config) if body.monitor_config else None,
             clear_monitor_config=body.monitor_config is None and "monitor_config" in body.model_fields_set,
             context_from=tuple(body.context_from) if body.context_from is not None else None,
-            clear_context_from=body.context_from is None and "context_from" in body.model_fields_set or (body.context_from is not None and len(body.context_from) == 0),
+            clear_context_from=body.context_from is None
+            and "context_from" in body.model_fields_set
+            or (body.context_from is not None and len(body.context_from) == 0),
             pre_condition_script=body.pre_condition_script,
             clear_pre_condition_script=body.pre_condition_script is None and "pre_condition_script" in body.model_fields_set,
         )

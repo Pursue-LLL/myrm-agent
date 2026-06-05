@@ -404,9 +404,15 @@ class TestFrustrationSkillReviewIntegration:
         test_cases = [
             ([{"role": "user", "content": "\u592a\u5570\u55e6\u4e86"}], FrustrationCategory.VERBOSITY),
             ([{"role": "user", "content": "\u76f4\u63a5\u7ed9\u6211\u7b54\u6848"}], FrustrationCategory.VERBOSITY),
-            ([{"role": "user", "content": "\u4ee5\u540e\u90fd\u522b\u52a0\u8fd9\u4e48\u591a\u6ce8\u91ca\u4e86"}], FrustrationCategory.STYLE),
+            (
+                [{"role": "user", "content": "\u4ee5\u540e\u90fd\u522b\u52a0\u8fd9\u4e48\u591a\u6ce8\u91ca\u4e86"}],
+                FrustrationCategory.STYLE,
+            ),
             ([{"role": "user", "content": "\u4e0d\u8981\u7528\u8868\u683c\u683c\u5f0f"}], FrustrationCategory.FORMAT),
-            ([{"role": "user", "content": "\u4e0d\u7528\u6bcf\u6b21\u90fd\u95ee\u6211\u786e\u8ba4"}], FrustrationCategory.WORKFLOW),
+            (
+                [{"role": "user", "content": "\u4e0d\u7528\u6bcf\u6b21\u90fd\u95ee\u6211\u786e\u8ba4"}],
+                FrustrationCategory.WORKFLOW,
+            ),
         ]
 
         for messages, expected_category in test_cases:

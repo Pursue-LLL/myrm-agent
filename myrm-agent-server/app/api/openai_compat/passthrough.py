@@ -85,9 +85,7 @@ async def _is_agent_id(model: str) -> bool:
 
         try:
             async with get_session() as session:
-                result = await session.execute(
-                    select(Agent.id).where(Agent.is_active.is_(True))
-                )
+                result = await session.execute(select(Agent.id).where(Agent.is_active.is_(True)))
                 cached_ids = frozenset(row[0] for row in result.all())
                 _agent_ids_cache = (now, cached_ids)
         except Exception:
@@ -232,13 +230,11 @@ async def _build_litellm_kwargs(
         raise ValueError("No providers configuration available")
 
     litellm_model, api_key, base_url = _resolve_passthrough_provider(
-        request.model, providers_dict,
+        request.model,
+        providers_dict,
     )
 
-    messages = [
-        {"role": m.role, "content": m.content if isinstance(m.content, str) else m.content}
-        for m in request.messages
-    ]
+    messages = [{"role": m.role, "content": m.content if isinstance(m.content, str) else m.content} for m in request.messages]
 
     kwargs: dict[str, object] = {
         "model": litellm_model,
@@ -250,8 +246,12 @@ async def _build_litellm_kwargs(
         kwargs["api_base"] = base_url
 
     optional_params: list[str] = [
-        "temperature", "max_tokens", "top_p", "stop",
-        "presence_penalty", "frequency_penalty",
+        "temperature",
+        "max_tokens",
+        "top_p",
+        "stop",
+        "presence_penalty",
+        "frequency_penalty",
     ]
     for param in optional_params:
         value = getattr(request, param, None)
@@ -270,13 +270,15 @@ async def passthrough_stream(
     try:
         litellm_kwargs = await _build_litellm_kwargs(request, stream=True)
     except (ValueError, Exception) as exc:
-        error_body = json.dumps({
-            "error": {
-                "message": str(exc),
-                "type": "configuration_error",
-                "code": "passthrough_config_error",
+        error_body = json.dumps(
+            {
+                "error": {
+                    "message": str(exc),
+                    "type": "configuration_error",
+                    "code": "passthrough_config_error",
+                }
             }
-        })
+        )
         yield f"data: {error_body}\n\n"
         yield "data: [DONE]\n\n"
         return
@@ -309,10 +311,12 @@ async def passthrough_stream(
                     id=completion_id,
                     created=created,
                     model=request.model,
-                    choices=[StreamChoice(
-                        delta=DeltaMessage(content=delta_content),
-                        finish_reason=None,
-                    )],
+                    choices=[
+                        StreamChoice(
+                            delta=DeltaMessage(content=delta_content),
+                            finish_reason=None,
+                        )
+                    ],
                 )
                 yield f"data: {chunk.model_dump_json()}\n\n"
 
@@ -321,21 +325,25 @@ async def passthrough_stream(
                     id=completion_id,
                     created=created,
                     model=request.model,
-                    choices=[StreamChoice(
-                        delta=DeltaMessage(),
-                        finish_reason=finish,
-                    )],
+                    choices=[
+                        StreamChoice(
+                            delta=DeltaMessage(),
+                            finish_reason=finish,
+                        )
+                    ],
                 )
                 yield f"data: {finish_chunk.model_dump_json()}\n\n"
 
     except Exception as exc:
-        error_body = json.dumps({
-            "error": {
-                "message": str(exc),
-                "type": "upstream_error",
-                "code": "passthrough_error",
+        error_body = json.dumps(
+            {
+                "error": {
+                    "message": str(exc),
+                    "type": "upstream_error",
+                    "code": "passthrough_error",
+                }
             }
-        })
+        )
         yield f"data: {error_body}\n\n"
 
     yield "data: [DONE]\n\n"

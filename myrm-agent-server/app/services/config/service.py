@@ -143,8 +143,7 @@ def _try_legacy_fingerprint_decrypt(cipher: str, config_key: str) -> dict[str, o
         legacy_key = derive_key_from_fingerprint(fp)
         result = ConfigCrypto.decrypt_value(cipher, legacy_key)
         logger.warning(
-            "Config '%s': decrypted with legacy fingerprint key. "
-            "Re-save this config to migrate to new encryption key.",
+            "Config '%s': decrypted with legacy fingerprint key. Re-save this config to migrate to new encryption key.",
             config_key,
         )
         return result
@@ -235,9 +234,7 @@ class ConfigService:
         敏感配置自动服务端加密，调用方无需关心加密细节。
         """
         stored_value, encrypted = _encrypt_if_sensitive(config_key, value)
-        db_value: dict[str, object] = (
-            {"_cipher": stored_value} if isinstance(stored_value, str) and encrypted else value
-        )
+        db_value: dict[str, object] = {"_cipher": stored_value} if isinstance(stored_value, str) and encrypted else value
 
         session_factory = get_session_factory()
         async with session_factory() as session:
@@ -249,13 +246,13 @@ class ConfigService:
                     raise VersionConflictError(config_key, expected_version, existing.version)
 
                 previous_db_value = existing.config_value
-                
+
                 existing.config_value = db_value
                 existing.version = _increment_version(existing.version)
                 existing.last_device_id = device_id
                 existing.is_encrypted = encrypted
                 existing.updated_at = datetime.now()
-                
+
                 audit_log = ConfigAuditLog(
                     id=str(uuid.uuid4()),
                     config_key=config_key,
@@ -283,7 +280,7 @@ class ConfigService:
                     is_encrypted=encrypted,
                 )
                 session.add(new_config)
-                
+
                 audit_log = ConfigAuditLog(
                     id=str(uuid.uuid4()),
                     config_key=config_key,
@@ -294,7 +291,7 @@ class ConfigService:
                     created_at=datetime.now(),
                 )
                 session.add(audit_log)
-                
+
                 await session.commit()
                 await session.refresh(new_config)
 
@@ -341,7 +338,6 @@ class ConfigService:
             newVersions=new_versions,
         )
 
-
     async def get_history(self, config_key: str, limit: int = 50) -> list[dict[str, object]]:
         """获取配置历史记录"""
         session_factory = get_session_factory()
@@ -354,7 +350,7 @@ class ConfigService:
             )
             result = await session.execute(stmt)
             logs = result.scalars().all()
-            
+
             return [
                 {
                     "id": log.id,

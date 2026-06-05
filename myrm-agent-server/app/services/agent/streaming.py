@@ -65,9 +65,7 @@ class ClarificationWaiter:
     async def wait_for_answer(self) -> ClarificationAnswer | None:
         """Block until the user responds or timeout."""
         try:
-            await asyncio.wait_for(
-                self._event.wait(), timeout=CLARIFICATION_TIMEOUT_SECONDS
-            )
+            await asyncio.wait_for(self._event.wait(), timeout=CLARIFICATION_TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
             logger.info("Clarification timed out for message_id=%s", self.message_id)
             return None
@@ -184,25 +182,15 @@ async def ai_agent_service_stream(
             fission_active=fission_concurrency > 1,
         ):
             if cancel_token and cancel_token.is_cancelled:
-                logger.warning(
-                    "Agent stream cancelled: message_id=%s", params.message_id
-                )
+                logger.warning("Agent stream cancelled: message_id=%s", params.message_id)
                 break
 
             # Intercept APPROVAL_REQUIRED events to persist to DB
-            event_type = (
-                getattr(event, "type", None)
-                if not isinstance(event, dict)
-                else event.get("type")
-            )
+            event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
             if event_type == "approval_required":
                 from app.services.approvals.registry import ApprovalRegistry
 
-                approval_data = (
-                    getattr(event, "data", {})
-                    if not isinstance(event, dict)
-                    else event.get("data", {})
-                )
+                approval_data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
                 if isinstance(approval_data, dict):
                     thread_id = params.chat_id or params.message_id
 
@@ -210,16 +198,12 @@ async def ai_agent_service_stream(
 
                     try:
                         approval_payload = approval_data.get("payload", {})
-                        timeout_seconds = approval_payload.get(
-                            "approval_timeout_seconds"
-                        )
+                        timeout_seconds = approval_payload.get("approval_timeout_seconds")
                         expires_at = None
                         if timeout_seconds:
                             from datetime import datetime, timedelta, timezone
 
-                            expires_at = datetime.now(timezone.utc) + timedelta(
-                                seconds=timeout_seconds
-                            )
+                            expires_at = datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds)
 
                         record = await ApprovalRegistry.create_approval(
                             agent_id=params.agent_id or "default",
@@ -262,9 +246,7 @@ async def ai_agent_service_stream(
                     raw_event_type = getattr(event, "type", "")
                     payload = getattr(event, "data", {}) or {}
 
-                mascot_status = MascotStateMapper.map_event_to_mascot_state(
-                    raw_event_type, payload
-                )
+                mascot_status = MascotStateMapper.map_event_to_mascot_state(raw_event_type, payload)
 
                 if isinstance(event, dict):
                     event["mascot_status"] = mascot_status.value
@@ -281,17 +263,9 @@ async def ai_agent_service_stream(
 
             # Broadcast DAG state updates if present
             try:
-                event_type = (
-                    getattr(event, "type", None)
-                    if not isinstance(event, dict)
-                    else event.get("type")
-                )
+                event_type = getattr(event, "type", None) if not isinstance(event, dict) else event.get("type")
                 if event_type == "dag_state_update":
-                    (
-                        getattr(event, "data", {})
-                        if not isinstance(event, dict)
-                        else event.get("data", {})
-                    )
+                    (getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {}))
                     # We yield it so the SSE connection can push it to the client
                     # The frontend should listen for this event type
             except Exception as ex:
@@ -442,19 +416,13 @@ async def ai_deep_research_service_stream(
     try:
         gateway = get_agent_gateway()
         raw_session: object | None = context.get("session_id") if context else None
-        session_id_val: str | None = (
-            raw_session if isinstance(raw_session, str) else None
-        )
+        session_id_val: str | None = raw_session if isinstance(raw_session, str) else None
 
         # Determine agent_instance for deep research if possible
         # DeepResearchOrchestrator might not be a BaseAgent directly,
         # but if it exposes its main agent, we could pass it.
         # For now we pass None or orch if it inherits from BaseAgent.
-        agent_instance = (
-            orch
-            if hasattr(orch, "subagent_manager")
-            else getattr(orch, "_research_agent", None)
-        )
+        agent_instance = orch if hasattr(orch, "subagent_manager") else getattr(orch, "_research_agent", None)
 
         async for event in gateway.execute_stream(
             _raw_stream(),
@@ -463,9 +431,7 @@ async def ai_deep_research_service_stream(
             agent_instance=agent_instance,
         ):
             if cancel_token and cancel_token.is_cancelled:
-                logger.warning(
-                    "Deep research stream cancelled: message_id=%s", message_id
-                )
+                logger.warning("Deep research stream cancelled: message_id=%s", message_id)
                 break
             yield event
     finally:

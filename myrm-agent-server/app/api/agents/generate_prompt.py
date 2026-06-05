@@ -44,9 +44,7 @@ class PromptGenerateRequest(BaseModel):
     current_prompt: str | None = None
 
 
-async def generate_prompt_stream(
-    intent: str, locale: str | None, current_prompt: str | None
-) -> AsyncGenerator[str, None]:
+async def generate_prompt_stream(intent: str, locale: str | None, current_prompt: str | None) -> AsyncGenerator[str, None]:
     try:
         configs = await load_user_configs()
         providers_dict = configs.providers_dict if configs else None
@@ -66,7 +64,7 @@ The prompt MUST be written in Markdown format and include the following sections
 
 CRITICAL INSTRUCTIONS:
 - Do NOT include any conversational filler (like "Here is your prompt:"). Output ONLY the raw Markdown prompt text.
-- You MUST output the prompt in the language corresponding to this locale: {locale or 'auto-detect based on intent'}.
+- You MUST output the prompt in the language corresponding to this locale: {locale or "auto-detect based on intent"}.
 """
 
         if current_prompt and current_prompt.strip():

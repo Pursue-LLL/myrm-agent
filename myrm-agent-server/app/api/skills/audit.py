@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def _audit_skill_action(
     action: str,
     skill_id: str,
@@ -22,4 +23,3 @@ def _audit_skill_action(
         source,
         scan_findings,
     )
-

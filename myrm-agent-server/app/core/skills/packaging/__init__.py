@@ -56,14 +56,14 @@ class SkillPackagingService:
         self._skills_svc = skills_svc or skills_service
 
     async def package_skill(
-        self, 
-        skill_id: str, 
-        preview_only: bool = False, 
+        self,
+        skill_id: str,
+        preview_only: bool = False,
         apply_redactions: bool = False,
-        ignored_redactions: dict[str, list[int]] | None = None
+        ignored_redactions: dict[str, list[int]] | None = None,
     ) -> PackageResult:
         """从 Server 的 SkillsService 获取并打包已注册的技能
-        
+
         Args:
             skill_id: 技能 ID
             preview_only: 如果为 True，仅返回脱敏预览结果，不实际生成 ZIP
@@ -92,16 +92,16 @@ class SkillPackagingService:
                     # Perform sanitization check
                     file_ignored_indices = ignored_redactions.get(file_path, [])
                     sanitization_result = content_sanitizer.sanitize(content, file_path, ignored_indices=file_ignored_indices)
-                    
+
                     # If there are redactions (even if we ignore some, if there are remaining ones, it's not safe)
                     # Actually, if we ignored ALL of them, is it safe?
-                    # The preview returns all found redactions. 
+                    # The preview returns all found redactions.
                     # If we are applying redactions, we pass ignored_indices.
                     # The result redactions will only contain the ones that were NOT ignored.
                     if not sanitization_result.is_safe:
                         is_safe = False
                         all_redactions[file_path] = sanitization_result.redactions
-                    
+
                     # Decide which content to pack
                     if apply_redactions and not sanitization_result.is_safe:
                         file_contents[file_path] = sanitization_result.sanitized_content
@@ -114,12 +114,12 @@ class SkillPackagingService:
                     zip_content=None,
                     filename=None,
                     redactions=all_redactions if all_redactions else None,
-                    is_safe=is_safe
+                    is_safe=is_safe,
                 )
 
             # Actual packaging
             pack_result = self._packer.package_files(skill.name, skill.version or "1.0.0", file_contents)
-            
+
             # Wrap the harness result to include redaction info
             return PackageResult(
                 success=pack_result.success,
@@ -127,7 +127,7 @@ class SkillPackagingService:
                 filename=pack_result.filename,
                 error=pack_result.error,
                 redactions=all_redactions if all_redactions else None,
-                is_safe=is_safe
+                is_safe=is_safe,
             )
 
         except Exception as e:
@@ -194,6 +194,7 @@ class SkillPackagingService:
             logger.error(f"Skill unpack failed: {e}")
             return UnpackResult(success=False, error=str(e))
 
+
 @dataclass
 class UnpackResult:
     """解包结果 (Server 业务层包装)"""
@@ -202,6 +203,7 @@ class UnpackResult:
     skill_id: str | None = None
     skill_name: str | None = None
     error: str | None = None
+
 
 skill_packaging_service = SkillPackagingService()
 

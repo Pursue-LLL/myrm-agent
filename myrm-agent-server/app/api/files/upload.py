@@ -26,10 +26,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {
-    ".png", ".jpeg", ".jpg", ".gif", ".webp", ".bmp",
+    ".png",
+    ".jpeg",
+    ".jpg",
+    ".gif",
+    ".webp",
+    ".bmp",
     ".pdf",
-    ".docx", ".xlsx", ".xls", ".pptx", ".ppt",
-    ".csv", ".txt", ".md", ".json",
+    ".docx",
+    ".xlsx",
+    ".xls",
+    ".pptx",
+    ".ppt",
+    ".csv",
+    ".txt",
+    ".md",
+    ".json",
 }
 IMAGE_EXTENSIONS = {".png", ".jpeg", ".jpg", ".gif", ".webp", ".bmp"}
 
@@ -107,10 +119,10 @@ async def upload_files(
         ext = _get_file_extension(file.filename)
         if ext not in ALLOWED_EXTENSIONS:
             continue
-            
-        if file.size is not None and file.size > 100 * 1024 * 1024:
-            raise validation_error(f"File {file.filename} exceeds 100MB limit")
-            
+
+        if file.size is not None and file.size > 10 * 1024 * 1024:
+            raise validation_error(f"File {file.filename} exceeds 10MB limit")
+
         content = await file.read()
         valid_files.append((file, content))
 

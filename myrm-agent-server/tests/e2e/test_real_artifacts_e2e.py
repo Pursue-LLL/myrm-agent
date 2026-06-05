@@ -16,9 +16,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 # Must be set BEFORE importing app
-os.environ["DATABASE_URL"] = (
-    f"sqlite+aiosqlite:///file:testdb_{uuid.uuid4().hex}?mode=memory&cache=shared&uri=true"
-)
+os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///file:testdb_{uuid.uuid4().hex}?mode=memory&cache=shared&uri=true"
 
 from app.main import app
 from tests.api.agent.utils import (
@@ -105,9 +103,7 @@ async def _seed_user_configs() -> None:
     from app.platform_utils import get_database_engine
 
     engine = get_database_engine()
-    session_factory = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with session_factory() as session:
         session.add(
@@ -167,14 +163,10 @@ async def setup_e2e_database(monkeypatch: pytest.MonkeyPatch) -> None:
     yield
 
 
-def _run_agent_until_settled(
-    client: TestClient, req_data: dict[str, object]
-) -> list[dict[str, object]]:
+def _run_agent_until_settled(client: TestClient, req_data: dict[str, object]) -> list[dict[str, object]]:
     collected_data: list[dict[str, object]] = []
     for _round_idx in range(5):
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=req_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data) as response:
             if response.status_code != 200:
                 body = response.read().decode("utf-8", errors="replace")
                 pytest.fail(f"Agent stream failed ({response.status_code}): {body}")
@@ -189,15 +181,12 @@ def _run_agent_until_settled(
                     continue
 
         approval_required = any(
-            data.get("type") in ("approval_required", "tool_approval_request")
-            for data in collected_data[-10:]
+            data.get("type") in ("approval_required", "tool_approval_request") for data in collected_data[-10:]
         )
         if not approval_required:
             break
 
-        req_data["resumeValue"] = [
-            {"type": "approve", "extensions": {"allowAlways": True}}
-        ]
+        req_data["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
 
     error_events = [d for d in collected_data if d.get("type") == "error"]
     if error_events:
@@ -266,12 +255,8 @@ async def test_real_artifact_generation_e2e() -> None:
             "agentConfig": {"enabledBuiltinTools": ["file_write_tool"]},
         }
         _run_agent_until_settled(client, req_data)
-        target_artifact = _poll_target_artifact(
-            client, filename="real_test_artifact.md"
-        )
+        target_artifact = _poll_target_artifact(client, filename="real_test_artifact.md")
         if target_artifact is not None:
             break
 
-    assert (
-        target_artifact is not None
-    ), "real_test_artifact.md was not found after 3 attempts"
+    assert target_artifact is not None, "real_test_artifact.md was not found after 3 attempts"

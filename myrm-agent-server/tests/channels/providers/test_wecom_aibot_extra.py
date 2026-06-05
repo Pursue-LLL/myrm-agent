@@ -43,11 +43,7 @@ async def test_health_check_and_issues():
 async def test_send(channel):
     channel._ws = AsyncMock()
     msg = OutboundMessage(
-        channel="wecom_aibot",
-        recipient_id="chat_1",
-        user_id="user_1",
-        content="Hello",
-        metadata={"req_id": "req_1"}
+        channel="wecom_aibot", recipient_id="chat_1", user_id="user_1", content="Hello", metadata={"req_id": "req_1"}
     )
     await channel.send(msg)
     channel._ws.send.assert_called_once()
@@ -91,7 +87,7 @@ async def test_parse_quoted_message(channel):
     quote = {
         "msgtype": "mixed",
         "msgid": "msg1",
-        "mixed": {"msg_item": [{"msgtype": "text", "text": {"content": "quoted text"}}]}
+        "mixed": {"msg_item": [{"msgtype": "text", "text": {"content": "quoted text"}}]},
     }
     res = channel._parse_quoted_message({"quote": quote})
     assert res is not None
@@ -109,8 +105,8 @@ async def test_handle_msg_callback(channel):
             "chatid": "c1",
             "from": {"userid": "u1"},
             "msgtype": "text",
-            "text": {"content": "hello"}
-        }
+            "text": {"content": "hello"},
+        },
     }
     with patch.object(channel, "_emit_inbound", new_callable=AsyncMock) as mock_emit:
         await channel._handle_frame(frame)
@@ -125,11 +121,7 @@ async def test_handle_event_callback(channel):
     frame = {
         "cmd": "aibot_event_callback",
         "headers": {"req_id": "r1"},
-        "body": {
-            "event": {"eventtype": "enter_chat"},
-            "from": {"userid": "u1"},
-            "msgid": "m1"
-        }
+        "body": {"event": {"eventtype": "enter_chat"}, "from": {"userid": "u1"}, "msgid": "m1"},
     }
     with patch.object(channel, "_emit_inbound", new_callable=AsyncMock) as mock_emit:
         await channel._handle_frame(frame)
@@ -175,7 +167,7 @@ async def test_ws_session_loop(channel):
 
         channel._subscribe = AsyncMock(return_value=True)
 
-        mock_ws.__aiter__.return_value = ['{"cmd": "pong"}', 'invalid json']
+        mock_ws.__aiter__.return_value = ['{"cmd": "pong"}', "invalid json"]
 
         await channel._ws_session()
         assert channel._active_streams == {}

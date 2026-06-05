@@ -157,11 +157,7 @@ class Skill:
             evolution_locked=meta.evolution_locked,
             scope_agent_id=meta.scope_agent_id,
             config_schema=meta.config_schema,
-            usage_stats=(
-                meta.usage_stats.to_dict()
-                if hasattr(meta, "usage_stats") and meta.usage_stats
-                else None
-            ),
+            usage_stats=(meta.usage_stats.to_dict() if hasattr(meta, "usage_stats") and meta.usage_stats else None),
             created_at=created_at or now,
             updated_at=updated_at or now,
         )
@@ -185,11 +181,7 @@ class Skill:
             icon_url=_opt_str(data.get("icon_url")),
             tags=_str_list(data.get("tags")),
             is_active=bool(data.get("is_active", True)),
-            token_cost=(
-                int(data.get("token_cost"))
-                if data.get("token_cost") is not None
-                else None
-            ),
+            token_cost=(int(data.get("token_cost")) if data.get("token_cost") is not None else None),
             requires=SkillRequires.from_dict(data.get("requires")),
             available=bool(data.get("available", True)),
             unavailable_reason=_opt_str(data.get("unavailable_reason")),
@@ -200,11 +192,7 @@ class Skill:
             model_invocable=bool(data.get("model_invocable", True)),
             user_invocable=bool(data.get("user_invocable", True)),
             primary_env=_opt_str(data.get("primary_env")),
-            allowed_domains=(
-                _str_list(data.get("allowed_domains"))
-                if data.get("allowed_domains") is not None
-                else None
-            ),
+            allowed_domains=(_str_list(data.get("allowed_domains")) if data.get("allowed_domains") is not None else None),
             security=_parse_security_summary(data.get("security")),
             evolution_locked=bool(data.get("evolution_locked", False)),
             scope_agent_id=_opt_str(data.get("scope_agent_id")),
@@ -250,11 +238,7 @@ def _parse_security_summary(val: object) -> SecurityScanSummary | None:
                 if isinstance(f, dict)
             )
         fc_raw = val.get("finding_counts")
-        finding_counts = (
-            {str(k): int(v) for k, v in fc_raw.items()}
-            if isinstance(fc_raw, dict)
-            else {}
-        )
+        finding_counts = {str(k): int(v) for k, v in fc_raw.items()} if isinstance(fc_raw, dict) else {}
         return SecurityScanSummary(
             score=int(val.get("score", 0)),
             trust_recommendation=str(val.get("trust_recommendation", "installed")),
@@ -320,48 +304,26 @@ class UserSkillConfig:
             updated_at = datetime.utcnow()
 
         prebuilt_ids_raw = data.get("enabled_prebuilt_ids", [])
-        prebuilt_ids = (
-            [str(s) for s in prebuilt_ids_raw]
-            if isinstance(prebuilt_ids_raw, list)
-            else []
-        )
+        prebuilt_ids = [str(s) for s in prebuilt_ids_raw] if isinstance(prebuilt_ids_raw, list) else []
 
         disabled_prebuilt_raw = data.get("disabled_prebuilt_ids", [])
-        disabled_prebuilt_ids = (
-            [str(s) for s in disabled_prebuilt_raw]
-            if isinstance(disabled_prebuilt_raw, list)
-            else []
-        )
+        disabled_prebuilt_ids = [str(s) for s in disabled_prebuilt_raw] if isinstance(disabled_prebuilt_raw, list) else []
 
         local_paths_raw = data.get("local_skill_paths", [])
-        local_paths = (
-            [str(p) for p in local_paths_raw]
-            if isinstance(local_paths_raw, list)
-            else []
-        )
+        local_paths = [str(p) for p in local_paths_raw] if isinstance(local_paths_raw, list) else []
 
         enabled_local_ids_raw = data.get("enabled_local_skill_ids", [])
-        enabled_local_ids = (
-            [str(s) for s in enabled_local_ids_raw]
-            if isinstance(enabled_local_ids_raw, list)
-            else []
-        )
+        enabled_local_ids = [str(s) for s in enabled_local_ids_raw] if isinstance(enabled_local_ids_raw, list) else []
 
         env_vars_raw = data.get("skill_env_vars", {})
         env_vars: dict[str, dict[str, str]] = {}
         if isinstance(env_vars_raw, dict):
             for skill_id, vars_dict in env_vars_raw.items():
                 if isinstance(vars_dict, dict):
-                    env_vars[str(skill_id)] = {
-                        str(k): str(v) for k, v in vars_dict.items()
-                    }
+                    env_vars[str(skill_id)] = {str(k): str(v) for k, v in vars_dict.items()}
 
         trusted_ids_raw = data.get("trusted_skill_ids", [])
-        trusted_ids = (
-            [str(s) for s in trusted_ids_raw]
-            if isinstance(trusted_ids_raw, list)
-            else []
-        )
+        trusted_ids = [str(s) for s in trusted_ids_raw] if isinstance(trusted_ids_raw, list) else []
 
         return cls(
             user_id=str(data.get("user_id", "")),

@@ -21,6 +21,7 @@ class _FakeIdentity:
     client_ip: str = "127.0.0.1"
     private_net: bool = False
 
+
 @pytest.fixture(autouse=True)
 def _bypass_auth():
     """Auto-applied fixture: make all TestClient requests pass auth."""
@@ -29,6 +30,7 @@ def _bypass_auth():
         return_value=_FakeIdentity(),
     ):
         yield
+
 
 @pytest.fixture
 def client():

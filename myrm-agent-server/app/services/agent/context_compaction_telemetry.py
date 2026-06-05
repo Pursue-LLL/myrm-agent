@@ -49,9 +49,7 @@ class ContextCompactionTelemetryConfig:
         telemetry_token = cp.telemetry_token.get_secret_value()
         telemetry_subject = cp.telemetry_subject.strip()
 
-        present_count = sum(
-            bool(value) for value in (control_plane_url, telemetry_token, telemetry_subject)
-        )
+        present_count = sum(bool(value) for value in (control_plane_url, telemetry_token, telemetry_subject))
         if present_count == 0:
             logger.info("Context compaction telemetry disabled: no control plane telemetry configured")
             return None
@@ -74,9 +72,7 @@ class ContextCompactionTelemetryConfig:
 
         batch_size = telemetry.batch_size if telemetry.batch_size > 0 else _DEFAULT_BATCH_SIZE
         flush_interval = (
-            telemetry.flush_interval_seconds
-            if telemetry.flush_interval_seconds > 0
-            else _DEFAULT_FLUSH_INTERVAL_SECONDS
+            telemetry.flush_interval_seconds if telemetry.flush_interval_seconds > 0 else _DEFAULT_FLUSH_INTERVAL_SECONDS
         )
         queue_size = telemetry.queue_size if telemetry.queue_size > 0 else _DEFAULT_QUEUE_SIZE
 

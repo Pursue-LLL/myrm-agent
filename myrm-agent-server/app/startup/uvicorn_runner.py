@@ -79,7 +79,11 @@ def start_with_uvicorn(
 
     if webui_mode:
         frontend_launcher_instance = _setup_webui_mode(
-            host, port, remote_mode, no_qrcode, no_browser,
+            host,
+            port,
+            remote_mode,
+            no_qrcode,
+            no_browser,
         )
     else:
         _print_local_mode_info(host, port)
@@ -215,9 +219,7 @@ def _setup_webui_mode(
             print(f"🔑 Access: {network_url}")
         print()
         print("⚠️  Security Notice:")
-        print(
-            "   This server uses HTTP. For remote access over untrusted networks,"
-        )
+        print("   This server uses HTTP. For remote access over untrusted networks,")
         print("   use a reverse proxy (nginx/Caddy) with HTTPS to encrypt traffic.")
     else:
         print("📍 Local Mode - No authentication required")

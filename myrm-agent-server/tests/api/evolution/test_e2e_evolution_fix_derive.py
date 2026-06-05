@@ -46,9 +46,7 @@ async def test_evolution_monitor_service_handles_fix_and_derive():
     assert result_derive.requires_manual_review
 
     async with get_session() as db:
-        result = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        result = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         approvals = result.scalars().all()
         assert len(approvals) >= 2
 

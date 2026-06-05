@@ -95,7 +95,7 @@ class AllowPolicy:
             return FilterReason.DENYLISTED
 
         override = self.chat_overrides.get(msg.chat_id or "") if msg.chat_id else None
-        effective_bot_policy = (override.bot_policy if override and override.bot_policy is not None else self.bot_policy)
+        effective_bot_policy = override.bot_policy if override and override.bot_policy is not None else self.bot_policy
 
         if msg.is_bot:
             if effective_bot_policy == ChatPolicy.DENY:
@@ -107,7 +107,7 @@ class AllowPolicy:
         if self.allowlist and sender not in self.allowlist:
             return FilterReason.NOT_ALLOWLISTED
 
-        effective_group_policy = (override.group_policy if override and override.group_policy is not None else self.group_policy)
+        effective_group_policy = override.group_policy if override and override.group_policy is not None else self.group_policy
         policy = effective_group_policy if msg.is_group else self.dm_policy
 
         if policy == ChatPolicy.DENY:

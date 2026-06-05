@@ -414,13 +414,16 @@ class TestParseMessage:
 
         silk_path = tmp_path / "voice.silk"
 
-        with patch(
-            f"{_MEDIA_MOD}.download_encrypted_media",
-            new_callable=AsyncMock,
-            return_value=silk_path,
-        ), patch(
-            f"{_MEDIA_MOD}.silk_to_wav",
-            return_value=False,
+        with (
+            patch(
+                f"{_MEDIA_MOD}.download_encrypted_media",
+                new_callable=AsyncMock,
+                return_value=silk_path,
+            ),
+            patch(
+                f"{_MEDIA_MOD}.silk_to_wav",
+                return_value=False,
+            ),
         ):
             result = await ch._parse_message(ilink_msg)
             assert result is None

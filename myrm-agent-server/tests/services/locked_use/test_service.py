@@ -43,7 +43,7 @@ class TestMacScreenUnlocker:
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", return_value=False) # Unlocked after attempt
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=False)  # Unlocked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_success(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
@@ -58,7 +58,7 @@ class TestMacScreenUnlocker:
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", return_value=True) # Still locked after attempt
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=True)  # Still locked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_failure(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
@@ -66,7 +66,7 @@ class TestMacScreenUnlocker:
 
     @pytest.mark.asyncio
     @patch.object(MacScreenUnlocker, "get_password", return_value="my_password")
-    @patch.object(MacScreenUnlocker, "is_locked", return_value=False) # Unlocked after attempt
+    @patch.object(MacScreenUnlocker, "is_locked", return_value=False)  # Unlocked after attempt
     @patch("subprocess.Popen")
     @patch("subprocess.run")
     async def test_unlock_exception(self, mock_run, mock_popen, mock_is_locked, mock_get_password):
@@ -85,9 +85,7 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=True)
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock, return_value=True)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_locked_enabled(
-        self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor
-    ):
+    async def test_mac_locked_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -102,9 +100,7 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked", return_value=False)
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_unlocked_enabled(
-        self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor
-    ):
+    async def test_mac_unlocked_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -119,9 +115,7 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked")
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_mac_disabled(
-        self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor
-    ):
+    async def test_mac_disabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
         config = LockedUseConfig(enabled=False)
         async with locked_use_session(config):
             pass
@@ -136,9 +130,7 @@ class TestLockedUseSession:
     @patch.object(MacScreenUnlocker, "is_locked")
     @patch.object(MacScreenUnlocker, "unlock", new_callable=AsyncMock)
     @patch.object(MacScreenUnlocker, "relock")
-    async def test_non_mac_enabled(
-        self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor
-    ):
+    async def test_non_mac_enabled(self, mock_relock, mock_unlock, mock_is_locked, mock_system, mock_sleep_inhibitor):
         config = LockedUseConfig(enabled=True)
         async with locked_use_session(config):
             pass
@@ -163,4 +155,4 @@ class TestLockedUseSession:
         mock_sleep_inhibitor.assert_called_once_with(prevent_display_sleep=True)
         mock_is_locked.assert_called_once()
         mock_unlock.assert_called_once()
-        mock_relock.assert_not_called() # Should not relock if we didn't unlock it
+        mock_relock.assert_not_called()  # Should not relock if we didn't unlock it

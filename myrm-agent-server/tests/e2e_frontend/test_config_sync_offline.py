@@ -63,9 +63,7 @@ async def test_config_sync_offline():
             input_b_reloaded = page_b.locator('[data-testid="config-systemInstructions"]')
             await input_b_reloaded.wait_for(state="visible", timeout=60000)
             val_b_after = await input_b_reloaded.input_value()
-            assert val_b_after == offline_value, (
-                f"Change not synced to server after coming online! Got: {val_b_after}"
-            )
+            assert val_b_after == offline_value, f"Change not synced to server after coming online! Got: {val_b_after}"
 
             logger.info("Test completed successfully. Offline queueing worked.")
 

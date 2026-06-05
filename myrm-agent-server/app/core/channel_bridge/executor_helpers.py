@@ -231,12 +231,9 @@ def schedule_channel_approval_timeout(
         resume_params = params.model_copy()
         resume_params.query = Command(resume=resume_value)
 
-
         agent = AgentFactory.create_general_agent(resume_params)
         try:
-            chat_history = build_chat_history_with_metadata(
-                (await load_history_without_persist(f"{channel}:{peer}"))[1]
-            )
+            chat_history = build_chat_history_with_metadata((await load_history_without_persist(f"{channel}:{peer}"))[1])
             chunks: list[str] = []
             next_timeout: dict[str, object] | None = None
             async for event in agent.process_stream(

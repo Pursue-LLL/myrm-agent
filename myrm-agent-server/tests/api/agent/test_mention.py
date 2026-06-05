@@ -112,10 +112,12 @@ class TestBuildMentionedFileContext:
     async def test_multiple_files(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
 
-        workspace = self._make_workspace({
-            "a.txt": "Alpha",
-            "b.md": "Beta",
-        })
+        workspace = self._make_workspace(
+            {
+                "a.txt": "Alpha",
+                "b.md": "Beta",
+            }
+        )
         result, warnings, tokens = await _build_mentioned_file_context(["a.txt", "b.md"], workspace)
 
         assert "Alpha" in result
@@ -308,27 +310,27 @@ class TestRichContextReferences:
     def _make_git_workspace(self, files: dict[str, str]) -> str:
         """Create a temporary git workspace with staged files."""
         import subprocess
-        
+
         tmpdir = tempfile.mkdtemp()
         subprocess.run(["git", "init"], cwd=tmpdir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmpdir, check=True, capture_output=True)
-        
+
         for rel_path, content in files.items():
             abs_path = os.path.join(tmpdir, rel_path)
             os.makedirs(os.path.dirname(abs_path), exist_ok=True)
             with open(abs_path, "w") as f:
                 f.write(content)
-        
+
         return tmpdir
 
     @pytest.mark.asyncio
     async def test_staged_reference_no_changes(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = self._make_git_workspace({"test.txt": "hello"})
         result, warnings, tokens = await _build_mentioned_file_context(["@staged"], workspace)
-        
+
         assert "<mentioned_file" in result
         assert 'path="@staged"' in result
         assert 'type="git-diff"' in result
@@ -339,17 +341,17 @@ class TestRichContextReferences:
         import subprocess
 
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = self._make_git_workspace({"test.txt": "original"})
         subprocess.run(["git", "add", "test.txt"], cwd=workspace, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "initial"], cwd=workspace, check=True, capture_output=True)
-        
+
         with open(os.path.join(workspace, "test.txt"), "w") as f:
             f.write("modified")
         subprocess.run(["git", "add", "test.txt"], cwd=workspace, check=True, capture_output=True)
-        
+
         result, warnings, tokens = await _build_mentioned_file_context(["@staged"], workspace)
-        
+
         assert 'path="@staged"' in result
         assert 'type="git-diff"' in result
         assert "diff --git" in result or "+modified" in result
@@ -357,25 +359,25 @@ class TestRichContextReferences:
     @pytest.mark.asyncio
     async def test_folder_reference_empty(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = tempfile.mkdtemp()
         result, warnings, tokens = await _build_mentioned_file_context(["@folder:"], workspace)
-        
+
         assert "<mentioned_file" in result
         assert 'path="@folder:"' in result
 
     @pytest.mark.asyncio
     async def test_folder_reference_with_files(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = tempfile.mkdtemp()
         os.makedirs(os.path.join(workspace, "src"))
         os.makedirs(os.path.join(workspace, "src", "utils"))
         Path(os.path.join(workspace, "src", "main.py")).write_text("print('hello')")
         Path(os.path.join(workspace, "src", "utils", "helper.py")).write_text("def helper(): pass")
-        
+
         result, warnings, tokens = await _build_mentioned_file_context(["@folder:src"], workspace)
-        
+
         assert 'path="@folder:src"' in result
         assert 'type="folder-tree"' in result
         assert "main.py" in result
@@ -385,16 +387,16 @@ class TestRichContextReferences:
     @pytest.mark.asyncio
     async def test_folder_reference_outside_workspace(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = tempfile.mkdtemp()
         result, warnings, tokens = await _build_mentioned_file_context(["@folder:../../etc"], workspace)
-        
+
         assert 'error="path outside workspace"' in result
 
     @pytest.mark.asyncio
     async def test_folder_reference_filters_excluded_dirs(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = tempfile.mkdtemp()
         os.makedirs(os.path.join(workspace, ".git"))
         os.makedirs(os.path.join(workspace, "node_modules"))
@@ -402,9 +404,9 @@ class TestRichContextReferences:
         Path(os.path.join(workspace, ".git", "config")).write_text("git config")
         Path(os.path.join(workspace, "node_modules", "package.json")).write_text("{}")
         Path(os.path.join(workspace, "src", "main.py")).write_text("code")
-        
+
         result, warnings, tokens = await _build_mentioned_file_context(["@folder:"], workspace)
-        
+
         assert "main.py" in result
         assert ".git" not in result
         assert "node_modules" not in result
@@ -412,24 +414,21 @@ class TestRichContextReferences:
     @pytest.mark.asyncio
     async def test_url_reference_invalid_url(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = tempfile.mkdtemp()
         result, warnings, tokens = await _build_mentioned_file_context(["@url:not-a-valid-url"], workspace)
-        
+
         assert 'path="@url:not-a-valid-url"' in result
         assert 'error="failed to fetch URL"' in result
 
     @pytest.mark.asyncio
     async def test_mixed_references(self) -> None:
         from app.services.agent.params.mention import _build_mentioned_file_context
-        
+
         workspace = self._make_git_workspace({"test.txt": "hello", "data.md": "# Data"})
-        
-        result, warnings, tokens = await _build_mentioned_file_context(
-            ["@staged", "test.txt", "@folder:"],
-            workspace
-        )
-        
+
+        result, warnings, tokens = await _build_mentioned_file_context(["@staged", "test.txt", "@folder:"], workspace)
+
         assert 'path="@staged"' in result
         assert 'path="test.txt"' in result
         assert 'path="@folder:"' in result

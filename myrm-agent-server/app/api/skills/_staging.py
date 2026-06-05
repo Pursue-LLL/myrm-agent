@@ -27,6 +27,7 @@ class SkillStagingManager:
     def _cleanup_expired_sessions_sync(self) -> None:
         """后台清理超过 24 小时的无主暂存文件，防止磁盘被恶意耗尽"""
         import time
+
         now = time.time()
         try:
             for f in self.staging_dir.glob("*.pkl"):
@@ -38,9 +39,7 @@ class SkillStagingManager:
         except Exception as e:
             logger.warning(f"Failed to cleanup expired staging sessions: {e}")
 
-    def save_session(
-        self, session_id: str, skills: List[HermesImportedSkill]
-    ) -> None:
+    def save_session(self, session_id: str, skills: List[HermesImportedSkill]) -> None:
         """持久化保存会话的所有完整技能数据"""
         file_path = self._get_session_path(session_id)
         try:
@@ -55,7 +54,7 @@ class SkillStagingManager:
         file_path = self._get_session_path(session_id)
         if not file_path.exists():
             raise FileNotFoundError(f"Session {session_id} not found in staging area.")
-            
+
         try:
             with open(file_path, "rb") as f:
                 skills = pickle.load(f)

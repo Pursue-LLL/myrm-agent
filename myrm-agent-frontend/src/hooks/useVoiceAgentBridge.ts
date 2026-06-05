@@ -15,8 +15,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getWsUrl } from '@/lib/api';
+import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
-import type { ToolApprovalRequest } from '@/store/chat/types';
 
 export type AgentBridgeState =
   | 'disconnected'
@@ -377,25 +377,18 @@ export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoi
               const action = actionRequests[i];
               const reviewConfig = reviewConfigs?.[i];
               const requestId = isBatch ? `${batchId}_${i}` : extensions.approval.requestId;
-              const approvalRequest: ToolApprovalRequest = {
+              const approvalRequest = buildToolApprovalRequest({
+                action,
+                reviewConfig,
                 requestId,
-                toolName: action.action,
-                toolInput: action.args,
-                reason: action.description,
-                timeoutSeconds: extensions.timeout.seconds,
-                expiresAt: extensions.timeout.expiresAt,
-                timeoutBehavior: extensions.timeout.behavior || 'deny',
                 messageId,
-                displayMode: extensions.displayMode,
+                chatId: chatId || '',
+                actionMode: 'agent',
+                extensions,
                 batchId: batchId || undefined,
                 batchIndex: isBatch ? i : undefined,
                 batchSize: isBatch ? actionRequests.length : undefined,
-                chatId: chatId || '',
-                actionMode: 'agent',
-                domains: Array.isArray(action.domains) ? action.domains : undefined,
-                domainApproval: reviewConfig?.domainApproval === true ? true : undefined,
-                ptcAnnotations: action.ptc_annotations,
-              };
+              });
               useToolApprovalStore.getState().addRequest(approvalRequest);
             }
           }

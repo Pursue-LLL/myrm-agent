@@ -16,7 +16,7 @@ from tests.api.agent.utils import check_e2e_errors, get_model_selection
 def test_dynamic_workflow_e2e(client: TestClient):
     """Test that use_workflow=True triggers the dynamic workflow engine."""
     query = "Please analyze the codebase and write a summary."
-    
+
     payload = {
         "query": query,
         "use_workflow": True,
@@ -25,13 +25,13 @@ def test_dynamic_workflow_e2e(client: TestClient):
         "user_instructions": "Be concise.",
         "model_selection": get_model_selection(),
     }
-    
+
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         if response.status_code != 200:
             response.read()
             pytest.fail(f"HTTP {response.status_code}: {response.text}")
         assert response.status_code == 200
-        
+
         collected_data = []
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
@@ -58,10 +58,7 @@ def test_dynamic_workflow_e2e(client: TestClient):
     message_events = [d for d in collected_data if d.get("type") == "message"]
     assert content_events or message_events, "Missing final output event"
 
-    final_content = "".join(
-        str(d.get("content", "") or d.get("data", ""))
-        for d in content_events + message_events
-    )
+    final_content = "".join(str(d.get("content", "") or d.get("data", "")) for d in content_events + message_events)
     assert "Dynamic Workflow" in final_content or "wf_" in final_content
 
 
@@ -128,9 +125,5 @@ def test_use_workflow_false_uses_standard_pipeline(client: TestClient):
     }
     collected = _collect_workflow_events(client, payload)
     check_e2e_errors(collected)
-    step_keys = [
-        d.get("step_key")
-        for d in collected
-        if d.get("type") == "status" and d.get("step_key")
-    ]
+    step_keys = [d.get("step_key") for d in collected if d.get("type") == "status" and d.get("step_key")]
     assert "workflow_init" not in step_keys

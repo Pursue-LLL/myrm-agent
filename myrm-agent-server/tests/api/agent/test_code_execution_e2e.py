@@ -36,9 +36,7 @@ def perform_code_execution_agent(
 
     def _stream_req(req_data: dict[str, object]) -> None:
         nonlocal tool_call_count
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=req_data, timeout=180.0
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data, timeout=180.0) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
@@ -73,9 +71,7 @@ def perform_code_execution_agent(
         if not approval_required:
             break
         resume_request = dict(request_data)
-        resume_request["resumeValue"] = [
-            {"type": "approve", "extensions": {"allowAlways": True}}
-        ]
+        resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
         _stream_req(resume_request)
 
     return "".join(message_chunks), collected_data, tool_call_count
@@ -88,14 +84,8 @@ def perform_code_execution_agent(
 )
 class TestCodeExecutionE2E:
     def test_agent_code_execution(self, client: TestClient) -> None:
-        query = (
-            "Use bash_code_execute_tool to run exactly: "
-            "python3 -c \"print(898989 * 121212)\". "
-            "Return only the printed number."
-        )
-        full_answer, collected_data, tool_call_count = perform_code_execution_agent(
-            client, query
-        )
+        query = 'Use bash_code_execute_tool to run exactly: python3 -c "print(898989 * 121212)". Return only the printed number.'
+        full_answer, collected_data, tool_call_count = perform_code_execution_agent(client, query)
 
         assert len(collected_data) > 0
 
@@ -118,9 +108,7 @@ class TestCodeExecutionE2E:
                 "Connection lost",
                 "ConnectionResetError",
             )
-            if first_err.get("error_kind") == "format_error" or any(
-                kw in error_msg for kw in flaky_signals
-            ):
+            if first_err.get("error_kind") == "format_error" or any(kw in error_msg for kw in flaky_signals):
                 pytest.skip(f"Environment/upstream flaky: {error_msg[:240]}")
             pytest.fail(f"Agent execution error: {error_msg}")
 
@@ -129,10 +117,6 @@ class TestCodeExecutionE2E:
 
         stream_blob = json.dumps(collected_data, default=str)
         bash_invoked = (
-            tool_call_count > 0
-            or "bash_code_execute" in stream_blob.lower()
-            or _digits("108968254668") in _digits(full_answer)
+            tool_call_count > 0 or "bash_code_execute" in stream_blob.lower() or _digits("108968254668") in _digits(full_answer)
         )
-        assert bash_invoked, (
-            "Should invoke bash_code_execute_tool or return correct calculated number"
-        )
+        assert bash_invoked, "Should invoke bash_code_execute_tool or return correct calculated number"

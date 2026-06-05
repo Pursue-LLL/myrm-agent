@@ -63,14 +63,17 @@ def probe_client():
     """Fast TestClient with auth bypassed via loopback IP mock."""
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    with patch(
-        "app.core.security.auth.identity.is_loopback_ip",
-        return_value=True,
-    ), TestClient(
-        app,
-        base_url="http://127.0.0.1",
-        raise_server_exceptions=False,
-    ) as client:
+    with (
+        patch(
+            "app.core.security.auth.identity.is_loopback_ip",
+            return_value=True,
+        ),
+        TestClient(
+            app,
+            base_url="http://127.0.0.1",
+            raise_server_exceptions=False,
+        ) as client,
+    ):
         yield client
     app.router.lifespan_context = original_lifespan
 
@@ -99,12 +102,15 @@ class TestProbeLocalModelsUnit:
     @pytest.mark.asyncio
     async def test_probe_local_models_both_unavailable(self) -> None:
         """When both services are down, returns empty results."""
-        with patch(
-            "app.services.config.onboarding._OLLAMA_DEFAULT_URL",
-            "http://localhost:19999",
-        ), patch(
-            "app.services.config.onboarding._LM_STUDIO_DEFAULT_URL",
-            "http://localhost:19998",
+        with (
+            patch(
+                "app.services.config.onboarding._OLLAMA_DEFAULT_URL",
+                "http://localhost:19999",
+            ),
+            patch(
+                "app.services.config.onboarding._LM_STUDIO_DEFAULT_URL",
+                "http://localhost:19998",
+            ),
         ):
             results = await probe_local_models()
             assert len(results) == 2
@@ -194,12 +200,15 @@ class TestProbeLocalModelsUnit:
     @pytest.mark.asyncio
     async def test_probe_local_models_exception_recovery(self) -> None:
         """When a probe raises an unexpected exception, it is captured gracefully."""
-        with patch(
-            "app.services.config.onboarding._probe_ollama",
-            side_effect=RuntimeError("unexpected crash"),
-        ), patch(
-            "app.services.config.onboarding._probe_lm_studio",
-            side_effect=RuntimeError("lm crash"),
+        with (
+            patch(
+                "app.services.config.onboarding._probe_ollama",
+                side_effect=RuntimeError("unexpected crash"),
+            ),
+            patch(
+                "app.services.config.onboarding._probe_lm_studio",
+                side_effect=RuntimeError("lm crash"),
+            ),
         ):
             results = await probe_local_models()
             assert len(results) == 2
@@ -228,12 +237,15 @@ class TestProbeLocalModelsUnit:
             error="Connection refused",
         )
 
-        with patch(
-            "app.services.config.onboarding._probe_ollama",
-            return_value=available_result,
-        ), patch(
-            "app.services.config.onboarding._probe_lm_studio",
-            return_value=unavailable_result,
+        with (
+            patch(
+                "app.services.config.onboarding._probe_ollama",
+                return_value=available_result,
+            ),
+            patch(
+                "app.services.config.onboarding._probe_lm_studio",
+                return_value=unavailable_result,
+            ),
         ):
             results = await probe_local_models()
             assert len(results) == 2

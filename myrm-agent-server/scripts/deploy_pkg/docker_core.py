@@ -122,6 +122,7 @@ def _deploy_with_docker_compose(
 
     return True
 
+
 def deploy_docker() -> bool:
     """Docker 一键全栈部署（后端 + 前端）
 
@@ -203,4 +204,3 @@ def deploy_docker() -> bool:
     print()
 
     return True
-

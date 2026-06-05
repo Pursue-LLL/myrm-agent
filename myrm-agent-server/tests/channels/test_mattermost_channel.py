@@ -649,9 +649,7 @@ class TestMattermostReactionInbound:
             },
         }
 
-    async def _capture(
-        self, ch: MattermostChannel, event: dict[str, object]
-    ) -> list[InboundMessage]:
+    async def _capture(self, ch: MattermostChannel, event: dict[str, object]) -> list[InboundMessage]:
         received: list[InboundMessage] = []
 
         async def handler(msg: InboundMessage) -> None:
@@ -666,7 +664,7 @@ class TestMattermostReactionInbound:
         ch = _make_channel()
         received = await self._capture(ch, self._reaction_event(emoji_name="thumbsup"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44D"
+        assert received[0].content == "\U0001f44d"
         assert received[0].sender_id == "user_1"
         assert received[0].channel == "mattermost"
         assert received[0].is_group is True
@@ -679,21 +677,21 @@ class TestMattermostReactionInbound:
         ch = _make_channel()
         received = await self._capture(ch, self._reaction_event(emoji_name="+1"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44D"
+        assert received[0].content == "\U0001f44d"
 
     @pytest.mark.asyncio
     async def test_infinity_shortcode_maps_to_allow_always(self) -> None:
         ch = _make_channel()
         received = await self._capture(ch, self._reaction_event(emoji_name="infinity"))
         assert len(received) == 1
-        assert received[0].content == "\u267E"
+        assert received[0].content == "\u267e"
 
     @pytest.mark.asyncio
     async def test_thumbsdown_shortcode_maps_to_deny(self) -> None:
         ch = _make_channel()
         received = await self._capture(ch, self._reaction_event(emoji_name="thumbsdown"))
         assert len(received) == 1
-        assert received[0].content == "\U0001F44E"
+        assert received[0].content == "\U0001f44e"
 
     @pytest.mark.asyncio
     async def test_dm_channel_marks_not_group(self) -> None:
@@ -708,9 +706,7 @@ class TestMattermostReactionInbound:
     @pytest.mark.asyncio
     async def test_unknown_emoji_dropped(self) -> None:
         ch = _make_channel()
-        received = await self._capture(
-            ch, self._reaction_event(emoji_name="party_blob")
-        )
+        received = await self._capture(ch, self._reaction_event(emoji_name="party_blob"))
         assert received == []
 
     @pytest.mark.asyncio
@@ -725,9 +721,7 @@ class TestMattermostReactionInbound:
     @pytest.mark.asyncio
     async def test_missing_post_id_dropped(self) -> None:
         ch = _make_channel()
-        received = await self._capture(
-            ch, self._reaction_event(emoji_name="thumbsup", post_id="")
-        )
+        received = await self._capture(ch, self._reaction_event(emoji_name="thumbsup", post_id=""))
         assert received == []
 
     @pytest.mark.asyncio

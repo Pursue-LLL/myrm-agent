@@ -171,8 +171,7 @@ class InMemoryRateLimiter:
             keys_to_delete = [
                 k
                 for k in self._timestamps.keys()
-                if (route_path is None or k.startswith(f"{route_path}:"))
-                and (client_id is None or k.endswith(f":{client_id}"))
+                if (route_path is None or k.startswith(f"{route_path}:")) and (client_id is None or k.endswith(f":{client_id}"))
             ]
             for key in keys_to_delete:
                 del self._timestamps[key]

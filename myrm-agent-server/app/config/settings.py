@@ -536,9 +536,7 @@ class AppSettings(BaseSettings):
     storage: StorageSettings = StorageSettings()
     services: ServiceSettings = ServiceSettings()
     control_plane: ControlPlaneSettings = ControlPlaneSettings()
-    context_compaction_telemetry: ContextCompactionTelemetrySettings = (
-        ContextCompactionTelemetrySettings()
-    )
+    context_compaction_telemetry: ContextCompactionTelemetrySettings = ContextCompactionTelemetrySettings()
 
     @field_validator("port")
     @classmethod
@@ -553,9 +551,7 @@ class AppSettings(BaseSettings):
         if v < 64:
             raise ValueError("event_log_max_jsonl_line_bytes must be >= 64")
         if v > 10 * 1024 * 1024:
-            raise ValueError(
-                "event_log_max_jsonl_line_bytes unreasonably large (max 10 MiB)"
-            )
+            raise ValueError("event_log_max_jsonl_line_bytes unreasonably large (max 10 MiB)")
         return v
 
     # --- Provider helpers ---
@@ -582,9 +578,7 @@ class AppSettings(BaseSettings):
     def get_provider_cache_config(self, model: str) -> ProviderCacheConfig:
         """获取特定模型的缓存配置"""
         provider = self.get_provider(model)
-        return PROVIDER_CACHE_CONFIGS.get(
-            provider, PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER]
-        )
+        return PROVIDER_CACHE_CONFIGS.get(provider, PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER])
 
     def validate_for_sandbox(self) -> None:
         """Sandbox 模式启动前校验，缺少必要配置时立即抛出 RuntimeError。"""
@@ -593,10 +587,7 @@ class AppSettings(BaseSettings):
             missing.append("SANDBOX_API_KEY")
         if not self.config_encryption_key.get_secret_value():
             missing.append("CONFIG_ENCRYPTION_KEY")
-        if (
-            self.database.checkpointer_mode.lower() == "postgres"
-            and not self.database.database_url
-        ):
+        if self.database.checkpointer_mode.lower() == "postgres" and not self.database.database_url:
             missing.append("DATABASE_URL (required by CHECKPOINTER_MODE=postgres)")
         if missing:
             raise RuntimeError(f"Sandbox mode requires: {', '.join(missing)}")
@@ -613,12 +604,8 @@ class AppSettings(BaseSettings):
             "agent.max_concurrent": self.agent.max_concurrent,
             "database.sqlite_path": self.database.sqlite_path,
             "cp_public_ingress_url": self.cp_public_ingress_url or "(not set)",
-            "sandbox_api_key": (
-                "***" if self.sandbox_api_key.get_secret_value() else "(not set)"
-            ),
-            "config_encryption_key": (
-                "***" if self.config_encryption_key.get_secret_value() else "(not set)"
-            ),
+            "sandbox_api_key": ("***" if self.sandbox_api_key.get_secret_value() else "(not set)"),
+            "config_encryption_key": ("***" if self.config_encryption_key.get_secret_value() else "(not set)"),
         }
 
 

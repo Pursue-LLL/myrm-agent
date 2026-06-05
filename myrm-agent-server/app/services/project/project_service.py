@@ -18,8 +18,16 @@ from app.database.models.project import Project
 logger = logging.getLogger(__name__)
 
 PROJECT_COLORS = [
-    "#7cb9ff", "#ff7eb3", "#7afcb4", "#ffd97c", "#c4b5fd",
-    "#fb923c", "#67e8f9", "#f87171", "#a3e635", "#e879f9",
+    "#7cb9ff",
+    "#ff7eb3",
+    "#7afcb4",
+    "#ffd97c",
+    "#c4b5fd",
+    "#fb923c",
+    "#67e8f9",
+    "#f87171",
+    "#a3e635",
+    "#e879f9",
 ]
 
 
@@ -71,20 +79,16 @@ class ProjectService:
                 workspace_path=workspace_path,
             )
             db.add(project)
-            
+
             # Create and bind a shared memory context for the project
             from app.services.memory.shared_context import SharedContextService
+
             shared_context_svc = SharedContextService(db)
             context = await shared_context_svc.create_context(
-                name=f"Project: {project.name}",
-                description=f"Shared memory context for project {project.name}"
+                name=f"Project: {project.name}", description=f"Shared memory context for project {project.name}"
             )
-            await shared_context_svc.bind_context(
-                context_id=context.id,
-                target_type="project",
-                target_id=project.id
-            )
-            
+            await shared_context_svc.bind_context(context_id=context.id, target_type="project", target_id=project.id)
+
             await db.commit()
             await db.refresh(project)
             return {
@@ -98,7 +102,9 @@ class ProjectService:
             }
 
     @staticmethod
-    async def update_project(project_id: str, name: str | None = None, color: str | None = None, workspace_path: str | None = None) -> dict[str, object] | None:
+    async def update_project(
+        project_id: str, name: str | None = None, color: str | None = None, workspace_path: str | None = None
+    ) -> dict[str, object] | None:
         async with get_session() as db:
             stmt = select(Project).where(Project.id == project_id)
             result = await db.execute(stmt)
@@ -135,9 +141,7 @@ class ProjectService:
             if not project:
                 return False
 
-            await db.execute(
-                update(Chat).where(Chat.project_id == project_id).values(project_id=None)
-            )
+            await db.execute(update(Chat).where(Chat.project_id == project_id).values(project_id=None))
             await db.execute(delete(Project).where(Project.id == project_id))
             await db.commit()
             return True
@@ -174,11 +178,7 @@ class ProjectService:
                 if not proj_result.scalar_one_or_none():
                     return 0
 
-            stmt = (
-                update(Chat)
-                .where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None))
-                .values(project_id=project_id)
-            )
+            stmt = update(Chat).where(Chat.id.in_(chat_ids), Chat.deleted_at.is_(None)).values(project_id=project_id)
             result = await db.execute(stmt)
             await db.commit()
             return result.rowcount  # type: ignore[return-value]

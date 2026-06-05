@@ -16,10 +16,12 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
+import { getMcpFindingDescription, getMcpFindingRecommendation } from '@/lib/utils/mcpScanFindingText';
 import { Switch } from '@/components/primitives/switch';
 import { InputField } from '../FormFields';
 import { MCPServiceConfig, MCPOAuthSettings } from '@/store/useConfigStore';
 import { PendingDescriptionChoice } from '@/hooks/useMCPConfig';
+import type { MCPScanFinding } from '@/store/config/types';
 import JsonEditor from '../JsonEditor';
 import OptionSelect from '../OptionSelect';
 
@@ -33,6 +35,8 @@ interface MCPConfigEditorProps {
   validationSuccess: boolean;
   validationError: string;
   validationLatency: number | null;
+  scanFindings: MCPScanFinding[];
+  isLiveScanning: boolean;
   connectionTypeOptions: Array<{ value: string; label: string; description: string }>;
   pendingDescriptionChoice: PendingDescriptionChoice | null;
   onFormDataChange: (data: MCPServiceConfig) => void;
@@ -59,6 +63,8 @@ export function MCPConfigEditor({
   validationSuccess,
   validationError,
   validationLatency,
+  scanFindings,
+  isLiveScanning,
   connectionTypeOptions,
   pendingDescriptionChoice,
   onFormDataChange,
@@ -265,6 +271,35 @@ export function MCPConfigEditor({
             />
             <span className="text-sm text-black/70 dark:text-white/70">{t('mcpEnableService')}</span>
           </div>
+
+          {(isLiveScanning || scanFindings.length > 0) && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                {isLiveScanning ? (
+                  <IconLoader className="w-4 h-4 animate-spin" />
+                ) : (
+                  <IconShield className="w-4 h-4" />
+                )}
+                {isLiveScanning ? t('mcpScanRunning') : t('mcpScanFindingsTitle')}
+              </p>
+              {!isLiveScanning && (
+                <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-2">
+                  {scanFindings.slice(0, 5).map((finding, idx) => (
+                    <li key={`${finding.field}-${idx}`} className="space-y-0.5">
+                      <div>
+                        [{finding.severity}] {getMcpFindingDescription(finding, t)}
+                      </div>
+                      {finding.recommendation ? (
+                        <div className="text-muted-foreground">
+                          {getMcpFindingRecommendation(finding, t)}
+                        </div>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {validationError && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">

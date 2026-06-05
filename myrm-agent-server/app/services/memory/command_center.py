@@ -172,10 +172,7 @@ class MemoryCommandCenterService:
             key=lambda item: max(event.occurred_at for event in item[1]),
             reverse=True,
         )
-        return [
-            self._timeline_events_to_trace_run(trace_id, events)
-            for trace_id, events in ordered_groups[:TRACE_RUN_LIMIT]
-        ]
+        return [self._timeline_events_to_trace_run(trace_id, events) for trace_id, events in ordered_groups[:TRACE_RUN_LIMIT]]
 
     @staticmethod
     def _timeline_events_to_trace_run(
@@ -461,9 +458,7 @@ class MemoryCommandCenterService:
             vector_status="available" if self._memory_manager.has_vector else "unavailable",
             graph_status="available" if self._memory_manager.has_graph else "unavailable",
             embedding_status=get_embedding_mode().value if self._memory_manager.has_vector else "unavailable",
-            control_plane_status="proxied_by_sandbox"
-            if get_deployment_capabilities().is_sandbox_instance
-            else "not_used",
+            control_plane_status="proxied_by_sandbox" if get_deployment_capabilities().is_sandbox_instance else "not_used",
             event_ledger_status="available",
             health_snapshot_status="available",
             supported_clients=["local_web", "tauri_desktop", "saas_sandbox"],
@@ -610,11 +605,7 @@ def _trace_run_status(events: list[MemoryCommandTimelineEvent]) -> str:
 
 
 def _trace_run_duration_ms(events: list[MemoryCommandTimelineEvent]) -> float | None:
-    durations = [
-        duration
-        for event in events
-        if (duration := _metadata_float(event.metadata, "duration_ms")) is not None
-    ]
+    durations = [duration for event in events if (duration := _metadata_float(event.metadata, "duration_ms")) is not None]
     if not durations:
         return None
     return max(durations)

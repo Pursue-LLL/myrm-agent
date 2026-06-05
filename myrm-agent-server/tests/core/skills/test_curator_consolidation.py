@@ -259,6 +259,7 @@ class TestConsolidationPreview:
             ),
         ):
             from app.core.skills.curator_service import run_consolidation_preview
+
             plan = await run_consolidation_preview()
 
         assert plan.is_empty
@@ -285,9 +286,7 @@ class TestConsolidationPreview:
 
         mock_run_result = MagicMock(skills_scanned=5)
         mock_curator_instance = MagicMock()
-        mock_curator_instance.run_async = AsyncMock(
-            return_value=(mock_run_result, expected_plan)
-        )
+        mock_curator_instance.run_async = AsyncMock(return_value=(mock_run_result, expected_plan))
 
         with (
             patch(
@@ -304,6 +303,7 @@ class TestConsolidationPreview:
             ),
         ):
             from app.core.skills.curator_service import run_consolidation_preview
+
             plan = await run_consolidation_preview()
 
         assert not plan.is_empty

@@ -69,11 +69,7 @@ async def test_webui_update_creates_snapshot_and_rollback_works(agent_db) -> Non
 
     session_factory = agent_db
     async with session_factory() as session:
-        result = await session.execute(
-            select(AgentProfileSnapshot).where(
-                AgentProfileSnapshot.agent_id == agent_id
-            )
-        )
+        result = await session.execute(select(AgentProfileSnapshot).where(AgentProfileSnapshot.agent_id == agent_id))
         assert len(result.scalars().all()) >= 1
 
     ok = await AgentService.rollback_profile(agent_id)
@@ -114,11 +110,7 @@ async def test_snapshot_retention_keeps_latest_ten(agent_db) -> None:
 
     session_factory = agent_db
     async with session_factory() as session:
-        result = await session.execute(
-            select(AgentProfileSnapshot).where(
-                AgentProfileSnapshot.agent_id == agent_id
-            )
-        )
+        result = await session.execute(select(AgentProfileSnapshot).where(AgentProfileSnapshot.agent_id == agent_id))
         snapshots = result.scalars().all()
         assert len(snapshots) <= 10
 

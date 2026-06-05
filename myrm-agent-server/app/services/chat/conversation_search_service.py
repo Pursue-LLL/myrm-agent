@@ -125,11 +125,7 @@ class ConversationSearchService:
             agent_id=agent_id,
             memory_manager=memory_manager,
         )
-        hits = [
-            hit
-            for hit in _merge_hits(fts_hits, semantic_hits, request.limit)
-            if hit.score >= request.min_score
-        ]
+        hits = [hit for hit in _merge_hits(fts_hits, semantic_hits, request.limit) if hit.score >= request.min_score]
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
         return ConversationSearchResponse(mode="search", hits=hits, query=query, rejected_reason=rejected_reason)
 

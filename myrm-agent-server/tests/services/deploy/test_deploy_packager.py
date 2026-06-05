@@ -32,14 +32,10 @@ def test_validate_deploy_payload_requires_html_entry() -> None:
     with pytest.raises(ValueError, match="No files"):
         validate_deploy_payload({})
 
-    validate_deploy_payload(
-        {"index.html": DeployFile(path="index.html", content="<h1>Hi</h1>")}
-    )
+    validate_deploy_payload({"index.html": DeployFile(path="index.html", content="<h1>Hi</h1>")})
 
     with pytest.raises(ValueError, match="index.html"):
-        validate_deploy_payload(
-            {"style.css": DeployFile(path="style.css", content="body{}")}
-        )
+        validate_deploy_payload({"style.css": DeployFile(path="style.css", content="body{}")})
 
 
 def test_collect_single_html_includes_sibling_css(tmp_path: Path) -> None:

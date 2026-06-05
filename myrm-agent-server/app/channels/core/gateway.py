@@ -113,22 +113,16 @@ class ChannelGateway:
     def __init__(
         self,
         dlq_dir: Path | None = None,
-        on_permanent_failure: (
-            Callable[[QueuedDelivery, str], Awaitable[None]] | None
-        ) = None,
+        on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
         inbound_journal: InboundJournal | None = None,
     ) -> None:
-        self.bus = MessageBus(
-            dlq_dir=dlq_dir, on_permanent_failure=on_permanent_failure
-        )
+        self.bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=on_permanent_failure)
         self._inbound_journal = inbound_journal
         self._channel_tasks: dict[str, asyncio.Task[None]] = {}
         self._health_task: asyncio.Task[None] | None = None
         self._running = False
         self._router: AgentRouter | None = None
-        self._status_change_callback: (
-            Callable[[str, ChannelStatus, ChannelStatus], None] | None
-        ) = None
+        self._status_change_callback: Callable[[str, ChannelStatus, ChannelStatus], None] | None = None
         self._groups_change_callback: Callable[[str, list[object]], None] | None = None
         self._connection_change_callback: Callable[[str, bool], None] | None = None
 
@@ -140,21 +134,15 @@ class ChannelGateway:
         channel.on("groups_change", self._on_groups_change_event)
         channel.on("connection_change", self._on_connection_change_event)
 
-    def set_status_change_callback(
-        self, callback: Callable[[str, ChannelStatus, ChannelStatus], None]
-    ) -> None:
+    def set_status_change_callback(self, callback: Callable[[str, ChannelStatus, ChannelStatus], None]) -> None:
         """Register a callback for channel status changes."""
         self._status_change_callback = callback
 
-    def set_groups_change_callback(
-        self, callback: Callable[[str, list[object]], None]
-    ) -> None:
+    def set_groups_change_callback(self, callback: Callable[[str, list[object]], None]) -> None:
         """Register a callback for groups list changes."""
         self._groups_change_callback = callback
 
-    def set_connection_change_callback(
-        self, callback: Callable[[str, bool], None]
-    ) -> None:
+    def set_connection_change_callback(self, callback: Callable[[str, bool], None]) -> None:
         """Register a callback for channel connection state changes."""
         self._connection_change_callback = callback
 
@@ -165,9 +153,7 @@ class ChannelGateway:
         old_status = data.get("old_status")
         new_status = data.get("new_status")
 
-        if not isinstance(old_status, ChannelStatus) or not isinstance(
-            new_status, ChannelStatus
-        ):
+        if not isinstance(old_status, ChannelStatus) or not isinstance(new_status, ChannelStatus):
             return
 
         logger.info(
@@ -184,9 +170,7 @@ class ChannelGateway:
         if not isinstance(data, dict):
             return
         connected = bool(data.get("connected", False))
-        logger.info(
-            "ChannelGateway: %s connection_change -> %s", channel_name, connected
-        )
+        logger.info("ChannelGateway: %s connection_change -> %s", channel_name, connected)
         if self._connection_change_callback:
             self._connection_change_callback(channel_name, connected)
 
@@ -194,9 +178,7 @@ class ChannelGateway:
         """Handle groups_change event from channel."""
         if not isinstance(data, list):
             return
-        logger.info(
-            "ChannelGateway: %s groups updated (%d groups)", channel_name, len(data)
-        )
+        logger.info("ChannelGateway: %s groups updated (%d groups)", channel_name, len(data))
         if self._groups_change_callback:
             self._groups_change_callback(channel_name, data)
 
@@ -404,11 +386,7 @@ class ChannelGateway:
 
     def _count_instances(self, channel_type: str) -> int:
         """Count existing instances (including the default) for a channel type."""
-        return sum(
-            1
-            for n, ch in self.bus.channels.items()
-            if self._resolve_channel_type(ch) == channel_type
-        )
+        return sum(1 for n, ch in self.bus.channels.items() if self._resolve_channel_type(ch) == channel_type)
 
     async def add_channel(self, channel: BaseChannel) -> str:
         """Hot-add a channel instance at runtime.
@@ -424,8 +402,7 @@ class ChannelGateway:
         existing_count = self._count_instances(channel_type)
         if existing_count >= self._MAX_INSTANCES_PER_TYPE:
             raise ValueError(
-                f"Instance limit reached: max {self._MAX_INSTANCES_PER_TYPE} "
-                f"instances for channel type '{channel_type}'"
+                f"Instance limit reached: max {self._MAX_INSTANCES_PER_TYPE} instances for channel type '{channel_type}'"
             )
 
         self.bus.register_channel(channel)
@@ -470,11 +447,7 @@ class ChannelGateway:
 
     def list_instances(self, channel_type: str) -> list[str]:
         """List all instance names for a given channel type."""
-        return [
-            n
-            for n, ch in self.bus.channels.items()
-            if self._resolve_channel_type(ch) == channel_type
-        ]
+        return [n for n, ch in self.bus.channels.items() if self._resolve_channel_type(ch) == channel_type]
 
     def get_channel_capabilities(self, channel_name: str) -> ChannelCapabilities | None:
         """Get the declared capabilities of a registered channel."""
@@ -530,9 +503,7 @@ class ChannelGateway:
                 ],
             }
 
-        results = await asyncio.gather(
-            *[_check(n, ch) for n, ch in self.bus.channels.items()]
-        )
+        results = await asyncio.gather(*[_check(n, ch) for n, ch in self.bus.channels.items()])
         return dict(results)
 
     async def reload_channel(self, name: str) -> bool:
@@ -555,9 +526,7 @@ class ChannelGateway:
         try:
             await channel.stop()
         except Exception:
-            logger.warning(
-                "Channel '%s': error during reload stop", name, exc_info=True
-            )
+            logger.warning("Channel '%s': error during reload stop", name, exc_info=True)
 
         channel._status = ChannelStatus.IDLE
         self._channel_tasks[name] = asyncio.create_task(
@@ -567,9 +536,7 @@ class ChannelGateway:
         logger.info("Channel '%s' reloaded", name)
         return True
 
-    async def list_channel_groups(
-        self, *, force_refresh: bool = False
-    ) -> list[GroupInfo]:
+    async def list_channel_groups(self, *, force_refresh: bool = False) -> list[GroupInfo]:
         """Aggregate group lists from all channels concurrently.
 
         Each provider's ``list_groups`` should set ``GroupInfo.channel``, but this
@@ -580,9 +547,7 @@ class ChannelGateway:
         the slowest channel rather than the sum of all channels.
         """
         group_channels: list[tuple[str, BaseChannel]] = [
-            (name, ch)
-            for name, ch in self.bus.channels.items()
-            if hasattr(ch, "list_groups")
+            (name, ch) for name, ch in self.bus.channels.items() if hasattr(ch, "list_groups")
         ]
         if not group_channels:
             return []
@@ -591,9 +556,7 @@ class ChannelGateway:
             try:
                 return await channel.list_groups(force_refresh=force_refresh)
             except Exception:
-                logger.warning(
-                    "Failed to list groups for channel '%s'", name, exc_info=True
-                )
+                logger.warning("Failed to list groups for channel '%s'", name, exc_info=True)
                 return []
 
         results = await asyncio.gather(*[_fetch(n, ch) for n, ch in group_channels])
@@ -659,10 +622,7 @@ class ChannelGateway:
                 channel.health.record_failure()
 
                 failures = channel.health.consecutive_failures
-                if (
-                    failures >= _DEGRADED_THRESHOLD
-                    and channel.status == ChannelStatus.RUNNING
-                ):
+                if failures >= _DEGRADED_THRESHOLD and channel.status == ChannelStatus.RUNNING:
                     channel._status = ChannelStatus.DEGRADED
                     logger.warning(
                         "Channel '%s' degraded (%d consecutive failures)",
@@ -739,15 +699,11 @@ class ChannelGateway:
 
         from app.channels.types import InboundMessage
 
-        logger.info(
-            "InboundJournal: recovering %d interrupted message(s)", len(entries)
-        )
+        logger.info("InboundJournal: recovering %d interrupted message(s)", len(entries))
 
         for entry in entries:
             try:
-                metadata = (
-                    json.loads(entry.metadata_json) if entry.metadata_json else {}
-                )
+                metadata = json.loads(entry.metadata_json) if entry.metadata_json else {}
                 metadata["is_recovery"] = True
                 metadata["recovery_entry_id"] = entry.id
 
@@ -770,6 +726,4 @@ class ChannelGateway:
                     entry.chat_id,
                 )
             except Exception as e:
-                logger.warning(
-                    "InboundJournal: failed to recover entry %s: %s", entry.id, e
-                )
+                logger.warning("InboundJournal: failed to recover entry %s: %s", entry.id, e)

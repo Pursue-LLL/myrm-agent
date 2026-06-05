@@ -34,9 +34,7 @@ _RECONCILE_JITTER = 3.0
 class VoiceJoinLeave(Protocol):
     """Abstraction for join/leave operations used by follow logic."""
 
-    async def join(
-        self, channel: discord.VoiceChannel, *, text_channel_id: int = 0
-    ) -> bool: ...
+    async def join(self, channel: discord.VoiceChannel, *, text_channel_id: int = 0) -> bool: ...
 
     async def leave(self, guild_id: int) -> None: ...
 
@@ -59,12 +57,8 @@ class VoiceFollowManager:
     ) -> None:
         self._client = client
         self._voice_ops = voice_ops
-        self._follow_user_ids: set[str] = (
-            set(follow_user_ids) if follow_user_ids else set()
-        )
-        self._allowed_channel_set: frozenset[tuple[str, str]] = (
-            frozenset(allowed_channels) if allowed_channels else frozenset()
-        )
+        self._follow_user_ids: set[str] = set(follow_user_ids) if follow_user_ids else set()
+        self._allowed_channel_set: frozenset[tuple[str, str]] = frozenset(allowed_channels) if allowed_channels else frozenset()
         self._on_guild_leave_check = on_guild_leave_check
 
         self._followed_user_channels: dict[str, tuple[int, int]] = {}
@@ -93,9 +87,7 @@ class VoiceFollowManager:
         """Start the periodic voice state reconciliation loop."""
         if not self.enabled or self._reconcile_task is not None:
             return
-        self._reconcile_task = asyncio.get_running_loop().create_task(
-            self._reconcile_loop(), name="voice-reconcile"
-        )
+        self._reconcile_task = asyncio.get_running_loop().create_task(self._reconcile_loop(), name="voice-reconcile")
         logger.info("Voice follow reconciliation started")
 
     async def stop_reconciliation(self) -> None:
@@ -195,9 +187,7 @@ class VoiceFollowManager:
                     await self._voice_ops.join(channel)
                     return
 
-        any_followed_in_guild = any(
-            gid == guild_id for gid, _ in self._followed_user_channels.values()
-        )
+        any_followed_in_guild = any(gid == guild_id for gid, _ in self._followed_user_channels.values())
         if not any_followed_in_guild:
             self._followed_voice_guilds.discard(guild_id)
             should_leave = True
@@ -234,10 +224,7 @@ class VoiceFollowManager:
             if target_channel:
                 await self._voice_ops.join(target_channel)
             elif guild.id in self._followed_voice_guilds:
-                has_any = any(
-                    gid == guild.id
-                    for gid, _ in self._followed_user_channels.values()
-                )
+                has_any = any(gid == guild.id for gid, _ in self._followed_user_channels.values())
                 if not has_any:
                     self._followed_voice_guilds.discard(guild.id)
                     should_leave = True
@@ -250,9 +237,7 @@ class VoiceFollowManager:
                         )
                         await self._voice_ops.leave(guild.id)
 
-    async def _find_followed_user_channel_rest(
-        self, guild: discord.Guild
-    ) -> discord.VoiceChannel | None:
+    async def _find_followed_user_channel_rest(self, guild: discord.Guild) -> discord.VoiceChannel | None:
         """Query REST API for followed users' voice state (bypasses Gateway cache)."""
         for user_id in self._follow_user_ids:
             try:

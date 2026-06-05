@@ -37,11 +37,7 @@ async def created_record_ids() -> AsyncIterator[list[str]]:
     skill_immune_service._failure_locks.clear()
     async with get_session() as db:
         if record_ids:
-            await db.execute(
-                delete(ExperienceLedgerEvent).where(
-                    ExperienceLedgerEvent.entity_id.in_(record_ids)
-                )
-            )
+            await db.execute(delete(ExperienceLedgerEvent).where(ExperienceLedgerEvent.entity_id.in_(record_ids)))
             await db.execute(delete(ApprovalRecord).where(ApprovalRecord.id.in_(record_ids)))
             await db.commit()
 
@@ -138,13 +134,9 @@ async def test_skill_failure_event_without_evolution_engine_creates_one_blocked_
     await handle_skill_failure_event(event)
 
     async with get_session() as db:
-        rows = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        rows = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         records = [
-            item
-            for item in rows.scalars().all()
-            if isinstance(item.payload, dict) and item.payload.get("skill_id") == skill_id
+            item for item in rows.scalars().all() if isinstance(item.payload, dict) and item.payload.get("skill_id") == skill_id
         ]
 
     assert len(records) == 1

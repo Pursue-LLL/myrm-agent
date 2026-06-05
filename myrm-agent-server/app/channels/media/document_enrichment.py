@@ -132,10 +132,7 @@ async def enrich_document_inbound(
             continue
 
         if len(text) > MAX_DOCUMENT_TEXT_CHARS:
-            text = (
-                text[:MAX_DOCUMENT_TEXT_CHARS]
-                + f"\n\n... [truncated at {MAX_DOCUMENT_TEXT_CHARS} chars]"
-            )
+            text = text[:MAX_DOCUMENT_TEXT_CHARS] + f"\n\n... [truncated at {MAX_DOCUMENT_TEXT_CHARS} chars]"
 
         blocks.append(
             {

@@ -105,7 +105,9 @@ def probe_event_ledger_snapshot(runtime: MemoryCommandRuntimeStatus) -> MemoryCo
         status="ready" if runtime.event_ledger_status == "available" else "critical",
         evidence=f"Command Center event ledger is {runtime.event_ledger_status}.",
         impact="The UI needs ledger events for audit trails, waterfall views, and replay overlays.",
-        next_action="No action required." if runtime.event_ledger_status == "available" else "Review local database configuration.",
+        next_action="No action required."
+        if runtime.event_ledger_status == "available"
+        else "Review local database configuration.",
         repair_actions=[] if runtime.event_ledger_status == "available" else ["review_storage_config"],
     )
 
@@ -132,8 +134,7 @@ def probe_deployment_boundary(runtime: MemoryCommandRuntimeStatus) -> MemoryComm
         label="Deployment boundary",
         status="ready",
         evidence=(
-            f"Supported clients: {', '.join(runtime.supported_clients)}; "
-            f"control plane status: {runtime.control_plane_status}."
+            f"Supported clients: {', '.join(runtime.supported_clients)}; control plane status: {runtime.control_plane_status}."
         ),
         impact="Business memory content stays inside the local or per-user sandbox boundary.",
         next_action="No action required.",

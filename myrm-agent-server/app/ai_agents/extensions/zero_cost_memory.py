@@ -111,7 +111,9 @@ class ZeroCostMemoryExtension(AgentExtension):
                     )
                     if result.memories:
                         await persist_extracted_memories(
-                            result.memories, memory_manager, effective_chat_id,
+                            result.memories,
+                            memory_manager,
+                            effective_chat_id,
                             deep_scan_llm_func=deep_scan_llm,
                         )
                         logger.info(

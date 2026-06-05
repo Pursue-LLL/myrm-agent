@@ -55,10 +55,7 @@ def _load_model_configs() -> list[dict[str, str]]:
             }
         )
     if not configs:
-        raise RuntimeError(
-            "No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL "
-            "(and optionally LITE_*)."
-        )
+        raise RuntimeError("No credentials in .env.test. Set BASIC_API_KEY, BASIC_BASE_URL, BASIC_MODEL (and optionally LITE_*).")
     return configs
 
 
@@ -76,9 +73,7 @@ async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
     from langchain_mcp_adapters.client import MultiServerMCPClient
 
     uvx_cmd = _resolve_uvx()
-    client = MultiServerMCPClient(
-        {"12306": {"command": uvx_cmd, "args": ["mcp-server-12306"], "transport": "stdio"}}
-    )
+    client = MultiServerMCPClient({"12306": {"command": uvx_cmd, "args": ["mcp-server-12306"], "transport": "stdio"}})
     tools = await client.get_tools()
 
     tool_defs = []
@@ -105,10 +100,11 @@ async def _get_mcp_tools() -> tuple[list[object], list[dict[str, object]], int]:
     return tools, tool_defs, total_chars // 4
 
 
-def _llm_call(api_key: str, base_url: str, model: str,
-              messages: list[dict[str, object]],
-              tools: list[dict[str, object]] | None = None) -> dict[str, object]:
+def _llm_call(
+    api_key: str, base_url: str, model: str, messages: list[dict[str, object]], tools: list[dict[str, object]] | None = None
+) -> dict[str, object]:
     import httpx
+
     payload: dict[str, object] = {
         "model": model,
         "messages": messages,
@@ -127,9 +123,9 @@ def _llm_call(api_key: str, base_url: str, model: str,
     return resp.json()
 
 
-async def bench_direct(api_key: str, base_url: str, model: str,
-                       tools: list[object], tool_defs: list[dict[str, object]],
-                       schema_tokens: int) -> dict[str, object]:
+async def bench_direct(
+    api_key: str, base_url: str, model: str, tools: list[object], tool_defs: list[dict[str, object]], schema_tokens: int
+) -> dict[str, object]:
     """直连模式基准测试"""
     messages: list[dict[str, object]] = [{"role": "user", "content": QUERY}]
     all_usages: list[dict[str, object]] = []
@@ -182,25 +178,34 @@ async def bench_direct(api_key: str, base_url: str, model: str,
 async def bench_ptc(api_key: str, base_url: str, model: str) -> dict[str, object]:
     """PTC 模式基准测试（模拟 skill_select -> file_read -> bash -> response）"""
     ptc_tools = [
-        {"type": "function", "function": {
-            "name": "skill_select_tool",
-            "description": "Select skills:\n<skills>\n- mcp_12306_skill: 12306火车票查询服务 (mcp)\n</skills>",
-            "parameters": {"type": "object", "required": ["skill_names", "reason"],
-                           "properties": {"skill_names": {"type": "array", "items": {"type": "string"}},
-                                          "reason": {"type": "string"}}},
-        }},
-        {"type": "function", "function": {
-            "name": "file_read_tool",
-            "description": "Read file. Path: /mcp/{skill_name}/{function_name}.md",
-            "parameters": {"type": "object", "required": ["file_path"],
-                           "properties": {"file_path": {"type": "string"}}},
-        }},
-        {"type": "function", "function": {
-            "name": "bash_code_execute_tool",
-            "description": "Execute Python code. Use 'from skills.xxx import func' for MCP.",
-            "parameters": {"type": "object", "required": ["code"],
-                           "properties": {"code": {"type": "string"}}},
-        }},
+        {
+            "type": "function",
+            "function": {
+                "name": "skill_select_tool",
+                "description": "Select skills:\n<skills>\n- mcp_12306_skill: 12306火车票查询服务 (mcp)\n</skills>",
+                "parameters": {
+                    "type": "object",
+                    "required": ["skill_names", "reason"],
+                    "properties": {"skill_names": {"type": "array", "items": {"type": "string"}}, "reason": {"type": "string"}},
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "file_read_tool",
+                "description": "Read file. Path: /mcp/{skill_name}/{function_name}.md",
+                "parameters": {"type": "object", "required": ["file_path"], "properties": {"file_path": {"type": "string"}}},
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "bash_code_execute_tool",
+                "description": "Execute Python code. Use 'from skills.xxx import func' for MCP.",
+                "parameters": {"type": "object", "required": ["code"], "properties": {"code": {"type": "string"}}},
+            },
+        },
     ]
 
     schema_tokens = len(json.dumps(ptc_tools, ensure_ascii=False)) // 4
@@ -312,21 +317,43 @@ async def main() -> None:
                 # 每次新建 MCP 连接以模拟真实场景
                 fresh_tools, fresh_defs, fresh_schema = await _get_mcp_tools()
                 d = await bench_direct(api_key, base_url, model, fresh_tools, fresh_defs, fresh_schema)
-                print(f"  [直连] {d['rounds']}轮 | {d['total_time']:.1f}s | in={d['total_input']} out={d['total_output']} cached={d['cached']}")
+                print(
+                    f"  [直连] {d['rounds']}轮 | {d['total_time']:.1f}s | in={d['total_input']} out={d['total_output']} cached={d['cached']}"
+                )
             except Exception as e:
                 print(f"  [直连] 失败: {e}")
-                d = {"rounds": 0, "total_time": 0, "llm_time": 0, "mcp_time": 0,
-                     "total_input": 0, "total_output": 0, "cached": 0, "schema_per_round": schema_tokens, "error": str(e)}
+                d = {
+                    "rounds": 0,
+                    "total_time": 0,
+                    "llm_time": 0,
+                    "mcp_time": 0,
+                    "total_input": 0,
+                    "total_output": 0,
+                    "cached": 0,
+                    "schema_per_round": schema_tokens,
+                    "error": str(e),
+                }
 
             # PTC
             print("  [PTC]  开始...")
             try:
                 p = await bench_ptc(api_key, base_url, model)
-                print(f"  [PTC]  {p['rounds']}轮 | {p['total_time']:.1f}s | in={p['total_input']} out={p['total_output']} cached={p['cached']}")
+                print(
+                    f"  [PTC]  {p['rounds']}轮 | {p['total_time']:.1f}s | in={p['total_input']} out={p['total_output']} cached={p['cached']}"
+                )
             except Exception as e:
                 print(f"  [PTC]  失败: {e}")
-                p = {"rounds": 0, "total_time": 0, "llm_time": 0, "mcp_time": 0,
-                     "total_input": 0, "total_output": 0, "cached": 0, "schema_per_round": 0, "error": str(e)}
+                p = {
+                    "rounds": 0,
+                    "total_time": 0,
+                    "llm_time": 0,
+                    "mcp_time": 0,
+                    "total_input": 0,
+                    "total_output": 0,
+                    "cached": 0,
+                    "schema_per_round": 0,
+                    "error": str(e),
+                }
 
             all_results.append({"model": label, "run": run_idx, "direct": d, "ptc": p})
 
@@ -392,8 +419,10 @@ async def main() -> None:
             p = r["ptc"]
             d_err = f" ERR:{d['error'][:30]}" if d.get("error") else ""
             p_err = f" ERR:{p['error'][:30]}" if p.get("error") else ""
-            print(f"    Run{ri}: 直连 {d['rounds']}轮 {d['total_time']:.1f}s in={d['total_input']} out={d['total_output']}{d_err}"
-                  f" | PTC {p['rounds']}轮 {p['total_time']:.1f}s in={p['total_input']} out={p['total_output']}{p_err}")
+            print(
+                f"    Run{ri}: 直连 {d['rounds']}轮 {d['total_time']:.1f}s in={d['total_input']} out={d['total_output']}{d_err}"
+                f" | PTC {p['rounds']}轮 {p['total_time']:.1f}s in={p['total_input']} out={p['total_output']}{p_err}"
+            )
 
     # 总结
     print(f"\n{'=' * 80}")
@@ -408,8 +437,8 @@ async def main() -> None:
 
     if n_valid > 0:
         print(f"\n  有效测试: {n_valid} 次")
-        print(f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input/total_d_input:.2f}x)")
-        print(f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time/total_d_time:.2f}x)")
+        print(f"  全局输入token: 直连 {total_d_input} vs PTC {total_p_input} (PTC/直连 = {total_p_input / total_d_input:.2f}x)")
+        print(f"  全局耗时: 直连 {total_d_time:.1f}s vs PTC {total_p_time:.1f}s (PTC/直连 = {total_p_time / total_d_time:.2f}x)")
 
         if total_p_input < total_d_input:
             pct = (1 - total_p_input / total_d_input) * 100

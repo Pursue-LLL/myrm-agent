@@ -18,16 +18,46 @@ from app.services.chat.chat_service import ChatService
 async def seed_chats(db_session):
     """Seed test chats with different sources."""
     chats = [
-        Chat(id=str(uuid4()), title="Web Chat 1", source="web", action_mode="fast",
-             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc), updated_at=datetime(2026, 1, 5, tzinfo=timezone.utc)),
-        Chat(id=str(uuid4()), title="Web Chat 2", source="web", action_mode="fast",
-             created_at=datetime(2026, 1, 2, tzinfo=timezone.utc), updated_at=datetime(2026, 1, 4, tzinfo=timezone.utc)),
-        Chat(id=str(uuid4()), title="Telegram Chat 1", source="telegram", action_mode="fast",
-             created_at=datetime(2026, 1, 3, tzinfo=timezone.utc), updated_at=datetime(2026, 1, 3, tzinfo=timezone.utc)),
-        Chat(id=str(uuid4()), title="Feishu Chat 1", source="feishu", action_mode="fast",
-             created_at=datetime(2026, 1, 4, tzinfo=timezone.utc), updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc)),
-        Chat(id=str(uuid4()), title="Discord Chat 1", source="discord", action_mode="fast",
-             created_at=datetime(2026, 1, 5, tzinfo=timezone.utc), updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc)),
+        Chat(
+            id=str(uuid4()),
+            title="Web Chat 1",
+            source="web",
+            action_mode="fast",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 5, tzinfo=timezone.utc),
+        ),
+        Chat(
+            id=str(uuid4()),
+            title="Web Chat 2",
+            source="web",
+            action_mode="fast",
+            created_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 4, tzinfo=timezone.utc),
+        ),
+        Chat(
+            id=str(uuid4()),
+            title="Telegram Chat 1",
+            source="telegram",
+            action_mode="fast",
+            created_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 3, tzinfo=timezone.utc),
+        ),
+        Chat(
+            id=str(uuid4()),
+            title="Feishu Chat 1",
+            source="feishu",
+            action_mode="fast",
+            created_at=datetime(2026, 1, 4, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        ),
+        Chat(
+            id=str(uuid4()),
+            title="Discord Chat 1",
+            source="discord",
+            action_mode="fast",
+            created_at=datetime(2026, 1, 5, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        ),
     ]
     db_session.add_all(chats)
     await db_session.commit()

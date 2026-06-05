@@ -496,9 +496,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic="API design"
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
 
         handler.assert_called_once()
         _, kwargs = handler.call_args
@@ -518,9 +516,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic="API design"
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
 
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "API design" in reply.content
@@ -544,9 +540,7 @@ class TestHandleCompact:
         handler = AsyncMock(return_value=result_obj)
 
         long_topic = "x" * 300
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic=long_topic
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic=long_topic)
 
         _, kwargs = handler.call_args
         assert len(kwargs["focus_topic"]) == MAX_FOCUS_TOPIC_LENGTH
@@ -565,9 +559,7 @@ class TestHandleCompact:
         result_obj.tokens_saved = 500
         handler = AsyncMock(return_value=result_obj)
 
-        await handle_compact(
-            msg, bus, resolver, compact_handler=handler, focus_topic=""
-        )
+        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="")
 
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "(focus:" not in reply.content
@@ -727,9 +719,7 @@ class TestHandleTopicCommand:
 
         await handle_topic_command(msg, cmd, bus, topic_resolver=topic_resolver)
 
-        topic_resolver.bind_topic.assert_called_once_with(
-            "test", "c1", None, agent_id="support-agent"
-        )
+        topic_resolver.bind_topic.assert_called_once_with("test", "c1", None, agent_id="support-agent")
         reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
         assert "channel" in reply.content.lower()
         assert "support-agent" in reply.content
@@ -801,9 +791,7 @@ class TestRegistryValidation:
 
     def test_overwrite_system_alias_raises(self) -> None:
         registry = CommandRegistry()
-        system_cmd = CommandDef(
-            name="mycmd", description="safe", kind=CommandKind.SYSTEM, aliases=("mc",)
-        )
+        system_cmd = CommandDef(name="mycmd", description="safe", kind=CommandKind.SYSTEM, aliases=("mc",))
         registry.register(system_cmd)
         with pytest.raises(ValueError, match="Cannot overwrite system command alias"):
             registry.register(
@@ -838,9 +826,7 @@ class TestRegistryValidation:
     def test_invalid_alias_raises(self) -> None:
         registry = CommandRegistry()
         with pytest.raises(ValueError, match="Invalid alias"):
-            registry.register(
-                CommandDef(name="good", description="ok", aliases=("bad alias",))
-            )
+            registry.register(CommandDef(name="good", description="ok", aliases=("bad alias",)))
 
 
 class TestRegistryEdgeCases:
@@ -882,9 +868,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_unregister_existing(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(
-            name="custom", description="test", kind=CommandKind.SKILL, skill_id="s1"
-        )
+        cmd = CommandDef(name="custom", description="test", kind=CommandKind.SKILL, skill_id="s1")
         registry.register(cmd)
         assert registry.unregister("custom") is True
         assert registry.get("custom") is None
@@ -915,9 +899,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_commands_by_kind_skill(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(
-            name="daily", description="test", kind=CommandKind.SKILL, skill_id="s1"
-        )
+        cmd = CommandDef(name="daily", description="test", kind=CommandKind.SKILL, skill_id="s1")
         registry.register(cmd)
         skill_cmds = registry.commands_by_kind(CommandKind.SKILL)
         assert len(skill_cmds) == 1
@@ -997,11 +979,7 @@ class TestSkillCommandRegistration:
     def test_register_skill_with_system_name_raises(self) -> None:
         registry = CommandRegistry()
         with pytest.raises(ValueError, match="Cannot overwrite system command"):
-            registry.register(
-                CommandDef(
-                    name="stop", description="bad", kind=CommandKind.SKILL, skill_id="x"
-                )
-            )
+            registry.register(CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_id="x"))
 
 
 class TestUpdateSkillCommands:
@@ -1020,9 +998,7 @@ class TestUpdateSkillCommands:
     def test_add_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
         cmds = (
-            CommandDef(
-                name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"
-            ),
+            CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"),
             CommandDef(
                 name="analyze",
                 description="test",
@@ -1037,19 +1013,11 @@ class TestUpdateSkillCommands:
 
     def test_replace_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
-        old_cmds = (
-            CommandDef(
-                name="old-cmd", description="old", kind=CommandKind.SKILL, skill_id="s1"
-            ),
-        )
+        old_cmds = (CommandDef(name="old-cmd", description="old", kind=CommandKind.SKILL, skill_id="s1"),)
         gw.update_skill_commands(old_cmds)
         assert registry.get("old-cmd") is not None
 
-        new_cmds = (
-            CommandDef(
-                name="new-cmd", description="new", kind=CommandKind.SKILL, skill_id="s2"
-            ),
-        )
+        new_cmds = (CommandDef(name="new-cmd", description="new", kind=CommandKind.SKILL, skill_id="s2"),)
         gw.update_skill_commands(new_cmds)
         assert registry.get("old-cmd") is None
         assert registry.get("new-cmd") is not None
@@ -1057,11 +1025,7 @@ class TestUpdateSkillCommands:
 
     def test_clear_all_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
-        cmds = (
-            CommandDef(
-                name="cmd1", description="test", kind=CommandKind.SKILL, skill_id="s1"
-            ),
-        )
+        cmds = (CommandDef(name="cmd1", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
         gw.update_skill_commands(cmds)
         assert len(registry.commands_by_kind(CommandKind.SKILL)) == 1
 
@@ -1071,11 +1035,7 @@ class TestUpdateSkillCommands:
     def test_system_commands_preserved(self) -> None:
         gw, registry = self._make_gateway_with_registry()
         system_count_before = len(registry.commands_by_kind(CommandKind.SYSTEM))
-        cmds = (
-            CommandDef(
-                name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"
-            ),
-        )
+        cmds = (CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
         gw.update_skill_commands(cmds)
         system_count_after = len(registry.commands_by_kind(CommandKind.SYSTEM))
         assert system_count_before == system_count_after
@@ -1090,9 +1050,7 @@ class TestUpdateSkillCommands:
                 kind=CommandKind.SKILL,
                 skill_id="s1",
             ),
-            CommandDef(
-                name="stop", description="bad", kind=CommandKind.SKILL, skill_id="s2"
-            ),
+            CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_id="s2"),
             CommandDef(
                 name="another-valid",
                 description="ok",
@@ -1109,9 +1067,5 @@ class TestUpdateSkillCommands:
         from app.channels.core.gateway import ChannelGateway
 
         gw = ChannelGateway()
-        cmds = (
-            CommandDef(
-                name="cmd", description="test", kind=CommandKind.SKILL, skill_id="s1"
-            ),
-        )
+        cmds = (CommandDef(name="cmd", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
         gw.update_skill_commands(cmds)  # should not raise

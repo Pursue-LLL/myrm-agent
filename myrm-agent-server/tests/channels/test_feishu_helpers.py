@@ -619,7 +619,9 @@ class TestFeishuClient:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.is_closed = False
         mock_http.get.side_effect = httpx.HTTPStatusError(
-            "404", request=MagicMock(), response=MagicMock(status_code=404),
+            "404",
+            request=MagicMock(),
+            response=MagicMock(status_code=404),
         )
         client._http = mock_http
 

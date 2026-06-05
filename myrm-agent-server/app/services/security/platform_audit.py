@@ -69,9 +69,7 @@ def _map_auth_events(events: list[dict[str, object]], *, limit: int) -> list[Pla
         ip_raw = event.get("ip")
         ip_address = ip_raw if isinstance(ip_raw, str) else (str(ip_raw) if ip_raw is not None else None)
         meta_raw = event.get("meta")
-        metadata: dict[str, object] = (
-            {str(k): v for k, v in meta_raw.items()} if isinstance(meta_raw, dict) else {}
-        )
+        metadata: dict[str, object] = {str(k): v for k, v in meta_raw.items()} if isinstance(meta_raw, dict) else {}
         mapped.append(
             PlatformAuditEvent(
                 event_type=event_type,
@@ -146,11 +144,7 @@ def _map_cp_event(raw: dict[str, object]) -> PlatformAuditEvent:
         resource=str(raw["resource"]) if raw.get("resource") is not None else None,
         action=str(raw.get("action") or ""),
         result=str(raw.get("result") or ""),
-        metadata=(
-            {str(k): v for k, v in raw["metadata"].items()}
-            if isinstance(raw.get("metadata"), dict)
-            else {}
-        ),
+        metadata=({str(k): v for k, v in raw["metadata"].items()} if isinstance(raw.get("metadata"), dict) else {}),
         ip_address=str(raw["ip_address"]) if raw.get("ip_address") is not None else None,
         trace_id=str(raw["trace_id"]) if raw.get("trace_id") is not None else None,
         request_id=str(raw["request_id"]) if raw.get("request_id") is not None else None,

@@ -87,29 +87,19 @@ async def update_board(board_id: str, body: BoardUpdate) -> BoardResponse:
             raise HTTPException(404, f"Board {board_id} not found")
         settings = BoardSettings(
             max_concurrent_tasks=(
-                body.max_concurrent_tasks
-                if body.max_concurrent_tasks is not None
-                else board.settings.max_concurrent_tasks
+                body.max_concurrent_tasks if body.max_concurrent_tasks is not None else board.settings.max_concurrent_tasks
             ),
             heartbeat_interval_seconds=board.settings.heartbeat_interval_seconds,
             zombie_timeout_seconds=board.settings.zombie_timeout_seconds,
             max_retries_per_task=board.settings.max_retries_per_task,
             auto_block_after_consecutive_failures=board.settings.auto_block_after_consecutive_failures,
             specify_max_tokens=(
-                body.specify_max_tokens
-                if body.specify_max_tokens is not None
-                else board.settings.specify_max_tokens
+                body.specify_max_tokens if body.specify_max_tokens is not None else board.settings.specify_max_tokens
             ),
             auto_specify_on_create=(
-                body.auto_specify_on_create
-                if body.auto_specify_on_create is not None
-                else board.settings.auto_specify_on_create
+                body.auto_specify_on_create if body.auto_specify_on_create is not None else board.settings.auto_specify_on_create
             ),
-            default_workdir=(
-                body.default_workdir
-                if body.default_workdir is not None
-                else board.settings.default_workdir
-            ),
+            default_workdir=(body.default_workdir if body.default_workdir is not None else board.settings.default_workdir),
         )
 
     updated = await svc.update_board(
@@ -179,9 +169,7 @@ async def list_board_events(
     if board is None:
         raise HTTPException(404, f"Board {board_id} not found")
 
-    parsed_kinds = (
-        [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
-    )
+    parsed_kinds = [k.strip() for k in kinds.split(",") if k.strip()] if kinds else None
     parsed_since_time: dt | None = None
     if since_time:
         try:
@@ -201,5 +189,3 @@ async def list_board_events(
         items=[BoardEventResponse(**e) for e in events],
         total=len(events),
     )
-
-

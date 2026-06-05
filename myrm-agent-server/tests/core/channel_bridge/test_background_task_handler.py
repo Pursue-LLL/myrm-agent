@@ -402,7 +402,10 @@ class TestExecuteBackground:
 
         with (
             patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result", new_callable=AsyncMock),
+            patch(
+                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
+                new_callable=AsyncMock,
+            ),
             patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
         ):
             mock_executor = MagicMock()
@@ -439,7 +442,10 @@ class TestExecuteBackground:
 
         with (
             patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result", new_callable=AsyncMock),
+            patch(
+                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
+                new_callable=AsyncMock,
+            ),
             patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
         ):
             mock_executor = MagicMock()
@@ -474,7 +480,10 @@ class TestExecuteBackground:
 
         with (
             patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result", new_callable=AsyncMock),
+            patch(
+                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
+                new_callable=AsyncMock,
+            ),
             patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
         ):
             mock_executor = MagicMock()
@@ -506,7 +515,9 @@ class TestExecuteBackground:
 
         with (
             patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_error", new_callable=AsyncMock),
+            patch(
+                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_error", new_callable=AsyncMock
+            ),
             patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
         ):
             mock_executor = MagicMock()

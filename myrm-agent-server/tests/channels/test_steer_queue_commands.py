@@ -99,9 +99,7 @@ class TestQueueCommandDef:
 class TestHandleSteerCommand:
     """Tests for _handle_steer_command logic."""
 
-    def _make_host(
-        self, active_task: _ActiveTask | None = None
-    ) -> MagicMock:
+    def _make_host(self, active_task: _ActiveTask | None = None) -> MagicMock:
         """Build a minimal RouterCommandsHost mock."""
         host = MagicMock()
         host._bus = MagicMock()
@@ -193,9 +191,7 @@ class TestHandleSteerCommand:
 class TestHandleQueueCommand:
     """Tests for _handle_queue_command logic."""
 
-    def _make_host(
-        self, active_task: _ActiveTask | None = None
-    ) -> MagicMock:
+    def _make_host(self, active_task: _ActiveTask | None = None) -> MagicMock:
         host = MagicMock()
         host._bus = MagicMock()
         host._bus.publish_outbound = AsyncMock()

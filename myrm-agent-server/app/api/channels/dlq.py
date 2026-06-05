@@ -66,9 +66,7 @@ async def get_failed_messages(
 
 
 @router.post("/{msg_id}/retry")
-async def retry_failed_message(
-    msg_id: str, gateway: ChannelGateway = Depends(get_channel_gateway)
-) -> dict[str, str]:
+async def retry_failed_message(msg_id: str, gateway: ChannelGateway = Depends(get_channel_gateway)) -> dict[str, str]:
     """Manually retry a failed message."""
     success = await gateway.bus.retry_dlq_message(msg_id)
     if not success:
@@ -77,9 +75,7 @@ async def retry_failed_message(
 
 
 @router.delete("/{msg_id}")
-async def delete_failed_message(
-    msg_id: str, gateway: ChannelGateway = Depends(get_channel_gateway)
-) -> dict[str, str]:
+async def delete_failed_message(msg_id: str, gateway: ChannelGateway = Depends(get_channel_gateway)) -> dict[str, str]:
     """Delete a failed message from the DLQ."""
     success = await gateway.bus.delete_dlq_message(msg_id)
     if not success:

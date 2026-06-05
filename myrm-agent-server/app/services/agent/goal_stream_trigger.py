@@ -73,8 +73,7 @@ async def trigger_goal_stream(session_id: str, goal: Goal) -> None:
         reranker_config=reranker_cfg,
         security_config_raw=security_config_raw,
         unattended_mode=True,
-        enable_web_search=user_cfgs.search_is_user_configured
-        and await verify_search_service_available(user_cfgs.search_cfg),
+        enable_web_search=user_cfgs.search_is_user_configured and await verify_search_service_available(user_cfgs.search_cfg),
     )
 
     async def _run_stream() -> None:
@@ -84,7 +83,9 @@ async def trigger_goal_stream(session_id: str, goal: Goal) -> None:
         except Exception as e:
             logger.error(
                 "Background goal stream failed for goal %s: %s",
-                goal.goal_id, e, exc_info=True,
+                goal.goal_id,
+                e,
+                exc_info=True,
             )
         finally:
             _running_goal_tasks.discard(task)

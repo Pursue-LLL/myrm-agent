@@ -37,14 +37,17 @@ def local_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("DEPLOY_MODE", "local")
     original_lifespan = app.router.lifespan_context
     app.router.lifespan_context = _noop_lifespan
-    with patch(
-        "app.core.security.auth.identity.is_loopback_ip",
-        return_value=True,
-    ), TestClient(
-        app,
-        base_url="http://127.0.0.1",
-        raise_server_exceptions=False,
-    ) as client:
+    with (
+        patch(
+            "app.core.security.auth.identity.is_loopback_ip",
+            return_value=True,
+        ),
+        TestClient(
+            app,
+            base_url="http://127.0.0.1",
+            raise_server_exceptions=False,
+        ) as client,
+    ):
         yield client
     app.router.lifespan_context = original_lifespan
 

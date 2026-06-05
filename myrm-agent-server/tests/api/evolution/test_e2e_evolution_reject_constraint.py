@@ -37,9 +37,7 @@ async def test_confidence_approval_flow_reject_creates_constraint():
     assert result.requires_manual_review
 
     async with get_session() as db:
-        result_db = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        result_db = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         approval = result_db.scalars().first()
     assert approval is not None
 

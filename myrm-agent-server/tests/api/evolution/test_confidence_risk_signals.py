@@ -79,27 +79,21 @@ class TestEvaluateRiskSignals:
     def test_low_effective_rate_triggers_signal(self) -> None:
         proposal = _make_proposal()
         skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(
-            total_selections=10, applied_count=5, completed_count=5, success_count=1
-        )
+        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=1)
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
         assert any("low_effective_rate" in s for s in signals)
 
     def test_high_effective_rate_no_signal(self) -> None:
         proposal = _make_proposal()
         skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(
-            total_selections=10, applied_count=5, completed_count=5, success_count=4
-        )
+        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=4)
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
         assert not any("low_effective_rate" in s for s in signals)
 
     def test_insufficient_data_skips_rate_signal(self) -> None:
         proposal = _make_proposal()
         skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(
-            total_selections=2, applied_count=2, completed_count=2, success_count=0
-        )
+        skill_record.metrics = SkillMetrics(total_selections=2, applied_count=2, completed_count=2, success_count=0)
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
         assert not any("low_effective_rate" in s for s in signals)
 
@@ -111,9 +105,7 @@ class TestEvaluateRiskSignals:
     def test_combined_signals(self) -> None:
         proposal = _make_proposal(original="short", proposed="very long " * 100)
         skill_record = MagicMock()
-        skill_record.metrics = SkillMetrics(
-            total_selections=10, applied_count=5, completed_count=5, success_count=1
-        )
+        skill_record.metrics = SkillMetrics(total_selections=10, applied_count=5, completed_count=5, success_count=1)
         signals = ConfidenceApprovalFlow._evaluate_risk_signals(proposal, skill_record)
         assert any("diff_range" in s for s in signals)
         assert any("low_effective_rate" in s for s in signals)
@@ -181,9 +173,7 @@ async def test_test_passed_reflects_score() -> None:
     async def _review_for_skill(skill_id: str) -> tuple[ApprovalRecord, object]:
         async with get_session() as db:
             result = await db.execute(
-                select(ApprovalRecord)
-                .where(ApprovalRecord.action_type == "evolution")
-                .order_by(ApprovalRecord.created_at.desc())
+                select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution").order_by(ApprovalRecord.created_at.desc())
             )
             for record in result.scalars().all():
                 review = approval_to_evolution_review_record(record)
@@ -191,9 +181,7 @@ async def test_test_passed_reflects_score() -> None:
                     return record, review
         raise AssertionError(f"No evolution review for skill_id={skill_id}")
 
-    zero_proposal = _make_proposal(
-        skill_id="test_skill_zero_score", score=0.0, is_general=False
-    )
+    zero_proposal = _make_proposal(skill_id="test_skill_zero_score", score=0.0, is_general=False)
     flow = ConfidenceApprovalFlow()
     await flow.process_evolution(zero_proposal)
 
@@ -203,9 +191,7 @@ async def test_test_passed_reflects_score() -> None:
         await db.delete(record)
         await db.commit()
 
-    positive_proposal = _make_proposal(
-        skill_id="test_skill_positive_score", score=0.5, is_general=False
-    )
+    positive_proposal = _make_proposal(skill_id="test_skill_positive_score", score=0.5, is_general=False)
     await flow.process_evolution(positive_proposal)
 
     record, review = await _review_for_skill("test_skill_positive_score")

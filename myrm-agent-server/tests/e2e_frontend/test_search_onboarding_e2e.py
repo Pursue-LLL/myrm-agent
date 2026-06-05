@@ -542,9 +542,10 @@ async def test_fast_search_guard_without_config(page: Page, context: BrowserCont
             break
     assert clicked_fast, "Fast search mode radio not found on chat page"
     await page.wait_for_timeout(1200)
-    assert await page.get_by_text("搜索服务未配置").count() > 0 or await page.get_by_text(
-        "Search service not configured"
-    ).count() > 0
+    assert (
+        await page.get_by_text("搜索服务未配置").count() > 0
+        or await page.get_by_text("Search service not configured").count() > 0
+    )
     await _install_backend_route(context, None)
     print("  OK")
 

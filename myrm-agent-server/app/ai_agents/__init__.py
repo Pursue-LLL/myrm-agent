@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     )
     from .general_agent import GeneralAgent
 
+
 def __getattr__(name: str) -> object:
     if name in (
         "AgentFactory",

@@ -101,9 +101,7 @@ _ALL_FEATURES: list[FeatureSpec] = [
         description="Enable automatic skill quality optimization via shadow testing",
         experimental_info=ExperimentalInfo(
             name="Skill Optimization",
-            description=(
-                "Automatically test and optimize skill quality through A/B shadow testing. May increase token usage."
-            ),
+            description=("Automatically test and optimize skill quality through A/B shadow testing. May increase token usage."),
             announcement="NEW: Skill Optimization is now available as an experimental feature.",
         ),
     ),

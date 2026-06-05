@@ -22,16 +22,12 @@ class FissionTaskRecord(Base):
     __tablename__ = "fission_task_records"
 
     fission_id: Mapped[str] = mapped_column(String(255), primary_key=True)
-    
+
     chat_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     agent_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    
+
     nodes: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

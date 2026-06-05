@@ -53,9 +53,7 @@ async def verify_search_engine(request: SearchEngineVerifyRequest) -> JSONRespon
             if not request.api_base:
                 raise validation_error("api_base is required when using searxng service")
         elif not request.api_key:
-            raise validation_error(
-                f"API key is required when using {search_service_value} service"
-            )
+            raise validation_error(f"API key is required when using {search_service_value} service")
 
         api_base = request.api_base
 

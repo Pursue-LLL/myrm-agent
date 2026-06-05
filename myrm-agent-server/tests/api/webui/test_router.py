@@ -21,14 +21,14 @@ async def test_get_qrcode_image_endpoint_with_url(client: httpx.AsyncClient) -> 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert response.headers["content-disposition"] == "inline; filename=webui-qrcode.png"
-    assert response.content.startswith(b'\x89PNG\r\n\x1a\n')
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 async def test_get_qrcode_image_endpoint_with_host_port(client: httpx.AsyncClient) -> None:
     response = await client.get("/webui/qrcode.png?host=192.168.1.100&port=3000")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
-    assert response.content.startswith(b'\x89PNG\r\n\x1a\n')
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 async def test_browser_snapshot_no_active_session(client: httpx.AsyncClient) -> None:

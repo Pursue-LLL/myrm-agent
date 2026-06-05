@@ -17,9 +17,7 @@ def run_test():
 
             print("2. Wait for loading to finish...")
             try:
-                page.wait_for_selector(
-                    "input[placeholder='https://...']", timeout=30000
-                )
+                page.wait_for_selector("input[placeholder='https://...']", timeout=30000)
             except Exception as e:
                 print("Could not find input. Printing page content:")
                 print(page.content())
@@ -29,9 +27,7 @@ def run_test():
             page.on(
                 "response",
                 lambda response: (
-                    print(f"<< {response.status} {response.url}")
-                    if "api/v1/system/ingress-url" in response.url
-                    else None
+                    print(f"<< {response.status} {response.url}") if "api/v1/system/ingress-url" in response.url else None
                 ),
             )
 
@@ -64,9 +60,7 @@ def run_test():
 
             page.goto("http://localhost:3000/settings/channels", timeout=15000)
 
-            print(
-                "6. Wait for loading to finish and SMS config card to fetch ingress URL..."
-            )
+            print("6. Wait for loading to finish and SMS config card to fetch ingress URL...")
             page.wait_for_timeout(3000)
 
             print("7. Looking for SMS Webhook URL in input values...")
@@ -78,9 +72,7 @@ def run_test():
                     print(f"Input {i} value: '{val}'")
                     if test_url in val:
                         found = True
-                        print(
-                            f"SUCCESS: Found test URL '{test_url}' in input value: {val}"
-                        )
+                        print(f"SUCCESS: Found test URL '{test_url}' in input value: {val}")
                         break
                 except Exception as e:
                     print(f"Input {i} error: {e}")
@@ -90,9 +82,7 @@ def run_test():
                 print("FAIL: Could not find test URL in any input!")
                 raise AssertionError(f"Test URL '{test_url}' not found in any input value!")
 
-            print(
-                "SUCCESS: UI correctly updates dependent URLs based on Public Ingress Input!"
-            )
+            print("SUCCESS: UI correctly updates dependent URLs based on Public Ingress Input!")
 
         except Exception as e:
             print(f"Test failed: {e}")

@@ -227,9 +227,7 @@ def perform_fast_search(
     tool_call_count = 0
     has_sources = False
 
-    with client.stream(
-        "POST", "/api/v1/agents/agent-stream", json=search_request
-    ) as response:
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as response:
         if response.status_code != 200:
             response.read()
             error_content = response.text
@@ -286,9 +284,9 @@ class TestFastSearchAgent:
         has_message_end = any(d.get("type") == "message_end" for d in collected_data)
         has_message_chunks = any(d.get("type") == "message" for d in collected_data)
 
-        assert (
-            has_message_end or has_message_chunks or tool_call_count > 0
-        ), "Should have message_end event, message chunks, or tool calls"
+        assert has_message_end or has_message_chunks or tool_call_count > 0, (
+            "Should have message_end event, message chunks, or tool calls"
+        )
 
     def test_fast_search_deep_mode(self, client: TestClient):
         query = "Python 3.13 有哪些新特性"
@@ -304,9 +302,9 @@ class TestFastSearchAgent:
         has_message_end = any(d.get("type") == "message_end" for d in collected_data)
         has_message_chunks = any(d.get("type") == "message" for d in collected_data)
 
-        assert (
-            has_message_end or has_message_chunks or tool_call_count > 0
-        ), "Should have message_end event, message chunks, or tool calls"
+        assert has_message_end or has_message_chunks or tool_call_count > 0, (
+            "Should have message_end event, message chunks, or tool calls"
+        )
 
     def test_fast_search_agent_flow_learning_loop(self, client: TestClient):
         """
@@ -318,11 +316,10 @@ class TestFastSearchAgent:
         full_answer, collected_data, tool_call_count, has_sources = perform_fast_search(
             client, query, user_instructions="请简要回答", search_depth="normal"
         )
-        
+
         assert len(collected_data) > 0, "Should have events"
         check_e2e_errors(collected_data)
-        
+
         # 只要正常跑通且没有报错即说明主流程（包括 stream_executor 发送 hook 的能力）没被阻塞
         # 对于后台提取的具体断言，可以查看 EventLog 的记录或者只是简单通过，这保证了代码整合没有语法/运行时崩溃
         assert len(collected_data) > 0
-

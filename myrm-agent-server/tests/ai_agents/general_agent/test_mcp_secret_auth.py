@@ -55,9 +55,7 @@ class TestGetAuthHeaders:
 
     @pytest.mark.asyncio
     async def test_plain_header_passthrough(self, mock_secret_store: AsyncMock) -> None:
-        provider = _make_provider(
-            {"X-Custom": "static-value"}, mock_secret_store
-        )
+        provider = _make_provider({"X-Custom": "static-value"}, mock_secret_store)
         result = await provider.get_auth_headers("srv", "http://example.com")
         assert result == {"X-Custom": "static-value"}
         mock_secret_store.get_secret.assert_not_called()
@@ -75,9 +73,7 @@ class TestGetAuthHeaders:
         mock_secret_store.get_secret.assert_awaited_once_with("agent-42", "OPENAI_KEY")
 
     @pytest.mark.asyncio
-    async def test_missing_secret_keeps_placeholder(
-        self, mock_secret_store: AsyncMock
-    ) -> None:
+    async def test_missing_secret_keeps_placeholder(self, mock_secret_store: AsyncMock) -> None:
         mock_secret_store.get_secret.return_value = None
         provider = _make_provider(
             {"Authorization": "Bearer {{secret:MISSING}}"},
@@ -87,9 +83,7 @@ class TestGetAuthHeaders:
         assert result == {"Authorization": "Bearer {{secret:MISSING}}"}
 
     @pytest.mark.asyncio
-    async def test_multiple_secrets_in_one_value(
-        self, mock_secret_store: AsyncMock
-    ) -> None:
+    async def test_multiple_secrets_in_one_value(self, mock_secret_store: AsyncMock) -> None:
         async def side_effect(agent_id: str, key: str) -> str | None:
             return {"USER": "admin", "PASS": "s3cret"}.get(key)
 
@@ -102,9 +96,7 @@ class TestGetAuthHeaders:
         assert result == {"X-Auth": "admin:s3cret"}
 
     @pytest.mark.asyncio
-    async def test_mixed_plain_and_secret_headers(
-        self, mock_secret_store: AsyncMock
-    ) -> None:
+    async def test_mixed_plain_and_secret_headers(self, mock_secret_store: AsyncMock) -> None:
         mock_secret_store.get_secret.return_value = "token-xyz"
         provider = _make_provider(
             {

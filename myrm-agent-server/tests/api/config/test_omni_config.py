@@ -75,7 +75,7 @@ async def test_set_config_with_validation():
             "fetchRawWebpage": True,
             "enableMemory": False,
         },
-        "device_id": "test_device"
+        "device_id": "test_device",
     }
     response = client.put("/api/v1/config/personalSettings", json=payload)
     assert response.status_code == 200
@@ -90,7 +90,7 @@ async def test_set_config_with_validation():
         "value": {
             "fetchRawWebpage": "not_a_boolean",
         },
-        "device_id": "test_device"
+        "device_id": "test_device",
     }
     response = client.put("/api/v1/config/personalSettings", json=invalid_payload)
     assert response.status_code == 422
@@ -148,7 +148,7 @@ async def test_sync_config_uses_omni_validation_without_500():
                 },
                 "expectedVersion": None,
                 "timestamp": 3,
-            }
+            },
         ],
         "deviceId": "test_device",
     }
@@ -171,7 +171,7 @@ async def test_config_history_and_rollback():
             "fetchRawWebpage": True,
             "systemInstructions": "v1",
         },
-        "device_id": "device1"
+        "device_id": "device1",
     }
     res1 = client.put("/api/v1/config/personalSettings", json=payload1)
     assert res1.status_code == 200
@@ -183,7 +183,7 @@ async def test_config_history_and_rollback():
             "fetchRawWebpage": False,
             "systemInstructions": "v2",
         },
-        "device_id": "device1"
+        "device_id": "device1",
     }
     res2 = client.put("/api/v1/config/personalSettings", json=payload2)
     assert res2.status_code == 200
@@ -194,7 +194,7 @@ async def test_config_history_and_rollback():
     assert history_res.status_code == 200
     history = history_res.json()
     assert len(history) >= 2
-    
+
     # History is ordered by created_at desc
     assert history[0]["version"] == version2
     assert history[0]["new_value"]["systemInstructions"] == "v2"
@@ -207,7 +207,7 @@ async def test_config_history_and_rollback():
     rollback_data = rollback_res.json()
     assert rollback_data["value"]["systemInstructions"] == "v1"
     assert rollback_data["value"]["fetchRawWebpage"] is True
-    
+
     # Rollback should create a new version
     assert rollback_data["version"] != version1
     assert rollback_data["version"] != version2

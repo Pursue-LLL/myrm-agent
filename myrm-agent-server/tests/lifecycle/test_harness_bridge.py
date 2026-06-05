@@ -24,13 +24,17 @@ from app.lifecycle.harness_bridge import (
 async def test_subagent_event_throttle():
     """Test that multiple subagent events within the window are throttled."""
     session_id = "test_session_throttle"
-    
+
     _pending_subagent_events.pop(session_id, None)
 
-    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus, \
-         patch("app.lifecycle.harness_bridge.get_agent_gateway"), \
-         patch("myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints", new_callable=AsyncMock) as mock_list_checkpoints:
-        
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway"),
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
         mock_bus = MagicMock()
         mock_get_bus.return_value = mock_bus
         mock_list_checkpoints.return_value = []
@@ -119,11 +123,15 @@ async def test_policy_denial_event_publishes_synthetic_node():
 async def test_emit_subagent_tree_with_checkpoints():
     """Test emit_subagent_tree merges active and checkpointed subagents."""
     session_id = "test_session_emit"
-    
-    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus, \
-         patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway, \
-         patch("myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints", new_callable=AsyncMock) as mock_list_checkpoints:
-        
+
+    with (
+        patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus,
+        patch("app.lifecycle.harness_bridge.get_agent_gateway") as mock_get_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.checkpoint.saver.SubagentCheckpointStorage.list_checkpoints",
+            new_callable=AsyncMock,
+        ) as mock_list_checkpoints,
+    ):
         mock_bus = MagicMock()
         mock_get_bus.return_value = mock_bus
 
@@ -134,15 +142,13 @@ async def test_emit_subagent_tree_with_checkpoints():
             last_tool = "test"
 
         mock_list_checkpoints.return_value = [DummyCheckpoint()]
-        
+
         # Mock active agent with children
         mock_agent_instance = MagicMock()
-        mock_agent_instance.subagent_manager.list_children.return_value = [
-            {"task_id": "t2", "status": "running"}
-        ]
+        mock_agent_instance.subagent_manager.list_children.return_value = [{"task_id": "t2", "status": "running"}]
         mock_info = MagicMock()
         mock_info.agent.return_value = mock_agent_instance
-        
+
         mock_gateway = MagicMock()
         mock_gateway._session_info.get.return_value = mock_info
         mock_get_gateway.return_value = mock_gateway
@@ -152,10 +158,10 @@ async def test_emit_subagent_tree_with_checkpoints():
         mock_bus.publish.assert_called_once()
         args, kwargs = mock_bus.publish.call_args
         published_event = args[0]
-        
+
         assert published_event.event_type.value == "subagents_updated"
         tree = published_event.data["tree"]
-        
+
         task_ids = [node["task_id"] for node in tree]
         assert "t2" in task_ids  # from active
         assert "t1" in task_ids  # from checkpoint
@@ -166,10 +172,10 @@ async def test_emit_subagent_tree_exception_handling():
     """Test exception in emit is caught and timer cleaned up."""
     session_id = "test_session_exception"
     _pending_subagent_events[session_id] = "dummy_timer"
-    
+
     with patch("app.lifecycle.harness_bridge.get_agent_gateway", side_effect=Exception("Test error")):
         await _emit_subagent_tree(session_id)
-        
+
     assert session_id not in _pending_subagent_events
 
 
@@ -177,13 +183,13 @@ async def test_emit_subagent_tree_exception_handling():
 async def test_handle_resource_event():
     """Test resource metrics event handling."""
     event = ResourceMetricsEvent(metrics={}, history=[{"cpu": 10}])
-    
+
     with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
         mock_bus = MagicMock()
         mock_get_bus.return_value = mock_bus
-        
+
         await _handle_resource_event(event)
-        
+
         mock_bus.publish.assert_called_once()
 
 
@@ -191,7 +197,7 @@ async def test_handle_resource_event():
 async def test_handle_resource_event_exception():
     """Test resource metrics exception handling."""
     event = ResourceMetricsEvent(metrics={}, history=[{"cpu": 10}])
-    
+
     with patch("app.lifecycle.harness_bridge.get_server_bus", side_effect=Exception("Test Error")):
         await _handle_resource_event(event)
 
@@ -202,7 +208,7 @@ async def test_setup_stop_harness_bridge():
         mock_bus = MagicMock()
         mock_bus.stop = AsyncMock()
         mock_get_bus.return_value = mock_bus
-        
+
         setup_harness_bridge()
         mock_bus.start.assert_called_once()
         assert [call.args[0] for call in mock_bus.subscribe.call_args_list] == [
@@ -210,6 +216,6 @@ async def test_setup_stop_harness_bridge():
             ResourceMetricsEvent,
             SkillFailureEvent,
         ]
-        
+
         await stop_harness_bridge()
         mock_bus.stop.assert_called_once()

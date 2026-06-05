@@ -107,10 +107,7 @@ class TestWorkspaceBoundaryApprovalE2E:
         check_e2e_errors(collected_data)
 
         file_write_started = [
-            d
-            for d in collected_data
-            if d.get("type") == "tool_start"
-            and "file_write" in str(d.get("tool_name", ""))
+            d for d in collected_data if d.get("type") == "tool_start" and "file_write" in str(d.get("tool_name", ""))
         ]
         if not file_write_started:
             pytest.skip(
@@ -135,6 +132,4 @@ class TestWorkspaceBoundaryApprovalE2E:
         assert "file_write" in action_name, f"Expected file_write action, got: {action_name}"
 
         reason = action_requests[0].get("description", "")
-        assert (
-            "Path outside allowed zones" in reason or "requires approval" in reason
-        ), f"Unexpected reason: {reason}"
+        assert "Path outside allowed zones" in reason or "requires approval" in reason, f"Unexpected reason: {reason}"

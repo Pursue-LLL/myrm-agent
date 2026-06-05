@@ -96,14 +96,9 @@ async def get_memory_graph(
     rels_raw = await graph.list_relationships(limit=min(max(limit, 1), 200), offset=max(offset, 0))
     stats_raw = await graph.get_stats()
 
-    nodes = [
-        MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties)
-        for n in nodes_raw
-    ]
+    nodes = [MemoryCommandGraphNode(id=n.id, labels=n.labels, properties=n.properties) for n in nodes_raw]
     edges = [
-        MemoryCommandGraphEdge(
-            id=r.id, source=r.start_id, target=r.end_id, rel_type=r.rel_type, properties=r.properties
-        )
+        MemoryCommandGraphEdge(id=r.id, source=r.start_id, target=r.end_id, rel_type=r.rel_type, properties=r.properties)
         for r in rels_raw
     ]
     stats = MemoryCommandGraphStats(

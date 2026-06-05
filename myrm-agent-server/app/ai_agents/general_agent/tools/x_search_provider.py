@@ -49,9 +49,7 @@ class XSearchProviderConfig(BaseModel):
 
 def _resolve_xai_credentials(config: XSearchProviderConfig) -> XSearchProviderConfig:
     """Use explicit config only (credentials come from WebUI providers)."""
-    return config.model_copy(
-        update={"base_url": config.base_url.rstrip("/") or _DEFAULT_XAI_BASE_URL}
-    )
+    return config.model_copy(update={"base_url": config.base_url.rstrip("/") or _DEFAULT_XAI_BASE_URL})
 
 
 def _normalize_handles(handles: list[str] | None) -> list[str]:
@@ -229,12 +227,14 @@ class XSearchProvider:
                 for annotation in content.get("annotations", []) or []:
                     if annotation.get("type") != "url_citation":
                         continue
-                    citations.append({
-                        "url": annotation.get("url", ""),
-                        "title": annotation.get("title", ""),
-                        "start_index": annotation.get("start_index"),
-                        "end_index": annotation.get("end_index"),
-                    })
+                    citations.append(
+                        {
+                            "url": annotation.get("url", ""),
+                            "title": annotation.get("title", ""),
+                            "start_index": annotation.get("start_index"),
+                            "end_index": annotation.get("end_index"),
+                        }
+                    )
         return citations
 
 
@@ -305,20 +305,14 @@ def create_x_search_tool(config: XSearchProviderConfig | None = None):
         # Format citations for display
         citations_text = ""
         if result.citations:
-            citations_text = "\n\nSources:\n" + "\n".join(
-                f"- [{c.title or c.url}]({c.url})"
-                for c in result.citations
-            )
+            citations_text = "\n\nSources:\n" + "\n".join(f"- [{c.title or c.url}]({c.url})" for c in result.citations)
 
         return {
             "content": result.snippet + citations_text,
             "metadata": {
                 "query": query,
                 "source": "x_search",
-                "citations": [
-                    {"url": c.url, "title": c.title}
-                    for c in result.citations
-                ],
+                "citations": [{"url": c.url, "title": c.title} for c in result.citations],
                 "total_citations": len(result.citations),
             },
         }

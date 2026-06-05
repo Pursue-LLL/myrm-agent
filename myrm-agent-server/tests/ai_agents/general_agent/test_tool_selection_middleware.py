@@ -63,6 +63,7 @@ class TestResetAnswerToolConvergence:
         from app.ai_agents.general_agent.agent_middlewares.tool_selection_middleware import (
             _answer_consecutive_count,
         )
+
         _answer_consecutive_count.set(5)
         reset_answer_tool_convergence()
         assert _answer_consecutive_count.get() == 0

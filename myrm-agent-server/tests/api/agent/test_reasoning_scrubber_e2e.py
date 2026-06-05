@@ -36,9 +36,7 @@ class TestReasoningScrubberE2E:
         reasoning_chunks: list[str] = []
         message_chunks: list[str] = []
 
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=request_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
             assert response.status_code == 200
 
             for line in response.iter_lines():
@@ -95,9 +93,7 @@ class TestReasoningScrubberE2E:
         }
 
         collected1: list[dict] = []
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=req1
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req1) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
@@ -110,9 +106,7 @@ class TestReasoningScrubberE2E:
                     pass
 
         check_e2e_errors(collected1)
-        msg1 = "".join(
-            d.get("data", "") for d in collected1 if d.get("type") == "message"
-        )
+        msg1 = "".join(d.get("data", "") for d in collected1 if d.get("type") == "message")
         assert msg1, "Turn 1 must produce output"
 
         req2 = {
@@ -123,9 +117,7 @@ class TestReasoningScrubberE2E:
         }
 
         collected2: list[dict] = []
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=req2
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req2) as response:
             assert response.status_code == 200
             for line in response.iter_lines():
                 if not line or not line.startswith("data: "):
@@ -138,14 +130,10 @@ class TestReasoningScrubberE2E:
                     pass
 
         check_e2e_errors(collected2)
-        msg2 = "".join(
-            d.get("data", "") for d in collected2 if d.get("type") == "message"
-        )
+        msg2 = "".join(d.get("data", "") for d in collected2 if d.get("type") == "message")
         assert msg2, "Turn 2 must produce output (no 400 from missing reasoning_content)"
 
         errors2 = [d for d in collected2 if d.get("type") == "error"]
         for err in errors2:
             err_text = str(err.get("error", "") or err.get("data", ""))
-            assert "reasoning_content" not in err_text.lower(), (
-                f"reasoning_content error in turn 2: {err_text}"
-            )
+            assert "reasoning_content" not in err_text.lower(), f"reasoning_content error in turn 2: {err_text}"

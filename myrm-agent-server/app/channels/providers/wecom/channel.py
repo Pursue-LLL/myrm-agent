@@ -375,9 +375,7 @@ class WeComChannel(BaseChannel):
                 return None
             media_id = body.get("media_id")
             if not media_id:
-                logger.debug(
-                    "WeCom media upload failed: errcode=%s, errmsg=%s", body.get("errcode"), body.get("errmsg")
-                )
+                logger.debug("WeCom media upload failed: errcode=%s, errmsg=%s", body.get("errcode"), body.get("errmsg"))
                 return None
             return str(media_id)
         except Exception as exc:

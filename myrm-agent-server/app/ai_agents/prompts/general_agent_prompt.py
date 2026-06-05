@@ -39,7 +39,7 @@ from app.ai_agents.prompts.fast_search_agent_prompt import (  # noqa: E402
 )
 
 _SEARCH_PROMPT_BASE: str = _build_search_prompt(search_depth="normal")
-SEARCH_DEEP_SUFFIX: str = _build_search_prompt(search_depth="deep")[len(_SEARCH_PROMPT_BASE):]
+SEARCH_DEEP_SUFFIX: str = _build_search_prompt(search_depth="deep")[len(_SEARCH_PROMPT_BASE) :]
 
 # =============================================================================
 # Layer 1: 核心系统提示词（永远不变）
@@ -83,10 +83,12 @@ _RULESET_WITHOUT_ANSWER_TOOL = """
 </ruleset>
 """
 
+
 def _build_identity_and_rules(enable_answer_tool: bool) -> str:
     suffix = _IDENTITY_SUFFIX_WITH_ANSWER_TOOL if enable_answer_tool else _IDENTITY_SUFFIX_WITHOUT_ANSWER_TOOL
     ruleset = _RULESET_WITH_ANSWER_TOOL if enable_answer_tool else _RULESET_WITHOUT_ANSWER_TOOL
     return f"{_IDENTITY_CORE}{suffix}{ruleset}"
+
 
 _IDENTITY_AND_RULES = _build_identity_and_rules(enable_answer_tool=True)
 _IDENTITY_AND_RULES_NO_ANSWER = _build_identity_and_rules(enable_answer_tool=False)
@@ -98,8 +100,11 @@ Do NOT output tool calls as XML tags in your response text.
 </tool_guidance>
 """
 
+
 def _build_prompt_map(
-    identity: str, *, include_memory_rules: bool = True,
+    identity: str,
+    *,
+    include_memory_rules: bool = True,
 ) -> dict[PromptMode, str]:
     full_parts = [identity, ABSOLUTE_OBEDIENCE_RULES, RESPONSE_RULES, SECURITY_RULES, TASK_INTEGRITY_RULES]
     if include_memory_rules:
@@ -111,6 +116,7 @@ def _build_prompt_map(
         "naked": f"{SECURITY_RULES}\n{_NAKED_TOOL_GUIDANCE}",
         "search": _SEARCH_PROMPT_BASE,
     }
+
 
 # 预构建 4 个静态 Map（enable_answer_tool × enable_memory），
 # 每个组合跨用户始终返回同一字符串对象以保证 KV Cache 稳定。

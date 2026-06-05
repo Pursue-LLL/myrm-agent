@@ -193,8 +193,7 @@ def _approval_case(record: ApprovalRecord) -> SkillGrowthCaseRead:
         trigger_condition=_text(payload.get("trigger_condition")),
         skill_steps=_text(payload.get("skill_steps")),
         original_content=None,
-        proposed_content=_text(payload.get("patch_content"))
-        or _text(payload.get("content")),
+        proposed_content=_text(payload.get("patch_content")) or _text(payload.get("content")),
         confidence=_float_value(payload.get("confidence")),
         test_passed=_bool_value(payload.get("test_passed")),
         apply_status=None,
@@ -366,9 +365,7 @@ async def list_skill_growth_audit_entries(
     async with get_session() as db:
         stmt = (
             select(ExperienceLedgerEvent)
-            .where(
-                ExperienceLedgerEvent.event_type.in_(SKILL_GROWTH_NEGATIVE_EVENT_TYPES)
-            )
+            .where(ExperienceLedgerEvent.event_type.in_(SKILL_GROWTH_NEGATIVE_EVENT_TYPES))
             .where(
                 ExperienceLedgerEvent.entity_type.in_(
                     (
@@ -404,9 +401,7 @@ async def list_skill_growth_audit_entries(
                 skill_id=event_skill_id,
                 growth_type=_event_growth_type(event),
                 reason=_text(detail.get("reject_reason")) or event.summary,
-                confidence=_float_value(
-                    _payload_dict(event.metrics_snapshot).get("confidence")
-                ),
+                confidence=_float_value(_payload_dict(event.metrics_snapshot).get("confidence")),
                 severity=_text(detail.get("severity")),
                 reason_code=_text(detail.get("reason_code")),
                 remediation=_text(detail.get("remediation")),
@@ -432,12 +427,8 @@ async def summarize_skill_growth_audit(
             time_range_days=time_range_days,
         )
 
-    confidence_values = [
-        item.confidence for item in items if item.confidence is not None
-    ]
-    avg_confidence = (
-        sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
-    )
+    confidence_values = [item.confidence for item in items if item.confidence is not None]
+    avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else 0.0
 
     status_counts = Counter(item.status.value for item in items)
     top_skills_counter = Counter((item.skill_name, item.skill_id) for item in items)

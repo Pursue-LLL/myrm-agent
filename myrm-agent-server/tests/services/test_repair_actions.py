@@ -87,9 +87,7 @@ async def test_build_vectordb_warn() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_fail_from_server_reports() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed msgs"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -97,9 +95,7 @@ async def test_build_dlq_fail_from_server_reports() -> None:
 
 @pytest.mark.asyncio
 async def test_build_dlq_pass_ignored() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "pass", "message": "0 failed"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "pass", "message": "0 failed"}]
     actions = await build_repair_actions([], server_reports)
     dlq_actions = [a for a in actions if a.action_id == RepairActionId.REVIEW_CHANNEL_DLQ]
     assert len(dlq_actions) == 0
@@ -153,6 +149,7 @@ async def test_execute_review_runtime_dependency_not_executable() -> None:
 
 # ---------- SystemResources / AgentEngine fail/warn ----------
 
+
 @pytest.mark.asyncio
 async def test_build_system_resources_warn() -> None:
     reports = [_report("SystemResources", "warn", "Memory usage 92%")]
@@ -173,11 +170,10 @@ async def test_build_agent_engine_fail() -> None:
 
 # ---------- DLQ warn also triggers action ----------
 
+
 @pytest.mark.asyncio
 async def test_build_dlq_warn_triggers_action() -> None:
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "warn", "message": "DLQ growing"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -185,15 +181,14 @@ async def test_build_dlq_warn_triggers_action() -> None:
 
 # ---------- Combined harness + server reports ----------
 
+
 @pytest.mark.asyncio
 async def test_build_combined_harness_and_server() -> None:
     harness = [
         _report("Network", "fail", "DNS fail"),
         _report("Database", "warn", "WAL large"),
     ]
-    server: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail", "message": "500 failed"}
-    ]
+    server: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail", "message": "500 failed"}]
     actions = await build_repair_actions(harness, server)
     action_ids = {a.action_id for a in actions}
     assert RepairActionId.REVIEW_RUNTIME_DEPENDENCY in action_ids
@@ -203,6 +198,7 @@ async def test_build_combined_harness_and_server() -> None:
 
 
 # ---------- Browser orphan action ----------
+
 
 @pytest.mark.asyncio
 async def test_browser_orphan_action_no_orphans_returns_none() -> None:
@@ -236,6 +232,7 @@ async def test_browser_orphan_import_failure() -> None:
 
 # ---------- execute_repair_action for CLEANUP_BROWSER_ORPHANS ----------
 
+
 @pytest.mark.asyncio
 async def test_execute_cleanup_browser_no_orphans() -> None:
     from unittest.mock import patch
@@ -254,7 +251,10 @@ async def test_execute_cleanup_browser_dry_run() -> None:
     from unittest.mock import patch
 
     with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 111}]):
-        with patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes", return_value={"killed": 0, "message": "dry run", "dry_run": True, "failed": []}) as mock_cleanup:
+        with patch(
+            "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
+            return_value={"killed": 0, "message": "dry run", "dry_run": True, "failed": []},
+        ) as mock_cleanup:
             result = await execute_repair_action(
                 RepairActionId.CLEANUP_BROWSER_ORPHANS,
                 RepairActionExecuteRequest(dry_run=True, confirm=False),
@@ -283,7 +283,10 @@ async def test_execute_cleanup_browser_confirmed() -> None:
     from unittest.mock import patch
 
     with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 333}]):
-        with patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes", return_value={"killed": 1, "message": "killed 1", "failed": []}) as mock_cleanup:
+        with patch(
+            "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
+            return_value={"killed": 1, "message": "killed 1", "failed": []},
+        ) as mock_cleanup:
             result = await execute_repair_action(
                 RepairActionId.CLEANUP_BROWSER_ORPHANS,
                 RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -295,6 +298,7 @@ async def test_execute_cleanup_browser_confirmed() -> None:
 
 
 # ---------- RepairAction model fields ----------
+
 
 @pytest.mark.asyncio
 async def test_repair_action_fields_completeness() -> None:
@@ -316,6 +320,7 @@ async def test_repair_action_fields_completeness() -> None:
 
 # ---------- execute edge cases ----------
 
+
 @pytest.mark.asyncio
 async def test_execute_cleanup_browser_orphan_missing_pid_key() -> None:
     """Orphans without a 'pid' key are filtered out by the list comprehension."""
@@ -336,7 +341,10 @@ async def test_execute_cleanup_browser_confirmed_killed_zero() -> None:
     from unittest.mock import patch
 
     with patch("myrm_agent_harness.toolkits.browser.find_orphan_chromium_processes", return_value=[{"pid": 444}]):
-        with patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes", return_value={"killed": 0, "message": "process already dead", "failed": [444]}):
+        with patch(
+            "myrm_agent_harness.toolkits.browser.cleanup_orphan_processes",
+            return_value={"killed": 0, "message": "process already dead", "failed": [444]},
+        ):
             result = await execute_repair_action(
                 RepairActionId.CLEANUP_BROWSER_ORPHANS,
                 RepairActionExecuteRequest(dry_run=False, confirm=True),
@@ -349,6 +357,7 @@ async def test_execute_cleanup_browser_confirmed_killed_zero() -> None:
 
 # ---------- RepairActionExecuteRequest default values ----------
 
+
 @pytest.mark.asyncio
 async def test_execute_request_default_values() -> None:
     """RepairActionExecuteRequest defaults: dry_run=True, confirm=False."""
@@ -358,6 +367,7 @@ async def test_execute_request_default_values() -> None:
 
 
 # ---------- Deduplication with different components same action_id ----------
+
 
 @pytest.mark.asyncio
 async def test_dedup_different_components_same_action_id() -> None:
@@ -375,6 +385,7 @@ async def test_dedup_different_components_same_action_id() -> None:
 
 
 # ---------- Browser orphan action in build_repair_actions ----------
+
 
 @pytest.mark.asyncio
 async def test_build_includes_browser_orphan_action_when_orphans_exist() -> None:
@@ -396,6 +407,7 @@ async def test_build_includes_browser_orphan_action_when_orphans_exist() -> None
 
 
 # ---------- Multiple orphan PIDs ----------
+
 
 @pytest.mark.asyncio
 async def test_execute_cleanup_browser_multiple_pids() -> None:
@@ -421,12 +433,11 @@ async def test_execute_cleanup_browser_multiple_pids() -> None:
 
 # ---------- DLQ message field fallback ----------
 
+
 @pytest.mark.asyncio
 async def test_build_dlq_missing_message_field() -> None:
     """DLQ report without 'message' key should use fallback."""
-    server_reports: list[dict[str, object]] = [
-        {"component_name": "DLQ", "status": "fail"}
-    ]
+    server_reports: list[dict[str, object]] = [{"component_name": "DLQ", "status": "fail"}]
     actions = await build_repair_actions([], server_reports)
     assert len(actions) == 1
     assert actions[0].action_id == RepairActionId.REVIEW_CHANNEL_DLQ
@@ -434,6 +445,7 @@ async def test_build_dlq_missing_message_field() -> None:
 
 
 # ---------- cleanup_orphan_processes result missing 'message' key ----------
+
 
 @pytest.mark.asyncio
 async def test_execute_cleanup_browser_result_missing_message() -> None:
@@ -456,6 +468,7 @@ async def test_execute_cleanup_browser_result_missing_message() -> None:
 # ---------- Mixed orphans: some with pid, some without ----------
 
 # ---------- detail field priority in reason ----------
+
 
 @pytest.mark.asyncio
 async def test_reason_uses_detail_when_present() -> None:

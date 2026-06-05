@@ -62,9 +62,7 @@ class PendingRemindersSection:
                     pending.append(f'- "{job.name}" — triggers in {hours:.1f}h')
             elif job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
                 if job.consecutive_failures > 0:
-                    pending.append(
-                        f'- "{job.name}" — {job.consecutive_failures} consecutive failures'
-                    )
+                    pending.append(f'- "{job.name}" — {job.consecutive_failures} consecutive failures')
 
         if not pending:
             return None
@@ -118,11 +116,16 @@ class PatternDiscoverySection:
         embedding_cfg = await require_platform_embedding_config()
 
         binding = resolve_context_binding(
-            namespaces=None, agent_id=ctx.agent_id, channel_id=None,
-            conversation_id=None, task_id=None,
+            namespaces=None,
+            agent_id=ctx.agent_id,
+            channel_id=None,
+            conversation_id=None,
+            task_id=None,
         )
         manager = await create_memory_manager(
-            binding, embedding_cfg, approval_required=False,
+            binding,
+            embedding_cfg,
+            approval_required=False,
         )
 
         from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
@@ -178,15 +181,23 @@ class DailyWorkSummarySection:
             )
             s_count, s_tokens, s_usd = session_row.one()
 
-            approval_count = await db.scalar(
-                select(func.count()).select_from(ApprovalRecord)
-                .where(ApprovalRecord.created_at >= day_start, ApprovalRecord.created_at < day_end)
-            ) or 0
+            approval_count = (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(ApprovalRecord)
+                    .where(ApprovalRecord.created_at >= day_start, ApprovalRecord.created_at < day_end)
+                )
+                or 0
+            )
 
-            cron_count = await db.scalar(
-                select(func.count()).select_from(CronRunModel)
-                .where(CronRunModel.started_at >= day_start, CronRunModel.started_at < day_end)
-            ) or 0
+            cron_count = (
+                await db.scalar(
+                    select(func.count())
+                    .select_from(CronRunModel)
+                    .where(CronRunModel.started_at >= day_start, CronRunModel.started_at < day_end)
+                )
+                or 0
+            )
 
         if s_count == 0 and approval_count == 0 and cron_count == 0:
             return None

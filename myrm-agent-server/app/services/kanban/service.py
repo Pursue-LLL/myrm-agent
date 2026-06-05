@@ -97,6 +97,7 @@ class PromoteResult:
 
 class _Sentinel(enum.Enum):
     """Distinguishes 'not provided' from explicit None (clear agent_id)."""
+
     UNSET = "UNSET"
 
 
@@ -106,12 +107,19 @@ logger = logging.getLogger(__name__)
 
 
 def _publish_kanban_event(
-    board_id: str, task_id: str, action: str,
-    *, title: str = "", detail: str = "", status: str = "",
+    board_id: str,
+    task_id: str,
+    action: str,
+    *,
+    title: str = "",
+    detail: str = "",
+    status: str = "",
 ) -> None:
     """Publish a kanban task update event to the global SSE event bus."""
     data: dict[str, str] = {
-        "board_id": board_id, "task_id": task_id, "action": action,
+        "board_id": board_id,
+        "task_id": task_id,
+        "action": action,
     }
     if title:
         data["title"] = title
@@ -119,9 +127,12 @@ def _publish_kanban_event(
         data["detail"] = detail
     if status:
         data["status"] = status
-    get_event_bus().publish(AppEvent(
-        event_type=AppEventType.KANBAN_TASK_UPDATED, data=data,
-    ))
+    get_event_bus().publish(
+        AppEvent(
+            event_type=AppEventType.KANBAN_TASK_UPDATED,
+            data=data,
+        )
+    )
 
 
 class DependencyUnmetError(ValueError):
@@ -136,9 +147,7 @@ class DependencyUnmetError(ValueError):
         self.task_id = task_id
         self.unsatisfied = unsatisfied
         self.unmet_details: list[UnmetParentInfo] = unmet_details or []
-        super().__init__(
-            f"Task {task_id} has unmet dependencies: {', '.join(unsatisfied)}"
-        )
+        super().__init__(f"Task {task_id} has unmet dependencies: {', '.join(unsatisfied)}")
 
 
 _STATUS_TO_EVENT_KIND: dict[TaskStatus, TaskEventKind] = {
@@ -147,6 +156,7 @@ _STATUS_TO_EVENT_KIND: dict[TaskStatus, TaskEventKind] = {
     TaskStatus.COMPLETED: TaskEventKind.COMPLETED,
     TaskStatus.FAILED: TaskEventKind.FAILED,
 }
+
 
 class KanbanService:
     """Singleton business orchestration service for kanban.
@@ -214,7 +224,9 @@ class KanbanService:
             await self.start_dispatcher(saved.board_id, self._runner)
         return saved
 
-    async def update_active_tasks_branch_metadata(self, new_branch: str, old_branch: str | None = None, migrated: bool = False, board_id: str | None = None) -> int:
+    async def update_active_tasks_branch_metadata(
+        self, new_branch: str, old_branch: str | None = None, migrated: bool = False, board_id: str | None = None
+    ) -> int:
         """Update branch metadata for all active tasks when workspace branch changes."""
         updated_tasks = await self._store.update_active_tasks_branch_metadata(new_branch, old_branch, migrated, board_id)
         for task in updated_tasks:
@@ -275,9 +287,7 @@ class KanbanService:
             await self._validate_agent_id(agent_id)
 
         if initial_status is None:
-            resolved_status = (
-                TaskStatus.BACKLOG if depends_on else TaskStatus.READY
-            )
+            resolved_status = TaskStatus.BACKLOG if depends_on else TaskStatus.READY
         elif initial_status == TaskStatus.TRIAGE:
             resolved_status = TaskStatus.TRIAGE
         elif initial_status in (TaskStatus.READY, TaskStatus.BACKLOG, TaskStatus.BLOCKED):
@@ -286,9 +296,7 @@ class KanbanService:
             else:
                 resolved_status = initial_status
         else:
-            raise ValueError(
-                f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}"
-            )
+            raise ValueError(f"initial_status must be one of TRIAGE/BACKLOG/READY/BLOCKED, got {initial_status}")
 
         metadata: dict[str, object] = {}
         if completion_criteria:
@@ -296,6 +304,7 @@ class KanbanService:
 
         # Inject current git branch into metadata
         from app.services.agent.goal_registry import get_current_git_branch
+
         current_branch = await get_current_git_branch()
         if current_branch:
             metadata["branch"] = current_branch
@@ -332,7 +341,9 @@ class KanbanService:
                     await self._store.add_edge(pid, saved.task_id)
                 except ValueError:
                     logger.warning(
-                        "Skipped dependency %s -> %s (cycle detected)", pid, saved.task_id,
+                        "Skipped dependency %s -> %s (cycle detected)",
+                        pid,
+                        saved.task_id,
                     )
             if not valid_deps and depends_on:
                 saved.status = TaskStatus.READY
@@ -355,9 +366,7 @@ class KanbanService:
         limit: int | None = None,
         offset: int = 0,
     ) -> list[KanbanTask]:
-        return await self._store.list_tasks(
-            board_id, status=status, agent_id=agent_id, limit=limit, offset=offset
-        )
+        return await self._store.list_tasks(board_id, status=status, agent_id=agent_id, limit=limit, offset=offset)
 
     async def update_task(
         self,
@@ -403,7 +412,8 @@ class KanbanService:
         _publish_kanban_event(saved.board_id, task_id, "updated", title=saved.title)
         if agent_changed:
             await self._store.append_event(
-                task_id, TaskEventKind.ASSIGNED,
+                task_id,
+                TaskEventKind.ASSIGNED,
                 payload={
                     "old_agent_id": old_agent_id,
                     "new_agent_id": saved.agent_id,
@@ -412,7 +422,9 @@ class KanbanService:
         return saved
 
     async def move_task(
-        self, task_id: str, target_status: TaskStatus,
+        self,
+        task_id: str,
+        target_status: TaskStatus,
         *,
         force: bool = False,
         block_kind: BlockKind | None = None,
@@ -423,17 +435,9 @@ class KanbanService:
         if task is None:
             return None
         if task.is_terminal and target_status != TaskStatus.ARCHIVED:
-            raise ValueError(
-                f"Cannot move terminal task (status={task.status}) "
-                f"to {target_status}"
-            )
-        if (
-            task.status == TaskStatus.TRIAGE
-            and target_status not in _TRIAGE_ALLOWED_TARGETS
-        ):
-            raise ValueError(
-                f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}"
-            )
+            raise ValueError(f"Cannot move terminal task (status={task.status}) to {target_status}")
+        if task.status == TaskStatus.TRIAGE and target_status not in _TRIAGE_ALLOWED_TARGETS:
+            raise ValueError(f"TRIAGE task can only move to BACKLOG/READY/ARCHIVED, got {target_status}")
         old_status = task.status
         task.status = target_status
         unsatisfied_deps: list[str] = []
@@ -458,10 +462,13 @@ class KanbanService:
                     for pid in parent_ids:
                         parent = await self._store.get_task(pid)
                         if parent and not parent.is_terminal:
-                            details.append(UnmetParentInfo(
-                                task_id=pid, title=parent.title,
-                                status=parent.status.value,
-                            ))
+                            details.append(
+                                UnmetParentInfo(
+                                    task_id=pid,
+                                    title=parent.title,
+                                    status=parent.status.value,
+                                )
+                            )
                     raise DependencyUnmetError(
                         task_id,
                         [d["task_id"] for d in details],
@@ -476,14 +483,16 @@ class KanbanService:
 
         if old_status == TaskStatus.RUNNING and not saved.is_terminal:
             await self._store.append_event(
-                task_id, TaskEventKind.RECLAIMED,
+                task_id,
+                TaskEventKind.RECLAIMED,
                 payload={"from": old_status.value, "to": target_status.value},
             )
             runs = await self._store.list_runs(task_id)
             for r in reversed(runs):
                 if not r.is_finished:
                     await self._store.complete_run(
-                        r.run_id, TaskRunOutcome.RECLAIMED,
+                        r.run_id,
+                        TaskRunOutcome.RECLAIMED,
                         error="Manual reclaim via move_task",
                     )
                     break
@@ -495,18 +504,22 @@ class KanbanService:
             event_kind = None
         if event_kind:
             event_payload: dict[str, object] = {
-                "from": old_status.value, "to": target_status.value,
+                "from": old_status.value,
+                "to": target_status.value,
             }
             if saved.block_kind:
                 event_payload["block_kind"] = saved.block_kind.value
             if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
                 event_payload["source"] = "manual"
             await self._store.append_event(
-                task_id, event_kind, payload=event_payload,
+                task_id,
+                event_kind,
+                payload=event_payload,
             )
         if unsatisfied_deps:
             await self._store.append_event(
-                task_id, TaskEventKind.PROMOTED,
+                task_id,
+                TaskEventKind.PROMOTED,
                 payload={
                     "forced": True,
                     "unsatisfied_deps": unsatisfied_deps,
@@ -523,7 +536,9 @@ class KanbanService:
         if task.board_id in self._dispatchers:
             self._dispatchers[task.board_id].wake()
         _publish_kanban_event(
-            saved.board_id, task_id, "moved",
+            saved.board_id,
+            task_id,
+            "moved",
             title=saved.title,
             detail=saved.result or saved.blocked_reason or saved.error or "",
             status=saved.status.value,
@@ -547,10 +562,7 @@ class KanbanService:
         if task is None:
             return None
         if task.status != TaskStatus.RUNNING:
-            raise ValueError(
-                f"Cannot reclaim task in status '{task.status.value}'; "
-                f"only RUNNING tasks can be reclaimed"
-            )
+            raise ValueError(f"Cannot reclaim task in status '{task.status.value}'; only RUNNING tasks can be reclaimed")
 
         dispatcher = self._dispatchers.get(task.board_id)
         if dispatcher:
@@ -563,7 +575,8 @@ class KanbanService:
             task.progress_note = None
             await self._store.save_task(task)
             await self._store.append_event(
-                task_id, TaskEventKind.RECLAIMED,
+                task_id,
+                TaskEventKind.RECLAIMED,
                 payload={"manual": True, "reason": reason or "user request"},
             )
 
@@ -576,7 +589,8 @@ class KanbanService:
                 task.agent_id = new_agent_id or None
                 await self._store.save_task(task)
                 await self._store.append_event(
-                    task_id, TaskEventKind.ASSIGNED,
+                    task_id,
+                    TaskEventKind.ASSIGNED,
                     payload={
                         "old_agent_id": old_agent_id,
                         "new_agent_id": task.agent_id,
@@ -586,7 +600,9 @@ class KanbanService:
         task = await self._store.get_task(task_id)
         if task:
             _publish_kanban_event(
-                task.board_id, task_id, "reclaimed",
+                task.board_id,
+                task_id,
+                "reclaimed",
                 title=task.title,
                 detail=reason or "user request",
             )
@@ -606,7 +622,8 @@ class KanbanService:
                     child.status = TaskStatus.READY
                     await self._store.save_task(child)
                     await self._store.append_event(
-                        child_id, TaskEventKind.PROMOTED,
+                        child_id,
+                        TaskEventKind.PROMOTED,
                         payload={"reason": "parent_deleted", "deleted_task_id": task_id},
                     )
                     _publish_kanban_event(child.board_id, child_id, "promoted")
@@ -617,7 +634,9 @@ class KanbanService:
     # -- Dependency management --
 
     async def add_dependency(
-        self, child_task_id: str, parent_task_id: str,
+        self,
+        child_task_id: str,
+        parent_task_id: str,
     ) -> TaskEdge:
         edge = await self._store.add_edge(parent_task_id, child_task_id)
         child = await self._store.get_task(child_task_id)
@@ -631,7 +650,9 @@ class KanbanService:
         return edge
 
     async def remove_dependency(
-        self, child_task_id: str, parent_task_id: str,
+        self,
+        child_task_id: str,
+        parent_task_id: str,
     ) -> bool:
         removed = await self._store.remove_edge(parent_task_id, child_task_id)
         if removed:
@@ -641,7 +662,8 @@ class KanbanService:
                     child.status = TaskStatus.READY
                     await self._store.save_task(child)
                     await self._store.append_event(
-                        child_task_id, TaskEventKind.PROMOTED,
+                        child_task_id,
+                        TaskEventKind.PROMOTED,
                         payload={"reason": "dependency_removed"},
                     )
             if child:
@@ -666,7 +688,8 @@ class KanbanService:
             except Exception as exc:
                 logger.warning(
                     "Worktree cleanup failed for task %s: %s",
-                    task.task_id[:8], exc,
+                    task.task_id[:8],
+                    exc,
                 )
 
     async def _promote_dependents(self, completed_task_id: str) -> None:
@@ -680,17 +703,23 @@ class KanbanService:
                 child.status = TaskStatus.READY
                 await self._store.save_task(child)
                 await self._store.append_event(
-                    child_id, TaskEventKind.PROMOTED,
+                    child_id,
+                    TaskEventKind.PROMOTED,
                     payload={"trigger_task_id": completed_task_id},
                 )
                 _publish_kanban_event(child.board_id, child_id, "promoted")
                 logger.info(
                     "Task %s promoted to READY (parent %s completed)",
-                    child_id, completed_task_id,
+                    child_id,
+                    completed_task_id,
                 )
 
     async def promote_task(
-        self, task_id: str, *, force: bool = False, reason: str | None = None,
+        self,
+        task_id: str,
+        *,
+        force: bool = False,
+        reason: str | None = None,
     ) -> PromoteResult:
         """Manually promote a BACKLOG task to READY.
 
@@ -702,20 +731,20 @@ class KanbanService:
         if task is None:
             raise ValueError(f"Task {task_id} not found")
         if task.status != TaskStatus.BACKLOG:
-            raise ValueError(
-                f"Only BACKLOG tasks can be promoted, got {task.status.value}"
-            )
+            raise ValueError(f"Only BACKLOG tasks can be promoted, got {task.status.value}")
 
         parent_ids = await self._store.list_parents(task_id)
         unmet: list[UnmetParentInfo] = []
         for pid in parent_ids:
             parent = await self._store.get_task(pid)
             if parent and not parent.is_terminal:
-                unmet.append(UnmetParentInfo(
-                    task_id=pid,
-                    title=parent.title,
-                    status=parent.status.value,
-                ))
+                unmet.append(
+                    UnmetParentInfo(
+                        task_id=pid,
+                        title=parent.title,
+                        status=parent.status.value,
+                    )
+                )
 
         if unmet and not force:
             return PromoteResult(promoted=False, forced=False, unmet_parents=unmet)
@@ -724,7 +753,8 @@ class KanbanService:
         task.blocked_reason = None
         await self._store.save_task(task)
         await self._store.append_event(
-            task_id, TaskEventKind.PROMOTED,
+            task_id,
+            TaskEventKind.PROMOTED,
             payload={
                 "forced": bool(unmet),
                 "reason": reason or "",
@@ -736,10 +766,15 @@ class KanbanService:
             self._dispatchers[task.board_id].wake()
         logger.info(
             "Task %s manually promoted to READY (force=%s, skipped=%d parents)",
-            task_id, bool(unmet), len(unmet),
+            task_id,
+            bool(unmet),
+            len(unmet),
         )
         return PromoteResult(
-            promoted=True, forced=bool(unmet), reason=reason, unmet_parents=unmet,
+            promoted=True,
+            forced=bool(unmet),
+            reason=reason,
+            unmet_parents=unmet,
         )
 
     @staticmethod
@@ -761,7 +796,10 @@ class KanbanService:
         return await self._store.list_runs(task_id)
 
     async def list_events(
-        self, task_id: str, *, since_id: int | None = None,
+        self,
+        task_id: str,
+        *,
+        since_id: int | None = None,
     ) -> list[TaskEvent]:
         return await self._store.list_events(task_id, since_id=since_id)
 
@@ -786,11 +824,16 @@ class KanbanService:
         )
 
     async def add_comment(
-        self, task_id: str, body: str, *, author: str = "user",
+        self,
+        task_id: str,
+        body: str,
+        *,
+        author: str = "user",
     ) -> TaskEvent:
         """Add a user comment to a task via the event system."""
         event = await self._store.append_event(
-            task_id, TaskEventKind.USER_COMMENT,
+            task_id,
+            TaskEventKind.USER_COMMENT,
             payload={"body": body, "author": author},
         )
         task = await self._store.get_task(task_id)
@@ -806,15 +849,15 @@ class KanbanService:
             return None
 
         status_counts, by_agent, oldest_age = await _gather_summary(
-            self._store, board_id,
+            self._store,
+            board_id,
         )
 
         return BoardSummaryData(
             board=board,
             task_counts=status_counts,
             total_tasks=sum(status_counts.values()),
-            dispatcher_active=board_id in self._dispatchers
-            and self._dispatchers[board_id].is_running,
+            dispatcher_active=board_id in self._dispatchers and self._dispatchers[board_id].is_running,
             by_agent=by_agent,
             oldest_ready_age_seconds=oldest_age,
         )
@@ -859,7 +902,9 @@ class KanbanService:
         )
         dispatcher.on_event(
             lambda event_type, task: _publish_kanban_event(
-                task.board_id, task.task_id, event_type,
+                task.board_id,
+                task.task_id,
+                event_type,
                 title=task.title,
                 detail=task.result or task.blocked_reason or task.error or "",
             )
@@ -1037,7 +1082,8 @@ class KanbanService:
 
 
 async def _gather_summary(
-    store: SqlAlchemyKanbanStore, board_id: str,
+    store: SqlAlchemyKanbanStore,
+    board_id: str,
 ) -> tuple[dict[str, int], dict[str | None, dict[str, int]], int | None]:
     """Fetch status counts, by-agent distribution, and oldest ready age concurrently."""
     status_counts, by_agent, oldest_age = await asyncio.gather(

@@ -116,10 +116,9 @@ async def _record_pre_compact_event(*, chat_id: str, injection: PreCompactInject
             await MemoryOperationLedgerService(db).record_event(
                 kind=MemoryOperationKind.INJECT,
                 status=MemoryOperationStatus.SUCCESS,
-                summary=(
-                    f"Pre-compaction recall injected {len(injection.recalled_ids)} memories "
-                    f"({injection.compaction_tier})"
-                )[:240],
+                summary=(f"Pre-compaction recall injected {len(injection.recalled_ids)} memories ({injection.compaction_tier})")[
+                    :240
+                ],
                 source="pre_compact_processor",
                 target_kind="chat",
                 target_id=chat_id,

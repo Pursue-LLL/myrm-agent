@@ -78,11 +78,7 @@ async def _recover_stale_agent_turns() -> None:
     async with factory() as session:
         result = await session.execute(
             update(AgentTurn)
-            .where(
-                AgentTurn.status.in_(
-                    [TurnStatus.PENDING.value, TurnStatus.RUNNING.value]
-                )
-            )
+            .where(AgentTurn.status.in_([TurnStatus.PENDING.value, TurnStatus.RUNNING.value]))
             .values(
                 status=TurnStatus.INTERRUPTED.value,
                 completed_at=datetime.now(timezone.utc),
@@ -188,19 +184,12 @@ async def run_async_warmup() -> None:
     )
 
     set_global_wakeup_handler(ServerWakeupHandler())
-    logger.info(
-        "[Startup] ServerWakeupHandler registered for async subagent completions"
-    )
+    logger.info("[Startup] ServerWakeupHandler registered for async subagent completions")
 
-    if (
-        settings.browser_pool.warmup_browsers > 0
-        or settings.browser_pool.warmup_pages > 0
-    ):
+    if settings.browser_pool.warmup_browsers > 0 or settings.browser_pool.warmup_pages > 0:
         pass
     else:
-        logger.debug(
-            "[Startup] Browser pool warmup skipped (warmup_browsers=0 and warmup_pages=0)"
-        )
+        logger.debug("[Startup] Browser pool warmup skipped (warmup_browsers=0 and warmup_pages=0)")
 
     # Thread cleanup always runs (zombie detection + old record deletion)
     warmup_tasks.append(cleanup_browser_threads())
@@ -208,9 +197,7 @@ async def run_async_warmup() -> None:
     if settings.browser_auto_warmup:
         warmup_tasks.append(warmup_browser_sessions())
     else:
-        logger.debug(
-            "[Startup] Browser session warmup skipped (browser_auto_warmup=False)"
-        )
+        logger.debug("[Startup] Browser session warmup skipped (browser_auto_warmup=False)")
 
     try:
         from app.core.media.batch.orchestrator import batch_orchestrator
@@ -251,23 +238,15 @@ async def run_async_warmup() -> None:
             try:
                 store = await create_default_vector_store()
                 if store is None:
-                    logger.info(
-                        "[Startup] No vector store configured, skipping vector store warmup"
-                    )
+                    logger.info("[Startup] No vector store configured, skipping vector store warmup")
                     return
 
                 warmer = VectorStoreWarmer(store)
                 all_collections = await store.list_collections()
-                kb_collections = [
-                    (coll, 1536)
-                    for coll in all_collections
-                    if isinstance(coll, str) and coll.startswith("kb_")
-                ]
+                kb_collections = [(coll, 1536) for coll in all_collections if isinstance(coll, str) and coll.startswith("kb_")]
 
                 if kb_collections:
-                    metrics_list = await warmer.warmup_batch_with_verification(
-                        kb_collections
-                    )
+                    metrics_list = await warmer.warmup_batch_with_verification(kb_collections)
                     for m in metrics_list:
                         if m.success:
                             if m.speedup_ratio and m.verify_duration_ms:
@@ -282,13 +261,9 @@ async def run_async_warmup() -> None:
                                     f"[Startup] Warmed up collection '{m.collection_name}' in {m.warmup_duration_ms:.2f}ms"
                                 )
                         else:
-                            logger.warning(
-                                f"[Startup] Failed to warm up collection '{m.collection_name}': {m.error}"
-                            )
+                            logger.warning(f"[Startup] Failed to warm up collection '{m.collection_name}': {m.error}")
                 else:
-                    logger.info(
-                        "[Startup] No vector store collections found, skipping warmup"
-                    )
+                    logger.info("[Startup] No vector store collections found, skipping warmup")
             except Exception as e:
                 logger.warning(f"[Startup] Vector store warmup failed: {e}")
 

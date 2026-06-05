@@ -21,14 +21,10 @@ async def test_companion_config_flow() -> None:
 
     # Clean up first to ensure a clean slate
     async with get_session() as session:
-        await session.execute(
-            delete(UserConfig).where(UserConfig.config_key == "companion_config")
-        )
+        await session.execute(delete(UserConfig).where(UserConfig.config_key == "companion_config"))
         await session.commit()
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # 1. GET config when empty (should return empty config structure)
         resp = await ac.get("/api/v1/companion/config")
         assert resp.status_code == 200

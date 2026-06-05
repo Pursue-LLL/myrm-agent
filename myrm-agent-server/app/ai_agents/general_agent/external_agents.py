@@ -65,9 +65,7 @@ class ExternalAgentsMixin:
         _runtime_pool: RuntimePool | None
         chat_id: str | None
 
-    async def _setup_external_agents(
-        self, tools: list[object], deferred_tools: list[object] = None
-    ) -> None:
+    async def _setup_external_agents(self, tools: list[object], deferred_tools: list[object] = None) -> None:
         """Set up external agent delegation via RuntimePool.
 
         Parses external_agents_config (from UserConfig 'externalAgents'),
@@ -82,9 +80,7 @@ class ExternalAgentsMixin:
         except Exception as e:
             logger.warning("External agent setup failed (degraded): %s", e)
 
-    async def _do_setup_external_agents(
-        self, tools: list[object], deferred_tools: list[object] = None
-    ) -> None:
+    async def _do_setup_external_agents(self, tools: list[object], deferred_tools: list[object] = None) -> None:
         agent_cfgs = self.external_agents_config
 
         if not agent_cfgs:
@@ -114,9 +110,7 @@ class ExternalAgentsMixin:
                             len(agent_cfgs),
                         )
                 except Exception as e:
-                    logger.warning(
-                        "External agent auto-detection failed (degraded): %s", e
-                    )
+                    logger.warning("External agent auto-detection failed (degraded): %s", e)
 
             if not agent_cfgs:
                 return
@@ -134,9 +128,7 @@ class ExternalAgentsMixin:
             name = cfg.get("name")
             command = cfg.get("command")
             if not name or not command:
-                logger.warning(
-                    "Skipping external agent with missing name or command: %s", cfg
-                )
+                logger.warning("Skipping external agent with missing name or command: %s", cfg)
                 continue
 
             backend_type = str(cfg.get("type", "cli"))
@@ -224,9 +216,7 @@ class ExternalAgentsMixin:
             "data": [{"text": f"{agent_name}: connecting"}],
         }
 
-        async for event in self._runtime_pool.run_turn(
-            agent_name, text_query, session_id=session_id
-        ):
+        async for event in self._runtime_pool.run_turn(agent_name, text_query, session_id=session_id):
             if cancel_token and cancel_token.is_cancelled:
                 await self._runtime_pool.cancel(agent_name, session_id)
                 yield {"type": AgentEventType.CANCELLED.value}
@@ -275,12 +265,7 @@ class ExternalAgentsMixin:
                     "type": AgentEventType.TASKS_STEPS.value,
                     "step_key": f"delegation_{agent_name}_status",
                     "tool_name": f"delegate:{agent_name}",
-                    "data": [
-                        {
-                            "text": f"{agent_name}: {status}"
-                            + (f" — {message}" if message else "")
-                        }
-                    ],
+                    "data": [{"text": f"{agent_name}: {status}" + (f" — {message}" if message else "")}],
                 }
 
             elif event.type == RuntimeEventType.USAGE_UPDATE:
@@ -303,11 +288,7 @@ class ExternalAgentsMixin:
 
             elif event.type == RuntimeEventType.ERROR:
                 error_data = event.data.get("error")
-                msg = (
-                    getattr(error_data, "message", str(error_data))
-                    if error_data
-                    else "Unknown error"
-                )
+                msg = getattr(error_data, "message", str(error_data)) if error_data else "Unknown error"
                 yield {"type": AgentEventType.ERROR.value, "data": msg}
 
         yield {

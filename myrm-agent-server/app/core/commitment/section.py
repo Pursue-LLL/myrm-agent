@@ -43,9 +43,7 @@ class PendingCommitmentsSection:
 
         lines: list[str] = []
         for c in due:
-            sensitivity_tag = (
-                f" [{c.sensitivity.value}]" if c.sensitivity.value != "routine" else ""
-            )
+            sensitivity_tag = f" [{c.sensitivity.value}]" if c.sensitivity.value != "routine" else ""
             lines.append(f"- {c.suggested_text}{sensitivity_tag} (reason: {c.reason})")
 
         return "\n".join(lines)

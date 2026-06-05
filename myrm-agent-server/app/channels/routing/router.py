@@ -301,9 +301,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             max_level=4,
         )
 
-        self._progress_estimator = ProgressEstimator(
-            session_ttl_seconds=stream_config.progress_session_ttl_seconds
-        )
+        self._progress_estimator = ProgressEstimator(session_ttl_seconds=stream_config.progress_session_ttl_seconds)
 
         chunker = BlockChunker(
             ChunkConfig(
@@ -388,11 +386,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         while True:
             await asyncio.sleep(60)
             now = time.monotonic()
-            expired_keys = [
-                key
-                for key, entry in self._cleanups.items()
-                if now - entry.created_at > _CLEANUP_TTL
-            ]
+            expired_keys = [key for key, entry in self._cleanups.items() if now - entry.created_at > _CLEANUP_TTL]
             for key in expired_keys:
                 entry = self._cleanups.pop(key, None)
                 if entry:
@@ -401,9 +395,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     except Exception as e:
                         logger.warning("[JANITOR] Cleanup failed for %s: %s", key, e)
             if expired_keys:
-                logger.info(
-                    "[JANITOR] Cleaned up %d expired callbacks", len(expired_keys)
-                )
+                logger.info("[JANITOR] Cleaned up %d expired callbacks", len(expired_keys))
 
             coordinator_cleaned = self._stream_coordinator.cleanup_expired_sessions()
             estimator_cleaned = self._progress_estimator.cleanup_expired_sessions()
@@ -442,23 +434,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             is_reaction = bool(msg.metadata.get("reaction"))
             if is_reaction:
                 approval_cmd = parse_approval_command(msg.content)
-                if (
-                    approval_cmd is not None
-                    and self._is_reaction_approval_valid(msg)
-                ):
-                    asyncio.create_task(
-                        self._handle_approval_command(msg, approval_cmd)
-                    )
+                if approval_cmd is not None and self._is_reaction_approval_valid(msg):
+                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
                 continue
 
             approval_cmd = parse_approval_command(msg.content)
             if approval_cmd is not None:
-                if is_explicit_approval_command(
-                    msg.content
-                ) or self._has_pending_approval(msg):
-                    asyncio.create_task(
-                        self._handle_approval_command(msg, approval_cmd)
-                    )
+                if is_explicit_approval_command(msg.content) or self._has_pending_approval(msg):
+                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
                     continue
 
             resolved = self._registry.resolve(msg.content)
@@ -523,11 +506,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "permission_denied", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             asyncio.create_task(self._bus.publish_outbound(reply))
             return True
@@ -584,11 +563,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     content=get_text(msg, "yolo_invalid_usage"),
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=(
-                        (msg.message_id or str(msg.metadata.get("message_id", "")))
-                        if msg.is_group
-                        else None
-                    ),
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
                 )
                 asyncio.create_task(self._bus.publish_outbound(reply))
             return True
@@ -654,11 +629,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "skill_not_configured", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -671,11 +642,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "skill_load_failed", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=(
-                    (msg.message_id or str(msg.metadata.get("message_id", "")))
-                    if msg.is_group
-                    else None
-                ),
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -694,11 +661,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=(
-                (msg.message_id or str(msg.metadata.get("message_id", "")))
-                if msg.is_group
-                else None
-            ),
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
 
@@ -721,9 +684,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if len(self._seen_messages) > _DEDUP_MAX_SIZE:
             cutoff = now - _DEDUP_TTL
-            self._seen_messages = {
-                k: v for k, v in self._seen_messages.items() if v > cutoff
-            }
+            self._seen_messages = {k: v for k, v in self._seen_messages.items() if v > cutoff}
 
         return False
 
@@ -754,9 +715,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         channel_instance = self._bus.get_channel(msg.channel)
         if channel_instance and msg.channel_capabilities is None:
-            msg = dataclasses.replace(
-                msg, channel_capabilities=channel_instance.capabilities
-            )
+            msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
 
         from app.channels.routing.router_keys import (
             routing_session_key,
@@ -791,9 +750,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         if msg.metadata.get("is_sticker") and self._sticker_vision:
-            msg = await describe_sticker_inbound(
-                msg, self._sticker_vision, self._bus.get_channel
-            )
+            msg = await describe_sticker_inbound(msg, self._sticker_vision, self._bus.get_channel)
             exec_for_error = msg
 
         if not is_resume and has_video_attachment_fn(msg):
@@ -818,14 +775,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         agent_route_resolved = self._registry.resolve(msg.content)
-        if (
-            agent_route_resolved
-            and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE
-        ):
-            agent_id = (
-                agent_route_resolved.command_def.agent_id
-                or agent_route_resolved.command_def.name
-            )
+        if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:
+            agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
             if agent_route_resolved.raw_args:
                 msg = dataclasses.replace(msg, content=agent_route_resolved.raw_args)
                 msg.metadata["route_agent_id"] = agent_id
@@ -837,11 +788,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     content=get_text(msg, "agent_route_switched", agent_id=agent_id),
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=(
-                        (msg.message_id or str(msg.metadata.get("message_id", "")))
-                        if msg.is_group
-                        else None
-                    ),
+                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
                 )
                 await self._bus.publish_outbound(reply)
                 set_correlation_context(None)  # Reset context

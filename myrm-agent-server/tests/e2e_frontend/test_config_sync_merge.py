@@ -50,15 +50,11 @@ async def test_config_sync_merge():
             logger.info("Device B: Verifying merged state in UI...")
             switch_a_on_b = page_b.locator('[data-testid="config-enableCostEstimation"]')
             is_checked_a = await switch_a_on_b.get_attribute("aria-checked")
-            assert is_checked_a == expected_a, (
-                f"Device A's change was lost! Expected {expected_a}, got {is_checked_a}"
-            )
+            assert is_checked_a == expected_a, f"Device A's change was lost! Expected {expected_a}, got {is_checked_a}"
 
             switch_b_on_b = page_b.locator('[data-testid="config-enableWebNotifications"]')
             is_checked_b = await switch_b_on_b.get_attribute("aria-checked")
-            assert is_checked_b == expected_b, (
-                f"Device B's change was lost! Expected {expected_b}, got {is_checked_b}"
-            )
+            assert is_checked_b == expected_b, f"Device B's change was lost! Expected {expected_b}, got {is_checked_b}"
 
             logger.info("Test completed successfully. 3-Way Merge worked silently.")
 

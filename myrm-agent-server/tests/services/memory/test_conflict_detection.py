@@ -129,10 +129,7 @@ class TestBuildConflicts:
     @pytest.mark.asyncio
     async def test_max_8_items_cap(self, insights: MemoryCommandCenterInsights) -> None:
         """Conflicts are capped at 8 items for UI performance."""
-        many_claims = [
-            FakeMemory(id=f"claim-{i}", content=f"Claim {i}")
-            for i in range(20)
-        ]
+        many_claims = [FakeMemory(id=f"claim-{i}", content=f"Claim {i}") for i in range(20)]
 
         async def mock_list_memories(memory_type: MemoryType, limit: int = 80) -> list[FakeMemory]:
             if memory_type == MemoryType.CLAIM:

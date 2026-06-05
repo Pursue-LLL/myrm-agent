@@ -16,6 +16,7 @@ from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
+
 @router.put("/{chat_id}/title", response_model=StandardSuccessResponse)
 async def update_chat_title(
     chat_id: str,
@@ -39,6 +40,7 @@ async def update_chat_title(
         raise
     except Exception as e:
         raise internal_error(operation="Update title", exception=e) from e
+
 
 @router.post("/generate-title", response_model=StandardSuccessResponse)
 async def generate_chat_title(
@@ -91,4 +93,3 @@ async def generate_chat_title(
         return success_response(data={"title": title})
     except Exception as e:
         raise internal_error(operation="Generate chat title", exception=e) from e
-

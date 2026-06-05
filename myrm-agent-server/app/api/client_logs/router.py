@@ -31,9 +31,7 @@ class ClientErrorReport(BaseModel):
 
 
 @router.post("/client-error", status_code=status.HTTP_204_NO_CONTENT)
-async def receive_client_error(
-    report: ClientErrorReport, request: Request
-) -> Response:
+async def receive_client_error(report: ClientErrorReport, request: Request) -> Response:
     now = time.monotonic()
     while _recent_ts and now - _recent_ts[0] > _WINDOW_SECS:
         _recent_ts.popleft()

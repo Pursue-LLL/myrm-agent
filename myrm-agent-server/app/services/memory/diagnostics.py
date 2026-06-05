@@ -170,7 +170,9 @@ class MemoryDiagnosticsService:
             status = "critical"
             evidence = f"Event ledger roundtrip failed: {exc}"
             repair_actions = ["review_storage_config"]
-            impact = "Memory replay, diagnostic history, and governance audit trails cannot be trusted until ledger writes recover."
+            impact = (
+                "Memory replay, diagnostic history, and governance audit trails cannot be trusted until ledger writes recover."
+            )
             next_action = "Review the local database and storage configuration, then rerun diagnostics."
             safe_to_retry = True
         return MemoryCommandDiagnosticProbeResult(
@@ -322,10 +324,7 @@ class MemoryDiagnosticsService:
         try:
             from app.database.migrations import MIGRATION_STATEMENTS
 
-            expected = {
-                index: hashlib.sha256(sql.encode("utf-8")).hexdigest()
-                for index, sql in enumerate(MIGRATION_STATEMENTS)
-            }
+            expected = {index: hashlib.sha256(sql.encode("utf-8")).hexdigest() for index, sql in enumerate(MIGRATION_STATEMENTS)}
             result = await self._db.execute(text("SELECT version, checksum FROM _schema_migrations"))
             applied: dict[int, str] = {int(row[0]): str(row[1]) for row in result.fetchall()}
         except Exception as exc:
@@ -399,5 +398,6 @@ class MemoryDiagnosticsService:
         except Exception as exc:
             await self._db.rollback()
             return False, f"Diagnostic audit event failed to persist: {type(exc).__name__}"
+
 
 type ProbeFactory = Callable[[], MemoryCommandDoctorCheck]

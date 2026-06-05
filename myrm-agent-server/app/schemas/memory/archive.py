@@ -35,9 +35,7 @@ class MemoryImportRequest(BaseModel):
     """Request to import memories from exported data."""
 
     version: int = Field(MEMORY_EXPORT_VERSION, description="Export schema version")
-    data: dict[str, list[dict[str, object]]] = Field(
-        ..., description="Exported memory data keyed by memory type"
-    )
+    data: dict[str, list[dict[str, object]]] = Field(..., description="Exported memory data keyed by memory type")
     skip_duplicates: bool = Field(True, description="Skip duplicate memories")
 
 

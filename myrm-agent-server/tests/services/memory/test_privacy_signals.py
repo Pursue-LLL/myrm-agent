@@ -35,7 +35,8 @@ class TestBuildPrivacySignals:
         get_scan_metrics().reset()
 
     def _find_redaction_signal(
-        self, signals: list[object],
+        self,
+        signals: list[object],
     ) -> object:
         for s in signals:
             if getattr(s, "id", None) == "secret_redaction":

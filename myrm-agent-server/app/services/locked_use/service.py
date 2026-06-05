@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class MacScreenUnlocker:
     """macOS-specific screen lock detection and unlock logic."""
+
     KEYCHAIN_SERVICE = "com.myrm.agent.screen-unlock"
     KEYCHAIN_ACCOUNT = "login-password"
 
@@ -47,12 +48,7 @@ class MacScreenUnlocker:
             return "unlocked"
         """
         try:
-            result = subprocess.run(
-                ["osascript", "-l", "AppleScript", "-e", script],
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            result = subprocess.run(["osascript", "-l", "AppleScript", "-e", script], capture_output=True, text=True, check=True)
             return result.stdout.strip().lower() == "locked"
         except Exception:
             return False
@@ -60,12 +56,12 @@ class MacScreenUnlocker:
     @classmethod
     def get_password(cls) -> str | None:
         try:
-            result = subprocess.run([
-                "security", "find-generic-password",
-                "-s", cls.KEYCHAIN_SERVICE,
-                "-a", cls.KEYCHAIN_ACCOUNT,
-                "-w"
-            ], capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                ["security", "find-generic-password", "-s", cls.KEYCHAIN_SERVICE, "-a", cls.KEYCHAIN_ACCOUNT, "-w"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             return result.stdout.strip()
         except Exception:
             return None
@@ -81,7 +77,7 @@ class MacScreenUnlocker:
         subprocess.Popen(["caffeinate", "-u", "-t", "2"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         await asyncio.sleep(0.5)
 
-        escaped_password = password.replace('\\', '\\\\').replace('"', '\\"')
+        escaped_password = password.replace("\\", "\\\\").replace('"', '\\"')
         script = f"""
             tell application "System Events"
                 key code 49 -- space to wake
@@ -111,6 +107,7 @@ class MacScreenUnlocker:
 @dataclass(frozen=True)
 class LockedUseConfig:
     """Configuration for a Locked Use session."""
+
     enabled: bool = False
 
 

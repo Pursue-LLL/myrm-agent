@@ -14,6 +14,7 @@ from app.api.skill_optimization.dependencies import (
 
 router = APIRouter()
 
+
 @router.get("/health")
 async def get_health_status(
     scheduler: Annotated[OptimizationScheduler, Depends(get_scheduler)],
@@ -32,6 +33,7 @@ async def get_health_status(
 
     return health_result
 
+
 @router.get("/metrics")
 async def get_prometheus_metrics(
     scheduler: Annotated[OptimizationScheduler, Depends(get_scheduler)],
@@ -43,4 +45,3 @@ async def get_prometheus_metrics(
         "metrics": metrics,
         "format": "prometheus",
     }
-

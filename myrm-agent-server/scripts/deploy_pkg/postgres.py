@@ -26,6 +26,7 @@ def install_postgres_macos() -> bool:
         print_error(f"PostgreSQL 安装失败: {e}")
         return False
 
+
 def install_postgres_linux() -> bool:
     """在 Linux 上安装 PostgreSQL"""
     print_info("正在安装 PostgreSQL (Linux)...")
@@ -42,12 +43,14 @@ def install_postgres_linux() -> bool:
         print_info("请手动安装 PostgreSQL")
         return False
 
+
 def install_postgres_windows() -> bool:
     """在 Windows 上安装 PostgreSQL"""
     print_info("Windows 需要手动安装 PostgreSQL")
     print_info("下载地址: https://www.postgresql.org/download/windows/")
     print_info("或使用: winget install PostgreSQL.PostgreSQL")
     return False
+
 
 def install_postgres() -> bool:
     """安装 PostgreSQL"""
@@ -67,6 +70,7 @@ def install_postgres() -> bool:
         print_error(f"不支持的操作系统: {os_type}")
         return False
 
+
 def _run_postgres_command(sql: str, os_type: str, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
     """执行 PostgreSQL 命令（处理 macOS/Linux 差异）"""
     base_cmd = ["psql", "postgres"]
@@ -74,6 +78,7 @@ def _run_postgres_command(sql: str, os_type: str, capture: bool = False, check: 
         base_cmd = ["sudo", "-u", "postgres"] + base_cmd
 
     return run_command(base_cmd + ["-c" if not capture else "-tc", sql], capture=capture, check=check)
+
 
 def init_postgres_database() -> bool:
     """初始化 PostgreSQL 数据库"""
@@ -121,4 +126,3 @@ def init_postgres_database() -> bool:
     except Exception as e:
         print_error(f"数据库初始化失败: {e}")
         return False
-

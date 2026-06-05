@@ -80,7 +80,6 @@ class ExecutionStrategy(Protocol):
         ...  # pragma: no cover
         yield {}
 
-
     async def cancel(self, task_id: str) -> None:
         """Cancel a running task.
 

@@ -37,19 +37,14 @@ class TestReactSPAAgent:
             "query": query,
             "modelSelection": model_selection,
             "userInstructions": "请严格按照要求使用浏览器工具。不要只回答，必须执行动作。",
-            "agentConfig": {
-                "skillIds": [],
-                "enabledBuiltinTools": ["web_search", "browser"]
-            }
+            "agentConfig": {"skillIds": [], "enabledBuiltinTools": ["web_search", "browser"]},
         }
 
         collected_data = []
         tool_calls = []
         error_msg = None
 
-        with client.stream(
-            "POST", "/api/v1/agents/agent-stream", json=request_data
-        ) as response:
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
             if response.status_code != 200:
                 response.read()
                 print(f"Error: {response.text}")

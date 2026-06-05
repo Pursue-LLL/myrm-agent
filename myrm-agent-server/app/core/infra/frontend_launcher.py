@@ -70,9 +70,7 @@ def check_node_environment() -> str:
             )
         return version_str
     except (subprocess.TimeoutExpired, ValueError, IndexError) as exc:
-        raise FrontendEnvironmentError(
-            f"Failed to detect Node.js version: {exc}"
-        ) from exc
+        raise FrontendEnvironmentError(f"Failed to detect Node.js version: {exc}") from exc
 
 
 def check_build_artifacts() -> Path:
@@ -117,9 +115,7 @@ def _ensure_symlink(link: Path, target: Path) -> None:
         rel_target = os.path.relpath(target, link.parent)
         link.symlink_to(rel_target)
     except OSError as exc:
-        raise FrontendEnvironmentError(
-            f"Cannot create symlink {link} -> {target}: {exc}"
-        ) from exc
+        raise FrontendEnvironmentError(f"Cannot create symlink {link} -> {target}: {exc}") from exc
 
 
 def ensure_standalone_assets() -> None:
@@ -219,9 +215,7 @@ class _LogPrefixPipe(threading.Thread):
 
     daemon = True
 
-    def __init__(
-        self, source: TextIO, prefix: str, target_level: int = logging.INFO
-    ) -> None:
+    def __init__(self, source: TextIO, prefix: str, target_level: int = logging.INFO) -> None:
         super().__init__()
         self._source = source
         self._prefix = prefix
@@ -278,9 +272,7 @@ class FrontendLauncher:
 
         actual_port = find_available_port(self._frontend_port, self._bind_host)
         if actual_port != self._frontend_port:
-            print(
-                f"\n⚠️  前端端口 {self._frontend_port} 已被占用，已自动切换到 {actual_port}"
-            )
+            print(f"\n⚠️  前端端口 {self._frontend_port} 已被占用，已自动切换到 {actual_port}")
             print(f"💡 前端实际端口: http://{self._bind_host}:{actual_port}\n")
             logger.info(
                 "[Frontend] Port %d in use, using %d instead",
@@ -357,9 +349,7 @@ class FrontendLauncher:
             logger.info("[Frontend] Ready at %s", self.url)
             return True
 
-        logger.error(
-            "[Frontend] Health check timed out after %ds", _HEALTH_CHECK_TIMEOUT
-        )
+        logger.error("[Frontend] Health check timed out after %ds", _HEALTH_CHECK_TIMEOUT)
         return False
 
     def stop(self) -> None:
@@ -370,18 +360,14 @@ class FrontendLauncher:
             return
 
         pid = proc.pid
-        logger.info(
-            "[Frontend] Stopping Next.js (PID %d) via stdin pipe closure...", pid
-        )
+        logger.info("[Frontend] Stopping Next.js (PID %d) via stdin pipe closure...", pid)
         try:
             # 核心：通过关闭 stdin 管道触发 Node.js 端优雅退出，避免使用难以控制的信号
             if proc.stdin:
                 proc.stdin.close()
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            logger.warning(
-                "[Frontend] Graceful stop timed out, force killing PID %d", pid
-            )
+            logger.warning("[Frontend] Graceful stop timed out, force killing PID %d", pid)
             proc.kill()
             try:
                 proc.wait(timeout=3)
@@ -411,9 +397,7 @@ class FrontendLauncher:
             # We shouldn't treat this as a crash that needs restarting if we're shutting down,
             # but if we're not shutting down, it's still unexpected.
             if exit_code == 0:
-                logger.warning(
-                    "[Frontend] Exited unexpectedly with code 0 while not shutting down. Restarting..."
-                )
+                logger.warning("[Frontend] Exited unexpectedly with code 0 while not shutting down. Restarting...")
                 # We should restart it if we are not shutting down
                 pass
 
@@ -496,9 +480,7 @@ def launch_frontend(
 
     ppid = os.getppid()
     if ppid != 1:
-        watchdog = threading.Thread(
-            target=launcher._ppid_watchdog, args=(ppid,), daemon=True
-        )
+        watchdog = threading.Thread(target=launcher._ppid_watchdog, args=(ppid,), daemon=True)
         watchdog.start()
 
     return launcher

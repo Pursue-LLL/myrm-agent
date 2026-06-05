@@ -69,6 +69,7 @@ async def _resolve_roster(
     entries_dict: dict[str, RosterEntry] = {}
 
     if subagent_ids:
+
         async def _fetch_one(agent_id: str) -> RosterEntry | None:
             try:
                 profile = await AgentService.get_agent_by_id(agent_id)
@@ -99,18 +100,18 @@ async def _resolve_roster(
                     continue
                 if profile.id in entries_dict:
                     continue
-                
+
                 allow_discovery = True
                 if profile.metadata and "allow_discovery" in profile.metadata:
                     allow_discovery = bool(profile.metadata["allow_discovery"])
-                
+
                 if not allow_discovery:
                     continue
-                    
+
                 desc = (profile.description or "").strip()
                 if not desc:
                     continue
-                    
+
                 entries_dict[profile.id] = RosterEntry(
                     agent_id=profile.id,
                     display_name=profile.display_name or profile.id,
@@ -129,9 +130,7 @@ def _format_roster(entries: list[RosterEntry]) -> str:
 
     lines: list[str] = []
     for entry in entries:
-        lines.append(
-            f"- **{entry.display_name}** (`{entry.agent_id}`): {entry.description}"
-        )
+        lines.append(f"- **{entry.display_name}** (`{entry.agent_id}`): {entry.description}")
     return "\n".join(lines)
 
 
@@ -146,10 +145,6 @@ async def build_leader_protocol_prompt(
     optionally discovering custom agents dynamically,
     then renders the protocol template.
     """
-    roster_entries = await _resolve_roster(
-        subagent_ids, 
-        leader_id=leader_id, 
-        dynamic_discovery=dynamic_discovery
-    )
+    roster_entries = await _resolve_roster(subagent_ids, leader_id=leader_id, dynamic_discovery=dynamic_discovery)
     roster_text = _format_roster(roster_entries)
     return _LEADER_PROTOCOL_TEMPLATE.format(roster=roster_text)

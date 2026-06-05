@@ -18,9 +18,7 @@ async def main():
 
         try:
             print("Navigating to http://localhost:3000 ...")
-            await page.goto(
-                "http://localhost:3000", wait_until="domcontentloaded", timeout=60000
-            )
+            await page.goto("http://localhost:3000", wait_until="domcontentloaded", timeout=60000)
             await page.wait_for_timeout(2000)
 
             adopt = page.get_by_role("button", name="采用服务端数据")
@@ -31,9 +29,7 @@ async def main():
 
             print("Page loaded successfully. Navigating to Agents settings...")
 
-            await page.goto(
-                "http://localhost:3000/settings/agents", wait_until="domcontentloaded"
-            )
+            await page.goto("http://localhost:3000/settings/agents", wait_until="domcontentloaded")
             await page.wait_for_timeout(3000)
 
             # Step 1: Create a new Agent
@@ -41,12 +37,8 @@ async def main():
             await page.get_by_role("button", name="创建智能体").click()
             await page.wait_for_timeout(2000)
 
-            await page.get_by_placeholder("输入智能体名称").fill(
-                "Time Machine Test Agent"
-            )
-            await page.get_by_placeholder("描述智能体的用途").fill(
-                "This is the original description v1."
-            )
+            await page.get_by_placeholder("输入智能体名称").fill("Time Machine Test Agent")
+            await page.get_by_placeholder("描述智能体的用途").fill("This is the original description v1.")
 
             print("Saving v1...")
             await page.get_by_role("button", name="保存").click()
@@ -67,9 +59,7 @@ async def main():
 
             # Step 2: Edit to create v2 snapshot
             print("Modifying description to v2...")
-            await page.get_by_placeholder("描述智能体的用途").fill(
-                "This is the updated description v2."
-            )
+            await page.get_by_placeholder("描述智能体的用途").fill("This is the updated description v2.")
 
             # Wait for save button to be enabled
             for _ in range(10):
@@ -79,8 +69,7 @@ async def main():
 
             print("Saving v2...")
             async with page.expect_response(
-                lambda response: "/api/v1/user-agents/" in response.url
-                and response.request.method == "PUT"
+                lambda response: "/api/v1/user-agents/" in response.url and response.request.method == "PUT"
             ) as response_info:
                 await save_button.click()
 
@@ -89,9 +78,7 @@ async def main():
 
             # Step 3: Undo functionality
             print("Clicking Undo (撤销上一次配置更改)...")
-            undo_buttons = await page.get_by_role(
-                "button", name="撤销上一次配置更改"
-            ).all()
+            undo_buttons = await page.get_by_role("button", name="撤销上一次配置更改").all()
             if not undo_buttons:
                 # If using the icon title, maybe the text is different. Let's try locating by text
                 undo_buttons = await page.get_by_text("撤销上一次配置更改").all()
@@ -105,18 +92,14 @@ async def main():
                 confirm_btn = page.get_by_role("button", name="确认撤销")
                 if await confirm_btn.count() > 0:
                     async with page.expect_response(
-                        lambda response: "/rollback" in response.url
-                        and response.request.method == "POST"
+                        lambda response: "/rollback" in response.url and response.request.method == "POST"
                     ) as response_info:
                         await confirm_btn.first.click()
                 else:
-                    confirm_btn = page.get_by_role(
-                        "button", name="确认撤销上一次配置更改"
-                    )
+                    confirm_btn = page.get_by_role("button", name="确认撤销上一次配置更改")
                     if await confirm_btn.count() > 0:
                         async with page.expect_response(
-                            lambda response: "/rollback" in response.url
-                            and response.request.method == "POST"
+                            lambda response: "/rollback" in response.url and response.request.method == "POST"
                         ) as response_info:
                             await confirm_btn.first.click()
                     else:
@@ -127,9 +110,7 @@ async def main():
                 resp_json = await response_info.value
                 print("Rollback API response:", await resp_json.json())
                 print("Rollback API responded, waiting for reload...")
-                await page.wait_for_timeout(
-                    2000
-                )  # Wait for reloadAgent() to populate UI
+                await page.wait_for_timeout(2000)  # Wait for reloadAgent() to populate UI
 
                 # Fetch directly from API to verify DB state
                 import httpx
@@ -137,18 +118,12 @@ async def main():
                 agent_url = page.url
                 import urllib.parse
 
-                agent_id = urllib.parse.parse_qs(
-                    urllib.parse.urlparse(agent_url).query
-                )["agentId"][0]
-                api_res = httpx.get(
-                    f"http://localhost:8080/api/v1/user-agents/{agent_id}"
-                ).json()
+                agent_id = urllib.parse.parse_qs(urllib.parse.urlparse(agent_url).query)["agentId"][0]
+                api_res = httpx.get(f"http://localhost:8080/api/v1/user-agents/{agent_id}").json()
                 print("DB Description after undo:", api_res["data"]["description"])
 
                 # Verify prompt is back to v1
-                content = await page.get_by_placeholder(
-                    "描述智能体的用途"
-                ).input_value()
+                content = await page.get_by_placeholder("描述智能体的用途").input_value()
                 print(f"Description after undo: {content}")
                 if "v1" not in content:
                     print("Error: Description didn't revert to v1 after undo!")
@@ -159,9 +134,7 @@ async def main():
 
             # Step 4: Modify again to create v3
             print("Modifying description to v3...")
-            await page.get_by_placeholder("描述智能体的用途").fill(
-                "This is the newest description v3."
-            )
+            await page.get_by_placeholder("描述智能体的用途").fill("This is the newest description v3.")
 
             # Wait for save button to be enabled
             for _ in range(10):
@@ -171,8 +144,7 @@ async def main():
 
             print("Saving v3...")
             async with page.expect_response(
-                lambda response: "/api/v1/user-agents/" in response.url
-                and response.request.method == "PUT"
+                lambda response: "/api/v1/user-agents/" in response.url and response.request.method == "PUT"
             ) as response_info:
                 await save_button.click()
 
@@ -197,8 +169,7 @@ async def main():
                 await page.wait_for_timeout(1000)
                 print("Confirming Restore...")
                 async with page.expect_response(
-                    lambda response: "/rollback" in response.url
-                    and response.request.method == "POST"
+                    lambda response: "/rollback" in response.url and response.request.method == "POST"
                 ) as response_info:
                     # AlertDialogAction is sometimes tricky, use locator
                     await page.locator('button:has-text("确认恢复")').click()
@@ -206,14 +177,10 @@ async def main():
                 await page.wait_for_timeout(3000)
 
                 # Verify prompt is back to v1
-                content = await page.get_by_placeholder(
-                    "描述智能体的用途"
-                ).input_value()
+                content = await page.get_by_placeholder("描述智能体的用途").input_value()
                 print(f"Description after Time Machine restore: {content}")
                 if "v1" not in content:
-                    print(
-                        "Error: Description didn't revert to v1 after Time Machine restore!"
-                    )
+                    print("Error: Description didn't revert to v1 after Time Machine restore!")
                     sys.exit(1)
             else:
                 print("Error: Could not find enough '恢复此版本' buttons.")

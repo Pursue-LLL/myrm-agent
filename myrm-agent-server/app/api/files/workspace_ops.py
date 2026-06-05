@@ -54,7 +54,7 @@ _MAX_FILENAME_LEN = 255
 _MAX_DELETE_ENTRIES = 500
 
 _PROTECTED_NAMES: frozenset[str] = frozenset({".git"})
-_ILLEGAL_NAME_RE = re.compile(r'[/\x00]')
+_ILLEGAL_NAME_RE = re.compile(r"[/\x00]")
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +70,9 @@ class MkdirRequest(BaseModel):
 class RenameRequest(BaseModel):
     workspace: str = Field(..., description="Workspace root path")
     path: str = Field(..., description="Current file/dir path")
-    new_name: str = Field(..., min_length=1, max_length=_MAX_FILENAME_LEN,
-                          description="New name (basename only, no path separators)")
+    new_name: str = Field(
+        ..., min_length=1, max_length=_MAX_FILENAME_LEN, description="New name (basename only, no path separators)"
+    )
 
 
 class MoveRequest(BaseModel):
@@ -206,9 +207,7 @@ async def upload_to_workspace(
 
         content = await upload_file.read()
         if len(content) > _MAX_UPLOAD_SIZE:
-            raise validation_error(
-                f"File {upload_file.filename} exceeds {_MAX_UPLOAD_SIZE // (1024 * 1024)}MB limit"
-            )
+            raise validation_error(f"File {upload_file.filename} exceeds {_MAX_UPLOAD_SIZE // (1024 * 1024)}MB limit")
 
         safe_name = _dedup_filename(dest_dir, upload_file.filename)
         dest_path = os.path.join(dest_dir, safe_name)
@@ -218,16 +217,20 @@ async def upload_to_workspace(
         with open(dest_path, "wb") as f:
             f.write(content)
 
-        results.append(UploadResult(
-            name=safe_name,
-            path=dest_path,
-            size=len(content),
-        ))
+        results.append(
+            UploadResult(
+                name=safe_name,
+                path=dest_path,
+                size=len(content),
+            )
+        )
 
-    return success_response(data={
-        "uploaded_count": len(results),
-        "files": [r.model_dump() for r in results],
-    })
+    return success_response(
+        data={
+            "uploaded_count": len(results),
+            "files": [r.model_dump() for r in results],
+        }
+    )
 
 
 @router.post("/browse/mkdir", response_model=None)
@@ -277,11 +280,13 @@ async def rename_in_workspace(body: RenameRequest) -> JSONResponse:
         raise validation_error(f"A file or directory named '{body.new_name}' already exists")
 
     os.rename(source, dest_resolved)
-    return success_response(data={
-        "old_name": basename,
-        "new_name": body.new_name,
-        "path": dest_resolved,
-    })
+    return success_response(
+        data={
+            "old_name": basename,
+            "new_name": body.new_name,
+            "path": dest_resolved,
+        }
+    )
 
 
 @router.post("/browse/move", response_model=None)
@@ -313,11 +318,13 @@ async def move_in_workspace(body: MoveRequest) -> JSONResponse:
         raise validation_error(f"'{basename}' already exists in target directory")
 
     shutil.move(source, dest_resolved)
-    return success_response(data={
-        "name": basename,
-        "old_path": source,
-        "new_path": dest_resolved,
-    })
+    return success_response(
+        data={
+            "name": basename,
+            "old_path": source,
+            "new_path": dest_resolved,
+        }
+    )
 
 
 @router.delete("/browse/delete", response_model=None)
@@ -361,10 +368,12 @@ async def delete_in_workspace(
     else:
         os.remove(target)
 
-    return success_response(data={
-        "deleted": basename,
-        "type": "directory" if is_dir else "file",
-    })
+    return success_response(
+        data={
+            "deleted": basename,
+            "type": "directory" if is_dir else "file",
+        }
+    )
 
 
 @router.put("/browse/content", response_model=None)
@@ -375,9 +384,7 @@ async def save_workspace_file(body: SaveContentRequest) -> JSONResponse:
     size limit is accepted.
     """
     if len(body.content.encode("utf-8")) > _MAX_CONTENT_SAVE_SIZE:
-        raise validation_error(
-            f"Content exceeds {_MAX_CONTENT_SAVE_SIZE // (1024 * 1024)}MB limit"
-        )
+        raise validation_error(f"Content exceeds {_MAX_CONTENT_SAVE_SIZE // (1024 * 1024)}MB limit")
 
     ws = _resolve_workspace(body.workspace)
 
@@ -397,8 +404,10 @@ async def save_workspace_file(body: SaveContentRequest) -> JSONResponse:
         f.write(body.content)
 
     size = os.path.getsize(target)
-    return success_response(data={
-        "path": target,
-        "name": os.path.basename(target),
-        "size": size,
-    })
+    return success_response(
+        data={
+            "path": target,
+            "name": os.path.basename(target),
+            "size": size,
+        }
+    )

@@ -35,7 +35,9 @@ def _reset_singleton() -> None:
 def _skip_agent_validation() -> None:  # type: ignore[misc]
     """Bypass agent_id validation for tests."""
     with patch.object(
-        KanbanService, "_validate_agent_id", new_callable=AsyncMock,
+        KanbanService,
+        "_validate_agent_id",
+        new_callable=AsyncMock,
     ):
         yield
 

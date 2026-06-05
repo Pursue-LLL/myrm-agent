@@ -17,7 +17,9 @@ import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
+import { extractShellCommand, isShellApprovalTool } from '@/lib/approval/shellCommandDisplay';
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
+import ShellCommandDisplay from './approval/ShellCommandDisplay';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -69,6 +71,11 @@ export default function SingleApprovalCard({
   const inputEntries = useMemo(() => Object.entries(request.toolInput).slice(0, 8), [request.toolInput]);
 
   const isSingleStringParam = inputEntries.length === 1 && typeof inputEntries[0][1] === 'string';
+
+  const shellCommand = useMemo(
+    () => (isShellApprovalTool(request.toolName) ? extractShellCommand(request.toolInput) : ''),
+    [request.toolInput, request.toolName],
+  );
 
   const isBrowserSession =
     request.toolName === 'browser_manage' &&
@@ -359,10 +366,20 @@ export default function SingleApprovalCard({
             </div>
           )}
 
-          {inputEntries.length > 0 && (
-            <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 text-xs font-mono">
-              {JSON.stringify(Object.fromEntries(inputEntries), null, 2)}
-            </pre>
+          {shellCommand ? (
+            <ShellCommandDisplay
+              toolName={request.toolName}
+              command={shellCommand}
+              commandSpans={request.commandSpans}
+              commandSpanRisks={request.commandSpanRisks}
+              workspaceRoot={request.workspaceRoot}
+            />
+          ) : (
+            inputEntries.length > 0 && (
+              <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 text-xs font-mono">
+                {JSON.stringify(Object.fromEntries(inputEntries), null, 2)}
+              </pre>
+            )
           )}
 
           {request.domains && request.domains.length > 0 && (

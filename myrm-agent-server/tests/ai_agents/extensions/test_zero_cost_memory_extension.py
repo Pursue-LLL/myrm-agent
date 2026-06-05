@@ -91,7 +91,9 @@ class TestEvictionCallbackUsesOriginalContent:
     @pytest.mark.asyncio
     async def test_callback_passes_original_content_to_extractor(self, extension):
         """The eviction callback must use EvictedToolCall.original_content, NOT tool_msg.content."""
-        ai_msg = AIMessage(content="Let me read that file", tool_calls=[{"id": "tc1", "name": "file_read", "args": {"path": "config.yaml"}}])
+        ai_msg = AIMessage(
+            content="Let me read that file", tool_calls=[{"id": "tc1", "name": "file_read", "args": {"path": "config.yaml"}}]
+        )
         tool_msg = ToolMessage(content="COMPACTED: file_read [config.yaml] 800→25 tokens", tool_call_id="tc1", name="file_read")
 
         original_content = "database:\n  host: localhost\n  port: 5432\n  max_connections: 100"
@@ -103,15 +105,19 @@ class TestEvictionCallbackUsesOriginalContent:
         mock_extractor_instance = MagicMock()
         mock_extractor_instance.extract = AsyncMock(return_value=mock_result)
 
-        with patch(
-            "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
-            return_value=mock_extractor_instance,
-        ), patch(
-            "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
-            new_callable=AsyncMock,
-        ), patch(
-            "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
-            return_value=AsyncMock(),
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                return_value=mock_extractor_instance,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                return_value=AsyncMock(),
+            ),
         ):
             cb = extension.build_eviction_callback()
             assert cb is not None

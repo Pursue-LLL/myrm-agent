@@ -65,9 +65,7 @@ def apply_board_to_model(b: KanbanBoard, m: KanbanBoardModel) -> None:
     m.heartbeat_interval_seconds = b.settings.heartbeat_interval_seconds
     m.zombie_timeout_seconds = b.settings.zombie_timeout_seconds
     m.max_retries_per_task = b.settings.max_retries_per_task
-    m.auto_block_after_consecutive_failures = (
-        b.settings.auto_block_after_consecutive_failures
-    )
+    m.auto_block_after_consecutive_failures = b.settings.auto_block_after_consecutive_failures
     m.specify_max_tokens = b.settings.specify_max_tokens
     m.auto_specify_on_create = b.settings.auto_specify_on_create
     m.default_workdir = b.settings.default_workdir

@@ -145,7 +145,9 @@ class CronJobCreate(BaseModel):
     failure_alert: FailureAlertCreate | Literal[False] | None = None
     monitor_config: MonitorConfigCreate | None = None
     context_from: list[str] = Field(default_factory=list, max_length=10)
-    pre_condition_script: str | None = Field(default=None, max_length=10000, description="Python script to evaluate before running the job")
+    pre_condition_script: str | None = Field(
+        default=None, max_length=10000, description="Python script to evaluate before running the job"
+    )
 
     @field_validator("name", mode="before")
     @classmethod
@@ -191,7 +193,9 @@ class CronJobUpdate(BaseModel):
     failure_alert: FailureAlertCreate | Literal[False] | None = None
     monitor_config: MonitorConfigCreate | None = None
     context_from: list[str] | None = None
-    pre_condition_script: str | None = Field(default=None, max_length=10000, description="Python script to evaluate before running the job")
+    pre_condition_script: str | None = Field(
+        default=None, max_length=10000, description="Python script to evaluate before running the job"
+    )
 
 
 # ---------------------------------------------------------------------------

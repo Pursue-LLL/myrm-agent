@@ -31,7 +31,8 @@
 | `Tooltip.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `common/` | 目录 | 子模块 | 见源码 |
 | `default-model/` | 目录 | 子模块 | 见源码 |
-| `mcp/` | 目录 | 子模块 | 见源码 |
+| `mcp/` | 目录 | MCP 配置 UI（列表/编辑/导入/安全扫描 Ack） | 见 `mcp/_ARCH.md` |
+| `mcp/MCPScanAckDialog.tsx` | 组件 | 高风险 MCP 配置确认对话框 | ✅ |
 | `model-service/` | 目录 | 子模块 | 见源码 |
 | `retrieval/` | 目录 | 子模块 | 见源码 |
 | `sections/` | 目录 | 子模块 | 见源码 |

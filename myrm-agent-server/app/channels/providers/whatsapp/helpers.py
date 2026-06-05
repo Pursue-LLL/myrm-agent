@@ -31,6 +31,7 @@ _PROCESS_STOP_TIMEOUT = 10
 def _default_auth_dir() -> Path:
     """MYRM_DATA_DIR/whatsapp_auth — consistent with other user data."""
     import os
+
     data_dir = os.environ.get("MYRM_DATA_DIR", str(Path.home() / ".myrm"))
     return Path(data_dir) / "whatsapp_auth"
 

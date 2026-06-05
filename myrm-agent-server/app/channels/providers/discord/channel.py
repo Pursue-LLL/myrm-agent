@@ -87,46 +87,20 @@ class DiscordChannel(BaseChannel):
     credential_spec = credential_spec(
         "discordCredentials",
         bot_token=credential_field("botToken", "DISCORD_BOT_TOKEN"),
-        enable_gateway=credential_field(
-            "enableGateway", "DISCORD_ENABLE_GATEWAY", default="true"
-        ),
-        allowed_users=credential_field(
-            "allowedUsers", "DISCORD_ALLOWED_USERS", default=""
-        ),
-        allowed_guilds=credential_field(
-            "allowedGuilds", "DISCORD_ALLOWED_GUILDS", default=""
-        ),
+        enable_gateway=credential_field("enableGateway", "DISCORD_ENABLE_GATEWAY", default="true"),
+        allowed_users=credential_field("allowedUsers", "DISCORD_ALLOWED_USERS", default=""),
+        allowed_guilds=credential_field("allowedGuilds", "DISCORD_ALLOWED_GUILDS", default=""),
         bot_policy=credential_field("botPolicy", "DISCORD_BOT_POLICY", default="deny"),
-        voice_enabled=credential_field(
-            "voiceEnabled", "DISCORD_VOICE_ENABLED", default="false"
-        ),
-        voice_barge_in_enabled=credential_field(
-            "voiceBargeInEnabled", "DISCORD_VOICE_BARGE_IN_ENABLED", default="false"
-        ),
-        voice_wake_words=credential_field(
-            "voiceWakeWords", "DISCORD_VOICE_WAKE_WORDS", default=""
-        ),
-        voice_timeout=credential_field(
-            "voiceTimeout", "DISCORD_VOICE_TIMEOUT", default="300"
-        ),
-        auto_thread=credential_field(
-            "autoThread", "DISCORD_AUTO_THREAD", default="true"
-        ),
-        no_thread_channels=credential_field(
-            "noThreadChannels", "DISCORD_NO_THREAD_CHANNELS", default=""
-        ),
-        voice_auto_join_channel=credential_field(
-            "voiceAutoJoinChannel", "DISCORD_VOICE_AUTO_JOIN_CHANNEL", default=""
-        ),
-        voice_text_channel=credential_field(
-            "voiceTextChannel", "DISCORD_VOICE_TEXT_CHANNEL", default=""
-        ),
-        voice_follow_users=credential_field(
-            "voiceFollowUsers", "DISCORD_VOICE_FOLLOW_USERS", default=""
-        ),
-        voice_allowed_channels=credential_field(
-            "voiceAllowedChannels", "DISCORD_VOICE_ALLOWED_CHANNELS", default=""
-        ),
+        voice_enabled=credential_field("voiceEnabled", "DISCORD_VOICE_ENABLED", default="false"),
+        voice_barge_in_enabled=credential_field("voiceBargeInEnabled", "DISCORD_VOICE_BARGE_IN_ENABLED", default="false"),
+        voice_wake_words=credential_field("voiceWakeWords", "DISCORD_VOICE_WAKE_WORDS", default=""),
+        voice_timeout=credential_field("voiceTimeout", "DISCORD_VOICE_TIMEOUT", default="300"),
+        auto_thread=credential_field("autoThread", "DISCORD_AUTO_THREAD", default="true"),
+        no_thread_channels=credential_field("noThreadChannels", "DISCORD_NO_THREAD_CHANNELS", default=""),
+        voice_auto_join_channel=credential_field("voiceAutoJoinChannel", "DISCORD_VOICE_AUTO_JOIN_CHANNEL", default=""),
+        voice_text_channel=credential_field("voiceTextChannel", "DISCORD_VOICE_TEXT_CHANNEL", default=""),
+        voice_follow_users=credential_field("voiceFollowUsers", "DISCORD_VOICE_FOLLOW_USERS", default=""),
+        voice_allowed_channels=credential_field("voiceAllowedChannels", "DISCORD_VOICE_ALLOWED_CHANNELS", default=""),
     )
 
     _BOT_POLICY_MAP: ClassVar[dict[str, ChatPolicy]] = {
@@ -144,17 +118,9 @@ class DiscordChannel(BaseChannel):
             "yes",
         )
         allowed_users_str = credentials.get("allowed_users", "")
-        allowed_users = (
-            [u.strip() for u in allowed_users_str.split(",") if u.strip()]
-            if allowed_users_str
-            else []
-        )
+        allowed_users = [u.strip() for u in allowed_users_str.split(",") if u.strip()] if allowed_users_str else []
         allowed_guilds_str = credentials.get("allowed_guilds", "")
-        allowed_guilds = (
-            [g.strip() for g in allowed_guilds_str.split(",") if g.strip()]
-            if allowed_guilds_str
-            else []
-        )
+        allowed_guilds = [g.strip() for g in allowed_guilds_str.split(",") if g.strip()] if allowed_guilds_str else []
 
         auto_thread = str(credentials.get("auto_thread", "true")).lower() in (
             "true",
@@ -163,9 +129,7 @@ class DiscordChannel(BaseChannel):
         )
         no_thread_channels_str = credentials.get("no_thread_channels", "")
         no_thread_channels = (
-            [ch.strip() for ch in no_thread_channels_str.split(",") if ch.strip()]
-            if no_thread_channels_str
-            else []
+            [ch.strip() for ch in no_thread_channels_str.split(",") if ch.strip()] if no_thread_channels_str else []
         )
 
         voice_enabled = str(credentials.get("voice_enabled", "false")).lower() in (
@@ -173,34 +137,22 @@ class DiscordChannel(BaseChannel):
             "1",
             "yes",
         )
-        voice_barge_in_enabled = str(
-            credentials.get("voice_barge_in_enabled", "false")
-        ).lower() in (
+        voice_barge_in_enabled = str(credentials.get("voice_barge_in_enabled", "false")).lower() in (
             "true",
             "1",
             "yes",
         )
         voice_wake_words_str = credentials.get("voice_wake_words", "")
-        voice_wake_words = (
-            [w.strip() for w in voice_wake_words_str.split(",") if w.strip()]
-            if voice_wake_words_str
-            else []
-        )
+        voice_wake_words = [w.strip() for w in voice_wake_words_str.split(",") if w.strip()] if voice_wake_words_str else []
         voice_timeout_str = credentials.get("voice_timeout", "300")
         voice_timeout = int(voice_timeout_str) if voice_timeout_str.isdigit() else 300
         voice_auto_join = credentials.get("voice_auto_join_channel", "") or None
         voice_text_channel = credentials.get("voice_text_channel", "") or None
         voice_follow_users_str = credentials.get("voice_follow_users", "")
-        voice_follow_users = (
-            [u.strip() for u in voice_follow_users_str.split(",") if u.strip()]
-            if voice_follow_users_str
-            else []
-        )
+        voice_follow_users = [u.strip() for u in voice_follow_users_str.split(",") if u.strip()] if voice_follow_users_str else []
         voice_allowed_channels_str = credentials.get("voice_allowed_channels", "")
         voice_allowed_channels = (
-            [c.strip() for c in voice_allowed_channels_str.split(",") if c.strip()]
-            if voice_allowed_channels_str
-            else []
+            [c.strip() for c in voice_allowed_channels_str.split(",") if c.strip()] if voice_allowed_channels_str else []
         )
 
         config = DiscordChannelConfig(
@@ -289,16 +241,9 @@ class DiscordChannel(BaseChannel):
                 await channel_self._command_tree.sync()
                 logger.info("Discord slash commands synced")
             self._status = ChannelStatus.RUNNING
-            if (
-                channel_self.config.voice_enabled
-                and channel_self.config.voice_auto_join_channel
-            ):
+            if channel_self.config.voice_enabled and channel_self.config.voice_auto_join_channel:
                 await channel_self._auto_join()
-            if (
-                channel_self.config.voice_enabled
-                and channel_self._voice_manager
-                and channel_self._voice_manager.follow_enabled
-            ):
+            if channel_self.config.voice_enabled and channel_self._voice_manager and channel_self._voice_manager.follow_enabled:
                 await channel_self._voice_manager.start_reconciliation()
 
         @self._client.event
@@ -320,9 +265,7 @@ class DiscordChannel(BaseChannel):
             after: discord.VoiceState,
         ) -> None:
             if channel_self._voice_manager:
-                await channel_self._voice_manager.on_voice_state_update(
-                    member, before, after
-                )
+                await channel_self._voice_manager.on_voice_state_update(member, before, after)
 
         loop = asyncio.get_running_loop()
         self._gateway_task = loop.create_task(self._client.start(self.config.bot_token))
@@ -425,9 +368,7 @@ class DiscordChannel(BaseChannel):
             return None
 
         starter_msg = getattr(thread, "message", None)
-        thread_obj = (
-            thread if hasattr(thread, "send") else getattr(thread, "thread", None)
-        )
+        thread_obj = thread if hasattr(thread, "send") else getattr(thread, "thread", None)
         thread_id = str(getattr(thread_obj, "id", getattr(thread, "id", "")))
         return str(getattr(starter_msg, "id", thread_id)) if starter_msg else thread_id
 
@@ -446,9 +387,7 @@ class DiscordChannel(BaseChannel):
             logger.error("Failed to send Discord message: %s", exc)
             return None
 
-    async def send_placeholder(
-        self, chat_id: str, text: str, *, thread_id: str | None = None
-    ) -> str | None:
+    async def send_placeholder(self, chat_id: str, text: str, *, thread_id: str | None = None) -> str | None:
         channel = await self._resolve_channel(chat_id)
         if not channel:
             return None
@@ -566,9 +505,7 @@ class DiscordChannel(BaseChannel):
         )
         await self._emit_inbound(inbound)
 
-    async def _should_auto_thread(
-        self, message: discord.Message, is_thread: bool
-    ) -> bool:
+    async def _should_auto_thread(self, message: discord.Message, is_thread: bool) -> bool:
         """Determine if this message should trigger auto-thread creation."""
         if not self.config.auto_thread:
             return False
@@ -585,9 +522,7 @@ class DiscordChannel(BaseChannel):
             return False
         return not (self._client and self._client.user not in message.mentions)
 
-    async def _auto_create_thread(
-        self, message: discord.Message, content: str
-    ) -> discord.Thread | None:
+    async def _auto_create_thread(self, message: discord.Message, content: str) -> discord.Thread | None:
         """Create a thread from the user message for conversation isolation."""
         import re
 
@@ -596,9 +531,7 @@ class DiscordChannel(BaseChannel):
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         thread_name = self._derive_thread_name(cleaned) if cleaned else "Conversation"
         try:
-            return await message.create_thread(
-                name=thread_name, auto_archive_duration=1440
-            )
+            return await message.create_thread(name=thread_name, auto_archive_duration=1440)
         except Exception:
             logger.debug(
                 "Auto-thread creation failed for message %s, falling back to channel reply",
@@ -663,11 +596,7 @@ class DiscordChannel(BaseChannel):
 
         data = interaction.data or {}
         custom_id = data.get("custom_id", "")
-        action = (
-            custom_id.replace("act:", "", 1)
-            if custom_id.startswith("act:")
-            else custom_id
-        )
+        action = custom_id.replace("act:", "", 1) if custom_id.startswith("act:") else custom_id
 
         ch = interaction.channel
         topic: str | None = getattr(ch, "topic", None)
@@ -745,17 +674,11 @@ class DiscordChannel(BaseChannel):
         self._voice_manager = VoiceManager(
             self._client,
             voice_timeout=self.config.voice_timeout,
-            allowed_user_ids=(
-                set(self.config.allowed_users) if self.config.allowed_users else None
-            ),
+            allowed_user_ids=(set(self.config.allowed_users) if self.config.allowed_users else None),
             on_voice_input=self._on_voice_input,
             voice_wake_words=self.config.voice_wake_words,
             voice_barge_in_enabled=self.config.voice_barge_in_enabled,
-            follow_user_ids=(
-                set(self.config.voice_follow_users)
-                if self.config.voice_follow_users
-                else None
-            ),
+            follow_user_ids=(set(self.config.voice_follow_users) if self.config.voice_follow_users else None),
             allowed_channels=self.config.voice_allowed_channels or None,
         )
 
@@ -799,9 +722,7 @@ class DiscordChannel(BaseChannel):
         if self._voice_manager:
             await self._voice_manager.leave(guild_id)
 
-    async def play_audio(
-        self, guild_id: int, audio_path: str, tts_text: str = ""
-    ) -> bool:
+    async def play_audio(self, guild_id: int, audio_path: str, tts_text: str = "") -> bool:
         """Play audio in the voice channel of a guild."""
         if not self._voice_manager:
             return False
@@ -832,11 +753,7 @@ class DiscordChannel(BaseChannel):
             if not ch:
                 ch = await self._client.fetch_channel(int(channel_id))
             if isinstance(ch, discord.VoiceChannel):
-                text_ch_id = (
-                    int(self.config.voice_text_channel)
-                    if self.config.voice_text_channel
-                    else 0
-                )
+                text_ch_id = int(self.config.voice_text_channel) if self.config.voice_text_channel else 0
                 await self.join_voice(ch, text_channel_id=text_ch_id)
                 logger.info("Auto-joined voice channel %s", ch.name)
             else:
@@ -870,16 +787,12 @@ class DiscordChannel(BaseChannel):
             channel: discord.VoiceChannel | None = None,
         ) -> None:
             if not channel_self._voice_manager:
-                await interaction.response.send_message(
-                    "Voice is not enabled.", ephemeral=True
-                )
+                await interaction.response.send_message("Voice is not enabled.", ephemeral=True)
                 return
 
             guild = interaction.guild
             if not guild:
-                await interaction.response.send_message(
-                    "This command can only be used in a server.", ephemeral=True
-                )
+                await interaction.response.send_message("This command can only be used in a server.", ephemeral=True)
                 return
 
             if action == "join":
@@ -897,11 +810,7 @@ class DiscordChannel(BaseChannel):
                 await interaction.response.defer(ephemeral=True)
                 text_ch_id = interaction.channel_id or 0
                 ok = await channel_self.join_voice(target, text_channel_id=text_ch_id)
-                msg = (
-                    f"Joined **{target.name}**"
-                    if ok
-                    else "Failed to join voice channel."
-                )
+                msg = f"Joined **{target.name}**" if ok else "Failed to join voice channel."
                 await interaction.followup.send(msg, ephemeral=True)
 
             elif action == "leave":
@@ -912,24 +821,18 @@ class DiscordChannel(BaseChannel):
             elif action == "status":
                 connected = channel_self._voice_manager.is_connected(guild.id)
                 status = "Connected" if connected else "Not connected"
-                await interaction.response.send_message(
-                    f"Voice status: **{status}**", ephemeral=True
-                )
+                await interaction.response.send_message(f"Voice status: **{status}**", ephemeral=True)
 
     def on_inbound(self, callback: Callable[[InboundMessage], Awaitable[None]]) -> None:
         """Register inbound message callback."""
         self._on_inbound = callback
 
-    async def fetch_history(
-        self, chat_id: str, limit: int = 15
-    ) -> list[InboundMessage]:
+    async def fetch_history(self, chat_id: str, limit: int = 15) -> list[InboundMessage]:
         """Fetch recent historical messages from Discord channel."""
         try:
             channel = await self._resolve_channel(chat_id)
             if not channel:
-                logger.warning(
-                    "Discord: Channel %s not found for history fetch", chat_id
-                )
+                logger.warning("Discord: Channel %s not found for history fetch", chat_id)
                 return []
 
             inbounds = []

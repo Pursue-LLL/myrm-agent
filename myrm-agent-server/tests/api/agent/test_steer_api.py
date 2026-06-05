@@ -21,7 +21,6 @@ def _clean_registry() -> None:
 
 
 class TestSteerEndpoint:
-
     def test_steer_no_active_session_returns_404(self, client: TestClient) -> None:
         resp = client.post(
             "/api/v1/agents/chats/nonexistent-chat/steer",

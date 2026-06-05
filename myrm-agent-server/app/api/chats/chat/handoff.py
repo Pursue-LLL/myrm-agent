@@ -24,9 +24,7 @@ router = APIRouter()
 
 
 class HandoffRequest(BaseModel):
-    target_channel: str = Field(
-        ..., min_length=1, description="Target channel name (e.g. telegram_abc123)"
-    )
+    target_channel: str = Field(..., min_length=1, description="Target channel name (e.g. telegram_abc123)")
 
 
 @router.post("/{chat_id}/handoff")

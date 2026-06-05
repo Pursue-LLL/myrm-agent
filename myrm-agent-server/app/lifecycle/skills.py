@@ -1,4 +1,5 @@
 """Application lifecycle management."""
+
 from __future__ import annotations
 
 import logging
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _ab_test_manager: "ABTestManager | None" = None
+
 
 async def start_skill_optimization_listeners() -> None:
     """Initialize A/B testing and shadow testing listeners.
@@ -51,10 +53,10 @@ async def start_skill_optimization_listeners() -> None:
     except Exception as e:
         logger.error(f"Failed to start skill optimization listeners: {e}", exc_info=True)
 
+
 async def shutdown_skill_optimization_listeners() -> None:
     """Gracefully shutdown ABTestManager worker pool."""
     global _ab_test_manager
     if _ab_test_manager is not None:
         await _ab_test_manager.shutdown()
         _ab_test_manager = None
-

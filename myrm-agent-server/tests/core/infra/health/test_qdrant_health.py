@@ -12,10 +12,11 @@ async def test_qdrant_health_checker_not_exists(tmp_path):
         mock_settings.database.qdrant_path = str(tmp_path / "nonexistent")
         checker = QdrantHealthChecker()
         result = await checker.check()
-        
+
         assert result.status == HealthStatus.HEALTHY
         assert "does not exist yet" in result.message
         assert result.details["path"] == str(tmp_path / "nonexistent")
+
 
 @pytest.mark.asyncio
 async def test_qdrant_health_checker_exists(tmp_path):
@@ -23,10 +24,11 @@ async def test_qdrant_health_checker_exists(tmp_path):
         mock_settings.database.qdrant_path = str(tmp_path)
         checker = QdrantHealthChecker()
         result = await checker.check()
-        
+
         assert result.status == HealthStatus.HEALTHY
         assert "Lock management is handled natively" in result.message
         assert result.details["path"] == str(tmp_path)
+
 
 @pytest.mark.asyncio
 async def test_qdrant_health_checker_recover():
@@ -34,7 +36,7 @@ async def test_qdrant_health_checker_recover():
         mock_settings.database.qdrant_path = "/tmp"
         checker = QdrantHealthChecker()
         result = await checker.recover()
-        
+
         assert result.status == RecoveryStatus.SUCCESS
         assert "No manual recovery needed" in result.message
         assert result.actions_taken == ["None"]

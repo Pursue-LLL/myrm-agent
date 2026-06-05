@@ -162,17 +162,11 @@ async def test_confidence_approval_flow_creates_pending() -> None:
     assert result.requires_manual_review
 
     async with get_session() as db:
-        result_rows = await db.execute(
-            select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution")
-        )
+        result_rows = await db.execute(select(ApprovalRecord).where(ApprovalRecord.action_type == "evolution"))
         records = list(result_rows.scalars().all())
 
     record = next(
-        (
-            item
-            for item in records
-            if isinstance(item.payload, dict) and item.payload.get("skill_id") == "test_skill_456"
-        ),
+        (item for item in records if isinstance(item.payload, dict) and item.payload.get("skill_id") == "test_skill_456"),
         None,
     )
     assert record is not None

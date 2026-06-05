@@ -207,13 +207,11 @@ class AgentService:
             "engine_params": agent_data.engine_params,
             "openapi_services": agent_data.openapi_services or [],
             "agent_type": agent_data.agent_type,
-            "session_policy": (
-                agent_data.session_policy.model_dump(mode="json")
-                if agent_data.session_policy
-                else None
-            ),
+            "session_policy": (agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None),
             "notify_targets": agent_data.notify_targets,
-            "tool_gateway_config": agent_data.tool_gateway_config.model_dump(mode="json") if getattr(agent_data, "tool_gateway_config", None) else None,
+            "tool_gateway_config": agent_data.tool_gateway_config.model_dump(mode="json")
+            if getattr(agent_data, "tool_gateway_config", None)
+            else None,
         }
 
         profile = AgentProfile(
@@ -317,9 +315,7 @@ class AgentService:
                 new_metadata["agent_type"] = agent_data.agent_type
             if "session_policy" in agent_data.model_fields_set:
                 new_metadata["session_policy"] = (
-                    agent_data.session_policy.model_dump(mode="json")
-                    if agent_data.session_policy
-                    else None
+                    agent_data.session_policy.model_dump(mode="json") if agent_data.session_policy else None
                 )
             if "notify_targets" in agent_data.model_fields_set:
                 new_metadata["notify_targets"] = agent_data.notify_targets
@@ -377,6 +373,7 @@ class AgentService:
                 from myrm_agent_harness.agent.skills.evolution.db.store import SkillStore
 
                 from app.config.settings import settings
+
                 store = SkillStore(db_path=Path(settings.database.state_dir) / "skills.db")
                 deleted_count = await store.delete_skills_by_agent(agent_id)
                 if deleted_count > 0:

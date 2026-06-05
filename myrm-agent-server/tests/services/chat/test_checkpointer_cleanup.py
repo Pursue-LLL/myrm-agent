@@ -116,6 +116,7 @@ async def test_permanently_delete_calls_cleanup(mock_checkpointer: MagicMock) ->
         patch.object(_ChatCrudMixin, "permanently_delete_chat", wraps=_ChatCrudMixin.permanently_delete_chat),
     ):
         import app.services.chat.chat_crud as mod
+
         assert "_cleanup_checkpointer" in dir(mod._ChatCrudMixin)
 
 
@@ -127,9 +128,7 @@ async def test_scheduler_auto_purge_includes_cleanup() -> None:
     import app.lifecycle.schedulers as sched
 
     source = inspect.getsource(sched)
-    assert "_cleanup_checkpointer" in source, (
-        "schedulers.py auto-purge must call _cleanup_checkpointer"
-    )
+    assert "_cleanup_checkpointer" in source, "schedulers.py auto-purge must call _cleanup_checkpointer"
 
 
 @pytest.mark.asyncio
@@ -141,9 +140,7 @@ async def test_stream_finalize_uses_adelete_thread() -> None:
 
     source = inspect.getsource(sf)
     assert "adelete_thread" in source
-    assert 'getattr(checkpointer, "adelete"' not in source, (
-        "stream_finalize.py must not use the defunct adelete API"
-    )
+    assert 'getattr(checkpointer, "adelete"' not in source, "stream_finalize.py must not use the defunct adelete API"
 
 
 @pytest.mark.asyncio
@@ -155,6 +152,4 @@ async def test_fork_manager_uses_adelete_thread() -> None:
 
     source = inspect.getsource(cfm)
     assert "adelete_thread" in source
-    assert "lacks delete-single-checkpoint API" not in source, (
-        "Outdated comment about missing API should be removed"
-    )
+    assert "lacks delete-single-checkpoint API" not in source, "Outdated comment about missing API should be removed"

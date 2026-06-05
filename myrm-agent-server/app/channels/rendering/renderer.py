@@ -133,7 +133,7 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
     header = ""
     cron = extract_cron_context(msg)
     if cron:
-        icon = ("\u2705" if cron.success else "\u274C") if style.use_emoji else ""
+        icon = ("\u2705" if cron.success else "\u274c") if style.use_emoji else ""
         label = f"{icon} {cron.job_name}" if icon else cron.job_name
         if style.format == "markdown":
             header = f"*{label}*\n"
@@ -175,10 +175,10 @@ def _build_reasoning_block(reasoning: str | None, style: RenderStyle) -> str:
         trimmed = trimmed[:_REASONING_MAX_LEN] + "…"
 
     if style.reasoning_display == ReasoningDisplay.COLLAPSED:
-        emoji = "\U0001F9E0 " if style.use_emoji else ""
+        emoji = "\U0001f9e0 " if style.use_emoji else ""
         return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
 
-    emoji = "\U0001F4AD " if style.use_emoji else ""
+    emoji = "\U0001f4ad " if style.use_emoji else ""
     return f"{emoji}*Thinking:*\n{trimmed}\n\n---\n\n"
 
 
@@ -224,7 +224,7 @@ def _build_sources_block(msg: OutboundMessage, style: RenderStyle) -> str:
     if not lines:
         return ""
 
-    clip = "\U0001F4CE " if style.use_emoji else ""
+    clip = "\U0001f4ce " if style.use_emoji else ""
     prefix = f"{clip}*Sources:*" if style.format == "markdown" else f"{clip}Sources:"
     return f"\n\n{prefix}\n" + "\n".join(lines)
 
@@ -299,7 +299,9 @@ def _downgrade_html_fences(text: str, style: RenderStyle) -> str:
     if style.format == "markdown" and style.supports_code_fence:
         # Web UI or rich-markdown channel — keep original
         return text
-    placeholder = "\U0001F4CA [Interactive widget \u2014 view in app]" if style.use_emoji else "[Interactive widget \u2014 view in app]"
+    placeholder = (
+        "\U0001f4ca [Interactive widget \u2014 view in app]" if style.use_emoji else "[Interactive widget \u2014 view in app]"
+    )
     return _HTML_FENCE_RE.sub(placeholder, text)
 
 

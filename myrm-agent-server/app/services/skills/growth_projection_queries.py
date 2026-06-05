@@ -146,11 +146,7 @@ async def list_skill_growth_projection_events(
     days: int | None = None,
 ) -> tuple[list[SkillGrowthProjectionEventRead], int]:
     since = datetime.now(UTC) - timedelta(days=days) if days is not None else None
-    event_types = (
-        SKILL_GROWTH_PROJECTION_NEGATIVE_EVENT_TYPES
-        if negative_only
-        else SKILL_GROWTH_PROJECTION_EVENT_TYPES
-    )
+    event_types = SKILL_GROWTH_PROJECTION_NEGATIVE_EVENT_TYPES if negative_only else SKILL_GROWTH_PROJECTION_EVENT_TYPES
     events = await list_experience_events(
         limit=limit,
         event_types=event_types,

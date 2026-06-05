@@ -67,9 +67,7 @@ def test_format_value_returns_key_on_miss(engine: I18nEngine) -> None:
     assert engine.format_value("en", "missing_catalog_key_xyz") == "missing_catalog_key_xyz"
 
 
-def test_json_catalog_invalid_file_is_skipped(
-    engine: I18nEngine, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_json_catalog_invalid_file_is_skipped(engine: I18nEngine, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     bad_path = tmp_path / "bad.json"
     bad_path.write_text("{not-json", encoding="utf-8")
     engine.add_root(str(tmp_path))

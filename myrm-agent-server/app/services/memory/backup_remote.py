@@ -411,7 +411,7 @@ class _S3Client:
                 )
                 for obj in response.get("Contents", []):
                     key = obj["Key"]
-                    name = key[len(self._prefix):] if self._prefix and key.startswith(self._prefix) else key
+                    name = key[len(self._prefix) :] if self._prefix and key.startswith(self._prefix) else key
                     if not name or name.endswith("/"):
                         continue
                     mod_time = obj["LastModified"]

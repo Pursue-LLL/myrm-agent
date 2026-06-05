@@ -44,9 +44,7 @@ def _harness_sync_lock_ready_on_pypi() -> bool:
     core = _platform_core_package()
     if not core:
         return False
-    return _pypi_package_exists("myrm-agent-harness", _HARNESS_VERSION) and _pypi_package_exists(
-        core, _HARNESS_VERSION
-    )
+    return _pypi_package_exists("myrm-agent-harness", _HARNESS_VERSION) and _pypi_package_exists(core, _HARNESS_VERSION)
 
 
 @pytest.mark.architecture

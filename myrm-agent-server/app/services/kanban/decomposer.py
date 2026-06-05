@@ -179,7 +179,9 @@ def _normalize_assignee(
     if chosen not in valid_names:
         logger.info(
             "LLM proposed invalid assignee %r (valid: %s) — falling back to %r",
-            chosen, ", ".join(sorted(valid_names)), default_assignee,
+            chosen,
+            ", ".join(sorted(valid_names)),
+            default_assignee,
         )
         return default_assignee
     return chosen
@@ -212,23 +214,24 @@ class PlatformTaskDecomposer:
     ) -> DecomposeOutcome:
         if task.status != TaskStatus.TRIAGE:
             return DecomposeOutcome(
-                task_id=task.task_id, ok=False, reason="not_triage",
+                task_id=task.task_id,
+                ok=False,
+                reason="not_triage",
             )
 
         try:
             from app.services.agent.platform_config import build_platform_litellm_kwargs
+
             llm_kwargs = await build_platform_litellm_kwargs()
         except Exception as exc:
             logger.info("decompose: platform LLM unavailable for %s: %s", task.task_id[:8], exc)
             return DecomposeOutcome(
-                task_id=task.task_id, ok=False, reason="decomposer_unavailable",
+                task_id=task.task_id,
+                ok=False,
+                reason="decomposer_unavailable",
             )
 
-        system_prompt = (
-            _SYSTEM_PROMPT_ZH
-            if has_cjk(task.title) or has_cjk(task.description)
-            else _SYSTEM_PROMPT_EN
-        )
+        system_prompt = _SYSTEM_PROMPT_ZH if has_cjk(task.title) or has_cjk(task.description) else _SYSTEM_PROMPT_EN
         user_msg = _USER_TEMPLATE.format(
             task_id=task.task_id,
             title=truncate(task.title or "", _MAX_TITLE_FORWARD),
@@ -239,6 +242,7 @@ class PlatformTaskDecomposer:
 
         try:
             import litellm
+
             response = await litellm.acompletion(
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -252,7 +256,8 @@ class PlatformTaskDecomposer:
         except Exception as exc:
             logger.info("decompose: LLM call failed for %s: %s", task.task_id[:8], exc)
             return DecomposeOutcome(
-                task_id=task.task_id, ok=False,
+                task_id=task.task_id,
+                ok=False,
                 reason=f"llm_error:{type(exc).__name__}",
             )
 
@@ -267,7 +272,9 @@ class PlatformTaskDecomposer:
         parsed = extract_json_blob(raw)
         if parsed is None:
             return DecomposeOutcome(
-                task_id=task.task_id, ok=False, reason="parse_failed",
+                task_id=task.task_id,
+                ok=False,
+                reason="parse_failed",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
             )
@@ -278,17 +285,9 @@ class PlatformTaskDecomposer:
 
         if not fanout:
             new_title_raw = parsed.get("title")
-            new_title = (
-                new_title_raw.strip()[:200]
-                if isinstance(new_title_raw, str) and new_title_raw.strip()
-                else None
-            )
+            new_title = new_title_raw.strip()[:200] if isinstance(new_title_raw, str) and new_title_raw.strip() else None
             new_body_raw = parsed.get("body")
-            new_body = (
-                new_body_raw.strip()
-                if isinstance(new_body_raw, str) and new_body_raw.strip()
-                else None
-            )
+            new_body = new_body_raw.strip() if isinstance(new_body_raw, str) and new_body_raw.strip() else None
             new_assignee_raw = parsed.get("assignee")
             new_assignee = (
                 _normalize_assignee(
@@ -301,14 +300,18 @@ class PlatformTaskDecomposer:
             )
             if new_title is None and new_body is None:
                 return DecomposeOutcome(
-                    task_id=task.task_id, ok=False,
+                    task_id=task.task_id,
+                    ok=False,
                     reason="no_fanout_empty_result",
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                 )
             return DecomposeOutcome(
-                task_id=task.task_id, ok=True, fanout=False,
-                rationale=rationale, reason="no_fanout",
+                task_id=task.task_id,
+                ok=True,
+                fanout=False,
+                rationale=rationale,
+                reason="no_fanout",
                 new_title=new_title,
                 new_body=new_body,
                 new_assignee=new_assignee,
@@ -319,7 +322,8 @@ class PlatformTaskDecomposer:
         raw_tasks = parsed.get("tasks") or []
         if not isinstance(raw_tasks, list) or not raw_tasks:
             return DecomposeOutcome(
-                task_id=task.task_id, ok=False,
+                task_id=task.task_id,
+                ok=False,
                 reason="empty_tasks_list",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
@@ -330,7 +334,8 @@ class PlatformTaskDecomposer:
         for idx, entry in enumerate(raw_tasks):
             if not isinstance(entry, dict):
                 return DecomposeOutcome(
-                    task_id=task.task_id, ok=False,
+                    task_id=task.task_id,
+                    ok=False,
                     reason=f"tasks[{idx}]_not_object",
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
@@ -338,7 +343,8 @@ class PlatformTaskDecomposer:
             title = entry.get("title")
             if not isinstance(title, str) or not title.strip():
                 return DecomposeOutcome(
-                    task_id=task.task_id, ok=False,
+                    task_id=task.task_id,
+                    ok=False,
                     reason=f"tasks[{idx}]_missing_title",
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
@@ -354,16 +360,15 @@ class PlatformTaskDecomposer:
             parents_raw = entry.get("parents") or []
             if not isinstance(parents_raw, list):
                 parents_raw = []
-            clean_parents = tuple(
-                p for p in parents_raw
-                if isinstance(p, int) and 0 <= p < len(raw_tasks) and p != idx
+            clean_parents = tuple(p for p in parents_raw if isinstance(p, int) and 0 <= p < len(raw_tasks) and p != idx)
+            children.append(
+                DecomposeChildSpec(
+                    title=title.strip()[:200],
+                    body=body.strip(),
+                    assignee=assignee,
+                    parent_indices=clean_parents,
+                )
             )
-            children.append(DecomposeChildSpec(
-                title=title.strip()[:200],
-                body=body.strip(),
-                assignee=assignee,
-                parent_indices=clean_parents,
-            ))
 
         return DecomposeOutcome(
             task_id=task.task_id,

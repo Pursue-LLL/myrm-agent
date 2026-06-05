@@ -137,9 +137,7 @@ class TestApprovalLifecycle:
         ch = FakeChannel()
         bus.register_channel(ch)
 
-        mid = await bus.send_tracked(
-            OutboundMessage(channel="test", recipient_id="c1", content="Approve?", user_id="u1")
-        )
+        mid = await bus.send_tracked(OutboundMessage(channel="test", recipient_id="c1", content="Approve?", user_id="u1"))
 
         edited = await bus.edit_channel_message("test", "c1", mid, " Denied: bash_tool")
         assert edited is True
@@ -150,9 +148,7 @@ class TestApprovalLifecycle:
         ch = NoEditChannel()
         bus.register_channel(ch)
 
-        mid = await bus.send_tracked(
-            OutboundMessage(channel="noedit", recipient_id="c1", content="Approve?", user_id="u1")
-        )
+        mid = await bus.send_tracked(OutboundMessage(channel="noedit", recipient_id="c1", content="Approve?", user_id="u1"))
         assert mid == "mid_1"
 
         edited = await bus.edit_channel_message("noedit", "c1", mid, "Approved: bash_tool")
@@ -166,7 +162,5 @@ class TestApprovalLifecycle:
         ch = NoIdChannel()
         bus.register_channel(ch)
 
-        mid = await bus.send_tracked(
-            OutboundMessage(channel="noid", recipient_id="c1", content="Approve?", user_id="u1")
-        )
+        mid = await bus.send_tracked(OutboundMessage(channel="noid", recipient_id="c1", content="Approve?", user_id="u1"))
         assert mid is None

@@ -108,9 +108,7 @@ class TestReasoningContentManager:
             "reasoning_content": "I think...",
         }
         api_msg = {}
-        result = manager.copy_reasoning_content_for_api(
-            source, api_msg, "deepseek", "deepseek-v4-flash"
-        )
+        result = manager.copy_reasoning_content_for_api(source, api_msg, "deepseek", "deepseek-v4-flash")
         assert result["reasoning_content"] == "I think..."
 
     def test_copy_reasoning_content_for_api_upgrades_empty(self, manager):
@@ -121,9 +119,7 @@ class TestReasoningContentManager:
             "reasoning_content": "",
         }
         api_msg = {}
-        result = manager.copy_reasoning_content_for_api(
-            source, api_msg, "deepseek", "deepseek-v4-flash"
-        )
+        result = manager.copy_reasoning_content_for_api(source, api_msg, "deepseek", "deepseek-v4-flash")
         assert result["reasoning_content"] == " "
 
     def test_copy_reasoning_content_for_api_promotes_reasoning(self, manager):
@@ -134,9 +130,7 @@ class TestReasoningContentManager:
             "reasoning": "I think...",
         }
         api_msg = {}
-        result = manager.copy_reasoning_content_for_api(
-            source, api_msg, "deepseek", "deepseek-v4-flash"
-        )
+        result = manager.copy_reasoning_content_for_api(source, api_msg, "deepseek", "deepseek-v4-flash")
         assert result["reasoning_content"] == "I think..."
 
     def test_copy_reasoning_content_for_api_injects_placeholder(self, manager):
@@ -147,9 +141,7 @@ class TestReasoningContentManager:
             "tool_calls": [{"id": "c1"}],
         }
         api_msg = {}
-        result = manager.copy_reasoning_content_for_api(
-            source, api_msg, "deepseek", "deepseek-v4-flash"
-        )
+        result = manager.copy_reasoning_content_for_api(source, api_msg, "deepseek", "deepseek-v4-flash")
         assert result["reasoning_content"] == " "
 
     def test_copy_reasoning_content_for_api_no_echo_needed(self, manager):
@@ -160,9 +152,7 @@ class TestReasoningContentManager:
             "tool_calls": [{"id": "c1"}],
         }
         api_msg = {}
-        result = manager.copy_reasoning_content_for_api(
-            source, api_msg, "openai", "gpt-4o"
-        )
+        result = manager.copy_reasoning_content_for_api(source, api_msg, "openai", "gpt-4o")
         assert "reasoning_content" not in result
 
     def test_process_message_for_storage(self, manager):
@@ -172,7 +162,5 @@ class TestReasoningContentManager:
             "content": "",
             "tool_calls": [{"id": "c1"}],
         }
-        result = manager.process_message_for_storage(
-            message, "deepseek", "deepseek-v4-flash"
-        )
+        result = manager.process_message_for_storage(message, "deepseek", "deepseek-v4-flash")
         assert result["reasoning_content"] == " "

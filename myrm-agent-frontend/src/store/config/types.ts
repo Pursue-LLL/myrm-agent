@@ -59,6 +59,33 @@ export interface MCPServiceConfig {
   clientKey?: string | null;
   clientKeyPassword?: string | null;
   oauth?: MCPOAuthSettings | null;
+  lastScanSummary?: MCPLastScanSummary | null;
+}
+
+export interface MCPLastScanSummary {
+  maxSeverity: string | null;
+  scannedAt: number;
+  findingCount: number;
+}
+
+export interface MCPScanFinding {
+  threatType: string;
+  severity: string;
+  description: string;
+  field: string;
+  recommendation?: string;
+}
+
+export interface MCPScanResult {
+  serverName: string;
+  allowSave: boolean;
+  requiresAcknowledgement: boolean;
+  maxSeverity: string | null;
+  findings: MCPScanFinding[];
+}
+
+export interface MCPScanBatchResult {
+  results: MCPScanResult[];
 }
 
 // 验证结果类型定义
@@ -69,6 +96,7 @@ export interface ValidationResult {
   instructions?: string;
   retriable?: boolean;
   businessCode?: string;
+  scanFindings?: MCPScanFinding[];
 }
 
 // Store状态接口

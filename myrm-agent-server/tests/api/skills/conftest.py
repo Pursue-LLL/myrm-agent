@@ -16,9 +16,7 @@ def _load_drafts_module():
     if _DRAFTS_MODULE is not None:
         return _DRAFTS_MODULE
 
-    drafts_path = (
-        Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / "drafts.py"
-    )
+    drafts_path = Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / "drafts.py"
     spec = importlib.util.spec_from_file_location("app.api.skills.drafts", drafts_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load drafts module from {drafts_path}")
@@ -44,6 +42,7 @@ def app() -> FastAPI:
 def client(app: FastAPI) -> TestClient:
     """Create test client."""
     return TestClient(app)
+
 
 @pytest.fixture(autouse=True)
 async def setup_test_database():

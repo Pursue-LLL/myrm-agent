@@ -337,7 +337,7 @@ class TestVoiceReceiverPacket:
         nonce_bytes = b"\x03\x00\x00\x00"
         packet = full_header + fake_payload + nonce_bytes
 
-        ext_data = b"\xEE" * (ext_words * 4)
+        ext_data = b"\xee" * (ext_words * 4)
         opus_data = b"\x00" * 960
         mock_aead = MagicMock()
         mock_aead.decrypt.return_value = ext_data + opus_data
@@ -525,8 +525,8 @@ class TestDAVEDecrypt:
         dave.decrypt.side_effect = Exception("Unencrypted frame")
         r._dave_session = dave
 
-        result = r._dave_decrypt(100, b"\xAB" * 50)
-        assert result == b"\xAB" * 50
+        result = r._dave_decrypt(100, b"\xab" * 50)
+        assert result == b"\xab" * 50
 
     def test_dave_decrypt_real_error_returns_none(self) -> None:
         """DAVE real decrypt error should return None."""
@@ -537,7 +537,7 @@ class TestDAVEDecrypt:
         dave.decrypt.side_effect = Exception("key expired")
         r._dave_session = dave
 
-        result = r._dave_decrypt(100, b"\xAB" * 50)
+        result = r._dave_decrypt(100, b"\xab" * 50)
         assert result is None
 
 

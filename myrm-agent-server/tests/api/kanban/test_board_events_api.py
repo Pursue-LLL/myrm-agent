@@ -26,7 +26,9 @@ def _reset_singleton() -> None:
 @pytest.fixture(autouse=True)
 def _skip_agent_validation():
     with patch.object(
-        KanbanService, "_validate_agent_id", new_callable=AsyncMock,
+        KanbanService,
+        "_validate_agent_id",
+        new_callable=AsyncMock,
     ):
         yield
 
@@ -93,11 +95,13 @@ class TestBoardEventsApi:
         client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "ready"})
         client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "running"})
         client.post(
-            f"/api/v1/kanban/tasks/{tid}/move", json={"status": "completed"},
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed"},
         )
 
         resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/events", params={"kinds": "completed"},
+            f"/api/v1/kanban/boards/{bid}/events",
+            params={"kinds": "completed"},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -113,7 +117,8 @@ class TestBoardEventsApi:
         client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "ready"})
         client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "running"})
         client.post(
-            f"/api/v1/kanban/tasks/{tid}/move", json={"status": "completed"},
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed"},
         )
 
         resp = client.get(
@@ -167,7 +172,8 @@ class TestBoardEventsApi:
             _create_task(client, bid, f"Task{i}")
 
         resp = client.get(
-            f"/api/v1/kanban/boards/{bid}/events", params={"limit": 2},
+            f"/api/v1/kanban/boards/{bid}/events",
+            params={"limit": 2},
         )
         assert resp.status_code == 200
         data = resp.json()

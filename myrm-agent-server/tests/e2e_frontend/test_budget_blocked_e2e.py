@@ -43,9 +43,7 @@ _DISABLED_POLICY = {
 }
 
 
-async def _set_budget_policy(
-    client: httpx.AsyncClient, policy: dict[str, object]
-) -> None:
+async def _set_budget_policy(client: httpx.AsyncClient, policy: dict[str, object]) -> None:
     response = await client.put("/api/v1/budget/policy", json=policy)
     response.raise_for_status()
 
@@ -164,9 +162,7 @@ async def _assert_budget_blocked_sse_with_seeded_spend() -> None:
             query="hello",
         )
         end_events = [event for event in events if event.get("type") == "message_end"]
-        assert (
-            end_events
-        ), f"Expected message_end in budget-blocked stream; got types={[event.get('type') for event in events]}"
+        assert end_events, f"Expected message_end in budget-blocked stream; got types={[event.get('type') for event in events]}"
         assert end_events[-1].get("completion_status") == "budget_blocked"
         assert not any(event.get("type") == "progress" for event in events)
         await _set_budget_policy(client, _DISABLED_POLICY)
@@ -206,16 +202,12 @@ async def _assert_budget_blocked_banner_in_browser() -> None:
         )
         page = await browser.new_page()
         try:
-            await page.goto(
-                f"{FRONTEND_BASE}/", timeout=60000, wait_until="domcontentloaded"
-            )
+            await page.goto(f"{FRONTEND_BASE}/", timeout=60000, wait_until="domcontentloaded")
             await page.wait_for_timeout(1500)
             await select_chat_model(page)
             await submit_chat_message(page, "hello")
 
-            banner = page.get_by_text("budget", exact=False).or_(
-                page.get_by_text("预算", exact=False)
-            )
+            banner = page.get_by_text("budget", exact=False).or_(page.get_by_text("预算", exact=False))
             await banner.first.wait_for(state="visible", timeout=60000)
             print("Browser budget-blocked banner visible")
         finally:

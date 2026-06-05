@@ -188,7 +188,7 @@ def _dlq_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
             comp_name = getattr(report, "component_name", None)
             status = getattr(report, "status", None)
             msg = getattr(report, "message", "DLQ reported failed messages.")
-            
+
         if comp_name == "DLQ" and status in {"warn", "fail"}:
             return RepairAction(
                 action_id=RepairActionId.REVIEW_CHANNEL_DLQ,
@@ -264,9 +264,7 @@ def _sqlite_backup_action() -> RepairAction | None:
     )
 
 
-async def execute_repair_action(
-    action_id: RepairActionId, request: RepairActionExecuteRequest
-) -> RepairActionExecuteResult:
+async def execute_repair_action(action_id: RepairActionId, request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
     """Execute a white-listed repair action."""
 
     if action_id == RepairActionId.SQLITE_BACKUP_NOW:

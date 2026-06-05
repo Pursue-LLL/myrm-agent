@@ -71,6 +71,7 @@ class WidgetCapabilityMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     Adds a SystemMessage with widget generation guidelines so the AI
     knows it can create interactive HTML artifacts.
     """
+
     name = "widget_capability_middleware"
 
     def wrap_model_call(

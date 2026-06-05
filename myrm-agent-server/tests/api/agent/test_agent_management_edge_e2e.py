@@ -126,9 +126,7 @@ async def test_builtin_agent_update_blocked(async_client: AsyncClient, test_user
     assert res.status_code == 200
     agent_id = res.json()["data"]["id"]
 
-    update_res = await async_client.put(
-        f"/api/agents/{agent_id}", json={"name": "Hacked Name"}
-    )
+    update_res = await async_client.put(f"/api/agents/{agent_id}", json={"name": "Hacked Name"})
     assert update_res.status_code == 403
 
     get_res = await async_client.get(f"/api/agents/{agent_id}")

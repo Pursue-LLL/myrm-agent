@@ -30,7 +30,7 @@ class QdrantHealthChecker(HealthChecker):
     """Health checker for Qdrant embedded storage.
 
     Note: Complex stale lock detection has been removed.
-    The entrypoint (run.py) handles phantom-process killing, allowing Qdrant's 
+    The entrypoint (run.py) handles phantom-process killing, allowing Qdrant's
     internal Rust engine to natively manage and release its own file locks.
     """
 

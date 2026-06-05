@@ -141,9 +141,7 @@ class TestPollQRRegister:
         mock_reg.probe_bot.return_value = {"bot_name": "TestBot", "bot_open_id": "ou_bot_test"}
 
         session_id = "test_session_001"
-        _active_sessions[session_id] = _RegistrationSession(
-            registration=mock_reg, device_code="dc_test"
-        )
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
         with patch("app.api.channels.feishu_register._save_credentials_to_db", new_callable=AsyncMock) as mock_save:
             resp = await client.post(
@@ -165,9 +163,7 @@ class TestPollQRRegister:
         mock_reg.poll.return_value = _mock_poll_pending()
 
         session_id = "test_session_002"
-        _active_sessions[session_id] = _RegistrationSession(
-            registration=mock_reg, device_code="dc_test"
-        )
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
         resp = await client.post(
             "/channels/manage/feishu/qr-register/poll",
@@ -186,9 +182,7 @@ class TestPollQRRegister:
         mock_reg.poll.return_value = _mock_poll_denied()
 
         session_id = "test_session_003"
-        _active_sessions[session_id] = _RegistrationSession(
-            registration=mock_reg, device_code="dc_test"
-        )
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
         resp = await client.post(
             "/channels/manage/feishu/qr-register/poll",
@@ -206,9 +200,7 @@ class TestPollQRRegister:
         mock_reg.poll.return_value = _mock_poll_expired()
 
         session_id = "test_session_004"
-        _active_sessions[session_id] = _RegistrationSession(
-            registration=mock_reg, device_code="dc_test"
-        )
+        _active_sessions[session_id] = _RegistrationSession(registration=mock_reg, device_code="dc_test")
 
         resp = await client.post(
             "/channels/manage/feishu/qr-register/poll",
@@ -230,9 +222,7 @@ class TestSessionCleanup:
         session.created_at = time.monotonic() - _SESSION_TTL_S - 10
 
         _active_sessions["old_session"] = session
-        _active_sessions["new_session"] = _RegistrationSession(
-            registration=mock_reg, device_code="dc_new"
-        )
+        _active_sessions["new_session"] = _RegistrationSession(registration=mock_reg, device_code="dc_new")
 
         _cleanup_expired_sessions()
 

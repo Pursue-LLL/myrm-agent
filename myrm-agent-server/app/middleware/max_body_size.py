@@ -13,10 +13,11 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
+
 class MaxBodySizeMiddleware:
     """
     ASGI Middleware to enforce a maximum request body size.
-    
+
     This middleware wraps the `receive` callable to track the total bytes
     received. If the total exceeds `max_size`, it sends a 413 response
     and raises ClientDisconnect to abort the request parsing cleanly.
@@ -69,15 +70,19 @@ class MaxBodySizeMiddleware:
 
     async def _send_413_response(self, send: Send) -> None:
         """Send a 413 Payload Too Large response directly."""
-        await send({
-            "type": "http.response.start",
-            "status": 413,
-            "headers": [
-                (b"content-type", b"application/json"),
-                (b"connection", b"close"),
-            ],
-        })
-        await send({
-            "type": "http.response.body",
-            "body": b'{"detail": "Payload Too Large: Request body exceeds the maximum allowed size."}',
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 413,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"connection", b"close"),
+                ],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b'{"detail": "Payload Too Large: Request body exceeds the maximum allowed size."}',
+            }
+        )

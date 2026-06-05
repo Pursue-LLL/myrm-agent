@@ -26,8 +26,8 @@ def mock_storage():
 
 # ── _parse_judge_json ──
 
-class TestParseJudgeJson:
 
+class TestParseJudgeJson:
     def test_direct_json(self):
         result = _parse_judge_json('{"done": true, "reason": "completed"}')
         assert result is not None
@@ -35,7 +35,7 @@ class TestParseJudgeJson:
         assert result["reason"] == "completed"
 
     def test_markdown_fenced(self):
-        raw = "Here is my verdict:\n```json\n{\"done\": false, \"reason\": \"not yet\"}\n```"
+        raw = 'Here is my verdict:\n```json\n{"done": false, "reason": "not yet"}\n```'
         result = _parse_judge_json(raw)
         assert result is not None
         assert result["done"] is False
@@ -74,8 +74,8 @@ class TestParseJudgeJson:
 
 # ── _normalize_done ──
 
-class TestNormalizeDone:
 
+class TestNormalizeDone:
     def test_bool_passthrough(self):
         assert _normalize_done({"done": True})["done"] is True
         assert _normalize_done({"done": False})["done"] is False
@@ -95,7 +95,6 @@ _MOCK_LLM_KWARGS = {"model": "test-model", "api_key": "test-key"}
 
 
 class TestEvaluateSemantic:
-
     @pytest.fixture(autouse=True)
     def _patch_platform_config(self):
         with patch(
@@ -131,9 +130,7 @@ class TestEvaluateSemantic:
         manager = ServerGoalManager(mock_storage)
         raw = '```json\n{"done": true, "reason": "all done"}\n```'
         with patch("litellm.acompletion") as mock:
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content=raw))]
-            )
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content=raw))])
             result = await manager.evaluate_semantic("criteria", "content")
             assert result.passed is True
 
@@ -141,9 +138,7 @@ class TestEvaluateSemantic:
     async def test_prefix_fallback_pass(self, mock_storage):
         manager = ServerGoalManager(mock_storage)
         with patch("litellm.acompletion") as mock:
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content="PASS: looks good"))]
-            )
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content="PASS: looks good"))])
             result = await manager.evaluate_semantic("criteria", "content")
             assert result.passed is True
 
@@ -151,9 +146,7 @@ class TestEvaluateSemantic:
     async def test_prefix_fallback_fail(self, mock_storage):
         manager = ServerGoalManager(mock_storage)
         with patch("litellm.acompletion") as mock:
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content="FAIL: Too short"))]
-            )
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content="FAIL: Too short"))])
             result = await manager.evaluate_semantic("criteria", "content")
             assert result.passed is False
             assert "FAIL: Too short" in result.reason
@@ -171,9 +164,7 @@ class TestEvaluateSemantic:
     async def test_system_user_prompt_separation(self, mock_storage):
         manager = ServerGoalManager(mock_storage)
         with patch("litellm.acompletion") as mock:
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
-            )
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))])
             await manager.evaluate_semantic("system criteria", "user content")
 
             kwargs = mock.call_args[1]
@@ -188,9 +179,7 @@ class TestEvaluateSemantic:
     async def test_max_tokens_and_timeout(self, mock_storage):
         manager = ServerGoalManager(mock_storage)
         with patch("litellm.acompletion") as mock:
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
-            )
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))])
             await manager.evaluate_semantic("criteria", "content")
 
             kwargs = mock.call_args[1]
@@ -216,27 +205,25 @@ class TestEvaluateSemantic:
     async def test_evaluate_semantic_with_vision_tool(self, mock_storage):
         """Test that vision tools trigger screenshot extraction."""
         manager = ServerGoalManager(mock_storage, session_id="test-session")
-        
+
         from unittest.mock import MagicMock
+
         mock_gateway = MagicMock()
         mock_browser_session = AsyncMock()
         mock_browser_session.extract_screenshot.return_value = "fake_base64"
         mock_gateway.get_active_browser_session.return_value = mock_browser_session
-        
-        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway), \
-             patch("litellm.acompletion") as mock:
-            
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
-            )
-            
+
+        with (
+            patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway),
+            patch("litellm.acompletion") as mock,
+        ):
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))])
+
             class FakeToolMessage:
                 type = "tool"
                 name = "browser_interact_tool"
-            
-            await manager.evaluate_semantic(
-                "criteria", "content", context_messages=[FakeToolMessage()]
-            )
+
+            await manager.evaluate_semantic("criteria", "content", context_messages=[FakeToolMessage()])
 
             kwargs = mock.call_args[1]
             messages = kwargs["messages"]
@@ -246,47 +233,45 @@ class TestEvaluateSemantic:
             assert user_msg[0]["type"] == "text"
             assert user_msg[1]["type"] == "image_url"
             assert "fake_base64" in user_msg[1]["image_url"]["url"]
-            
+
             mock_browser_session.extract_screenshot.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_evaluate_semantic_without_vision_tool(self, mock_storage):
         """Test that non-vision tools skip screenshot extraction even if session exists."""
         manager = ServerGoalManager(mock_storage, session_id="test-session")
-        
+
         from unittest.mock import MagicMock
+
         mock_gateway = MagicMock()
         mock_browser_session = AsyncMock()
         mock_gateway.get_active_browser_session.return_value = mock_browser_session
-        
-        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway), \
-             patch("litellm.acompletion") as mock:
-            
-            mock.return_value = AsyncMock(
-                choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))]
-            )
-            
+
+        with (
+            patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway),
+            patch("litellm.acompletion") as mock,
+        ):
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content='{"done": false, "reason": "x"}'))])
+
             class FakeToolMessage:
                 type = "tool"
                 name = "calculator_tool"
-            
-            await manager.evaluate_semantic(
-                "criteria", "content", context_messages=[FakeToolMessage()]
-            )
+
+            await manager.evaluate_semantic("criteria", "content", context_messages=[FakeToolMessage()])
 
             kwargs = mock.call_args[1]
             messages = kwargs["messages"]
             assert len(messages) == 2
             user_msg = messages[1]["content"]
             assert isinstance(user_msg, str)
-            
+
             mock_browser_session.extract_screenshot.assert_not_awaited()
 
 
 # ── GoalRegistry ──
 
-class TestGoalRegistry:
 
+class TestGoalRegistry:
     def test_singleton_per_session(self):
         session_id = "test-registry-singleton"
         with patch("app.platform_utils.get_storage_provider", return_value=AsyncMock()):

@@ -163,16 +163,12 @@ def _stream_collect(client: httpx.Client, agent_id: str) -> str:
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
-    stdout_text, message_text, resume_payload, errors = _stream_once(
-        client, request_data
-    )
+    stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data)
     stdout_text = _apply_workspace_compression(chat_id, stdout_text)
     combined = f"{stdout_text}\n{message_text}"
     if resume_payload is None:
         if not combined.strip() and errors:
-            pytest.skip(
-                f"Live backend stream error (check provider API keys): {errors[0][:240]}"
-            )
+            pytest.skip(f"Live backend stream error (check provider API keys): {errors[0][:240]}")
         return stdout_text or combined
     resume_request = {
         **request_data,
@@ -185,16 +181,12 @@ def _stream_collect(client: httpx.Client, agent_id: str) -> str:
     merged_stdout = f"{stdout_text}{resumed_stdout}"
     merged_all = f"{merged_stdout}\n{message_text}{resumed_msg}"
     if not merged_all.strip() and errors:
-        pytest.skip(
-            f"Live backend stream error (check provider API keys): {errors[0][:240]}"
-        )
+        pytest.skip(f"Live backend stream error (check provider API keys): {errors[0][:240]}")
     return merged_stdout or merged_all
 
 
 def _assert_compressed(blob: str) -> None:
-    masked_ok = "E2E_MASKED_VAL" in blob or (
-        "E2E_MASK_TOKEN=" in blob and "12345abcdef" not in blob
-    )
+    masked_ok = "E2E_MASKED_VAL" in blob or ("E2E_MASK_TOKEN=" in blob and "12345abcdef" not in blob)
     assert masked_ok, blob[:500]
     assert "E2E_BEGIN_LINE" in blob, blob[:500]
     assert "E2E_FINISH_LINE" in blob, blob[:500]

@@ -9,10 +9,7 @@ from tests.api.agent.utils import get_model_selection
 
 
 @pytest.mark.e2e
-@pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY"),
-    reason="E2E test requires BASIC_API_KEY environment variable"
-)
+@pytest.mark.skipif(not os.environ.get("BASIC_API_KEY"), reason="E2E test requires BASIC_API_KEY environment variable")
 class TestTaskAdaptiveHarness:
     def test_task_adaptive_injection(self, client: TestClient):
         chat_id = str(uuid.uuid4())

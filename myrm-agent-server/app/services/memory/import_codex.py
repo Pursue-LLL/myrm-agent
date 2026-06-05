@@ -48,14 +48,16 @@ def dry_run_codex(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if procedural_items:
             normalized["procedural"] = procedural_items
             mapped_items += len(procedural_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="codex_instructions",
-            target_bucket="procedural",
-            status="mapped" if procedural_items else "unsupported",
-            item_count=1,
-            imported_count=len(procedural_items),
-            reason="" if procedural_items else "Instructions were empty.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="codex_instructions",
+                target_bucket="procedural",
+                status="mapped" if procedural_items else "unsupported",
+                item_count=1,
+                imported_count=len(procedural_items),
+                reason="" if procedural_items else "Instructions were empty.",
+            )
+        )
 
     memory_entries = payload.get("codex_memory")
     if isinstance(memory_entries, list) and memory_entries:
@@ -63,14 +65,16 @@ def dry_run_codex(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if semantic_items:
             normalized.setdefault("semantic", []).extend(semantic_items)
             mapped_items += len(semantic_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="codex_memory",
-            target_bucket="semantic",
-            status="mapped" if semantic_items else "unsupported",
-            item_count=len(memory_entries),
-            imported_count=len(semantic_items),
-            reason="" if semantic_items else "No valid memory entries found.",
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="codex_memory",
+                target_bucket="semantic",
+                status="mapped" if semantic_items else "unsupported",
+                item_count=len(memory_entries),
+                imported_count=len(semantic_items),
+                reason="" if semantic_items else "No valid memory entries found.",
+            )
+        )
 
     settings = payload.get("codex_settings")
     if isinstance(settings, dict) and settings:
@@ -78,13 +82,15 @@ def dry_run_codex(payload: dict[str, object]) -> MemoryImportDryRunResult:
         if profile_items:
             normalized.setdefault("profile", []).extend(profile_items)
             mapped_items += len(profile_items)
-        mappings.append(MemoryImportMappingItem(
-            source_bucket="codex_settings",
-            target_bucket="profile",
-            status="mapped" if profile_items else "unsupported",
-            item_count=1,
-            imported_count=len(profile_items),
-        ))
+        mappings.append(
+            MemoryImportMappingItem(
+                source_bucket="codex_settings",
+                target_bucket="profile",
+                status="mapped" if profile_items else "unsupported",
+                item_count=1,
+                imported_count=len(profile_items),
+            )
+        )
 
     if not normalized:
         unmapped_items += 1
@@ -106,15 +112,17 @@ def _parse_instructions(content: str) -> list[dict[str, object]]:
 
     if not content:
         return []
-    return [{
-        "content": content,
-        "trigger": "When working on Codex-originated project",
-        "action": content[:500],
-        "priority": 7,
-        "trigger_keywords": ["codex_instructions"],
-        "created_at": iso_or_now(None),
-        "metadata": build_metadata("codex", {"file": "instructions"}, ("file",)),
-    }]
+    return [
+        {
+            "content": content,
+            "trigger": "When working on Codex-originated project",
+            "action": content[:500],
+            "priority": 7,
+            "trigger_keywords": ["codex_instructions"],
+            "created_at": iso_or_now(None),
+            "metadata": build_metadata("codex", {"file": "instructions"}, ("file",)),
+        }
+    ]
 
 
 def _parse_memory(entries: list[object]) -> list[dict[str, object]]:
@@ -128,14 +136,16 @@ def _parse_memory(entries: list[object]) -> list[dict[str, object]]:
         content = text(entry.get("content")) or text(entry.get("text"))
         if not content:
             continue
-        items.append({
-            "content": content,
-            "importance": 0.7,
-            "confidence": 0.75,
-            "tags": ["codex_memory"],
-            "created_at": iso_or_now(entry.get("created_at") or entry.get("timestamp")),
-            "metadata": build_metadata("codex", entry, ("id", "type")),
-        })
+        items.append(
+            {
+                "content": content,
+                "importance": 0.7,
+                "confidence": 0.75,
+                "tags": ["codex_memory"],
+                "created_at": iso_or_now(entry.get("created_at") or entry.get("timestamp")),
+                "metadata": build_metadata("codex", entry, ("id", "type")),
+            }
+        )
     return items
 
 
@@ -147,13 +157,15 @@ def _parse_settings(settings: object) -> list[dict[str, object]]:
     typed = object_dict(settings)
     model = text(typed.get("model"))
     if model:
-        return [{
-            "content": f"Previously used Codex with model: {model}",
-            "memory_type": "profile",
-            "importance": 0.4,
-            "confidence": 0.9,
-            "tags": ["codex_preference"],
-            "created_at": iso_or_now(None),
-            "metadata": build_metadata("codex", {"model": model}, ("model",)),
-        }]
+        return [
+            {
+                "content": f"Previously used Codex with model: {model}",
+                "memory_type": "profile",
+                "importance": 0.4,
+                "confidence": 0.9,
+                "tags": ["codex_preference"],
+                "created_at": iso_or_now(None),
+                "metadata": build_metadata("codex", {"model": model}, ("model",)),
+            }
+        ]
     return []

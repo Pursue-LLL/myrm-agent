@@ -39,14 +39,16 @@ async def create_default_vector_store() -> VectorStore | None:
         VectorStore instance, or None if embedded mode fails.
     """
     from myrm_agent_harness.toolkits.vector.qdrant import create_vector_store
-    
+
     # Auto-cleanup stale locks before initializing
     try:
         from pathlib import Path
+
         # Import the cleanup script dynamically
         cleanup_script = Path(__file__).parent.parent.parent.parent.parent / "scripts" / "cleanup_qdrant_locks.py"
         if cleanup_script.exists():
             import importlib.util
+
             spec = importlib.util.spec_from_file_location("cleanup_qdrant_locks", cleanup_script)
             if spec and spec.loader:
                 cleanup_module = importlib.util.module_from_spec(spec)

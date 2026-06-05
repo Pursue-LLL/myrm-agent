@@ -136,9 +136,7 @@ async def revoke_connector(body: RevokeRequest) -> RevokeResponse:
         if svc:
             trees_removed = await svc.remove_trees_by_provider(body.profile_id)
 
-    return RevokeResponse(
-        profile_id=body.profile_id, revoked=revoked, trees_removed=trees_removed
-    )
+    return RevokeResponse(profile_id=body.profile_id, revoked=revoked, trees_removed=trees_removed)
 
 
 @router.get("/connect/status")

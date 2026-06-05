@@ -32,9 +32,7 @@ from tests.api.agent.utils import (
 )
 from tests.support.test_secrets import resolve_test_env
 
-_MCP_12306_INDEX = (
-    Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
-)
+_MCP_12306_INDEX = Path(__file__).resolve().parents[4] / "12306-mcp" / "build" / "index.js"
 
 _UVX_PATH = os.environ.get("UVX_PATH") or shutil.which("uvx") or "uvx"
 
@@ -280,9 +278,7 @@ class TestAgentMCP:
                 log(f"Wall-clock limit reached ({elapsed_total:.0f}s > {_TEST_WALL_CLOCK_LIMIT}s), skipping stream")
                 return 0
 
-            with client.stream(
-                "POST", "/api/v1/agents/agent-stream", json=req_data, headers=headers
-            ) as response:
+            with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data, headers=headers) as response:
                 log(f"收到响应: {response.status_code}")
                 if response.status_code != 200:
                     response.read()
@@ -308,9 +304,7 @@ class TestAgentMCP:
 
                     if not line:
                         continue
-                    line_text = (
-                        line.strip() if isinstance(line, str) else line.decode().strip()
-                    )
+                    line_text = line.strip() if isinstance(line, str) else line.decode().strip()
                     if not line_text.startswith("data: "):
                         continue
                     try:
@@ -372,10 +366,12 @@ class TestAgentMCP:
             if resume_reason == "approval":
                 log(f"Auto-approving tool call (round {round_idx + 1})...")
                 resume_request["resumeValue"] = {
-                    "decisions": [{
-                        "type": "approve",
-                        "extensions": {"allowAlways": True},
-                    }],
+                    "decisions": [
+                        {
+                            "type": "approve",
+                            "extensions": {"allowAlways": True},
+                        }
+                    ],
                 }
             else:
                 log(f"Iteration limit reached, resuming (round {round_idx + 1})...")
@@ -446,15 +442,12 @@ class TestAgentMCP:
         assert has_normal_end, "Should have message_end event"
 
         assert _mcp_skill_was_invoked(collected_data, "amap"), (
-            "amap MCP skill was not genuinely invoked — agent fell back to "
-            "web_search / skill-marketplace discovery (false pass)"
+            "amap MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
         )
 
         if len(message_chunks) == 0:
             bash_succeeded = any(
-                d.get("type") == "tasks_steps"
-                and d.get("tool_name") == "bash_code_execute_tool"
-                and d.get("status") == "success"
+                d.get("type") == "tasks_steps" and d.get("tool_name") == "bash_code_execute_tool" and d.get("status") == "success"
                 for d in collected_data
             )
             if bash_succeeded:
@@ -611,9 +604,7 @@ class TestAgentMCP:
                 log(f"Wall-clock limit reached ({elapsed_total:.0f}s > {_TEST_WALL_CLOCK_LIMIT}s), skipping stream")
                 return 0
 
-            with client.stream(
-                "POST", "/api/v1/agents/agent-stream", json=req_data, headers=headers
-            ) as response:
+            with client.stream("POST", "/api/v1/agents/agent-stream", json=req_data, headers=headers) as response:
                 log(f"收到响应: {response.status_code}")
                 if response.status_code != 200:
                     response.read()
@@ -639,9 +630,7 @@ class TestAgentMCP:
 
                     if not line:
                         continue
-                    line_text = (
-                        line.strip() if isinstance(line, str) else line.decode().strip()
-                    )
+                    line_text = line.strip() if isinstance(line, str) else line.decode().strip()
                     if not line_text.startswith("data: "):
                         continue
                     try:
@@ -703,10 +692,12 @@ class TestAgentMCP:
             if resume_reason == "approval":
                 log(f"Auto-approving tool call (round {round_idx + 1})...")
                 resume_request["resumeValue"] = {
-                    "decisions": [{
-                        "type": "approve",
-                        "extensions": {"allowAlways": True},
-                    }],
+                    "decisions": [
+                        {
+                            "type": "approve",
+                            "extensions": {"allowAlways": True},
+                        }
+                    ],
                 }
             else:
                 log(f"Iteration limit reached, resuming (round {round_idx + 1})...")
@@ -777,15 +768,12 @@ class TestAgentMCP:
         assert has_normal_end, "Should have message_end event"
 
         assert _mcp_skill_was_invoked(collected_data, "12306"), (
-            "12306 MCP skill was not genuinely invoked — agent fell back to "
-            "web_search / skill-marketplace discovery (false pass)"
+            "12306 MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
         )
 
         if len(message_chunks) == 0:
             bash_succeeded = any(
-                d.get("type") == "tasks_steps"
-                and d.get("tool_name") == "bash_code_execute_tool"
-                and d.get("status") == "success"
+                d.get("type") == "tasks_steps" and d.get("tool_name") == "bash_code_execute_tool" and d.get("status") == "success"
                 for d in collected_data
             )
             if bash_succeeded:

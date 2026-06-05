@@ -104,11 +104,7 @@ def _decrypt_vercel_credentials(
 
 
 async def _load_vercel_credentials_row(db: AsyncSession) -> UserConfig | None:
-    return (
-        await db.execute(
-            select(UserConfig).where(UserConfig.config_key == _VERCEL_CREDENTIALS_KEY)
-        )
-    ).scalars().first()
+    return (await db.execute(select(UserConfig).where(UserConfig.config_key == _VERCEL_CREDENTIALS_KEY))).scalars().first()
 
 
 async def _resolve_vercel_token(db: AsyncSession, request_token: str) -> str:
@@ -247,9 +243,7 @@ async def deploy_artifact(
         raise HTTPException(status_code=400, detail=preflight.message)
 
     try:
-        artifact, files_to_deploy = await resolve_artifact_deploy_files(
-            db, artifact_id, workspace_root
-        )
+        artifact, files_to_deploy = await resolve_artifact_deploy_files(db, artifact_id, workspace_root)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except FileNotFoundError as e:

@@ -22,9 +22,7 @@ class MaintenanceDaemon:
     """Zero-blocking background worker for heavy post-session tasks."""
 
     def __init__(self, max_queue_size: int = _MAX_QUEUE_SIZE) -> None:
-        self._queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = asyncio.Queue(
-            maxsize=max_queue_size
-        )
+        self._queue: asyncio.Queue[Callable[[], Coroutine[None, None, None]]] = asyncio.Queue(maxsize=max_queue_size)
         self._worker_task: asyncio.Task[None] | None = None
         self._start_lock = asyncio.Lock()
 

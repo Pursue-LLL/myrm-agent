@@ -74,41 +74,31 @@ class TestResolvePassthroughProvider:
     """Tests for _resolve_passthrough_provider."""
 
     def test_bare_anthropic_model(self):
-        litellm_model, api_key, base_url = _resolve_passthrough_provider(
-            "claude-sonnet-4-20250514", _MOCK_PROVIDERS_DICT
-        )
+        litellm_model, api_key, base_url = _resolve_passthrough_provider("claude-sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
         assert "anthropic" in litellm_model.lower()
         assert "claude-sonnet-4-20250514" in litellm_model
         assert api_key == "sk-ant-test-xxx"
         assert base_url is None
 
     def test_bare_openai_model(self):
-        litellm_model, api_key, _ = _resolve_passthrough_provider(
-            "gpt-4o-mini", _MOCK_PROVIDERS_DICT
-        )
+        litellm_model, api_key, _ = _resolve_passthrough_provider("gpt-4o-mini", _MOCK_PROVIDERS_DICT)
         assert "gpt-4o-mini" in litellm_model
         assert api_key == "sk-test-xxx"
 
     def test_bare_deepseek_model(self):
-        litellm_model, api_key, base_url = _resolve_passthrough_provider(
-            "deepseek-chat", _MOCK_PROVIDERS_DICT
-        )
+        litellm_model, api_key, base_url = _resolve_passthrough_provider("deepseek-chat", _MOCK_PROVIDERS_DICT)
         assert "deepseek" in litellm_model.lower()
         assert api_key == "sk-ds-test"
         assert base_url == "https://api.deepseek.com/v1"
 
     def test_prefixed_model(self):
-        litellm_model, api_key, _ = _resolve_passthrough_provider(
-            "anthropic/claude-3-haiku", _MOCK_PROVIDERS_DICT
-        )
+        litellm_model, api_key, _ = _resolve_passthrough_provider("anthropic/claude-3-haiku", _MOCK_PROVIDERS_DICT)
         assert "anthropic" in litellm_model.lower()
         assert "claude-3-haiku" in litellm_model
         assert api_key == "sk-ant-test-xxx"
 
     def test_case_insensitive_match(self):
-        litellm_model, _, _ = _resolve_passthrough_provider(
-            "Claude-Sonnet-4-20250514", _MOCK_PROVIDERS_DICT
-        )
+        litellm_model, _, _ = _resolve_passthrough_provider("Claude-Sonnet-4-20250514", _MOCK_PROVIDERS_DICT)
         assert "claude-sonnet-4-20250514" in litellm_model.lower()
 
     def test_nonexistent_model_raises(self):
@@ -153,36 +143,44 @@ class TestIsPassthroughModel:
 
     @pytest.mark.asyncio
     async def test_configured_model_returns_true(self):
-        with patch(
-            "app.api.openai_compat.passthrough._is_proxy_enabled",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch(
-            "app.api.openai_compat.passthrough._is_agent_id",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=_MOCK_PROVIDERS_DICT,
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._is_proxy_enabled",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._is_agent_id",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._load_providers_dict",
+                new_callable=AsyncMock,
+                return_value=_MOCK_PROVIDERS_DICT,
+            ),
         ):
             result = await is_passthrough_model("claude-sonnet-4-20250514")
         assert result is True
 
     @pytest.mark.asyncio
     async def test_unknown_model_returns_false(self):
-        with patch(
-            "app.api.openai_compat.passthrough._is_proxy_enabled",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch(
-            "app.api.openai_compat.passthrough._is_agent_id",
-            new_callable=AsyncMock,
-            return_value=False,
-        ), patch(
-            "app.api.openai_compat.passthrough._load_providers_dict",
-            new_callable=AsyncMock,
-            return_value=_MOCK_PROVIDERS_DICT,
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._is_proxy_enabled",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._is_agent_id",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._load_providers_dict",
+                new_callable=AsyncMock,
+                return_value=_MOCK_PROVIDERS_DICT,
+            ),
         ):
             result = await is_passthrough_model("unknown-model-xyz")
         assert result is False
@@ -211,7 +209,8 @@ class TestBuildLitellmKwargs:
             return_value=_MOCK_PROVIDERS_DICT,
         ):
             kwargs = await _build_litellm_kwargs(
-                _make_request(), stream=False,
+                _make_request(),
+                stream=False,
             )
 
         assert "anthropic" in kwargs["model"]
@@ -244,7 +243,8 @@ class TestBuildLitellmKwargs:
             return_value=_MOCK_PROVIDERS_DICT,
         ):
             kwargs = await _build_litellm_kwargs(
-                _make_request(model="deepseek-chat"), stream=False,
+                _make_request(model="deepseek-chat"),
+                stream=False,
             )
 
         assert kwargs["api_base"] == "https://api.deepseek.com/v1"
@@ -271,22 +271,28 @@ def _mock_litellm_response(content: str = "Hello!") -> SimpleNamespace:
 async def _mock_litellm_stream():
     """Create a mock litellm streaming async generator."""
     yield SimpleNamespace(
-        choices=[SimpleNamespace(
-            delta=SimpleNamespace(content="Hi"),
-            finish_reason=None,
-        )]
+        choices=[
+            SimpleNamespace(
+                delta=SimpleNamespace(content="Hi"),
+                finish_reason=None,
+            )
+        ]
     )
     yield SimpleNamespace(
-        choices=[SimpleNamespace(
-            delta=SimpleNamespace(content=" there"),
-            finish_reason=None,
-        )]
+        choices=[
+            SimpleNamespace(
+                delta=SimpleNamespace(content=" there"),
+                finish_reason=None,
+            )
+        ]
     )
     yield SimpleNamespace(
-        choices=[SimpleNamespace(
-            delta=SimpleNamespace(content=None),
-            finish_reason="stop",
-        )]
+        choices=[
+            SimpleNamespace(
+                delta=SimpleNamespace(content=None),
+                finish_reason="stop",
+            )
+        ]
     )
 
 
@@ -295,14 +301,17 @@ class TestPassthroughCompletion:
 
     @pytest.mark.asyncio
     async def test_success(self):
-        with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": False},
-        ), patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            return_value=_mock_litellm_response("Test response"),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": False},
+            ),
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                return_value=_mock_litellm_response("Test response"),
+            ),
         ):
             resp = await passthrough_completion(_make_request())
 
@@ -313,14 +322,17 @@ class TestPassthroughCompletion:
     async def test_upstream_error_raises_502(self):
         from fastapi import HTTPException
 
-        with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "x", "messages": [], "api_key": "k", "stream": False},
-        ), patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("connection refused"),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                return_value={"model": "x", "messages": [], "api_key": "k", "stream": False},
+            ),
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("connection refused"),
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await passthrough_completion(_make_request())
@@ -345,14 +357,17 @@ class TestPassthroughStream:
 
     @pytest.mark.asyncio
     async def test_success_yields_sse(self):
-        with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": True},
-        ), patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            return_value=_mock_litellm_stream(),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                return_value={"model": "anthropic/claude-sonnet-4-20250514", "messages": [], "api_key": "k", "stream": True},
+            ),
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                return_value=_mock_litellm_stream(),
+            ),
         ):
             chunks: list[str] = []
             async for chunk in passthrough_stream(_make_request()):
@@ -380,14 +395,17 @@ class TestPassthroughStream:
 
     @pytest.mark.asyncio
     async def test_upstream_error_yields_error_sse(self):
-        with patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            return_value={"model": "x", "messages": [], "api_key": "k", "stream": True},
-        ), patch(
-            "litellm.acompletion",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("network error"),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                return_value={"model": "x", "messages": [], "api_key": "k", "stream": True},
+            ),
+            patch(
+                "litellm.acompletion",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("network error"),
+            ),
         ):
             chunks: list[str] = []
             async for chunk in passthrough_stream(_make_request()):
@@ -403,9 +421,7 @@ class TestPassthroughHTTP:
 
     @pytest.fixture
     async def client(self):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as c:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
 
     @pytest.fixture
@@ -415,17 +431,22 @@ class TestPassthroughHTTP:
 
     @pytest.mark.asyncio
     async def test_passthrough_non_streaming_config_error(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         """When _build_litellm_kwargs raises ValueError, return 422."""
-        with patch(
-            "app.api.openai_compat.passthrough.is_passthrough_model",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            side_effect=ValueError("Model 'bad-model' not found"),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough.is_passthrough_model",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                side_effect=ValueError("Model 'bad-model' not found"),
+            ),
         ):
             resp = await client.post(
                 "/v1/chat/completions",
@@ -443,17 +464,22 @@ class TestPassthroughHTTP:
 
     @pytest.mark.asyncio
     async def test_passthrough_streaming_config_error(
-        self, client: AsyncClient, api_key: str,
+        self,
+        client: AsyncClient,
+        api_key: str,
     ):
         """When _build_litellm_kwargs raises ValueError in stream, return SSE error."""
-        with patch(
-            "app.api.openai_compat.passthrough.is_passthrough_model",
-            new_callable=AsyncMock,
-            return_value=True,
-        ), patch(
-            "app.api.openai_compat.passthrough._build_litellm_kwargs",
-            new_callable=AsyncMock,
-            side_effect=ValueError("Model 'bad-model' not found"),
+        with (
+            patch(
+                "app.api.openai_compat.passthrough.is_passthrough_model",
+                new_callable=AsyncMock,
+                return_value=True,
+            ),
+            patch(
+                "app.api.openai_compat.passthrough._build_litellm_kwargs",
+                new_callable=AsyncMock,
+                side_effect=ValueError("Model 'bad-model' not found"),
+            ),
         ):
             resp = await client.post(
                 "/v1/chat/completions",

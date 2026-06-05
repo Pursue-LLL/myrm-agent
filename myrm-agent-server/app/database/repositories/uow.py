@@ -46,9 +46,7 @@ class UnitOfWork:
             # 自动 commit，如果有异常则自动 rollback
     """
 
-    def __init__(
-        self, session_factory: async_sessionmaker[AsyncSession] | None = None
-    ) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession] | None = None) -> None:
         self.session_factory = session_factory or get_session_factory()
         self.session: AsyncSession | None = None
         self._chat_repo: BoundChatRepository | None = None
@@ -92,9 +90,7 @@ class UnitOfWork:
     @property
     def chat_repo(self) -> "BoundChatRepository":
         if self.session is None:
-            raise RuntimeError(
-                "UnitOfWork must be used within an async context manager"
-            )
+            raise RuntimeError("UnitOfWork must be used within an async context manager")
         if self._chat_repo is None:
             self._chat_repo = BoundChatRepository(self.session)
         return self._chat_repo
@@ -102,9 +98,7 @@ class UnitOfWork:
     @property
     def agent_repo(self) -> "BoundAgentRepository":
         if self.session is None:
-            raise RuntimeError(
-                "UnitOfWork must be used within an async context manager"
-            )
+            raise RuntimeError("UnitOfWork must be used within an async context manager")
         if self._agent_repo is None:
             self._agent_repo = BoundAgentRepository(self.session)
         return self._agent_repo
@@ -125,12 +119,15 @@ class BoundChatRepository:
         unassigned: bool = False,
     ) -> tuple[list[ChatDTO], int]:
         return await ChatRepository.get_chats_paginated(
-            self.session, offset, limit, source=source, project_id=project_id, unassigned=unassigned,
+            self.session,
+            offset,
+            limit,
+            source=source,
+            project_id=project_id,
+            unassigned=unassigned,
         )
 
-    async def get_chat_by_id(
-        self, chat_id: str, load_messages: bool = False
-    ) -> ChatDTO | None:
+    async def get_chat_by_id(self, chat_id: str, load_messages: bool = False) -> ChatDTO | None:
         return await ChatRepository.get_chat_by_id(self.session, chat_id, load_messages)
 
     async def count_messages(self, chat_id: str) -> int:
@@ -139,22 +136,14 @@ class BoundChatRepository:
     async def add_chat(self, chat: ChatDTO) -> None:
         return await ChatRepository.add_chat(self.session, chat)
 
-    async def update_chat_fields(
-        self, chat_id: str, updates: dict[str, object]
-    ) -> None:
+    async def update_chat_fields(self, chat_id: str, updates: dict[str, object]) -> None:
         return await ChatRepository.update_chat_fields(self.session, chat_id, updates)
 
-    async def update_message_extra_data(
-        self, message_id: str, extra_data: dict[str, object]
-    ) -> None:
-        return await ChatRepository.update_message_extra_data(
-            self.session, message_id, extra_data
-        )
+    async def update_message_extra_data(self, message_id: str, extra_data: dict[str, object]) -> None:
+        return await ChatRepository.update_message_extra_data(self.session, message_id, extra_data)
 
     async def get_channel_chat_by_key(self, channel_session_key: str) -> ChatDTO | None:
-        return await ChatRepository.get_channel_chat_by_key(
-            self.session, channel_session_key
-        )
+        return await ChatRepository.get_channel_chat_by_key(self.session, channel_session_key)
 
     async def add_message(self, message: MessageDTO) -> None:
         return await ChatRepository.add_message(self.session, message)
@@ -168,19 +157,11 @@ class BoundChatRepository:
     async def soft_delete_all_messages_for_chat(self, chat_id: str) -> None:
         return await ChatRepository.soft_delete_all_messages_for_chat(self.session, chat_id)
 
-    async def delete_messages_matching(
-        self, chat_id: str, condition: ColumnElement[bool]
-    ) -> list[MessageDTO]:
-        return await ChatRepository.delete_messages_matching(
-            self.session, chat_id, condition
-        )
+    async def delete_messages_matching(self, chat_id: str, condition: ColumnElement[bool]) -> list[MessageDTO]:
+        return await ChatRepository.delete_messages_matching(self.session, chat_id, condition)
 
-    async def get_messages_paginated(
-        self, chat_id: str, cursor_id: str | None = None, limit: int = 10
-    ) -> list[MessageDTO]:
-        return await ChatRepository.get_messages_paginated(
-            self.session, chat_id, cursor_id, limit
-        )
+    async def get_messages_paginated(self, chat_id: str, cursor_id: str | None = None, limit: int = 10) -> list[MessageDTO]:
+        return await ChatRepository.get_messages_paginated(self.session, chat_id, cursor_id, limit)
 
     async def get_all_messages(self, chat_id: str) -> list[MessageDTO]:
         return await ChatRepository.get_all_messages(self.session, chat_id)
@@ -193,19 +174,13 @@ class BoundChatRepository:
         since: datetime | None,
         until: datetime | None,
     ) -> tuple[list[MessageFtsSearchRow], int]:
-        return await ChatRepository.search_messages_fts(
-            self.session, safe_query, limit, offset, since, until
-        )
+        return await ChatRepository.search_messages_fts(self.session, safe_query, limit, offset, since, until)
 
     async def get_last_user_message(self, chat_id: str) -> MessageDTO | None:
         return await ChatRepository.get_last_user_message(self.session, chat_id)
 
-    async def delete_messages_after(
-        self, chat_id: str, anchor: MessageDTO, include_anchor: bool = False
-    ) -> int:
-        return await ChatRepository.delete_messages_after(
-            self.session, chat_id, anchor, include_anchor
-        )
+    async def delete_messages_after(self, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> int:
+        return await ChatRepository.delete_messages_after(self.session, chat_id, anchor, include_anchor)
 
     async def get_latest_message(self, chat_id: str) -> MessageDTO | None:
         return await ChatRepository.get_latest_message(self.session, chat_id)
@@ -220,27 +195,21 @@ class BoundChatRepository:
         exclude_message_id: str | None = None,
         after_ts: datetime | None = None,
     ) -> list[MessageDTO]:
-        return await ChatRepository.get_recent_messages(
-            self.session, chat_id, limit, exclude_message_id, after_ts
-        )
+        return await ChatRepository.get_recent_messages(self.session, chat_id, limit, exclude_message_id, after_ts)
 
     async def deactivate_last_assistant_siblings(
         self,
         chat_id: str,
         last_user_msg: MessageDTO,
     ) -> tuple[str, str]:
-        return await ChatRepository.deactivate_last_assistant_siblings(
-            self.session, chat_id, last_user_msg
-        )
+        return await ChatRepository.deactivate_last_assistant_siblings(self.session, chat_id, last_user_msg)
 
     async def switch_active_sibling(
         self,
         sibling_group_id: str,
         target_message_id: str,
     ) -> bool:
-        return await ChatRepository.switch_active_sibling(
-            self.session, sibling_group_id, target_message_id
-        )
+        return await ChatRepository.switch_active_sibling(self.session, sibling_group_id, target_message_id)
 
     async def get_sibling_info(self, sibling_group_id: str) -> list[SiblingDetail]:
         return await ChatRepository.get_sibling_info(self.session, sibling_group_id)
@@ -270,12 +239,8 @@ class BoundChatRepository:
     async def restore_chat(self, chat_id: str) -> bool:
         return await ChatRepository.restore_chat(self.session, chat_id)
 
-    async def get_trashed_chats_paginated(
-        self, offset: int, limit: int
-    ) -> tuple[list[ChatDTO], int]:
-        return await ChatRepository.get_trashed_chats_paginated(
-            self.session, offset, limit
-        )
+    async def get_trashed_chats_paginated(self, offset: int, limit: int) -> tuple[list[ChatDTO], int]:
+        return await ChatRepository.get_trashed_chats_paginated(self.session, offset, limit)
 
     async def count_trashed(self) -> int:
         return await ChatRepository.count_trashed(self.session)
@@ -302,9 +267,7 @@ class BoundAgentRepository:
     async def create_profile(self, profile: AgentProfile) -> AgentProfile:
         return await AgentRepository.create_profile(self.session, profile)
 
-    async def update_profile(
-        self, agent_id: str, updates: dict[str, object]
-    ) -> AgentProfile | None:
+    async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None:
         return await AgentRepository.update_profile(self.session, agent_id, updates)
 
     async def delete_profile(self, agent_id: str) -> bool:

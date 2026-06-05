@@ -115,16 +115,10 @@ class SqlAlchemyCommitmentStore:
 
             if existing is not None:
                 existing.reason = record.reason or existing.reason
-                existing.suggested_text = (
-                    record.suggested_text or existing.suggested_text
-                )
+                existing.suggested_text = record.suggested_text or existing.suggested_text
                 existing.confidence = max(existing.confidence, record.confidence)
-                existing.due_earliest_ms = min(
-                    existing.due_earliest_ms, record.due_window.earliest_ms
-                )
-                existing.due_latest_ms = max(
-                    existing.due_latest_ms, record.due_window.latest_ms
-                )
+                existing.due_earliest_ms = min(existing.due_earliest_ms, record.due_window.earliest_ms)
+                existing.due_latest_ms = max(existing.due_latest_ms, record.due_window.latest_ms)
                 existing.due_timezone = record.due_window.timezone
                 await session.commit()
                 await session.refresh(existing)
@@ -160,8 +154,7 @@ class SqlAlchemyCommitmentStore:
             return [
                 _to_domain(r)
                 for r in rows
-                if r.status == CommitmentStatus.PENDING.value
-                or (r.snoozed_until_ms is not None and r.snoozed_until_ms <= now_ms)
+                if r.status == CommitmentStatus.PENDING.value or (r.snoozed_until_ms is not None and r.snoozed_until_ms <= now_ms)
             ]
 
     async def list_due(

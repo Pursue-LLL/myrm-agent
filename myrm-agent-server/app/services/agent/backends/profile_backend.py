@@ -92,9 +92,8 @@ class DatabaseProfileBackend:
                 avatar=profile.avatar,
                 home_directory=meta.get("home_directory"),
                 model_config={"model": profile.model} if profile.model else {},
-                model_selection=full_model_selection or (
-                    {"providerId": "auto", "model": profile.model} if profile.model else None
-                ),
+                model_selection=full_model_selection
+                or ({"providerId": "auto", "model": profile.model} if profile.model else None),
                 system_prompt=profile.system_prompt,
                 memory_policy=memory_policy_to_dict(profile.memory_policy),
                 max_iterations=profile.max_iterations,
@@ -181,9 +180,7 @@ class DatabaseProfileBackend:
                         agent.mcp_servers = [str(x) for x in metadata["mcp_ids"]]
                     if "mcp_tool_selections" in metadata:
                         sel = metadata["mcp_tool_selections"]
-                        agent.mcp_tool_selections = (
-                            cast(dict[str, list[str]], sel) if isinstance(sel, dict) else None
-                        )
+                        agent.mcp_tool_selections = cast(dict[str, list[str]], sel) if isinstance(sel, dict) else None
                     if "enabled_builtin_tools" in metadata and isinstance(metadata["enabled_builtin_tools"], list):
                         agent.enabled_builtin_tools = [str(x) for x in metadata["enabled_builtin_tools"]]
                     if "home_directory" in metadata:

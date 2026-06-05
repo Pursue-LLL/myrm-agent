@@ -549,9 +549,7 @@ async def test_agent_suggestion_prompts_crud(async_client: AsyncClient, test_use
 
     # Update suggestion_prompts
     new_prompts = ["帮我写一封邮件", "解释量子计算"]
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"suggestion_prompts": new_prompts}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"suggestion_prompts": new_prompts})
     assert response.status_code == 200
     updated = response.json()["data"]
     assert updated["suggestion_prompts"] == new_prompts
@@ -562,9 +560,7 @@ async def test_agent_suggestion_prompts_crud(async_client: AsyncClient, test_use
     assert response.json()["data"]["suggestion_prompts"] == new_prompts
 
     # Clear suggestion_prompts (set to null)
-    response = await async_client.put(
-        f"/api/agents/{agent_id}", json={"suggestion_prompts": None}
-    )
+    response = await async_client.put(f"/api/agents/{agent_id}", json={"suggestion_prompts": None})
     assert response.status_code == 200
     cleared = response.json()["data"]
     assert cleared["suggestion_prompts"] is None

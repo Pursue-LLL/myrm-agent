@@ -129,9 +129,7 @@ class DingTalkApiClient:
             },
         )
 
-    async def send_group_markdown(
-        self, conversation_id: str, title: str, text: str
-    ) -> bool:
+    async def send_group_markdown(self, conversation_id: str, title: str, text: str) -> bool:
         msg_param = json.dumps({"title": title, "text": text}, ensure_ascii=False)
         return await self.post_robot(
             f"{_API_NEW}/v1.0/robot/groupMessages/send",

@@ -302,6 +302,7 @@ class TestEdgeCases:
         from pathlib import Path
 
         from app.services.kanban.pipeline_instantiator import _load_frontmatter
+
         result = _load_frontmatter(Path("/nonexistent/path/SKILL.md"))
         assert result is None
 
@@ -312,6 +313,4 @@ class TestEdgeCases:
             len(spec.task_graph_seed)
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
-                    assert 0 <= p < i, (
-                        f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
-                    )
+                    assert 0 <= p < i, f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"

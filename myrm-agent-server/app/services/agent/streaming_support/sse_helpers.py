@@ -146,9 +146,7 @@ def schedule_approval_timeout(
         resume_collector = StreamContentCollector()
         next_approval_timeout: dict[str, object] | None = None
         async for chunk in ai_agent_service_stream(params=resume_params):
-            sse_line = (
-                f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
-            )
+            sse_line = f"data: {orjson.dumps(chunk).decode('utf-8')}\n\n" if isinstance(chunk, dict) else str(chunk)
             resume_collector.feed_sse(sse_line)
             next_approval_timeout = extract_approval_timeout(sse_line) or next_approval_timeout
 

@@ -95,7 +95,9 @@ async def run_agent_stream(
         logger.warning(f"Gateway rejected massive payload: length={len(text_content)} chars")
         return JSONResponse(
             status_code=400,
-            content={"detail": "Request exceeds gateway token limits (approx 120K tokens). Please reduce the size of your input."},
+            content={
+                "detail": "Request exceeds gateway token limits (approx 120K tokens). Please reduce the size of your input."
+            },
         )
 
     if request.resume_value is None:

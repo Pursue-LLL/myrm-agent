@@ -188,9 +188,7 @@ async def main():
                 and "yes" not in content.lower()
                 and "是" not in content
             ):
-                print(
-                    "⚠️ Warning: The agent response might not explicitly confirm the presence of the env vars."
-                )
+                print("⚠️ Warning: The agent response might not explicitly confirm the presence of the env vars.")
 
             print("✅ Smart Env Injection E2E test passed successfully!")
 

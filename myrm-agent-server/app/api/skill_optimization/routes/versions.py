@@ -18,6 +18,7 @@ from app.database.connection import get_db
 
 router = APIRouter()
 
+
 @router.get("/versions/{skill_id}")
 async def list_skill_versions(
     skill_id: str,
@@ -60,6 +61,7 @@ async def list_skill_versions(
             for v in versions
         ],
     }
+
 
 @router.get("/versions/{skill_id}/compare")
 async def compare_skill_versions(
@@ -123,6 +125,7 @@ async def compare_skill_versions(
         "content_changed": version_1.content != version_2.content,
     }
 
+
 @router.get("/versions/{skill_id}/{version}")
 async def get_skill_version_detail(
     skill_id: str,
@@ -165,6 +168,7 @@ async def get_skill_version_detail(
         else None,
         "metadata": sv.metadata,
     }
+
 
 @router.post("/rollback/{skill_id}")
 async def rollback_optimization(
@@ -219,4 +223,3 @@ async def rollback_optimization(
         "to_version": target_version,
         "audit_log": audit_log,
     }
-

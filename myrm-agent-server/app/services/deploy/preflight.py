@@ -57,11 +57,7 @@ def evaluate_deploy_preflight(files: dict[str, DeployFile]) -> DeployPreflightRe
     except ValueError as exc:
         msg = str(exc)
         html_entries = [name for name in files if name.lower().endswith((".html", ".htm"))]
-        code_entries = [
-            name
-            for name in files
-            if name.lower().endswith((".tsx", ".ts", ".jsx", ".js", ".vue", ".svelte"))
-        ]
+        code_entries = [name for name in files if name.lower().endswith((".tsx", ".ts", ".jsx", ".js", ".vue", ".svelte"))]
         if code_entries and not html_entries:
             return DeployPreflightResult(
                 deployable=False,

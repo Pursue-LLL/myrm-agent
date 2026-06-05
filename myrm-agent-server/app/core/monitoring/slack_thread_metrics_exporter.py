@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 class _StatsdLike(Protocol):
     def gauge(self, metric: str, value: float, tags: list[str] | None = None) -> object: ...
 
+
 logger = logging.getLogger(__name__)
 
 

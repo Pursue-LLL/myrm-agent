@@ -55,6 +55,7 @@ async def compact_chat(
     except Exception as e:
         raise internal_error(operation="Compact chat context", exception=e) from e
 
+
 @router.put("/{chat_id}/compaction/summary", response_model=StandardSuccessResponse)
 async def update_compaction_summary(
     chat_id: str,
@@ -73,6 +74,7 @@ async def update_compaction_summary(
         raise
     except Exception as e:
         raise internal_error(operation="Update compaction summary", exception=e) from e
+
 
 @router.get("/{chat_id}/archive", response_model=StandardSuccessResponse)
 async def get_chat_archive(
@@ -93,4 +95,3 @@ async def get_chat_archive(
         raise
     except Exception as e:
         raise internal_error(operation="Get chat archive", exception=e) from e
-

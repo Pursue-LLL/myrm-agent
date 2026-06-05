@@ -93,7 +93,7 @@ class TestSplitMessage:
         assert len(chunks[0]) == 4096
 
     def test_surrogate_pair_protection(self) -> None:
-        emoji = "\U0001F600"
+        emoji = "\U0001f600"
         text = "a" + emoji
         chunks = split_message(text, limit=2)
         assert chunks == ["a", emoji]

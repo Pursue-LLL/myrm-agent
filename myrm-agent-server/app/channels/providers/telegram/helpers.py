@@ -80,9 +80,7 @@ def build_inline_keyboard(msg: OutboundMessage) -> dict[str, object] | None:
                 if comp.url:
                     kb_row.append({"text": comp.label, "url": comp.url})
                 else:
-                    kb_row.append(
-                        {"text": comp.label, "callback_data": f"act:{comp.action_id[: _CALLBACK_DATA_MAX - 4]}"}
-                    )
+                    kb_row.append({"text": comp.label, "callback_data": f"act:{comp.action_id[: _CALLBACK_DATA_MAX - 4]}"})
             elif isinstance(comp, SelectMenu):
                 for opt in comp.options[:5]:
                     kb_row.append({"text": opt.label, "callback_data": f"sel:{opt.value[: _CALLBACK_DATA_MAX - 4]}"})

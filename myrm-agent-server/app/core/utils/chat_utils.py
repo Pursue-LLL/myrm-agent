@@ -70,28 +70,12 @@ def _build_tool_result_text(tool_name: str, sources: list[dict[str, object]]) ->
         return "\n\n".join(lines) if lines else "Search completed with results."
 
     if any(kw in tool_name.lower() for kw in ("fetch", "browse", "webpage")):
-        urls = [
-            str(s.get("url", ""))
-            for s in sources
-            if s.get("type") == "web_fetch" and s.get("url")
-        ]
-        return (
-            f"Fetched content from: {', '.join(urls)}"
-            if urls
-            else "Web page content fetched."
-        )
+        urls = [str(s.get("url", "")) for s in sources if s.get("type") == "web_fetch" and s.get("url")]
+        return f"Fetched content from: {', '.join(urls)}" if urls else "Web page content fetched."
 
     if "skill" in tool_name.lower() or "mcp" in tool_name.lower():
-        skills = [
-            str(s.get("skill_name", ""))
-            for s in sources
-            if s.get("type") == "mcp" and s.get("skill_name")
-        ]
-        return (
-            f"MCP skills executed: {', '.join(skills)}"
-            if skills
-            else "Skill executed successfully."
-        )
+        skills = [str(s.get("skill_name", "")) for s in sources if s.get("type") == "mcp" and s.get("skill_name")]
+        return f"MCP skills executed: {', '.join(skills)}" if skills else "Skill executed successfully."
 
     return f"Tool '{tool_name}' completed successfully."
 
@@ -192,9 +176,7 @@ async def convert_chat_history(
 
         if role == "human":
             meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
-            processed_content = await _process_human_content(
-                content, meta, model_cfg, vision_fallback_model_cfg
-            )
+            processed_content = await _process_human_content(content, meta, model_cfg, vision_fallback_model_cfg)
             messages.append(HumanMessage(content=processed_content))
         else:
             assistant_meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
@@ -277,9 +259,7 @@ def _compress_base64_image(b64_data: str) -> str | None:
         max_dim = 4096
         if w > max_dim or h > max_dim:
             ratio = min(max_dim / w, max_dim / h)
-            img = img.resize(
-                (int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS
-            )
+            img = img.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
 
         if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
             img = img.convert("RGBA")
@@ -327,17 +307,9 @@ async def _process_human_content(
         for item in content:
             if isinstance(item, dict):
                 if item.get("type") == "image_url":
-                    tasks.append(
-                        _process_image_item(
-                            item, meta, model_cfg, vision_fallback_model_cfg
-                        )
-                    )
+                    tasks.append(_process_image_item(item, meta, model_cfg, vision_fallback_model_cfg))
                 elif item.get("type") == "video_url":
-                    tasks.append(
-                        _process_video_item(
-                            item, meta, model_cfg, vision_fallback_model_cfg
-                        )
-                    )
+                    tasks.append(_process_video_item(item, meta, model_cfg, vision_fallback_model_cfg))
                 elif item.get("type") == "text":
 
                     async def _return_item(i=item):
@@ -369,9 +341,7 @@ async def _process_human_content(
                 from app.services.chat.chat_service import ChatService
 
                 extra_data = meta.get("extra_data", {})
-                asyncio.create_task(
-                    ChatService.update_message_extra_data(message_id, extra_data)
-                )
+                asyncio.create_task(ChatService.update_message_extra_data(message_id, extra_data))
 
             chat_id = meta.get("chat_id")
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -427,19 +397,13 @@ async def _process_image_item(
         if not (is_image_url(image_url) or is_base64_data_url(image_url)):
             return item
 
-        supports_vision = (
-            getattr(model_cfg, "supports_vision", False) if model_cfg else True
-        )
+        supports_vision = getattr(model_cfg, "supports_vision", False) if model_cfg else True
 
         # 计算图片哈希用于字典缓存隔离
         img_hash = hashlib.md5(image_url.encode("utf-8")).hexdigest()
 
         if not supports_vision and vision_fallback_model_cfg:
-            extra_data = (
-                meta.get("extra_data", {})
-                if isinstance(meta.get("extra_data"), dict)
-                else {}
-            )
+            extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
             vision_cache = extra_data.get("vision_cache", {})
             if img_hash in vision_cache:
                 return {"type": "text", "text": vision_cache[img_hash]}
@@ -447,9 +411,7 @@ async def _process_image_item(
         if is_base64_data_url(image_url):
             byte_size = estimate_base64_byte_size(image_url)
             if byte_size > MAX_IMAGE_READ_BYTES:
-                logger.warning(
-                    "Image too large to read (%d bytes), degrading to text", byte_size
-                )
+                logger.warning("Image too large to read (%d bytes), degrading to text", byte_size)
                 return {
                     "type": "text",
                     "text": f"[Image too large: {byte_size / 1024 / 1024:.1f}MB, limit {MAX_IMAGE_READ_BYTES // 1024 // 1024}MB]",
@@ -476,9 +438,7 @@ async def _process_image_item(
             data_url = f"data:{mime_type};base64,{base64_data}"
             byte_size = estimate_base64_byte_size(data_url)
             if byte_size > MAX_IMAGE_READ_BYTES:
-                logger.warning(
-                    "Converted image too large to read (%d bytes), degrading to text", byte_size
-                )
+                logger.warning("Converted image too large to read (%d bytes), degrading to text", byte_size)
                 return {
                     "type": "text",
                     "text": f"[Image too large: {byte_size / 1024 / 1024:.1f}MB, limit {MAX_IMAGE_READ_BYTES // 1024 // 1024}MB]",
@@ -506,9 +466,7 @@ async def _process_image_item(
             )
 
             try:
-                fallback_config = LLMConfig.model_validate(
-                    vision_fallback_model_cfg, from_attributes=True
-                )
+                fallback_config = LLMConfig.model_validate(vision_fallback_model_cfg, from_attributes=True)
                 engine = VisionFallbackEngine(fallback_config)
 
                 # 标记该 meta 经历了图像分析，用于外部清除状态
@@ -593,18 +551,12 @@ async def _process_video_item(
         if not video_url:
             return item
 
-        supports_video = (
-            getattr(model_cfg, "supports_video", False) if model_cfg else False
-        )
+        supports_video = getattr(model_cfg, "supports_video", False) if model_cfg else False
 
         video_hash = hashlib.md5(video_url.encode("utf-8")).hexdigest()
 
         if not supports_video and vision_fallback_model_cfg:
-            extra_data = (
-                meta.get("extra_data", {})
-                if isinstance(meta.get("extra_data"), dict)
-                else {}
-            )
+            extra_data = meta.get("extra_data", {}) if isinstance(meta.get("extra_data"), dict) else {}
             video_cache = extra_data.get("video_cache", {})
             if video_hash in video_cache:
                 return {"type": "text", "text": video_cache[video_hash]}
@@ -624,9 +576,7 @@ async def _process_video_item(
             )
 
             try:
-                fallback_config = LLMConfig.model_validate(
-                    vision_fallback_model_cfg, from_attributes=True
-                )
+                fallback_config = LLMConfig.model_validate(vision_fallback_model_cfg, from_attributes=True)
                 engine = VideoAnalysisEngine(fallback_config)
 
                 meta["_analyzed_video"] = True

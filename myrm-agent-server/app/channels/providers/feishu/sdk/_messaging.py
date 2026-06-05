@@ -137,9 +137,7 @@ class FeishuMessagingMixin:
         new_message_id = data.get("message_id") if isinstance(data, dict) else None
         return str(new_message_id) if new_message_id else None
 
-    async def update_message(
-        self, message_id: str, msg_type: str, content: str
-    ) -> bool:
+    async def update_message(self, message_id: str, msg_type: str, content: str) -> bool:
         """Update an existing message (alias for patch_message)."""
         return await self.patch_message(message_id, msg_type, content)
 
@@ -373,9 +371,6 @@ class FeishuMessagingMixin:
                     if bs and be:
                         busy_slots.append({"start": bs, "end": be})
 
-            all_results.append({
-                "user_id": uid,
-                "busy_slots": busy_slots
-            })
+            all_results.append({"user_id": uid, "busy_slots": busy_slots})
 
         return all_results

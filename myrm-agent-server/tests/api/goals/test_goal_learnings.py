@@ -36,9 +36,7 @@ class TestBuildGoalTerminalCallback:
         llm = MagicMock()
 
         with (
-            patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func"
-            ) as mock_create_llm,
+            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
@@ -102,9 +100,7 @@ class TestBuildGoalTerminalCallback:
         llm = MagicMock()
 
         with (
-            patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func"
-            ) as mock_create_llm,
+            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
@@ -140,9 +136,7 @@ class TestGoalTerminalEventPublishing:
         memory_manager = AsyncMock()
         llm = MagicMock()
 
-        with patch(
-            "app.services.event.app_event_bus.get_event_bus"
-        ) as mock_get_bus:
+        with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
             mock_bus = MagicMock()
             mock_get_bus.return_value = mock_bus
 
@@ -184,9 +178,7 @@ class TestGoalTerminalEventPublishing:
                 "app.services.event.app_event_bus.get_event_bus",
                 side_effect=RuntimeError("EventBus unavailable"),
             ),
-            patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func"
-            ) as mock_create_llm,
+            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
@@ -227,9 +219,7 @@ class TestGoalTerminalEventPublishing:
         memory_manager = AsyncMock()
         llm = MagicMock()
 
-        with patch(
-            "app.services.event.app_event_bus.get_event_bus"
-        ) as mock_get_bus:
+        with patch("app.services.event.app_event_bus.get_event_bus") as mock_get_bus:
             mock_bus = MagicMock()
             mock_get_bus.return_value = mock_bus
 
@@ -256,7 +246,13 @@ class TestGoalTerminalNotificationTemplate:
 
         event = AppEvent(
             event_type=AppEventType.GOAL_TERMINAL,
-            data={"status": "complete", "objective": "Refactor auth module", "files_modified": 3, "total_tokens": 5000, "total_cost_usd": 0.25},
+            data={
+                "status": "complete",
+                "objective": "Refactor auth module",
+                "files_modified": 3,
+                "total_tokens": 5000,
+                "total_cost_usd": 0.25,
+            },
         )
         result = _format_message(event)
         assert result == "[Myrm AI] Goal complete: Refactor auth module\n3 files · 5,000 tokens · $0.25"
@@ -267,7 +263,13 @@ class TestGoalTerminalNotificationTemplate:
 
         event = AppEvent(
             event_type=AppEventType.GOAL_TERMINAL,
-            data={"status": "budget_limited", "objective": "Long task", "files_modified": 0, "total_tokens": 10000, "total_cost_usd": 1.50},
+            data={
+                "status": "budget_limited",
+                "objective": "Long task",
+                "files_modified": 0,
+                "total_tokens": 10000,
+                "total_cost_usd": 1.50,
+            },
         )
         result = _format_message(event)
         assert result == "[Myrm AI] Goal budget_limited: Long task\n0 files · 10,000 tokens · $1.50"
@@ -286,9 +288,7 @@ class TestRetrieveRelevantLearnings:
         result2.content = "Use bun instead of npm in this project"
         memory_manager.search.return_value = [result1, result2]
 
-        learnings = await retrieve_relevant_learnings(
-            memory_manager, "Add i18n support to settings page"
-        )
+        learnings = await retrieve_relevant_learnings(memory_manager, "Add i18n support to settings page")
 
         assert len(learnings) == 2
         assert "locale files" in learnings[0]
@@ -301,9 +301,7 @@ class TestRetrieveRelevantLearnings:
         memory_manager = AsyncMock()
         memory_manager.search.side_effect = RuntimeError("DB connection lost")
 
-        learnings = await retrieve_relevant_learnings(
-            memory_manager, "Add feature X"
-        )
+        learnings = await retrieve_relevant_learnings(memory_manager, "Add feature X")
 
         assert learnings == []
 
@@ -317,9 +315,7 @@ class TestRetrieveRelevantLearnings:
         result2.content = "Always validate input before processing database queries"
         memory_manager.search.return_value = [result1, result2]
 
-        learnings = await retrieve_relevant_learnings(
-            memory_manager, "Database operations"
-        )
+        learnings = await retrieve_relevant_learnings(memory_manager, "Database operations")
 
         assert len(learnings) == 1
         assert "validate input" in learnings[0]
@@ -331,9 +327,7 @@ class TestRetrieveRelevantLearnings:
         results = [MagicMock(content=f"Learning number {i} is important") for i in range(10)]
         memory_manager.search.return_value = results
 
-        learnings = await retrieve_relevant_learnings(
-            memory_manager, "test", limit=3
-        )
+        learnings = await retrieve_relevant_learnings(memory_manager, "test", limit=3)
 
         assert len(learnings) == 3
 

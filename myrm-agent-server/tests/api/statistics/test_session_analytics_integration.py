@@ -13,13 +13,9 @@ from app.main import app
 async def test_session_analytics_endpoint_with_real_session():
     """Test /api/v1/statistics/session/{session_id} with a real session."""
     # Use httpx to call the API
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # First, check if there are any sessions
-        response = await ac.get(
-            "/api/v1/statistics/usage/sessions", params={"limit": 1}
-        )
+        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
         assert response.status_code == 200
 
         data = response.json()
@@ -54,9 +50,7 @@ async def test_session_analytics_endpoint_with_real_session():
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_not_found():
     """Test /api/v1/statistics/session/{session_id} with non-existent session."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/api/v1/statistics/session/non-existent-session-id")
 
         # Should return 404 or empty data
@@ -66,13 +60,9 @@ async def test_session_analytics_endpoint_not_found():
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_structure():
     """Test session analytics response structure."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Get a session
-        response = await ac.get(
-            "/api/v1/statistics/usage/sessions", params={"limit": 1}
-        )
+        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
         if response.status_code != 200:
             pytest.skip("Cannot fetch sessions")
 
@@ -112,12 +102,8 @@ async def test_session_analytics_endpoint_structure():
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_with_real_session():
     """Test /api/v1/statistics/session/{session_id}/trace with a real session."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        response = await ac.get(
-            "/api/v1/statistics/usage/sessions", params={"limit": 1}
-        )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
         assert response.status_code == 200
 
         sessions = response.json().get("data", {}).get("sessions", [])
@@ -148,9 +134,7 @@ async def test_session_trace_endpoint_with_real_session():
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_not_found():
     """Test /api/v1/statistics/session/{session_id}/trace with non-existent session."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/api/v1/statistics/session/non-existent-id/trace")
         assert response.status_code in [200, 404]
 
@@ -158,12 +142,8 @@ async def test_session_trace_endpoint_not_found():
 @pytest.mark.asyncio
 async def test_session_trace_endpoint_structure():
     """Test trace response structure has all expected fields."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        response = await ac.get(
-            "/api/v1/statistics/usage/sessions", params={"limit": 1}
-        )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        response = await ac.get("/api/v1/statistics/usage/sessions", params={"limit": 1})
         if response.status_code != 200:
             pytest.skip("Cannot fetch sessions")
 
@@ -197,9 +177,7 @@ async def test_session_trace_endpoint_structure():
 @pytest.mark.asyncio
 async def test_model_sessions_endpoint_basic():
     """Test /api/v1/statistics/usage/model-sessions with mock or non-existent model."""
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Query with a non-existent/dummy model name
         response = await ac.get(
             "/api/v1/statistics/usage/model-sessions",

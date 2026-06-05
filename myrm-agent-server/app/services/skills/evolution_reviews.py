@@ -143,7 +143,9 @@ def _get_skill_store() -> SkillStore:
 
 
 def _apply_failure_remediation(skill_name: str) -> str:
-    return f'Resolve the file-system issue for "{skill_name}" and retry apply, or reject the proposal if the change should not land.'
+    return (
+        f'Resolve the file-system issue for "{skill_name}" and retry apply, or reject the proposal if the change should not land.'
+    )
 
 
 def _approval_payload(record: ApprovalRecord) -> EvolutionApprovalPayload | None:
@@ -151,9 +153,7 @@ def _approval_payload(record: ApprovalRecord) -> EvolutionApprovalPayload | None
     try:
         return EvolutionApprovalPayload.model_validate(raw_payload)
     except ValidationError as exc:
-        logger.error(
-            "Failed to parse evolution approval payload for %s: %s", record.id, exc
-        )
+        logger.error("Failed to parse evolution approval payload for %s: %s", record.id, exc)
         return None
 
 
@@ -243,8 +243,7 @@ async def create_evolution_review_record(
         trajectory=trajectory,
         growth_status=growth_status,
         reason_code=reason_code or "manual_review",
-        remediation=remediation
-        or "Review the diff and approve or reject the proposal.",
+        remediation=remediation or "Review the diff and approve or reject the proposal.",
         runtime_failure=runtime_failure,
     )
     record = await ApprovalRegistry.create_approval(
@@ -272,19 +271,13 @@ async def create_evolution_review_record(
                 "apply_status": payload.apply_status.value,
                 "reason_code": payload.reason_code,
                 "remediation": payload.remediation,
-                "runtime_failure": (
-                    runtime_failure.model_dump(mode="json")
-                    if runtime_failure is not None
-                    else None
-                ),
+                "runtime_failure": (runtime_failure.model_dump(mode="json") if runtime_failure is not None else None),
             },
         )
     )
     review_record = approval_to_evolution_review_record(record)
     if review_record is None:
-        raise RuntimeError(
-            f"Failed to normalize evolution approval record: {record.id}"
-        )
+        raise RuntimeError(f"Failed to normalize evolution approval record: {record.id}")
     return review_record
 
 
@@ -328,11 +321,7 @@ async def count_evolution_review_records(*, pending_only: bool = False) -> int:
         return len(await list_evolution_review_records(pending_only=True))
 
     async with get_session() as db:
-        stmt = (
-            select(func.count())
-            .select_from(ApprovalRecord)
-            .where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
-        )
+        stmt = select(func.count()).select_from(ApprovalRecord).where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
         result = await db.execute(stmt)
         return result.scalar() or 0
 
@@ -348,20 +337,12 @@ async def find_runtime_failure_review_record(
             select(ApprovalRecord)
             .where(ApprovalRecord.action_type == EVOLUTION_ACTION_TYPE)
             .where(ApprovalRecord.payload["skill_id"].as_string() == skill_id)
-            .where(
-                ApprovalRecord.payload["runtime_failure"]["error_signature"].as_string()
-                == error_signature
-            )
+            .where(ApprovalRecord.payload["runtime_failure"]["error_signature"].as_string() == error_signature)
             .order_by(desc(ApprovalRecord.created_at))
         )
         if skill_version is not None:
-            stmt = stmt.where(
-                ApprovalRecord.payload["runtime_failure"]["skill_version"].as_string()
-                == skill_version
-            )
-        result = await db.execute(
-            stmt
-        )
+            stmt = stmt.where(ApprovalRecord.payload["runtime_failure"]["skill_version"].as_string() == skill_version)
+        result = await db.execute(stmt)
         records = list(result.scalars().all())
 
     for record in records:
@@ -372,10 +353,7 @@ async def find_runtime_failure_review_record(
             continue
         if payload.runtime_failure.error_signature != error_signature:
             continue
-        if (
-            skill_version is not None
-            and payload.runtime_failure.skill_version != skill_version
-        ):
+        if skill_version is not None and payload.runtime_failure.skill_version != skill_version:
             continue
         if payload.growth_status in {
             EvolutionGrowthStatus.PENDING_REVIEW,
@@ -482,15 +460,11 @@ async def _apply_to_disk_and_store(payload: EvolutionApprovalPayload, agent_id: 
     bump_skill_config_version()
 
 
-async def _apply_description_update(
-    payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None
-) -> None:
+async def _apply_description_update(payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None) -> None:
     """Apply a description-only update: update SkillStore description without touching the file."""
     existing = store.get_skill(payload.skill_id)
     if existing is None:
-        raise EvolutionApplyError(
-            f"Cannot apply description update: skill '{payload.skill_id}' not found in store."
-        )
+        raise EvolutionApplyError(f"Cannot apply description update: skill '{payload.skill_id}' not found in store.")
 
     existing.description = payload.evolved_content
     existing.lineage = SkillLineage(
@@ -502,16 +476,15 @@ async def _apply_description_update(
     )
     if agent_id:
         from myrm_agent_harness.agent.skills.evolution.core.types import EnvironmentFingerprint
+
         if existing.environment is None:
             existing.environment = EnvironmentFingerprint()
         existing.environment.custom_tags["scope_agent_id"] = agent_id
-        
+
     await store.save_skill(existing)
 
 
-async def _apply_content_update(
-    payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None
-) -> None:
+async def _apply_content_update(payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None) -> None:
     """Apply a full content update: write to disk and update SkillStore."""
     skill_path = Path(payload.skill_path)
     if skill_path.exists():
@@ -519,18 +492,19 @@ async def _apply_content_update(
         shutil.copy2(skill_path, backup_path)
 
     existing = store.get_skill(payload.skill_id)
-    
+
     # 1. Determine if Copy-on-Write Forking is needed
     is_fork = False
     old_skill_id = payload.skill_id
     final_scope_agent_id = None
-    
+
     if existing and existing.environment and "scope_agent_id" in existing.environment.custom_tags:
         owner_id = existing.environment.custom_tags["scope_agent_id"]
         if agent_id and owner_id != agent_id:
             # Non-owner is trying to evolve a scoped skill -> FORK!
             is_fork = True
             import uuid
+
             payload.skill_id = f"fork_{uuid.uuid4().hex[:8]}"
             payload.skill_name = f"{payload.skill_name}-fork"
             orig_path = Path(payload.skill_path)
@@ -549,14 +523,15 @@ async def _apply_content_update(
     content_to_write = payload.evolved_content
     if final_scope_agent_id:
         import re
+
         # Inject scope_agent_id into frontmatter if it exists
         def _inject_scope(match: re.Match) -> str:
             fm = match.group(1)
             # Remove any existing scope_agent_id
-            fm = re.sub(r'(?m)^scope_agent_id:\s*.*$', '', fm)
+            fm = re.sub(r"(?m)^scope_agent_id:\s*.*$", "", fm)
             return f"---\n{fm.strip()}\nscope_agent_id: {final_scope_agent_id}\n---"
-        
-        content_to_write = re.sub(r'^---\s*\n(.*?)\n---', _inject_scope, content_to_write, count=1, flags=re.DOTALL)
+
+        content_to_write = re.sub(r"^---\s*\n(.*?)\n---", _inject_scope, content_to_write, count=1, flags=re.DOTALL)
 
     skill_path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_evolve_")
@@ -576,7 +551,7 @@ async def _apply_content_update(
         created_at=datetime.now(),
         created_by="evolution_engine",
     )
-    
+
     if existing:
         skill_record = existing
         skill_record.content = payload.evolved_content
@@ -586,10 +561,12 @@ async def _apply_content_update(
         if final_scope_agent_id:
             if skill_record.environment is None:
                 from myrm_agent_harness.agent.skills.evolution.core.types import EnvironmentFingerprint
+
                 skill_record.environment = EnvironmentFingerprint()
             skill_record.environment.custom_tags["scope_agent_id"] = final_scope_agent_id
     else:
         from myrm_agent_harness.agent.skills.evolution.core.types import EnvironmentFingerprint
+
         env = EnvironmentFingerprint()
         if final_scope_agent_id:
             env.custom_tags["scope_agent_id"] = final_scope_agent_id
@@ -611,6 +588,7 @@ async def _apply_content_update(
         try:
             from app.database.connection import get_session
             from app.database.models import Agent
+
             async with get_session() as db:
                 agent = await db.get(Agent, agent_id)
                 if agent:
@@ -625,9 +603,10 @@ async def _apply_content_update(
                     # If it was in skill_ids (e.g., global skill evolved by agent)
                     elif agent.skill_ids and old_skill_id in agent.skill_ids:
                         agent.skill_ids = [x if x != old_skill_id else payload.skill_id for x in agent.skill_ids]
-                    
+
                     # Update ORM JSON columns
                     from sqlalchemy.orm.attributes import flag_modified
+
                     flag_modified(agent, "mounted_skill_ids")
                     flag_modified(agent, "skill_ids")
                     await db.commit()
@@ -654,9 +633,7 @@ async def _mark_apply_failure(
         record.id,
         approval_status=approval_status,
         payload=payload,
-        resolved_at=(
-            datetime.now(timezone.utc) if approval_status == "APPROVED" else None
-        ),
+        resolved_at=(datetime.now(timezone.utc) if approval_status == "APPROVED" else None),
     )
     await record_experience_event(
         ExperienceLedgerWrite(
@@ -698,19 +675,13 @@ async def _apply_approval_record(
     try:
         await _apply_to_disk_and_store(payload, agent_id=record.agent_id)
     except Exception as exc:
-        await _mark_apply_failure(
-            record, payload, str(exc), auto_approved=auto_approved
-        )
+        await _mark_apply_failure(record, payload, str(exc), auto_approved=auto_approved)
         raise EvolutionApplyError(str(exc)) from exc
 
     payload.apply_status = EvolutionApplyStatus.APPLIED
     payload.apply_error = None
     payload.remediation = None
-    payload.reason_code = (
-        None
-        if payload.growth_status == EvolutionGrowthStatus.APPROVED
-        else payload.reason_code
-    )
+    payload.reason_code = None if payload.growth_status == EvolutionGrowthStatus.APPROVED else payload.reason_code
     payload.growth_status = EvolutionGrowthStatus.APPROVED
 
     updated = await _persist_approval_payload(
@@ -744,9 +715,7 @@ async def _apply_approval_record(
     )
     review_record = approval_to_evolution_review_record(updated)
     if review_record is None:
-        raise EvolutionApplyError(
-            f"Failed to normalize approved evolution record: {updated.id}"
-        )
+        raise EvolutionApplyError(f"Failed to normalize approved evolution record: {updated.id}")
     return review_record
 
 
@@ -757,9 +726,7 @@ async def approve_evolution_review_record(
 ) -> EvolutionReviewRecord:
     approval_record = await _load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     current = approval_to_evolution_review_record(approval_record)
     if current is None:
@@ -780,9 +747,7 @@ async def approve_evolution_review_record(
             edited_payload={"growth_status": EvolutionGrowthStatus.APPROVED.value},
         )
         if resolved is None:
-            raise EvolutionApplyError(
-                f"Evolution approval record not found: {evolution_id}"
-            )
+            raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         record = resolved
 
     return await _apply_approval_record(record, auto_approved=auto_approved)
@@ -795,9 +760,7 @@ async def reject_evolution_review_record(
 ) -> EvolutionReviewRecord:
     approval_record = await _load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     payload = _approval_payload(approval_record)
     if payload is None:
@@ -816,9 +779,7 @@ async def reject_evolution_review_record(
             edited_payload=payload.model_dump(mode="json"),
         )
         if resolved is None:
-            raise EvolutionApplyError(
-                f"Evolution approval record not found: {evolution_id}"
-            )
+            raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         approval_record = resolved
     else:
         approval_record = await _persist_approval_payload(
@@ -862,18 +823,14 @@ async def reject_evolution_review_record(
 
     review_record = approval_to_evolution_review_record(approval_record)
     if review_record is None:
-        raise EvolutionApplyError(
-            f"Failed to normalize rejected evolution record: {approval_record.id}"
-        )
+        raise EvolutionApplyError(f"Failed to normalize rejected evolution record: {approval_record.id}")
     return review_record
 
 
 async def rollback_evolution_review_record(evolution_id: str) -> dict[str, object]:
     approval_record = await _load_approval_record(evolution_id)
     if approval_record is None:
-        raise EvolutionApplyError(
-            f"Evolution approval record not found: {evolution_id}"
-        )
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
 
     payload = _approval_payload(approval_record)
     if payload is None:
@@ -893,9 +850,7 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
     payload.apply_status = EvolutionApplyStatus.ROLLED_BACK
     payload.apply_error = None
     payload.reason_code = "rolled_back"
-    payload.remediation = (
-        "Review the original content before re-applying this evolution."
-    )
+    payload.remediation = "Review the original content before re-applying this evolution."
     await _persist_approval_payload(
         evolution_id,
         approval_status="APPROVED",
@@ -906,15 +861,11 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
     return {"status": "rolled_back", "evolution_id": evolution_id}
 
 
-async def _rollback_description_update(
-    payload: EvolutionApprovalPayload, store: SkillStore
-) -> None:
+async def _rollback_description_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
     """Rollback a description-only update: restore original description in SkillStore."""
     existing = store.get_skill(payload.skill_id)
     if existing is None:
-        raise EvolutionApplyError(
-            f"Cannot rollback description update: skill '{payload.skill_id}' not found."
-        )
+        raise EvolutionApplyError(f"Cannot rollback description update: skill '{payload.skill_id}' not found.")
     existing.description = payload.original_content
     existing.lineage = SkillLineage(
         evolution_type=EvolutionType.OPTIMIZE_DESCRIPTION,
@@ -927,12 +878,10 @@ async def _rollback_description_update(
     await store.save_skill(existing)
 
 
-async def _rollback_content_update(
-    payload: EvolutionApprovalPayload, store: SkillStore
-) -> None:
+async def _rollback_content_update(payload: EvolutionApprovalPayload, store: SkillStore) -> None:
     """Rollback a full content update: restore file and SkillStore."""
     skill_path = Path(payload.skill_path)
-    
+
     # If it is a derived fork (or original_content was forcibly empty), we delete the skill
     if payload.evolution_type == EvolutionType.DERIVED.value or not payload.original_content:
         # Before deleting, check if we need to restore agent mount pointing
@@ -944,7 +893,7 @@ async def _rollback_content_update(
                 owner_id = fork_skill.environment.custom_tags["scope_agent_id"]
             if fork_skill.lineage:
                 parent_id = fork_skill.lineage.parent_id
-                
+
         if skill_path.exists():
             # If it's a derived skill, it's inside a folder like skill_name-fork/SKILL.md
             if skill_path.name == "SKILL.md":
@@ -958,26 +907,27 @@ async def _rollback_content_update(
             await store.delete_skill(payload.skill_id)
         except Exception as exc:
             logger.warning("Failed to delete skill from DB during rollback: %s", exc)
-            
+
         # Restore the original mount for the agent if we know who owned the fork
         if owner_id and parent_id:
             try:
                 from app.services.agent.agent_service import agent_service
+
                 agent = await agent_service.get_agent(owner_id)
                 if agent:
                     mounted_ids = agent.mounted_skill_ids or []
                     skill_ids = agent.skill_ids or []
                     update_needed = False
-                    
+
                     if payload.skill_id in skill_ids:
                         skill_ids = [x for x in skill_ids if x != payload.skill_id]
-                        
+
                         # Determine if parent was globally owned by this agent or mounted
                         parent_skill = store.get_skill(parent_id)
                         parent_owner_id = None
                         if parent_skill and parent_skill.environment and "scope_agent_id" in parent_skill.environment.custom_tags:
                             parent_owner_id = parent_skill.environment.custom_tags["scope_agent_id"]
-                            
+
                         # If parent is explicitly scoped to this exact agent (or it has no scope so it's a true global),
                         # it belongs in skill_ids. Wait, if it has no scope, it's global, so it doesn't need to be in either,
                         # but if they had it in skill_ids, let's restore it there.
@@ -988,23 +938,17 @@ async def _rollback_content_update(
                         else:
                             if parent_id not in skill_ids:
                                 skill_ids.append(parent_id)
-                                
+
                         update_needed = True
-                        
+
                     if update_needed:
                         await agent_service.update_agent(
-                            owner_id,
-                            AgentUpdate(
-                                mounted_skill_ids=mounted_ids,
-                                skill_ids=skill_ids
-                            )
+                            owner_id, AgentUpdate(mounted_skill_ids=mounted_ids, skill_ids=skill_ids)
                         )
             except Exception as e:
                 logger.error("Failed to restore parent mount during rollback: %s", e)
     else:
-        fd, temp_path = tempfile.mkstemp(
-            dir=skill_path.parent, prefix="skill_rollback_"
-        )
+        fd, temp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_rollback_")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
                 file_obj.write(payload.original_content)

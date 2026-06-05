@@ -38,6 +38,7 @@ def client() -> Iterator[TestClient]:
 def _clean_pending_auth():
     """Reset module-level _pending_auth state between tests."""
     from app.api.integrations.mcp_oauth import _pending_auth
+
     _pending_auth.clear()
     yield
     _pending_auth.clear()
@@ -47,14 +48,17 @@ class TestStartEndpoint:
     """POST /start — start MCP OAuth authorization flow."""
 
     def test_start_returns_authorization_url(self, client: TestClient) -> None:
-        resp = client.post(f"{API_PREFIX}/start", json={
-            "server_name": "my-mcp",
-            "authorization_endpoint": "https://auth.example.com/authorize",
-            "token_endpoint": "https://auth.example.com/token",
-            "client_id": "cid-123",
-            "scope": "read write",
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/start",
+            json={
+                "server_name": "my-mcp",
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+                "client_id": "cid-123",
+                "scope": "read write",
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()["data"]
         assert "authorization_url" in data
@@ -72,13 +76,16 @@ class TestStartEndpoint:
     def test_start_persists_pending_state(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth
 
-        resp = client.post(f"{API_PREFIX}/start", json={
-            "server_name": "my-mcp",
-            "authorization_endpoint": "https://auth.example.com/authorize",
-            "token_endpoint": "https://auth.example.com/token",
-            "client_id": "cid",
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/start",
+            json={
+                "server_name": "my-mcp",
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+                "client_id": "cid",
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         state = resp.json()["data"]["state"]
         assert state in _pending_auth
         pending = _pending_auth[state]
@@ -88,13 +95,16 @@ class TestStartEndpoint:
         assert pending["token_endpoint"] == "https://auth.example.com/token"
 
     def test_start_without_scope(self, client: TestClient) -> None:
-        resp = client.post(f"{API_PREFIX}/start", json={
-            "server_name": "no-scope-mcp",
-            "authorization_endpoint": "https://auth.example.com/authorize",
-            "token_endpoint": "https://auth.example.com/token",
-            "client_id": "cid",
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/start",
+            json={
+                "server_name": "no-scope-mcp",
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+                "client_id": "cid",
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         assert resp.status_code == 200
         params = parse_qs(urlparse(resp.json()["data"]["authorization_url"]).query)
         assert "scope" not in params
@@ -102,14 +112,17 @@ class TestStartEndpoint:
     def test_start_with_client_secret(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth
 
-        resp = client.post(f"{API_PREFIX}/start", json={
-            "server_name": "confidential-mcp",
-            "authorization_endpoint": "https://auth.example.com/authorize",
-            "token_endpoint": "https://auth.example.com/token",
-            "client_id": "cid",
-            "client_secret": "secret-xyz",
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/start",
+            json={
+                "server_name": "confidential-mcp",
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+                "client_id": "cid",
+                "client_secret": "secret-xyz",
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         state = resp.json()["data"]["state"]
         assert _pending_auth[state]["client_secret"] == "secret-xyz"
 
@@ -119,6 +132,7 @@ class TestCallbackEndpoint:
 
     def _setup_pending(self, state: str = "test-state") -> str:
         from app.api.integrations.mcp_oauth import _pending_auth
+
         _pending_auth[state] = {
             "server_name": "my-mcp",
             "code_verifier": "test-verifier-12345",
@@ -157,12 +171,15 @@ class TestCallbackEndpoint:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            resp = client.post(f"{API_PREFIX}/callback", json={
-                "server_name": "my-mcp",
-                "code": "auth-code-abc",
-                "state": state,
-                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-            })
+            resp = client.post(
+                f"{API_PREFIX}/callback",
+                json={
+                    "server_name": "my-mcp",
+                    "code": "auth-code-abc",
+                    "state": state,
+                    "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+                },
+            )
 
         assert resp.status_code == 200
         data = resp.json()["data"]
@@ -171,26 +188,33 @@ class TestCallbackEndpoint:
         mock_store.save_token_with_config.assert_called_once()
 
     def test_callback_invalid_state(self, client: TestClient) -> None:
-        resp = client.post(f"{API_PREFIX}/callback", json={
-            "server_name": "my-mcp",
-            "code": "code",
-            "state": "nonexistent-state",
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/callback",
+            json={
+                "server_name": "my-mcp",
+                "code": "code",
+                "state": "nonexistent-state",
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         assert resp.status_code == 400
 
     def test_callback_server_name_mismatch(self, client: TestClient) -> None:
         state = self._setup_pending()
-        resp = client.post(f"{API_PREFIX}/callback", json={
-            "server_name": "wrong-server",
-            "code": "code",
-            "state": state,
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/callback",
+            json={
+                "server_name": "wrong-server",
+                "code": "code",
+                "state": state,
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         assert resp.status_code == 400
 
     def test_callback_expired_state(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth
+
         state = "expired-state"
         _pending_auth[state] = {
             "server_name": "my-mcp",
@@ -202,12 +226,15 @@ class TestCallbackEndpoint:
             "scope": "",
             "created_at": str(time.time() - 700),  # 11+ minutes ago
         }
-        resp = client.post(f"{API_PREFIX}/callback", json={
-            "server_name": "my-mcp",
-            "code": "code",
-            "state": state,
-            "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-        })
+        resp = client.post(
+            f"{API_PREFIX}/callback",
+            json={
+                "server_name": "my-mcp",
+                "code": "code",
+                "state": state,
+                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+            },
+        )
         assert resp.status_code == 400
 
     def test_callback_token_exchange_http_failure(self, client: TestClient) -> None:
@@ -224,12 +251,15 @@ class TestCallbackEndpoint:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            resp = client.post(f"{API_PREFIX}/callback", json={
-                "server_name": "my-mcp",
-                "code": "bad-code",
-                "state": state,
-                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-            })
+            resp = client.post(
+                f"{API_PREFIX}/callback",
+                json={
+                    "server_name": "my-mcp",
+                    "code": "bad-code",
+                    "state": state,
+                    "redirect_uri": "http://localhost:3000/auth/mcp-callback",
+                },
+            )
         assert resp.status_code == 400
 
 
@@ -248,10 +278,12 @@ class TestStatusEndpoint:
 
     def test_status_returns_server_info(self, client: TestClient) -> None:
         mock_store = AsyncMock()
-        mock_store.get_all_statuses = AsyncMock(return_value={
-            "mcp-1": {"connected": True, "expired": False, "scope": "read"},
-            "mcp-2": {"connected": True, "expired": True, "scope": None},
-        })
+        mock_store.get_all_statuses = AsyncMock(
+            return_value={
+                "mcp-1": {"connected": True, "expired": False, "scope": "read"},
+                "mcp-2": {"connected": True, "expired": True, "scope": None},
+            }
+        )
 
         with patch("app.api.integrations.mcp_oauth.get_mcp_oauth_token_store", return_value=mock_store):
             resp = client.get(f"{API_PREFIX}/status")

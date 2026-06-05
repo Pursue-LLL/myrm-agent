@@ -23,6 +23,7 @@ router = APIRouter()
 _SKILL_DRAFT_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "semantic_memory")
 _TEST_MOCK_DRAFT_NAMES: tuple[str, ...] = ("test-frontend-approve", "test-frontend-reject")
 
+
 class SkillDraftResponse(BaseModel):
     id: str
     agent_id: str
@@ -40,12 +41,15 @@ class SkillDraftResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class SkillDraftListResponse(BaseModel):
     drafts: list[SkillDraftResponse]
     total: int
 
+
 class ApproveDraftRequest(BaseModel):
     skill_name: str | None = None
+
 
 @dataclass(slots=True)
 class SkillDraftRecord:
@@ -63,11 +67,13 @@ class SkillDraftRecord:
     created_at: datetime
     approval_status: str
 
+
 def _payload_text(payload: dict[str, object], key: str) -> str | None:
     value = payload.get(key)
     if isinstance(value, str) and value:
         return value
     return None
+
 
 def _approval_growth_status(record: ApprovalRecord) -> str:
     payload_status = record.payload.get("growth_status")
@@ -78,6 +84,7 @@ def _approval_growth_status(record: ApprovalRecord) -> str:
     if record.status == "REJECTED":
         return "REJECTED"
     return "PENDING_REVIEW"
+
 
 def _to_skill_draft_record(record: ApprovalRecord) -> SkillDraftRecord:
     payload = record.payload if isinstance(record.payload, dict) else {}
@@ -97,6 +104,7 @@ def _to_skill_draft_record(record: ApprovalRecord) -> SkillDraftRecord:
         approval_status=record.status,
     )
 
+
 def _skill_draft_response(draft: SkillDraftRecord) -> SkillDraftResponse:
     return SkillDraftResponse(
         id=draft.id,
@@ -113,6 +121,7 @@ def _skill_draft_response(draft: SkillDraftRecord) -> SkillDraftResponse:
         created_at=draft.created_at,
     )
 
+
 async def _get_approval_skill_draft(draft_id: str) -> ApprovalRecord | None:
     async with get_session() as db:
         result = await db.execute(
@@ -122,6 +131,7 @@ async def _get_approval_skill_draft(draft_id: str) -> ApprovalRecord | None:
             )
         )
         return result.scalar_one_or_none()
+
 
 def _publish_skill_growth_event(draft: SkillDraftRecord) -> None:
     try:
@@ -164,6 +174,7 @@ async def get_skill_drafts(
     total = len(drafts)
     return drafts[offset : offset + limit], total
 
+
 @router.get("/drafts", response_model=SkillDraftListResponse)
 async def list_skill_drafts(
     status: str | None = None,
@@ -176,6 +187,7 @@ async def list_skill_drafts(
         drafts=[_skill_draft_response(draft) for draft in drafts],
         total=total,
     )
+
 
 @router.get("/drafts/unreviewed/count")
 async def get_unreviewed_draft_count() -> dict[str, object]:
@@ -203,13 +215,13 @@ async def seed_mock_drafts_for_e2e(agent_id: str = "default") -> dict[str, objec
         (
             "test-frontend-approve",
             "This is a test skill for UI Approve button.",
-            "```markdown\n---\nname: test-frontend-approve\ndescription: \"approve test\"\n---\n\n# Rules\nApprove rules\n```",
+            '```markdown\n---\nname: test-frontend-approve\ndescription: "approve test"\n---\n\n# Rules\nApprove rules\n```',
             "Test draft approve UI",
         ),
         (
             "test-frontend-reject",
             "This is a test skill for UI Reject button.",
-            "```markdown\n---\nname: test-frontend-reject\ndescription: \"reject test\"\n---\n\n# Rules\nReject rules\n```",
+            '```markdown\n---\nname: test-frontend-reject\ndescription: "reject test"\n---\n\n# Rules\nReject rules\n```',
             "Test draft reject UI",
         ),
     )
@@ -248,6 +260,7 @@ async def get_skill_draft(draft_id: str) -> SkillDraftResponse:
     if not record:
         raise HTTPException(status_code=404, detail="Draft not found")
     return _skill_draft_response(_to_skill_draft_record(record))
+
 
 @router.post("/drafts/{draft_id}/approve")
 async def approve_skill_draft(
@@ -309,6 +322,7 @@ async def approve_skill_draft(
     materialized.update(mat_result)
     return materialized
 
+
 async def _rollback_draft_status(draft_id: str) -> None:
     """Revert a draft to PENDING_REVIEW after materialization failure."""
     try:
@@ -324,6 +338,7 @@ async def _rollback_draft_status(draft_id: str) -> None:
                 await db.commit()
     except Exception as e:
         logger.error("Failed to rollback draft %s status: %s", draft_id, e)
+
 
 async def _materialize_skill_draft(
     draft: SkillDraftRecord,
@@ -350,12 +365,12 @@ async def _materialize_skill_draft(
         if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
-        
+
         # Sniff for YAML frontmatter
         if not content.startswith("---"):
             # Inject robust frontmatter
             desc = (draft.description or skill_name).replace('"', '\\"')
-            frontmatter = f"---\nname: {skill_name}\ndescription: \"{desc}\"\n---\n\n"
+            frontmatter = f'---\nname: {skill_name}\ndescription: "{desc}"\n---\n\n'
             skill_md = frontmatter + content
         else:
             skill_md = content
@@ -382,6 +397,7 @@ async def _materialize_skill_draft(
 
     logger.warning("Skill draft materialization failed: %s - %s", draft.id, save_result.error)
     return {"materialized": False, "error": save_result.error}
+
 
 async def _materialize_skill_patch(draft: SkillDraftRecord) -> dict[str, str | bool | None]:
     """Apply an approved skill patch to an existing skill."""
@@ -449,6 +465,7 @@ async def _materialize_skill_patch(draft: SkillDraftRecord) -> dict[str, str | b
 
     return {"materialized": False, "error": save_result.error}
 
+
 async def _materialize_semantic_memory(draft: SkillDraftRecord) -> dict[str, str | bool | None]:
     """Write an approved semantic memory draft into the memory store."""
     content = draft.content or ""
@@ -483,11 +500,13 @@ async def _materialize_semantic_memory(draft: SkillDraftRecord) -> dict[str, str
         logger.error("Failed to materialize semantic memory from draft %s: %s", draft.id, e)
         return {"materialized": False, "error": str(e)}
 
+
 def _slugify_skill_name(raw: str) -> str:
     """Convert a human-readable skill name to a valid slug (a-zA-Z0-9_-)."""
     slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", raw.strip())
     slug = slug.strip("-")
     return slug[:64] or "auto-skill"
+
 
 def _build_skill_md(
     name: str,
@@ -509,6 +528,7 @@ def _build_skill_md(
     if skill_steps:
         lines.append(f"## Steps\n{skill_steps}\n")
     return "\n".join(lines)
+
 
 @router.post("/drafts/{draft_id}/reject")
 async def reject_skill_draft(draft_id: str) -> dict[str, object]:
@@ -545,7 +565,7 @@ async def reject_skill_draft(draft_id: str) -> dict[str, object]:
         try:
             from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
             from app.services.agent.platform_config import require_platform_embedding_config
-            
+
             embedding_cfg = await require_platform_embedding_config()
             manager = await create_memory_manager(
                 resolve_context_binding(
@@ -558,7 +578,7 @@ async def reject_skill_draft(draft_id: str) -> dict[str, object]:
                 embedding_config=embedding_cfg,
                 approval_required=False,
             )
-            
+
             rejection_text = f"USER REJECTED SKILL PROPOSAL: {rejected_draft.name or 'Unknown'}. Reasoning/Description: {rejected_draft.description}. DO NOT extract or propose this skill again."
             await manager.add_knowledge(rejection_text, importance=0.8, tags=["rejected-skill-proposal", "negative-exemplar"])
             logger.info("Added negative exemplar memory for rejected draft %s", draft_id)
@@ -566,4 +586,3 @@ async def reject_skill_draft(draft_id: str) -> dict[str, object]:
             logger.error("Failed to add negative exemplar memory for rejected draft %s: %s", draft_id, e)
 
     return {"id": draft_id, "status": "REJECTED"}
-

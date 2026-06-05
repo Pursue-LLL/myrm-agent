@@ -231,8 +231,7 @@ class MemoryArchiveRestorePlanner:
     ) -> MemoryArchiveRestorePlan:
         blocked_by_section = _blocked_findings_by_section(security_findings)
         enriched_sections = [
-            section.model_copy(update={"blocked_items": blocked_by_section.get(section.section, 0)})
-            for section in sections
+            section.model_copy(update={"blocked_items": blocked_by_section.get(section.section, 0)}) for section in sections
         ]
         warning_codes = list(dict.fromkeys(code for section in enriched_sections for code in section.warning_codes))
         blocked_items = sum(blocked_by_section.values())

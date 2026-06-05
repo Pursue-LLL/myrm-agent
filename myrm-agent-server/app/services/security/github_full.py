@@ -81,9 +81,7 @@ async def build_github_dashboard(
         if _github_rule(alert).get("security_severity_level") == "medium" and alert.get("state") == "open"
     )
     low_count = sum(
-        1
-        for alert in alerts_data
-        if _github_rule(alert).get("security_severity_level") == "low" and alert.get("state") == "open"
+        1 for alert in alerts_data if _github_rule(alert).get("security_severity_level") == "low" and alert.get("state") == "open"
     )
 
     recent_alerts = [

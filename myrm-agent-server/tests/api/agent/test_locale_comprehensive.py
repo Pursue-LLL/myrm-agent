@@ -32,13 +32,14 @@ class TestLocaleComprehensive:
         }
 
         print("\n=== Test Real Error with Chinese Locale ===")
-        
+
         from unittest.mock import patch
 
         from app.core.types import ModelConfig
+
         def mock_fallback_zh(providers_dict=None):
             return ModelConfig(model="invalid-model-does-not-exist-12345", api_key="sk-123", base_url=None)
-            
+
         patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_zh)
         patcher.start()
         try:
@@ -93,9 +94,10 @@ class TestLocaleComprehensive:
         from unittest.mock import patch
 
         from app.core.types import ModelConfig
+
         def mock_fallback_en(providers_dict=None):
             return ModelConfig(model="invalid-model-does-not-exist-67890", api_key="sk-123", base_url=None)
-            
+
         patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_en)
         patcher.start()
         try:

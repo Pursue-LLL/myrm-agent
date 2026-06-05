@@ -21,7 +21,10 @@ from app.services.kanban.specify_orchestrator import (
 
 def _triage_task(task_id: str = "t1", board_id: str = "b1") -> KanbanTask:
     return KanbanTask(
-        task_id=task_id, board_id=board_id, title="rough idea", status=TaskStatus.TRIAGE,
+        task_id=task_id,
+        board_id=board_id,
+        title="rough idea",
+        status=TaskStatus.TRIAGE,
     )
 
 
@@ -53,8 +56,11 @@ class TestRunSpecifyTask:
     async def test_returns_unavailable_when_no_specifier(self) -> None:
         store = _mock_store(_triage_task())
         outcome = await run_specify_task(
-            "t1", store=store, specifier=None,
-            wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "t1",
+            store=store,
+            specifier=None,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
         )
         assert not outcome.ok
         assert outcome.reason == "specifier_unavailable"
@@ -64,8 +70,11 @@ class TestRunSpecifyTask:
         store = _mock_store(None)
         specifier = AsyncMock()
         outcome = await run_specify_task(
-            "missing", store=store, specifier=specifier,
-            wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "missing",
+            store=store,
+            specifier=specifier,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
         )
         assert not outcome.ok
         assert outcome.reason == "unknown_task"
@@ -75,14 +84,23 @@ class TestRunSpecifyTask:
         task = _triage_task()
         store = _mock_store(task)
         specifier = AsyncMock()
-        specifier.specify = AsyncMock(return_value=SpecifyOutcome(
-            task_id="t1", ok=True, reason="specified",
-            new_title="Better Title", new_body="**Goal** ...",
-            prompt_tokens=100, completion_tokens=200,
-        ))
+        specifier.specify = AsyncMock(
+            return_value=SpecifyOutcome(
+                task_id="t1",
+                ok=True,
+                reason="specified",
+                new_title="Better Title",
+                new_body="**Goal** ...",
+                prompt_tokens=100,
+                completion_tokens=200,
+            )
+        )
         outcome = await run_specify_task(
-            "t1", store=store, specifier=specifier,
-            wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "t1",
+            store=store,
+            specifier=specifier,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
             persist=False,
         )
         assert outcome.ok
@@ -95,11 +113,17 @@ class TestRunSpecifyTask:
         task = _triage_task()
         store = _mock_store(task)
         specifier = AsyncMock()
-        specifier.specify = AsyncMock(return_value=SpecifyOutcome(
-            task_id="t1", ok=True, reason="specified",
-            new_title="Better Title", new_body="**Goal** ...",
-            prompt_tokens=100, completion_tokens=200,
-        ))
+        specifier.specify = AsyncMock(
+            return_value=SpecifyOutcome(
+                task_id="t1",
+                ok=True,
+                reason="specified",
+                new_title="Better Title",
+                new_body="**Goal** ...",
+                prompt_tokens=100,
+                completion_tokens=200,
+            )
+        )
         wakes: list[str] = []
         publishes: list[tuple[str, str, str]] = []
 
@@ -110,8 +134,11 @@ class TestRunSpecifyTask:
             publishes.append((bid, tid, action))
 
         outcome = await run_specify_task(
-            "t1", store=store, specifier=specifier,
-            wake_dispatcher=wake, publish_event=publish,
+            "t1",
+            store=store,
+            specifier=specifier,
+            wake_dispatcher=wake,
+            publish_event=publish,
             persist=True,
         )
         assert outcome.ok
@@ -129,17 +156,28 @@ class TestRunSpecifyTask:
         task = _triage_task()
         store = _mock_store(task)
         ready_task = KanbanTask(
-            task_id="t1", board_id="b1", title="rough idea", status=TaskStatus.READY,
+            task_id="t1",
+            board_id="b1",
+            title="rough idea",
+            status=TaskStatus.READY,
         )
         store.get_task = AsyncMock(side_effect=[task, ready_task])
         specifier = AsyncMock()
-        specifier.specify = AsyncMock(return_value=SpecifyOutcome(
-            task_id="t1", ok=True, reason="specified",
-            new_title="X", new_body="Y",
-        ))
+        specifier.specify = AsyncMock(
+            return_value=SpecifyOutcome(
+                task_id="t1",
+                ok=True,
+                reason="specified",
+                new_title="X",
+                new_body="Y",
+            )
+        )
         outcome = await run_specify_task(
-            "t1", store=store, specifier=specifier,
-            wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "t1",
+            store=store,
+            specifier=specifier,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
             persist=True,
         )
         assert not outcome.ok
@@ -157,8 +195,12 @@ class TestRunApplySpec:
     async def test_unknown_task(self) -> None:
         store = _mock_store(None)
         outcome = await run_apply_spec(
-            "missing", new_title=None, new_body="body",
-            store=store, wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "missing",
+            new_title=None,
+            new_body="body",
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
         )
         assert not outcome.ok
         assert outcome.reason == "unknown_task"
@@ -168,8 +210,12 @@ class TestRunApplySpec:
         task = KanbanTask(task_id="t1", board_id="b1", title="x", status=TaskStatus.READY)
         store = _mock_store(task)
         outcome = await run_apply_spec(
-            "t1", new_title="New", new_body="body",
-            store=store, wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "t1",
+            new_title="New",
+            new_body="body",
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
         )
         assert not outcome.ok
         assert outcome.reason == "race_lost"
@@ -184,9 +230,14 @@ class TestRunApplySpec:
             wakes.append(bid)
 
         outcome = await run_apply_spec(
-            "t1", new_title="Better Title", new_body="**Goal** ...",
-            prompt_tokens=100, completion_tokens=200,
-            store=store, wake_dispatcher=wake, publish_event=_noop_publish,
+            "t1",
+            new_title="Better Title",
+            new_body="**Goal** ...",
+            prompt_tokens=100,
+            completion_tokens=200,
+            store=store,
+            wake_dispatcher=wake,
+            publish_event=_noop_publish,
         )
         assert outcome.ok
         assert outcome.persisted
@@ -207,8 +258,12 @@ class TestRunApplySpec:
         store = _mock_store(task)
         store.are_dependencies_met = AsyncMock(return_value=False)
         outcome = await run_apply_spec(
-            "t1", new_title=None, new_body="body",
-            store=store, wake_dispatcher=_noop_wake, publish_event=_noop_publish,
+            "t1",
+            new_title=None,
+            new_body="body",
+            store=store,
+            wake_dispatcher=_noop_wake,
+            publish_event=_noop_publish,
         )
         assert outcome.ok
         assert outcome.persisted
@@ -232,7 +287,9 @@ class TestRunSpecifyAllTriage:
             raise AssertionError("should not be called")
 
         result = await run_specify_all_triage(
-            "b1", store=store, specify_one=specify_one,
+            "b1",
+            store=store,
+            specify_one=specify_one,
         )
         assert result == []
 
@@ -252,7 +309,9 @@ class TestRunSpecifyAllTriage:
             return SpecifyOutcome(task_id=tid, ok=True, reason="specified", new_body="body")
 
         result = await run_specify_all_triage(
-            "b1", store=store, specify_one=specify_one,
+            "b1",
+            store=store,
+            specify_one=specify_one,
         )
         assert len(result) == 2
         assert not result[0].ok

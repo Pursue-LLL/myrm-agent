@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 _ANSWER_TOOL_NAME = "request_answer_user_tool"
 _MAX_CONSECUTIVE_ANSWER_CALLS = 2
 
-_answer_consecutive_count: ContextVar[int] = ContextVar(
-    "answer_tool_consecutive_count", default=0
-)
+_answer_consecutive_count: ContextVar[int] = ContextVar("answer_tool_consecutive_count", default=0)
 
 
 def _count_trailing_answer_tool_messages(messages: list[object]) -> int:
@@ -60,6 +58,7 @@ class ToolSelectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
     2. 调用 request_answer_user_tool 后（1-2次）：tool_choice="none"（强制回答）
     3. 连续调用 ≥3次：恢复 tool_choice="auto"（收敛保护，回归信息收集）
     """
+
     name = "tool_selection_middleware"
 
     def wrap_model_call(
@@ -87,9 +86,9 @@ class ToolSelectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
             if consecutive <= _MAX_CONSECUTIVE_ANSWER_CALLS:
                 request = request.override(tool_choice="none")
                 logger.info(
-                    "ToolSelectionMiddleware: tool_choice='none' after request_answer_user_tool "
-                    "(consecutive=%d/%d)",
-                    consecutive, _MAX_CONSECUTIVE_ANSWER_CALLS,
+                    "ToolSelectionMiddleware: tool_choice='none' after request_answer_user_tool (consecutive=%d/%d)",
+                    consecutive,
+                    _MAX_CONSECUTIVE_ANSWER_CALLS,
                 )
             else:
                 logger.warning(
@@ -103,7 +102,8 @@ class ToolSelectionMiddleware(AgentMiddleware):  # type: ignore[type-arg]
                 _answer_consecutive_count.set(0)
             logger.debug(
                 "ToolSelectionMiddleware: tool_choice=%s, tools=%d",
-                request.tool_choice, len(request.tools),
+                request.tool_choice,
+                len(request.tools),
             )
 
         return await handler(request)
