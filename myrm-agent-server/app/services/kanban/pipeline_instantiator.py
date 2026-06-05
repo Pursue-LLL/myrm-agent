@@ -69,6 +69,16 @@ class TaskSeed:
 
 
 @dataclass(frozen=True, slots=True)
+class TaskGraphVariant:
+    """A variant of the task graph."""
+
+    id: str
+    label: str
+    description: str
+    seeds: list[TaskSeed]
+
+
+@dataclass(frozen=True, slots=True)
 class PipelineSpec:
     """Full pipeline specification parsed from SKILL.md frontmatter."""
 
@@ -80,6 +90,7 @@ class PipelineSpec:
     discovery_questions: list[PipelineQuestionGroup]
     role_templates: list[RoleTemplate]
     task_graph_seed: list[TaskSeed]
+    task_graph_variants: list[TaskGraphVariant] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +160,33 @@ def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> Pipel
             )
         )
 
+    variants_raw = raw_spec.get("task_graph_variants", [])
+    variants: list[TaskGraphVariant] = []
+    for v_raw in variants_raw:
+        if not isinstance(v_raw, dict):
+            continue
+        v_seeds_raw = v_raw.get("seeds", [])
+        v_seeds: list[TaskSeed] = []
+        for s_raw in v_seeds_raw:
+            if not isinstance(s_raw, dict):
+                continue
+            v_seeds.append(
+                TaskSeed(
+                    title_template=str(s_raw.get("title_template", "")),
+                    description_template=str(s_raw.get("description_template", "")),
+                    role=str(s_raw.get("role", "")),
+                    parents=[int(p) for p in s_raw.get("parents", []) if isinstance(p, (int, float))],
+                )
+            )
+        variants.append(
+            TaskGraphVariant(
+                id=str(v_raw.get("id", "")),
+                label=str(v_raw.get("label", "")),
+                description=str(v_raw.get("description", "")),
+                seeds=v_seeds,
+            )
+        )
+
     return PipelineSpec(
         skill_id=skill_id,
         name=str(frontmatter.get("name", skill_id)),
@@ -158,6 +196,7 @@ def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> Pipel
         discovery_questions=question_groups,
         role_templates=roles,
         task_graph_seed=seeds,
+        task_graph_variants=variants,
     )
 
 
@@ -264,6 +303,7 @@ async def instantiate_pipeline(
     answers: dict[str, str],
     agents: list[dict[str, object]] | None = None,
     default_agent_id: str | None = None,
+    variant_id: str | None = None,
 ) -> InstantiateResult:
     """Instantiate a pipeline template into a Kanban task graph.
 
@@ -291,10 +331,17 @@ async def instantiate_pipeline(
             default_agent_id,
         )
 
+    seeds_to_use = spec.task_graph_seed
+    if variant_id and spec.task_graph_variants:
+        for variant in spec.task_graph_variants:
+            if variant.id == variant_id:
+                seeds_to_use = variant.seeds
+                break
+
     created_task_ids: list[str] = []
     created_edges: list[tuple[str, str]] = []
 
-    for seed in spec.task_graph_seed:
+    for seed in seeds_to_use:
         title = _substitute_template(seed.title_template, answers)
         description = _substitute_template(seed.description_template, answers)
         agent_id = role_agent_map.get(seed.role)

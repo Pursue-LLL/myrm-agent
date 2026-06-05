@@ -1,28 +1,28 @@
 import asyncio
 import logging
+from collections import defaultdict
 from pathlib import Path
 
+from myrm_agent_harness.agent.file_snapshot.local_store import LocalFileSnapshotStore
+from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
 
 logger = logging.getLogger(__name__)
 
-# Global lock to prevent concurrent git operations per workspace
-_workspace_locks: dict[str, asyncio.Lock] = {}
-
-
-def _get_workspace_lock(workspace_path: str) -> asyncio.Lock:
-    if workspace_path not in _workspace_locks:
-        _workspace_locks[workspace_path] = asyncio.Lock()
-    return _workspace_locks[workspace_path]
+_workspace_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 class SnapshotInterceptor(ExecutionInterceptor):
-    """Intercepts destructive actions to create Git-based file system snapshots."""
+    """Intercepts destructive actions to create workspace snapshots.
 
-    def __init__(self):
-        # Keeps track of which turn_id has been snapshotted per workspace
-        # Format: {(workspace_path, turn_id): True}
+    Strategy: Git-first for incremental storage efficiency, with automatic
+    fallback to LocalFileSnapshotStore (file-copy) when Git is unavailable.
+    """
+
+    def __init__(self) -> None:
         self._snapshotted_turns: dict[tuple[str, str], bool] = {}
+        self._git_available: bool | None = None
+        self._fallback_store = LocalFileSnapshotStore()
 
     async def before_destructive_action(self, workspace_path: str, action_type: str, payload: dict) -> None:
         """Called by Harness before a destructive action is executed."""
@@ -62,48 +62,66 @@ class SnapshotInterceptor(ExecutionInterceptor):
         self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str, cache_key: tuple[str, str]
     ) -> None:
         """Acquire lock and perform snapshot safely."""
-        # Environment check: gracefully degrade if git is not installed
-        if not await self._is_git_installed():
-            logger.warning("Git is not installed in the system environment. Auto-snapshot is disabled.")
-            return
+        if self._git_available is None:
+            self._git_available = await self._detect_git()
 
-        lock = _get_workspace_lock(workspace_path)
+        lock = _workspace_locks[workspace_path]
         async with lock:
-            # Double check after acquiring lock
             if self._snapshotted_turns.get(cache_key):
                 return
 
             try:
-                # Emit WebSocket event for UI immediately when we start
                 await self._emit_snapshot_event(chat_id, action_type)
 
-                await self._create_snapshot(workspace_path, action_type, chat_id, agent_id, turn_id)
+                if self._git_available:
+                    await self._create_snapshot(workspace_path, action_type, chat_id, agent_id, turn_id)
+                else:
+                    await self._create_fallback_snapshot(workspace_path, action_type, turn_id)
+
                 self._snapshotted_turns[cache_key] = True
             except Exception as e:
                 logger.error(f"Failed to create snapshot for {workspace_path}: {e}")
 
-    async def _is_git_installed(self) -> bool:
-        """Check if git is available in the system PATH."""
+    async def _detect_git(self) -> bool:
+        """One-time probe for system git availability."""
         try:
-            process = await asyncio.create_subprocess_exec(
+            proc = await asyncio.create_subprocess_exec(
                 "git",
                 "--version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
             )
-            await process.communicate()
-            return process.returncode == 0
+            await proc.communicate()
+            available = proc.returncode == 0
         except FileNotFoundError:
-            return False
+            available = False
+
+        if not available:
+            logger.warning("Git not found — snapshot interceptor will use file-copy fallback")
+        return available
+
+    async def _create_fallback_snapshot(self, workspace_path: str, action_type: str, turn_id: str) -> None:
+        """File-copy snapshot via LocalFileSnapshotStore when Git is absent."""
+        trigger_map: dict[str, SnapshotTrigger] = {
+            "bash": SnapshotTrigger.EXECUTE_TERMINAL,
+            "file_write": SnapshotTrigger.WRITE_FILE,
+            "file_append": SnapshotTrigger.WRITE_FILE,
+            "file_delete": SnapshotTrigger.DELETE_FILE,
+            "patch_file": SnapshotTrigger.PATCH_FILE,
+        }
+        trigger = trigger_map.get(action_type, SnapshotTrigger.MANUAL)
+        snapshot_id = await self._fallback_store.take_snapshot(
+            working_dir=workspace_path,
+            trigger=trigger,
+            description=f"Auto snapshot before {action_type} (turn: {turn_id})",
+        )
+        logger.info(f"File-copy snapshot {snapshot_id} created for turn {turn_id} in {workspace_path}")
 
     async def _create_snapshot(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str) -> None:
         """Create a Git commit in the shadow repository."""
         wp = Path(workspace_path)
         if not wp.exists() or not wp.is_dir():
             return
-
-        # Hard limit: skip if too many files (prevent OOM)
-        # In a real implementation, we'd use a faster way to count files or rely on git's own limits
 
         # Ensure .gitignore exists and ignores large files/dirs
         gitignore_path = wp / ".gitignore"

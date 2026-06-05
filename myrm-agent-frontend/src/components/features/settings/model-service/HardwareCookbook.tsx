@@ -259,7 +259,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
       <CardContent className="p-0">
         {/* 硬件信息展示 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-muted/30 border-b border-border/50">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 bg-muted/30 border-b border-border/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-background rounded-md border shadow-sm">
               <Cpu className="w-4 h-4 text-muted-foreground" />
@@ -322,9 +322,15 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
           <div className="grid gap-3">
             {profile.recommendations.map((rec, idx) => {
               const isDownloading = downloadingModel === rec.model_id;
+              const isDeleting = deletingModel === rec.model_id;
               const progressPercent = isDownloading && downloadProgress?.total && downloadProgress?.completed 
                 ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) 
                 : 0;
+
+              // 预估模型大小 (GB)，简单按参数量估算，如果没有则默认一个值
+              // 这里简化处理：通常 8B 模型需要约 4-5GB 磁盘空间，我们保守估计为 req_vram_gb 的 80%
+              const estimatedDiskGb = rec.req_vram_gb * 0.8;
+              const hasEnoughDisk = profile.free_disk_gb ? profile.free_disk_gb > estimatedDiskGb : true;
 
               return (
                 <div 
@@ -388,22 +394,37 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                         <Progress value={progressPercent} className="h-2 w-full" />
                       </div>
                     ) : (
-                      <Button 
-                        size="sm" 
-                        variant={rec.is_installed ? "secondary" : (idx === 0 ? "default" : "outline")}
-                        className="shrink-0 min-w-[100px]"
-                        disabled={rec.fit_level === 'poor' || profile.ollama_running === false || downloadingModel !== null}
-                        onClick={() => rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id)}
-                      >
-                        {rec.is_installed ? (
-                          t('installed')
-                        ) : (
-                          <>
-                            <Download className="w-3.5 h-3.5 mr-1.5" />
-                            {t('apply')}
-                          </>
+                      <div className="flex items-center gap-2">
+                        {rec.is_installed && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            disabled={isDeleting}
+                            onClick={() => handleDelete(rec.model_id)}
+                            title={t('delete')}
+                          >
+                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
                         )}
-                      </Button>
+                        <Button 
+                          size="sm" 
+                          variant={rec.is_installed ? "secondary" : (idx === 0 ? "default" : "outline")}
+                          className="shrink-0 min-w-[100px]"
+                          disabled={rec.fit_level === 'poor' || profile.ollama_running === false || downloadingModel !== null || (!rec.is_installed && !hasEnoughDisk)}
+                          onClick={() => rec.is_installed ? onApplyModel(rec.model_id) : handleDownload(rec.model_id)}
+                          title={!rec.is_installed && !hasEnoughDisk ? t('notEnoughDisk', { required: estimatedDiskGb.toFixed(1) }) : undefined}
+                        >
+                          {rec.is_installed ? (
+                            t('installed')
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5 mr-1.5" />
+                              {!hasEnoughDisk ? t('diskFull') : t('apply')}
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

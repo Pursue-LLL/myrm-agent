@@ -133,16 +133,20 @@ export function PendingEvolutionsDashboard() {
   }, [activeFilter, cases]);
 
   const handleApprove = useCallback(
-    async (item: SkillGrowthCase) => {
+    async (item: SkillGrowthCase, applyMode: 'immediate' | 'shadow' = 'immediate') => {
       if (!user?.id || processingCaseId) return;
       setProcessingCaseId(item.id);
       try {
-        const result = await approveSkillGrowthCase(item);
+        const result = await approveSkillGrowthCase(item, applyMode);
         const nextStatus = result.apply_status === 'FAILED' ? 'APPLY_FAILED' : 'APPROVED';
         if (result.apply_status === 'FAILED') {
           toast.error(result.apply_error ?? result.remediation ?? t('approveFailed', { name: item.skillName }));
         } else {
-          toast.success(t('approveSuccess', { name: item.skillName }));
+          toast.success(
+            applyMode === 'shadow'
+              ? t('approveShadowSuccess', { name: item.skillName })
+              : t('approveSuccess', { name: item.skillName }),
+          );
         }
         window.dispatchEvent(
           new CustomEvent('skill-growth-updated', {
@@ -283,7 +287,8 @@ export function PendingEvolutionsDashboard() {
               key={item.id}
               item={item}
               isProcessing={processingCaseId === item.id}
-              onApprove={() => handleApprove(item)}
+              onApprove={() => handleApprove(item, 'immediate')}
+              onApproveShadow={() => handleApprove(item, 'shadow')}
               onReject={(reason?: string) => handleReject(item, reason)}
             />
           ))}

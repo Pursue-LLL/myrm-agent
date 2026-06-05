@@ -110,6 +110,16 @@ class TestParsePipelineSpec:
                 "task_graph_seed": [
                     {"title_template": "任务 {q1}", "description_template": "执行 {q1}", "role": "worker", "parents": []},
                 ],
+                "task_graph_variants": [
+                    {
+                        "id": "quick",
+                        "label": "Quick Mode",
+                        "description": "Fast execution",
+                        "seeds": [
+                            {"title_template": "Quick {q1}", "description_template": "Fast {q1}", "role": "worker", "parents": []},
+                        ],
+                    }
+                ],
             },
         }
         spec = _parse_pipeline_spec("test-pipeline", frontmatter)
@@ -123,6 +133,10 @@ class TestParsePipelineSpec:
         assert spec.role_templates[0].role_id == "worker"
         assert len(spec.task_graph_seed) == 1
         assert spec.task_graph_seed[0].parents == []
+        assert len(spec.task_graph_variants) == 1
+        assert spec.task_graph_variants[0].id == "quick"
+        assert len(spec.task_graph_variants[0].seeds) == 1
+        assert spec.task_graph_variants[0].seeds[0].title_template == "Quick {q1}"
 
     def test_no_pipeline_spec_returns_none(self) -> None:
         frontmatter: dict[str, object] = {"name": "normal-skill", "description": "Not a pipeline"}
@@ -296,6 +310,27 @@ class TestEdgeCases:
         spec = _parse_pipeline_spec("empty-q", frontmatter)
         assert spec is not None
         assert spec.discovery_questions[0].questions == []
+
+    def test_parse_spec_with_invalid_variant_types(self) -> None:
+        frontmatter: dict[str, object] = {
+            "name": "test",
+            "description": "t",
+            "category": "pipeline",
+            "pipeline_spec": {
+                "task_graph_variants": [
+                    "invalid",
+                    {
+                        "id": "v1",
+                        "seeds": ["invalid", {"title_template": "T0", "role": "a", "parents": []}],
+                    },
+                ],
+            },
+        }
+        spec = _parse_pipeline_spec("test", frontmatter)
+        assert spec is not None
+        assert len(spec.task_graph_variants) == 1
+        assert len(spec.task_graph_variants[0].seeds) == 1
+        assert spec.task_graph_variants[0].seeds[0].title_template == "T0"
 
     def test_load_frontmatter_nonexistent(self) -> None:
         from pathlib import Path

@@ -512,6 +512,15 @@ class PipelineTaskSeedResponse(BaseModel):
     parents: list[int] = []
 
 
+class PipelineTaskGraphVariantResponse(BaseModel):
+    """A variant of the task graph."""
+
+    id: str
+    label: str
+    description: str
+    seeds: list[PipelineTaskSeedResponse] = []
+
+
 class PipelineTemplateResponse(BaseModel):
     """Pipeline template summary for list view."""
 
@@ -535,6 +544,7 @@ class PipelineTemplateDetailResponse(BaseModel):
     discovery_questions: list[PipelineQuestionGroupResponse] = []
     role_templates: list[PipelineRoleResponse] = []
     task_graph_seed: list[PipelineTaskSeedResponse] = []
+    task_graph_variants: list[PipelineTaskGraphVariantResponse] = []
 
 
 class PipelineTemplateListResponse(BaseModel):
@@ -549,6 +559,7 @@ class PipelineInstantiateRequest(BaseModel):
 
     skill_id: str = Field(..., min_length=1)
     answers: dict[str, str] = Field(default_factory=dict)
+    variant_id: str | None = Field(None, description="Optional variant ID to select a specific task graph.")
 
 
 class PipelineInstantiateResponse(BaseModel):

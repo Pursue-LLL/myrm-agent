@@ -28,7 +28,7 @@
 | `SkillPermissionApprovalDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillPermissionUsageDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillPermissionsManager.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillQualityGuardian.tsx` | 核心 | A/B 测试状态与 promote/stop | ✅ |
+| `SkillQualityGuardian.tsx` | 核心 | Shadow A/B：idle 启动、running promote/stop（i18n） | ✅ |
 | `SkillVersionsPanel.tsx` | 核心 | 技能版本列表、diff 对比、版本回滚（接 skill-optimization API） | ✅ |
 | `SkillSyncIndicator.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillUploadDialog.tsx` | 组件/模块 | 见源码 | 见源码 |

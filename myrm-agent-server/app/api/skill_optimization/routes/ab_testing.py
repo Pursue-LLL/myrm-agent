@@ -55,53 +55,26 @@ async def start_ab_test(
     storage: Annotated[SQLAlchemyStorage, Depends(get_storage)],
 ) -> dict[str, object]:
     """启动A/B测试"""
-    from myrm_agent_harness.agent.skills.optimization import ABTestEngine
-    from myrm_agent_harness.agent.skills.optimization.config import ABTestConfig
-
-    from app.services.skill_optimization.skill_version_sync import ensure_baseline_version, persist_skill_version
+    from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
 
     try:
-        baseline_skill_version, baseline_score = await ensure_baseline_version(
+        result = await start_shadow_ab_test(
             storage,
             request.skill_id,
-            request.baseline_version,
+            request.candidate_content,
+            baseline_version=request.baseline_version,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-
-    # 创建A/B测试引擎
-    ab_engine = ABTestEngine(ABTestConfig())
-
-    # 启动测试
-    test_result = await ab_engine.start_ab_test(
-        skill_id=request.skill_id,
-        baseline_version=baseline_skill_version.version,
-        baseline_score=baseline_score,
-        candidate_content=request.candidate_content,
-    )
-
-    await persist_skill_version(
-        storage,
-        request.skill_id,
-        request.candidate_content,
-        version=test_result.candidate_version,
-        created_by="ab_test",
-        quality_score=baseline_score,
-        activate=False,
-        sync_disk=False,
-    )
-
-    # 保存测试结果到storage
-    await storage.save_ab_test(test_result)
+        detail = str(exc)
+        status = 409 if "already running" in detail.lower() else 404
+        raise HTTPException(status_code=status, detail=detail) from exc
 
     return {
-        "test_id": f"{request.skill_id}:v{request.baseline_version}",
-        "skill_id": test_result.skill_id,
-        "baseline_version": test_result.baseline_version,
-        "candidate_version": test_result.candidate_version,
-        "status": test_result.status.value,
-        "sample_size": test_result.sample_size,
-        "started_at": test_result.started_at.isoformat(),
+        "test_id": result["test_id"],
+        "skill_id": result["skill_id"],
+        "baseline_version": result["baseline_version"],
+        "candidate_version": result["candidate_version"],
+        "status": result["status"],
     }
 
 

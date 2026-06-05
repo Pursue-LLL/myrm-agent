@@ -32,6 +32,7 @@ import { toast } from 'sonner';
 import { fetchWithTimeout } from '@/lib/api';
 import { normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 import type { TeammateMessageEntry } from '@/store/chat/useSubagentStore';
+import { AgentToolDiagnostics } from './AgentToolDiagnostics';
 
 const STATUS_ICON_MAP: Record<SubagentStatus, { icon: typeof Loader2; className: string; spin?: boolean }> = {
   running: { icon: Loader2, className: 'text-blue-500', spin: true },
@@ -493,6 +494,9 @@ export const SubagentDashboard = () => {
               <SheetTitle className="flex items-center gap-2">
                 <Network className="w-5 h-5 text-primary" />
                 {t('title')}
+                <div className="ml-2 border-l pl-2 border-border/50 h-5 flex items-center">
+                  <AgentToolDiagnostics agentId="base_agent" />
+                </div>
               </SheetTitle>
               <SheetDescription>{t('description')}</SheetDescription>
             </div>

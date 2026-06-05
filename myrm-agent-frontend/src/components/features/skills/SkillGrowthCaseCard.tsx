@@ -15,6 +15,7 @@ interface SkillGrowthCaseCardProps {
   item: SkillGrowthCase;
   isProcessing: boolean;
   onApprove: () => Promise<void>;
+  onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
 }
 
@@ -43,7 +44,13 @@ const STATUS_STYLES: Record<
   },
 };
 
-export default function SkillGrowthCaseCard({ item, isProcessing, onApprove, onReject }: SkillGrowthCaseCardProps) {
+export default function SkillGrowthCaseCard({
+  item,
+  isProcessing,
+  onApprove,
+  onApproveShadow,
+  onReject,
+}: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
   const { theme } = useTheme();
   const [showRejectInput, setShowRejectInput] = useState(false);
@@ -118,6 +125,12 @@ export default function SkillGrowthCaseCard({ item, isProcessing, onApprove, onR
               <X className="mr-2 h-4 w-4" />
               {showRejectInput ? t('actions.confirmReject') : t('actions.reject')}
             </Button>
+            {item.source === 'evolution' && onApproveShadow && (
+              <Button variant="secondary" size="sm" onClick={onApproveShadow} disabled={isProcessing}>
+                <Check className="mr-2 h-4 w-4" />
+                {t('actions.approveShadow')}
+              </Button>
+            )}
             <Button size="sm" onClick={onApprove} disabled={isProcessing}>
               <Check className="mr-2 h-4 w-4" />
               {approveLabel}

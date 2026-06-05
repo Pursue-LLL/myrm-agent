@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { ActiveSession, ActiveSessionsResponse } from '@/services/agent';
 import { getActiveSessions } from '@/services/agent';
+import type { ChatState } from './chat/types';
 
 export interface PaneConfig {
   id: string;
   chatId: string | null;
   title: string;
+  snapshot: Partial<ChatState> | null;
 }
 
 interface WorkspaceState {
@@ -21,6 +23,8 @@ interface WorkspaceState {
   removePane: (paneId: string) => void;
   setActivePaneId: (paneId: string) => void;
   updatePaneChatId: (paneId: string, chatId: string) => void;
+  savePaneSnapshot: (paneId: string, snapshot: Partial<ChatState>) => void;
+  getPaneSnapshot: (paneId: string) => Partial<ChatState> | null;
   refreshActiveSessions: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
@@ -45,6 +49,7 @@ const useWorkspaceStore = create<WorkspaceState>()(
           id,
           chatId: chatId ?? null,
           title: title ?? `Pane ${state.panes.length + 1}`,
+          snapshot: null,
         });
         state.activePaneId = id;
       });
@@ -71,6 +76,21 @@ const useWorkspaceStore = create<WorkspaceState>()(
         const pane = state.panes.find((p) => p.id === paneId);
         if (pane) pane.chatId = chatId;
       });
+    },
+
+    savePaneSnapshot: (paneId: string, snapshot: Partial<ChatState>) => {
+      set((state) => {
+        const pane = state.panes.find((p) => p.id === paneId);
+        if (pane) {
+          // Deep merge snapshot to avoid reference issues
+          pane.snapshot = JSON.parse(JSON.stringify(snapshot));
+        }
+      });
+    },
+
+    getPaneSnapshot: (paneId: string) => {
+      const pane = get().panes.find((p) => p.id === paneId);
+      return pane?.snapshot ?? null;
     },
 
     refreshActiveSessions: async () => {

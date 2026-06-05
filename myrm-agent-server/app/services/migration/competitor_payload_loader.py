@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import json
 import re
-import yaml
 from pathlib import Path
 from typing import TypedDict
+
+import yaml
 
 from app.config.deploy_mode import is_local_mode
 
@@ -140,7 +141,6 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-
 def _read_yaml(path: Path) -> object | None:
     try:
         content = _read_text(path)
@@ -197,7 +197,7 @@ def _load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
         config_data = _read_yaml(config_path)
         if isinstance(config_data, dict):
             result["hermes_config"] = config_data
-            
+
             # Extract MCP configurations
             mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
             if isinstance(mcp_servers, dict) and mcp_servers:
@@ -254,7 +254,7 @@ def _load_openclaw(root: Path, file_paths: list[str]) -> dict[str, object]:
         config_data = _read_yaml(config_path)
         if isinstance(config_data, dict):
             result["hermes_config"] = config_data
-            
+
             # Extract MCP configurations
             mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
             if isinstance(mcp_servers, dict) and mcp_servers:
@@ -354,7 +354,7 @@ def _load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
         config_data = _read_yaml(config_path)
         if isinstance(config_data, dict):
             result["hermes_config"] = config_data
-            
+
             # Extract MCP configurations
             mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
             if isinstance(mcp_servers, dict) and mcp_servers:

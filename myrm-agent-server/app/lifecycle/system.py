@@ -233,16 +233,18 @@ async def start_idle_task_listeners() -> None:
                     from app.services.skills.growth_lifecycle import process_skill_review_result
 
                     try:
-                        await process_skill_review_result({
-                            "type": "skill_draft",
-                            "has_value": True,
-                            "skill_name": proposal.get("skill_id"),
-                            "skill_description": proposal.get("reasoning"),
-                            "content": proposal.get("proposed_content"),
-                            "score": proposal.get("score"),
-                            "agent_id": proposal.get("agent_id", "default"),
-                            "chat_id": proposal.get("chat_id"),
-                        })
+                        await process_skill_review_result(
+                            {
+                                "type": "skill_draft",
+                                "has_value": True,
+                                "skill_name": proposal.get("skill_id"),
+                                "skill_description": proposal.get("reasoning"),
+                                "content": proposal.get("proposed_content"),
+                                "score": proposal.get("score"),
+                                "agent_id": proposal.get("agent_id", "default"),
+                                "chat_id": proposal.get("chat_id"),
+                            }
+                        )
                         logger.info(
                             "CAPTURED skill proposal '%s' routed through growth lifecycle",
                             proposal.get("skill_id"),

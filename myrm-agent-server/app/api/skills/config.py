@@ -188,48 +188,6 @@ async def untrust_skill(skill_id: str) -> dict[str, str]:
     return {"skill_id": skill_id, "trust": "revoked"}
 
 
-@router.post("/{skill_id}/rollback")
-async def rollback_skill_evolution(skill_id: str) -> dict[str, str]:
-    """One-step rollback using the adjacent ``.bak`` file (no ``skill_versions`` row required)."""
-    skill = await skills_service.get_skill(skill_id)
-    if not skill:
-        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
-
-    import os
-    import tempfile
-    from pathlib import Path
-
-    if not skill.storage_path:
-        raise HTTPException(status_code=400, detail="Skill storage path not available")
-
-    skill_path = Path(skill.storage_path)
-    bak_path = skill_path.with_suffix(skill_path.suffix + ".bak")
-
-    if not bak_path.exists():
-        raise HTTPException(status_code=404, detail="No backup file found for rollback")
-
-    try:
-        # Atomic replace
-        fd, tmp_path = tempfile.mkstemp(dir=skill_path.parent, prefix="skill_rollback_")
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(bak_path.read_text(encoding="utf-8"))
-        os.replace(tmp_path, skill_path)
-
-        # Remove the backup file so we don't rollback multiple times
-        bak_path.unlink()
-    except Exception as e:
-        if "tmp_path" in locals() and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
-        raise HTTPException(status_code=500, detail=f"Failed to rollback skill: {e}") from e
-
-    bump_skill_config_version()
-    _audit_skill_action("rollback", skill_id)
-    return {"skill_id": skill_id, "status": "rolled_back"}
-
-
 @router.post("/{skill_id}/evolution-lock")
 async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str, str | bool]:
     """Lock or unlock a skill's auto-evolution.

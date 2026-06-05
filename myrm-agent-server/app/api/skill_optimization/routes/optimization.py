@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from myrm_agent_harness.agent.skills.optimization import (
-    RateLimitExceeded,
-    get_rate_limiter,
-)
+from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,44 +69,6 @@ async def submit_feedback(skill_id: str, request: FeedbackRequest) -> dict[str, 
         "message": "Feedback submitted",
         "skill_id": skill_id,
         "feedback_type": request.feedback_type,
-    }
-
-
-class BatchOptimizeRequest(BaseModel):
-    """批量优化请求"""
-
-    skill_ids: list[str]
-    max_concurrent: int = 3
-
-
-@router.post("/batch-optimize")
-async def batch_optimize_skills(
-    _req: Request,
-    request: BatchOptimizeRequest,
-    scheduler: Annotated[OptimizationScheduler, Depends(get_scheduler)],
-) -> dict[str, object]:
-    """批量触发skill优化，使用Semaphore控制并发，含per-user速率限制。"""
-    rate_limiter = get_rate_limiter()
-    try:
-        await rate_limiter.acquire()
-    except RateLimitExceeded as exc:
-        raise HTTPException(status_code=429, detail=exc.detail) from exc
-
-    if not request.skill_ids:
-        raise HTTPException(status_code=400, detail="skill_ids cannot be empty")
-
-    try:
-        batch_task_id = await scheduler.trigger_batch_optimization(
-            skill_ids=request.skill_ids,
-            max_concurrent=request.max_concurrent,
-        )
-    finally:
-        rate_limiter.release("default")
-
-    return {
-        "message": "Batch optimization started",
-        "batch_task_id": batch_task_id,
-        "total_skills": len(request.skill_ids),
     }
 
 

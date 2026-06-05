@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ElementType } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -31,7 +31,19 @@ import {
 } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/primitives/alert-dialog';
 import { apiRequest } from '@/lib/api';
+import { cancelBatchTask, type BatchCancelCleanupStrategy } from '@/services/skill-optimization';
 import { localizeReactNode, selectLocalizedText } from '@/lib/utils/localeText';
 import { toast } from '@/hooks/useToast';
 import { useBatchWebSocket, BatchProgressUpdate } from '@/hooks/useBatchWebSocket';
@@ -50,15 +62,19 @@ import {
 
 interface BatchTaskRowProps {
   task: BatchTaskListItem;
+  cancellingBatchId: string | null;
   onUpdate: (batchId: string, update: Partial<BatchTaskListItem>) => void;
-  onCancel: (batchId: string) => void;
+  onCancel: (batchId: string, cleanupStrategy: BatchCancelCleanupStrategy) => void;
 }
 
-const BatchTaskRow = ({ task, onUpdate, onCancel }: BatchTaskRowProps) => {
+const BatchTaskRow = ({ task, cancellingBatchId, onUpdate, onCancel }: BatchTaskRowProps) => {
   const locale = useLocale();
+  const tBatch = useTranslations('settings.skillOptimization.batchPage');
   const isChinese = locale.startsWith('zh');
   const normalizedStatus = normalizeBatchStatus(task.status);
   const isRunning = normalizedStatus === 'running';
+  const canCancel = normalizedStatus === 'running' || normalizedStatus === 'pending';
+  const isCancelling = cancellingBatchId === task.batch_id;
   const progress = getBatchProgress(task.completed_tasks, task.total_tasks);
   const skillCount = task.skill_ids.ids.length;
   const maxConcurrent = task.max_concurrent ?? 3;
@@ -185,11 +201,44 @@ const BatchTaskRow = ({ task, onUpdate, onCancel }: BatchTaskRowProps) => {
               <ArrowRight className="size-3" />
             </Link>
           </Button>
-          {normalizedStatus === 'running' && (
-            <Button variant="destructive" size="sm" onClick={() => onCancel(task.batch_id)}>
-              <Pause className="size-3" />
-              Cancel / 取消
-            </Button>
+          {canCancel && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isCancelling}>
+                  {isCancelling ? <Loader2 className="size-3 animate-spin" /> : <Pause className="size-3" />}
+                  {tBatch('cancel')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{tBatch('cancelConfirmTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{tBatch('cancelConfirmDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+                  <AlertDialogAction
+                    disabled={isCancelling}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void onCancel(task.batch_id, 'rollback');
+                    }}
+                  >
+                    {tBatch('cancelRollbackAction')}
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    disabled={isCancelling}
+                    className="border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void onCancel(task.batch_id, 'keep');
+                    }}
+                  >
+                    {tBatch('cancelKeepAction')}
+                  </AlertDialogAction>
+                  <AlertDialogCancel>{tBatch('submitCancel')}</AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </TableCell>
@@ -304,9 +353,11 @@ const parseIntegerInput = (value: string, fallback: number, minimum: number): nu
 
 const BatchOptimizationPage = () => {
   const locale = useLocale();
+  const tBatch = useTranslations('settings.skillOptimization.batchPage');
   const text = useCallback((value: string) => selectLocalizedText(value, locale), [locale]);
   const isChinese = locale.startsWith('zh');
   const [tasks, setTasks] = useState<BatchTaskListItem[]>([]);
+  const [cancellingBatchId, setCancellingBatchId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'tasks' | 'create'>('tasks');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<BatchStatusFilter>('all');
@@ -430,21 +481,23 @@ const BatchOptimizationPage = () => {
   }, [fetchTasks, maxConcurrent, priority, skillIds, text]);
 
   const handleCancelBatch = useCallback(
-    async (batchId: string) => {
+    async (batchId: string, cleanupStrategy: BatchCancelCleanupStrategy) => {
+      setCancellingBatchId(batchId);
       try {
-        await apiRequest(`/batch-optimization/tasks/${batchId}/cancel`, {
-          method: 'POST',
-          body: JSON.stringify({ cleanup_strategy: 'keep' }),
-        });
+        const result = await cancelBatchTask(batchId, cleanupStrategy);
 
-        toast.success(text(`Batch ${batchId.substring(0, 12)}... cancelled / 批量任务已取消`));
+        toast.success(
+          result.rollback_performed ? tBatch('cancelRollbackSuccess') : tBatch('cancelSuccess'),
+        );
         await fetchTasks();
       } catch (error) {
         console.error('Error cancelling batch:', error);
-        toast.error(text('Failed to cancel batch / 取消批量任务失败'));
+        toast.error(tBatch('cancelFailed'));
+      } finally {
+        setCancellingBatchId(null);
       }
     },
-    [fetchTasks, text],
+    [fetchTasks, tBatch],
   );
 
   const refreshLabel = refreshing
@@ -686,6 +739,7 @@ const BatchOptimizationPage = () => {
                         <BatchTaskRow
                           key={task.batch_id}
                           task={task}
+                          cancellingBatchId={cancellingBatchId}
                           onUpdate={handleTaskUpdate}
                           onCancel={handleCancelBatch}
                         />
@@ -763,19 +817,35 @@ const BatchOptimizationPage = () => {
                   <Badge variant="secondary">Semicolon / 分号</Badge>
                 </div>
 
-                <Button onClick={handleSubmitBatch} disabled={submitting} className="w-full">
-                  {submitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Submitting / 提交中...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="size-4" />
-                      Submit Batch / 提交批量任务
-                    </>
-                  )}
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={submitting} className="w-full">
+                      {submitting ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Submitting / 提交中...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="size-4" />
+                          Submit Batch / 提交批量任务
+                        </>
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{tBatch('submitConfirmTitle')}</AlertDialogTitle>
+                      <AlertDialogDescription>{tBatch('submitConfirmDescription')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                      <AlertDialogCancel>{tBatch('submitCancel')}</AlertDialogCancel>
+                      <AlertDialogAction disabled={submitting} onClick={() => void handleSubmitBatch()}>
+                        {tBatch('submitConfirmAction')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
 

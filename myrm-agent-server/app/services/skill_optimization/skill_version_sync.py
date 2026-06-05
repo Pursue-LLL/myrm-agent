@@ -5,12 +5,12 @@
 - app.core.skills.store.service::skills_service (POS: 技能增删改查服务)
 
 [OUTPUT]
-- persist_skill_version: 保存并可选激活 DB 快照（含重试与 .bak 失效）
+- persist_skill_version: 保存并可选激活 DB 快照（含重试）
 - activate_version_with_disk_sync: 激活快照并同步磁盘
 - restore_skill_snapshot: 批量/手动恢复到指定快照
 - ensure_baseline_version: AB 测试 baseline 种子写入
+- start_shadow_ab_test: 启动 shadow A/B 并写入 inactive candidate 快照
 - load_skill_content_for_batch: batch 快照读盘（prebuilt + workspace）
-- invalidate_sidecar_backup: 移除 .bak 侧车文件
 
 [POS]
 技能优化版本双写层。统一 DB skill_versions 与磁盘 SKILL.md 的原子同步，供进化/AB/batch 共用。
@@ -40,7 +40,7 @@ _NEUTRAL_QUALITY = SkillQualityScore(
 
 
 def atomic_write_text_file(target: Path, content: str) -> None:
-    """Atomically replace a text file (same pattern as evolution apply / config rollback)."""
+    """Atomically replace a text file (same pattern as evolution apply)."""
     target.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=target.parent, prefix="skill_sync_")
     try:
@@ -51,13 +51,6 @@ def atomic_write_text_file(target: Path, content: str) -> None:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         raise
-
-
-def invalidate_sidecar_backup(skill_path: Path) -> None:
-    """Remove .bak sidecar after a successful version snapshot (single-track rollback)."""
-    backup_path = skill_path.with_suffix(skill_path.suffix + ".bak")
-    if backup_path.exists():
-        backup_path.unlink()
 
 
 async def load_skill_content_from_storage(skill_id: str) -> str | None:
@@ -152,7 +145,6 @@ async def persist_skill_version(
     version: int | None = None,
     disk_path: Path | None = None,
     sync_disk: bool = True,
-    invalidate_backup: bool = False,
 ) -> SkillVersion:
     """Save a skill snapshot to DB and optionally activate + sync disk."""
     ver = version if version is not None else await next_version_number(storage, skill_id)
@@ -180,8 +172,6 @@ async def persist_skill_version(
         await storage.activate_version(skill_id, ver)
         if sync_disk:
             await sync_content_to_disk(skill_id, content, disk_path=disk_path)
-            if invalidate_backup and disk_path is not None:
-                invalidate_sidecar_backup(disk_path)
     return saved
 
 
@@ -198,8 +188,6 @@ async def activate_version_with_disk_sync(
     activated = await storage.activate_version(skill_id, version)
     disk_path = await resolve_skill_md_path(skill_id)
     await sync_content_to_disk(skill_id, skill_version.content, disk_path=disk_path)
-    if disk_path is not None:
-        invalidate_sidecar_backup(disk_path)
     return activated
 
 
@@ -252,3 +240,75 @@ async def ensure_baseline_version(
         activate=True,
     )
     return saved, quality_score
+
+
+async def _assert_no_running_ab_test(storage: SQLAlchemyStorage, skill_id: str) -> None:
+    async with storage._get_session() as session:
+        from app.adapters.skill_optimization.ab_test_repo import ABTestRepository
+
+        ab_repo = ABTestRepository(session)
+        running = await ab_repo.get_running_tests()
+        if any(test.skill_id == skill_id for test in running):
+            raise ValueError(f"A shadow test is already running for skill {skill_id}")
+
+
+async def start_shadow_ab_test(
+    storage: SQLAlchemyStorage,
+    skill_id: str,
+    candidate_content: str,
+    *,
+    baseline_version: int | None = None,
+) -> dict[str, object]:
+    """Start a shadow A/B test: baseline stays active on disk, candidate stored inactive in DB."""
+    from myrm_agent_harness.agent.skills.optimization import ABTestEngine
+    from myrm_agent_harness.agent.skills.optimization.config import ABTestConfig
+
+    await _assert_no_running_ab_test(storage, skill_id)
+
+    if baseline_version is not None:
+        baseline_skill_version, baseline_score = await ensure_baseline_version(
+            storage,
+            skill_id,
+            baseline_version,
+        )
+        resolved_baseline = baseline_skill_version.version
+    else:
+        active = await storage.get_active_version(skill_id)
+        if active is None:
+            await ensure_baseline_version(storage, skill_id, 1)
+            active = await storage.get_active_version(skill_id)
+        if active is None:
+            raise ValueError(f"Cannot resolve active baseline for skill {skill_id}")
+        resolved_baseline = active.version
+        baseline_score = await _resolve_quality_score(storage, skill_id)
+
+    ab_engine = ABTestEngine(ABTestConfig())
+    test_result = await ab_engine.start_ab_test(
+        skill_id=skill_id,
+        baseline_version=resolved_baseline,
+        baseline_score=baseline_score,
+        candidate_content=candidate_content,
+        current_skill_version=resolved_baseline,
+    )
+
+    await persist_skill_version(
+        storage,
+        skill_id,
+        candidate_content,
+        version=test_result.candidate_version,
+        created_by="ab_test",
+        quality_score=baseline_score,
+        activate=False,
+        sync_disk=False,
+    )
+    await storage.save_ab_test(test_result)
+
+    test_id = f"{test_result.skill_id}:v{test_result.baseline_version}:v{test_result.candidate_version}"
+
+    return {
+        "test_id": test_id,
+        "skill_id": test_result.skill_id,
+        "baseline_version": test_result.baseline_version,
+        "candidate_version": test_result.candidate_version,
+        "status": test_result.status.value,
+    }

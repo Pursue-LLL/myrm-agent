@@ -80,17 +80,16 @@ _ENV_API_KEY_PATTERN = re.compile(
 )
 
 
-
 def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explicit_home: Path | None) -> list[Path]:
     paths: list[Path] = []
-    
+
     if explicit_home:
         paths.append(explicit_home / default_dot_dir)
-        
+
     env_val = os.environ.get(env_var, "").strip()
     if env_val:
         paths.append(Path(env_val))
-        
+
     system = platform.system()
     if system == "Windows":
         local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
@@ -101,9 +100,9 @@ def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explici
             paths.append(Path(appdata) / app_name)
     elif system == "Darwin":
         paths.append(Path.home() / "Library" / "Application Support" / app_name)
-        
+
     paths.append(Path.home() / default_dot_dir)
-    
+
     seen = set()
     result = []
     for p in paths:
@@ -117,6 +116,7 @@ def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explici
                 seen.add(p)
                 result.append(p)
     return result
+
 
 def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
     """Scan the filesystem for known competitor data directories."""

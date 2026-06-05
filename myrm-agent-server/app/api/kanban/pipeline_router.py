@@ -23,6 +23,7 @@ from app.api.kanban.schemas import (
     PipelineQuestionGroupResponse,
     PipelineQuestionResponse,
     PipelineRoleResponse,
+    PipelineTaskGraphVariantResponse,
     PipelineTaskSeedResponse,
     PipelineTemplateDetailResponse,
     PipelineTemplateListResponse,
@@ -93,6 +94,23 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
             )
             for s in spec.task_graph_seed
         ],
+        task_graph_variants=[
+            PipelineTaskGraphVariantResponse(
+                id=v.id,
+                label=v.label,
+                description=v.description,
+                seeds=[
+                    PipelineTaskSeedResponse(
+                        title_template=s.title_template,
+                        description_template=s.description_template,
+                        role=s.role,
+                        parents=s.parents,
+                    )
+                    for s in v.seeds
+                ],
+            )
+            for v in spec.task_graph_variants
+        ],
     )
 
 
@@ -115,6 +133,7 @@ async def instantiate_pipeline(
             board_id=board_id,
             skill_id=body.skill_id,
             answers=body.answers,
+            variant_id=body.variant_id,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

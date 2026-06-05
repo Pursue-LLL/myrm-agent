@@ -17,6 +17,7 @@ dependencies = [
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
   "pydantic-settings>=2.14.1", # 统一配置管理 (BaseSettings + .env)
+  "PyYAML>=6.0.1",             # YAML 解析配置 (配置迁移)
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
@@ -170,5 +171,3 @@ follow_imports = "silent"
 
 
 
-[tool.uv.sources]
-myrm-agent-harness = { path = "../../myrm-agent-harness", editable = true }

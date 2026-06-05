@@ -26,4 +26,3 @@ async def dry_run_context_bundle_migration() -> ContextBundleMigrationResponse:
 @router.post("/migrate/apply", response_model=ContextBundleMigrationResponse)
 async def apply_context_bundle_migration() -> ContextBundleMigrationResponse:
     return ContextBundleService().apply_migration()
-

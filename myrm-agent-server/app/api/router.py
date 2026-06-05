@@ -83,7 +83,11 @@ from app.api.wiki import router as wiki_router
 from app.api.workspace_rules import router as workspace_rules_router
 from app.config.deploy_mode import is_local_mode
 
+from app.api.workspace.router import router as workspace_router
+
 api_router = APIRouter()
+
+api_router.include_router(workspace_router, prefix="/workspace", tags=["workspace"])
 
 
 # Agent interrupt endpoint (called by CP pipeline to stop running agents)

@@ -7,9 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.skill_optimization import AuditLogRepository, BatchTaskRepository
+from app.api.skill_optimization.dependencies import get_storage
 from app.database.connection import get_db
 from app.database.models import BatchSnapshot
-from app.api.skill_optimization.dependencies import get_storage
 from app.services.skill_optimization.rollback_service import RollbackService
 from app.services.skill_optimization.skill_version_sync import (
     load_skill_content_for_batch,

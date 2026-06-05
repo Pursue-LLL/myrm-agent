@@ -188,8 +188,21 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     onFilesSelected: (selectedFiles) => {
       void handleDroppedFiles(selectedFiles);
     },
-    accept: ['image/*', 'video/*', 'application/pdf'],
-    maxFiles: 10,
+    accept: [
+      'image/*',
+      'video/*',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.ms-powerpoint',
+      'text/csv',
+      'text/plain',
+      'text/markdown',
+      'application/json',
+    ],
+    maxFiles: 5,
     disabled: loading || actionMode === 'fast',
   });
 

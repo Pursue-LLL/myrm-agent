@@ -398,6 +398,30 @@ async def get_top_sessions(
         raise internal_error(operation="Get top sessions", exception=e) from e
 
 
+@router.get("/agent/{agent_id}/tool_health")
+async def get_agent_tool_health(
+    agent_id: str,
+    days: int = Query(7, ge=1, le=365, description="Number of days to look back"),
+) -> JSONResponse:
+    """Get aggregated tool health metrics for a specific agent.
+
+    Queries the SQLite tool_executions table to return aggregated success rates,
+    error counts, and durations per tool for the specified agent.
+    """
+    try:
+        from myrm_agent_harness.agent.skills.evolution.infra.integration import get_global_evolution_integration
+
+        evolution = get_global_evolution_integration()
+
+        if not evolution or not hasattr(evolution, "store"):
+            return success_response(data=[])
+
+        health_data = await evolution.store.get_agent_tool_health(agent_id=agent_id, days=days)
+        return success_response(data=health_data)
+    except Exception as e:
+        raise internal_error(operation="Get agent tool health", exception=e) from e
+
+
 @router.get("/badges")
 async def get_nav_badges() -> JSONResponse:
     """Aggregate badge counts for NavBar: failed cron runs, pending approvals, unread notifications.

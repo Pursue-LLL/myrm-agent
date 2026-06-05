@@ -387,7 +387,7 @@ async def build_general_agent(
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
-        
+
     if workspace_root:
         middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
 

@@ -442,22 +442,30 @@ async def _enqueue_cognitive_subsumption(payload: EvolutionApprovalPayload) -> N
     )
 
 
-async def _apply_to_disk_and_store(payload: EvolutionApprovalPayload, agent_id: str | None = None) -> None:
+async def _apply_to_disk_and_store(
+    payload: EvolutionApprovalPayload,
+    agent_id: str | None = None,
+    *,
+    apply_mode: str = "immediate",
+) -> None:
     store = _get_skill_store()
     try:
         if payload.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION.value:
             await _apply_description_update(payload, store, agent_id)
+        elif apply_mode == "shadow":
+            await _apply_content_shadow(payload)
         else:
             await _apply_content_update(payload, store, agent_id)
     finally:
         store.close()
 
-    try:
-        await _enqueue_cognitive_subsumption(payload)
-    except Exception as exc:
-        logger.warning("Failed to enqueue cognitive_subsumption task: %s", exc)
+    if apply_mode != "shadow":
+        try:
+            await _enqueue_cognitive_subsumption(payload)
+        except Exception as exc:
+            logger.warning("Failed to enqueue cognitive_subsumption task: %s", exc)
 
-    bump_skill_config_version()
+        bump_skill_config_version()
 
 
 async def _apply_description_update(payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None) -> None:
@@ -484,13 +492,13 @@ async def _apply_description_update(payload: EvolutionApprovalPayload, store: Sk
     await store.save_skill(existing)
 
 
-async def _apply_content_update(payload: EvolutionApprovalPayload, store: SkillStore, agent_id: str | None = None) -> None:
+async def _apply_content_update(
+    payload: EvolutionApprovalPayload,
+    store: SkillStore,
+    agent_id: str | None = None,
+) -> None:
     """Apply a full content update: write to disk and update SkillStore."""
     skill_path = Path(payload.skill_path)
-    if skill_path.exists():
-        backup_path = skill_path.with_suffix(skill_path.suffix + ".bak")
-        shutil.copy2(skill_path, backup_path)
-
     existing = store.get_skill(payload.skill_id)
 
     # 1. Determine if Copy-on-Write Forking is needed
@@ -595,7 +603,6 @@ async def _apply_content_update(payload: EvolutionApprovalPayload, store: SkillS
             content_to_write,
             created_by="evolution_engine",
             disk_path=skill_path,
-            invalidate_backup=True,
         )
     except Exception as exc:
         logger.warning(
@@ -683,17 +690,27 @@ async def _mark_apply_failure(
     return updated
 
 
+async def _apply_content_shadow(payload: EvolutionApprovalPayload) -> None:
+    """Seed an inactive candidate version and start a shadow A/B test without changing production disk."""
+    from app.api.skill_optimization.dependencies import get_storage
+    from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
+
+    storage = get_storage()
+    await start_shadow_ab_test(storage, payload.skill_id, payload.evolved_content)
+
+
 async def _apply_approval_record(
     record: ApprovalRecord,
     *,
     auto_approved: bool,
+    apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     payload = _approval_payload(record)
     if payload is None:
         raise EvolutionApplyError("Evolution approval payload is invalid.")
 
     try:
-        await _apply_to_disk_and_store(payload, agent_id=record.agent_id)
+        await _apply_to_disk_and_store(payload, agent_id=record.agent_id, apply_mode=apply_mode)
     except Exception as exc:
         await _mark_apply_failure(record, payload, str(exc), auto_approved=auto_approved)
         raise EvolutionApplyError(str(exc)) from exc
@@ -743,6 +760,7 @@ async def approve_evolution_review_record(
     evolution_id: str,
     *,
     auto_approved: bool = False,
+    apply_mode: str = "immediate",
 ) -> EvolutionReviewRecord:
     approval_record = await _load_approval_record(evolution_id)
     if approval_record is None:
@@ -770,7 +788,7 @@ async def approve_evolution_review_record(
             raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
         record = resolved
 
-    return await _apply_approval_record(record, auto_approved=auto_approved)
+    return await _apply_approval_record(record, auto_approved=auto_approved, apply_mode=apply_mode)
 
 
 async def reject_evolution_review_record(

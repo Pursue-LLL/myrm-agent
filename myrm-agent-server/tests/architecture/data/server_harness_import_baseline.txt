@@ -32,6 +32,7 @@ myrm_agent_harness.agent.event_log.trace_builder
 myrm_agent_harness.agent.event_log.types
 myrm_agent_harness.agent.extensions.protocols
 myrm_agent_harness.agent.file_snapshot.local_store
+myrm_agent_harness.agent.file_snapshot.types
 myrm_agent_harness.agent.goals.manager
 myrm_agent_harness.agent.goals.protocols
 myrm_agent_harness.agent.goals.steering_prompts
@@ -154,6 +155,7 @@ myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.events
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
+myrm_agent_harness.core.security.detection.leak_detector
 myrm_agent_harness.core.security.path_security
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
@@ -367,4 +369,3 @@ myrm_agent_harness.utils.token_economics.tracker
 myrm_agent_harness.utils.token_estimation
 myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
-myrm_agent_harness.core.security.detection.leak_detector

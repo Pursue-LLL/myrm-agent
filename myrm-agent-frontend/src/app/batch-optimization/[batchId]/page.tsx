@@ -2,13 +2,30 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { localizeReactNode } from '@/lib/utils/localeText';
 import { Loader2, ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, Activity, FileText } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
+import {
+  cancelBatchTask,
+  rollbackBatchTask,
+  type BatchCancelCleanupStrategy,
+} from '@/services/skill-optimization';
+import { toast } from '@/hooks/useToast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/primitives/alert-dialog';
 import {
   BatchTaskDetailItem,
   formatDateTime,
@@ -22,6 +39,7 @@ import {
 
 const BatchDetailPage = () => {
   const locale = useLocale();
+  const tBatch = useTranslations('settings.skillOptimization.batchPage');
   const isChinese = locale.startsWith('zh');
   const params = useParams();
   const router = useRouter();
@@ -30,6 +48,8 @@ const BatchDetailPage = () => {
   const [task, setTask] = useState<BatchTaskDetailItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const hasLoadedTaskRef = useRef(false);
 
   const fetchTaskDetail = useCallback(
@@ -50,6 +70,41 @@ const BatchDetailPage = () => {
       }
     },
     [batchId],
+  );
+
+  const handleRollback = useCallback(async () => {
+    setIsRollingBack(true);
+    try {
+      const result = await rollbackBatchTask(batchId);
+      if (result.success) {
+        toast({ title: tBatch('rollbackSuccess', { count: result.rolled_back }) });
+        await fetchTaskDetail();
+      } else {
+        toast({ title: tBatch('rollbackFailed'), variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: tBatch('rollbackFailed'), variant: 'destructive' });
+    } finally {
+      setIsRollingBack(false);
+    }
+  }, [batchId, fetchTaskDetail, tBatch]);
+
+  const handleCancel = useCallback(
+    async (cleanupStrategy: BatchCancelCleanupStrategy) => {
+      setIsCancelling(true);
+      try {
+        const result = await cancelBatchTask(batchId, cleanupStrategy);
+        toast({
+          title: result.rollback_performed ? tBatch('cancelRollbackSuccess') : tBatch('cancelSuccess'),
+        });
+        await fetchTaskDetail();
+      } catch {
+        toast({ title: tBatch('cancelFailed'), variant: 'destructive' });
+      } finally {
+        setIsCancelling(false);
+      }
+    },
+    [batchId, fetchTaskDetail, tBatch],
   );
 
   useEffect(() => {
@@ -267,6 +322,87 @@ const BatchDetailPage = () => {
             )}
           </dl>
         </CardContent>
+      </Card>
+
+      {!terminalState && (
+        <Card className="border-destructive/20">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>{tBatch('cancel')}</CardTitle>
+              <CardDescription>{tBatch('cancelConfirmDescription')}</CardDescription>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isCancelling}>
+                  {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {tBatch('cancel')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{tBatch('cancelConfirmTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>{tBatch('cancelConfirmDescription')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+                  <AlertDialogAction
+                    disabled={isCancelling}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleCancel('rollback');
+                    }}
+                  >
+                    {tBatch('cancelRollbackAction')}
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    disabled={isCancelling}
+                    className="border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void handleCancel('keep');
+                    }}
+                  >
+                    {tBatch('cancelKeepAction')}
+                  </AlertDialogAction>
+                  <AlertDialogCancel>{tBatch('submitCancel')}</AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardHeader>
+        </Card>
+      )}
+
+      <Card className="border-primary/10">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>{tBatch('rollback')}</CardTitle>
+            <CardDescription>{tBatch('rollbackCardDescription')}</CardDescription>
+          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isRollingBack || !terminalState}>
+                {isRollingBack ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {tBatch('rollback')}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+              <AlertDialogHeader>
+                <AlertDialogTitle>{tBatch('rollbackConfirmTitle')}</AlertDialogTitle>
+                <AlertDialogDescription>{tBatch('rollbackConfirmDescription')}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                <AlertDialogCancel>{tBatch('submitCancel')}</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isRollingBack}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => void handleRollback()}
+                >
+                  {tBatch('rollback')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardHeader>
       </Card>
 
       <Card className="border-primary/10">

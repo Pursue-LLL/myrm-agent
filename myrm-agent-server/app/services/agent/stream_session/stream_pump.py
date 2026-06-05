@@ -45,6 +45,11 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         async for chunk in generate_cancellable_stream(session):
             if chunk.strip():
                 await buffer.append(chunk)
+                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+                await WorkspaceMultiplexer.get().publish(
+                    chat_id=session.request.chat_id, message_id=session.params.message_id, chunk=chunk
+                )
     except asyncio.CancelledError:
         pass
     except Exception as e:

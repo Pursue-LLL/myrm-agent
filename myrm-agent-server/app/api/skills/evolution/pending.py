@@ -60,6 +60,10 @@ class RejectEvolutionRequest(BaseModel):
     reason: str | None = None
 
 
+class ApproveEvolutionRequest(BaseModel):
+    apply_mode: str = "immediate"
+
+
 def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResponse:
     return PendingEvolutionResponse(
         id=record.id,
@@ -90,9 +94,13 @@ async def count_pending_evolution_records() -> int:
     return await count_evolution_review_records(pending_only=True)
 
 
-async def approve_pending_evolution_record(evolution_id: str) -> EvolutionReviewRecord:
+async def approve_pending_evolution_record(
+    evolution_id: str,
+    *,
+    apply_mode: str = "immediate",
+) -> EvolutionReviewRecord:
     try:
-        return await approve_evolution_review_record(evolution_id)
+        return await approve_evolution_review_record(evolution_id, apply_mode=apply_mode)
     except EvolutionApplyError as exc:
         if "not found" not in str(exc).lower():
             latest_record = await get_evolution_review_record(evolution_id)
@@ -125,8 +133,12 @@ async def get_pending_evolutions(
 @router.post("/pending/{evolution_id}/approve")
 async def approve_pending_evolution(
     evolution_id: str,
+    request: ApproveEvolutionRequest | None = None,
 ) -> dict[str, str | None]:
-    record = await approve_pending_evolution_record(evolution_id=evolution_id)
+    apply_mode = request.apply_mode if request is not None else "immediate"
+    if apply_mode not in {"immediate", "shadow"}:
+        raise HTTPException(status_code=400, detail="apply_mode must be 'immediate' or 'shadow'")
+    record = await approve_pending_evolution_record(evolution_id=evolution_id, apply_mode=apply_mode)
     await record_experience_event(
         ExperienceLedgerWrite(
             event_type=ExperienceEventType.REVIEW_APPROVED,

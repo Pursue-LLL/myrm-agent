@@ -15,7 +15,7 @@
 |------|------|------|
 | `router.py` | ✅ 入口 | 子路由注册（统一暴露 prebuilt, local, packaging, discovery, drafts, config, core, curator 等） |
 | `drafts.py` | ✅ 核心 | 技能草稿审查 API（以 `ApprovalRecord` 为事实源，含采纳落盘 + 名称 slug 化 + 智能补丁合并应用 + 审核状态事件广播 + 统一 ledger 写入） |
-| `config.py` | ✅ 核心 | 用户技能配置（启用/禁用 + 安全扫描 + 一键回滚 + 信任授权） |
+| `config.py` | ✅ 核心 | 用户技能配置（启用/禁用 + 安全扫描 + 信任授权；内容回滚走 `skill-optimization/versions`） |
 | `core.py` | ✅ 核心 | 技能 CRUD 基础端点（列表与详情） |
 | `growth.py` | ✅ 核心 | 统一技能成长查询 API。提供 case 列表、runtime failure 证据与负向审计查询，供设置页技能成长中心与成长审计页复用 |
 | `experience_ledger.py` | ✅ 核心 | 经验账本查询 API。提供原始 ledger 事件，以及 skill-growth 投影事件/汇总视图（含 `APPLY_FAILED`） |

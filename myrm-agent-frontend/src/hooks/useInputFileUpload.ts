@@ -15,10 +15,13 @@ import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { uploadFiles } from '@/services/file';
 import { toast } from '@/lib/utils/toast';
-import { computeFileHash } from '@/lib/utils/fileUtils';
+import { computeFileHash, isImageFile, isVideoFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 interface UseInputFileUploadParams {
   actionMode: ActionMode;
@@ -131,6 +134,42 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
   const handleDroppedFiles = useCallback(
     async (droppedFiles: globalThis.File[]) => {
       if (actionMode === 'fast') return;
+
+      const oversized = droppedFiles.find((f) => {
+        const ext = getFileExtension(f.name);
+        const limit = isVideoFile(ext) ? MAX_VIDEO_BYTES : MAX_FILE_BYTES;
+        return f.size > limit;
+      });
+      if (oversized) {
+        const sizeMB = `${(oversized.size / 1024 / 1024).toFixed(1)}MB`;
+        const ext = getFileExtension(oversized.name);
+        if (isVideoFile(ext)) {
+          toast.error(tFiles('videoTooLarge'), { description: tFiles('videoTooLargeDesc', { size: sizeMB }) });
+        } else {
+          toast.error(tFiles('uploadError'), { description: `${oversized.name} (${sizeMB}) exceeds 10MB limit` });
+        }
+        return;
+      }
+
+      const hasImages = droppedFiles.some((f) => isImageFile(getFileExtension(f.name)));
+      const hasVideos = droppedFiles.some((f) => isVideoFile(getFileExtension(f.name)));
+      if (hasImages || hasVideos) {
+        const { defaultModelConfig, getModelInfo } = useProviderStore.getState();
+        const selection = defaultModelConfig?.baseModel?.primary;
+        if (selection) {
+          const modelInfo = getModelInfo(selection.providerId, selection.model);
+          const fallback = defaultModelConfig?.visionFallbackModel;
+          const fallbackInfo = fallback ? getModelInfo(fallback.providerId, fallback.model) : null;
+          const hasVision = modelInfo?.supports_vision || fallbackInfo?.supports_vision;
+          if (hasImages && !hasVision) {
+            toast.warning(tFiles('modelNotSupportVision'));
+          }
+          if (hasVideos && !modelInfo?.supports_video_input && !fallbackInfo?.supports_vision) {
+            toast.warning(tFiles('modelNotSupportVideo'));
+          }
+        }
+      }
+
       setIsUploadingPaste(true);
       try {
         await uploadInputFiles(droppedFiles);

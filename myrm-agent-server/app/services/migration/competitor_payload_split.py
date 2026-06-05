@@ -86,11 +86,11 @@ def build_instruction_plan(loaded: dict[str, object]) -> CompetitorInstructionPl
 
     plan.agent_persona = _SECTION_BREAK.join(persona_parts).strip()
     plan.global_supplement = _SECTION_BREAK.join(global_parts).strip()
-    
+
     mcp_servers = loaded.get("mcp_servers")
     if isinstance(mcp_servers, dict) and mcp_servers:
         plan.mcp_servers = mcp_servers
-        
+
     return plan
 
 

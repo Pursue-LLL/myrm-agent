@@ -53,16 +53,6 @@ export async function getRecommendations(
   }>(`${PREFIX}/recommendations?limit=${limit}`);
 }
 
-export async function triggerBatchOptimization(
-  skillIds: string[],
-  maxConcurrent: number = 3,
-): Promise<{ batch_task_id: string; message: string }> {
-  return apiRequest<{ batch_task_id: string; message: string }>(`${PREFIX}/batch-optimize`, {
-    method: 'POST',
-    body: JSON.stringify({ skill_ids: skillIds, max_concurrent: maxConcurrent, priority: 1 }),
-  });
-}
-
 export interface SkillVersionSummary {
   version: number;
   created_at: string;
@@ -85,8 +75,29 @@ export interface SkillVersionCompareResponse {
   content_changed: boolean;
 }
 
+export interface SkillVersionDetailResponse {
+  skill_id: string;
+  version: number;
+  content: string;
+  is_active: boolean;
+}
+
+export interface StartShadowAbTestResponse {
+  test_id: string;
+  skill_id: string;
+  baseline_version: number;
+  candidate_version: number;
+  status: string;
+}
+
 export async function listSkillVersions(skillId: string, limit = 20): Promise<SkillVersionsResponse> {
   return apiRequest<SkillVersionsResponse>(`${PREFIX}/versions/${encodeURIComponent(skillId)}?limit=${limit}`);
+}
+
+export async function getSkillVersionDetail(skillId: string, version: number): Promise<SkillVersionDetailResponse> {
+  return apiRequest<SkillVersionDetailResponse>(
+    `${PREFIX}/versions/${encodeURIComponent(skillId)}/${version}`,
+  );
 }
 
 export async function rollbackSkillVersion(skillId: string, targetVersion: number): Promise<{ to_version: number }> {
@@ -104,4 +115,53 @@ export async function compareSkillVersions(
   return apiRequest<SkillVersionCompareResponse>(
     `${PREFIX}/versions/${encodeURIComponent(skillId)}/compare?v1=${v1}&v2=${v2}`,
   );
+}
+
+export async function startShadowAbTest(
+  skillId: string,
+  baselineVersion: number,
+  candidateContent: string,
+): Promise<StartShadowAbTestResponse> {
+  return apiRequest<StartShadowAbTestResponse>(`${PREFIX}/ab-tests/start`, {
+    method: 'POST',
+    body: JSON.stringify({
+      skill_id: skillId,
+      baseline_version: baselineVersion,
+      candidate_content: candidateContent,
+    }),
+  });
+}
+
+export async function rollbackBatchTask(batchId: string): Promise<{
+  success: boolean;
+  rolled_back: number;
+  failed: number;
+}> {
+  return apiRequest<{
+    success: boolean;
+    rolled_back: number;
+    failed: number;
+  }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/rollback`, {
+    method: 'POST',
+  });
+}
+
+export type BatchCancelCleanupStrategy = 'keep' | 'rollback';
+
+export async function cancelBatchTask(
+  batchId: string,
+  cleanupStrategy: BatchCancelCleanupStrategy,
+): Promise<{
+  batch_id: string;
+  status: string;
+  rollback_performed: boolean;
+}> {
+  return apiRequest<{
+    batch_id: string;
+    status: string;
+    rollback_performed: boolean;
+  }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ cleanup_strategy: cleanupStrategy }),
+  });
 }

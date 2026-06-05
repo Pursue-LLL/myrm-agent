@@ -241,7 +241,10 @@ export async function getSkillGrowthSummary(limit: number = 50): Promise<SkillGr
   };
 }
 
-export async function approveSkillGrowthCase(item: SkillGrowthCase): Promise<SkillGrowthActionResult> {
+export async function approveSkillGrowthCase(
+  item: SkillGrowthCase,
+  applyMode: 'immediate' | 'shadow' = 'immediate',
+): Promise<SkillGrowthActionResult> {
   if (item.source === 'draft') {
     const draftId = item.id.replace('draft:', '');
     const response = await approveSkillDraft(draftId, item.skillName);
@@ -257,6 +260,7 @@ export async function approveSkillGrowthCase(item: SkillGrowthCase): Promise<Ski
   const evolutionId = item.id.replace('evolution:', '');
   return apiRequest<SkillGrowthActionResult>(`/evolution/pending/${evolutionId}/approve`, {
     method: 'POST',
+    body: JSON.stringify({ apply_mode: applyMode }),
   });
 }
 
