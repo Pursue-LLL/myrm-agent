@@ -159,7 +159,7 @@ class ABTestManager:
                 ab_repo = ABTestRepository(session)
                 snapshot_repo = SnapshotRepository(session)
 
-                await snapshot_repo.activate_version(skill_id, version)
+                activated = await snapshot_repo.activate_version(skill_id, version)
 
                 running_tests = await ab_repo.get_running_tests()
                 for test in running_tests:
@@ -169,6 +169,10 @@ class ABTestManager:
                         await ab_repo.update_status(test_id=test.id, status=status, winner=winner)
 
                 await session.commit()
+
+            from app.services.skill_optimization.skill_version_sync import sync_content_to_disk
+
+            await sync_content_to_disk(skill_id, activated.content)
 
             self._consistent_counts.pop(skill_id, None)
             logger.info(f"Version v{version} promoted to Master for skill {skill_id}")

@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.skill_optimization import AuditLogRepository, BatchTaskRepository
 from app.database.connection import get_db
 from app.database.models import BatchSnapshot
+from app.api.skill_optimization.dependencies import get_storage
 from app.services.skill_optimization.rollback_service import RollbackService
+from app.services.skill_optimization.skill_version_sync import (
+    load_skill_content_for_batch,
+    restore_skill_snapshot,
+)
 from app.services.skill_optimization.time_estimator import TimeEstimator
 
 """Batch Optimization API Router
@@ -74,10 +79,31 @@ async def create_batch_task(
         if not scheduler:
             raise HTTPException(status_code=503, detail="Optimization scheduler not available")
 
+        batch_id = f"batch_{uuid.uuid4().hex[:8]}"
+        storage = get_storage()
+        rollback_service = RollbackService(db)
+
+        async def batch_skill_reader(skill_id: str) -> tuple[str, int, dict[str, object]]:
+            content = await load_skill_content_for_batch(skill_id)
+            if content is None:
+                raise ValueError(f"SKILL.md not found for skill {skill_id}")
+            active = await storage.get_active_version(skill_id)
+            version = active.version if active else 1
+            return content, version, {}
+
+        snapshot_ok = await rollback_service.create_batch_snapshot(
+            batch_id=batch_id,
+            skill_ids=request.skill_ids,
+            skill_reader=batch_skill_reader,
+        )
+        if not snapshot_ok:
+            raise HTTPException(status_code=500, detail="Failed to create batch snapshots before optimization")
+
         batch_id = await scheduler.trigger_batch_optimization(
             skill_ids=request.skill_ids,
             priority=request.priority,
             max_concurrent=request.max_concurrent,
+            batch_task_id=batch_id,
         )
 
         batch_repo = BatchTaskRepository(db)
@@ -309,9 +335,11 @@ async def cancel_batch_task(
             snapshots = list(snap_result.scalars().all())
             if snapshots:
                 rollback_service = RollbackService(db)
+                storage = get_storage()
 
                 async def skill_writer(skill_id: str, content: str, version: int) -> None:
-                    logger.info(f"Rolling back skill {skill_id} to version {version}")
+                    await restore_skill_snapshot(storage, skill_id, content, version)
+                    logger.info("Rolled back skill %s to version %s", skill_id, version)
 
                 rollback_result = await rollback_service.rollback_batch(batch_id, skill_writer)
                 rollback_performed = rollback_result.success
@@ -370,9 +398,11 @@ async def rollback_batch_task(
             raise HTTPException(status_code=404, detail="No snapshots found for this batch")
 
         rollback_service = RollbackService(db)
+        storage = get_storage()
 
         async def skill_writer(skill_id: str, content: str, version: int) -> None:
-            logger.info(f"Rolling back skill {skill_id} to version {version}")
+            await restore_skill_snapshot(storage, skill_id, content, version)
+            logger.info("Rolled back skill %s to version %s", skill_id, version)
 
         rollback_result = await rollback_service.rollback_batch(batch_id, skill_writer)
 

@@ -14,6 +14,7 @@
 | `/auth/oauth/callback` | CP OAuth | SaaS 构建 |
 | `/workspace`, `/library`, `/brain` | 工作区 / 资料库 | 全模式 |
 | `/kanban`, `/artifacts`, `/cron` 等 | 功能页 | 全模式 |
+| `/skill-optimization` | 技能优化 A/B 对比页（`skill-optimization/page.tsx`，e2e 覆盖） | 全模式 |
 | `/pricing`, `/subscription`, `/payment/*` | 计费与订阅 | SaaS 为主 |
 | `/api/*` | Next Route Handlers（代理、checkout） | 按路由 |
 

@@ -62,3 +62,46 @@ export async function triggerBatchOptimization(
     body: JSON.stringify({ skill_ids: skillIds, max_concurrent: maxConcurrent, priority: 1 }),
   });
 }
+
+export interface SkillVersionSummary {
+  version: number;
+  created_at: string;
+  created_by: string;
+  is_active: boolean;
+  optimization_id: string | null;
+  quality_score: SkillQualityScore | null;
+}
+
+export interface SkillVersionsResponse {
+  skill_id: string;
+  total: number;
+  versions: SkillVersionSummary[];
+}
+
+export interface SkillVersionCompareResponse {
+  skill_id: string;
+  v1: { version: number; content: string };
+  v2: { version: number; content: string };
+  content_changed: boolean;
+}
+
+export async function listSkillVersions(skillId: string, limit = 20): Promise<SkillVersionsResponse> {
+  return apiRequest<SkillVersionsResponse>(`${PREFIX}/versions/${encodeURIComponent(skillId)}?limit=${limit}`);
+}
+
+export async function rollbackSkillVersion(skillId: string, targetVersion: number): Promise<{ to_version: number }> {
+  return apiRequest<{ to_version: number }>(
+    `${PREFIX}/rollback/${encodeURIComponent(skillId)}?target_version=${targetVersion}`,
+    { method: 'POST' },
+  );
+}
+
+export async function compareSkillVersions(
+  skillId: string,
+  v1: number,
+  v2: number,
+): Promise<SkillVersionCompareResponse> {
+  return apiRequest<SkillVersionCompareResponse>(
+    `${PREFIX}/versions/${encodeURIComponent(skillId)}/compare?v1=${v1}&v2=${v2}`,
+  );
+}

@@ -35,7 +35,7 @@
 | `mcp/MCPScanAckDialog.tsx` | 组件 | 高风险 MCP 配置确认对话框 | ✅ |
 | `model-service/` | 目录 | 子模块 | 见源码 |
 | `retrieval/` | 目录 | 子模块 | 见源码 |
-| `sections/` | 目录 | 子模块 | 见源码 |
+| `sections/` | 目录 | 子模块（含 `GlobalSkillQualityDashboard`、`SkillQualitySection` 等活路径） | 见源码 |
 
 ## 依赖
 

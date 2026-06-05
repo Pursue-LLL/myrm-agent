@@ -92,6 +92,8 @@ override-dependencies = [
 
 # OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
 # [tool.uv.sources] myrm-agent-harness editable override in a private overlay (not committed).
+[tool.uv.sources]
+myrm-agent-harness = { path = "../../myrm-agent-harness", editable = true }
 
 [dependency-groups]
 dev = [

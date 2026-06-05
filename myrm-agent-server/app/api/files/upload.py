@@ -120,10 +120,9 @@ async def upload_files(
         if ext not in ALLOWED_EXTENSIONS:
             continue
 
-        if file.size is not None and file.size > 10 * 1024 * 1024:
-            raise validation_error(f"File {file.filename} exceeds 10MB limit")
-
         content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise validation_error(f"File {file.filename} exceeds 10MB limit")
         valid_files.append((file, content))
 
     if not valid_files:

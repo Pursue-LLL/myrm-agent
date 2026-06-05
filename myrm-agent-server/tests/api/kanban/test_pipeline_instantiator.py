@@ -181,10 +181,9 @@ class TestListPipelineSkills:
 
     def test_discovers_pipeline_skills(self) -> None:
         specs = list_pipeline_skills()
-        assert len(specs) >= 4
+        assert len(specs) >= 3
         skill_ids = [s.skill_id for s in specs]
         assert "video-production-pipeline" in skill_ids
-        assert "research-paper-pipeline" in skill_ids
         assert "code-review-pipeline" in skill_ids
         assert "data-analysis-pipeline" in skill_ids
 
@@ -306,8 +305,8 @@ class TestEdgeCases:
         result = _load_frontmatter(Path("/nonexistent/path/SKILL.md"))
         assert result is None
 
-    def test_all_four_pipelines_valid_dag(self) -> None:
-        """Verify all 4 pipeline DAGs have valid parent indices."""
+    def test_all_three_pipelines_valid_dag(self) -> None:
+        """Verify all 3 pipeline DAGs have valid parent indices."""
         specs = list_pipeline_skills()
         for spec in specs:
             len(spec.task_graph_seed)

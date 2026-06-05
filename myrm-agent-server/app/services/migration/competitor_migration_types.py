@@ -31,6 +31,7 @@ class CompetitorInstructionPlan:
     agent_persona: str = ""
     global_supplement: str = ""
     workspace_rules: list[WorkspaceRuleWrite] = field(default_factory=list)
+    mcp_servers: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)

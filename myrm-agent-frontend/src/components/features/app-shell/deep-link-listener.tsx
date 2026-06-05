@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { IntentDispatcher } from '@/lib/intent-dispatcher';
-import { useQuickAskStore } from '@/store/useQuickAskStore';
+import { useFlowPadStore } from '@/store/useFlowPadStore';
 
 /**
  * [POS] Global Deep Link Listener.
@@ -11,13 +11,13 @@ import { useQuickAskStore } from '@/store/useQuickAskStore';
  */
 export default function DeepLinkListener() {
   const router = useRouter();
-  const { openQuickAsk } = useQuickAskStore();
+  const openFlowPad = useFlowPadStore((s) => s.open);
 
   useEffect(() => {
     // Check if we are running in Tauri
     const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
 
-    const dispatcher = new IntentDispatcher(router, openQuickAsk);
+    const dispatcher = new IntentDispatcher(router, openFlowPad);
 
     if (isTauri) {
       // 1. Handle cold start and hot start deep links via official plugin
@@ -55,7 +55,7 @@ export default function DeepLinkListener() {
         dispatcher.dispatch(currentUrl);
       }
     }
-  }, [router, openQuickAsk]);
+  }, [router, openFlowPad]);
 
   return null;
 }

@@ -178,8 +178,6 @@ async def build_general_agent(
     memory_binding = context_assembly.binding
     if memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(tools, deferred_tools, memory_binding)
-    if memory_manager is not None:
-        await agent_wrapper._setup_context_search_tools(tools, deferred_tools, memory_manager)
     if agent_wrapper.enable_memory:
         from app.ai_agents.general_agent.conversation_search_setup import (
             append_conversation_search_tool,
@@ -203,7 +201,6 @@ async def build_general_agent(
         await _setup_kanban_tools(agent_wrapper, tools)
 
     agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
-    await agent_wrapper._setup_local_file_search_tools(tools, deferred_tools)
 
     await agent_wrapper._setup_external_agents(tools, deferred_tools)
 
@@ -316,6 +313,7 @@ async def build_general_agent(
         set_permission_invalidation_callback,
     )
     from myrm_agent_harness.agent.middlewares import (
+        FilesystemFileSearchMiddleware,
         RateLimitMiddleware,
     )
     from myrm_agent_harness.agent.middlewares.guardrails import (
@@ -389,6 +387,9 @@ async def build_general_agent(
 
     if guardrail_middleware:
         middlewares_list.insert(0, guardrail_middleware)
+        
+    if workspace_root:
+        middlewares_list.append(FilesystemFileSearchMiddleware(root_path=workspace_root))
 
     middlewares = cast(list[AgentMiddleware], middlewares_list)
 

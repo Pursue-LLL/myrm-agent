@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import yaml
 from pathlib import Path
 from typing import TypedDict
 
@@ -103,7 +104,11 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
     if isinstance(env_keys, list) and env_keys:
         rows.append({"key": "api_keys", "status": "manual", "label": "api_keys_manual"})
 
-    rows.append({"key": "mcp", "status": "manual", "label": "mcp_manual"})
+    mcp_servers = loaded_payload.get("mcp_servers")
+    if isinstance(mcp_servers, dict) and mcp_servers:
+        rows.append({"key": "mcp", "status": "ready", "label": "mcp_ready"})
+    else:
+        rows.append({"key": "mcp", "status": "manual", "label": "mcp_manual"})
     rows.append({"key": "channels", "status": "manual", "label": "channels_manual"})
 
     if loaded_payload.get("_load_error"):
@@ -133,6 +138,15 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
         return ""
+
+
+
+def _read_yaml(path: Path) -> object | None:
+    try:
+        content = _read_text(path)
+        return yaml.safe_load(content)
+    except Exception:
+        return None
 
 
 def _read_json(path: Path) -> object | None:
@@ -178,6 +192,17 @@ def _load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if env_path:
         result["env_keys"] = _extract_env_key_names(env_path)
 
+    config_path = _path_by_kind(file_paths, "config.yaml") or _find_file(root, "config.yaml")
+    if config_path:
+        config_data = _read_yaml(config_path)
+        if isinstance(config_data, dict):
+            result["hermes_config"] = config_data
+            
+            # Extract MCP configurations
+            mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
+            if isinstance(mcp_servers, dict) and mcp_servers:
+                result["mcp_servers"] = mcp_servers
+
     skills_dir = root / "skills"
     if skills_dir.is_dir():
         skills = _load_skill_directories(skills_dir, source="hermes")
@@ -204,6 +229,15 @@ def _load_openclaw(root: Path, file_paths: list[str]) -> dict[str, object]:
         if entries:
             result["openclaw_memory"] = entries
 
+    config_path = _path_by_kind(file_paths, "config.json") or _find_file(root, "config.json")
+    if config_path:
+        config_data = _read_json(config_path)
+        if isinstance(config_data, dict):
+            result["openclaw_config"] = config_data
+            mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
+            if isinstance(mcp_servers, dict) and mcp_servers:
+                result["mcp_servers"] = mcp_servers
+
     for md_name, key in (("MEMORY.md", "memory_md"), ("USER.md", "user_md"), ("SOUL.md", "soul_md")):
         md_path = _path_by_kind(file_paths, md_name)
         if md_path is not None and md_path.is_file():
@@ -214,6 +248,17 @@ def _load_openclaw(root: Path, file_paths: list[str]) -> dict[str, object]:
             result[key] = text
 
     _merge_openclaw_markdown_into_memory(result)
+
+    config_path = _path_by_kind(file_paths, "config.yaml") or _find_file(root, "config.yaml")
+    if config_path:
+        config_data = _read_yaml(config_path)
+        if isinstance(config_data, dict):
+            result["hermes_config"] = config_data
+            
+            # Extract MCP configurations
+            mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
+            if isinstance(mcp_servers, dict) and mcp_servers:
+                result["mcp_servers"] = mcp_servers
 
     skills_dir = root / "skills"
     if skills_dir.is_dir():
@@ -300,6 +345,20 @@ def _load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
         settings_data = _read_json(settings_path)
         if isinstance(settings_data, dict):
             result["claude_settings"] = settings_data
+            mcp_servers = settings_data.get("mcpServers") or settings_data.get("mcp_servers")
+            if isinstance(mcp_servers, dict) and mcp_servers:
+                result["mcp_servers"] = mcp_servers
+
+    config_path = _path_by_kind(file_paths, "config.yaml") or _find_file(root, "config.yaml")
+    if config_path:
+        config_data = _read_yaml(config_path)
+        if isinstance(config_data, dict):
+            result["hermes_config"] = config_data
+            
+            # Extract MCP configurations
+            mcp_servers = config_data.get("mcp_servers") or config_data.get("mcp")
+            if isinstance(mcp_servers, dict) and mcp_servers:
+                result["mcp_servers"] = mcp_servers
 
     skills_dir = root / "skills"
     if skills_dir.is_dir():

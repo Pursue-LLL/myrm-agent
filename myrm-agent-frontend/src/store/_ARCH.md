@@ -16,6 +16,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useAuthStore.ts` | WebUI 会话 / SaaS OAuth 门控 | 本地模式不连 CP |
 | `useConfigStore.ts` | 用户设置镜像 | 与 Settings sections 同步 |
 | `useArtifactPortalStore.ts` | 工件门户 | 大文件，拆分候选 |
+| `useFlowPadStore.ts` | FlowPad 模态窗口状态（截屏上下文、初始文本、开关） | 服务 Appshot 和 deep link 入口 |
 | `use*Store.ts`（根级） | 看板、审批、伴侣、浏览器检查器等 | 一域一 store |
 
 ## 依赖

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -45,9 +45,19 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
   
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<{ status: string; completed?: number; total?: number } | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // SaaS 模式下直接隐藏
   const isSaaS = getDeployMode() === 'sandbox';
+
+  useEffect(() => {
+    return () => {
+      // 组件卸载时，如果正在下载，则取消请求
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isSaaS) {
@@ -82,11 +92,14 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     setDownloadingModel(modelId);
     setDownloadProgress({ status: t('downloading') });
     
+    abortControllerRef.current = new AbortController();
+    
     try {
       const res = await fetch('/api/v1/integrations/hardware/ollama/pull', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_name: ollamaModelName }),
+        signal: abortControllerRef.current.signal,
       });
       
       if (!res.ok) throw new Error('Failed to start download');
@@ -122,6 +135,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       // Download complete!
       setDownloadProgress(null);
       setDownloadingModel(null);
+      abortControllerRef.current = null;
       
       setProfile(prev => {
         if (!prev) return prev;
@@ -135,13 +149,28 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       
       onApplyModel(modelId);
       
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('Download cancelled by user');
+        setDownloadProgress(null);
+        setDownloadingModel(null);
+        abortControllerRef.current = null;
+        return;
+      }
+      
       console.error('Download failed:', err);
       setDownloadProgress({ status: `Error: ${err instanceof Error ? err.message : 'Unknown error'}` });
       setTimeout(() => {
         setDownloadingModel(null);
         setDownloadProgress(null);
+        abortControllerRef.current = null;
       }, 3000);
+    }
+  };
+
+  const handleCancelDownload = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -295,10 +324,21 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                     </div>
                     
                     {isDownloading ? (
-                      <div className="flex flex-col items-end gap-1 w-full sm:w-[120px]">
-                        <span className="text-[10px] text-muted-foreground truncate w-full text-right">
-                          {downloadProgress?.status || t('downloading')}
-                        </span>
+                      <div className="flex flex-col items-end gap-1 w-full sm:w-[150px]">
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={downloadProgress?.status || t('downloading')}>
+                            {downloadProgress?.status || t('downloading')}
+                          </span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={handleCancelDownload}
+                            title={t('cancel')}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <Progress value={progressPercent} className="h-2 w-full" />
                       </div>
                     ) : (

@@ -33,6 +33,16 @@
 | `ReferenceMentionPopover.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SamplePrompts.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SessionTrashPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
+
+## goals/
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `GoalControlPlane.tsx` | 核心 | Goal 队列与控制面板 | ✅ |
+| `GoalQueueSection.tsx` | 核心 | Goal 队列区块 | ✅ |
+| `GoalStatusCard.tsx` | 核心 | 单 Goal 状态卡片 | ✅ |
+| `goal-icons.tsx` | 辅助 | Goal 图标集 | ✅ |
 
 ## Visual Approval（工具 HITL 截图审批）
 

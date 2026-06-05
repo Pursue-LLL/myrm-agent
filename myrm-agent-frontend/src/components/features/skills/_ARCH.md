@@ -28,11 +28,14 @@
 | `SkillPermissionApprovalDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillPermissionUsageDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillPermissionsManager.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillQualityGuardian.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `SkillQualityGuardian.tsx` | 核心 | A/B 测试状态与 promote/stop | ✅ |
+| `SkillVersionsPanel.tsx` | 核心 | 技能版本列表、diff 对比、版本回滚（接 skill-optimization API） | ✅ |
 | `SkillSyncIndicator.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillUploadDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `SkillUrlImportDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `skillCategories.ts` | 组件/模块 | 见源码 | 见源码 |
+| `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表 | ✅ |
+| `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板 | ✅ |
 
 ## 依赖
 

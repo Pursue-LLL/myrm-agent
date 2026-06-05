@@ -14,6 +14,8 @@ cannot access user filesystems, so this service only runs in local deployments.
 
 from __future__ import annotations
 
+import os
+import platform
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -78,11 +80,50 @@ _ENV_API_KEY_PATTERN = re.compile(
 )
 
 
-def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
-    """Scan the home directory for known competitor data directories."""
 
-    home = Path(home_dir) if home_dir else Path.home()
-    result = DiscoveryResult(scan_path=str(home))
+def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explicit_home: Path | None) -> list[Path]:
+    paths: list[Path] = []
+    
+    if explicit_home:
+        paths.append(explicit_home / default_dot_dir)
+        
+    env_val = os.environ.get(env_var, "").strip()
+    if env_val:
+        paths.append(Path(env_val))
+        
+    system = platform.system()
+    if system == "Windows":
+        local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+        if local_appdata:
+            paths.append(Path(local_appdata) / app_name)
+        appdata = os.environ.get("APPDATA", "").strip()
+        if appdata:
+            paths.append(Path(appdata) / app_name)
+    elif system == "Darwin":
+        paths.append(Path.home() / "Library" / "Application Support" / app_name)
+        
+    paths.append(Path.home() / default_dot_dir)
+    
+    seen = set()
+    result = []
+    for p in paths:
+        try:
+            resolved = p.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                result.append(resolved)
+        except OSError:
+            if p not in seen:
+                seen.add(p)
+                result.append(p)
+    return result
+
+def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
+    """Scan the filesystem for known competitor data directories."""
+
+    home = Path(home_dir) if home_dir else None
+    scan_path = str(home) if home else str(Path.home())
+    result = DiscoveryResult(scan_path=scan_path)
 
     hermes = _discover_hermes(home)
     if hermes:
@@ -107,9 +148,14 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
     return result
 
 
-def _discover_hermes(home: Path) -> CompetitorSource | None:
-    root = home / ".hermes"
-    if not root.is_dir():
+def _discover_hermes(explicit_home: Path | None) -> CompetitorSource | None:
+    candidates = _get_search_paths("HERMES_HOME", "hermes", ".hermes", explicit_home)
+    root = None
+    for candidate in candidates:
+        if candidate.is_dir():
+            root = candidate
+            break
+    if not root:
         return None
 
     source = CompetitorSource(competitor="hermes", root=str(root))
@@ -150,9 +196,14 @@ def _discover_hermes(home: Path) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def _discover_claude(home: Path) -> CompetitorSource | None:
-    root = home / ".claude"
-    if not root.is_dir():
+def _discover_claude(explicit_home: Path | None) -> CompetitorSource | None:
+    candidates = _get_search_paths("CLAUDE_HOME", "Claude", ".claude", explicit_home)
+    root = None
+    for candidate in candidates:
+        if candidate.is_dir():
+            root = candidate
+            break
+    if not root:
         return None
 
     source = CompetitorSource(competitor="claude", root=str(root))
@@ -182,9 +233,14 @@ def _discover_claude(home: Path) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def _discover_openclaw(home: Path) -> CompetitorSource | None:
-    root = home / ".openclaw"
-    if not root.is_dir():
+def _discover_openclaw(explicit_home: Path | None) -> CompetitorSource | None:
+    candidates = _get_search_paths("OPENCLAW_HOME", "openclaw", ".openclaw", explicit_home)
+    root = None
+    for candidate in candidates:
+        if candidate.is_dir():
+            root = candidate
+            break
+    if not root:
         return None
 
     source = CompetitorSource(competitor="openclaw", root=str(root))
@@ -222,9 +278,14 @@ def _discover_openclaw(home: Path) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def _discover_cursor(home: Path) -> CompetitorSource | None:
-    root = home / ".cursor"
-    if not root.is_dir():
+def _discover_cursor(explicit_home: Path | None) -> CompetitorSource | None:
+    candidates = _get_search_paths("CURSOR_HOME", "Cursor", ".cursor", explicit_home)
+    root = None
+    for candidate in candidates:
+        if candidate.is_dir():
+            root = candidate
+            break
+    if not root:
         return None
 
     source = CompetitorSource(competitor="cursor", root=str(root))
@@ -250,9 +311,14 @@ def _discover_cursor(home: Path) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def _discover_codex(home: Path) -> CompetitorSource | None:
-    root = home / ".codex"
-    if not root.is_dir():
+def _discover_codex(explicit_home: Path | None) -> CompetitorSource | None:
+    candidates = _get_search_paths("CODEX_HOME", "codex", ".codex", explicit_home)
+    root = None
+    for candidate in candidates:
+        if candidate.is_dir():
+            root = candidate
+            break
+    if not root:
         return None
 
     source = CompetitorSource(competitor="codex", root=str(root))

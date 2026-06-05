@@ -98,7 +98,14 @@ async def _get_dynamic_model_specs() -> list[dict[str, object]]:
 
         specs = _FALLBACK_MODEL_SPECS
         try:
-            pass
+            # 尝试从云端拉取，设置 3 秒超时
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                # 使用 GitHub Raw 作为默认的云端配置源
+                response = await client.get("https://raw.githubusercontent.com/yululiu/open-perplexity/main/myrm-agent-brand/myrm-website/public/cookbook_specs.json")
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, list) and len(data) > 0:
+                        specs = data
         except Exception as e:
             logger.warning(f"Failed to fetch dynamic model specs, using fallback: {e}")
 

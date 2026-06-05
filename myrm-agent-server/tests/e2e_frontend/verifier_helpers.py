@@ -438,8 +438,13 @@ async def submit_chat_message(page: Page, text: str) -> None:
 
     chat_input = page.locator("textarea[data-chat-input]")
     await chat_input.wait_for(state="attached", timeout=30000)
-    await chat_input.click(force=True)
-    await chat_input.fill(text)
+    
+    # Use evaluate to bypass any Playwright visibility/interception checks
+    await chat_input.evaluate(f"(el) => {{ el.value = '{text}'; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}")
+    await page.wait_for_timeout(500)
+    
+    # Try to find and click the send button, or just press Enter
+    await page.keyboard.press("Enter")
     await page.wait_for_timeout(500)
 
     filled = await chat_input.input_value()

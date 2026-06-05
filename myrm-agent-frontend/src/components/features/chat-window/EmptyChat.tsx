@@ -4,7 +4,6 @@ import { useTranslations } from 'next-intl';
 import React from 'react';
 import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
-import LocalCapabilitiesBanner from './LocalCapabilitiesBanner';
 import CompetitorMigrationBanner from './CompetitorMigrationBanner';
 import { TaskAdaptivePreview } from './TaskAdaptivePreview';
 import useChatStore from '@/store/useChatStore';
@@ -35,7 +34,6 @@ const EmptyChat = React.memo(() => {
           </div>
         </div>
 
-        <LocalCapabilitiesBanner />
         <CompetitorMigrationBanner />
 
         <SamplePrompts />

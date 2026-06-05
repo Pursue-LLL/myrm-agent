@@ -1,3 +1,8 @@
+/**
+ * [INPUT] skills growth API via @/services
+ * [OUTPUT] PendingEvolutionsDashboard: 待审核技能进化列表
+ * [POS] features/skills 技能进化审核入口面板
+ */
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';

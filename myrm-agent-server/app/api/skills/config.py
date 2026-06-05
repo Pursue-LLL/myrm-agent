@@ -190,7 +190,7 @@ async def untrust_skill(skill_id: str) -> dict[str, str]:
 
 @router.post("/{skill_id}/rollback")
 async def rollback_skill_evolution(skill_id: str) -> dict[str, str]:
-    """Rollback a skill to its previous version using the .bak file."""
+    """One-step rollback using the adjacent ``.bak`` file (no ``skill_versions`` row required)."""
     skill = await skills_service.get_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")

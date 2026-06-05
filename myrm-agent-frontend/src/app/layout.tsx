@@ -19,7 +19,7 @@ import { QuarantineDialog } from '@/components/features/app-shell/QuarantineDial
 import { VaultUnlockModal } from '@/components/features/app-shell/VaultUnlockModal';
 import { ApprovalDrawer } from '@/components/approval/ApprovalDrawer';
 import DeepLinkListener from '@/components/features/app-shell/deep-link-listener';
-import { QuickAskModal } from '@/components/features/app-shell/quick-ask-modal';
+import { FlowPadModal } from '@/components/features/app-shell/flow-pad-modal';
 import { PWAUpdater } from '@/components/features/app-shell/pwa-updater';
 import { AppUpdatePrompt } from '@/components/features/app-shell/app-update-prompt';
 import AppshotInitializer from '@/components/features/app-shell/appshot-initializer';
@@ -90,7 +90,7 @@ export default async function LocaleLayout({ children }: { children: React.React
                 <QuarantineDialog />
                 <VaultUnlockModal />
                 <ApprovalDrawer />
-                <QuickAskModal />
+                <FlowPadModal />
                 <PWAUpdater />
                 <AppUpdatePrompt />
                 <AppshotInitializer />

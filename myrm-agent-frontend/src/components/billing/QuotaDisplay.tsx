@@ -1,3 +1,8 @@
+/**
+ * [INPUT] useSubscription / useEntitlements hooks (POS: SaaS 配额与订阅状态)
+ * [OUTPUT] QuotaDisplay: 账户设置页配额与用量卡片
+ * [POS] billing 层配额可视化组件
+ */
 'use client';
 
 import { memo, useMemo } from 'react';

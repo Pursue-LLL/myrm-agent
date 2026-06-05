@@ -1,7 +1,7 @@
 /**
- * [INPUT] Unified skill growth audit data from API
- * [OUTPUT] Rendered dashboard for negative growth outcomes
- * [POS] myrm-agent-frontend/src/components/settings/EvolutionRejectionDashboard.tsx
+ * [INPUT] skills growth audit API via @/services
+ * [OUTPUT] EvolutionRejectionDashboard: 技能进化拒绝/失败审计面板
+ * [POS] features/skills 技能进化负向结果审计入口
  */
 'use client';
 

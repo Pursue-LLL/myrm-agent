@@ -19,7 +19,6 @@ import {
   Settings,
   User,
   ChevronDown,
-  RefreshCw,
   Lock,
   LockOpen,
   Pin,
@@ -61,6 +60,7 @@ import CodeBlock from '@/components/features/markdown-render-tools/CodeBlock';
 import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import type { Skill, SkillTrap, SecurityScanSummary } from '@/store/skill/types';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
+import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
 import { IconAlertTriangle } from '@/components/features/icons/PremiumIcons';
 import SkillExportDialog from './SkillExportDialog';
@@ -108,8 +108,6 @@ const SkillDetailSheet = memo(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showTrustConfirm, setShowTrustConfirm] = useState(false);
     const [isTrusting, setIsTrusting] = useState(false);
-    const [isRollingBack, setIsRollingBack] = useState(false);
-    const [showRollbackConfirm, setShowRollbackConfirm] = useState(false);
     const [showOptimizeInput, setShowOptimizeInput] = useState(false);
     const [optimizeInstruction, setOptimizeInstruction] = useState('');
     const [isOptimizing, setIsOptimizing] = useState(false);
@@ -247,35 +245,11 @@ const SkillDetailSheet = memo(
       }
     }, [skill, t, onOpenChange, onTrustChange]);
 
-    const handleRollback = useCallback(async () => {
+    const reloadSkillContent = useCallback(() => {
       if (!skill) return;
-      setIsRollingBack(true);
-      try {
-        const response = await fetch(`/api/v1/skills/${skill.id}/rollback`, {
-          method: 'POST',
-        });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.detail || 'Failed to rollback');
-        }
-        toast({
-          title: 'Rollback Success',
-          description: `Skill ${skill.name} has been rolled back to the previous version.`,
-        });
-        // Reload content
-        getSkillFile(skill.id, 'SKILL.md')
-          .then(setSkillContent)
-          .catch(() => setSkillContent(''));
-      } catch (error) {
-        toast({
-          title: 'Rollback Failed',
-          description: error instanceof Error ? error.message : 'Failed to rollback skill',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsRollingBack(false);
-        setShowRollbackConfirm(false);
-      }
+      getSkillFile(skill.id, 'SKILL.md')
+        .then(setSkillContent)
+        .catch(() => setSkillContent(''));
     }, [skill]);
 
     const handleToggleEvolutionLock = useCallback(async () => {
@@ -375,7 +349,9 @@ const SkillDetailSheet = memo(
                 <p className="text-muted-foreground">{skill.description}</p>
 
                 {/* Quality Guardian & AB Test Status */}
-                <SkillQualityGuardian skillId={skill.id} />
+                <SkillQualityGuardian skillId={skill.id} onPromoted={reloadSkillContent} />
+
+                <SkillVersionsPanel skillId={skill.id} onActivated={reloadSkillContent} />
 
                 {/* Availability warning */}
                 {!skill.available && (
@@ -741,21 +717,6 @@ const SkillDetailSheet = memo(
                   </Button>
                 )}
                 {skill.type === 'local' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRollbackConfirm(true)}
-                    disabled={isRollingBack}
-                  >
-                    {isRollingBack ? (
-                      <Loader2 className="animate-spin mr-2" size={16} />
-                    ) : (
-                      <RefreshCw size={16} className="mr-2" />
-                    )}
-                    Rollback
-                  </Button>
-                )}
-                {skill.type === 'local' && (
                   <div className="relative group">
                     <Button
                       variant="outline"
@@ -825,36 +786,6 @@ const SkillDetailSheet = memo(
               >
                 {isDeleting && <Loader2 className="animate-spin mr-2" size={16} />}
                 {t('detail.delete')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={showRollbackConfirm} onOpenChange={setShowRollbackConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Rollback</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to rollback to the previous version?
-                <br />
-                <br />
-                This will overwrite the current skill code with the contents of the `.bak` file.
-                <br />
-                <br />
-                <span className="text-destructive font-medium inline-flex items-center gap-1">
-                  <IconAlertTriangle className="w-4 h-4" /> This action will immediately affect all users using this
-                  skill.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isRollingBack}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleRollback}
-                disabled={isRollingBack}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isRollingBack ? 'Rolling back...' : `Rollback`}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

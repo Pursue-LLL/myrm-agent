@@ -132,7 +132,9 @@ class _ChatTurnMixin(_ChatServiceBase):
         lang = lang_match.group(1).strip() if lang_match else ""
 
         clean_content = re.sub(r"```.*?```", "", raw_content, flags=re.DOTALL)
+        clean_content = re.sub(r"```.*$", "", clean_content, flags=re.DOTALL)  # Strip unclosed code blocks from truncation
         clean_content = re.sub(r"<think>.*?</think>", "", clean_content, flags=re.DOTALL)
+        clean_content = re.sub(r"<think>.*$", "", clean_content, flags=re.DOTALL)  # Strip unclosed think blocks
         clean_content = re.sub(r"http[s]?://\S+", "", clean_content)
         clean_content = re.sub(r"<[^>]+>", "", clean_content)
         clean_content = clean_content.strip()

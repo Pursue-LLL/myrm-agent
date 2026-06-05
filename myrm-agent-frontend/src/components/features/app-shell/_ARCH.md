@@ -23,6 +23,7 @@
 | `boot-screen.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `capability-icons.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `command-palette.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `flow-pad-modal.tsx` | 组件/模块 | Omni-FlowPad 全局 Dialog：截图预览+Agent选择+指令输入 | 见源码 |
 | `config-load-error.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `confirm-dialog.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `deep-link-listener.tsx` | 组件/模块 | 见源码 | 见源码 |

@@ -584,6 +584,26 @@ async def _apply_content_update(payload: EvolutionApprovalPayload, store: SkillS
 
     await store.save_skill(skill_record)
 
+    try:
+        from app.api.skill_optimization.dependencies import get_storage
+        from app.services.skill_optimization.skill_version_sync import persist_skill_version
+
+        opt_storage = get_storage()
+        await persist_skill_version(
+            opt_storage,
+            payload.skill_id,
+            content_to_write,
+            created_by="evolution_engine",
+            disk_path=skill_path,
+            invalidate_backup=True,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to persist skill version snapshot for %s: %s",
+            payload.skill_id,
+            exc,
+        )
+
     if is_fork and agent_id:
         try:
             from app.database.connection import get_session

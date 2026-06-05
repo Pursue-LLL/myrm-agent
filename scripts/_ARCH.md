@@ -20,6 +20,8 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
 | `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
+| `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox E2E：向运行中后端 POST seed-mock（或 `--direct` 直写 DB） |
+| `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox 全链路：pytest API + Playwright UI（依赖 `myrm dev`） |
 | `maintainer/` | — | **OSS 仓无脚本**；代码生成在闭源 `myrm-agent-harness/scripts/maintainer/`（如 `generate_litellm_routing.py`）。前端仅提交生成产物。见 [maintainer/_ARCH.md](maintainer/_ARCH.md) |
 
 ## 约束

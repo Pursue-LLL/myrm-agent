@@ -33,7 +33,6 @@ from app.api.config.artifact_mappings import router as artifact_mappings_router
 from app.api.config.router import router as config_router
 from app.api.connect.router import router as connect_router
 from app.api.context.router import router as context_bundle_router
-from app.api.context.router import search_router as context_search_router
 from app.api.credentials.router import router as credentials_router
 from app.api.cron.routes import router as cron_router
 from app.api.eval.router import router as eval_router
@@ -48,7 +47,6 @@ from app.api.health.router import router as health_router
 from app.api.integrations import router as integrations_router
 from app.api.kanban.pipeline_router import pipeline_router as kanban_pipeline_router
 from app.api.kanban.router import router as kanban_router
-from app.api.local_file_search.router import router as local_file_search_router
 from app.api.media import media_router
 from app.api.memory.router import router as memory_router
 from app.api.message_filter import router as message_filter_router
@@ -144,7 +142,6 @@ api_router.include_router(batch_optimization_router, tags=["batch-optimization"]
 api_router.include_router(credentials_router, prefix="/credentials", tags=["credentials"])
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 api_router.include_router(context_bundle_router, tags=["context-bundle"])
-api_router.include_router(context_search_router, tags=["context-search"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
 api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
 api_router.include_router(calendar_router)
@@ -218,7 +215,6 @@ api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
 api_router.include_router(workspace_rules_router, tags=["workspace"])
 api_router.include_router(api_keys_router)
 api_router.include_router(companion_router, prefix="/companion", tags=["companion"])
-api_router.include_router(local_file_search_router, prefix="/local-file-search", tags=["local-file-search"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
 

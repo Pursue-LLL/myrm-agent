@@ -9,11 +9,11 @@ import { toast } from 'sonner';
 
 export class IntentDispatcher {
   private router: AppRouterInstance;
-  private openQuickAsk: (text: string) => void;
+  private openFlowPad: (text: string) => void;
 
-  constructor(router: AppRouterInstance, openQuickAsk: (text: string) => void) {
+  constructor(router: AppRouterInstance, openFlowPad: (text: string) => void) {
     this.router = router;
-    this.openQuickAsk = openQuickAsk;
+    this.openFlowPad = openFlowPad;
   }
 
   public async dispatch(rawUrl: string) {
@@ -52,8 +52,7 @@ export class IntentDispatcher {
         this.router.push(`/agents/${intent.id}`);
         break;
       case 'ask':
-        // Trigger the global Quick Ask modal
-        this.openQuickAsk(intent.text);
+        this.openFlowPad(intent.text);
         break;
       case 'oauth':
         // Handle OAuth callback (e.g., save token, redirect to settings)

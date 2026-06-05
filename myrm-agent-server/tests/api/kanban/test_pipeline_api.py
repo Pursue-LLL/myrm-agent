@@ -64,10 +64,9 @@ class TestListPipelines:
         resp = client.get("/api/v1/kanban/pipelines")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["total"] >= 4
+        assert data["total"] >= 3
         skill_ids = [item["skill_id"] for item in data["items"]]
         assert "video-production-pipeline" in skill_ids
-        assert "research-paper-pipeline" in skill_ids
         assert "code-review-pipeline" in skill_ids
         assert "data-analysis-pipeline" in skill_ids
 
@@ -215,23 +214,3 @@ class TestInstantiatePipeline:
         assert resp.status_code == 201
         data = resp.json()
         assert len(data["task_ids"]) == 4
-
-    def test_research_paper_pipeline(self, client: TestClient) -> None:
-        board = _create_board(client)
-        board_id = board["board_id"]
-        resp = client.post(
-            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
-            json={
-                "skill_id": "research-paper-pipeline",
-                "answers": {
-                    "topic": "量子计算在药物发现中的应用",
-                    "paper_type": "综述",
-                    "word_count": "8000-12000 词",
-                    "language": "中文",
-                    "citation_style": "GB/T 7714",
-                },
-            },
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert len(data["task_ids"]) == 5

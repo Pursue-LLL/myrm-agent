@@ -58,17 +58,16 @@ async def start_ab_test(
     from myrm_agent_harness.agent.skills.optimization import ABTestEngine
     from myrm_agent_harness.agent.skills.optimization.config import ABTestConfig
 
-    # 获取基线版本的质量评分
-    baseline_skill_version = await storage.get_skill_version(
-        request.skill_id,
-        request.baseline_version,
-    )
+    from app.services.skill_optimization.skill_version_sync import ensure_baseline_version, persist_skill_version
 
-    if not baseline_skill_version or not baseline_skill_version.quality_score:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Baseline version {request.baseline_version} not found or has no quality score",
+    try:
+        baseline_skill_version, baseline_score = await ensure_baseline_version(
+            storage,
+            request.skill_id,
+            request.baseline_version,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     # 创建A/B测试引擎
     ab_engine = ABTestEngine(ABTestConfig())
@@ -76,9 +75,20 @@ async def start_ab_test(
     # 启动测试
     test_result = await ab_engine.start_ab_test(
         skill_id=request.skill_id,
-        baseline_version=request.baseline_version,
-        baseline_score=baseline_skill_version.quality_score,
+        baseline_version=baseline_skill_version.version,
+        baseline_score=baseline_score,
         candidate_content=request.candidate_content,
+    )
+
+    await persist_skill_version(
+        storage,
+        request.skill_id,
+        request.candidate_content,
+        version=test_result.candidate_version,
+        created_by="ab_test",
+        quality_score=baseline_score,
+        activate=False,
+        sync_disk=False,
     )
 
     # 保存测试结果到storage

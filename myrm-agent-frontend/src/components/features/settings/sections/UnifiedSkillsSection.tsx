@@ -8,8 +8,8 @@ import { Clock3, ShieldAlert } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/useSettingsSubTabUrl';
 import SkillsSection from './SkillsSection';
-import { PendingEvolutionsDashboard } from '@/components/settings/PendingEvolutionsDashboard';
-import { EvolutionRejectionDashboard } from '@/components/settings/EvolutionRejectionDashboard';
+import { PendingEvolutionsDashboard } from '@/components/features/skills/PendingEvolutionsDashboard';
+import { EvolutionRejectionDashboard } from '@/components/features/skills/EvolutionRejectionDashboard';
 
 const UnifiedSkillsSection = memo(() => {
   const t = useTranslations('settings');

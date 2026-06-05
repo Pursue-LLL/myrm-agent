@@ -191,8 +191,9 @@ async def rollback_optimization(
     current_active = await storage.get_active_version(skill_id)
     current_version = current_active.version if current_active else None
 
-    # 激活目标版本
-    await storage.activate_version(skill_id, target_version)
+    from app.services.skill_optimization.skill_version_sync import activate_version_with_disk_sync
+
+    await activate_version_with_disk_sync(storage, skill_id, target_version)
 
     # 记录审计日志
     from datetime import datetime

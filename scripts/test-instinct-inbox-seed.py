@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
+_AGENT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_API_BASE = os.getenv("MYRM_API_BASE", "http://127.0.0.1:8080")
 SEED_PATH = "/api/v1/skills/drafts/test/seed-mock"
 
@@ -17,13 +20,12 @@ def seed_via_http(api_base: str = DEFAULT_API_BASE) -> dict[str, object]:
     url = f"{api_base.rstrip('/')}{SEED_PATH}"
     req = urllib.request.Request(url, method="POST", data=b"")
     with urllib.request.urlopen(req, timeout=10) as resp:
-        import json
-
         return json.loads(resp.read().decode())
 
 
 async def seed_direct() -> None:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "myrm-agent-server"))
+    server_root = _AGENT_ROOT / "myrm-agent-server"
+    sys.path.insert(0, str(server_root))
     from app.api.skills.drafts import seed_mock_drafts_for_e2e
     from app.database.connection import init_database
 

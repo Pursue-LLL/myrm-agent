@@ -1,0 +1,175 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import BrandLogo from '@/components/features/app-shell/BrandLogo';
+import { cn } from '@/lib/utils/classnameUtils';
+import { discoverCompetitors, type DiscoveryResponse } from '@/services/migrationDiscovery';
+import { probeLocalCapabilities, type ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
+import { completeOnboarding } from '@/services/onboarding';
+import { isLocalMode } from '@/lib/deploy-mode';
+import useProviderStore from '@/store/useProviderStore';
+import useConfigStore from '@/store/useConfigStore';
+import { getActiveSearchServiceConfig } from '@/store/config/searchService';
+
+import MigrationWizardSection from '@/components/features/settings/sections/MigrationWizardSection';
+import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
+import { Button } from '@/components/primitives/button';
+
+interface OnboardingWizardProps {
+  onComplete: () => void;
+}
+
+type Step = 'welcome' | 'migration' | 'capabilities' | 'finishing';
+
+const WELCOME_DURATION_MS = 2500;
+
+export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
+  const t = useTranslations('boot');
+  const [step, setStep] = useState<Step>('welcome');
+  const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
+  const [probe, setProbe] = useState<ProbeLocalResponse | null>(null);
+  const [fadeOut, setFadeOut] = useState(false);
+
+  const providers = useProviderStore((s) => s.providers);
+  const isInitialized = useProviderStore((s) => s.isInitialized);
+  const searchServiceConfigs = useConfigStore((s) => s.searchServiceConfigs);
+
+  const hasEnabledProvider = providers.some(
+    (p) => p.isEnabled && (p.apiKeys?.some((k) => k.isActive && k.key) || ['ollama', 'lm_studio'].includes(p.id)),
+  );
+  const searchConfigured = !!getActiveSearchServiceConfig(searchServiceConfigs);
+
+  const needsCapabilities = isLocalMode() && isInitialized && (!hasEnabledProvider || !searchConfigured);
+
+  useEffect(() => {
+    let mounted = true;
+    const startTime = Date.now();
+
+    const runInit = async () => {
+      try {
+        const [discRes, probeRes] = await Promise.all([
+          isLocalMode() ? discoverCompetitors(false).catch(() => null) : Promise.resolve(null),
+          needsCapabilities ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
+        ]);
+
+        if (!mounted) return;
+
+        setDiscovery(discRes);
+        setProbe(probeRes);
+
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, WELCOME_DURATION_MS - elapsed);
+
+        setTimeout(() => {
+          if (!mounted) return;
+          
+          if (discRes && discRes.sources.length > 0) {
+            setStep('migration');
+          } else if (needsCapabilities) {
+            setStep('capabilities');
+          } else {
+            handleFinish();
+          }
+        }, remaining);
+      } catch (e) {
+        if (mounted) handleFinish();
+      }
+    };
+
+    void runInit();
+
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsCapabilities]);
+
+  const handleFinish = useCallback(async () => {
+    setStep('finishing');
+    setFadeOut(true);
+    try {
+      await completeOnboarding();
+    } catch (e) {
+      // Ignore errors
+    }
+    setTimeout(onComplete, 400);
+  }, [onComplete]);
+
+  const handleMigrationCompleteOrSkip = useCallback(() => {
+    if (needsCapabilities) {
+      setStep('capabilities');
+    } else {
+      handleFinish();
+    }
+  }, [needsCapabilities, handleFinish]);
+
+  if (step === 'welcome' || step === 'finishing') {
+    return (
+      <div
+        className={cn(
+          'fixed inset-0 z-50 flex flex-col items-center justify-center',
+          'bg-background select-none',
+          'transition-opacity duration-400 ease-out',
+          fadeOut ? 'opacity-0' : 'opacity-100',
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -top-24 left-1/4 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-accent-warm/10 blur-3xl animate-pulse" />
+        </div>
+
+        <div className="relative flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-700">
+          <BrandLogo size={64} priority className="w-16 h-16" />
+          <div className="text-2xl font-semibold brand-gradient-text">
+            {t('title')}
+          </div>
+          <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+            <span className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            {t('step.initServices')}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-y-auto">
+      <div className="flex-1 w-full max-w-4xl mx-auto p-6 sm:p-10 flex flex-col justify-center min-h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="mb-8 flex items-center justify-center">
+          <BrandLogo size={40} className="w-10 h-10" />
+        </div>
+
+        {step === 'migration' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">发现历史数据</h1>
+              <p className="text-muted-foreground">我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6 shadow-sm">
+              <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} />
+            </div>
+            <div className="flex justify-center mt-6">
+              <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>
+                跳过此步
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'capabilities' && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2 mb-8">
+              <h1 className="text-2xl font-bold">配置 AI 引擎</h1>
+              <p className="text-muted-foreground">连接本地大模型与联网搜索，实现开箱即用的 AI 体验。</p>
+            </div>
+            <div className="bg-card border rounded-xl p-6 shadow-sm">
+              <LocalCapabilitiesSetup probeResult={probe} onComplete={handleFinish} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

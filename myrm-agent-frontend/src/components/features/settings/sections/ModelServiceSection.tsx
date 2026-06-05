@@ -236,16 +236,58 @@ const ModelServiceSection = memo(() => {
     return configs;
   }, [providers]);
 
-  const handleApplyRecommendedModel = useCallback((_modelId: string) => {
-    // 自动添加 Ollama 提供商（如果不存在）并设置为该模型
-    const ollamaProvider = providers.find(p => p.providerType === 'ollama');
-    if (ollamaProvider) {
-      handleSelectProvider(ollamaProvider.id);
-      // 这里可以进一步触发模型下载逻辑，目前先切换到对应提供商
-    } else {
-      handleAddProvider('Ollama Local', 'ollama');
+  const handleApplyRecommendedModel = useCallback((modelId: string) => {
+    // 提取纯模型名，例如 'ollama/qwen2.5:3b' -> 'qwen2.5:3b'
+    const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
+    
+    // 查找是否已有 Ollama 提供商
+    let ollamaProvider = providers.find(p => p.providerType === 'ollama');
+    
+    if (!ollamaProvider) {
+      // 如果没有，自动添加一个
+      const newId = 'ollama_local';
+      addProvider('Ollama Local', 'ollama');
+      handleSelectProvider(newId);
+      
+      // 延迟一下等待 store 更新，或者直接通过 store 的 getState 修改
+      setTimeout(() => {
+        const state = useProviderStore.getState();
+        const newProvider = state.providers.find(p => p.id === newId);
+        if (newProvider) {
+          state.updateProvider(newId, {
+            ...newProvider,
+            customModels: [pureModelName],
+            enabledModels: [pureModelName]
+          });
+        }
+      }, 100);
+      return;
     }
-  }, [providers, handleSelectProvider, handleAddProvider]);
+    
+    // 切换到 Ollama 提供商
+    handleSelectProvider(ollamaProvider.id);
+    
+    // 将模型添加到 customModels 列表中（如果不存在）
+    const currentCustomModels = ollamaProvider.customModels || [];
+    if (!currentCustomModels.includes(pureModelName)) {
+      const updatedProvider = {
+        ...ollamaProvider,
+        customModels: [...currentCustomModels, pureModelName],
+        // 自动将该模型加入已启用列表
+        enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName]
+      };
+      updateProvider(ollamaProvider.id, updatedProvider);
+    } else {
+      // 如果已在自定义列表中，确保它被启用
+      if (!(ollamaProvider.enabledModels || []).includes(pureModelName)) {
+        const updatedProvider = {
+          ...ollamaProvider,
+          enabledModels: [...(ollamaProvider.enabledModels || []), pureModelName]
+        };
+        updateProvider(ollamaProvider.id, updatedProvider);
+      }
+    }
+  }, [providers, handleSelectProvider, addProvider, updateProvider]);
 
   if (initError) {
     return <ConfigLoadError onRetry={retryInit} className="min-h-[400px]" />;

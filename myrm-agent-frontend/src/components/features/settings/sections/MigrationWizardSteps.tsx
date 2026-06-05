@@ -42,6 +42,7 @@ const COVERAGE_LABEL_KEYS = new Set([
   'memory_persona',
   'skills_review',
   'api_keys_manual',
+  'mcp_ready',
   'mcp_manual',
   'channels_manual',
   'agent_config_manual',

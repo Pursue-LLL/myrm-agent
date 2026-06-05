@@ -10,4 +10,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 路由导出 | — |
-| `router.py` | 核心 | 批量优化 REST 接口（触发、状态、审查） | ⚠️ 待补 |
+| `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`、回滚调 `restore_skill_snapshot`） | ✅ |

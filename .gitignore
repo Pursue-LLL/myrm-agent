@@ -1,0 +1,28 @@
+# Local dev artifacts (subprojects have their own .gitignore)
+.DS_Store
+*.log
+*.pid
+.env
+.env.local
+.env.*.local
+
+# Editor / tooling
+.idea/
+.vscode/
+.cursor/
+.kiro/
+
+# Debug screenshots at repo root
+*verifier*.png
+failed_test*.png
+
+# Python scratch at repo root
+test_*.py
+__pycache__/
+*.pyc
+
+# Node leftovers at repo root
+node_modules/
+
+# Desktop orphan sidecar cache
+myrm-agent-desktop/agent-sidecar/

@@ -1238,6 +1238,7 @@
         "apply": "Apply",
         "installed": "Installed",
         "downloading": "Downloading...",
+        "cancel": "Cancel Download",
         "ollamaNotRunningTitle": "Ollama Not Running",
         "ollamaNotRunningDesc": "Please install and start Ollama to download and use local models.",
         "warningTitle": "Hardware Limitation Warning",
@@ -1576,7 +1577,9 @@
         "contentUnchanged": "Content Unchanged",
         "createdByLlm": "LLM Optimization",
         "createdByManual": "Manual Edit",
-        "createdByRollback": "Rollback"
+        "createdByRollback": "Rollback",
+        "refresh": "Refresh",
+        "confirmAction": "Activate this version"
       }
     },
     "skillAggregation": {
@@ -6473,6 +6476,7 @@
           "memory_persona": "Memory / persona",
           "skills_review": "Skills",
           "api_keys_manual": "API keys",
+          "mcp_ready": "MCP tools",
           "mcp_manual": "MCP tools",
           "channels_manual": "Channels",
           "agent_config_manual": "Agent config",
@@ -10206,7 +10210,21 @@
     "permissionDescription": "Grant access in System Settings → Privacy & Security → Accessibility to enable window text extraction.",
     "openSettings": "Open Settings",
     "captured": "Appshot captured ({count})",
-    "captureFailed": "Screen capture failed"
+    "captureFailed": "Screen capture failed",
+    "maxCapturesReached": "Maximum number of captures reached"
+  },
+  "flowPad": {
+    "title": "Quick Ask",
+    "titleWithCapture": "Screen Capture",
+    "placeholder": "Ask anything...",
+    "placeholderWithCapture": "Describe what you want to do...",
+    "sendTo": "Send to",
+    "defaultAgent": "Default Agent",
+    "submitted": "Sent to {agent}",
+    "submitFailed": "Failed to send, please retry",
+    "toSend": "send",
+    "toCancel": "cancel",
+    "collapse": "Collapse"
   },
   "annotationEditor": {
     "arrow": "Arrow",

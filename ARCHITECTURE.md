@@ -107,6 +107,14 @@ flowchart TD
 | 后台编排 | `app/lifecycle/*` | Gateway/Cron/看板/记忆守护者等 |
 | 请求路径 | `app/api` → `app/services` → harness | 单机业务编排 |
 
+### Channels 三层（新人导航）
+
+| 层 | 路径 | 职责 |
+|----|------|------|
+| 框架 | `app/channels/` | 消息总线、Provider 实现、入站路由（见 `CHANNELS_SYSTEM.md`） |
+| HTTP | `app/api/channels/` | 管理端点、Webhook 入站、连接测试 |
+| 业务 | `app/services/channels/` + `app/core/channel_bridge/` | 配对、Agent 绑定、实例配置 |
+
 ---
 
 ## 快速启动（贡献者）
