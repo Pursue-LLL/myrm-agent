@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import platform
 import re
 import urllib.error
 import urllib.request
@@ -14,8 +15,8 @@ _LOCK_PATH = _SERVER_ROOT / "uv.lock"
 _HARNESS_VERSION = "0.1.0rc1"
 
 
-def _harness_published_on_pypi() -> bool:
-    url = f"https://pypi.org/pypi/myrm-agent-harness/{_HARNESS_VERSION}/json"
+def _pypi_package_exists(package: str, version: str) -> bool:
+    url = f"https://pypi.org/pypi/{package}/{version}/json"
     request = urllib.request.Request(url, headers={"User-Agent": "myrm-architecture-test"})
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -24,10 +25,34 @@ def _harness_published_on_pypi() -> bool:
         return False
 
 
+def _platform_core_package() -> str:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    if system == "darwin":
+        suffix = "darwin-arm64" if machine in {"arm64", "aarch64"} else "darwin-x64"
+    elif system == "linux":
+        suffix = "linux-arm64" if machine in {"arm64", "aarch64"} else "linux-x64"
+    elif system in {"windows", "mingw", "msys", "cygwin"}:
+        suffix = "win32-arm64" if machine in {"arm64", "aarch64"} else "win32-x64"
+    else:
+        return ""
+    return f"myrm-agent-harness-core-{suffix}"
+
+
+def _harness_sync_lock_ready_on_pypi() -> bool:
+    """True when ./myrm harness sync-lock can run (main wheel + platform core on PyPI)."""
+    core = _platform_core_package()
+    if not core:
+        return False
+    return _pypi_package_exists("myrm-agent-harness", _HARNESS_VERSION) and _pypi_package_exists(
+        core, _HARNESS_VERSION
+    )
+
+
 @pytest.mark.architecture
 @pytest.mark.skipif(
-    not _harness_published_on_pypi(),
-    reason="myrm-agent-harness not on PyPI yet; run ./myrm harness sync-lock after publish",
+    not _harness_sync_lock_ready_on_pypi(),
+    reason="harness PyPI release incomplete (core wheel missing); run ./myrm harness sync-lock after full publish",
 )
 def test_uv_lock_harness_not_editable() -> None:
     """CI installs harness from PyPI; editable lock entries break uv sync --frozen."""
@@ -44,8 +69,8 @@ def test_uv_lock_harness_not_editable() -> None:
 
 @pytest.mark.architecture
 @pytest.mark.skipif(
-    not _harness_published_on_pypi(),
-    reason="myrm-agent-harness not on PyPI yet; run ./myrm harness sync-lock after publish",
+    not _harness_sync_lock_ready_on_pypi(),
+    reason="harness PyPI release incomplete (core wheel missing); run ./myrm harness sync-lock after full publish",
 )
 def test_uv_lock_harness_has_registry_source() -> None:
     """After PyPI publish, lock must contain a registry source for myrm-agent-harness."""
