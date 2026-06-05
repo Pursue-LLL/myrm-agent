@@ -65,12 +65,22 @@ class TestDraftsE2E:
         assert resp.json()["status"] == "REJECTED"
 
     @pytest.mark.asyncio
-    async def test_seed_mock_drafts_endpoint(self, client: TestClient):
-        resp = client.post("/api/v1/skills/drafts/test/seed-mock")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["skill_names"] == ["test-frontend-approve", "test-frontend-reject"]
-        assert len(body["created_ids"]) == 2
+    async def test_seed_mock_draft_names_visible_in_list(self, client: TestClient):
+        from app.services.approvals.registry import ApprovalRegistry
+
+        for skill_name in ("test-frontend-approve", "test-frontend-reject"):
+            await ApprovalRegistry.create_approval(
+                agent_id="default",
+                chat_id="test_chat_123",
+                action_type="skill_draft",
+                payload={
+                    "skill_name": skill_name,
+                    "description": f"E2E mock for {skill_name}",
+                    "content": f"# {skill_name}",
+                    "score": 0.95,
+                },
+                reason="Instinct Inbox E2E seed",
+            )
 
         list_resp = client.get("/api/v1/skills/drafts?status=PENDING_REVIEW")
         assert list_resp.status_code == 200

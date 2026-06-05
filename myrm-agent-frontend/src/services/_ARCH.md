@@ -12,6 +12,7 @@
 | `channels.ts` | 渠道配置与状态 |
 | `llm-config.ts` | Provider / 模型探测 |
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
+| `projects.ts` | 项目 CRUD、会话归属移动 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `memory*.ts` | 记忆、Shared Context |
 | `kanban*.ts` | 看板任务 |

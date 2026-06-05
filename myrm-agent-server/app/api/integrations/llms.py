@@ -205,6 +205,21 @@ class ModelInfoBatchRequest(BaseModel):
     models: list[str] = Field(..., description="模型名称列表")
 
 
+class HardwareRecommendationResponse(BaseModel):
+    """硬件推荐响应"""
+    
+    hardware_detected: bool = Field(..., description="是否成功检测到硬件")
+    os_type: str | None = Field(default=None, description="操作系统类型")
+    cpu_arch: str | None = Field(default=None, description="CPU架构")
+    total_ram_gb: float | None = Field(default=None, description="总内存(GB)")
+    has_gpu: bool | None = Field(default=None, description="是否有GPU")
+    gpu_name: str | None = Field(default=None, description="GPU名称")
+    gpu_vram_gb: float | None = Field(default=None, description="GPU显存(GB)")
+    is_unified_memory: bool | None = Field(default=None, description="是否为统一内存(如Apple Silicon)")
+    
+    recommendations: list[dict[str, object]] = Field(default_factory=list, description="推荐模型列表")
+
+
 def _build_capabilities(info: dict[str, object]) -> ModelCapabilities:
     """从 LiteLLM 模型信息构建能力对象"""
     return ModelCapabilities(
@@ -419,3 +434,135 @@ async def get_model_info_batch(request: ModelInfoBatchRequest) -> JSONResponse:
             result[model] = ModelCapabilities().model_dump()
 
     return success_response(data=result)
+
+
+@router.get("/hardware/recommendations", response_model=StandardSuccessResponse)
+async def get_hardware_recommendations() -> JSONResponse:
+    """
+    获取基于本地硬件的模型推荐 (Fit Score)
+    
+    在 SaaS 模式下，或硬件检测失败时，返回 hardware_detected=False
+    """
+    from myrm_agent_harness.runtime.maintenance import detect_hardware_profile
+
+    from app.config.deploy_mode import DeployMode, get_deploy_mode
+    
+    # 1. 如果是 SaaS 模式，直接返回未检测（云端硬件对用户无意义）
+    if get_deploy_mode() == DeployMode.SANDBOX:
+        return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
+        
+    # 2. 调用 Harness 层探针获取物理硬件信息
+    profile = detect_hardware_profile()
+    if not profile:
+        return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
+        
+    # 3. 基础模型规格字典 (后续可改为从云端拉取)
+    # 格式: { "model_id": {"name": "...", "params_b": 7, "quantization": "Q4_K_M", "req_vram_gb": 5.0, "provider": "ollama"} }
+    model_specs = [
+        {
+            "id": "ollama/qwen2.5:0.5b",
+            "name": "Qwen 2.5 (0.5B)",
+            "description": "极速响应，适合简单任务和低配机器",
+            "req_vram_gb": 1.5,
+            "params_b": 0.5,
+        },
+        {
+            "id": "ollama/qwen2.5:3b",
+            "name": "Qwen 2.5 (3B)",
+            "description": "速度与能力的良好平衡，适合主流轻薄本",
+            "req_vram_gb": 3.0,
+            "params_b": 3.0,
+        },
+        {
+            "id": "ollama/llama3.2:8b",
+            "name": "Llama 3.2 (8B)",
+            "description": "强大的通用模型，适合主流开发机",
+            "req_vram_gb": 6.0,
+            "params_b": 8.0,
+        },
+        {
+            "id": "ollama/qwen2.5:14b",
+            "name": "Qwen 2.5 (14B)",
+            "description": "极强的推理能力，适合高配工作站",
+            "req_vram_gb": 10.0,
+            "params_b": 14.0,
+        },
+        {
+            "id": "ollama/deepseek-r1:32b",
+            "name": "DeepSeek R1 (32B)",
+            "description": "专家级推理模型，需要顶级硬件",
+            "req_vram_gb": 22.0,
+            "params_b": 32.0,
+        },
+        {
+            "id": "ollama/llama3.1:70b",
+            "name": "Llama 3.1 (70B)",
+            "description": "超大规模模型，仅限顶级工作站",
+            "req_vram_gb": 40.0,
+            "params_b": 70.0,
+        }
+    ]
+    
+    # 4. 计算可用显存上限
+    # 如果是统一内存 (Mac)，可用显存约等于总内存减去系统保留 (通常保留 3-4GB)
+    # 如果是独立显卡，使用探针获取的 VRAM，如果获取失败则回退到总内存的一半作为估算
+    available_vram = 0.0
+    if profile.is_unified_memory:
+        available_vram = max(0.0, profile.total_ram_gb - 4.0)
+    elif profile.has_gpu and profile.gpu_vram_gb:
+        available_vram = profile.gpu_vram_gb
+    else:
+        # Fallback: Assume CPU inference or unknown GPU, cap at half of system RAM
+        available_vram = profile.total_ram_gb * 0.5
+        
+    # 5. 计算 Fit Score 和推荐列表
+    recommendations = []
+    for spec in model_specs:
+        req_vram = float(spec["req_vram_gb"])
+        
+        # Fit Score 计算逻辑:
+        # 如果可用显存 >= 需求，分数在 80-100 之间 (显存越充裕分数越高，但不过分偏好极小模型)
+        # 如果可用显存 < 需求，分数在 0-50 之间 (严重不推荐)
+        if available_vram >= req_vram:
+            # 显存充裕度比率 (1.0 - 3.0+)
+            ratio = available_vram / req_vram
+            
+            if ratio >= 2.0:
+                score = 95  # 极度充裕，完美运行
+                fit_level = "perfect"
+            elif ratio >= 1.5:
+                score = 85  # 充裕，流畅运行
+                fit_level = "good"
+            else:
+                score = 75  # 刚好够用，可能偶尔卡顿
+                fit_level = "fair"
+        else:
+            ratio = available_vram / req_vram
+            score = int(ratio * 50)  # 0-50 分
+            fit_level = "poor"
+            
+        recommendations.append({
+            "model_id": spec["id"],
+            "name": spec["name"],
+            "description": spec["description"],
+            "req_vram_gb": req_vram,
+            "fit_score": score,
+            "fit_level": fit_level
+        })
+        
+    # 按分数降序排序
+    recommendations.sort(key=lambda x: int(x["fit_score"]), reverse=True)
+    
+    response = HardwareRecommendationResponse(
+        hardware_detected=True,
+        os_type=profile.os_type,
+        cpu_arch=profile.cpu_arch,
+        total_ram_gb=round(profile.total_ram_gb, 1),
+        has_gpu=profile.has_gpu,
+        gpu_name=profile.gpu_name,
+        gpu_vram_gb=round(profile.gpu_vram_gb, 1) if profile.gpu_vram_gb else None,
+        is_unified_memory=profile.is_unified_memory,
+        recommendations=recommendations
+    )
+    
+    return success_response(data=response.model_dump())

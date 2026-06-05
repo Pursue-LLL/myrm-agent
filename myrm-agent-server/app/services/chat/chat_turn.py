@@ -129,11 +129,21 @@ class _ChatTurnMixin(_ChatServiceBase):
         from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
         from myrm_agent_harness.toolkits.llms.errors.resilient import resilient_llm_call
 
-        user_messages = [msg.content for msg in messages if msg.role == "user"]
-        if not user_messages:
+        dialogue_parts = []
+        user_count = 0
+        for msg in messages:
+            if msg.role == "user":
+                dialogue_parts.append(f"User: {msg.content}")
+                user_count += 1
+                if user_count >= 2:
+                    break
+            elif msg.role == "assistant" and user_count > 0:
+                dialogue_parts.append(f"Assistant: {msg.content}")
+
+        if not dialogue_parts:
             return "Untitled Chat"
 
-        raw_content = " ".join(user_messages[:3])
+        raw_content = "\n\n".join(dialogue_parts)
 
         # 1. Structural Stripping & Sniffing
         lang_match = re.search(r"```([a-zA-Z0-9_+-]+)", raw_content)
@@ -152,7 +162,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         if len(clean_content) < 5:
             if lang:
                 lang_display = lang.capitalize() if len(lang) > 1 else lang
-                return f"{lang_display} 代码片段"
+                return f"{lang_display} Snippet"
             return "Untitled Chat"
 
         content = clean_content[:500]
@@ -201,7 +211,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             model_kwargs=model_kwargs,
         )
         llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
-        prompt = f"用5-15个字给这段对话起个标题，只输出标题：\n<user_input>\n{content[:200]}\n</user_input>"
+        prompt = f"Summarize this conversation into a short title (5-15 characters). Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n<user_input>\n{content[:200]}\n</user_input>"
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         title = str(response.content).strip().strip("\"'「」【】：:。.")
         if len(title) < 2 or len(title) > 50:

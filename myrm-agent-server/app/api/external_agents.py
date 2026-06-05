@@ -105,7 +105,7 @@ async def external_agent_auth_status() -> dict[str, object]:
                 "needsCodeInput": profile.needs_code_input,
             }
         )
-        return {"backends": backends}
+    return {"backends": backends}
 
 
 @router.post("/install/{backend}")

@@ -27,7 +27,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from myrm_agent_harness.toolkits.mcp.oauth import (
     MCPOAuthConfig,
     MCPOAuthToken,
@@ -46,18 +46,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _pending_auth: dict[str, dict[str, str]] = {}
+_successful_auth: dict[str, float] = {}
 _MAX_PENDING = 50
 _EXPIRY_SECONDS = 600
 
 
 def _evict_expired_pending() -> None:
     """Remove pending auth entries older than 10 minutes (lazy GC)."""
-    if len(_pending_auth) <= _MAX_PENDING:
-        return
     now = time.time()
-    expired = [k for k, v in _pending_auth.items() if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS]
-    for k in expired:
-        del _pending_auth[k]
+    if len(_pending_auth) > _MAX_PENDING:
+        expired = [k for k, v in _pending_auth.items() if now - float(v.get("created_at", "0")) > _EXPIRY_SECONDS]
+        for k in expired:
+            del _pending_auth[k]
+            
+    if len(_successful_auth) > _MAX_PENDING:
+        expired_success = [k for k, v in _successful_auth.items() if now - v > _EXPIRY_SECONDS]
+        for k in expired_success:
+            del _successful_auth[k]
 
 
 class MCPOAuthStartRequest(BaseModel):

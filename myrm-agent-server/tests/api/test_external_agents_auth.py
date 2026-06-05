@@ -63,7 +63,9 @@ class TestAuthStatus:
         ):
             resp = client.get("/api/v1/external-agents/auth/status")
         assert resp.status_code == 200
-        backends = {b["backend"]: b for b in resp.json()["backends"]}
+        body = resp.json()
+        assert len(body["backends"]) == 4
+        backends = {b["backend"]: b for b in body["backends"]}
         assert {"codex", "claude", "gemini", "qwen"} <= set(backends)
         codex = backends["codex"]
         assert codex["installed"] is False

@@ -24,7 +24,7 @@
 | `skill.py` | 域模块 | PendingEvolution (deprecated), PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |
 | `notification.py` | 域模块 | SystemNotification | ✅ |
-| `project.py` | 域模块 | Project（会话项目分组） | ✅ |
+| `project.py` | 域模块 | Project（会话项目分组及工作区，含 workspace_path 字段） | ✅ |
 | `kanban.py` | 域模块 | KanbanBoardModel, KanbanTaskModel（看板/任务 ORM，含 attachment_ids_json） | ✅ |
 | `message_filter.py` | 域模块 | MessageFilterConfig, MessageFilterRule, MessageFilterAudit, MessageFilterConfigHistory | ✅ |
 

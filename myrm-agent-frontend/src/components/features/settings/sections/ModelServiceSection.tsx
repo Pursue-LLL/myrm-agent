@@ -15,6 +15,7 @@ import {
 } from '@/store/config/providerTypes';
 import ProviderList from '../model-service/ProviderList';
 import ProviderConfig from '../model-service/ProviderConfig';
+import HardwareCookbook from '../model-service/HardwareCookbook';
 import AddProviderDialog from '../model-service/AddProviderDialog';
 import { DeleteProviderDialog } from '../model-service/DeleteProviderDialog';
 import SpeedTestDialog from '../model-service/SpeedTestDialog';
@@ -235,6 +236,17 @@ const ModelServiceSection = memo(() => {
     return configs;
   }, [providers]);
 
+  const handleApplyRecommendedModel = useCallback((modelId: string) => {
+    // 自动添加 Ollama 提供商（如果不存在）并设置为该模型
+    const ollamaProvider = providers.find(p => p.providerType === 'ollama');
+    if (ollamaProvider) {
+      handleSelectProvider(ollamaProvider.id);
+      // 这里可以进一步触发模型下载逻辑，目前先切换到对应提供商
+    } else {
+      handleAddProvider('Ollama Local', 'ollama');
+    }
+  }, [providers, handleSelectProvider, handleAddProvider]);
+
   if (initError) {
     return <ConfigLoadError onRetry={retryInit} className="min-h-[400px]" />;
   }
@@ -300,7 +312,9 @@ const ModelServiceSection = memo(() => {
           </div>
 
           {/* 右侧配置区域 */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-6">
+            <HardwareCookbook onApplyModel={handleApplyRecommendedModel} />
+            
             {selectedProvider ? (
               <ProviderConfig
                 provider={selectedProvider}

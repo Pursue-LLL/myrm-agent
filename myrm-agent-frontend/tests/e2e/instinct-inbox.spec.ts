@@ -2,6 +2,30 @@ import { test, expect } from '@playwright/test';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 
+async function dismissBatchApprovalDialog(
+  page: import('@playwright/test').Page,
+): Promise<void> {
+  const batchDialog = page.getByRole('dialog', { name: /批量审批|Batch/i });
+  if (!(await batchDialog.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return;
+  }
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.keyboard.press('Escape');
+    if (!(await batchDialog.isVisible().catch(() => false))) {
+      return;
+    }
+    const vaulOverlay = page.locator('[data-vaul-overlay]').last();
+    if (await vaulOverlay.isVisible().catch(() => false)) {
+      await vaulOverlay.click({ position: { x: 12, y: 12 }, force: true });
+    }
+    const radixOverlay = page.locator('[data-slot="dialog-overlay"]').last();
+    if (await radixOverlay.isVisible().catch(() => false)) {
+      await radixOverlay.click({ position: { x: 12, y: 12 }, force: true });
+    }
+  }
+  await expect(batchDialog).toBeHidden({ timeout: 5_000 });
+}
+
 async function ensureLoggedIn(
   page: import('@playwright/test').Page,
   request: import('@playwright/test').APIRequestContext,
@@ -64,14 +88,13 @@ test.describe('Instinct Inbox', () => {
       waitUntil: 'domcontentloaded',
     });
 
-    // Batch approval drawer auto-opens when pending drafts exist — close it first.
-    const batchDialog = page.getByRole('dialog');
-    if (await batchDialog.isVisible().catch(() => false)) {
-      await page.keyboard.press('Escape');
-      await expect(batchDialog).toBeHidden({ timeout: 5_000 });
-    }
+    await page.getByRole('dialog', { name: /批量审批|Batch/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => undefined);
+    await dismissBatchApprovalDialog(page);
 
-    await page.getByTestId('agent-tab-inbox').click({ force: true });
+    const inboxTab = page.getByTestId('agent-tab-inbox');
+    await expect(inboxTab).toBeVisible({ timeout: 5_000 });
+    await inboxTab.click();
+    await dismissBatchApprovalDialog(page);
 
     const panel = page.getByTestId('instinct-inbox-panel');
     await expect(panel).toBeVisible({ timeout: 10_000 });

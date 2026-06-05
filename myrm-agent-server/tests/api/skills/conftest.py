@@ -1,25 +1,42 @@
 """Skills API test fixtures."""
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+_DRAFTS_MODULE = None
+
+
+def _load_drafts_module():
+    """Load drafts router without importing app.api.skills package __init__."""
+    global _DRAFTS_MODULE
+    if _DRAFTS_MODULE is not None:
+        return _DRAFTS_MODULE
+
+    drafts_path = (
+        Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / "drafts.py"
+    )
+    spec = importlib.util.spec_from_file_location("app.api.skills.drafts", drafts_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load drafts module from {drafts_path}")
+    import sys
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["app.api.skills.drafts"] = module
+    spec.loader.exec_module(module)
+    _DRAFTS_MODULE = module
+    return module
+
 
 @pytest.fixture(scope="function")
 def app() -> FastAPI:
-    """Create minimal test app for skills API."""
-    from importlib import import_module
-
+    """Create minimal test app for skills API (drafts-only to avoid heavy harness imports)."""
     app = FastAPI(title="Skills Test App")
-
-    # Include skills router
-    skills_module = import_module("app.api.skills.router")
-    app.include_router(skills_module.router, prefix="/api/v1/skills", tags=["skills"])
-    growth_module = import_module("app.api.skills.growth")
-    app.include_router(growth_module.router, prefix="/api/v1", tags=["skill-growth"])
-    evolution_module = import_module("app.api.skills.evolution")
-    app.include_router(evolution_module.router, prefix="/api/v1", tags=["evolution"])
-
+    drafts_module = _load_drafts_module()
+    app.include_router(drafts_module.router, prefix="/api/v1/skills", tags=["skills-drafts"])
     return app
 
 
@@ -45,6 +62,8 @@ async def setup_test_database():
     TestSession = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     from contextlib import asynccontextmanager
+
+    _load_drafts_module()
 
     @asynccontextmanager
     async def mock_get_session():
