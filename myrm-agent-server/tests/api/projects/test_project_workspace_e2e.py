@@ -1,11 +1,16 @@
 import json
 import os
-from typing import Optional
 
-import pytest
 import httpx
+import pytest
 from httpx import ASGITransport
+
 from app.main import app
+from tests.api.agent.utils import (
+    check_e2e_errors,
+    get_model_selection,
+)
+
 
 @pytest.fixture
 async def async_client() -> httpx.AsyncClient:
@@ -17,12 +22,8 @@ async def async_client() -> httpx.AsyncClient:
     ) as client:
         yield client
 
-from tests.api.agent.utils import (
-    check_e2e_errors,
-    get_model_selection,
-)
-
 @pytest.mark.e2e
+@pytest.mark.asyncio
 @pytest.mark.skipif(
     not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
@@ -30,17 +31,15 @@ from tests.api.agent.utils import (
 class TestProjectWorkspaceE2E:
     """Project Workspace & Multi-Agent Collaboration E2E Tests"""
 
-    @pytest.mark.asyncio
     async def test_project_workspace_agent_routing(self, async_client: httpx.AsyncClient):
         # 1. Create a project
         project_resp = await async_client.post("/api/v1/projects/", json={"name": "E2E Project Workspace"})
         assert project_resp.status_code == 200
         project_id = project_resp.json()["data"]["project"]["id"]
-        workspace_path = project_resp.json()["data"]["project"].get("workspacePath")
 
         # 2. Create a chat and assign it to the project
         chat_id = "c-test-proj-e2e"
-        await async_client.post(f"/api/v1/chats/", json={"id": chat_id, "title": "E2E Chat"})
+        await async_client.post("/api/v1/chats/", json={"id": chat_id, "title": "E2E Chat"})
         await async_client.patch(f"/api/v1/projects/chats/{chat_id}/project", json={"projectId": project_id})
 
         # 3. Send a message referencing an agent

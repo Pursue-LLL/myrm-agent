@@ -27,7 +27,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from myrm_agent_harness.toolkits.mcp.oauth import (
     MCPOAuthConfig,
     MCPOAuthToken,
@@ -37,7 +37,6 @@ from myrm_agent_harness.toolkits.mcp.oauth import (
 from pydantic import BaseModel, Field
 
 from app.core.infra.limiter import limiter
-from app.core.utils.errors import validation_error
 from app.core.utils.response_utils import success_response
 from app.services.agent.backends.mcp_oauth_store import get_mcp_oauth_token_store
 

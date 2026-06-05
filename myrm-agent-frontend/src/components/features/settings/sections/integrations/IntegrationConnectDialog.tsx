@@ -271,10 +271,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                 )}
               </>
             )}
-
-                {entry.authType === 'none' && <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>}
-              </>
-            )}
+            {entry.authType === 'none' && <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>}
           </div>
 
           <DialogFooter>
