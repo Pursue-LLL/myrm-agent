@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconExternalLink } from './catalog-icons';
 import { Button } from '@/components/primitives/button';
@@ -16,6 +16,7 @@ import {
 } from '@/components/primitives/dialog';
 import { toast } from '@/hooks/useToast';
 import useConfigStore from '@/store/useConfigStore';
+import { apiRequest } from '@/lib/api';
 import type { MCPServiceConfig } from '@/store/config/types';
 import type { CatalogEntry } from './catalog-types';
 
@@ -36,7 +37,15 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       hasMultiFields ? Object.fromEntries(entry.credentialFields!.map((f) => [f.key, ''])) : {},
     );
     const [connecting, setConnecting] = useState(false);
+    const [oauthPolling, setOauthPolling] = useState(false);
+    const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const { mcpConfigs, setMCPConfigs } = useConfigStore();
+
+    useEffect(() => {
+      return () => {
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      };
+    }, []);
 
     const helpText = locale === 'zh' && entry.helpTextZh ? entry.helpTextZh : entry.helpText;
 

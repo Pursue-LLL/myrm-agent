@@ -88,11 +88,16 @@ test.describe('Instinct Inbox', () => {
       waitUntil: 'domcontentloaded',
     });
 
+    await expect(page.getByText(/加载中|Loading/i)).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /编辑智能体|Edit Agent/i })).toBeVisible({
+      timeout: 10_000,
+    });
+
     await page.getByRole('dialog', { name: /批量审批|Batch/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => undefined);
     await dismissBatchApprovalDialog(page);
 
     const inboxTab = page.getByTestId('agent-tab-inbox');
-    await expect(inboxTab).toBeVisible({ timeout: 5_000 });
+    await expect(inboxTab).toBeVisible({ timeout: 10_000 });
     await inboxTab.click();
     await dismissBatchApprovalDialog(page);
 
@@ -114,5 +119,26 @@ test.describe('Instinct Inbox', () => {
     expect(pendingRes.ok()).toBeTruthy();
     const pending = (await pendingRes.json()) as { total: number };
     expect(pending.total).toBe(0);
+  });
+
+  test('builtin-general inbox is readonly (no approve/dismiss buttons)', async ({ page, request }) => {
+    await request.post(`${apiBase}/api/v1/skills/drafts/test/seed-mock`);
+    await ensureLoggedIn(page, request);
+
+    await page.goto('/settings/agents?agentId=builtin-general', {
+      waitUntil: 'domcontentloaded',
+    });
+
+    await expect(page.getByText(/加载中|Loading/i)).toBeHidden({ timeout: 15_000 });
+    await page.getByRole('dialog', { name: /批量审批|Batch/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => undefined);
+    await dismissBatchApprovalDialog(page);
+
+    await page.getByTestId('agent-tab-inbox').click();
+    await dismissBatchApprovalDialog(page);
+
+    await expect(page.getByTestId('instinct-draft-card').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('instinct-approve-btn')).toHaveCount(0);
+    await expect(page.getByTestId('instinct-dismiss-btn')).toHaveCount(0);
+    await expect(page.getByText(/内置智能体（只读）|Built-in \(Read-only\)/)).toBeVisible({ timeout: 5_000 });
   });
 });

@@ -159,10 +159,13 @@ class _ChatTurnMixin(_ChatServiceBase):
         clean_content = redact_leaks(clean_content)
 
         # 3. Smart Fallback
+        has_code_block = "```" in raw_content
         if len(clean_content) < 5:
             if lang:
                 lang_display = lang.capitalize() if len(lang) > 1 else lang
                 return f"{lang_display} Snippet"
+            if has_code_block:
+                return "Snippet"
             return "Untitled Chat"
 
         content = clean_content[:500]
@@ -214,6 +217,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         prompt = f"Summarize this conversation into a short title (5-15 characters). Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n<user_input>\n{content[:200]}\n</user_input>"
         response = await llm.ainvoke([HumanMessage(content=prompt)])
         title = str(response.content).strip().strip("\"'「」【】：:。.")
+        title = re.sub(r"^(Title|标题|Chat Title)[:：\s]*", "", title, flags=re.IGNORECASE)
         if len(title) < 2 or len(title) > 50:
             return _ChatTurnMixin._generate_fallback_title(content)
         return title

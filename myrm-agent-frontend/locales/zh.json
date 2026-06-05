@@ -1222,6 +1222,23 @@
         "statusPending": "待测",
         "close": "关闭"
       },
+      "cookbook": {
+        "title": "硬件与模型推荐 (Cookbook)",
+        "description": "基于您本地硬件配置的智能模型推荐",
+        "localModeOnly": "仅本地模式可用",
+        "detecting": "正在检测硬件...",
+        "cpuArch": "CPU 架构",
+        "memory": "内存",
+        "gpu": "显卡 (GPU)",
+        "noGpu": "未检测到独立显卡",
+        "unified": "统一内存",
+        "recommendedModels": "推荐模型",
+        "bestFit": "最佳匹配",
+        "reqVram": "需显存",
+        "apply": "一键应用",
+        "warningTitle": "硬件限制警告",
+        "warningDesc": "部分模型需要的显存超过了您当前的可用显存。强制运行可能会导致系统卡顿或显存溢出 (OOM) 错误。"
+      },
       "importFromModelsDev": "从 models.dev 导入",
       "getModels": "获取模型",
       "getModelsFromModelsDev": "从 models.dev 获取",

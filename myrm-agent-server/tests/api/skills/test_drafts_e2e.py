@@ -87,3 +87,52 @@ class TestDraftsE2E:
         names = {d["name"] for d in list_resp.json()["drafts"]}
         assert "test-frontend-approve" in names
         assert "test-frontend-reject" in names
+
+    def test_get_draft_not_found_returns_404(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/skills/drafts/nonexistent-draft-id")
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_double_approve_returns_400(self, client: TestClient) -> None:
+        from app.services.approvals.registry import ApprovalRegistry
+
+        record = await ApprovalRegistry.create_approval(
+            agent_id="edge_agent",
+            chat_id="edge_chat",
+            action_type="skill_draft",
+            payload={"skill_name": "double-approve", "content": "# x", "score": 0.5},
+            reason="edge",
+        )
+        first = client.post(
+            f"/api/v1/skills/drafts/{record.id}/approve",
+            json={"skill_name": "double-approve-skill"},
+        )
+        assert first.status_code == 200
+        second = client.post(
+            f"/api/v1/skills/drafts/{record.id}/approve",
+            json={"skill_name": "double-approve-skill"},
+        )
+        assert second.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_double_reject_returns_400(self, client: TestClient) -> None:
+        from app.services.approvals.registry import ApprovalRegistry
+
+        record = await ApprovalRegistry.create_approval(
+            agent_id="edge_agent",
+            chat_id="edge_chat",
+            action_type="skill_draft",
+            payload={"skill_name": "double-reject", "content": "# x", "score": 0.5},
+            reason="edge",
+        )
+        first = client.post(f"/api/v1/skills/drafts/{record.id}/reject")
+        assert first.status_code == 200
+        second = client.post(f"/api/v1/skills/drafts/{record.id}/reject")
+        assert second.status_code == 400
+
+    def test_seed_mock_http_endpoint(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/skills/drafts/test/seed-mock")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["skill_names"] == ["test-frontend-approve", "test-frontend-reject"]
+        assert len(body["created_ids"]) == 2
