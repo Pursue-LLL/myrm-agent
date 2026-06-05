@@ -236,7 +236,7 @@ const ModelServiceSection = memo(() => {
     return configs;
   }, [providers]);
 
-  const handleApplyRecommendedModel = useCallback((modelId: string) => {
+  const handleApplyRecommendedModel = useCallback((_modelId: string) => {
     // 自动添加 Ollama 提供商（如果不存在）并设置为该模型
     const ollamaProvider = providers.find(p => p.providerType === 'ollama');
     if (ollamaProvider) {

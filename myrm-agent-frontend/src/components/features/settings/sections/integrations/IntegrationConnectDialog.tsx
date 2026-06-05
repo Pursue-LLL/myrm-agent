@@ -53,7 +53,82 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
       setFieldValues((prev) => ({ ...prev, [key]: value }));
     }, []);
 
-    const handleConnect = useCallback(() => {
+    const handleConnect = useCallback(async () => {
+      if (entry.authType === 'oauth2') {
+        setOauthPolling(true);
+        try {
+          const mcpCfg = entry.mcpConfig as any;
+          const oauthCfg = mcpCfg?.oauth;
+          if (!oauthCfg) {
+            toast({ title: t('connectFailed'), description: 'Missing OAuth config', variant: 'destructive' });
+            setOauthPolling(false);
+            return;
+          }
+
+          // 1. Start OAuth flow
+          const startRes = await apiRequest<{ authorization_url: string; state: string }>('/integrations/mcp/oauth/start', {
+            method: 'POST',
+            body: JSON.stringify({
+              server_name: mcpCfg.name,
+              authorization_endpoint: oauthCfg.authorization_endpoint,
+              token_endpoint: oauthCfg.token_endpoint,
+              client_id: oauthCfg.client_id,
+              client_secret: oauthCfg.client_secret,
+              scope: oauthCfg.scope,
+              redirect_uri: `${window.location.origin}/oauth/callback`,
+            }),
+          });
+
+          // 2. Open authorization URL
+          if (window.__TAURI__) {
+            const { open } = await import('@tauri-apps/plugin-shell');
+            await open(startRes.authorization_url);
+          } else {
+            window.open(startRes.authorization_url, '_blank');
+          }
+
+          // 3. Poll for status
+          pollIntervalRef.current = setInterval(async () => {
+            try {
+              const statusRes = await apiRequest<{ status: string }>(`/integrations/mcp/oauth/status/${startRes.state}`, { silent: true });
+              if (statusRes.status === 'success') {
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                
+                const newConfig: MCPServiceConfig = {
+                  name: mcpCfg.name,
+                  type: mcpCfg.type as 'sse' | 'stdio' | 'streamable_http',
+                  url: mcpCfg.url || '',
+                  command: mcpCfg.command || '',
+                  args: mcpCfg.args || [],
+                  description: mcpCfg.description || '',
+                  enabled: true,
+                  extra_params: null,
+                };
+                
+                const exists = mcpConfigs.some((c) => c.name === newConfig.name);
+                if (!exists) {
+                  setMCPConfigs([...mcpConfigs, newConfig]);
+                }
+                
+                toast({ title: t('connectSuccess', { name: entry.name }) });
+                setOauthPolling(false);
+                onConnected();
+              } else if (statusRes.status === 'expired_or_invalid') {
+                if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+                setOauthPolling(false);
+                toast({ title: t('connectFailed'), description: 'OAuth session expired', variant: 'destructive' });
+              }
+            } catch (e) {
+              // Ignore polling errors
+            }
+          }, 2000);
+        } catch (e) {
+          setOauthPolling(false);
+          toast({ title: t('connectFailed'), description: String(e), variant: 'destructive' });
+        }
+        return;
+      }
+
       if (entry.authType !== 'none') {
         if (hasMultiFields) {
           const empty = entry.credentialFields!.find((f) => !fieldValues[f.key]?.trim());
@@ -141,7 +216,17 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {entry.authType !== 'none' && (
+            {entry.authType === 'oauth2' ? (
+              <div className="flex flex-col items-center justify-center space-y-4 py-4">
+                <div className="bg-muted flex h-16 w-16 items-center justify-center rounded-2xl">
+                  <IconExternalLink className="h-8 w-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-medium">{t('oauthTitle', { name: entry.name, default: `Connect to ${entry.name}` })}</h3>
+                  <p className="text-muted-foreground mt-1 text-sm">{t('oauthDescription', { default: 'You will be redirected to the provider to authorize access.' })}</p>
+                </div>
+              </div>
+            ) : entry.authType !== 'none' && (
               <>
                 {hasMultiFields ? (
                   <div className="space-y-3">

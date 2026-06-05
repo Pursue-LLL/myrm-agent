@@ -100,16 +100,6 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     }
   };
 
-  const getFitLevelIcon = (level: string) => {
-    switch (level) {
-      case 'perfect': return <CheckCircle2 className="w-4 h-4" />;
-      case 'good': return <CheckCircle2 className="w-4 h-4" />;
-      case 'fair': return <AlertTriangle className="w-4 h-4" />;
-      case 'poor': return <XCircle className="w-4 h-4" />;
-      default: return null;
-    }
-  };
-
   return (
     <Card className="border-primary/30 shadow-sm overflow-hidden">
       <div className="bg-primary/5 border-b border-primary/10 px-6 py-4">

@@ -199,6 +199,8 @@ class _ChatTurnMixin(_ChatServiceBase):
         content: str, title_model: "_TitleModelConfig"
     ) -> str:
         """调用 LLM 生成标题"""
+        import re
+
         from langchain_core.messages import HumanMessage
         from myrm_agent_harness.toolkits.llms import llm_manager
 
