@@ -272,15 +272,17 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
               </>
             )}
 
-            {entry.authType === 'none' && <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>}
+                {entry.authType === 'none' && <p className="text-muted-foreground text-sm">{t('noAuthRequired')}</p>}
+              </>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleConnect} disabled={connecting}>
-              {connecting ? t('connecting') : t('connect')}
+            <Button onClick={handleConnect} disabled={connecting || oauthPolling}>
+              {oauthPolling ? t('waitingAuth', { default: 'Waiting for authorization...' }) : connecting ? t('connecting') : t('connect')}
             </Button>
           </DialogFooter>
         </DialogContent>
