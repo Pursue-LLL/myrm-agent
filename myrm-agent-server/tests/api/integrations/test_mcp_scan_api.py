@@ -163,3 +163,17 @@ class TestMCPScanEndpoint:
         assert response.status_code == 200
         data = response.json()["data"]
         assert any(f["threatType"] == "sensitive_path" for f in data["findings"])
+
+    def test_kube_path_in_args_flagged(self, client: TestClient) -> None:
+        response = client.post(
+            "/api/v1/mcp/scan",
+            json={
+                "name": "fs",
+                "type": "stdio",
+                "command": "node",
+                "args": ["~/.kube/config"],
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert any(f["threatType"] == "sensitive_path" for f in data["findings"])

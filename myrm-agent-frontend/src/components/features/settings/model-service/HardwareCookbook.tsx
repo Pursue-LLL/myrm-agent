@@ -57,7 +57,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
     const fetchHardwareProfile = async () => {
       try {
-        const res = await fetch('/api/v1/integrations/llms/hardware/recommendations');
+        const res = await fetch('/api/v1/integrations/hardware/recommendations');
         if (!res.ok) throw new Error('Failed to fetch hardware recommendations');
         const data = await res.json();
         if (data.code === 0 && data.data) {
@@ -83,7 +83,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     setDownloadProgress({ status: t('downloading') });
     
     try {
-      const res = await fetch('/api/v1/integrations/llms/hardware/ollama/pull', {
+      const res = await fetch('/api/v1/integrations/hardware/ollama/pull', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_name: ollamaModelName }),

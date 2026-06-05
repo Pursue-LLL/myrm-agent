@@ -124,7 +124,7 @@ class OllamaPullRequest(BaseModel):
     model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
 
 
-@router.post("/ollama/pull")
+@router.post("/hardware/ollama/pull")
 async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     """代理 Ollama 的 /api/pull 接口，返回流式进度"""
     from app.config.deploy_mode import DeployMode, get_deploy_mode
@@ -165,7 +165,7 @@ class HardwareRecommendationResponse(BaseModel):
     recommendations: list[dict[str, object]] = Field(default_factory=list, description="推荐模型列表")
 
 
-@router.get("/recommendations", response_model=StandardSuccessResponse)
+@router.get("/hardware/recommendations", response_model=StandardSuccessResponse)
 async def get_hardware_recommendations() -> JSONResponse:
     """
     获取基于本地硬件的模型推荐 (Fit Score)

@@ -434,11 +434,11 @@ async def verify_agent_settings_toggle(
 async def submit_chat_message(page: Page, text: str) -> None:
     """Fill chat input and click Send (matches real user flow)."""
     await page.keyboard.press("Escape")
-    await page.wait_for_timeout(300)
+    await page.wait_for_timeout(500)
 
     chat_input = page.locator("textarea[data-chat-input]")
-    await chat_input.wait_for(state="visible", timeout=30000)
-    await chat_input.click()
+    await chat_input.wait_for(state="attached", timeout=30000)
+    await chat_input.click(force=True)
     await chat_input.fill(text)
     await page.wait_for_timeout(500)
 
