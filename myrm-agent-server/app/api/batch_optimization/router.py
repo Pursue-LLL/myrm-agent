@@ -322,10 +322,7 @@ async def cancel_batch_task(
 
         scheduler = get_optimization_scheduler()
         if scheduler:
-            from myrm_agent_harness.agent.skills.optimization.batch_executor import BatchExecutor
-
-            if hasattr(scheduler, "_batch_executor") and isinstance(scheduler._batch_executor, BatchExecutor):
-                await scheduler._batch_executor.cancel_batch(batch_id)
+            await scheduler.cancel_batch_optimization(batch_id)
 
         await batch_repo.update_status(batch_id, "cancelled")
 

@@ -165,3 +165,38 @@ def test_cancel_keep_skips_rollback(
     body = response.json()
     assert body["rollback_performed"] is False
     assert rollback_invoked is False
+
+
+def test_cancel_invokes_scheduler_cancel_batch_optimization(
+    batch_client: TestClient,
+    batch_app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = FakeBatchTask(batch_id="batch-cancel-scheduler-1", max_concurrent=2, status="running")
+    repo_stub = BatchTaskRepositoryStub(task)
+    audit_stub = AuditLogRepositoryStub()
+    cancelled_batches: list[str] = []
+
+    class SchedulerStub:
+        async def cancel_batch_optimization(self, batch_id: str) -> bool:
+            cancelled_batches.append(batch_id)
+            return True
+
+    async def mock_get_db():
+        yield AsyncMock()
+
+    batch_app.dependency_overrides[get_db] = mock_get_db
+    monkeypatch.setattr(batch_router_module, "BatchTaskRepository", lambda _s: repo_stub)
+    monkeypatch.setattr(batch_router_module, "AuditLogRepository", lambda _s: audit_stub)
+    monkeypatch.setattr(
+        "app.core.infra.server_globals.get_optimization_scheduler",
+        lambda: SchedulerStub(),
+    )
+
+    response = batch_client.post(
+        "/api/v1/batch-optimization/tasks/batch-cancel-scheduler-1/cancel",
+        json={"cleanup_strategy": "keep"},
+    )
+
+    assert response.status_code == 200
+    assert cancelled_batches == ["batch-cancel-scheduler-1"]
