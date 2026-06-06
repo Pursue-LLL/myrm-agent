@@ -34,7 +34,7 @@ ENV PATCHRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv \
-    && uv sync --frozen --no-dev --all-extras --no-install-project)
+    && uv sync --frozen --no-dev --all-extras --no-install-project
 
 # ============================================================================
 # Stage 2: Runtime
