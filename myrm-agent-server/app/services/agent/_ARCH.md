@@ -29,13 +29,14 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `stream_session/stream_chunks.py` | ✅ 核心 | SSE 预检编排（凭据、Vision fallback） |
 | `stream_session/stream_loop.py` | ✅ 核心 | Agent 主流 SSE 循环 |
 | `stream_session/stream_finalize.py` | ✅ 核心 | 流错误处理与会话 teardown |
-| `stream_session/stream_pump.py` | ✅ 核心 | GlobalStreamRegistry buffer pump |
+| `stream_session/stream_pump.py` | ✅ 核心 | GlobalStreamRegistry buffer pump (支持 multiplexed 响应) |
 | `stream_session/stream_generator.py` | ✅ 门面 | stream_session 对外 re-export |
 | `stream_session/stream_lane_factory.py` | ✅ 核心 | Deep Research / Fast Lane SSE 工厂 |
 | `stream_session/reconnect.py` | ✅ 辅助 | SSE Last-Event-ID 重连 |
 | `stream_session/risk_gate.py` | ✅ 辅助 | 流式输入 risk 拦截 |
 | `streaming_support/sse_helpers.py` | ✅ 核心 | SSE 格式化与审批/压缩辅助 |
 | `streaming_support/stream_collector.py` | ✅ 核心 | 流内容收集与 assistant 持久化 |
+| `streaming_support/multiplexer.py` | ✅ 核心 | WorkspaceMultiplexer (SSE 多路复用器) |
 | `llm_access.py` | ✅ 辅助 | WebUI 配置驱动的 LLM 实例解析（`get_llm_for_user` / `get_optional_llm_for_user`）；`api.dependencies` re-export | ✅ |
 | `params/` | ✅ 核心 | Agent 参数转换层 |
 | `swarm_fission_resume.py` | ✅ 核心 | Swarm Fission 流式包装器：拦截 `swarm_fission` 事件，调用 Harness `execute_swarm_fission`，发射带 `failed_count`/`partial_success` 的 `tasks_steps`，再以 `Command(resume=...)` 恢复父 Agent |

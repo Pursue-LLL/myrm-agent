@@ -94,9 +94,15 @@ const BatchDetailPage = () => {
       setIsCancelling(true);
       try {
         const result = await cancelBatchTask(batchId, cleanupStrategy);
-        toast({
-          title: result.rollback_performed ? tBatch('cancelRollbackSuccess') : tBatch('cancelSuccess'),
-        });
+        if (cleanupStrategy === 'rollback') {
+          if (result.rollback_performed) {
+            toast({ title: tBatch('cancelRollbackSuccess') });
+          } else {
+            toast({ title: tBatch('cancelRollbackFailed'), variant: 'destructive' });
+          }
+        } else {
+          toast({ title: tBatch('cancelSuccess') });
+        }
         await fetchTaskDetail();
       } catch {
         toast({ title: tBatch('cancelFailed'), variant: 'destructive' });
@@ -131,35 +137,35 @@ const BatchDetailPage = () => {
         return (
           <Badge variant="secondary" className="whitespace-nowrap">
             <Clock className="size-3 mr-1" />
-            Pending / 排队中
+            {tBatch('statusPending')}
           </Badge>
         );
       case 'running':
         return (
           <Badge variant="default" className="whitespace-nowrap">
             <Activity className="size-3 mr-1" />
-            Running / 运行中
+            {tBatch('statusRunning')}
           </Badge>
         );
       case 'completed':
         return (
           <Badge variant="default" className="bg-emerald-600 whitespace-nowrap">
             <CheckCircle2 className="size-3 mr-1" />
-            Completed / 已完成
+            {tBatch('statusCompleted')}
           </Badge>
         );
       case 'cancelled':
         return (
           <Badge variant="destructive" className="whitespace-nowrap">
             <XCircle className="size-3 mr-1" />
-            Cancelled / 已取消
+            {tBatch('statusCancelled')}
           </Badge>
         );
       case 'failure':
         return (
           <Badge variant="destructive" className="whitespace-nowrap">
             <AlertCircle className="size-3 mr-1" />
-            Failed / 失败
+            {tBatch('statusFailed')}
           </Badge>
         );
       default:

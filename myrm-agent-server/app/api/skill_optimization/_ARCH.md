@@ -3,8 +3,9 @@
 
 ## 架构概述
 
-Skill 优化系统 API。提供仪表盘、质量监控、版本管理、A/B 测试、批量优化等接口，
-包含 WebSocket 实时批量进度推送。
+Skill 优化系统 API。提供仪表盘、质量监控、版本管理、Shadow A/B 等接口；
+**批量任务 REST** 已拆分至 `app/api/batch_optimization/`（`/batch-optimization`）。
+本模块保留 WebSocket 批量进度推送（`ws_batch_progress.py`）。
 
 ## 文件清单
 

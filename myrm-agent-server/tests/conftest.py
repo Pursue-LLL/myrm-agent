@@ -17,6 +17,28 @@ from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
 
+
+def _prepend_monorepo_pythonpath() -> None:
+    """Prefer monorepo harness src over stale .venv site-packages (batch/skill tests)."""
+    import sys
+
+    candidates = (
+        _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src",
+        _SERVER_ROOT / "src",
+    )
+    extra = [str(path) for path in candidates if path.is_dir()]
+    if not extra:
+        return
+    prefix = os.pathsep.join(extra)
+    existing = os.environ.get("PYTHONPATH", "")
+    os.environ["PYTHONPATH"] = f"{prefix}{os.pathsep}{existing}" if existing else prefix
+    for path in reversed(extra):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+
+_prepend_monorepo_pythonpath()
+
 # 1) Process-level .env  2) [T] test secrets via structured loader (not raw load_dotenv)
 load_dotenv(_SERVER_ROOT / ".env", override=False)
 apply_test_secrets_to_environ()

@@ -15,7 +15,7 @@
 | `MobileDragButton.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `ProjectBar.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `Sidebar.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `UserMenu.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `UserMenu.tsx` | 组件 | 用户菜单（Settings、批量优化 `userMenu.batchOptimization`→`/batch-optimization`、Brain Console 等） | — |
 | `constants.ts` | 组件/模块 | 见源码 | 见源码 |
 | `dateGroupUtils.ts` | 组件/模块 | 见源码 | 见源码 |
 | `useBatchMode.ts` | 组件/模块 | 见源码 | 见源码 |

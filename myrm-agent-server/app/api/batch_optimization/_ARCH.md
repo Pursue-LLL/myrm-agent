@@ -11,3 +11,19 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 路由导出 | — |
 | `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`；`cancel` 支持 `cleanup_strategy=rollback`；terminal 回滚调 `restore_skill_snapshot`） | ✅ |
+
+## 测试
+
+`tests/conftest.py` 启动时自动将 monorepo `myrm-agent-harness/src` 置于 `PYTHONPATH` 前（避免 `.venv` 内旧版包导致 import 失败）。直接运行：
+
+```bash
+uv run pytest tests/api/batch_optimization/ tests/services/skill_optimization/ -v
+```
+
+| 文件 | 职责 |
+|------|------|
+| `support.py` | 共享 `FakeBatchTask` / Repository stub |
+| `conftest.py` | `batch_app` / `batch_client` fixture |
+| `test_cancel_rollback.py` | `RollbackService` 全量/部分失败编排；HTTP cancel `keep` 契约 |
+| `test_cancel_rollback_http_integration.py` | 真 sqlite + 真 `RollbackService` + HTTP cancel 单/多 skill 写盘；`create_batch_snapshot` 入库 |
+| `test_skill_version_integration.py`（services 目录） | `restore_skill_snapshot` 双分支真写盘 |

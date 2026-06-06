@@ -30,26 +30,25 @@ class TestSkillOptimizationE2E:
         assert "optimization_total" in data["metrics"]
         assert "optimization_success" in data["metrics"]
 
-    def test_batch_optimize_and_status(self, client: TestClient):
-        """Test batch optimization flow"""
-        # Trigger batch optimization
+    def test_batch_create_and_status(self, client: TestClient):
+        """Test batch optimization create and detail via /batch-optimization/tasks."""
         payload = {"skill_ids": ["test_skill_1", "test_skill_2"], "max_concurrent": 2, "priority": 1}
-        response = client.post("/api/v1/skill-optimization/batch-optimize", json=payload)
+        response = client.post("/api/v1/batch-optimization/tasks", json=payload)
 
-        # If the endpoint requires auth, it might return 401/403.
-        # Assuming the TestClient is configured with proper auth or the endpoint is public for tests.
         if response.status_code in [401, 403]:
-            pytest.skip("Auth required for batch-optimize")
+            pytest.skip("Auth required for batch-optimization/tasks")
+
+        if response.status_code == 503:
+            pytest.skip("Optimization scheduler not available in this test environment")
 
         assert response.status_code == 200
         data = response.json()
-        assert "batch_task_id" in data
+        assert "batch_id" in data
 
-        batch_id = data["batch_task_id"]
+        batch_id = data["batch_id"]
 
-        # Check status
-        status_response = client.get(f"/api/v1/skill-optimization/batch-status/{batch_id}")
+        status_response = client.get(f"/api/v1/batch-optimization/tasks/{batch_id}")
         assert status_response.status_code == 200
         status_data = status_response.json()
-        assert status_data["total"] == 2
+        assert status_data["total_tasks"] == 2
         assert "status" in status_data

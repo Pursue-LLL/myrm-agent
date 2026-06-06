@@ -7,7 +7,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `optimization.py` | 核心 | 单技能优化触发与 batch-status 查询（批量入口仅 `/batch-optimization/tasks`） | ✅ |
+| `optimization.py` | 核心 | 单技能优化触发与反馈；批量任务状态见 `/batch-optimization/tasks` | ✅ |
 | `ab_testing.py` | 核心 | Shadow A/B：`start_shadow_ab_test` 启动 + promote/stop | ✅ |
 | `versions.py` | 核心 | 技能版本列表/对比/回滚（回滚同步磁盘） | ✅ |
 | `dashboard.py` | 辅助 | 优化仪表盘数据端点 | ⚠️ 待补 |

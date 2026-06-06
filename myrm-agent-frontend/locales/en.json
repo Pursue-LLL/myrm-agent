@@ -1634,7 +1634,16 @@
         "cancelRollbackAction": "Cancel and roll back",
         "cancelSuccess": "Batch cancelled",
         "cancelRollbackSuccess": "Batch cancelled and skills restored",
-        "cancelFailed": "Failed to cancel batch"
+        "cancelRollbackFailed": "Batch cancelled but rollback failed — check skill versions manually",
+        "cancelFailed": "Failed to cancel batch",
+        "statusPending": "Pending",
+        "statusRunning": "Running",
+        "statusCompleted": "Completed",
+        "statusCancelled": "Cancelled",
+        "statusFailed": "Failed",
+        "filterAll": "All",
+        "filterActive": "Active",
+        "filterExecuting": "Executing"
       }
     },
     "skillAggregation": {
@@ -3758,7 +3767,8 @@
     "loginForTest": "Test Login",
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
-    "totalTokens": "Tokens"
+    "totalTokens": "Tokens",
+    "batchOptimization": "Batch Optimization"
   },
   "loginBubble": {
     "title": "Unlock More Features",

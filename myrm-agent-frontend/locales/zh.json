@@ -1634,7 +1634,16 @@
         "cancelRollbackAction": "取消并回滚",
         "cancelSuccess": "批量任务已取消",
         "cancelRollbackSuccess": "批量任务已取消，技能已恢复",
-        "cancelFailed": "取消批量任务失败"
+        "cancelRollbackFailed": "批量任务已取消，但回滚失败 — 请手动检查技能版本",
+        "cancelFailed": "取消批量任务失败",
+        "statusPending": "排队中",
+        "statusRunning": "运行中",
+        "statusCompleted": "已完成",
+        "statusCancelled": "已取消",
+        "statusFailed": "失败",
+        "filterAll": "全部",
+        "filterActive": "运行中",
+        "filterExecuting": "执行中"
       }
     },
     "skillAggregation": {
@@ -3758,7 +3767,8 @@
     "loginForTest": "本次测试",
     "usageAnalytics": "统计分析",
     "totalCalls": "调用次数",
-    "totalTokens": "Token"
+    "totalTokens": "Token",
+    "batchOptimization": "批量优化"
   },
   "loginBubble": {
     "title": "登录解锁更多功能",

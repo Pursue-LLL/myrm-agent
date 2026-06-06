@@ -73,8 +73,9 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 - `BatchTaskRepository`: 批量任务管理
 - `AuditLogRepository`: 审计日志
 
-**ORM 模型**（`app/models/skill_optimization/`）：
+**ORM 模型**（`app/database/models/skill_optimization/`）：
 - `SkillVersionModel`: Skill版本表（复合主键 skill_id + version）
+- `BatchSnapshot`: 批量优化前技能快照（支持 cancel/rollback）
 
 ---
 

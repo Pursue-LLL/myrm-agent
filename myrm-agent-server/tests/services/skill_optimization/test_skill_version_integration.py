@@ -12,6 +12,7 @@ from myrm_agent_harness.agent.skills.optimization.types import SkillQualityScore
 from app.services.skill_optimization.skill_version_sync import (
     activate_version_with_disk_sync,
     persist_skill_version,
+    restore_skill_snapshot,
 )
 
 
@@ -84,3 +85,72 @@ async def test_persist_skill_version_retries_once(monkeypatch: pytest.MonkeyPatc
 
     assert result.version == 1
     assert storage.save_skill_version.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_restore_skill_snapshot_existing_version_writes_disk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    skill_id = "rollback-skill"
+    content_before = "# Skill before batch"
+    storage = MagicMock()
+    storage.get_skill_version = AsyncMock(return_value=_sample_version(skill_id, 2, content_before))
+    storage.activate_version = AsyncMock(return_value=_sample_version(skill_id, 2, content_before))
+
+    skill_md = tmp_path / "SKILL.md"
+
+    async def _resolve(_skill_id: str) -> Path:
+        return skill_md
+
+    monkeypatch.setattr(
+        "app.services.skill_optimization.skill_version_sync.resolve_skill_md_path",
+        _resolve,
+    )
+    import app.core.skills.config_version as cv
+
+    monkeypatch.setattr(cv, "bump_skill_config_version", lambda: None)
+
+    await restore_skill_snapshot(storage, skill_id, content_before, 2)
+
+    assert skill_md.read_text(encoding="utf-8") == content_before
+    storage.activate_version.assert_awaited_once_with(skill_id, 2)
+    storage.save_skill_version.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_restore_skill_snapshot_missing_version_seeds_db_and_disk(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    skill_id = "rollback-missing"
+    content_before = "# Archived snapshot body"
+    saved = _sample_version(skill_id, 3, content_before)
+    storage = MagicMock()
+    storage.get_skill_version = AsyncMock(return_value=None)
+    storage.save_skill_version = AsyncMock(return_value=saved)
+    storage.activate_version = AsyncMock(return_value=saved)
+
+    skill_md = tmp_path / "SKILL.md"
+
+    async def _resolve(_skill_id: str) -> Path:
+        return skill_md
+
+    monkeypatch.setattr(
+        "app.services.skill_optimization.skill_version_sync.resolve_skill_md_path",
+        _resolve,
+    )
+    import app.core.skills.config_version as cv
+
+    monkeypatch.setattr(cv, "bump_skill_config_version", lambda: None)
+
+    await restore_skill_snapshot(storage, skill_id, content_before, 3)
+
+    assert skill_md.read_text(encoding="utf-8") == content_before
+    storage.save_skill_version.assert_awaited_once()
+    save_kwargs = storage.save_skill_version.await_args.kwargs
+    assert save_kwargs["skill_id"] == skill_id
+    assert save_kwargs["version"] == 3
+    assert save_kwargs["content"] == content_before
+    assert save_kwargs["created_by"] == "batch_rollback"
+    storage.activate_version.assert_awaited_once_with(skill_id, 3)

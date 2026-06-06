@@ -1,18 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, cast
-
 from fastapi import APIRouter, Depends, HTTPException
-from myrm_agent_harness.agent.skills.optimization.scheduler import OptimizationScheduler
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.skill_optimization import (
     OptimizationRepository,
     QualityRepository,
-)
-from app.api.skill_optimization.dependencies import (
-    get_scheduler,
 )
 from app.database.connection import get_db
 
@@ -70,20 +64,3 @@ async def submit_feedback(skill_id: str, request: FeedbackRequest) -> dict[str, 
         "skill_id": skill_id,
         "feedback_type": request.feedback_type,
     }
-
-
-@router.get("/batch-status/{batch_task_id}")
-async def get_batch_optimization_status(
-    batch_task_id: str,
-    scheduler: Annotated[OptimizationScheduler, Depends(get_scheduler)],
-) -> dict[str, object]:
-    """获取批量优化任务状态
-
-    查询批量任务进度（S3扩展）。
-    """
-    status = scheduler.get_batch_status(batch_task_id)
-
-    if status is None:
-        raise HTTPException(status_code=404, detail=f"Batch task not found: {batch_task_id}")
-
-    return cast(dict[str, object], status)

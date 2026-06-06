@@ -90,7 +90,7 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
         },
         {
           icon: Layers,
-          label: 'Batch Optimization / 批量优化',
+          label: t('batchOptimization'),
           onClick: () => handleNavigate('/batch-optimization'),
         },
         {
@@ -118,7 +118,7 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
         },
         {
           icon: Layers,
-          label: 'Batch Optimization / 批量优化',
+          label: t('batchOptimization'),
           onClick: () => handleNavigate('/batch-optimization'),
         },
         {

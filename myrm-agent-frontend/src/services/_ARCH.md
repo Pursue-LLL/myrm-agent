@@ -14,6 +14,7 @@
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
 | `projects.ts` | 项目 CRUD、会话归属移动 |
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
+| `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
 | `memory*.ts` | 记忆、Shared Context |
 | `kanban*.ts` | 看板任务 |
 | `deploy*.ts` / `artifact*.ts` | 工件与部署 |

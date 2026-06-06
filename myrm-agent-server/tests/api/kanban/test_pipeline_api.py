@@ -202,6 +202,71 @@ class TestInstantiatePipeline:
         assert len(data["task_ids"]) == 2
         assert len(data["edges"]) == 1
 
+    def test_instantiate_invalid_variant_id_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.kanban.pipeline_instantiator import PipelineSpec, TaskGraphVariant, TaskSeed
+
+        def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
+            return PipelineSpec(
+                skill_id="mock-skill",
+                name="Mock",
+                description="Mock",
+                category="pipeline",
+                tags=[],
+                discovery_questions=[],
+                role_templates=[],
+                task_graph_seed=[TaskSeed("Default", "", "a", [])],
+                task_graph_variants=[
+                    TaskGraphVariant(id="quick", label="Quick", description="", seeds=[TaskSeed("Quick", "", "a", [])])
+                ],
+            )
+
+        monkeypatch.setattr("app.services.kanban.pipeline_instantiator.get_pipeline_skill", mock_get_pipeline_skill)
+
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "mock-skill",
+                "answers": {},
+                "variant_id": "invalid-id",
+            },
+        )
+        assert resp.status_code == 400
+        assert "Invalid variant_id: invalid-id" in resp.json()["detail"]
+
+    def test_instantiate_empty_graph_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.kanban.pipeline_instantiator import PipelineSpec
+
+        def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
+            return PipelineSpec(
+                skill_id="mock-empty",
+                name="Mock Empty",
+                description="Mock",
+                category="pipeline",
+                tags=[],
+                discovery_questions=[],
+                role_templates=[],
+                task_graph_seed=[],
+                task_graph_variants=[],
+            )
+
+        monkeypatch.setattr("app.services.kanban.pipeline_instantiator.get_pipeline_skill", mock_get_pipeline_skill)
+
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "mock-empty",
+                "answers": {},
+            },
+        )
+        assert resp.status_code == 400
+        assert "No tasks defined" in resp.json()["detail"]
+
     def test_task_titles_substituted(self, client: TestClient) -> None:
         board = _create_board(client)
         board_id = board["board_id"]

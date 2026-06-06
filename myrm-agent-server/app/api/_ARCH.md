@@ -34,7 +34,8 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | `chats/` | `/chats` | 聊天会话管理（创建、列表、删除、重命名、上下文压缩） |
 | `eval/` | `/eval` | Agent 评估与回归测试（运行、状态查询、用例管理、报告） |
 | `skills/` | `/skills`, `/evolution`, `/skill-quality`, `/experience-ledger`, `/migrations`, `/reviews` | 技能管理全域（CRUD、进化、质量、经验账本、迁移、审查收件箱；本地/预置/技能池、打包、一键回滚） |
-| `skill_optimization/` | `/skill-optimization` | Skill优化系统（仪表盘、质量监控、版本管理、A/B测试、批量优化） |
+| `skill_optimization/` | `/skill-optimization` | Skill 优化（仪表盘、质量监控、版本管理、Shadow A/B）— 见 [routes/_ARCH.md](skill_optimization/routes/_ARCH.md) |
+| `batch_optimization/` | `/batch-optimization` | 批量技能优化（创建前快照、`cancel`+`rollback`、terminal 回滚）— 见 [_ARCH.md](batch_optimization/_ARCH.md) |
 
 ### 核心业务
 
@@ -61,7 +62,7 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | `system/` | `/system` | 系统信息、公网 ingress、优雅停机（`/shutdown`） |
 | `config/` | `/config` | 用户配置管理（带版本控制） |
 | `webui/` | `/webui` | WebUI 辅助接口（二维码、欢迎页面、认证） |
-| `system/` | `/system` | 系统信息与环境配置解析（如公网入站地址 ingress-url） |
+| `workspace/` | `/workspace` | Workspace 级别端点（SSE Multiplexing 多路复用流） |
 
 ### 用户体验
 
@@ -113,7 +114,7 @@ api_router
   ├─ 语音 (stt, tts, voice/ws)
   ├─ 安全 (security/allowlist)
   ├─ 开发者 (workspace_rules)
-  ├─ 集成与基础设施 (features, integrations, config, webui)
+  ├─ 集成与基础设施 (features, integrations, config, webui, workspace)
   ├─ OpenAI 兼容 (/v1 — Agent + LLM passthrough)
   ├─ [Local] migration/ (竞品数据自动发现)
   ├─ [Local] channels/manage (Channel 管理)

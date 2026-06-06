@@ -113,35 +113,35 @@ const BatchTaskRow = ({ task, cancellingBatchId, onUpdate, onCancel }: BatchTask
         return (
           <Badge variant="secondary" className="whitespace-nowrap">
             <Clock className="size-3 mr-1" />
-            Pending / 排队中
+            {tBatch('statusPending')}
           </Badge>
         );
       case 'running':
         return (
           <Badge variant="default" className="whitespace-nowrap">
             {isConnected ? <Wifi className="size-3 mr-1" /> : <WifiOff className="size-3 mr-1" />}
-            Running / 运行中
+            {tBatch('statusRunning')}
           </Badge>
         );
       case 'completed':
         return (
           <Badge variant="default" className="bg-emerald-600 whitespace-nowrap">
             <CheckCircle2 className="size-3 mr-1" />
-            Completed / 已完成
+            {tBatch('statusCompleted')}
           </Badge>
         );
       case 'cancelled':
         return (
           <Badge variant="destructive" className="whitespace-nowrap">
             <XCircle className="size-3 mr-1" />
-            Cancelled / 已取消
+            {tBatch('statusCancelled')}
           </Badge>
         );
       case 'failure':
         return (
           <Badge variant="destructive" className="whitespace-nowrap">
             <AlertCircle className="size-3 mr-1" />
-            Failed / 失败
+            {tBatch('statusFailed')}
           </Badge>
         );
       default:
@@ -486,9 +486,15 @@ const BatchOptimizationPage = () => {
       try {
         const result = await cancelBatchTask(batchId, cleanupStrategy);
 
-        toast.success(
-          result.rollback_performed ? tBatch('cancelRollbackSuccess') : tBatch('cancelSuccess'),
-        );
+        if (cleanupStrategy === 'rollback') {
+          if (result.rollback_performed) {
+            toast.success(tBatch('cancelRollbackSuccess'));
+          } else {
+            toast.error(tBatch('cancelRollbackFailed'));
+          }
+        } else {
+          toast.success(tBatch('cancelSuccess'));
+        }
         await fetchTasks();
       } catch (error) {
         console.error('Error cancelling batch:', error);
@@ -507,13 +513,13 @@ const BatchOptimizationPage = () => {
       : 'Waiting for sync / 等待同步';
 
   const statusFilters: Array<{ value: BatchStatusFilter; label: string; count: number }> = [
-    { value: 'all', label: 'All / 全部', count: stats.totalBatches },
-    { value: 'active', label: 'Active / 运行中', count: stats.activeBatches },
-    { value: 'pending', label: 'Pending / 排队中', count: stats.pendingBatches },
-    { value: 'running', label: 'Running / 执行中', count: stats.runningBatches },
-    { value: 'completed', label: 'Completed / 已完成', count: stats.completedBatches },
-    { value: 'failure', label: 'Failed / 失败', count: stats.failedBatches },
-    { value: 'cancelled', label: 'Cancelled / 已取消', count: stats.cancelledBatches },
+    { value: 'all', label: tBatch('filterAll'), count: stats.totalBatches },
+    { value: 'active', label: tBatch('filterActive'), count: stats.activeBatches },
+    { value: 'pending', label: tBatch('statusPending'), count: stats.pendingBatches },
+    { value: 'running', label: tBatch('filterExecuting'), count: stats.runningBatches },
+    { value: 'completed', label: tBatch('statusCompleted'), count: stats.completedBatches },
+    { value: 'failure', label: tBatch('statusFailed'), count: stats.failedBatches },
+    { value: 'cancelled', label: tBatch('statusCancelled'), count: stats.cancelledBatches },
   ];
 
   const summaryCards = [
@@ -722,7 +728,7 @@ const BatchOptimizationPage = () => {
                   </div>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-2xl border">
+                <div className="overflow-x-auto rounded-2xl border">
                   <Table>
                     <TableHeader>
                       <TableRow>
