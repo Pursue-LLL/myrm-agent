@@ -69,7 +69,7 @@ RUN chmod +x /app/entrypoint.sh
 
 COPY docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
 
-RUN /app/.venv/bin/verify-harness-distribution --matplotlib-cjk \
+RUN /app/.venv/bin/python -m myrm_agent_harness._verify_distribution --matplotlib-cjk \
     && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib
 
 WORKDIR /app
