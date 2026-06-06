@@ -8,8 +8,16 @@ from sqlalchemy import select
 from app.core.types import ModelConfig
 from app.database.models import ApprovalRecord
 from app.database.models.chat import Chat, Message
-from app.platform_utils import get_session_factory
+from app.database.models.base import Base
+from app.platform_utils import get_database_engine, get_session_factory
 from app.services.agent.evolution.engine import _run_evolution_task
+
+
+@pytest.fixture(autouse=True)
+async def ensure_tables() -> None:
+    engine = get_database_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @pytest.mark.e2e

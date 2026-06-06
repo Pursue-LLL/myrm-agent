@@ -545,7 +545,8 @@ _CREDENTIAL_KEY_TO_CHANNEL: dict[str, str] = {
 async def _try_hot_register_channel(config_key: str) -> None:
     """Hot-register a channel after its credentials are saved.
 
-    If the channel is already registered in the gateway, this is a no-op.
+    If the channel is already registered in the gateway, it will be removed and re-added
+    to apply the new credentials (hot-reload).
     If the channel has valid credentials, creates and adds it via hot-add.
     Failures are logged but never propagate to the caller.
     """
@@ -557,7 +558,8 @@ async def _try_hot_register_channel(config_key: str) -> None:
         from app.core.channel_bridge import channel_gateway
 
         if channel_gateway.bus.get_channel(channel_name):
-            return
+            # Remove the existing channel first to allow hot-reload
+            await channel_gateway.remove_channel(channel_name)
 
         from app.channels.core.credentials import resolve_credentials
         from app.channels.providers.registry import get_channel_class_safe

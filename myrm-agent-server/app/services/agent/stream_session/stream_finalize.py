@@ -191,7 +191,11 @@ async def finalize_agent_stream_session(
 
         GoalRegistry.unregister(session.request.chat_id)
 
-    if session.collector.has_content and session.request.chat_id:
+    if (
+        session.collector.has_content
+        and session.request.chat_id
+        and not session.cancel_token.is_cancelled
+    ):
         try:
             from app.services.agent.evolution.engine import trigger_skill_evolution
 
