@@ -253,3 +253,99 @@ def test_cancel_http_multi_skill_rollback_writes_disk(
         assert skill_paths[skill_id].read_text(encoding="utf-8") == content
         storage.activate_version.assert_any_await(skill_id, version)
     assert storage.activate_version.await_count == 2
+
+
+def test_cancel_http_partial_rollback_reports_counts(
+    batch_client: TestClient,
+    batch_app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    batch_id = "batch-cancel-partial-1"
+    skill_specs = {
+        "skill-a": ("# Skill A before", 1),
+        "skill-b": ("# Skill B before", 2),
+    }
+    skill_paths = {sid: tmp_path / sid / "SKILL.md" for sid in skill_specs}
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    async def init_db() -> async_sessionmaker[AsyncSession]:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            for index, (skill_id, (content, version)) in enumerate(skill_specs.items()):
+                session.add(
+                    BatchSnapshot(
+                        snapshot_id=f"snap-partial-{index}",
+                        batch_id=batch_id,
+                        skill_id=skill_id,
+                        skill_content_before=content,
+                        skill_version_before=version,
+                        skill_metadata={},
+                    )
+                )
+            await session.commit()
+        return factory
+
+    session_factory = asyncio.run(init_db())
+
+    async def override_get_db():
+        async with session_factory() as session:
+            yield session
+
+    storage = MagicMock()
+
+    async def _get_skill_version(skill_id: str, version: int) -> SkillVersion:
+        content, ver = skill_specs[skill_id]
+        return _sample_version(skill_id, ver, content)
+
+    storage.get_skill_version = AsyncMock(side_effect=_get_skill_version)
+    storage.activate_version = AsyncMock(side_effect=_get_skill_version)
+
+    async def _resolve(skill_id: str) -> Path:
+        return skill_paths[skill_id]
+
+    monkeypatch.setattr(
+        "app.services.skill_optimization.skill_version_sync.resolve_skill_md_path",
+        _resolve,
+    )
+    monkeypatch.setattr(config_version, "bump_skill_config_version", lambda: None)
+
+    original_restore = batch_router_module.restore_skill_snapshot
+
+    async def partial_restore(storage_mock: MagicMock, skill_id: str, content: str, version: int) -> None:
+        if skill_id == "skill-b":
+            raise OSError("disk write failed")
+        await original_restore(storage_mock, skill_id, content, version)
+
+    monkeypatch.setattr(batch_router_module, "restore_skill_snapshot", partial_restore)
+
+    task = FakeBatchTask(batch_id=batch_id, max_concurrent=2, status="running", total_tasks=2)
+    repo_stub = BatchTaskRepositoryStub(task)
+    audit_stub = AuditLogRepositoryStub()
+
+    batch_app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(batch_router_module, "BatchTaskRepository", lambda _s: repo_stub)
+    monkeypatch.setattr(batch_router_module, "AuditLogRepository", lambda _s: audit_stub)
+    monkeypatch.setattr(batch_router_module, "get_storage", lambda: storage)
+    monkeypatch.setattr(
+        "app.core.infra.server_globals.get_optimization_scheduler",
+        lambda: None,
+    )
+
+    response = batch_client.post(
+        f"/api/v1/batch-optimization/tasks/{batch_id}/cancel",
+        json={"cleanup_strategy": "rollback"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rollback_performed"] is False
+    assert body["total_skills"] == 2
+    assert body["rolled_back"] == 1
+    assert body["failed"] == 1
+    assert body["error_message"] == "1 skills failed to rollback"
+    assert skill_paths["skill-a"].read_text(encoding="utf-8") == skill_specs["skill-a"][0]
+    assert audit_stub.logs[0]["error_message"] == "1 skills failed to rollback"

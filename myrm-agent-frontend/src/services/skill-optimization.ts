@@ -134,13 +134,17 @@ export async function startShadowAbTest(
 
 export async function rollbackBatchTask(batchId: string): Promise<{
   success: boolean;
+  total_skills: number;
   rolled_back: number;
   failed: number;
+  error_message: string | null;
 }> {
   return apiRequest<{
     success: boolean;
+    total_skills: number;
     rolled_back: number;
     failed: number;
+    error_message: string | null;
   }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/rollback`, {
     method: 'POST',
   });
@@ -158,6 +162,7 @@ export async function cancelBatchTask(
   total_skills: number;
   rolled_back: number;
   failed: number;
+  error_message: string | null;
 }> {
   return apiRequest<{
     batch_id: string;
@@ -166,6 +171,7 @@ export async function cancelBatchTask(
     total_skills: number;
     rolled_back: number;
     failed: number;
+    error_message: string | null;
   }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/cancel`, {
     method: 'POST',
     body: JSON.stringify({ cleanup_strategy: cleanupStrategy }),

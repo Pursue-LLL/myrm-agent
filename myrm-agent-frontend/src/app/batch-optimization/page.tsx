@@ -58,6 +58,7 @@ import {
   matchesBatchStatusFilter,
   normalizeBatchStatus,
   parseSkillIds,
+  resolveBatchRollbackToastParams,
 } from '@/lib/batch-optimization';
 
 interface BatchTaskRowProps {
@@ -487,18 +488,23 @@ const BatchOptimizationPage = () => {
         const result = await cancelBatchTask(batchId, cleanupStrategy);
 
         if (cleanupStrategy === 'rollback') {
-          if (result.rollback_performed) {
-            toast.success(tBatch('cancelRollbackSuccess', { count: result.rolled_back }));
-          } else if (result.rolled_back > 0) {
+          const toastParams = resolveBatchRollbackToastParams(result, 'cancel');
+          if (toastParams.variant === 'success') {
+            toast.success(tBatch('cancelRollbackSuccess', { count: toastParams.count }));
+          } else if (toastParams.variant === 'partial') {
             toast.error(
               tBatch('cancelRollbackPartial', {
-                rolled: result.rolled_back,
-                failed: result.failed,
-                total: result.total_skills,
+                rolled: toastParams.rolled,
+                failed: toastParams.failed,
+                total: toastParams.total,
               }),
+              toastParams.error_message ? { description: toastParams.error_message } : undefined,
             );
           } else {
-            toast.error(tBatch('cancelRollbackFailed'));
+            toast.error(
+              tBatch('cancelRollbackFailed'),
+              toastParams.error_message ? { description: toastParams.error_message } : undefined,
+            );
           }
         } else {
           toast.success(tBatch('cancelSuccess'));

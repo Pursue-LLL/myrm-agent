@@ -35,6 +35,7 @@ import {
   getBatchProgress,
   isBatchTerminalStatus,
   normalizeBatchStatus,
+  resolveBatchRollbackToastParams,
 } from '@/lib/batch-optimization';
 
 const BatchDetailPage = () => {
@@ -76,11 +77,27 @@ const BatchDetailPage = () => {
     setIsRollingBack(true);
     try {
       const result = await rollbackBatchTask(batchId);
-      if (result.success) {
-        toast({ title: tBatch('rollbackSuccess', { count: result.rolled_back }) });
+      const toastParams = resolveBatchRollbackToastParams(result, 'rollback');
+      if (toastParams.variant === 'success') {
+        toast({ title: tBatch('rollbackSuccess', { count: toastParams.count }) });
+        await fetchTaskDetail();
+      } else if (toastParams.variant === 'partial') {
+        toast({
+          title: tBatch('rollbackPartial', {
+            rolled: toastParams.rolled,
+            failed: toastParams.failed,
+            total: toastParams.total,
+          }),
+          description: toastParams.error_message ?? undefined,
+          variant: 'destructive',
+        });
         await fetchTaskDetail();
       } else {
-        toast({ title: tBatch('rollbackFailed'), variant: 'destructive' });
+        toast({
+          title: tBatch('rollbackFailed'),
+          description: toastParams.error_message ?? undefined,
+          variant: 'destructive',
+        });
       }
     } catch {
       toast({ title: tBatch('rollbackFailed'), variant: 'destructive' });
@@ -95,19 +112,25 @@ const BatchDetailPage = () => {
       try {
         const result = await cancelBatchTask(batchId, cleanupStrategy);
         if (cleanupStrategy === 'rollback') {
-          if (result.rollback_performed) {
-            toast({ title: tBatch('cancelRollbackSuccess', { count: result.rolled_back }) });
-          } else if (result.rolled_back > 0) {
+          const toastParams = resolveBatchRollbackToastParams(result, 'cancel');
+          if (toastParams.variant === 'success') {
+            toast({ title: tBatch('cancelRollbackSuccess', { count: toastParams.count }) });
+          } else if (toastParams.variant === 'partial') {
             toast({
               title: tBatch('cancelRollbackPartial', {
-                rolled: result.rolled_back,
-                failed: result.failed,
-                total: result.total_skills,
+                rolled: toastParams.rolled,
+                failed: toastParams.failed,
+                total: toastParams.total,
               }),
+              description: toastParams.error_message ?? undefined,
               variant: 'destructive',
             });
           } else {
-            toast({ title: tBatch('cancelRollbackFailed'), variant: 'destructive' });
+            toast({
+              title: tBatch('cancelRollbackFailed'),
+              description: toastParams.error_message ?? undefined,
+              variant: 'destructive',
+            });
           }
         } else {
           toast({ title: tBatch('cancelSuccess') });

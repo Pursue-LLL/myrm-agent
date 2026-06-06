@@ -54,6 +54,7 @@ class AuditLogRepositoryStub:
         status: str,
         details: dict[str, object],
         user_id: str,
+        error_message: str | None = None,
     ) -> None:
         self.logs.append(
             {
@@ -62,5 +63,6 @@ class AuditLogRepositoryStub:
                 "status": status,
                 "details": details,
                 "user_id": user_id,
+                "error_message": error_message,
             }
         )

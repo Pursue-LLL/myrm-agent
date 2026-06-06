@@ -1626,6 +1626,7 @@
         "rollbackConfirmTitle": "Roll back this batch?",
         "rollbackConfirmDescription": "All skills in this batch will be restored to their pre-optimization snapshots.",
         "rollbackSuccess": "Batch rollback completed ({count} skills restored)",
+        "rollbackPartial": "Batch rollback partial — restored {rolled}/{total} skills, {failed} failed",
         "rollbackFailed": "Batch rollback failed",
         "cancel": "Cancel batch",
         "cancelConfirmTitle": "Cancel this batch?",

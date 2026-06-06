@@ -220,6 +220,52 @@ export const buildBatchTaskStats = (tasks: BatchTaskListItem[]): BatchTaskStats 
   };
 };
 
+export interface BatchRollbackOutcome {
+  success?: boolean;
+  rollback_performed?: boolean;
+  total_skills: number;
+  rolled_back: number;
+  failed: number;
+  error_message?: string | null;
+}
+
+export type BatchRollbackToastMode = 'cancel' | 'rollback';
+
+export type BatchRollbackToastVariant = 'success' | 'partial' | 'failed';
+
+export interface BatchRollbackToastParams {
+  variant: BatchRollbackToastVariant;
+  count?: number;
+  rolled?: number;
+  total?: number;
+  failed?: number;
+  error_message?: string | null;
+}
+
+export const resolveBatchRollbackToastParams = (
+  outcome: BatchRollbackOutcome,
+  mode: BatchRollbackToastMode,
+): BatchRollbackToastParams => {
+  const isFullSuccess =
+    mode === 'cancel' ? outcome.rollback_performed === true : outcome.success === true;
+
+  if (isFullSuccess) {
+    return { variant: 'success', count: outcome.rolled_back };
+  }
+
+  if (outcome.rolled_back > 0) {
+    return {
+      variant: 'partial',
+      rolled: outcome.rolled_back,
+      total: outcome.total_skills,
+      failed: outcome.failed,
+      error_message: outcome.error_message,
+    };
+  }
+
+  return { variant: 'failed', error_message: outcome.error_message };
+};
+
 export const matchesBatchStatusFilter = (status: string, filter: BatchStatusFilter): boolean => {
   if (filter === 'all') {
     return true;

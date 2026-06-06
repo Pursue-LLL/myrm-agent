@@ -1626,6 +1626,7 @@
         "rollbackConfirmTitle": "回滚此批量任务？",
         "rollbackConfirmDescription": "该批次内所有技能将恢复到优化前的快照状态。",
         "rollbackSuccess": "批量回滚完成（已恢复 {count} 个技能）",
+        "rollbackPartial": "批量回滚部分完成 — 已恢复 {rolled}/{total} 个技能，{failed} 个失败",
         "rollbackFailed": "批量回滚失败",
         "cancel": "取消批量任务",
         "cancelConfirmTitle": "取消此批量任务？",
