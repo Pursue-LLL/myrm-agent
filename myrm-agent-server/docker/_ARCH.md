@@ -29,7 +29,7 @@ Builder：`uv sync --frozen --all-extras`（含 `compiled-core`；`pyproject.tom
 
 Lock 约束：`tests/architecture/test_uv_lock_harness_registry.py` 要求 `uv.lock` 使用 PyPI registry pin。
 
-CI：`myrm-agent/.github/workflows/server-architecture.yml`（`scripts/ci/run_architecture_gates.sh`，需本地 harness 或 PyPI）；`install-smoke.yml`（Linux PR；Windows 仅 `workflow_dispatch`）。
+CI：`myrm-agent/.github/workflows/server-architecture.yml`（`run_architecture_gates.sh` + Linux `docker build` 验证公开 `Dockerfile` 的 `uv sync --frozen` 与 `verify-harness-distribution`）；`install-smoke.yml`（`install.sh` 非 frozen 路径；Windows 仅 `workflow_dispatch`）。
 
 Harness 版本与 wheel 矩阵见下方链接；升级 server 依赖时在 `myrm-agent-server` 对 PyPI 已发布版本更新 `pyproject.toml` 并刷新 `uv.lock`。
 

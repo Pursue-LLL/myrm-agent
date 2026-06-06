@@ -7,6 +7,8 @@ on:
       - 'myrm-agent-server/tests/architecture/**'
       - 'myrm-agent-server/pyproject.toml'
       - 'myrm-agent-server/uv.lock'
+      - 'myrm-agent-server/Dockerfile'
+      - 'myrm-agent-server/docker/**'
       - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
       - '.github/workflows/server-architecture.yml'
 
@@ -28,3 +30,16 @@ jobs:
 
       - name: Run architecture gates
         run: bash scripts/ci/run_architecture_gates.sh
+
+  docker-image:
+    name: OSS server Docker image (PyPI harness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: myrm-agent-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build public server image
+        run: docker build -t myrm-server:ci .
