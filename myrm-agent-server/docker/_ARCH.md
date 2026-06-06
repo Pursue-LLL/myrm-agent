@@ -10,7 +10,7 @@ Server 容器构建与运行时入口。`Dockerfile` 从 PyPI 安装钉死版本
 |------|------|------|-------|
 | `Dockerfile` | 核心 | OSS 镜像：uv sync + PyPI 安装 harness + runtime verify | ✅ |
 | `Dockerfile.official` | 核心 | 源码构建 harness wheel 后装入 server venv | ✅ |
-| `read_harness_pypi_spec.py` | 辅助 | 从 `pyproject.toml` 解析 harness pip 规格（Dockerfile / 安装脚本共用） | ✅ |
+| `read_harness_pypi_spec.py` | 辅助 | 从 `pyproject.toml` 解析 harness pip 规格（安装脚本 / CI 共用；公开 Dockerfile 仅用 `uv.lock`） | ✅ |
 | `install_harness_wheels.sh` | 核心 | `Dockerfile.official` builder：按平台安装 core/release 双 wheel | ✅ |
 | `entrypoint.sh` | 核心 | 容器启动入口（Xvfb/VNC 等） | ✅ |
 | `sandbox/` | 子模块 | Skill 沙箱镜像（与 server runtime 分离） | ✅ |

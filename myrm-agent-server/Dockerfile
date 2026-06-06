@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 COPY pyproject.toml uv.lock ./
-COPY docker/read_harness_pypi_spec.py ./docker/read_harness_pypi_spec.py
 COPY app ./app
 COPY run.py ./run.py
 
