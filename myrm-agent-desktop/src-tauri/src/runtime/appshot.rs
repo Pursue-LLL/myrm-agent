@@ -27,7 +27,7 @@ pub fn handle_toggle_window(app: &AppHandle) {
     }
 }
 
-/// 截屏并提取窗口文本，通过 `appshot-captured` 事件推送到前端
+/// 截屏并提取窗口文本，通过 `appshot-captured` 事件推送到前端，并确保主窗口可见
 pub fn handle_appshot_shortcut(app: &AppHandle) {
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -53,6 +53,16 @@ pub fn handle_appshot_shortcut(app: &AppHandle) {
 
         if let Err(e) = app_handle.emit("appshot-captured", payload) {
             eprintln!("Failed to emit appshot event: {}", e);
+        }
+
+        if let Some(window) = app_handle.get_webview_window("main") {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Regular);
+            }
+            let _ = window.show();
+            let _ = window.unminimize();
+            let _ = window.set_focus();
         }
     });
 }

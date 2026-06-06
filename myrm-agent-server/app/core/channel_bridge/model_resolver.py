@@ -167,7 +167,7 @@ def _fallback_model_from_providers(
         base_selection = base_model.get("primary") or base_model.get("selection")
         if base_selection and isinstance(base_selection, dict):
             pid = str(base_selection.get("providerId", ""))
-            model = str(base_selection.get("model", ""))
+            model = str(base_selection.get("model") or base_selection.get("modelId") or "")
             provider = providers_by_id.get(pid)
             is_enabled = provider.get("isEnabled") or provider.get("enabled") if provider else False
             if provider and is_enabled and model:

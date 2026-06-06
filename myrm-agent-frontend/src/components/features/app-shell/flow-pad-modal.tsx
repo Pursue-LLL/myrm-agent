@@ -145,6 +145,7 @@ export function FlowPadModal() {
 
   const [text, setText] = useState('');
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const autoResizeTextarea = useCallback(() => {
@@ -172,7 +173,9 @@ export function FlowPadModal() {
     const hasText = text.trim().length > 0;
 
     if (!hasCaptures && !hasText) return;
+    if (isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       if (hasCaptures) {
         const screenshotFiles = captures
@@ -205,13 +208,14 @@ export function FlowPadModal() {
 
       const agentLabel = agentConfig?.name || t('defaultAgent');
       toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
+      close();
     } catch (err) {
       console.error('FlowPad submit failed:', err);
       toast.error(t('submitFailed'), { duration: 3000 });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    close();
-  }, [captures, text, setFiles, sendMessage, close, agentConfig, t]);
+  }, [captures, text, setFiles, sendMessage, close, agentConfig, t, isSubmitting]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -300,9 +304,13 @@ export function FlowPadModal() {
                 size="icon"
                 className="h-8 w-8 rounded-full"
                 onClick={handleSubmit}
-                disabled={!text.trim() && !hasCaptures}
+                disabled={isSubmitting || (!text.trim() && !hasCaptures)}
               >
-                <Send className="h-4 w-4" />
+                {isSubmitting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>

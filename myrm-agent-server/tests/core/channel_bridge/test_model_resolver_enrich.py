@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from app.core.channel_bridge.model_resolver import (
+    _fallback_model_from_providers,
     _resolve_model_max_input_tokens,
     enrich_model_context_window,
 )
@@ -100,3 +101,25 @@ class TestEnrichModelContextWindow:
         assert result.base_url == "https://custom.api"
         assert result.api_keys == ["sk-1", "sk-2"]
         assert result.max_context_tokens == 128_000
+
+
+class TestFallbackModelFromProviders:
+    def test_resolves_model_id_field_from_default_model_config(self) -> None:
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "xiaomi_mimo",
+                    "isEnabled": True,
+                    "apiUrl": "https://token-plan-cn.xiaomimimo.com/v1",
+                    "apiKeys": [{"key": "tp-test", "isActive": True}],
+                }
+            ],
+            "defaultModelConfig": {
+                "baseModel": {
+                    "primary": {"providerId": "xiaomi_mimo", "modelId": "mimo-v2.5-pro"},
+                }
+            },
+        }
+        cfg = _fallback_model_from_providers(providers_dict)
+        assert cfg.model == "xiaomi_mimo/mimo-v2.5-pro"
+        assert cfg.api_key == "tp-test"
