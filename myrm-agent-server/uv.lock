@@ -2108,7 +2108,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'data-viz'", specifier = ">=3.10.9" },
     { name = "mautrix", marker = "extra == 'matrix'", specifier = ">=0.21.0" },
     { name = "mautrix", extras = ["encryption"], marker = "extra == 'matrix-e2ee'", specifier = ">=0.21.0" },
-    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing"], specifier = "==0.1.0rc1" },
+    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc1" },
     { name = "nanoid", specifier = ">=2.0.0" },
     { name = "orjson", specifier = ">=3.11.9" },
     { name = "pandas", marker = "extra == 'data-viz'", specifier = ">=3.0.3" },
