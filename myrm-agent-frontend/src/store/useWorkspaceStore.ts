@@ -27,6 +27,10 @@ interface WorkspaceState {
   updatePaneChatId: (paneId: string, chatId: string) => void;
   savePaneSnapshot: (paneId: string, snapshot: Partial<ChatState>) => void;
   getPaneSnapshot: (paneId: string) => Partial<ChatState> | null;
+  setPaneAbortController: (paneId: string, controller: AbortController | null) => void;
+  setPaneCurrentSessionMessageId: (paneId: string, messageId: string | null) => void;
+  getPaneAbortController: (paneId: string) => AbortController | null;
+  getPaneCurrentSessionMessageId: (paneId: string) => string | null;
   refreshActiveSessions: () => Promise<void>;
   syncBackgroundPanes: () => Promise<void>;
   startPolling: () => void;
@@ -53,6 +57,8 @@ const useWorkspaceStore = create<WorkspaceState>()(
           chatId: chatId ?? null,
           title: title ?? `Pane ${state.panes.length + 1}`,
           snapshot: null,
+          abortController: null,
+          currentSessionMessageId: null,
         });
         state.activePaneId = id;
       });
@@ -94,6 +100,30 @@ const useWorkspaceStore = create<WorkspaceState>()(
     getPaneSnapshot: (paneId: string) => {
       const pane = get().panes.find((p) => p.id === paneId);
       return pane?.snapshot ?? null;
+    },
+
+    setPaneAbortController: (paneId: string, controller: AbortController | null) => {
+      set((state) => {
+        const pane = state.panes.find((p) => p.id === paneId);
+        if (pane) pane.abortController = controller;
+      });
+    },
+
+    setPaneCurrentSessionMessageId: (paneId: string, messageId: string | null) => {
+      set((state) => {
+        const pane = state.panes.find((p) => p.id === paneId);
+        if (pane) pane.currentSessionMessageId = messageId;
+      });
+    },
+
+    getPaneAbortController: (paneId: string) => {
+      const pane = get().panes.find((p) => p.id === paneId);
+      return pane?.abortController ?? null;
+    },
+
+    getPaneCurrentSessionMessageId: (paneId: string) => {
+      const pane = get().panes.find((p) => p.id === paneId);
+      return pane?.currentSessionMessageId ?? null;
     },
 
     refreshActiveSessions: async () => {

@@ -14,7 +14,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `stream_finalize.py` | 核心 | 流错误处理与会话 teardown;`asyncio.CancelledError` 分支调 `kill_session_jobs(chat_id)` 覆盖 SSE 硬断;finalize 末尾 fire-and-forget 触发 `trigger_skill_evolution`（普通对话按 tool_steps 门控，DW 直接传 collector content） | ✅ |
 | `stream_pump.py` | 核心 | 将 chunk 泵入 `GlobalStreamRegistry` buffer 并返回 `StreamingResponse` | ✅ |
 | `stream_generator.py` | 门面 | 对外 re-export：`AgentStreamSession`、`build_disconnect_checker`、`generate_cancellable_stream`、`launch_buffered_stream` | ✅ |
-| `stream_lane_factory.py` | 核心 | Deep Research / Fast Lane / Consensus SSE 工厂 | ✅ |
+| `stream_lane_factory.py` | 核心 | Dynamic Workflow / Deep Research / Fast Lane / Consensus SSE 工厂 | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |
 | `risk_gate.py` | 辅助 | 流式输入 risk 拦截 | ✅ |
 

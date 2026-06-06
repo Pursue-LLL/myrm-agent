@@ -1,4 +1,4 @@
-"""Stream lane factories — deep research, fast lane, and consensus SSE builders."""
+"""Stream lane factories — dynamic workflow, deep research, fast lane, and consensus SSE builders."""
 
 from __future__ import annotations
 

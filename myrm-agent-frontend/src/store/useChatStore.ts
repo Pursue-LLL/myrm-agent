@@ -265,12 +265,23 @@ const useChatStore = create<ChatState>()(
         }),
       clearEnvironmentAlerts: () => set({ environmentAlerts: new Set<string>() }),
       stopMessage: () => {
-        const { abortController, currentSessionMessageId } = get();
+        const { chatId } = get();
+        if (!chatId) return;
+
+        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
+        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+        
+        if (!paneId) return;
+
+        const abortController = workspaceStore.getState().getPaneAbortController(paneId);
+        const currentSessionMessageId = workspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
+
         if (abortController) {
           if (currentSessionMessageId) {
             cancelAgentRequest(currentSessionMessageId).catch(() => {});
           }
           abortController.abort();
+          workspaceStore.getState().setPaneAbortController(paneId, null);
           set((state) => {
             state.loading = false;
             state.abortController = null;
@@ -296,19 +307,35 @@ const useChatStore = create<ChatState>()(
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {
         const state = get();
-        if (!state.currentSessionMessageId) {
+        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
+        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        
+        let currentId = paneId ? workspaceStore.getState().getPaneCurrentSessionMessageId(paneId) : state.currentSessionMessageId;
+
+        if (!currentId) {
           // 生成更强的唯一性ID用于请求关联
           const timestamp = Date.now().toString(36);
           const microTime = (performance.now() * 1000).toString(36).replace('.', '');
           const randomBytes = crypto.randomBytes(6).toString('hex');
           const counter = ((Math.random() * 0xffff) | 0).toString(36);
           const newMessageId = `r-${timestamp}-${microTime}-${randomBytes}-${counter}`;
+          if (paneId) {
+            workspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
+          }
           set({ currentSessionMessageId: newMessageId });
           return newMessageId;
         }
-        return state.currentSessionMessageId;
+        return currentId;
       },
-      clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+      clearCurrentSessionMessageId: () => {
+        const state = get();
+        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
+        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        if (paneId) {
+          workspaceStore.getState().setPaneCurrentSessionMessageId(paneId, null);
+        }
+        set({ currentSessionMessageId: null });
+      },
 
       resetSessionState: () => {
         set({
@@ -469,9 +496,10 @@ const useChatStore = create<ChatState>()(
       initializeChat: (id) => {
         const state = get();
         // 隔离切换聊天时的线程缓存：如果正在生成内容，且切换到了不同的聊天，强制中止当前生成
-        if (state.abortController && state.chatId !== id) {
-          get().stopMessage();
-        }
+        // REMOVED: Do not stop message on tab switch to allow parallel execution
+        // if (state.abortController && state.chatId !== id) {
+        //   get().stopMessage();
+        // }
 
         // 重置相关状态
         // 新对话（无id）展开配置面板，有对话时收起
