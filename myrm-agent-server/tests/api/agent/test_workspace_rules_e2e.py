@@ -1,12 +1,10 @@
 import json
-import os
 import uuid
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config.settings import settings
 from tests.api.agent.utils import get_model_selection
 
 
@@ -62,8 +60,14 @@ class TestWorkspaceRulesE2E:
 
     @pytest.fixture
     def temp_workspace(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-        """Create a temporary workspace and mock get_workspace_root."""
-        monkeypatch.setattr("app.platform_utils.workspace_root.get_workspace_root", lambda: tmp_path)
+        """Create a temporary workspace and mock chat workspace dir."""
+        async def mock_resolve(*args, **kwargs):
+            return str(tmp_path)
+            
+        monkeypatch.setattr(
+            "app.services.agent.params.converter._resolve_default_chat_workspace_dir", 
+            mock_resolve
+        )
         yield tmp_path
 
     def test_first_match_wins_e2e(self, client: TestClient, temp_workspace: Path):
