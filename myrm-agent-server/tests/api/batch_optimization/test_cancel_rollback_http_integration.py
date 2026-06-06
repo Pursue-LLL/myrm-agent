@@ -153,6 +153,9 @@ def test_cancel_http_real_rollback_writes_disk(
     body = response.json()
     assert body["rollback_performed"] is True
     assert body["status"] == "cancelled"
+    assert body["total_skills"] == 1
+    assert body["rolled_back"] == 1
+    assert body["failed"] == 0
     assert skill_md.read_text(encoding="utf-8") == content_before
     storage.activate_version.assert_awaited_once_with(skill_id, 1)
     assert audit_stub.logs[0]["details"]["rollback_performed"] is True
@@ -243,6 +246,9 @@ def test_cancel_http_multi_skill_rollback_writes_disk(
     assert response.status_code == 200
     body = response.json()
     assert body["rollback_performed"] is True
+    assert body["total_skills"] == 2
+    assert body["rolled_back"] == 2
+    assert body["failed"] == 0
     for skill_id, (content, version) in skill_specs.items():
         assert skill_paths[skill_id].read_text(encoding="utf-8") == content
         storage.activate_version.assert_any_await(skill_id, version)

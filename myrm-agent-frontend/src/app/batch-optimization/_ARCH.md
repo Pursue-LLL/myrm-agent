@@ -18,7 +18,7 @@
 - `@/lib/api`（`apiRequest`）— 列表 GET、创建 POST `/batch-optimization/tasks`
 - `@/services/skill-optimization.ts` — `cancelBatchTask` / `rollbackBatchTask`
 - `@/lib/batch-optimization.ts` — 类型、进度/统计/format 工具
-- `locales/*` → `settings.skillOptimization.batchPage`（dialog/cancel toast 含 `cancelRollbackFailed`）+ `localizeReactNode` 渲染 shell 双语源串
+- `locales/*` → `settings.skillOptimization.batchPage`（cancel toast：`cancelRollbackSuccess`/`cancelRollbackPartial`/`cancelRollbackFailed`）+ `localizeReactNode` 渲染 shell 双语源串
 
 ## 约束
 

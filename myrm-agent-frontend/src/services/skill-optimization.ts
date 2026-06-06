@@ -155,11 +155,17 @@ export async function cancelBatchTask(
   batch_id: string;
   status: string;
   rollback_performed: boolean;
+  total_skills: number;
+  rolled_back: number;
+  failed: number;
 }> {
   return apiRequest<{
     batch_id: string;
     status: string;
     rollback_performed: boolean;
+    total_skills: number;
+    rolled_back: number;
+    failed: number;
   }>(`/batch-optimization/tasks/${encodeURIComponent(batchId)}/cancel`, {
     method: 'POST',
     body: JSON.stringify({ cleanup_strategy: cleanupStrategy }),

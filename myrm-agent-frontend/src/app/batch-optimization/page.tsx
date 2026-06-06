@@ -488,7 +488,15 @@ const BatchOptimizationPage = () => {
 
         if (cleanupStrategy === 'rollback') {
           if (result.rollback_performed) {
-            toast.success(tBatch('cancelRollbackSuccess'));
+            toast.success(tBatch('cancelRollbackSuccess', { count: result.rolled_back }));
+          } else if (result.rolled_back > 0) {
+            toast.error(
+              tBatch('cancelRollbackPartial', {
+                rolled: result.rolled_back,
+                failed: result.failed,
+                total: result.total_skills,
+              }),
+            );
           } else {
             toast.error(tBatch('cancelRollbackFailed'));
           }

@@ -10,7 +10,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 路由导出 | — |
-| `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`；`cancel` 支持 `cleanup_strategy=rollback`；terminal 回滚调 `restore_skill_snapshot`） | ✅ |
+| `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`；`cancel`+`rollback` 均返 `rolled_back`/`failed`/`total_skills`；写盘经 `restore_skill_snapshot`） | ✅ |
 
 ## 测试
 

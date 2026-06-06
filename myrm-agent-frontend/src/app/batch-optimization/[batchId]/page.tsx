@@ -96,7 +96,16 @@ const BatchDetailPage = () => {
         const result = await cancelBatchTask(batchId, cleanupStrategy);
         if (cleanupStrategy === 'rollback') {
           if (result.rollback_performed) {
-            toast({ title: tBatch('cancelRollbackSuccess') });
+            toast({ title: tBatch('cancelRollbackSuccess', { count: result.rolled_back }) });
+          } else if (result.rolled_back > 0) {
+            toast({
+              title: tBatch('cancelRollbackPartial', {
+                rolled: result.rolled_back,
+                failed: result.failed,
+                total: result.total_skills,
+              }),
+              variant: 'destructive',
+            });
           } else {
             toast({ title: tBatch('cancelRollbackFailed'), variant: 'destructive' });
           }

@@ -330,6 +330,9 @@ async def cancel_batch_task(
         await batch_repo.update_status(batch_id, "cancelled")
 
         rollback_performed = False
+        rollback_total_skills = 0
+        rollback_rolled_back = 0
+        rollback_failed = 0
         if request.cleanup_strategy == "rollback":
             snap_result = await db.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
             snapshots = list(snap_result.scalars().all())
@@ -343,15 +346,21 @@ async def cancel_batch_task(
 
                 rollback_result = await rollback_service.rollback_batch(batch_id, skill_writer)
                 rollback_performed = rollback_result.success
+                rollback_total_skills = rollback_result.total_skills
+                rollback_rolled_back = rollback_result.rolled_back
+                rollback_failed = rollback_result.failed
 
         audit_repo = AuditLogRepository(db)
         await audit_repo.create_log(
             batch_id=batch_id,
             operation="cancel",
-            status="success",
+            status="success" if request.cleanup_strategy != "rollback" or rollback_performed else "failure",
             details={
                 "cleanup_strategy": request.cleanup_strategy,
                 "rollback_performed": rollback_performed,
+                "total_skills": rollback_total_skills,
+                "rolled_back": rollback_rolled_back,
+                "failed": rollback_failed,
             },
             user_id="sandbox",
         )
@@ -361,6 +370,9 @@ async def cancel_batch_task(
             "status": "cancelled",
             "cleanup_strategy": request.cleanup_strategy,
             "rollback_performed": rollback_performed,
+            "total_skills": rollback_total_skills,
+            "rolled_back": rollback_rolled_back,
+            "failed": rollback_failed,
         }
 
     except HTTPException:
