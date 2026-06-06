@@ -9,7 +9,7 @@ _SERVER_ROOT = Path(__file__).resolve().parents[3]
 if str(_SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(_SERVER_ROOT))
 
-from app.api.agents.templates import PREBUILT_AGENTS_DIR
+from app.api.agents.templates import PREBUILT_AGENTS_DIR  # noqa: E402
 
 
 async def main():

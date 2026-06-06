@@ -9800,6 +9800,8 @@
     "addConstraint": "+ Add",
     "noConstraintsHint": "(No constraints — Agent operates without restrictions)",
     "constraintPlaceholder": "e.g. Do not modify production config files",
+    "statusConverged": "Converged",
+    "statusLoopRestart": "Restarting",
     "queueTitle": "Queued Goals",
     "cancelQueued": "Cancel this queued goal"
   },

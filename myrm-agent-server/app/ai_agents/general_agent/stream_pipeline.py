@@ -153,6 +153,7 @@ async def execute_stream_pipeline(
     if context.get("goal_provider") and agent_wrapper.agent.memory_manager:
         from app.ai_agents.general_agent.goal_learnings import (
             build_goal_terminal_callback,
+            build_loop_restart_callback,
             retrieve_relevant_learnings,
         )
 
@@ -160,6 +161,7 @@ async def execute_stream_pipeline(
             memory_manager=agent_wrapper.agent.memory_manager,
             llm=agent_wrapper.agent._extraction_llm or agent_wrapper.agent.llm,
         )
+        context["on_loop_restart"] = build_loop_restart_callback()
 
         # Enrich active goal with relevant historical learnings
         goal_provider = context["goal_provider"]

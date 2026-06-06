@@ -62,6 +62,8 @@
     "addConstraint": "+ 添加",
     "noConstraintsHint": "（未设置约束 — Agent 将无限制运行）",
     "constraintPlaceholder": "如: 禁止修改生产环境配置文件",
+    "statusConverged": "已收敛完成",
+    "statusLoopRestart": "重启中",
     "queueTitle": "排队中的目标",
     "cancelQueued": "取消此排队目标"
   },

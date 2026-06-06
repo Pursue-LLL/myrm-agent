@@ -64,6 +64,9 @@ class GoalBudgetRequest(BaseModel):
     max_tokens: int | None = None
     max_usd: float | None = None
     max_time_seconds: int | None = None
+    convergence_window: int | None = None
+    loop_on_pause: bool = False
+    max_loop_restarts: int = 10
     acceptance_criteria: list[dict[str, object]] | None = None
     constraints: list[str] | None = None
     ui_summary: str = Field(default="", max_length=120)
@@ -114,6 +117,7 @@ class AgentRequest(BaseModel):
     message_id: str
     chat_id: str | None = None
     agent_id: str | None = None
+    multiplexed: bool = False
     blueprint_id: str | None = None
     ephemeral_subagents: dict[str, object] | None = None
     task_adaptive_digest: dict[str, object] | None = None

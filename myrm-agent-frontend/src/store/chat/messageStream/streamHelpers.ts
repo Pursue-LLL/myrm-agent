@@ -56,12 +56,17 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
     timeUsedSeconds: payload.time_used_seconds,
     costUsd: payload.cost_usd,
     turnsUsed: payload.turns_used,
+    noProgressStreak: payload.no_progress_streak,
+    loopRestarts: payload.loop_restarts,
     budget: payload.budget
       ? {
           maxTokens: payload.budget.max_tokens,
           maxUsd: payload.budget.max_usd,
           maxTimeSeconds: payload.budget.max_time_seconds,
           maxTurns: payload.budget.max_turns,
+          convergenceWindow: payload.budget.convergence_window,
+          loopOnPause: payload.budget.loop_on_pause,
+          maxLoopRestarts: payload.budget.max_loop_restarts,
         }
       : undefined,
     verdict: payload.verdict,

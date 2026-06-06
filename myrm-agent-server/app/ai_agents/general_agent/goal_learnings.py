@@ -7,12 +7,14 @@
 
 [OUTPUT]
 - build_goal_terminal_callback: Factory for on_goal_terminal callback
+- build_loop_restart_callback: Factory for on_loop_restart callback
 - retrieve_relevant_learnings: Retrieve historical learnings for a new goal
 
 [POS]
-Server-layer integration for automatic goal learnings extraction. Provides the concrete
-callback implementation injected into StreamContext.on_goal_terminal, and the retrieval
-logic for enriching new goals with relevant historical learnings.
+Server-layer integration for goal lifecycle callbacks. Provides the concrete
+callback implementations injected into StreamContext.on_goal_terminal and
+StreamContext.on_loop_restart, plus retrieval logic for enriching new goals
+with relevant historical learnings.
 """
 
 from __future__ import annotations
@@ -185,6 +187,36 @@ async def _try_dequeue_next(session_id: str, *, _depth: int = 0) -> None:
         except Exception:
             logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", next_goal.goal_id)
         await _try_dequeue_next(session_id, _depth=_depth + 1)
+
+
+def build_loop_restart_callback() -> Callable[[str, "Goal"], Awaitable[None]]:
+    """Build the on_loop_restart callback for automatic goal re-triggering.
+
+    When a goal enters loop_restart state (zero tool calls but loop_on_pause enabled),
+    this callback triggers a fresh agent stream with the same goal.
+    """
+
+    async def _on_loop_restart(session_id: str, goal: "Goal") -> None:
+
+        logger.info(
+            "Loop restart for goal %s (restart #%d): %s",
+            goal.goal_id,
+            goal.loop_restarts,
+            goal.objective[:60],
+        )
+
+        try:
+            from app.services.agent.goal_stream_trigger import trigger_goal_stream
+
+            await trigger_goal_stream(session_id, goal)
+        except Exception as e:
+            logger.error(
+                "Loop restart failed for goal %s: %s — goal remains ACTIVE for Cron fallback",
+                goal.goal_id,
+                e,
+            )
+
+    return _on_loop_restart
 
 
 async def retrieve_relevant_learnings(

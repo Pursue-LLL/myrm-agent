@@ -22,6 +22,9 @@ export interface GoalBudgetPayload {
   max_usd?: number;
   max_time_seconds?: number;
   max_turns?: number;
+  convergence_window?: number;
+  loop_on_pause?: boolean;
+  max_loop_restarts?: number;
 }
 
 export interface GoalStatusPayload {
@@ -33,6 +36,8 @@ export interface GoalStatusPayload {
   time_used_seconds: number;
   cost_usd?: number;
   turns_used?: number;
+  no_progress_streak?: number;
+  loop_restarts?: number;
   budget?: GoalBudgetPayload;
   verdict?: string;
   reason?: string;

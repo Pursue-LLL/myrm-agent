@@ -124,7 +124,41 @@ export async function executeStreamWithRetry(
 
       if (!res.body) throw new Error('No response body');
 
-      await consumeStream(res, input, state, actions, abortController, added, recievedMessage);
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        // This is a multiplexed response. Create a fake stream.
+        const fakeStream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            const listener = (e: Event) => {
+              const customEvent = e as CustomEvent<string>;
+              const chunk = customEvent.detail;
+              controller.enqueue(new TextEncoder().encode(chunk));
+              
+              if (chunk.includes('"type":"message_end"') || chunk.includes('"type": "message_end"')) {
+                setTimeout(() => {
+                  window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
+                  try { controller.close(); } catch (e) {}
+                }, 50);
+              }
+            };
+            
+            window.addEventListener(`multiplex_chunk_${requestMessageId}`, listener);
+            
+            abortController.signal.addEventListener('abort', () => {
+              window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
+              try { controller.error(new Error('AbortError')); } catch (e) {}
+            });
+          }
+        });
+        
+        const mockResponse = new Response(fakeStream, {
+          headers: { 'Content-Type': 'text/event-stream' }
+        });
+        
+        await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
+      } else {
+        await consumeStream(res, input, state, actions, abortController, added, recievedMessage);
+      }
       return;
     } catch (error) {
       if (!(error instanceof Error)) throw error;

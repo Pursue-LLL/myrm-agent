@@ -7,8 +7,8 @@ from sqlalchemy import select
 
 from app.core.types import ModelConfig
 from app.database.models import ApprovalRecord
-from app.database.models.chat import Chat, Message
 from app.database.models.base import Base
+from app.database.models.chat import Chat, Message
 from app.platform_utils import get_database_engine, get_session_factory
 from app.services.agent.evolution.engine import _run_evolution_task
 

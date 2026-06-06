@@ -210,6 +210,9 @@ async def _save_credentials_to_db(creds: dict[str, str | None]) -> None:
             await session.commit()
 
         logger.info("Feishu QR registration credentials saved to DB")
+        from app.api.config.router import _try_hot_register_channel
+
+        await _try_hot_register_channel(config_key)
     except Exception as exc:
         logger.error("Failed to save Feishu registration credentials: %s", exc)
         raise

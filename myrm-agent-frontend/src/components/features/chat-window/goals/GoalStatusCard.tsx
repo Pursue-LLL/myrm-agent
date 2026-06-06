@@ -34,7 +34,12 @@ export interface GoalState {
     maxUsd?: number;
     maxTimeSeconds?: number;
     maxTurns?: number;
+    convergenceWindow?: number;
+    loopOnPause?: boolean;
+    maxLoopRestarts?: number;
   };
+  noProgressStreak?: number;
+  loopRestarts?: number;
   verdict?: string;
   reason?: string;
   constraints?: string[];
@@ -213,6 +218,10 @@ export function GoalStatusCard() {
   const getStatusText = () => {
     switch (goal.status) {
       case 'active':
+        if (goal.verdict === 'loop_restart') {
+          const restartNum = goal.loopRestarts ?? 0;
+          return `${t('statusLoopRestart')} (#${restartNum})`;
+        }
         return t('statusActive');
       case 'paused':
         return t('statusPaused');
@@ -221,6 +230,7 @@ export function GoalStatusCard() {
       case 'budget_limited':
         return t('statusBudgetLimited');
       case 'complete':
+        if (goal.verdict === 'convergence') return t('statusConverged');
         return t('statusComplete');
       case 'cancelled':
         return t('statusCancelled');

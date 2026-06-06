@@ -447,6 +447,7 @@ export const createMessageRequest = async (
     message_id: messageId,
     chat_id: chatId!,
     action_mode: actionMode,
+    multiplexed: true,
     ...(actionMode === 'fast' && searchDepth && { search_depth: searchDepth }),
     ...(state.isWorkflowMode && { use_workflow: true }),
     ...(resumeValue !== undefined && { resume_value: resumeValue }),

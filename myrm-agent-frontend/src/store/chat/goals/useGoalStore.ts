@@ -106,6 +106,9 @@ export const useGoalStore = create<GoalStore>((set) => ({
                   maxUsd: data.new_budget.max_usd,
                   maxTimeSeconds: data.new_budget.max_time_seconds,
                   maxTurns: data.new_budget.max_turns,
+                  convergenceWindow: data.new_budget.convergence_window,
+                  loopOnPause: data.new_budget.loop_on_pause,
+                  maxLoopRestarts: data.new_budget.max_loop_restarts,
                 }
               : state.activeGoal.budget,
           },

@@ -338,7 +338,11 @@ export function FeishuConfigCard() {
           {isLocalMode() && creds.transport === 'webhook' && (
             <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
               <p className="text-xs text-amber-500/90 leading-relaxed">
-                {t('feishuWebhookLocalWarning') || '本地环境使用 Webhook 需要公网地址。推荐切换为 WebSocket 长连接模式，实现开箱即用的免穿透直连。如必须使用 Webhook，请前往【系统设置】开启内网穿透隧道。'}
+                {t('feishuWebhookLocalWarning') || '本地环境使用 Webhook 需要公网地址。推荐切换为 WebSocket 长连接模式，实现开箱即用的免穿透直连。如必须使用 Webhook，请前往'}
+                <a href="#public-access" className="underline hover:text-amber-500 transition-colors">
+                  【系统设置】
+                </a>
+                {'开启内网穿透隧道。'}
               </p>
             </div>
           )}

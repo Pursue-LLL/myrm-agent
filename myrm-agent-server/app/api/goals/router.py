@@ -291,6 +291,9 @@ async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) 
                     "max_usd": updated_goal.budget.max_usd,
                     "max_time_seconds": updated_goal.budget.max_time_seconds,
                     "max_turns": updated_goal.budget.max_turns,
+                    "convergence_window": updated_goal.budget.convergence_window,
+                    "loop_on_pause": updated_goal.budget.loop_on_pause,
+                    "max_loop_restarts": updated_goal.budget.max_loop_restarts,
                 }
                 if updated_goal.budget
                 else None

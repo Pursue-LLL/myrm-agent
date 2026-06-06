@@ -226,6 +226,9 @@ async def run_agent_stream(
                 max_tokens=request.goal.max_tokens,
                 max_usd=request.goal.max_usd,
                 max_time_seconds=request.goal.max_time_seconds,
+                convergence_window=request.goal.convergence_window,
+                loop_on_pause=request.goal.loop_on_pause,
+                max_loop_restarts=request.goal.max_loop_restarts,
             )
             acceptance_criteria = request.goal.acceptance_criteria
             ui_summary = request.goal.ui_summary
