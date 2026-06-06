@@ -323,4 +323,88 @@ describe('FlowPadModal', () => {
     render(<FlowPadModal />);
     expect(screen.getByPlaceholderText('placeholderWithCapture')).toBeInTheDocument();
   });
+
+  it('keeps modal open and preserves data when sendMessage fails', async () => {
+    mockSendMessage.mockRejectedValueOnce(new Error('Network error'));
+    useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Important Data' }));
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Critical question' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+    expect(useFlowPadStore.getState().captures).toHaveLength(1);
+    expect(useFlowPadStore.getState().captures[0].windowTitle).toBe('Important Data');
+  });
+
+  it('prevents double submission when clicking send rapidly', async () => {
+    let resolveFirst: () => void;
+    const firstCallPromise = new Promise<void>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockSendMessage.mockImplementationOnce(() => firstCallPromise);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Double click test' } });
+
+    const buttons = screen.getAllByRole('button');
+    const sendButton = buttons.find((b) => b.classList.contains('h-8'));
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    await act(async () => {
+      sendButton?.click();
+    });
+
+    await act(async () => {
+      resolveFirst!();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-enables submit after failed attempt', async () => {
+    mockSendMessage.mockRejectedValueOnce(new Error('Timeout'));
+    mockSendMessage.mockResolvedValueOnce(undefined);
+
+    useFlowPadStore.getState().open();
+    render(<FlowPadModal />);
+
+    const textarea = screen.getByRole('textbox');
+    fireEvent.change(textarea, { target: { value: 'Retry test' } });
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(useFlowPadStore.getState().isOpen).toBe(true);
+
+    await act(async () => {
+      fireEvent.keyDown(textarea, {
+        key: 'Enter',
+        code: 'Enter',
+        nativeEvent: { isComposing: false },
+      });
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(2);
+    expect(useFlowPadStore.getState().isOpen).toBe(false);
+  });
 });
