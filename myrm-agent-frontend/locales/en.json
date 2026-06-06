@@ -4263,6 +4263,8 @@
       "jitTeamPlaceholder": "No virtual team",
       "jitInheritMemory": "Inherit parent conversation memory (Fork Context)",
       "templateMarket": "Template Market",
+      "instantiateSuccess": "Agent created from template!",
+      "instantiateError": "Failed to create agent from template",
       "blueprints": {
         "research_squad": "Deep Research Squad (Multi-Agent)",
         "code_audit_squad": "Code Red Team Audit (Multi-Agent)"

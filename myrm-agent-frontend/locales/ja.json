@@ -3895,7 +3895,9 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
-      "templateMarket": "Template Market"
+      "templateMarket": "Template Market",
+      "instantiateSuccess": "テンプレートからエージェントを作成しました！",
+      "instantiateError": "テンプレートからのエージェント作成に失敗しました"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",

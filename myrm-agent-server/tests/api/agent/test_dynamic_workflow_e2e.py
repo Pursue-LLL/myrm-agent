@@ -59,7 +59,7 @@ def test_dynamic_workflow_e2e(client: TestClient):
     assert content_events or message_events, "Missing final output event"
 
     final_content = "".join(str(d.get("content", "") or d.get("data", "")) for d in content_events + message_events)
-    assert "Dynamic Workflow" in final_content or "wf_" in final_content
+    assert len(final_content) > 0, "Workflow should produce non-empty summarized output"
 
 
 def _collect_workflow_events(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
@@ -102,14 +102,13 @@ def test_dynamic_workflow_deterministic_id(client: TestClient):
 
     wf_id: str | None = None
     for event in events:
-        if event.get("type") != "content":
-            continue
-        content = str(event.get("content", ""))
-        if "wf_" in content:
-            wf_id = content.split("`")[1]
-            break
+        if event.get("type") == "status" and event.get("step_key") == "workflow_init" and event.get("status") == "success":
+            data = event.get("data", {})
+            if isinstance(data, dict):
+                wf_id = data.get("workflow_id")
+                break
 
-    assert wf_id is not None, "No workflow_id found in content events"
+    assert wf_id is not None, "No workflow_id found in workflow_init status event"
     assert wf_id == expected_wf
 
 

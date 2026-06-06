@@ -3895,7 +3895,9 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
-      "templateMarket": "Template Market"
+      "templateMarket": "Template Market",
+      "instantiateSuccess": "템플릿에서 에이전트가 생성되었습니다!",
+      "instantiateError": "템플릿에서 에이전트 생성 실패"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",

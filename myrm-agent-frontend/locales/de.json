@@ -3895,7 +3895,9 @@
       "memoryDecayPermanent": "Permanent",
       "memoryDecayNormal": "Normal",
       "memoryDecayFast": "Fast Decay",
-      "templateMarket": "Template Market"
+      "templateMarket": "Template Market",
+      "instantiateSuccess": "Agent aus Vorlage erstellt!",
+      "instantiateError": "Fehler beim Erstellen des Agenten aus Vorlage"
     },
     "validation": {
       "dependencyInvalid": "Agent configuration has issues",

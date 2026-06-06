@@ -31,6 +31,7 @@ AI Agent 调用接口。提供统一的 SSE 流式对话接口（支持 fast/age
 | `session.py` | ✅ 核心 | 活跃的 Agent 会话查询及通过消息 ID 主动取消 Agent 执行 | ✅ |
 | `harness_router.py` | ✅ 核心 | Harness 框架层功能开放接口。包含 `/task-adaptive/recent` 获取最近的 JIT 上下文证据。 | ✅ |
 | `openapi_services.py` | ✅ 核心 | OpenAPI 服务管理 API。提供规范解析预览 (`/parse-spec`) 和连通性测试 (`/test-request`) 端点，供前端在保存前验证 OpenAPI 配置。 | ✅ |
+| `templates.py` | ✅ 核心 | Agent 模板 API。列出（含 team 成员/场景摘要）和实例化预配置模板。支持 individual 和 team 两种类型：team 模板原子创建所有成员 + leader，失败时完整回滚。 | ✅ |
 | `routing_api.py` | ✅ 核心 | 暴露智能路由健康度检查端点（`/provider-health`） | ✅ |
 
 ---

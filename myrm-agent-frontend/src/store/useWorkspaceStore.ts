@@ -9,6 +9,8 @@ export interface PaneConfig {
   chatId: string | null;
   title: string;
   snapshot: Partial<ChatState> | null;
+  abortController: AbortController | null;
+  currentSessionMessageId: string | null;
 }
 
 interface WorkspaceState {

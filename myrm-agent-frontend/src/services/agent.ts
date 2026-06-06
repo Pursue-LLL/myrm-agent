@@ -636,12 +636,20 @@ export async function getActiveSessions(): Promise<ActiveSessionsResponse> {
 // Templates API
 // ============================================================================
 
+export interface TeamMemberBrief {
+  role: string;
+  name: string;
+  description?: string;
+}
+
 export interface TemplateListItem {
   id: string;
   name: string;
   description?: string;
   avatar_url?: string;
   agent_type: string;
+  members?: TeamMemberBrief[];
+  use_cases?: string[];
 }
 
 export async function getTemplates(): Promise<TemplateListItem[]> {

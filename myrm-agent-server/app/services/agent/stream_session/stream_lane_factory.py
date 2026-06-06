@@ -73,7 +73,12 @@ async def create_dynamic_workflow_stream(
 
     reset_session_budget(chat_id=params.chat_id)
 
-    agent = AgentFactory.create_general_agent(params)
+    from app.ai_agents.general_agent.factory import build_general_agent
+
+    agent_wrapper = AgentFactory.create_general_agent(params)
+    effective_chat_id = params.chat_id or agent_wrapper.chat_id or "default"
+    base_agent = await build_general_agent(agent_wrapper, effective_chat_id)
+
     history = await convert_chat_history(params.chat_history) if params.chat_history else []
 
     catalog = DatabaseSubagentCatalog(
@@ -91,7 +96,7 @@ async def create_dynamic_workflow_stream(
     init_token_tracker()
     try:
         async for chunk in run_dynamic_workflow_stream(
-            parent_agent=agent,
+            parent_agent=base_agent,
             query=text_query,
             chat_history=history,
             chat_id=params.chat_id or "default_chat",

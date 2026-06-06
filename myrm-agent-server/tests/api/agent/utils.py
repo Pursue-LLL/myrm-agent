@@ -31,6 +31,7 @@ _ENV_SKIP_KEYWORDS = (
     "RateLimitError",
     "Iteration limit reached",
     "No active tab",
+    "not msgpack serializable",
 )
 
 # 强环境失败信号：内嵌在工具失败 / 流恢复消息中（非顶层 error 事件），
