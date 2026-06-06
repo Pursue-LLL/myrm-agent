@@ -8,7 +8,6 @@ _run_async_cmd failure, context None handling, and .gitignore injection.
 from __future__ import annotations
 
 import asyncio
-import os
 import subprocess
 import tempfile
 from pathlib import Path

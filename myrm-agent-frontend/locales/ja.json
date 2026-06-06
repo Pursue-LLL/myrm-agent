@@ -5342,7 +5342,10 @@
     "media_stripped": "Removed media — model does not support images",
     "media_rejected_recovery": "Model rejected media — removed and retrying",
     "consensus_active": "Multi-model consensus in progress",
-    "consensus_reference_done": "Reference model completed",
+    "consensus_reference_done": "参照モデル完了",
+    "workflow_init": "ダイナミックワークフローを初期化中",
+    "workflow_planning": "オーケストレーション計画を生成中",
+    "workflow_execution": "ワークフロータスクを実行中",
     "errorCategories": {
       "oom": "Out of Memory",
       "oom_killed": "OOM Killed",

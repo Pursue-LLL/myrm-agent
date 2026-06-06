@@ -7,14 +7,14 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
 from myrm_agent_harness.agent.skills.optimization.types import (
     ABTestResult,
     ABTestStatus,
     SkillQualityScore,
     SkillVersion,
 )
+
+from app.services.skill_optimization.skill_version_sync import start_shadow_ab_test
 
 
 def _quality_score() -> SkillQualityScore:

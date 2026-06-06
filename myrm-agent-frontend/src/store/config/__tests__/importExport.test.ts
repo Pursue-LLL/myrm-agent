@@ -1,4 +1,13 @@
 import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('@/hooks/useMcpSecurityGate', () => ({
+  gateMcpConfigBatch: vi.fn(async () => ({
+    blocked: null,
+    scanResults: [],
+    needsAcknowledgement: null,
+  })),
+}));
+
 import { exportConfig, importConfig } from '../importExport';
 
 describe('exportConfig', () => {

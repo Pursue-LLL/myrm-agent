@@ -1,13 +1,13 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import httpx
-from httpx import AsyncClient, ASGITransport
-from app.config.deploy_mode import DeployMode
-import json
-from unittest.mock import patch, MagicMock
+import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
 # Import the router directly instead of the whole app to avoid FastAPI app initialization issues in tests
 from app.api.integrations.hardware import router as hardware_router
-from fastapi import FastAPI
+from app.config.deploy_mode import DeployMode
 
 app = FastAPI()
 app.include_router(hardware_router, prefix="/api/v1/integrations")

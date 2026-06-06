@@ -1,7 +1,10 @@
-import pytest
-from app.services.chat.chat_turn import _ChatTurnMixin
-from app.database.dto import MessageDTO
 from datetime import datetime
+
+import pytest
+
+from app.database.dto import MessageDTO
+from app.services.chat.chat_turn import _ChatTurnMixin
+
 
 @pytest.mark.asyncio
 async def test_truncation_unclosed_code_block():

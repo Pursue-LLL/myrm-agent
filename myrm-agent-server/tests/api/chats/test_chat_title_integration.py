@@ -1,10 +1,12 @@
-import os
-import pytest
 import asyncio
-from fastapi.testclient import TestClient
-from app.database.dto import MessageDTO
+import os
 from datetime import datetime
+
+import pytest
+from fastapi.testclient import TestClient
+
 from app.main import app
+
 
 @pytest.fixture
 def client(init_test_database) -> TestClient:
@@ -12,9 +14,10 @@ def client(init_test_database) -> TestClient:
 
 @pytest.fixture(autouse=True)
 def setup_test_config():
+    from sqlalchemy import delete
+
     from app.database.connection import get_session_factory
     from app.database.models.config import UserConfig
-    from sqlalchemy import delete
     
     async def _setup():
         session_factory = get_session_factory()

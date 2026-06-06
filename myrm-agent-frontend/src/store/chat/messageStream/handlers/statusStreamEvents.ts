@@ -65,7 +65,9 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
                     ? `(${(data.data.reference_models as string[]).join(', ')})`
                     : stepKey === 'consensus_reference_done' && data.data?.model
                       ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
-                      : '';
+                      : (stepKey === 'workflow_init' || stepKey === 'workflow_planning' || stepKey === 'workflow_execution') && typeof data.data?.message === 'string'
+                        ? data.data.message
+                        : '';
       actions.setMessages((state) => {
         let messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex === -1 && (isMediaAnalysis || isArchiveRestoreStatus)) {
