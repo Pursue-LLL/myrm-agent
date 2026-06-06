@@ -483,7 +483,7 @@ async def convert_to_general_agent_params(
                             resolved.model,
                         )
 
-            is_dynamic_team = resolved.agent_type == "team" and resolved.built_in
+            is_dynamic_team = resolved.agent_type == "team"
             if resolved.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
                 from app.ai_agents.team_protocol import build_leader_protocol_prompt
 

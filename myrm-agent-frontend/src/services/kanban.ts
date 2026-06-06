@@ -518,6 +518,13 @@ export interface PipelineTemplate {
   roles: string[];
 }
 
+export interface PipelineTaskGraphVariant {
+  id: string;
+  label: string;
+  description: string;
+  seeds: PipelineTaskSeed[];
+}
+
 export interface PipelineTemplateDetail {
   skill_id: string;
   name: string;
@@ -527,6 +534,7 @@ export interface PipelineTemplateDetail {
   discovery_questions: PipelineQuestionGroup[];
   role_templates: PipelineRole[];
   task_graph_seed: PipelineTaskSeed[];
+  task_graph_variants?: PipelineTaskGraphVariant[];
 }
 
 export interface PipelineInstantiateResult {
@@ -545,7 +553,7 @@ export async function getPipelineDetail(skillId: string): Promise<PipelineTempla
 
 export async function instantiatePipeline(
   boardId: string,
-  data: { skill_id: string; answers: Record<string, string> },
+  data: { skill_id: string; answers: Record<string, string>; variant_id?: string },
 ): Promise<PipelineInstantiateResult> {
   return apiRequest(`/kanban/boards/${boardId}/pipeline/instantiate`, {
     method: 'POST',

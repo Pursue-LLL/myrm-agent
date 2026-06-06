@@ -10,7 +10,9 @@
 |-------------|------|------|
 | `api.ts` | 通用 fetch 封装与错误处理 | — |
 | `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL | — |
-| `utils/` | 消息、文件、URL、locale 等工具函数 | — |
+| `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | — |
+| `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |
+| `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
 | `config/` | 设置表单 schema 工具 | — |
 | `search/` | SearXNG 预设 | — |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |

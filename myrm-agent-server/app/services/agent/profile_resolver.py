@@ -133,6 +133,9 @@ class ResolvedAgentProfile:
     tool_gateway_config: dict[str, object] | None = field(default=None, kw_only=True)
     """Tool Gateway configuration for third-party tools."""
 
+    built_in: bool = field(default=False, kw_only=True)
+    """Whether this is a built-in (system preset) profile."""
+
 
 class AgentProfileResolver:
     """Resolves agent profiles from database with TTL caching.
@@ -251,6 +254,7 @@ class AgentProfileResolver:
                     tool_gateway_config=(
                         metadata.get("tool_gateway_config") if isinstance(metadata.get("tool_gateway_config"), dict) else None
                     ),
+                    built_in=bool(getattr(agent, "is_built_in", False) or getattr(agent, "is_public", False)),
                 )
         except Exception:
             logger.error("Failed to resolve agent profile for '%s'", agent_id, exc_info=True)

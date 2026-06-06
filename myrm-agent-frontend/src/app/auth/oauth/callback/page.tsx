@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { sanitizeAuthRedirectPath } from '@/lib/auth-redirect';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import useAuthStore from '@/store/useAuthStore';
+import { syncCookieLocaleToPersonalSettings } from '@/lib/locale-personal-sync';
 
 export default function OAuthCallbackPage() {
   const t = useTranslations('auth.oauth');
@@ -47,6 +48,7 @@ export default function OAuthCallbackPage() {
           return;
         }
         await cpLogin(data.token, { id: data.user_id, email: data.email });
+        await syncCookieLocaleToPersonalSettings();
         window.location.href = postAuthPath;
       } catch {
         setError(t('failed'));

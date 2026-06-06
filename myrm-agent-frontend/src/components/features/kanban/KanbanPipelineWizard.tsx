@@ -24,6 +24,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
   const [loading, setLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<PipelineTemplateDetail | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
   const [currentGroupIdx, setCurrentGroupIdx] = useState(0);
   const [creating, setCreating] = useState(false);
 
@@ -56,6 +57,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
         const detail = await getPipelineDetail(template.skill_id);
         setSelectedTemplate(detail);
         setAnswers({});
+        setSelectedVariantId(detail.task_graph_variants?.[0]?.id);
         setCurrentGroupIdx(0);
         setStep('configure');
       } catch {
@@ -75,6 +77,7 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
       const result = await instantiatePipeline(boardId, {
         skill_id: selectedTemplate.skill_id,
         answers,
+        variant_id: selectedVariantId,
       });
       toast.success(t('pipelineCreated', { count: result.task_ids.length }));
       onCreated(result.task_ids.length);
@@ -117,6 +120,32 @@ export default function KanbanPipelineWizard({ boardId, open, onClose, onCreated
         <div className="flex-1 overflow-y-auto p-5">
           {step === 'select' && (
             <TemplateSelector templates={templates} loading={loading} onSelect={handleSelectTemplate} t={t} />
+          )}
+
+          {step === 'configure' && currentGroupIdx === 0 && selectedTemplate?.task_graph_variants && selectedTemplate.task_graph_variants.length > 0 && (
+            <div className="mb-6 space-y-3">
+              <h3 className="text-sm font-medium">{t('pipelineWizardSelectMode')}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {selectedTemplate.task_graph_variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    onClick={() => setSelectedVariantId(variant.id)}
+                    className={cn(
+                      "text-left p-3 rounded-lg border transition-all",
+                      selectedVariantId === variant.id 
+                        ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <h4 className="text-sm font-medium">{variant.label}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{variant.description}</p>
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      {t('pipelineTaskCount', { count: variant.seeds.length })}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {step === 'configure' && currentGroup && (

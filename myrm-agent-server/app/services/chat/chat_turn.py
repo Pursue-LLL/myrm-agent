@@ -137,6 +137,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         clean_content = re.sub(r"<think>.*$", "", clean_content, flags=re.DOTALL)  # Strip unclosed think blocks
         clean_content = re.sub(r"http[s]?://\S+", "", clean_content)
         clean_content = re.sub(r"<[^>]+>", "", clean_content)
+        clean_content = re.sub(r"<[^>]*$", "", clean_content)  # Strip unclosed HTML tags from truncation
         clean_content = clean_content.strip()
 
         # 2. Credential Redaction

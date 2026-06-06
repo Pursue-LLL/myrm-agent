@@ -32,7 +32,10 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       stepKey === 'media_rejected_recovery' ||
       stepKey === 'ux_warning_truncated' ||
       stepKey === 'consensus_active' ||
-      stepKey === 'consensus_reference_done'
+      stepKey === 'consensus_reference_done' ||
+      stepKey === 'workflow_init' ||
+      stepKey === 'workflow_planning' ||
+      stepKey === 'workflow_execution'
     ) {
       const displayKey =
         stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;

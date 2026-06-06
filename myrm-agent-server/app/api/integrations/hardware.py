@@ -26,6 +26,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "极速响应，适合简单任务和低配机器",
         "req_vram_gb": 1.5,
         "params_b": 0.5,
+        "disk_size_gb": 0.4,
     },
     {
         "id": "ollama/qwen2.5:3b",
@@ -33,6 +34,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "速度与能力的良好平衡，适合主流轻薄本",
         "req_vram_gb": 3.0,
         "params_b": 3.0,
+        "disk_size_gb": 1.9,
     },
     {
         "id": "ollama/llama3.2:8b",
@@ -40,6 +42,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "强大的通用模型，适合主流开发机",
         "req_vram_gb": 6.0,
         "params_b": 8.0,
+        "disk_size_gb": 4.7,
     },
     {
         "id": "ollama/qwen2.5:14b",
@@ -47,6 +50,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "极强的推理能力，适合高配工作站",
         "req_vram_gb": 10.0,
         "params_b": 14.0,
+        "disk_size_gb": 9.0,
     },
     {
         "id": "ollama/deepseek-r1:32b",
@@ -54,6 +58,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "专家级推理模型，需要顶级硬件",
         "req_vram_gb": 22.0,
         "params_b": 32.0,
+        "disk_size_gb": 20.0,
     },
     {
         "id": "ollama/llama3.1:70b",
@@ -61,6 +66,7 @@ _FALLBACK_MODEL_SPECS = [
         "description": "超大规模模型，仅限顶级工作站",
         "req_vram_gb": 40.0,
         "params_b": 70.0,
+        "disk_size_gb": 39.0,
     },
 ]
 
@@ -153,7 +159,7 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
             else:
                 raise HTTPException(status_code=response.status_code, detail=f"Ollama error: {response.text}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/hardware/ollama/pull")
@@ -255,6 +261,7 @@ async def get_hardware_recommendations() -> JSONResponse:
                 "name": spec["name"],
                 "description": spec["description"],
                 "req_vram_gb": req_vram,
+                "disk_size_gb": spec.get("disk_size_gb"),
                 "fit_score": score,
                 "fit_level": fit_level,
                 "is_installed": is_installed,

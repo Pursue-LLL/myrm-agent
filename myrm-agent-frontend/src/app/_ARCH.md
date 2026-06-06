@@ -23,6 +23,10 @@
 - `@/components/features/app-shell` — 全局初始化
 - `@/store/useAuthStore` — 路由守卫
 
+## Locale 接力
+
+营销站 `?locale=` 由根目录 `middleware.ts` 写 `NEXT_LOCALE` cookie（非 `app/` 路由内处理）。
+
 ## 约束
 
 - 新页面优先复用 `features/` 组件，不在 `app/` 堆业务逻辑。

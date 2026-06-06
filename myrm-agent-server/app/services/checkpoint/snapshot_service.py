@@ -1,3 +1,19 @@
+"""Workspace snapshot interceptor for destructive action protection.
+
+[INPUT]
+myrm_agent_harness.agent.file_snapshot.local_store::LocalFileSnapshotStore (POS: Local filesystem-based file snapshot store.)
+myrm_agent_harness.agent.file_snapshot.types::SnapshotTrigger (POS: Snapshot trigger enum.)
+myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor (POS: Protocol for intercepting code execution actions.)
+
+[OUTPUT]
+SnapshotInterceptor: Git-first workspace snapshot with file-copy fallback for Git-absent environments.
+
+[POS]
+Server-layer snapshot interceptor. Creates per-turn workspace snapshots before destructive
+actions (bash, file write/delete) using Git when available, falling back to
+LocalFileSnapshotStore (file-copy) when Git is absent.
+"""
+
 import asyncio
 import logging
 from collections import defaultdict
@@ -172,25 +188,23 @@ class SnapshotInterceptor(ExecutionInterceptor):
         return stdout.decode(), stderr.decode()
 
     async def _emit_snapshot_event(self, chat_id: str, action_type: str) -> None:
-        """Emit a WebSocket event to the frontend to show the Snapshotting UI indicator."""
+        """Emit an SSE event to the frontend to show the Snapshotting UI indicator."""
         try:
-            from app.services.chat.chat_event_publisher import ChatEventPublisher
+            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-            from app.services.event.app_event_bus import AppEventType
-
-            # Using AppEventBus SYSTEM_NOTIFICATION which is handled by useGlobalEvents.ts
-            await ChatEventPublisher.publish(
-                chat_id=chat_id,
-                kind=AppEventType.SYSTEM_NOTIFICATION,  # type: ignore
-                data={
-                    "title": "系统保护",
-                    "message": "正在创建系统快照，保护您的代码",
-                    "meta_data": {
-                        "type": "snapshot_created",
-                        "action": action_type,
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.SYSTEM_NOTIFICATION,
+                    data={
+                        "title": "系统保护",
+                        "message": "正在创建系统快照，保护您的代码",
+                        "meta_data": {
+                            "type": "snapshot_created",
+                            "action": action_type,
+                            "chat_id": chat_id,
+                        },
                     },
-                },
+                )
             )
-            logger.info(f"SNAPSHOT_EVENT emitted for chat_id={chat_id}")
         except Exception as e:
             logger.debug(f"Failed to emit snapshot event: {e}")

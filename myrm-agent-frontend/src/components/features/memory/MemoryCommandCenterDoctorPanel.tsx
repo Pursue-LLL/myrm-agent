@@ -14,7 +14,6 @@
 import type { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { applyContextBundleMigration, getContextBundleHealth, type ContextBundleHealth } from '@/services/contextBundle';
 import type {
   MemoryCommandBenchmarkSummary,
   MemoryCommandCenterResponse,
@@ -92,71 +91,9 @@ export const MemoryDoctorPanel = ({
   diagnosticRun: MemoryCommandDiagnosticRun | null;
   onDoctorAction: (action: DoctorExecutableAction) => void;
 }) => {
-  const [bundleHealth, setBundleHealth] = useState<ContextBundleHealth | null>(null);
-  const [isMigratingBundle, setIsMigratingBundle] = useState(false);
-
-  useEffect(() => {
-    getContextBundleHealth()
-      .then(setBundleHealth)
-      .catch(() => setBundleHealth(null));
-  }, []);
-
-  const handleApplyBundleMigration = async () => {
-    try {
-      setIsMigratingBundle(true);
-      await applyContextBundleMigration();
-      const updated = await getContextBundleHealth();
-      setBundleHealth(updated);
-      toast.success(t('commandCenter.bundleMigrateSuccess'));
-    } catch {
-      toast.error(t('commandCenter.bundleMigrateFailed'));
-    } finally {
-      setIsMigratingBundle(false);
-    }
-  };
 
   return (
   <>
-    {bundleHealth && (
-      <div className="mb-4 rounded-lg border border-border/60 bg-gradient-to-br from-background via-background to-muted/20 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-base font-semibold text-foreground">{t('commandCenter.bundleHealth')}</div>
-            <div className="mt-1 text-sm text-muted-foreground">{t('commandCenter.bundleHealthDesc')}</div>
-          </div>
-          {!bundleHealth.manifest_exists && (
-            <button
-              type="button"
-              disabled={isMigratingBundle}
-              onClick={handleApplyBundleMigration}
-              className="w-full shrink-0 rounded-full border border-border bg-background px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-60 sm:w-auto"
-            >
-              {isMigratingBundle ? t('commandCenter.bundleMigrating') : t('commandCenter.bundleMigrateAction')}
-            </button>
-          )}
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-md bg-accent/20 p-3">
-            <div className="text-xs text-muted-foreground">{t('commandCenter.bundleManifest')}</div>
-            <div className={`mt-1 text-sm font-medium ${bundleHealth.manifest_exists ? 'text-foreground' : 'text-destructive'}`}>
-              {bundleHealth.manifest_exists ? t('commandCenter.bundleManifestPresent') : t('commandCenter.bundleManifestMissing')}
-            </div>
-          </div>
-          <div className="rounded-md bg-accent/20 p-3">
-            <div className="text-xs text-muted-foreground">{t('commandCenter.bundleStatus')}</div>
-            <div className={`mt-1 text-sm font-medium ${bundleHealth.writable ? 'text-foreground' : 'text-destructive'}`}>
-              {bundleHealth.writable ? t('commandCenter.bundleWritable') : t('commandCenter.bundleNotWritable')}
-            </div>
-          </div>
-          <div className="rounded-md bg-accent/20 p-3">
-            <div className="text-xs text-muted-foreground">{t('commandCenter.bundleSchema')}</div>
-            <div className="mt-1 text-sm font-medium text-foreground">
-              v{bundleHealth.schema_version}
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="text-sm font-medium text-foreground">{t('commandCenter.doctorRunTitle')}</div>

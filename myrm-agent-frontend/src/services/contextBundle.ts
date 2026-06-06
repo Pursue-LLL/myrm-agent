@@ -1,7 +1,3 @@
-/**
- * Context bundle API client (Harness volume + scene health).
- */
-
 import { apiRequest } from '@/lib/api';
 
 export interface ContextBundleSceneHealth {
@@ -26,10 +22,22 @@ export interface ContextBundleHealth {
   warnings: string[];
 }
 
-export async function getContextBundleHealth(): Promise<ContextBundleHealth> {
-  return apiRequest<ContextBundleHealth>('/context-bundle');
+export interface ContextBundleMigrationResult {
+  ok: boolean;
+  bundle_id: string;
+  schema_version: number;
+  writable: boolean;
+  manifest_exists: boolean;
+  actions: string[];
+  warnings: string[];
 }
 
-export async function applyContextBundleMigration(): Promise<{ ok: boolean; manifest_exists: boolean }> {
-  return apiRequest('/context-bundle/migrate/apply', { method: 'POST' });
+export async function getContextBundleHealth(): Promise<ContextBundleHealth> {
+  return apiRequest<ContextBundleHealth>('/api/context-bundle');
+}
+
+export async function applyContextBundleMigration(): Promise<ContextBundleMigrationResult> {
+  return apiRequest<ContextBundleMigrationResult>('/api/context-bundle/migrate/apply', {
+    method: 'POST',
+  });
 }

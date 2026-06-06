@@ -12,6 +12,7 @@ import { isSandboxAuthBuild } from '@/lib/deploy-mode';
 import { getAuthToken } from '@/lib/guest';
 import { readAuthRedirectParam } from '@/lib/auth-redirect';
 import { getWebuiUrl } from '@/lib/api';
+import { syncCookieLocaleToPersonalSettings } from '@/lib/locale-personal-sync';
 
 const LocalLoginForm = dynamic(() => import('@/components/auth/LocalLoginForm'), {
   ssr: false,
@@ -61,6 +62,7 @@ export default function LoginPage() {
         }
 
         if (data.is_authenticated) {
+          await syncCookieLocaleToPersonalSettings();
           navigateAfterAuth();
           return;
         }
@@ -82,6 +84,7 @@ export default function LoginPage() {
         });
 
         if (response.ok) {
+          await syncCookieLocaleToPersonalSettings();
           navigateAfterAuth();
           return;
         }
@@ -151,6 +154,7 @@ export default function LoginPage() {
       });
 
       if (response.ok) {
+        await syncCookieLocaleToPersonalSettings();
         navigateAfterAuth();
       } else if (response.status === 429) {
         const retryAfterHeader = response.headers.get('Retry-After');

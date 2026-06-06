@@ -80,10 +80,9 @@ from app.api.tts.router import router as tts_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
 from app.api.wiki import router as wiki_router
+from app.api.workspace.router import router as workspace_router
 from app.api.workspace_rules import router as workspace_rules_router
 from app.config.deploy_mode import is_local_mode
-
-from app.api.workspace.router import router as workspace_router
 
 api_router = APIRouter()
 

@@ -37,9 +37,6 @@ const CredentialsSection = dynamic(() => import('./sections/CredentialsSection')
 const WikiSection = dynamic(() => import('./sections/WikiSection').then((mod) => mod.WikiSection), {
   loading: () => <SettingsSkeleton />,
 });
-const LocalFileSearchSection = dynamic(() => import('./sections/LocalFileSearchSection'), {
-  loading: () => <SettingsSkeleton />,
-});
 const CheckpointSection = dynamic(() => import('./sections/CheckpointSection'), {
   loading: () => <SettingsSkeleton />,
 });
@@ -111,7 +108,6 @@ const BASE_TABS: SettingsTab[] = [
   'evolutionRejection',
   'credentials',
   'wiki',
-  'localFileSearch',
   'memory',
   'cron',
   'kanban',
@@ -176,7 +172,6 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   evolutionRejection: UnifiedSkillsSection,
   credentials: CredentialsSection,
   wiki: WikiSection,
-  localFileSearch: LocalFileSearchSection,
   memory: MemoryCenterSection,
   'memory-backup': MemoryCenterSection,
   'memory-cloud-backup': MemoryCenterSection,

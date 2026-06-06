@@ -8161,6 +8161,7 @@
     "pipelineTaskCount": "{count} tasks",
     "pipelineRoles": "Roles: {roles}",
     "pipelineWizardTitle": "Configure Pipeline",
+    "pipelineWizardSelectMode": "Select Workflow Mode",
     "pipelineWizardNext": "Next",
     "pipelineWizardBack": "Back",
     "pipelineWizardCreate": "Create pipeline",

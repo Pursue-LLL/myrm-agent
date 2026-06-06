@@ -8161,6 +8161,7 @@
     "pipelineTaskCount": "{count} 个任务",
     "pipelineRoles": "角色: {roles}",
     "pipelineWizardTitle": "配置流水线",
+    "pipelineWizardSelectMode": "选择工作流模式",
     "pipelineWizardNext": "下一步",
     "pipelineWizardBack": "上一步",
     "pipelineWizardCreate": "创建流水线",

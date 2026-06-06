@@ -9,7 +9,7 @@ from typing import cast
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
-from app.ai_agents import GeneralAgentParams
+from app.ai_agents import AgentFactory, GeneralAgentParams
 from app.core.types import ModelConfig
 from app.core.utils.delivery_provenance import apply_general_agent_pipeline_banner
 from app.services.agent.params import ArchiveRestoreRequestError, _extract_text_from_query
@@ -47,17 +47,32 @@ async def create_dynamic_workflow_stream(
 ) -> AsyncIterable[dict[str, object]]:
     """Build Dynamic Workflow SSE stream from GeneralAgentParams.
 
-    This delegates to the Harness Dynamic Workflow Engine, which uses PTC
-    to generate and execute a Python orchestration script that can spawn
-    multiple sub-agents concurrently.
+    Creates a full GeneralAgent (same as the normal agent path) so that
+    sub-agents spawned by the DW engine inherit the complete tool registry,
+    catalog, budget, and security policies.
     """
     from myrm_agent_harness.agent.dynamic_workflow import run_dynamic_workflow_stream
-    from myrm_agent_harness.toolkits.llms import llm_manager
+    from myrm_agent_harness.agent.streaming.types import AgentEventType
+    from myrm_agent_harness.utils.token_economics.tracker import (
+        get_token_tracker,
+        init_token_tracker,
+        reset_token_tracker,
+    )
 
     from app.core.utils.chat_utils import convert_chat_history
+    from app.services.budget.enforcer import (
+        reset_session_budget,
+        should_block_execution,
+    )
 
-    llm = await llm_manager.get_llm_from_config(params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None))
+    if await should_block_execution():
+        yield {"type": AgentEventType.MESSAGE.value, "messageId": params.message_id or "", "data": ""}
+        yield {"type": AgentEventType.MESSAGE_END.value, "messageId": params.message_id or "", "usage": {}, "completion_status": "budget_blocked"}
+        return
 
+    reset_session_budget(chat_id=params.chat_id)
+
+    agent = AgentFactory.create_general_agent(params)
     history = await convert_chat_history(params.chat_history) if params.chat_history else []
 
     raw_q = params.query
@@ -68,15 +83,24 @@ async def create_dynamic_workflow_stream(
     else:
         text_query = str(raw_q)
 
-    async for chunk in run_dynamic_workflow_stream(
-        llm=llm,
-        query=text_query,
-        chat_history=history,
-        chat_id=params.chat_id or "default_chat",
-        message_id=params.message_id or "default_msg",
-        cancel_token=cancel_token,
-    ):
-        yield chunk
+    init_token_tracker()
+    try:
+        async for chunk in run_dynamic_workflow_stream(
+            parent_agent=agent,
+            query=text_query,
+            chat_history=history,
+            chat_id=params.chat_id or "default_chat",
+            message_id=params.message_id or "default_msg",
+            cancel_token=cancel_token,
+        ):
+            if isinstance(chunk, dict) and chunk.get("type") == "message_end":
+                tracker = get_token_tracker()
+                if tracker:
+                    chunk["usage"] = tracker.usage.to_dict() if hasattr(tracker.usage, "to_dict") else {}
+                    chunk["cost_usd"] = round(tracker.total_cost_usd, 6)
+            yield chunk
+    finally:
+        reset_token_tracker()
 
 
 async def create_deep_research_stream(

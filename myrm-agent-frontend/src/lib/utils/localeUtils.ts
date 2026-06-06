@@ -1,5 +1,10 @@
+import { type Locale, locales } from '@/i18n/config';
+
+/** next-intl locale cookie — shared by middleware relay and `i18n/index.ts`. */
+export const NEXT_LOCALE_COOKIE_NAME = 'NEXT_LOCALE';
+
 /**
- * Client-side locale detection utility
+ * Locale utilities for client hooks, middleware marketing relay, and backend normalization.
  */
 
 /**
@@ -15,7 +20,7 @@ export function getClientLocale(): string | null {
   const cookies = document.cookie.split(';');
   for (const cookie of cookies) {
     const [name, value] = cookie.trim().split('=');
-    if (name === 'NEXT_LOCALE') {
+    if (name === NEXT_LOCALE_COOKIE_NAME) {
       return value;
     }
   }
@@ -43,4 +48,17 @@ export function normalizeLocaleForBackend(frontendLocale: string | null): string
   };
 
   return mapping[frontendLocale] || frontendLocale;
+}
+
+/** Parse `?locale=` from marketing-site CTAs into a supported App locale. */
+export function parseLocaleQueryParam(value: string | null): Locale | null {
+  if (!value) return null;
+  return (locales as readonly string[]).includes(value) ? (value as Locale) : null;
+}
+
+/** Clone URL without `locale` search param (preserves redirect, token, utm, etc.). */
+export function urlWithoutLocaleParam(url: URL): URL {
+  const next = new URL(url.toString());
+  next.searchParams.delete('locale');
+  return next;
 }

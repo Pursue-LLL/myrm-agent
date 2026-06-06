@@ -15,6 +15,7 @@ interface HardwareRecommendation {
   name: string;
   description: string;
   req_vram_gb: number;
+  disk_size_gb?: number;
   fit_score: number;
   fit_level: 'perfect' | 'good' | 'fair' | 'poor';
   is_installed?: boolean;
@@ -62,29 +63,29 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
     };
   }, []);
 
+  const fetchHardwareProfile = async () => {
+    try {
+      const res = await fetch('/api/v1/integrations/hardware/recommendations');
+      if (!res.ok) throw new Error('Failed to fetch hardware recommendations');
+      const data = await res.json();
+      if (data.code === 0 && data.data) {
+        setProfile(data.data);
+      } else {
+        throw new Error(data.message || 'Unknown error');
+      }
+    } catch (err) {
+      console.error('Hardware detection failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to detect hardware');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isSaaS) {
       setLoading(false);
       return;
     }
-
-    const fetchHardwareProfile = async () => {
-      try {
-        const res = await fetch('/api/v1/integrations/hardware/recommendations');
-        if (!res.ok) throw new Error('Failed to fetch hardware recommendations');
-        const data = await res.json();
-        if (data.code === 0 && data.data) {
-          setProfile(data.data);
-        } else {
-          throw new Error(data.message || 'Unknown error');
-        }
-      } catch (err) {
-        console.error('Hardware detection failed:', err);
-        setError(err instanceof Error ? err.message : 'Failed to detect hardware');
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchHardwareProfile();
   }, [isSaaS]);
@@ -140,15 +141,8 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       setDownloadingModel(null);
       abortControllerRef.current = null;
       
-      setProfile(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          recommendations: prev.recommendations.map(r => 
-            r.model_id === modelId ? { ...r, is_installed: true } : r
-          )
-        };
-      });
+      // 重新拉取以同步最新的磁盘空间和安装状态
+      await fetchHardwareProfile();
       
       onApplyModel(modelId);
       
