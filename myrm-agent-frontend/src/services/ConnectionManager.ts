@@ -29,10 +29,23 @@ class ConnectionManager {
       headers.Authorization = `Bearer ${token}`;
     }
 
+    let isFirstConnection = true;
+
     fetchEventSource(`${API_BASE_URL}/workspace/stream`, {
       method: 'GET',
       headers,
       signal: this.abortController.signal,
+      async onopen(response) {
+        if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
+          if (!isFirstConnection) {
+            console.log('Workspace stream reconnected, dispatching catchup event');
+            window.dispatchEvent(new CustomEvent('multiplex_reconnected'));
+          }
+          isFirstConnection = false;
+        } else {
+          throw new Error(`Failed to connect to workspace stream: ${response.statusText}`);
+        }
+      },
       async onmessage(ev) {
         if (ev.event === 'multiplex') {
           try {

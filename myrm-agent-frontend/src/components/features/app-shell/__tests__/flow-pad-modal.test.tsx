@@ -1,11 +1,10 @@
+/** @vitest-environment jsdom */
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlowPadStore, type FlowPadCapture } from '@/store/useFlowPadStore';
 
-const { mockSendMessage, mockSetFiles } = vi.hoisted(() => ({
-  mockSendMessage: vi.fn().mockResolvedValue(undefined),
-  mockSetFiles: vi.fn(),
-}));
+const mockSendMessage = vi.fn().mockResolvedValue(undefined);
+const mockSetFiles = vi.fn();
 
 vi.mock('@/store/useChatStore', () => {
   const state = {

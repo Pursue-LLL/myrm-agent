@@ -190,4 +190,23 @@ async def finalize_agent_stream_session(
         from app.services.agent.goal_registry import GoalRegistry
 
         GoalRegistry.unregister(session.request.chat_id)
+
+    if session.collector.has_content and session.request.chat_id:
+        try:
+            from app.services.agent.evolution.engine import trigger_skill_evolution
+
+            tool_steps = len(session.collector._progress_steps)
+            dw_text: str | None = None
+            if session.request.use_workflow and session.collector.content:
+                dw_text = session.collector.content
+
+            trigger_skill_evolution(
+                chat_id=session.request.chat_id,
+                model_cfg=session.params.model_cfg,
+                tool_steps_count=tool_steps,
+                conversation_text=dw_text,
+            )
+        except Exception as evo_exc:
+            logger.debug("Skill evolution trigger skipped: %s", evo_exc)
+
     session.collector.cleanup()

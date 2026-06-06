@@ -16,18 +16,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/chat/{chat_id}/attach")
-async def attach_to_chat(chat_id: str, request: Request) -> StreamingResponse:
-    """Attach to an ongoing agent chat session via SSE.
+@router.get("/chat/{chat_id}/attach", response_model=None)
+async def attach_to_chat(
+    chat_id: str,
+    request: Request,
+    multiplexed: bool = False,
+) -> StreamingResponse | JSONResponse:
+    """Attach to an ongoing agent chat session via SSE or fetch snapshot.
 
-    This endpoint allows clients to reconnect to a long-running background task
-    (OfflineDurableTask) and receive real-time SSE events.
+    If multiplexed=True, returns a JSONResponse containing the catchup_snapshot
+    instead of opening an SSE stream. This is used by the frontend ConnectionManager
+    to recover lost data after a network drop without breaking the multiplexed stream.
     """
+    from app.core.utils.response_utils import success_response
     from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
 
     collector = ACTIVE_COLLECTORS.get(chat_id)
     if not collector:
         raise HTTPException(status_code=404, detail="No active task found for this chat in memory")
+
+    if multiplexed:
+        # For multiplexed recovery, we just need the snapshot, no need to subscribe to the queue
+        snapshot = collector.get_snapshot()
+        return success_response(data={"catchup_snapshot": snapshot})
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         snapshot, q = collector.subscribe()

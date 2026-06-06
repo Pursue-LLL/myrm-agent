@@ -78,11 +78,8 @@ class StreamContentCollector:
         """Check if there are active subscribers."""
         return len(self._subscribers) > 0
 
-    def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
-        """Atomically get current snapshot and subscribe to future events."""
-        q: asyncio.Queue[dict[str, object]] = asyncio.Queue()
-        self._subscribers.append(q)
-
+    def get_snapshot(self) -> dict[str, object]:
+        """Get the current snapshot without subscribing."""
         # Merge progress steps by id to keep only the latest state
         merged_steps_dict: dict[str, dict[str, object]] = {}
         ordered_steps: list[dict[str, object]] = []
@@ -111,13 +108,18 @@ class StreamContentCollector:
             else:
                 ordered_sources.append(source)
 
-        snapshot = {
+        return {
             "content": "".join(self._content_parts),
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
         }
-        return snapshot, q
+
+    def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
+        """Atomically get current snapshot and subscribe to future events."""
+        q: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+        self._subscribers.append(q)
+        return self.get_snapshot(), q
 
     def feed_sse(self, chunk: str) -> None:
         """Parse an SSE-formatted string chunk and collect data."""

@@ -182,6 +182,9 @@ def test_cancel_invokes_scheduler_cancel_batch_optimization(
             cancelled_batches.append(batch_id)
             return True
 
+        async def await_batch_optimization(self, batch_id: str, timeout: float = 120.0) -> bool:
+            return True
+
     async def mock_get_db():
         yield AsyncMock()
 
@@ -200,3 +203,55 @@ def test_cancel_invokes_scheduler_cancel_batch_optimization(
 
     assert response.status_code == 200
     assert cancelled_batches == ["batch-cancel-scheduler-1"]
+
+
+def test_cancel_skips_rollback_when_await_times_out(
+    batch_client: TestClient,
+    batch_app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task = FakeBatchTask(batch_id="batch-cancel-await-timeout", max_concurrent=2, status="running")
+    repo_stub = BatchTaskRepositoryStub(task)
+    audit_stub = AuditLogRepositoryStub()
+    rollback_invoked = False
+
+    class RollbackServiceStub:
+        def __init__(self, session: object) -> None:
+            self.session = session
+
+        async def rollback_batch(self, batch_id: str, skill_writer: object) -> RollbackResult:
+            nonlocal rollback_invoked
+            rollback_invoked = True
+            return RollbackResult(success=True, total_skills=0, rolled_back=0, failed=0)
+
+    class SchedulerStub:
+        async def cancel_batch_optimization(self, batch_id: str) -> bool:
+            return True
+
+        async def await_batch_optimization(self, batch_id: str, timeout: float = 120.0) -> bool:
+            return False
+
+    async def mock_get_db():
+        yield AsyncMock()
+
+    batch_app.dependency_overrides[get_db] = mock_get_db
+    monkeypatch.setattr(batch_router_module, "BatchTaskRepository", lambda _s: repo_stub)
+    monkeypatch.setattr(batch_router_module, "AuditLogRepository", lambda _s: audit_stub)
+    monkeypatch.setattr(batch_router_module, "RollbackService", RollbackServiceStub)
+    monkeypatch.setattr(
+        "app.core.infra.server_globals.get_optimization_scheduler",
+        lambda: SchedulerStub(),
+    )
+
+    response = batch_client.post(
+        "/api/v1/batch-optimization/tasks/batch-cancel-await-timeout/cancel",
+        json={"cleanup_strategy": "rollback"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["rollback_performed"] is False
+    assert body["rolled_back"] == 0
+    assert body["error_message"] is not None
+    assert "did not stop in time" in body["error_message"]
+    assert rollback_invoked is False

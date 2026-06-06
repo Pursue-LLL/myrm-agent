@@ -10,7 +10,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 路由导出 | — |
-| `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`；`cancel` 调 harness `cancel_batch_optimization`；`cancel`+`rollback` 均返 `rolled_back`/`failed`/`total_skills`/`error_message`；写盘经 `restore_skill_snapshot`） | ✅ |
+| `router.py` | 核心 | 批量优化 REST（创建前 `create_batch_snapshot`；`cancel` 调 harness `cancel_batch_optimization` + `await_batch_optimization`（超时则跳过 rollback 并返 `error_message`）后再 rollback；`cancel`+`rollback` 均返 `rolled_back`/`failed`/`total_skills`/`error_message`；写盘经 `restore_skill_snapshot`） | ✅ |
 
 ## 测试
 
@@ -24,6 +24,6 @@ uv run pytest tests/api/batch_optimization/ tests/services/skill_optimization/ -
 |------|------|
 | `support.py` | 共享 `FakeBatchTask` / Repository stub |
 | `conftest.py` | `batch_app` / `batch_client` fixture |
-| `test_cancel_rollback.py` | `RollbackService` 全量/部分失败编排；HTTP cancel `keep` 契约；scheduler `cancel_batch_optimization` 接线 |
+| `test_cancel_rollback.py` | `RollbackService` 全量/部分失败编排；HTTP cancel `keep` 契约；scheduler 接线；await 超时跳过 rollback |
 | `test_cancel_rollback_http_integration.py` | 真 sqlite + 真 `RollbackService` + HTTP cancel 单/多 skill 写盘 + partial 契约；`create_batch_snapshot` 入库 |
 | `test_skill_version_integration.py`（services 目录） | `restore_skill_snapshot` 双分支真写盘 |

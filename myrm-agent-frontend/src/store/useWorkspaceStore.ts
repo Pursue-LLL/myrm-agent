@@ -26,6 +26,7 @@ interface WorkspaceState {
   savePaneSnapshot: (paneId: string, snapshot: Partial<ChatState>) => void;
   getPaneSnapshot: (paneId: string) => Partial<ChatState> | null;
   refreshActiveSessions: () => Promise<void>;
+  syncBackgroundPanes: () => Promise<void>;
   startPolling: () => void;
   stopPolling: () => void;
 }
@@ -106,6 +107,45 @@ const useWorkspaceStore = create<WorkspaceState>()(
       }
     },
 
+    syncBackgroundPanes: async () => {
+      const state = get();
+      const backgroundPanes = state.panes.filter(
+        (p) => p.id !== state.activePaneId && p.chatId
+      );
+
+      if (backgroundPanes.length === 0) return;
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const { getBackendUrl } = await import('@/lib/utils/apiConfig');
+      const API_BASE_URL = getBackendUrl();
+
+      for (const pane of backgroundPanes) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/agents/chat/${pane.chatId}/attach?multiplexed=true`, {
+            method: 'GET',
+            headers,
+            cache: 'no-store',
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.data?.catchup_snapshot) {
+              get().savePaneSnapshot(pane.id, data.data.catchup_snapshot);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to sync background pane ${pane.id}`, error);
+        }
+      }
+    },
+
     startPolling: () => {
       if (sseListener) return;
       set((state) => {
@@ -138,5 +178,12 @@ const useWorkspaceStore = create<WorkspaceState>()(
     },
   })),
 );
+
+// Listen to multiplex reconnect events to sync background panes
+if (typeof window !== 'undefined') {
+  window.addEventListener('multiplex_reconnected', () => {
+    useWorkspaceStore.getState().syncBackgroundPanes();
+  });
+}
 
 export default useWorkspaceStore;

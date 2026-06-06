@@ -24,6 +24,10 @@ RESTful API endpoints for batch skill optimization management.
 
 logger = logging.getLogger(__name__)
 
+_BATCH_CANCEL_AWAIT_TIMEOUT_MSG = (
+    "Batch optimization did not stop in time; use Roll back batch on the detail page after tasks finish"
+)
+
 router = APIRouter(prefix="/batch-optimization", tags=["batch-optimization"])
 
 
@@ -321,8 +325,10 @@ async def cancel_batch_task(
         from app.core.infra.server_globals import get_optimization_scheduler
 
         scheduler = get_optimization_scheduler()
+        batch_quiesced = True
         if scheduler:
             await scheduler.cancel_batch_optimization(batch_id)
+            batch_quiesced = await scheduler.await_batch_optimization(batch_id)
 
         await batch_repo.update_status(batch_id, "cancelled")
 
@@ -332,22 +338,25 @@ async def cancel_batch_task(
         rollback_failed = 0
         rollback_error_message: str | None = None
         if request.cleanup_strategy == "rollback":
-            snap_result = await db.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
-            snapshots = list(snap_result.scalars().all())
-            if snapshots:
-                rollback_service = RollbackService(db)
-                storage = get_storage()
+            if not batch_quiesced:
+                rollback_error_message = _BATCH_CANCEL_AWAIT_TIMEOUT_MSG
+            else:
+                snap_result = await db.execute(select(BatchSnapshot).where(BatchSnapshot.batch_id == batch_id))
+                snapshots = list(snap_result.scalars().all())
+                if snapshots:
+                    rollback_service = RollbackService(db)
+                    storage = get_storage()
 
-                async def skill_writer(skill_id: str, content: str, version: int) -> None:
-                    await restore_skill_snapshot(storage, skill_id, content, version)
-                    logger.info("Rolled back skill %s to version %s", skill_id, version)
+                    async def skill_writer(skill_id: str, content: str, version: int) -> None:
+                        await restore_skill_snapshot(storage, skill_id, content, version)
+                        logger.info("Rolled back skill %s to version %s", skill_id, version)
 
-                rollback_result = await rollback_service.rollback_batch(batch_id, skill_writer)
-                rollback_performed = rollback_result.success
-                rollback_total_skills = rollback_result.total_skills
-                rollback_rolled_back = rollback_result.rolled_back
-                rollback_failed = rollback_result.failed
-                rollback_error_message = rollback_result.error_message
+                    rollback_result = await rollback_service.rollback_batch(batch_id, skill_writer)
+                    rollback_performed = rollback_result.success
+                    rollback_total_skills = rollback_result.total_skills
+                    rollback_rolled_back = rollback_result.rolled_back
+                    rollback_failed = rollback_result.failed
+                    rollback_error_message = rollback_result.error_message
 
         audit_repo = AuditLogRepository(db)
         await audit_repo.create_log(
