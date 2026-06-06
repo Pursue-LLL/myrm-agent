@@ -13,9 +13,13 @@ vi.mock('@/store/useProviderStore', () => ({
   },
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
-  isTauriRuntime: () => false,
-}));
+vi.mock('@/lib/deploy-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+  return {
+    ...actual,
+    isTauriRuntime: () => false,
+  };
+});
 
 vi.mock('@/services/file-service/types', () => ({
   fromStoreFile: (f: unknown) => f,

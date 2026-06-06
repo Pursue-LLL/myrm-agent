@@ -108,7 +108,6 @@ async def test_ollama_delete_local_mode_success():
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.request("DELETE", "/api/v1/integrations/hardware/ollama/models", json={"model_name": "test:latest"})
                 assert response.status_code == 200
-                data = response.json()
                 # When mocking httpx.AsyncClient.request, it intercepts the request to our own FastAPI app too!
                 # We need to only mock the request to localhost:11434
                 pass
