@@ -12,8 +12,6 @@
  */
 
 import type { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import type {
   MemoryCommandBenchmarkSummary,
   MemoryCommandCenterResponse,

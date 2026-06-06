@@ -182,15 +182,8 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       
       if (!res.ok) throw new Error('Failed to delete model');
       
-      setProfile(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          recommendations: prev.recommendations.map(r => 
-            r.model_id === modelId ? { ...r, is_installed: false } : r
-          )
-        };
-      });
+      // 重新拉取以同步最新的磁盘空间和安装状态
+      await fetchHardwareProfile();
     } catch (err) {
       console.error('Delete failed:', err);
       alert(t('deleteFailed'));
@@ -321,9 +314,8 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                 ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) 
                 : 0;
 
-              // 预估模型大小 (GB)，简单按参数量估算，如果没有则默认一个值
-              // 这里简化处理：通常 8B 模型需要约 4-5GB 磁盘空间，我们保守估计为 req_vram_gb 的 80%
-              const estimatedDiskGb = rec.req_vram_gb * 0.8;
+              // 预估模型大小 (GB)，优先使用云端下发的精准数据，如果没有则默认一个保守估算值
+              const estimatedDiskGb = rec.disk_size_gb || (rec.req_vram_gb * 0.8);
               const hasEnoughDisk = profile.free_disk_gb ? profile.free_disk_gb > estimatedDiskGb : true;
 
               return (

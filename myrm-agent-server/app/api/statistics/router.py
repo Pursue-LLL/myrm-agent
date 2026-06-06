@@ -405,18 +405,13 @@ async def get_agent_tool_health(
 ) -> JSONResponse:
     """Get aggregated tool health metrics for a specific agent.
 
-    Queries the SQLite tool_executions table to return aggregated success rates,
+    Queries the EventLog backend to return aggregated success rates,
     error counts, and durations per tool for the specified agent.
     """
     try:
-        from myrm_agent_harness.agent.skills.evolution.infra.integration import get_global_evolution_integration
-
-        evolution = get_global_evolution_integration()
-
-        if not evolution or not hasattr(evolution, "store"):
-            return success_response(data=[])
-
-        health_data = await evolution.store.get_agent_tool_health(agent_id=agent_id, days=days)
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
+        analytics = EventLogAnalytics(backend)
+        health_data = await analytics.get_agent_tool_health(agent_id=agent_id, days=days)
         return success_response(data=health_data)
     except Exception as e:
         raise internal_error(operation="Get agent tool health", exception=e) from e

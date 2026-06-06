@@ -182,7 +182,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
                 setOauthPolling(false);
                 toast({ title: t('connectFailed'), description: 'OAuth session expired', variant: 'destructive' });
               }
-            } catch (e) {
+            } catch {
               // Ignore polling errors
             }
           }, 2000);

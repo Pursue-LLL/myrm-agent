@@ -130,6 +130,8 @@ class AgentRequest(BaseModel):
 
     light_model_selection: ModelSelection | None = None
     fallback_light_model_selection: ModelSelection | None = None
+
+    multiplexed: bool = False
     reasoning_model_selection: ModelSelection | None = None
     fallback_reasoning_model_selection: ModelSelection | None = None
     research_model_selection: ModelSelection | None = None

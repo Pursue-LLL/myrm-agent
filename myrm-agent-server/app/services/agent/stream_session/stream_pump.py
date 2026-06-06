@@ -120,9 +120,14 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: object) -> None:
         task.add_done_callback(lambda t: t.exception() if not t.cancelled() and t.exception() else None)
 
 
-async def launch_buffered_stream(session: AgentStreamSession) -> StreamingResponse:
+async def launch_buffered_stream(session: AgentStreamSession) -> StreamingResponse | JSONResponse:
     buffer = await session.registry.get_or_create(session.params.message_id)
     asyncio.create_task(pump_to_buffer(session, buffer))
+    
+    if getattr(session.request, "multiplexed", False):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content={"status": "accepted", "message_id": session.params.message_id})
+        
     return StreamingResponse(
         content=buffer.subscribe(),
         media_type="text/event-stream",

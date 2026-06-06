@@ -36,6 +36,10 @@ export const AgentToolDiagnostics = ({ agentId }: { agentId: string }) => {
       }
     };
     fetchHealth();
+    
+    // Poll every 5 seconds while open for realtime updates
+    const interval = setInterval(fetchHealth, 5000);
+    return () => clearInterval(interval);
   }, [agentId, open]);
 
   const sortedData = [...data].sort((a, b) => {

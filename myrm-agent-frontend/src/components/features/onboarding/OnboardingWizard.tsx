@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -64,7 +64,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         setTimeout(() => {
           if (mounted) setInitDone(true);
         }, remaining);
-      } catch (e) {
+      } catch {
         if (mounted) setInitDone(true);
       }
     };
@@ -95,7 +95,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     setFadeOut(true);
     try {
       await completeOnboarding();
-    } catch (e) {
+    } catch {
       // Ignore errors
     }
     setTimeout(onComplete, 400);

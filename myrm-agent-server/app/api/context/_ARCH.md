@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.services.context.context_bundle_service::ContextBundleService (POS: bundle health and migration service)
-- app.services.context.context_search_service::ContextSearchService (POS: unified search service)
 - app.schemas.context.bundle (POS: bundle request/response models)
 
 [OUTPUT]

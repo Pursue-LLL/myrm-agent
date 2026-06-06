@@ -62,7 +62,6 @@ import type { Skill, SkillTrap, SecurityScanSummary } from '@/store/skill/types'
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
-import { IconAlertTriangle } from '@/components/features/icons/PremiumIcons';
 import SkillExportDialog from './SkillExportDialog';
 
 function stripYamlFrontmatter(content: string): string {

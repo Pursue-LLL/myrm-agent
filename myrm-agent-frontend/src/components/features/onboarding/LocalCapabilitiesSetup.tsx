@@ -2,11 +2,9 @@
 
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/primitives/button';
-import { cn } from '@/lib/utils/classnameUtils';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import {
@@ -17,7 +15,7 @@ import { startLocalSearxngAndRefreshProbe } from '@/services/searxngSetup';
 import { buildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
-import { IconCheck, IconCpu, IconGlobe, IconLoader, IconSettings } from '@/components/features/icons/PremiumIcons';
+import { IconCheck, IconCpu, IconGlobe, IconLoader } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 
 interface LocalCapabilitiesSetupProps {
@@ -28,7 +26,6 @@ interface LocalCapabilitiesSetupProps {
 export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onComplete }: LocalCapabilitiesSetupProps) {
   const t = useTranslations('chat.localCapabilities');
   const tModel = useTranslations('chat.localModelDetected');
-  const router = useRouter();
   
   const [probeResult, setProbeResult] = useState<ProbeLocalResponse | null>(initialProbe);
   const [activatingModel, setActivatingModel] = useState(false);

@@ -8,9 +8,6 @@
 
 [OUTPUT]
 - ContextBundleService: Health probes, migration
-- ContextSearchService: Unified memory + local file search (concurrent + RRF)
-- create_context_search_tool: Agent tool factory
-
 [POS]
 Server business layer for Context Bundle management and unified context search.
 Orchestrates concurrent memory and workspace search using RRF fusion to provide
@@ -24,4 +21,3 @@ a single, unified cognitive interface for the Agent, eliminating tool redundancy
 | `context_bundle_service.py` | Health probes, migration |
 | `context_search_service.py` | Unified memory + local file search (concurrent + RRF) |
 | `context_search_deps.py` | FastAPI dependencies |
-| `context_search_tools.py` | Agent `context_search_tool` factory |
