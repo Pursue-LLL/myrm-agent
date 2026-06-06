@@ -25,7 +25,7 @@ Server 容器构建与运行时入口。`Dockerfile` 从 PyPI 安装钉死版本
 docker build -t myrm-server .
 ```
 
-Builder：`uv sync --frozen --all-extras`（含 `compiled-core`）；PyPI 未发布时 CI 失败（无 silent fallback）。Runtime：`verify-harness-distribution --matplotlib-cjk`。
+Builder：`uv sync --frozen --all-extras`（含 `compiled-core`；`pyproject.toml` 设 `prerelease=allow` 与 `index-url=pypi.org`）。PyPI 未发布时 CI 失败（无 silent fallback）。Runtime：`verify-harness-distribution --matplotlib-cjk`。
 
 Lock 约束：`tests/architecture/test_uv_lock_harness_registry.py` 要求 `uv.lock` 使用 PyPI registry pin。
 

@@ -21,11 +21,21 @@ _resolve_harness_root() {
 }
 
 _harness_on_pypi() {
-  python3 - <<'PY'
+  python3 - <<PY
+import subprocess
+import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
-url = "https://pypi.org/pypi/myrm-agent-harness/0.1.0rc1/json"
+server_root = Path("${SERVER_ROOT}")
+spec_script = server_root / "docker" / "read_harness_pypi_spec.py"
+result = subprocess.run([sys.executable, str(spec_script)], check=True, capture_output=True, text=True)
+spec = result.stdout.strip()
+if "==" not in spec:
+    raise SystemExit(1)
+version = spec.rsplit("==", maxsplit=1)[-1]
+url = f"https://pypi.org/pypi/myrm-agent-harness/{version}/json"
 req = urllib.request.Request(url, headers={"User-Agent": "myrm-arch-gates"})
 try:
     with urllib.request.urlopen(req, timeout=15) as resp:

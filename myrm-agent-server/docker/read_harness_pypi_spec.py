@@ -5,7 +5,7 @@
 - myrm-agent-server/pyproject.toml (POS: Server dependency manifest)
 
 [OUTPUT]
-- stdout: full pip install spec string (e.g. myrm-agent-harness[...,compiled-core]==0.1.0rc1)
+- stdout: full pip install spec string (e.g. myrm-agent-harness[...,compiled-core]==0.1.0rc2)
 
 [POS]
 Shared harness PyPI pin parser for Docker builder and server install scripts.

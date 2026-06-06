@@ -12,7 +12,7 @@ import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
-_HARNESS_VERSION = "0.1.0rc1"
+_HARNESS_VERSION = "0.1.0rc2"
 
 
 def _pypi_package_exists(package: str, version: str) -> bool:

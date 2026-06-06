@@ -25,7 +25,7 @@ dependencies = [
   "langchain>=1.3.4",      # Agent 工具/链定义 (70+ 文件)
   "langchain-core>=1.4.0", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
-  "myrm-agent-harness[file-parsers,web,fastapi,retrieval,qdrant,image-processing]==0.1.0rc1",
+  "myrm-agent-harness[file-parsers,web,fastapi,retrieval,qdrant,image-processing,compiled-core]==0.1.0rc2",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.0",           # Matrix channel + alert notifier HTTP client
   # --- 语音处理 ---
@@ -79,8 +79,9 @@ data-viz = [
 ]
 
 [tool.uv]
-# index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-# Limit lock splits while harness==0.1.0rc1 is not on PyPI for all markers; refresh win32 via ./myrm harness sync-lock after publish.
+index-url = "https://pypi.org/simple"
+# Universal lock: harness==0.1.0rc2 + compiled-core platform wheels from PyPI registry.
+prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [
   "click>=8.4.1",
