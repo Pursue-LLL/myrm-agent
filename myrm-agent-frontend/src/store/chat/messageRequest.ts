@@ -603,6 +603,37 @@ export const createMessageRequest = async (
  */
 import useToolApprovalStore from '../useToolApprovalStore';
 
+import { produce } from 'immer';
+import useWorkspaceStore from '../useWorkspaceStore';
+
+export const createSmartUpdater = (chatId: string | undefined, originalSetMessages: (updater: (state: ChatActionsState) => void) => void) => {
+  return (updater: (state: ChatActionsState) => void) => {
+    if (!chatId) {
+      originalSetMessages(updater);
+      return;
+    }
+
+    const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
+    const workspaceState = workspaceStore.getState();
+    const activePane = workspaceState.panes.find((p: any) => p.id === workspaceState.activePaneId);
+
+    if (activePane && activePane.chatId === chatId) {
+      // It's the active chat, update the global store
+      originalSetMessages(updater);
+    } else {
+      // It's a background chat, update the snapshot in WorkspaceStore
+      const pane = workspaceState.panes.find((p: any) => p.chatId === chatId);
+      if (pane) {
+        const currentSnapshot = pane.snapshot || { messages: [], loading: false, messageAppeared: false, hideAttachList: false, hasUsedImagesInCurrentChat: false };
+        const nextSnapshot = produce(currentSnapshot, (draft: any) => {
+          updater(draft as ChatActionsState);
+        });
+        workspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
+      }
+    }
+  };
+};
+
 export const sendMessage = async (
   input: string,
   messageId: string | undefined,
@@ -699,7 +730,20 @@ export const sendMessage = async (
 
     // 创建 AbortController 并设置 loading 状态
     const abortController = new AbortController();
-    actions.setMessages((innerState) => {
+    
+    // Save the abort controller to the workspace store for the current pane
+    if (state.chatId) {
+      const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
+      const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      if (paneId) {
+        workspaceStore.getState().setPaneAbortController(paneId, abortController);
+      }
+    }
+
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    const smartActions = { ...actions, setMessages: smartSetMessages };
+
+    smartActions.setMessages((innerState) => {
       innerState.loading = true;
       innerState.messageAppeared = false;
       innerState.abortController = abortController;
@@ -722,7 +766,7 @@ export const sendMessage = async (
     const persistFiles = state.files.length > 0 ? state.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
 
     if (!isRegenerate) {
-      actions.setMessages((innerState) => {
+      smartActions.setMessages((innerState) => {
         innerState.messages.push({
           content: input,
           messageId: userMessageId,
@@ -738,7 +782,7 @@ export const sendMessage = async (
       input,
       requestMessageId,
       state,
-      actions,
+      smartActions,
       modelSelection,
       abortController,
       added,
@@ -748,13 +792,15 @@ export const sendMessage = async (
     );
     useCompanionStore.getState().incrementConversation();
   } catch (error) {
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    
     if (error instanceof AgentBusyError) {
       // Let the UI handle requeueing
       throw error;
     }
     if (isArchiveRestoreActionInvalidError(error)) {
       if (userMessageId) {
-        actions.setMessages((innerState) => {
+        smartSetMessages((innerState) => {
           const lastMessageIndex = innerState.messages.length - 1;
           if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === userMessageId) {
             innerState.messages.pop();
@@ -773,12 +819,12 @@ export const sendMessage = async (
       const isNetworkError = isTransientNetworkError(error);
 
       if (isNetworkError && userMessageId) {
-        actions.setMessages((innerState) => {
+        smartSetMessages((innerState) => {
           const msg = innerState.messages.find((m) => m.messageId === userMessageId);
           if (msg) msg.sendFailed = true;
         });
       } else if (userMessageId) {
-        actions.setMessages((innerState) => {
+        smartSetMessages((innerState) => {
           const lastMessageIndex = innerState.messages.length - 1;
           if (lastMessageIndex >= 0 && innerState.messages[lastMessageIndex].messageId === userMessageId) {
             innerState.messages.pop();
@@ -794,13 +840,23 @@ export const sendMessage = async (
       });
     }
   } finally {
-    actions.setMessages((innerState) => {
+    const smartSetMessages = createSmartUpdater(state.chatId, actions.setMessages);
+    smartSetMessages((innerState) => {
       innerState.loading = false;
       innerState.abortController = null;
       innerState.currentSessionMessageId = null;
       innerState.files = [];
       innerState.cameraFrames = [];
     });
+    
+    if (state.chatId) {
+      const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
+      const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      if (paneId) {
+        workspaceStore.getState().setPaneAbortController(paneId, null);
+      }
+    }
+
     actions.setHideAttachList(false);
     actions.clearCurrentSessionMessageId();
     actions.scheduleAutoSave();
@@ -820,9 +876,20 @@ export const attachToChat = async (
     return false;
   }
 
-  actions.setMessages((draft) => {
+  const smartSetMessages = createSmartUpdater(chatId, actions.setMessages);
+  const smartActions = { ...actions, setMessages: smartSetMessages };
+
+  const abortController = new AbortController();
+
+  const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
+  const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+  if (paneId) {
+    workspaceStore.getState().setPaneAbortController(paneId, abortController);
+  }
+
+  smartActions.setMessages((draft) => {
     draft.loading = true;
-    draft.abortController = new AbortController();
+    draft.abortController = abortController;
   });
 
   try {
@@ -837,7 +904,7 @@ export const attachToChat = async (
     const response = await fetch(`${API_BASE_URL}/agents/chat/${chatId}/attach`, {
       method: 'GET',
       headers,
-      signal: state.abortController?.signal,
+      signal: abortController.signal,
       cache: 'no-store',
     });
 
@@ -855,8 +922,8 @@ export const attachToChat = async (
     if (!response.body) {
       return false;
     }
-    const abortController = state.abortController ?? new AbortController();
-    await consumeStream(response, '', state, actions, abortController, false, '');
+    
+    await consumeStream(response, '', state, smartActions, abortController, false, '');
     return true;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -867,9 +934,12 @@ export const attachToChat = async (
     }
     return false;
   } finally {
-    actions.setMessages((draft) => {
+    smartActions.setMessages((draft) => {
       draft.loading = false;
       draft.abortController = null;
     });
+    if (paneId) {
+      workspaceStore.getState().setPaneAbortController(paneId, null);
+    }
   }
 };

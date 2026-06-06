@@ -12,6 +12,9 @@
 .cursor/
 .kiro/
 
+# Workflow runtime data
+.myrm/
+
 # Debug screenshots at repo root
 *verifier*.png
 failed_test*.png

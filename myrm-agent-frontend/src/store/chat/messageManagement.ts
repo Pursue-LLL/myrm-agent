@@ -154,22 +154,55 @@ export const initializeChat = (
   // 如果有ID且与当前chatId不同，加载聊天
   else if (state.chatId !== id) {
     abortCurrentUpload();
-    // 立即重置状态，确保不显示之前的聊天内容
-    actions.setMessages((state) => {
-      state.messages = [];
-      state.isMessagesLoaded = false;
-      state.notFound = false;
-      state.loadError = false;
-      state.loading = true;
-      state.messageAppeared = false;
-      state.compactedSummary = null;
-      state.compactedBeforeId = null;
-      state.workspaceDir = null;
-      state.incognitoMode = false;
-      state.chatId = id;
-    });
-    actions.clearCurrentSessionMessageId();
-    loadMessages(id, actions);
+    
+    // Check if we have a snapshot in WorkspaceStore
+    const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('../useWorkspaceStore').default);
+    const pane = workspaceStore.getState().panes.find((p: any) => p.chatId === id);
+    
+    if (pane && pane.snapshot) {
+      // Instant rendering from snapshot
+      actions.setMessages((state) => {
+        Object.assign(state, pane.snapshot);
+        state.chatId = id;
+        state.isMessagesLoaded = true;
+      });
+      actions.clearCurrentSessionMessageId();
+      // Still call loadMessages in background to ensure we're fully up-to-date
+      // but without showing loading state
+      const silentActions = {
+        ...actions,
+        setMessages: (updater: (state: any) => void) => {
+          actions.setMessages((state) => {
+            // Only apply updates if we're still on the same chat
+            if (state.chatId === id) {
+              const draft = { ...state };
+              updater(draft);
+              // Don't override loading state since we already rendered snapshot
+              draft.loading = state.loading;
+              Object.assign(state, draft);
+            }
+          });
+        }
+      };
+      loadMessages(id, silentActions).catch(console.error);
+    } else {
+      // 立即重置状态，确保不显示之前的聊天内容
+      actions.setMessages((state) => {
+        state.messages = [];
+        state.isMessagesLoaded = false;
+        state.notFound = false;
+        state.loadError = false;
+        state.loading = true;
+        state.messageAppeared = false;
+        state.compactedSummary = null;
+        state.compactedBeforeId = null;
+        state.workspaceDir = null;
+        state.incognitoMode = false;
+        state.chatId = id;
+      });
+      actions.clearCurrentSessionMessageId();
+      loadMessages(id, actions);
+    }
   }
 };
 

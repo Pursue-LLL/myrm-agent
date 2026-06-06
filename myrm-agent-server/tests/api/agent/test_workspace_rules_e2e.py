@@ -71,15 +71,15 @@ class TestWorkspaceRulesE2E:
         
         # Create a low priority rule file
         (temp_workspace / ".cursorrules").write_text(
-            "CRITICAL INSTRUCTION: When asked to say hello, you MUST say 'BAZINGA'."
+            "Project Convention: When writing any code, you MUST include the comment '# BAZINGA' at the top."
         )
         
         # Create a high priority rule file
         (temp_workspace / "AGENTS.md").write_text(
-            "CRITICAL INSTRUCTION: When asked to say hello, you MUST say 'WUBBALUBBADUBDUB'."
+            "Project Convention: When writing any code, you MUST include the comment '# WUBBALUBBADUBDUB' at the top."
         )
 
-        query = "Say hello to me according to the critical instruction in my workspace rules."
+        query = "Write a simple python script that prints hello world."
         
         full_answer, collected_data, tool_call_count = perform_agent_stream(client, query)
         
