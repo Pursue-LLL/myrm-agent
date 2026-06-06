@@ -331,12 +331,24 @@ async def instantiate_pipeline(
             default_agent_id,
         )
 
-    seeds_to_use = spec.task_graph_seed
-    if variant_id and spec.task_graph_variants:
-        for variant in spec.task_graph_variants:
-            if variant.id == variant_id:
-                seeds_to_use = variant.seeds
-                break
+    seeds_to_use = None
+    if variant_id:
+        if spec.task_graph_variants:
+            for variant in spec.task_graph_variants:
+                if variant.id == variant_id:
+                    seeds_to_use = variant.seeds
+                    break
+        if seeds_to_use is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Invalid variant_id: {variant_id}")
+    else:
+        seeds_to_use = spec.task_graph_seed
+        if not seeds_to_use and spec.task_graph_variants:
+            seeds_to_use = spec.task_graph_variants[0].seeds
+            
+    if not seeds_to_use:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="No tasks defined in the selected variant or default seed")
 
     created_task_ids: list[str] = []
     created_edges: list[tuple[str, str]] = []

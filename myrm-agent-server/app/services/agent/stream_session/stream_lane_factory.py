@@ -59,6 +59,7 @@ async def create_dynamic_workflow_stream(
         reset_token_tracker,
     )
 
+    from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
     from app.core.utils.chat_utils import convert_chat_history
     from app.services.budget.enforcer import (
         reset_session_budget,
@@ -74,6 +75,10 @@ async def create_dynamic_workflow_stream(
 
     agent = AgentFactory.create_general_agent(params)
     history = await convert_chat_history(params.chat_history) if params.chat_history else []
+
+    catalog = DatabaseSubagentCatalog(
+        bound_agent_ids=list(params.subagent_ids or []),
+    )
 
     raw_q = params.query
     if isinstance(raw_q, str):
@@ -92,6 +97,7 @@ async def create_dynamic_workflow_stream(
             chat_id=params.chat_id or "default_chat",
             message_id=params.message_id or "default_msg",
             cancel_token=cancel_token,
+            catalog=catalog,
         ):
             if isinstance(chunk, dict) and chunk.get("type") == "message_end":
                 tracker = get_token_tracker()

@@ -483,14 +483,13 @@ async def convert_to_general_agent_params(
                             resolved.model,
                         )
 
-            is_dynamic_team = resolved.agent_type == "team"
-            if resolved.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
+            if resolved.agent_type == "team":
                 from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
                 leader_protocol = await build_leader_protocol_prompt(
                     agent_subagent_ids or [],
                     leader_id=request.agent_id,
-                    dynamic_discovery=is_dynamic_team,
+                    dynamic_discovery=True,
                 )
                 user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 

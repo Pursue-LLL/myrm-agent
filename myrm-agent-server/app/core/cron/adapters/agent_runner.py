@@ -268,8 +268,7 @@ class AgentJobRunner:
                     raw_decay = resolved.memory_decay_profile
                     memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
 
-                    is_dynamic_team = resolved.agent_type == "team"
-                    if resolved.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
+                    if resolved.agent_type == "team":
                         from app.ai_agents.team_protocol import (
                             build_leader_protocol_prompt,
                         )
@@ -277,7 +276,7 @@ class AgentJobRunner:
                         leader_protocol = await build_leader_protocol_prompt(
                             agent_subagent_ids or [],
                             leader_id=job.agent_id,
-                            dynamic_discovery=is_dynamic_team,
+                            dynamic_discovery=True,
                         )
                         user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 

@@ -199,14 +199,13 @@ class ChannelAgentExecutor:
                     raw_decay = resolved_profile.memory_decay_profile
                     memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
 
-            is_dynamic_team = bool(resolved_profile and resolved_profile.agent_type == "team")
-            if resolved_profile and resolved_profile.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
+            if resolved_profile and resolved_profile.agent_type == "team":
                 from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
                 leader_protocol = await build_leader_protocol_prompt(
                     agent_subagent_ids or [],
                     leader_id=resolved_agent_id,
-                    dynamic_discovery=is_dynamic_team,
+                    dynamic_discovery=True,
                 )
                 user_instructions = f"{user_instructions}\n\n{leader_protocol}" if user_instructions else leader_protocol
 

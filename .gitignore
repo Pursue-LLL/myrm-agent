@@ -16,8 +16,8 @@
 *verifier*.png
 failed_test*.png
 
-# Python scratch at repo root
-test_*.py
+# Python scratch at repo root only
+/test_*.py
 __pycache__/
 *.pyc
 

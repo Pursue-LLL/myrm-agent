@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from app.schemas.streaming import SSE_RESPONSE_HEADERS
 from app.services.agent.stream_session.stream_chunks import generate_cancellable_stream

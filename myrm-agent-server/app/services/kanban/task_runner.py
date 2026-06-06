@@ -588,15 +588,14 @@ class KanbanTaskRunner:
             enabled_builtin_tools.append("kanban")
 
         task_user_instructions: str | None = profile.system_prompt if profile else None
-        is_dynamic_team = bool(profile and profile.agent_type == "team")
         agent_subagent_ids = list(profile.subagent_ids) if profile and profile.subagent_ids else None
-        if profile and profile.agent_type == "team" and (agent_subagent_ids or is_dynamic_team):
+        if profile and profile.agent_type == "team":
             from app.ai_agents.team_protocol import build_leader_protocol_prompt
 
             leader_protocol = await build_leader_protocol_prompt(
                 agent_subagent_ids or [],
                 leader_id=task.agent_id,
-                dynamic_discovery=is_dynamic_team,
+                dynamic_discovery=True,
             )
             task_user_instructions = (
                 f"{task_user_instructions}\n\n{leader_protocol}" if task_user_instructions else leader_protocol

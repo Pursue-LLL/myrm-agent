@@ -1,6 +1,5 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
-import useChatStore from '@/store/useChatStore';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 
