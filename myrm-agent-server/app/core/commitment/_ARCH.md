@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | ⚠️ 待补 |
-| `extraction_hook.py` | 模块 | 见源码 | ⚠️ 待补 |
-| `section.py` | 模块 | 见源码 | ⚠️ 待补 |
-| `sqlite_store.py` | 模块 | 见源码 | ⚠️ 待补 |
+| `__init__.py` | 入口 | — | ⚠️ 待补 |
+| `extraction_hook.py` | 模块 | — | ⚠️ 待补 |
+| `section.py` | 模块 | — | ⚠️ 待补 |
+| `sqlite_store.py` | 模块 | — | ⚠️ 待补 |

@@ -334,6 +334,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         """Inject inbound journal for crash recovery. Called by Gateway before start."""
         self._inbound_journal = journal
 
+    def set_reaction_policy(self, policy: ReactionPolicy) -> None:
+        """Replace reaction policy at runtime (e.g. after channels config save)."""
+        self._reaction_policy = policy
+
     async def start(self) -> None:
         """Start the inbound message consumption loop."""
         if self._running:

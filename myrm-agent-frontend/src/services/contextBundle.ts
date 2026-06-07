@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - lib/api::apiRequest (POS: authenticated API client)
+ *
+ * [OUTPUT]
+ * - getContextBundleHealth, applyContextBundleMigration
+ *
+ * [POS]
+ * Context bundle health API client for Developer System Health panel.
+ */
+
 import { apiRequest } from '@/lib/api';
 
 export interface ContextBundleSceneHealth {

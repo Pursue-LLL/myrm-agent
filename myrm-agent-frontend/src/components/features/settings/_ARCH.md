@@ -1,41 +1,33 @@
-# settings/
+# settings 模块架构
 
 ## 架构概述
 
-设置页框架与各 Section（模型、渠道、记忆、技能、Cron 等）。
+设置页壳层：`SettingsLayout`（URL 为唯一数据源 + Section 缓存）、`SettingsMenu`（分组导航）、共享表单 primitive。各业务 Section 在 `sections/` 按 `SettingsMenu` 六组组织。
 
-## 文件清单
+## 核心文件
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `CommandEditor.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CommandSettings.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ConfigImportExport.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ConfigTimeMachine.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ConfigToggleItem.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FormFields.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ImportPreviewDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `JsonEditor.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `LanguageSwitcher.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MCPConfigForm.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `OptionSelect.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SchemaForm.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SearchServiceCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SearchServiceEditDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SearxngInstallConsentDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SettingsIcons.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SettingsLayout.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SettingsMenu.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkinPicker.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `Switcher.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `Tooltip.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `common/` | 目录 | 子模块 | 见源码 |
-| `default-model/` | 目录 | 子模块 | 见源码 |
-| `mcp/` | 目录 | MCP 配置 UI（列表/编辑/导入/安全扫描 Ack） | 见 `mcp/_ARCH.md` |
-| `mcp/MCPScanAckDialog.tsx` | 组件 | 高风险 MCP 配置确认对话框 | ✅ |
-| `model-service/` | 目录 | 子模块 | 见源码 |
-| `retrieval/` | 目录 | 子模块 | 见源码 |
-| `sections/` | 目录 | 子模块（含 `GlobalSkillQualityDashboard`、`SkillQualitySection` 等活路径） | 见源码 |
+| `SettingsLayout.tsx` | 核心 | Tab 路由、动态加载 Section、脏状态守卫 | ✅ |
+| `SettingsMenu.tsx` | 核心 | 分组侧栏（personal / ai-core / ai-tools / knowledge / integration / system） | ✅ |
+| `SettingsIcons.tsx` | 辅助 | 设置页图标映射 | ✅ |
+| `FormFields.tsx` | 辅助 | 通用表单字段 | ✅ |
+| `SchemaForm.tsx` | 辅助 | JSON Schema 驱动表单 | ✅ |
+| `ConfigImportExport.tsx` | 辅助 | 配置导入导出 | ✅ |
+| `MCPConfigForm.tsx` | 辅助 | MCP 顶层表单（详情见 `mcp/`） | ✅ |
+
+## 子目录
+
+| 目录 | 职责 | 文档 |
+|------|------|------|
+| `sections/` | 各设置 Tab 的 Section 组件（六组子目录） | [sections/_ARCH.md](sections/_ARCH.md) |
+| `sections/integration/channels/` | 渠道、路由、语音配置卡片 | [sections/integration/channels/_ARCH.md](sections/integration/channels/_ARCH.md) |
+| `sections/knowledge/wiki/` | Wiki 设置 | [sections/knowledge/wiki/_ARCH.md](sections/knowledge/wiki/_ARCH.md) |
+| `mcp/` | MCP 列表/编辑/安全扫描 Ack | [mcp/_ARCH.md](mcp/_ARCH.md) |
+| `common/` | 骨架屏、共享 UI | 模块内文件 |
+| `default-model/` | 默认模型子表单 | 模块内文件 |
+| `model-service/` | 模型服务配置 | 模块内文件 |
+| `retrieval/` | 检索服务配置 | 模块内文件 |
 
 ## 依赖
 

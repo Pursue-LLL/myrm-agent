@@ -194,7 +194,7 @@ class CustomAgentFactory:
         complexity_tier: str | None = None,
     ) -> BaseAgent:
         """Build a SkillAgent with full custom agent capabilities."""
-        from myrm_agent_harness.agent import create_skill_agent
+        from myrm_agent_harness.api import create_skill_agent
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.platform_utils import get_storage_provider
@@ -354,7 +354,7 @@ class EphemeralAgentFactory:
         complexity_tier: str | None = None,
     ) -> BaseAgent:
 
-        from myrm_agent_harness.agent import create_skill_agent
+        from myrm_agent_harness.api import create_skill_agent
         from myrm_agent_harness.agent.types import AgentRuntimeSpec
         from myrm_agent_harness.toolkits.llms import llm_manager
 

@@ -16,7 +16,7 @@ import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
-import SessionAnalyticsDialog from '@/components/features/settings/sections/SessionAnalyticsDialog';
+import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { ConnectWizardDialog } from './ConnectWizardDialog';
 import {
   isMemoryTimelineEvent,

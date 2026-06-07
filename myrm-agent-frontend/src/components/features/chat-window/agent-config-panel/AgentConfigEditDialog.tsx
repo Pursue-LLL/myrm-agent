@@ -22,7 +22,6 @@ import {
   Monitor,
   Image,
   Video,
-  Settings,
   Search,
   X,
   Eye,
@@ -45,6 +44,8 @@ import { Switch } from '@/components/primitives/switch';
 import { toast } from '@/hooks/useToast';
 import { useAgentNameMap } from '@/hooks/useAgentName';
 import type { ConfigCardType } from './AgentConfigCards';
+import { ActionSpaceAccuracyRadar } from './ActionSpaceAccuracyRadar';
+import { AddMoreButton, SelectableCard } from './AgentConfigSelectableCard';
 import dynamic from 'next/dynamic';
 
 type SubagentControlScope = 'leaf' | 'orchestrator';
@@ -68,10 +69,10 @@ const SmartPromptEditor = dynamic(() => import('./SmartPromptEditor').then((mod)
 
 const MCPToolSelector = dynamic(() => import('./MCPToolSelector'), { ssr: false });
 
-const SkillsSection = dynamic(() => import('@/components/features/settings/sections/SkillsSection'), {
+const SkillsSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/SkillsSection'), {
   ssr: false,
 });
-const MCPSection = dynamic(() => import('@/components/features/settings/sections/MCPSection'), {
+const MCPSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/MCPSection'), {
   ssr: false,
 });
 
@@ -604,93 +605,6 @@ const AgentConfigEditDialog = ({
       return { ...prev, [serverName]: tools };
     });
   }, []);
-
-  const renderAccuracyRadar = () => (
-    <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2 mb-4">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-foreground flex items-center gap-1.5">
-          <Wand2 size={14} className="text-blue-500" />
-          大模型决策准确度预测
-        </span>
-        <span
-          className={cn(
-            'font-mono text-xs',
-            isEvaluating
-              ? 'text-muted-foreground animate-pulse'
-              : isNoiseCritical
-                ? 'text-red-500 font-bold'
-                : isNoiseHigh
-                  ? 'text-amber-500 font-bold'
-                  : 'text-green-500 font-bold',
-          )}
-        >
-          {isEvaluating ? '计算中...' : `${accuracyLevel}%`}
-        </span>
-      </div>
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex">
-        <div
-          className={cn(
-            'h-full transition-all duration-500',
-            isEvaluating
-              ? 'bg-muted-foreground/30 animate-pulse'
-              : isNoiseCritical
-                ? 'bg-red-500'
-                : isNoiseHigh
-                  ? 'bg-amber-500'
-                  : 'bg-green-500',
-          )}
-          style={{ width: isEvaluating ? '100%' : `${accuracyLevel}%` }}
-        />
-      </div>
-      <p
-        className={cn(
-          'text-xs mt-1 font-medium transition-opacity',
-          isEvaluating ? 'opacity-50' : 'opacity-100',
-          isNoiseCritical ? 'text-red-500' : isNoiseHigh ? 'text-amber-500' : 'text-green-600 dark:text-green-400',
-        )}
-      >
-        {isEvaluating
-          ? '正在连接底层引擎进行动作空间解析...'
-          : isNoiseCritical
-            ? '准确率暴跌风险：工具过度泛滥！模型面临极严重的幻觉风险，请清理。'
-            : isNoiseHigh
-              ? '能力与准确率平衡：工具较多，部分相似功能可能导致模型混淆。'
-              : '极佳决策准确率：动作空间极度精简，Agent 能发挥最高级别的零幻觉调用。'}
-      </p>
-
-      {staleCoreSkills.length > 0 && !isEvaluating && (
-        <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-start gap-2">
-          <span className="text-blue-500 mt-0.5">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-          </span>
-          <div className="flex-1">
-            <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-              管家提醒：发现 {staleCoreSkills.length} 个沉睡技能，正在拖累您的准确度！
-            </p>
-            <button
-              onClick={handleSmartPrune}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline mt-1"
-            >
-              一键净化释放动作空间
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   const isOwnSkill = useCallback(
     (skill: Skill) => !skill.scope_agent_id || skill.scope_agent_id === agentId,
@@ -1631,7 +1545,16 @@ const AgentConfigEditDialog = ({
           </DialogHeader>
 
           <div className="py-4">
-            {type !== 'instruction' && renderAccuracyRadar()}
+            {type !== 'instruction' && (
+              <ActionSpaceAccuracyRadar
+                isEvaluating={isEvaluating}
+                accuracyLevel={accuracyLevel}
+                isNoiseHigh={isNoiseHigh}
+                isNoiseCritical={isNoiseCritical}
+                staleCoreSkillCount={staleCoreSkills.length}
+                onSmartPrune={handleSmartPrune}
+              />
+            )}
             {renderContent()}
           </div>
 
@@ -1659,113 +1582,6 @@ const AgentConfigEditDialog = ({
         </SheetContent>
       </Sheet>
     </>
-  );
-};
-
-// 可选择卡片组件（现代风格）
-interface SelectableCardProps {
-  id: string;
-  label: string;
-  description?: string;
-  checked: boolean;
-  onCheckedChange: () => void;
-  icon?: React.ReactNode;
-  colorClass?: string;
-  rightElement?: React.ReactNode;
-}
-
-const SelectableCard = ({
-  id,
-  label,
-  description,
-  checked,
-  onCheckedChange,
-  icon,
-  colorClass = 'text-primary',
-  rightElement,
-}: SelectableCardProps) => (
-  <div
-    className={cn(
-      'group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer',
-      'border transition-all duration-200',
-      checked ? 'bg-primary/5 border-primary/30' : 'bg-card/50 border-border/40 hover:border-border hover:bg-muted/30',
-    )}
-    onClick={(e) => {
-      // Prevent click if clicking on rightElement (like a Switch)
-      if ((e.target as HTMLElement).closest('.no-card-click')) return;
-      onCheckedChange();
-    }}
-  >
-    {/* 图标 */}
-    {icon && (
-      <div
-        className={cn(
-          'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
-          'bg-muted/60 transition-colors',
-          checked && 'bg-primary/10',
-          colorClass,
-        )}
-      >
-        {icon}
-      </div>
-    )}
-    {/* 内容 */}
-    <div className="flex-1 min-w-0 pt-0.5">
-      <div className="flex items-center gap-2">
-        <Label htmlFor={id} className="text-sm font-medium cursor-pointer leading-tight text-foreground">
-          {label}
-        </Label>
-      </div>
-      {description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{description}</p>}
-    </div>
-    {/* 右侧元素 */}
-    {rightElement && <div className="shrink-0 flex items-center">{rightElement}</div>}
-    {/* 选中指示器 */}
-    {!rightElement && (
-      <div
-        className={cn(
-          'shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-          checked ? 'bg-primary border-primary' : 'border-border/60 group-hover:border-muted-foreground/40',
-        )}
-      >
-        {checked && (
-          <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="text-primary-foreground">
-            <path
-              d="M1 4L3.5 6.5L9 1"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </div>
-    )}
-  </div>
-);
-
-// 添加更多按钮
-interface AddMoreButtonProps {
-  label: string;
-  onClick: () => void;
-}
-
-const AddMoreButton = ({ label, onClick }: AddMoreButtonProps) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex items-center justify-center gap-2 w-full py-2.5 rounded-xl',
-        'border border-dashed border-border/60',
-        'text-sm text-muted-foreground',
-        'hover:border-primary/40 hover:text-primary hover:bg-primary/5',
-        'transition-all duration-200',
-      )}
-    >
-      <Settings size={14} />
-      {label}
-    </button>
   );
 };
 

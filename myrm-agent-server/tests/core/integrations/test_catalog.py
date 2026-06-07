@@ -177,7 +177,11 @@ class TestCatalogRegistry:
         assert "development" in cats
         assert "communication" in cats
         assert "data_storage" in cats
-        assert len(cats) == 4
+        assert "browser" in cats
+        assert "web_search" in cats
+        assert "docs" in cats
+        assert "design" in cats
+        assert len(cats) == 9
 
     def test_mcp_configs_present(self, registry: CatalogRegistry) -> None:
         """All MCP-type entries must have mcp_config populated."""

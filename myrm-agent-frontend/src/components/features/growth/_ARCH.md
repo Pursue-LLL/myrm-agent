@@ -8,11 +8,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ActivityHeatmap.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `DailyJournal.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `GrowthDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `HealthRadar.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillEventList.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `ActivityHeatmap.tsx` | 组件/模块 | — | — |
+| `DailyJournal.tsx` | 组件/模块 | — | — |
+| `GrowthDashboard.tsx` | 组件/模块 | — | — |
+| `HealthRadar.tsx` | 组件/模块 | — | — |
+| `SkillEventList.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

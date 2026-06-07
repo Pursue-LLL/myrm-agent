@@ -185,6 +185,9 @@ def app() -> FastAPI:
     goals_module = import_module("app.api.goals.router")
     app.include_router(goals_module.router, prefix="/api/v1", tags=["goals"])
 
+    templates_module = import_module("app.api.agents.templates")
+    app.include_router(templates_module.router, prefix="/api/v1/agents", tags=["agent-templates"])
+
     return app
 
 

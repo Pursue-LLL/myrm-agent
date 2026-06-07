@@ -15,65 +15,65 @@ import SettingsMenu, { SettingsTab } from './SettingsMenu';
 import { SettingsSkeleton } from './common/SettingsSkeleton';
 
 // 设置区块组件 (动态加载)
-const AccountSection = dynamic(() => import('./sections/AccountSection'), { loading: () => <SettingsSkeleton /> });
-const PreferencesSection = dynamic(() => import('./sections/PreferencesSection'), {
+const AccountSection = dynamic(() => import('./sections/personal/AccountSection'), { loading: () => <SettingsSkeleton /> });
+const PreferencesSection = dynamic(() => import('./sections/personal/PreferencesSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const PersonalizationSection = dynamic(() => import('./sections/PersonalizationSection'), {
+const PersonalizationSection = dynamic(() => import('./sections/personal/PersonalizationSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const AgentsSection = dynamic(() => import('./sections/AgentsSection'), { loading: () => <SettingsSkeleton /> });
-const SearchSection = dynamic(() => import('./sections/SearchSection'), { loading: () => <SettingsSkeleton /> });
-const MCPSection = dynamic(() => import('./sections/MCPSection'), { loading: () => <SettingsSkeleton /> });
-const SecurityPolicySection = dynamic(() => import('./sections/SecurityPolicySection'), {
+const AgentsSection = dynamic(() => import('./sections/ai-core/AgentsSection'), { loading: () => <SettingsSkeleton /> });
+const SearchSection = dynamic(() => import('./sections/ai-core/SearchSection'), { loading: () => <SettingsSkeleton /> });
+const MCPSection = dynamic(() => import('./sections/ai-tools/MCPSection'), { loading: () => <SettingsSkeleton /> });
+const SecurityPolicySection = dynamic(() => import('./sections/system/SecurityPolicySection'), {
   loading: () => <SettingsSkeleton />,
 });
-const RiskRulesSection = dynamic(() => import('./sections/RiskRulesSection'), { loading: () => <SettingsSkeleton /> });
-const CronSection = dynamic(() => import('./sections/CronSection'), { loading: () => <SettingsSkeleton /> });
-const KanbanSection = dynamic(() => import('./sections/KanbanSection'), { loading: () => <SettingsSkeleton /> });
-const CredentialsSection = dynamic(() => import('./sections/CredentialsSection'), {
+const RiskRulesSection = dynamic(() => import('./sections/system/RiskRulesSection'), { loading: () => <SettingsSkeleton /> });
+const CronSection = dynamic(() => import('./sections/system/CronSection'), { loading: () => <SettingsSkeleton /> });
+const KanbanSection = dynamic(() => import('./sections/system/KanbanSection'), { loading: () => <SettingsSkeleton /> });
+const CredentialsSection = dynamic(() => import('./sections/integration/CredentialsSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const WikiSection = dynamic(() => import('./sections/WikiSection').then((mod) => mod.WikiSection), {
+const WikiSection = dynamic(() => import('./sections/knowledge/WikiSection').then((mod) => mod.WikiSection), {
   loading: () => <SettingsSkeleton />,
 });
-const CheckpointSection = dynamic(() => import('./sections/CheckpointSection'), {
+const CheckpointSection = dynamic(() => import('./sections/knowledge/CheckpointSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const OpenAIApiSection = dynamic(() => import('./sections/OpenAIApiSection'), { loading: () => <SettingsSkeleton /> });
-const WorkspaceRulesSection = dynamic(() => import('./sections/WorkspaceRulesSection'), {
+const OpenAIApiSection = dynamic(() => import('./sections/integration/OpenAIApiSection'), { loading: () => <SettingsSkeleton /> });
+const WorkspaceRulesSection = dynamic(() => import('./sections/ai-core/WorkspaceRulesSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const IntegrationCatalogSection = dynamic(() => import('./sections/integrations/IntegrationCatalogSection'), {
+const IntegrationCatalogSection = dynamic(() => import('./sections/integration/integrations/IntegrationCatalogSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const IntegrationMemorySection = dynamic(() => import('./sections/integrations/IntegrationMemorySection'), {
+const IntegrationMemorySection = dynamic(() => import('./sections/integration/integrations/IntegrationMemorySection'), {
   loading: () => <SettingsSkeleton />,
 });
 
 // 新增合并容器组件 (动态加载)
-const ModelSettingsSection = dynamic(() => import('./sections/ModelSettingsSection'), {
+const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSettingsSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const UnifiedSkillsSection = dynamic(() => import('./sections/UnifiedSkillsSection'), {
+const UnifiedSkillsSection = dynamic(() => import('./sections/ai-tools/UnifiedSkillsSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ToolQualitySection = dynamic(() => import('./sections/ToolQualitySection'), {
+const ToolQualitySection = dynamic(() => import('./sections/ai-tools/ToolQualitySection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ToolCapabilitiesSection = dynamic(() => import('./sections/ToolCapabilitiesSection'), {
+const ToolCapabilitiesSection = dynamic(() => import('./sections/ai-tools/ToolCapabilitiesSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const MemoryCenterSection = dynamic(() => import('./sections/MemoryCenterSection'), {
+const MemoryCenterSection = dynamic(() => import('./sections/knowledge/MemoryCenterSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const CommunicationSection = dynamic(() => import('./sections/CommunicationSection'), {
+const CommunicationSection = dynamic(() => import('./sections/integration/CommunicationSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const DeveloperCenterSection = dynamic(() => import('./sections/DeveloperCenterSection'), {
+const DeveloperCenterSection = dynamic(() => import('./sections/system/DeveloperCenterSection'), {
   loading: () => <SettingsSkeleton />,
 });
-const SystemCenterSection = dynamic(() => import('./sections/SystemCenterSection'), {
+const SystemCenterSection = dynamic(() => import('./sections/system/SystemCenterSection'), {
   loading: () => <SettingsSkeleton />,
 });
 

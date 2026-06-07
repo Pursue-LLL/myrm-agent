@@ -8,9 +8,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ImageTaskCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `TaskCardError.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `TaskCardPlaceholder.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `ImageTaskCard.tsx` | 组件/模块 | — | — |
+| `TaskCardError.tsx` | 组件/模块 | — | — |
+| `TaskCardPlaceholder.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

@@ -1,0 +1,28 @@
+[
+  {
+    "id": "figma",
+    "name": "Figma",
+    "name_zh": "Figma",
+    "description": "Read design files, inspect layers, and extract assets from Figma",
+    "description_zh": "读取 Figma 设计文件、检查图层并提取资源",
+    "icon": "figma",
+    "category": "design",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "figma",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@anthropic/figma-mcp"],
+      "description": "Figma - read design files, inspect layers, extract assets"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "FIGMA_ACCESS_TOKEN",
+      "help_url": "https://www.figma.com/developers/api#access-tokens",
+      "help_text": "Create a Personal Access Token in Figma Account Settings",
+      "help_text_zh": "在 Figma 账户设置中创建个人访问令牌"
+    },
+    "tags": ["design", "ui", "assets", "prototype"],
+    "website": "https://figma.com"
+  }
+]

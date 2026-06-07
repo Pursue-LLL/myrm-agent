@@ -46,7 +46,7 @@ import { useConfigErrorDetector } from '@/hooks/useConfigErrorDetector';
 import ProviderConfigErrorDialog from '@/components/error-boundary/ProviderConfigErrorDialog';
 import { CompactedSummaryView } from './CompactedSummaryView';
 import { GoalControlPlane } from './goals/GoalControlPlane';
-import SessionAnalyticsDialog from '../settings/sections/SessionAnalyticsDialog';
+import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { ConversationJumpBar, MobileJumpBarSheet } from './ConversationJumpBar';
 import { ListTree } from 'lucide-react';

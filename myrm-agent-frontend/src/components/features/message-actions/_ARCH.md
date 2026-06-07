@@ -8,17 +8,17 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `Copy.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ExportMenu.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryFeedback.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ReadAloud.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `RegenerateMenu.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `RevertFiles.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SaveEvalCase.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SaveToWikiButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SiblingNav.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SourcesButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `Undo.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `Copy.tsx` | 组件/模块 | — | — |
+| `ExportMenu.tsx` | 组件/模块 | — | — |
+| `MemoryFeedback.tsx` | 组件/模块 | — | — |
+| `ReadAloud.tsx` | 组件/模块 | — | — |
+| `RegenerateMenu.tsx` | 组件/模块 | — | — |
+| `RevertFiles.tsx` | 组件/模块 | — | — |
+| `SaveEvalCase.tsx` | 组件/模块 | — | — |
+| `SaveToWikiButton.tsx` | 组件/模块 | — | — |
+| `SiblingNav.tsx` | 组件/模块 | — | — |
+| `SourcesButton.tsx` | 组件/模块 | — | — |
+| `Undo.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

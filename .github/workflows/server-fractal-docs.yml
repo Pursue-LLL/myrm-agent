@@ -26,5 +26,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Check app/** _ARCH.md coverage
-        run: python3 scripts/check_fractal_docs.py
+      - name: Fractal docs gates (directory + strict headers baseline)
+        run: |
+          python3 scripts/check_fractal_docs.py
+          python3 scripts/check_fractal_docs.py \
+            --strict-headers \
+            --header-baseline tests/architecture/data/fractal_header_baseline.txt

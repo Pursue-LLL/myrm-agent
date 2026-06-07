@@ -8,32 +8,32 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `CuratorSettingsPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `EvolutionStrategyConfig.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `LocalPathsConfig.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ScanConfirmDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillBatchImportDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillDetailDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillDetailSheet.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillDiscoverTab.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillDraftReviewPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillEmptyState.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillExportDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillFilters.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillGrowthCaseCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillHistoryPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillInstanceManager.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillList.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillPermissionApprovalDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillPermissionUsageDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillPermissionsManager.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `CuratorSettingsPanel.tsx` | 组件/模块 | — | — |
+| `EvolutionStrategyConfig.tsx` | 组件/模块 | — | — |
+| `LocalPathsConfig.tsx` | 组件/模块 | — | — |
+| `ScanConfirmDialog.tsx` | 组件/模块 | — | — |
+| `SkillBatchImportDialog.tsx` | 组件/模块 | — | — |
+| `SkillCard.tsx` | 组件/模块 | — | — |
+| `SkillDetailDialog.tsx` | 组件/模块 | — | — |
+| `SkillDetailSheet.tsx` | 组件/模块 | — | — |
+| `SkillDiscoverTab.tsx` | 组件/模块 | — | — |
+| `SkillDraftReviewPanel.tsx` | 组件/模块 | — | — |
+| `SkillEmptyState.tsx` | 组件/模块 | — | — |
+| `SkillExportDialog.tsx` | 组件/模块 | — | — |
+| `SkillFilters.tsx` | 组件/模块 | — | — |
+| `SkillGrowthCaseCard.tsx` | 组件/模块 | — | — |
+| `SkillHistoryPanel.tsx` | 组件/模块 | — | — |
+| `SkillInstanceManager.tsx` | 组件/模块 | — | — |
+| `SkillList.tsx` | 组件/模块 | — | — |
+| `SkillPermissionApprovalDialog.tsx` | 组件/模块 | — | — |
+| `SkillPermissionUsageDashboard.tsx` | 组件/模块 | — | — |
+| `SkillPermissionsManager.tsx` | 组件/模块 | — | — |
 | `SkillQualityGuardian.tsx` | 核心 | Shadow A/B：idle 启动、running promote/stop（i18n） | ✅ |
 | `SkillVersionsPanel.tsx` | 核心 | 技能版本列表、diff 对比、版本回滚（接 skill-optimization API） | ✅ |
-| `SkillSyncIndicator.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillUploadDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SkillUrlImportDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `skillCategories.ts` | 组件/模块 | 见源码 | 见源码 |
+| `SkillSyncIndicator.tsx` | 组件/模块 | — | — |
+| `SkillUploadDialog.tsx` | 组件/模块 | — | — |
+| `SkillUrlImportDialog.tsx` | 组件/模块 | — | — |
+| `skillCategories.ts` | 组件/模块 | — | — |
 | `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表 | ✅ |
 | `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板 | ✅ |
 

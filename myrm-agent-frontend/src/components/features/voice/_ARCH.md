@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `VoiceSessionOverlay.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `VoiceSessionOverlay.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

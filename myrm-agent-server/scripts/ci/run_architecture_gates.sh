@@ -83,6 +83,25 @@ _run_pytest() {
   fi
 }
 
+_run_fractal_docs() {
+  local py="${SERVER_ROOT}/.venv/bin/python"
+  if [[ ! -x "${py}" ]]; then
+    py="python3"
+    if command -v uv >/dev/null 2>&1; then
+      _fractal() { uv run python "$@"; }
+    else
+      _fractal() { "${py}" "$@"; }
+    fi
+  else
+    _fractal() { "${py}" "$@"; }
+  fi
+  _fractal "${SERVER_ROOT}/scripts/check_fractal_docs.py"
+  _fractal "${SERVER_ROOT}/scripts/check_fractal_docs.py" \
+    --strict-headers \
+    --header-baseline "${SERVER_ROOT}/tests/architecture/data/fractal_header_baseline.txt"
+}
+
 _install_deps
+_run_fractal_docs
 _run_pytest
 echo "OK: server architecture gates"

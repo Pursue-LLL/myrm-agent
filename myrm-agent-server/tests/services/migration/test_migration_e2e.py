@@ -135,3 +135,4 @@ class TestMigrationE2E:
         assert dry_run.summary.mapped_items >= 2
         buckets = {mapping.source_bucket for mapping in dry_run.mappings}
         assert "openclaw_sessions" in buckets
+

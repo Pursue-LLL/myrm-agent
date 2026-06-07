@@ -1,0 +1,30 @@
+# settings/sections/integration/channels 模块架构
+
+## 架构概述
+
+设置页「通信」域全部 UI：渠道连接卡片、DM/群组策略、渠道路由、语音 STT/TTS、配对与连接状态。由 `integration/CommunicationSection` 以 Tab 聚合本目录组件。
+
+## 文件清单
+
+| 文件 | 职责 |
+|------|------|
+| `ChannelsSection.tsx` | 渠道总览、安装依赖、各 Provider 配置卡片 |
+| `ChannelRoutingSection.tsx` | 渠道路由、线程共享、Shared Context 绑定 |
+| `VoiceSection.tsx` | 语音输入输出设置 |
+| `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |
+| `ConnectionBadge.tsx` / `PairingManager.tsx` | 连接状态与配对管理 |
+| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（全部在本目录） |
+| `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
+| `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |
+
+## Reaction 配置链路
+
+Settings `saveChannelsConfig` → DB `channels` → `config/router` 调用 `refresh_reaction_policy()` → `AgentRouter.set_reaction_policy()` → 入站 ack/completion/failure reaction（`router.py`）。
+
+## 依赖
+
+- `@/services/channels`
+- `sections/SettingsSection.tsx`（相对 `../../SettingsSection`）
+- `settings/common/SettingsSkeleton`（相对 `../../../common/SettingsSkeleton`）
+- 父模块 [sections/_ARCH.md](../../_ARCH.md)

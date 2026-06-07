@@ -15,16 +15,7 @@ function highlightMatch(text: string, query: string): string {
 }
 
 /** 复刻 SettingsMenu 中的分组逻辑 */
-type SettingsGroup =
-  | 'personal'
-  | 'ai-core'
-  | 'ai-tools'
-  | 'security'
-  | 'automation'
-  | 'knowledge'
-  | 'integration'
-  | 'developer'
-  | 'system';
+type SettingsGroup = 'personal' | 'ai-core' | 'ai-tools' | 'knowledge' | 'integration' | 'system';
 
 interface MenuItem {
   id: string;
@@ -38,12 +29,9 @@ const groupConfig: Record<SettingsGroup, { order: number }> = {
   personal: { order: 1 },
   'ai-core': { order: 2 },
   'ai-tools': { order: 3 },
-  security: { order: 4 },
-  automation: { order: 5 },
-  knowledge: { order: 6 },
-  integration: { order: 7 },
-  developer: { order: 8 },
-  system: { order: 9 },
+  knowledge: { order: 4 },
+  integration: { order: 5 },
+  system: { order: 6 },
 };
 
 function groupItems(items: MenuItem[]): Map<SettingsGroup, MenuItem[]> {

@@ -8,27 +8,27 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ActiveWorkingMemoryPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AgentIndicator.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AgentToolsToggle.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AttachButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AttachList.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `BaseModelSelector.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CameraInputButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CameraPreview.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `DeepSearchToggle.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `EnvironmentShield.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FileIconSVG.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FocusFlushButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `GoalModeToggle.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ImageLightbox.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `IncognitoModeToggle.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SearchModeSelector.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SpeechInputButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ThinkingIntensityButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ToolsPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `VisionCapabilityNotice.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `VoiceSessionButton.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `ActiveWorkingMemoryPanel.tsx` | 组件/模块 | — | — |
+| `AgentIndicator.tsx` | 组件/模块 | — | — |
+| `AgentToolsToggle.tsx` | 组件/模块 | — | — |
+| `AttachButton.tsx` | 组件/模块 | — | — |
+| `AttachList.tsx` | 组件/模块 | — | — |
+| `BaseModelSelector.tsx` | 组件/模块 | — | — |
+| `CameraInputButton.tsx` | 组件/模块 | — | — |
+| `CameraPreview.tsx` | 组件/模块 | — | — |
+| `DeepSearchToggle.tsx` | 组件/模块 | — | — |
+| `EnvironmentShield.tsx` | 组件/模块 | — | — |
+| `FileIconSVG.tsx` | 组件/模块 | — | — |
+| `FocusFlushButton.tsx` | 组件/模块 | — | — |
+| `GoalModeToggle.tsx` | 组件/模块 | — | — |
+| `ImageLightbox.tsx` | 组件/模块 | — | — |
+| `IncognitoModeToggle.tsx` | 组件/模块 | — | — |
+| `SearchModeSelector.tsx` | 组件/模块 | — | — |
+| `SpeechInputButton.tsx` | 组件/模块 | — | — |
+| `ThinkingIntensityButton.tsx` | 组件/模块 | — | — |
+| `ToolsPanel.tsx` | 组件/模块 | — | — |
+| `VisionCapabilityNotice.tsx` | 组件/模块 | — | — |
+| `VoiceSessionButton.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

@@ -8,31 +8,31 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AgentInfoBanner.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AgentWorkMap.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `BudgetBadge.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `Chat.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ChatWindow.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CompactedSummaryView.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CompetitorMigrationBanner.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ConversationJumpBar.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `DeleteChat.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `EmptyChat.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ForkButton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ForkDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `LifeStatusCapsule.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `LinkDetectionDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `LocalCapabilitiesBanner.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MessageInput.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MessageListSkeleton.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MobileActionSheet.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MobileStatusBoard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `Navbar.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ParentChatLink.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `QuoteCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ReferenceMentionPopover.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SamplePrompts.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `SessionTrashPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `AgentInfoBanner.tsx` | 组件/模块 | — | — |
+| `AgentWorkMap.tsx` | 组件/模块 | — | — |
+| `BudgetBadge.tsx` | 组件/模块 | — | — |
+| `Chat.tsx` | 组件/模块 | — | — |
+| `ChatWindow.tsx` | 组件/模块 | — | — |
+| `CompactedSummaryView.tsx` | 组件/模块 | — | — |
+| `CompetitorMigrationBanner.tsx` | 组件/模块 | — | — |
+| `ConversationJumpBar.tsx` | 组件/模块 | — | — |
+| `DeleteChat.tsx` | 组件/模块 | — | — |
+| `EmptyChat.tsx` | 组件/模块 | — | — |
+| `ForkButton.tsx` | 组件/模块 | — | — |
+| `ForkDialog.tsx` | 组件/模块 | — | — |
+| `LifeStatusCapsule.tsx` | 组件/模块 | — | — |
+| `LinkDetectionDialog.tsx` | 组件/模块 | — | — |
+| `LocalCapabilitiesBanner.tsx` | 组件/模块 | — | — |
+| `MessageInput.tsx` | 组件/模块 | — | — |
+| `MessageListSkeleton.tsx` | 组件/模块 | — | — |
+| `MobileActionSheet.tsx` | 组件/模块 | — | — |
+| `MobileStatusBoard.tsx` | 组件/模块 | — | — |
+| `Navbar.tsx` | 组件/模块 | — | — |
+| `ParentChatLink.tsx` | 组件/模块 | — | — |
+| `QuoteCard.tsx` | 组件/模块 | — | — |
+| `ReferenceMentionPopover.tsx` | 组件/模块 | — | — |
+| `SamplePrompts.tsx` | 组件/模块 | — | — |
+| `SessionTrashPanel.tsx` | 组件/模块 | — | — |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 
 ## agent-config-panel/
@@ -40,7 +40,9 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `AgentConfigPanel.tsx` | 核心 | Agent 配置面板入口 | ✅ |
-| `AgentConfigEditDialog.tsx` | 核心 | Agent 编辑对话框 | ✅ |
+| `AgentConfigEditDialog.tsx` | 核心 | Agent 配置编辑弹窗（skills/MCP/指令/内置工具/subagents） | ✅ |
+| `AgentConfigSelectableCard.tsx` | 辅助 | 可勾选配置卡片与「添加更多」按钮 | ✅ |
+| `ActionSpaceAccuracyRadar.tsx` | 辅助 | 动作空间准确度预测条与沉睡技能净化提示 | ✅ |
 | `TemplateMarket.tsx` | 核心 | Agent 模板市场。请求后端的 `/api/v1/agents/templates` 和 `instantiate-template` 接口，实现模板列表展示和带有原子化依赖预检的智能体实例化。 | ✅ |
 | `AgentGallery.tsx` | 辅助 | Agent 画廊展示 | ✅ |
 

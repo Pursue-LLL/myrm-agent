@@ -1,7 +1,7 @@
 """[INPUT]
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 门面与运行时配置容器)
 - app.ai_agents.general_agent.llm_factory::select_tool_capable_model_cfg / create_agent_llms (POS: 选择工具可调用主模型并创建 LLM 实例)
-- myrm_agent_harness.agent.create_skill_agent (POS: SkillAgent 组装入口)
+- myrm_agent_harness.api.create_skill_agent (POS: SkillAgent 组装入口)
 
 [OUTPUT]
 - build_general_agent(): 将已解析配置组装为可执行的 GeneralAgent SkillAgent
@@ -35,7 +35,7 @@ async def build_general_agent(
     from typing import cast
 
     from langchain.agents.middleware.types import AgentMiddleware
-    from myrm_agent_harness.agent import create_skill_agent
+    from myrm_agent_harness.api import create_skill_agent
     from myrm_agent_harness.agent.context_management.infra.cache_policy import (
         resolve_cache_ttl_prune_policy,
     )

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "postman",
+    "name": "Postman",
+    "name_zh": "Postman",
+    "description": "Inspect and manage Postman APIs, collections, and workspaces",
+    "description_zh": "检查和管理 Postman API、集合和工作空间",
+    "icon": "postman",
+    "category": "api",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "postman",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/postman-mcp"
+      ],
+      "description": "Postman - APIs, collections, workspaces, environments"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "POSTMAN_API_KEY",
+      "help_url": "https://learning.postman.com/docs/developer/postman-api/postman-mcp-server/postman-mcp-local-server",
+      "help_text": "Get your API key from Postman Account Settings → API Keys",
+      "help_text_zh": "从 Postman 账户设置 → API Keys 获取"
+    },
+    "tags": [
+      "api",
+      "collections",
+      "testing",
+      "workspaces"
+    ],
+    "website": "https://postman.com"
+  }
+]

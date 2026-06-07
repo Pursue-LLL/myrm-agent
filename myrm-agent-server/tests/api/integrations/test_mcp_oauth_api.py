@@ -2,7 +2,7 @@
 
 Covers:
 - POST /start — PKCE pair generation, state persistence, auth URL building
-- POST /callback — State validation, code exchange, token persistence
+- GET /callback — State validation, code exchange, token persistence (browser redirect)
 - GET /status — OAuth status retrieval for all MCP servers
 - DELETE /{server_name} — Token deletion
 - Edge cases: expired state, server name mismatch, network errors
@@ -128,7 +128,7 @@ class TestStartEndpoint:
 
 
 class TestCallbackEndpoint:
-    """POST /callback — exchange auth code for tokens."""
+    """GET /callback — exchange auth code for tokens (browser redirect)."""
 
     def _setup_pending(self, state: str = "test-state") -> str:
         from app.api.integrations.mcp_oauth import _pending_auth
@@ -171,46 +171,30 @@ class TestCallbackEndpoint:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            resp = client.post(
+            resp = client.get(
                 f"{API_PREFIX}/callback",
-                json={
-                    "server_name": "my-mcp",
-                    "code": "auth-code-abc",
-                    "state": state,
-                    "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-                },
+                params={"code": "auth-code-abc", "state": state},
             )
 
         assert resp.status_code == 200
-        data = resp.json()["data"]
-        assert data["server_name"] == "my-mcp"
-        assert data["connected"] is True
+        assert "Authorization successful" in resp.text or "Authorization Successful" in resp.text or "window.close" in resp.text
         mock_store.save_token_with_config.assert_called_once()
 
     def test_callback_invalid_state(self, client: TestClient) -> None:
-        resp = client.post(
+        resp = client.get(
             f"{API_PREFIX}/callback",
-            json={
-                "server_name": "my-mcp",
-                "code": "code",
-                "state": "nonexistent-state",
-                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-            },
+            params={"code": "code", "state": "nonexistent-state"},
         )
         assert resp.status_code == 400
+        assert "Invalid or expired" in resp.text
 
-    def test_callback_server_name_mismatch(self, client: TestClient) -> None:
-        state = self._setup_pending()
-        resp = client.post(
+    def test_callback_error_param(self, client: TestClient) -> None:
+        resp = client.get(
             f"{API_PREFIX}/callback",
-            json={
-                "server_name": "wrong-server",
-                "code": "code",
-                "state": state,
-                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-            },
+            params={"code": "", "state": "s", "error": "access_denied", "error_description": "User denied"},
         )
         assert resp.status_code == 400
+        assert "User denied" in resp.text
 
     def test_callback_expired_state(self, client: TestClient) -> None:
         from app.api.integrations.mcp_oauth import _pending_auth
@@ -226,16 +210,12 @@ class TestCallbackEndpoint:
             "scope": "",
             "created_at": str(time.time() - 700),  # 11+ minutes ago
         }
-        resp = client.post(
+        resp = client.get(
             f"{API_PREFIX}/callback",
-            json={
-                "server_name": "my-mcp",
-                "code": "code",
-                "state": state,
-                "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-            },
+            params={"code": "code", "state": state},
         )
         assert resp.status_code == 400
+        assert "timed out" in resp.text
 
     def test_callback_token_exchange_http_failure(self, client: TestClient) -> None:
         state = self._setup_pending()
@@ -251,16 +231,12 @@ class TestCallbackEndpoint:
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            resp = client.post(
+            resp = client.get(
                 f"{API_PREFIX}/callback",
-                json={
-                    "server_name": "my-mcp",
-                    "code": "bad-code",
-                    "state": state,
-                    "redirect_uri": "http://localhost:3000/auth/mcp-callback",
-                },
+                params={"code": "bad-code", "state": state},
             )
         assert resp.status_code == 400
+        assert "Token exchange failed" in resp.text
 
 
 class TestStatusEndpoint:

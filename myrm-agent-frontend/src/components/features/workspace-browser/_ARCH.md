@@ -8,11 +8,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `WorkspaceDialogs.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `WorkspaceFileBrowser.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `WorkspaceFileOps.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `WorkspaceFilePreview.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `useWorkspaceFiles.ts` | 组件/模块 | 见源码 | 见源码 |
+| `WorkspaceDialogs.tsx` | 组件/模块 | — | — |
+| `WorkspaceFileBrowser.tsx` | 组件/模块 | — | — |
+| `WorkspaceFileOps.tsx` | 组件/模块 | — | — |
+| `WorkspaceFilePreview.tsx` | 组件/模块 | — | — |
+| `useWorkspaceFiles.ts` | 组件/模块 | — | — |
 
 ## 依赖
 

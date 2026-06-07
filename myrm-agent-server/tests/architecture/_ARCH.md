@@ -14,7 +14,10 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_uv_lock_harness_registry.py` | 主 wheel + 平台 core 均上 PyPI 后，`uv.lock` 须 registry pin（否则 skip，允许 monorepo editable） |
 | `test_no_user_id.py` | 单机 server 禁止多租户 user_id 泄漏 |
 | `test_no_temp_docs_links.py` | 跟踪的 `*.md` 禁止 `temp-docs/` 相对路径（私有开发壳） |
+| `test_arch_no_placeholder.py` | 产品树 `_ARCH.md` 禁止「见源码」等占位短语 |
+| `test_oss_scripts_arch.py` | `scripts/` 子树（ci/dev/lib）必须有 `_ARCH.md` |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
+| `data/fractal_header_baseline.txt` | `check_fractal_docs --strict-headers` 已知缺 header 的 app 相对路径 |
 
 ## 依赖
 
@@ -23,5 +26,5 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 
 ## 运行
 
-- 本地 / vortexai：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（旁路 `myrm-agent-harness/`）
+- 本地 / vortexai：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（`check_fractal_docs.py` + pytest；旁路 `myrm-agent-harness/`）
 - CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）

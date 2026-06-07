@@ -12,7 +12,10 @@
       "name": "google-drive",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic/google-drive-mcp"],
+      "args": [
+        "-y",
+        "@anthropic/google-drive-mcp"
+      ],
       "description": "Google Drive - list, read, search files and folders"
     },
     "auth": {
@@ -21,7 +24,12 @@
       "help_text": "Create OAuth 2.0 credentials in Google Cloud Console with Drive API enabled",
       "help_text_zh": "在 Google Cloud Console 创建 OAuth 2.0 凭据并启用 Drive API"
     },
-    "tags": ["files", "storage", "documents", "google"],
+    "tags": [
+      "files",
+      "storage",
+      "documents",
+      "google"
+    ],
     "website": "https://drive.google.com"
   },
   {
@@ -37,7 +45,10 @@
       "name": "postgres",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres"
+      ],
       "description": "PostgreSQL - query, describe tables, explore schema"
     },
     "auth": {
@@ -46,7 +57,12 @@
       "help_text": "Provide your PostgreSQL connection string (e.g. postgresql://user:pass@host:5432/db)",
       "help_text_zh": "提供你的 PostgreSQL 连接字符串（如 postgresql://user:pass@host:5432/db）"
     },
-    "tags": ["database", "sql", "query", "tables"],
+    "tags": [
+      "database",
+      "sql",
+      "query",
+      "tables"
+    ],
     "website": "https://postgresql.org"
   },
   {
@@ -62,12 +78,65 @@
       "name": "filesystem",
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/tmp"
+      ],
       "description": "Local filesystem - read, write, list, search files"
     },
     "auth": {
       "type": "none"
     },
-    "tags": ["files", "local", "filesystem", "directory"]
+    "tags": [
+      "files",
+      "local",
+      "filesystem",
+      "directory"
+    ]
+  },
+  {
+    "id": "supabase",
+    "name": "Supabase",
+    "name_zh": "Supabase",
+    "description": "Inspect and manage Supabase projects, databases, and storage",
+    "description_zh": "检查和管理 Supabase 项目、数据库和存储",
+    "icon": "supabase",
+    "category": "data_storage",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "supabase",
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "{{access_token}}"
+      ],
+      "description": "Supabase - projects, databases, edge functions, storage"
+    },
+    "auth": {
+      "type": "api_key",
+      "credential_fields": [
+        {
+          "key": "{{access_token}}",
+          "label": "Access Token",
+          "label_zh": "访问令牌",
+          "inject": "arg_placeholder"
+        }
+      ],
+      "help_url": "https://supabase.com/dashboard/account/tokens",
+      "help_text": "Create an access token in Supabase Dashboard → Account → Access Tokens",
+      "help_text_zh": "在 Supabase Dashboard → 账户 → 访问令牌中创建"
+    },
+    "tags": [
+      "database",
+      "supabase",
+      "baas",
+      "storage",
+      "edge-functions"
+    ],
+    "website": "https://supabase.com"
   }
 ]

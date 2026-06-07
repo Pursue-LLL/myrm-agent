@@ -6,7 +6,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 
 | 仓库路径 | 运行时角色 | 技术 | 默认端口 / 产物 | 管理者 |
 |----------|------------|------|-----------------|--------|
-| `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包到 `src-tauri/binaries/myrmagent-backend-*`；运行时 `PORT`（Desktop 常用 8080） | `sidecar/README.md` |
+| `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包到 `src-tauri/binaries/myrmagent-backend-*`；运行时 `PORT`（Desktop 常用 8080） | `sidecar/_ARCH.md` |
 | `sidecar/agent-runner/` | **Agent Runner** 源码（CLI 工具可视化） | Bun → `bun build --compile` | `src-tauri/binaries/agent-runner-*` | `sidecar/build.py` |
 | `src-tauri/src/sidecar/` | Rust **Agent Runner 进程管理** | Tauri | JSON-RPC stdio、事件转发 | `src-tauri/src/_ARCH.md` |
 | `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar + Agent Runner 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |

@@ -128,6 +128,7 @@ myrm_agent_harness.agent.tool_management.action_space
 myrm_agent_harness.agent.types
 myrm_agent_harness.agent.workspace_rules
 myrm_agent_harness.agent.workspace_rules.scanner
+myrm_agent_harness.api
 myrm_agent_harness.backends.profiles.types
 myrm_agent_harness.backends.skills
 myrm_agent_harness.backends.skills._runtime

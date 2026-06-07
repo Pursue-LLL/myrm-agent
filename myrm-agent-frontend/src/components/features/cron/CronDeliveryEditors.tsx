@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import { updateCronJob } from '@/services/cron';
 import { listChannelStatuses } from '@/services/channels';
-import ChannelIcon from '@/components/features/settings/sections/ChannelIcon';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 
 export interface EditorProps {
   job: CronJob;

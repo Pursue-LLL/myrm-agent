@@ -118,6 +118,7 @@ workspace/
 lobe-chat/
 tmp_home/
 data.db
+tests/**/*.db
 .event_logs/
 
 Antigravity-Manager/

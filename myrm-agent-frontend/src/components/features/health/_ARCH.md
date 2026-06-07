@@ -8,9 +8,9 @@ System Doctor 健康检查仪表盘与修复引导。
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `DoctorDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `GuidedRepairCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `HealthTrendChart.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `DoctorDashboard.tsx` | 组件/模块 | — | — |
+| `GuidedRepairCard.tsx` | 组件/模块 | — | — |
+| `HealthTrendChart.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

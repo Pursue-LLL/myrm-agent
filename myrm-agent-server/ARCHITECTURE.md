@@ -100,7 +100,7 @@
 | `app/tasks/`          | 后台任务层   | 异步任务执行器、后台 worker                                                                                                      |
 | `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
 | `tests/`              | 测试套件     | 单元测试、集成测试、API 测试                                                                                                     |
-| `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁 `check_fractal_docs.py`（默认校验 `app/**` 目录均含 `_ARCH.md`；`--strict-headers` 为增量 adopting） |
+| `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁 `check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt` 防回退，见 `scripts/ci/run_architecture_gates.sh`） |
 | `docker/`             | 容器构建     | Server runtime：`Dockerfile.official`（源码双 wheel）；`../Dockerfile`（PyPI / 预构建 wheel）；`sandbox/` 技能沙箱镜像 |
 | `deployments/`        | 部署配置     | Prometheus 规则等运维配置                                                                                                        |
 | `searxng/`            | 搜索引擎配置 | SearXNG 搜索引擎部署配置                                                                                                         |

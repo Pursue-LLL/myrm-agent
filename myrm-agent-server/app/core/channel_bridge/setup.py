@@ -11,6 +11,7 @@ mode so internal channel ingress can execute through the same route.
 
 [OUTPUT]
 - start_channel_gateway / stop_channel_gateway: lifecycle entry points
+- refresh_reaction_policy: reload ReactionPolicy from DB into running AgentRouter
 
 [POS]
 Thin lifecycle layer. Assembly logic lives in channel_factory.py;
@@ -202,6 +203,12 @@ async def _load_instance_credentials(channel_name: str) -> dict[str, str] | None
     except Exception:
         logger.debug("No instance credentials for %s", channel_name)
     return None
+
+
+async def refresh_reaction_policy() -> None:
+    """Reload reaction policy from DB and apply to the running AgentRouter."""
+    policy = await _load_reaction_policy()
+    channel_gateway.set_reaction_policy(policy)
 
 
 async def _load_reaction_policy() -> ReactionPolicy:

@@ -314,8 +314,10 @@ async def set_config(
         invalidate_search_health_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
+            from app.core.channel_bridge.setup import refresh_reaction_policy
 
             SqlChannelPolicyProvider._invalidate_cache()
+            await refresh_reaction_policy()
         if config_key.endswith("Credentials"):
             await _try_hot_register_channel(config_key)
         return record
@@ -410,8 +412,10 @@ async def delete_config(
         invalidate_search_health_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
+            from app.core.channel_bridge.setup import refresh_reaction_policy
 
             SqlChannelPolicyProvider._invalidate_cache()
+            await refresh_reaction_policy()
         return {"success": True}
     except HTTPException:
         raise
@@ -461,8 +465,10 @@ async def sync_configs(
             invalidate_search_health_cache()
             if "channels" in result.new_versions:
                 from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
+                from app.core.channel_bridge.setup import refresh_reaction_policy
 
                 SqlChannelPolicyProvider._invalidate_cache()
+                await refresh_reaction_policy()
         return result
     except HTTPException:
         raise

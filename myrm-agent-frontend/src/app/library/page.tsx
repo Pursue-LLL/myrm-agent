@@ -7,7 +7,7 @@ import LibraryTabs, { type LibraryTab } from './components/LibraryTabs';
 import MediaGallery from './components/MediaGallery';
 import WikiGraph3D from './components/WikiGraph3D';
 
-const SkillsSection = lazy(() => import('@/components/features/settings/sections/SkillsSection'));
+const SkillsSection = lazy(() => import('@/components/features/settings/sections/ai-tools/SkillsSection'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center py-20">

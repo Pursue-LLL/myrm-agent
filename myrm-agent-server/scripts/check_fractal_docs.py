@@ -77,6 +77,22 @@ def _should_skip_header_scan(rel: Path, content_len: int) -> bool:
     return False
 
 
+def _load_header_baseline(path: Path) -> frozenset[str]:
+    if not path.is_file():
+        raise FileNotFoundError(f"Header baseline not found: {path}")
+    entries: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        entries.add(stripped)
+    return frozenset(entries)
+
+
+def _rel_app_path(app_root: Path, py_file: Path) -> str:
+    return str(py_file.relative_to(app_root.parent))
+
+
 def _missing_io_headers(app_root: Path) -> list[Path]:
     bad: list[Path] = []
     for py in sorted(app_root.rglob("*.py")):
@@ -105,11 +121,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Fail if a non-trivial .py file lacks [POS]/[INPUT] or @pos:/@input: in the first lines.",
     )
+    parser.add_argument(
+        "--header-baseline",
+        type=Path,
+        default=None,
+        help="With --strict-headers: allow listed app-relative paths (one per line); fail only on new violations.",
+    )
     args = parser.parse_args(argv)
 
     app_root: Path = args.app_root.resolve()
     missing_arch = _missing_arch_dirs(app_root)
-    bad_headers = _missing_io_headers(app_root) if args.strict_headers else []
+    bad_headers: list[Path] = []
+    if args.strict_headers:
+        all_bad = _missing_io_headers(app_root)
+        if args.header_baseline is not None:
+            baseline = _load_header_baseline(args.header_baseline.resolve())
+            bad_headers = [f for f in all_bad if _rel_app_path(app_root, f) not in baseline]
+        else:
+            bad_headers = all_bad
 
     if missing_arch:
         print("ERROR: Directories missing _ARCH.md:", file=sys.stderr)

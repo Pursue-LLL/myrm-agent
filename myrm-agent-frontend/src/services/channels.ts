@@ -188,6 +188,7 @@ export interface ChannelsConfig {
   reactionLevel?: ReactionLevel;
   processingEmoji?: string;
   completionEmoji?: string;
+  failureEmoji?: string;
   freeResponseChats?: string[];
   channels?: Record<string, { dmPolicy?: DmPolicy; groupPolicy?: GroupPolicy; freeResponseChats?: string[] }>;
 }

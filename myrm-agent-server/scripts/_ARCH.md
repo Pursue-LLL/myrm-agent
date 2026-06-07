@@ -11,7 +11,7 @@
 | deploy.py | 核心 | 统一部署入口（tauri/sandbox/docker 三模式） | ✅ |
 | deploy_pkg/ | 核心 | 部署子包：actions/checks/constants/docker_core/modes/postgres/utils | ✅ |
 | cli.py | 核心 | Myrm CLI 配置管理工具（config validate 等） | ✅ |
-| check_fractal_docs.py | 门禁 | 分形文档合规检查（校验 `app/**` 目录均含 `_ARCH.md`） | ✅ |
+| check_fractal_docs.py | 门禁 | 分形文档合规（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt` 防回退，见 `ci/run_architecture_gates.sh`） | ✅ |
 | sync_arch_file_tables.py | 工具 | 将含占位行的 stub `_ARCH.md` 刷新为真实文件表 | ✅ |
 | run_myrm_core_coverage_gate.sh | 门禁 | Harness 核心搜索+上下文路径覆盖率 ≥80% 门禁 | ✅ |
 | cleanup_qdrant_locks.py | 运维 | 清理 Qdrant 嵌入式模式残留锁文件（运行时自动调用） | ✅ |

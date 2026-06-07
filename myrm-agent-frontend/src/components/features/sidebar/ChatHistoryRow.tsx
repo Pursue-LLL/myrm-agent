@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { useTranslations } from 'next-intl';
 import type { ChatItem } from '@/services/chat';
 import { AiNetworkIcon } from 'hugeicons-react';
-import ChannelIcon from '@/components/features/settings/sections/ChannelIcon';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import {
   MoreHorizontal,
   Trash2,

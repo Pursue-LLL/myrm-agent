@@ -135,6 +135,13 @@
       "save": "Save",
       "confirm": "Confirm"
     },
+    "communication": {
+      "desc": {
+        "channels": "Connect and enable external IM, email, SMS, and enterprise messaging channels",
+        "routing": "Map chats and channels to specific agents and shared context policies",
+        "voice": "Configure speech-to-text (STT) and text-to-speech (TTS) providers"
+      }
+    },
     "menu": {
       "account": "Account",
       "preferences": "Preferences",
@@ -4379,6 +4386,16 @@
       "noEnabledMcp": "No enabled MCP",
       "goToSettings": "Go to Settings",
       "addMore": "Add More",
+      "actionSpaceRadar": {
+        "title": "Decision accuracy forecast",
+        "evaluating": "Calculating...",
+        "evaluatingHint": "Connecting to the engine for action-space analysis...",
+        "statusCritical": "Accuracy crash risk: too many tools! Severe hallucination risk — clean up now.",
+        "statusHigh": "Balanced trade-off: many tools; similar capabilities may confuse the model.",
+        "statusGood": "Excellent accuracy: action space is lean; agent can call tools with minimal hallucination.",
+        "staleSkillsNotice": "Reminder: {count} dormant skill(s) are hurting accuracy.",
+        "smartPrune": "Prune dormant skills to free action space"
+      },
       "mcpTools": {
         "toolFilter": "Tool filter",
         "loading": "Loading tools...",
@@ -8543,6 +8560,7 @@
     "reactionFullDesc": "Processing + completion reactions",
     "processingEmojiLabel": "Processing Emoji",
     "completionEmojiLabel": "Completion Emoji",
+    "failureEmojiLabel": "Failure Emoji",
     "channelConfigTitle": "Channel Configuration",
     "channelConfigDesc": "Select a channel for credential configuration and connection testing.",
     "channelOverrideTitle": "Channel Policy Override",

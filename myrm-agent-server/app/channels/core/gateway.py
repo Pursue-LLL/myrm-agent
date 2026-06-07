@@ -241,6 +241,11 @@ class ChannelGateway:
         )
         logger.debug("ChannelGateway: bidirectional mode enabled")
 
+    def set_reaction_policy(self, policy: ReactionPolicy) -> None:
+        """Apply a new reaction policy to the running AgentRouter, if enabled."""
+        if self._router is not None:
+            self._router.set_reaction_policy(policy)
+
     async def publish(self, msg: OutboundMessage) -> None:
         """Publish an outbound message (convenience wrapper)."""
         await self.bus.publish_outbound(msg)

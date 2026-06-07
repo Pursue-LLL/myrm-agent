@@ -1,0 +1,51 @@
+[
+  {
+    "id": "playwright",
+    "name": "Playwright",
+    "name_zh": "Playwright",
+    "description": "Local browser inspection and automation via Playwright's MCP server",
+    "description_zh": "通过 Playwright MCP 服务器进行本地浏览器检查和自动化",
+    "icon": "playwright",
+    "category": "browser",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "playwright",
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "description": "Playwright - browser automation, page inspection, screenshots"
+    },
+    "auth": {
+      "type": "none",
+      "help_text": "Requires Node.js and npx installed locally",
+      "help_text_zh": "需要本地安装 Node.js 和 npx"
+    },
+    "tags": ["browser", "automation", "testing", "screenshots", "web"],
+    "website": "https://playwright.dev"
+  },
+  {
+    "id": "browserbase",
+    "name": "Browserbase",
+    "name_zh": "Browserbase",
+    "description": "Cloud browser automation through Browserbase's hosted MCP server",
+    "description_zh": "通过 Browserbase 云端 MCP 服务器进行浏览器自动化",
+    "icon": "browserbase",
+    "category": "browser",
+    "connector_type": "mcp",
+    "mcp_config": {
+      "name": "browserbase",
+      "type": "streamable_http",
+      "url": "https://mcp.browserbase.com/mcp",
+      "description": "Browserbase - cloud browser automation, page scraping"
+    },
+    "auth": {
+      "type": "api_key",
+      "env_key": "BROWSERBASE_API_KEY",
+      "help_url": "https://docs.browserbase.com/integrations/mcp/setup",
+      "help_text": "Get your API key from Browserbase dashboard",
+      "help_text_zh": "从 Browserbase 控制台获取 API Key"
+    },
+    "tags": ["browser", "automation", "cloud", "scraping"],
+    "website": "https://browserbase.com"
+  }
+]

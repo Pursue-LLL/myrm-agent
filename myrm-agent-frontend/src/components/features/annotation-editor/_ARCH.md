@@ -8,11 +8,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AnnotationCanvas.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AnnotationEditor.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `AnnotationToolbar.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `hooks/` | 目录 | 子模块 | 见源码 |
-| `types.ts` | 组件/模块 | 见源码 | 见源码 |
+| `AnnotationCanvas.tsx` | 组件/模块 | — | — |
+| `AnnotationEditor.tsx` | 组件/模块 | — | — |
+| `AnnotationToolbar.tsx` | 组件/模块 | — | — |
+| `hooks/` | 目录 | 子模块 | — |
+| `types.ts` | 组件/模块 | — | — |
 
 ## 依赖
 

@@ -8,31 +8,31 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ConnectWizardDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `ConversationRecallPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryArchiveRestoreDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryClearAllDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCommandCenter.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCommandCenterAdvancedPanels.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCommandCenterChrome.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCommandCenterDoctorPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCommandCenterPanels.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryContextPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryCreateDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryDetailSheet.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryEditDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryGuide.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryHealthDashboard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryImportReviewDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryKnowledgeGraph.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemorySettingsToggles.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryStats.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryTabSwitcher.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryTrashPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `MemoryTypeIcon.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `PendingMemoryBadge.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `PendingMemoryDialog.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `ConnectWizardDialog.tsx` | 组件/模块 | — | — |
+| `ConversationRecallPanel.tsx` | 组件/模块 | — | — |
+| `MemoryArchiveRestoreDialog.tsx` | 组件/模块 | — | — |
+| `MemoryCard.tsx` | 组件/模块 | — | — |
+| `MemoryClearAllDialog.tsx` | 组件/模块 | — | — |
+| `MemoryCommandCenter.tsx` | 组件/模块 | — | — |
+| `MemoryCommandCenterAdvancedPanels.tsx` | 组件/模块 | — | — |
+| `MemoryCommandCenterChrome.tsx` | 组件/模块 | — | — |
+| `MemoryCommandCenterDoctorPanel.tsx` | 组件/模块 | — | — |
+| `MemoryCommandCenterPanels.tsx` | 组件/模块 | — | — |
+| `MemoryContextPanel.tsx` | 组件/模块 | — | — |
+| `MemoryCreateDialog.tsx` | 组件/模块 | — | — |
+| `MemoryDetailSheet.tsx` | 组件/模块 | — | — |
+| `MemoryEditDialog.tsx` | 组件/模块 | — | — |
+| `MemoryGuide.tsx` | 组件/模块 | — | — |
+| `MemoryHealthDashboard.tsx` | 组件/模块 | — | — |
+| `MemoryImportReviewDialog.tsx` | 组件/模块 | — | — |
+| `MemoryKnowledgeGraph.tsx` | 组件/模块 | — | — |
+| `MemorySettingsToggles.tsx` | 组件/模块 | — | — |
+| `MemoryStats.tsx` | 组件/模块 | — | — |
+| `MemoryTabSwitcher.tsx` | 组件/模块 | — | — |
+| `MemoryTrashPanel.tsx` | 组件/模块 | — | — |
+| `MemoryTypeIcon.tsx` | 组件/模块 | — | — |
+| `PendingMemoryBadge.tsx` | 组件/模块 | — | — |
+| `PendingMemoryDialog.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

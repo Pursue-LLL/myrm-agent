@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
-import ChannelIcon from '@/components/features/settings/sections/ChannelIcon';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { updateCronJob } from '@/services/cron';
 import { formatNextRun, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';

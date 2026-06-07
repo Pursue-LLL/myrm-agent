@@ -5,7 +5,7 @@ import useChatStore from '@/store/useChatStore';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale';
 import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks } from 'lucide-react';
-import ChannelIcon from '@/components/features/settings/sections/ChannelIcon';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { useCallback, useEffect, memo, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';

@@ -38,7 +38,7 @@ class TestCatalogListEndpoint:
         payload = data["data"]
         assert payload["total"] >= 14
         assert len(payload["entries"]) >= 14
-        assert len(payload["categories"]) == 4
+        assert len(payload["categories"]) == 9
 
     def test_list_with_category_filter(self, client: TestClient) -> None:
         response = client.get("/api/v1/catalog?category=development")

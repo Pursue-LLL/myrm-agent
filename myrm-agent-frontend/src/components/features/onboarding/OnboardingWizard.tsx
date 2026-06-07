@@ -12,7 +12,7 @@ import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 
-import MigrationWizardSection from '@/components/features/settings/sections/MigrationWizardSection';
+import MigrationWizardSection from '@/components/features/settings/sections/knowledge/MigrationWizardSection';
 import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import { Button } from '@/components/primitives/button';
 

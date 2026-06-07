@@ -30,8 +30,8 @@ import {
   filterFolderNodes,
   getWikiOperationErrorMessage,
   isNotFoundApiError,
-} from '@/components/features/settings/sections/wiki/wikiTreeUtils';
-import { WikiFolderSelectTree } from '@/components/features/settings/sections/wiki/WikiFolderSelectTree';
+} from '@/components/features/settings/sections/knowledge/wiki/wikiTreeUtils';
+import { WikiFolderSelectTree } from '@/components/features/settings/sections/knowledge/wiki/WikiFolderSelectTree';
 
 interface SaveToWikiButtonProps {
   message: Message;

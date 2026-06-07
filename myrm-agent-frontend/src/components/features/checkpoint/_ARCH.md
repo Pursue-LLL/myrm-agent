@@ -8,11 +8,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `CheckpointCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `CheckpointList.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FileDiffViewer.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FileSnapshotCard.tsx` | 组件/模块 | 见源码 | 见源码 |
-| `FileSnapshotList.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `CheckpointCard.tsx` | 组件/模块 | — | — |
+| `CheckpointList.tsx` | 组件/模块 | — | — |
+| `FileDiffViewer.tsx` | 组件/模块 | — | — |
+| `FileSnapshotCard.tsx` | 组件/模块 | — | — |
+| `FileSnapshotList.tsx` | 组件/模块 | — | — |
 
 ## 依赖
 

@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/primitives/dialog';
-import ChannelIcon from '@/components/features/settings/sections/ChannelIcon';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { listChannelInstances, type ChannelInstance } from '@/services/channels';
 import { handoffChat } from '@/services/chat';
 import { useToast } from '@/hooks/useToast';

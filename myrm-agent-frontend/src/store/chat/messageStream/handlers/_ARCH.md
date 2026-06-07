@@ -10,20 +10,20 @@
 |------|------|------|-------|
 | `index.ts` | 核心 | 导出 `STREAM_EVENT_HANDLERS` 调用顺序 | ✅ |
 | `handlerDeps.ts` | 辅助 | 切片共享 import（types、stores、helpers） | ✅ |
-| `companionEvents.ts` | 核心 | mascot_xp、dag、catchup_snapshot | 见源码 |
-| `rateLimitEvents.ts` | 核心 | rate_limit_updated / warning | 见源码 |
-| `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批等控制流 | 见源码 |
-| `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、进度项合并 | 见源码 |
-| `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | 见源码 |
-| `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态 | 见源码 |
-| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED | 见源码 |
-| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | 见源码 |
-| `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | 见源码 |
-| `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA | 见源码 |
-| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE | 见源码 |
-| `captchaEvents.ts` | 核心 | CAPTCHA 进度展示 | 见源码 |
-| `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级通知 | 见源码 |
-| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存 | 见源码 |
+| `companionEvents.ts` | 核心 | mascot_xp、dag、catchup_snapshot | — |
+| `rateLimitEvents.ts` | 核心 | rate_limit_updated / warning | — |
+| `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批等控制流 | — |
+| `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、进度项合并 | — |
+| `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | — |
+| `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态 | — |
+| `fileDiffEvents.ts` | 核心 | FILE_DIFF、TOOL_IMAGE_OUTPUT、FILE_MUTATION_FAILED | — |
+| `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | — |
+| `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | — |
+| `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA | — |
+| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE | — |
+| `captchaEvents.ts` | 核心 | CAPTCHA 进度展示 | — |
+| `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级通知 | — |
+| `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存 | — |
 
 ## 依赖
 

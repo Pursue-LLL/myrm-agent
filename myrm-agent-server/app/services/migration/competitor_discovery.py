@@ -145,10 +145,6 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
     if codex:
         result.sources.append(codex)
 
-    windsurf = _discover_windsurf(home)
-    if windsurf:
-        result.sources.append(windsurf)
-
     return result
 
 
@@ -339,44 +335,6 @@ def _discover_codex(explicit_home: Path | None) -> CompetitorSource | None:
             )
 
     source.confidence = "high" if len(source.files) >= 2 else "medium" if source.files else "low"
-    return source if source.confidence != "low" else None
-
-
-def _discover_windsurf(explicit_home: Path | None) -> CompetitorSource | None:
-    """Detect Windsurf/Devin Desktop data at ~/.codeium/windsurf/ or ~/.codeium/devin/."""
-
-    home = explicit_home or Path.home()
-    codeium_base = home / ".codeium"
-    if not codeium_base.is_dir():
-        return None
-
-    root = None
-    for subdir in ("windsurf", "devin"):
-        candidate = codeium_base / subdir
-        if candidate.is_dir():
-            root = candidate
-            break
-    if not root:
-        return None
-
-    source = CompetitorSource(competitor="windsurf", root=str(root))
-
-    memories_dir = root / "memories"
-    if memories_dir.is_dir():
-        global_rules = memories_dir / "global_rules.md"
-        if global_rules.is_file():
-            source.files.append(
-                DiscoveredFile(path=str(global_rules), kind="global_rules", size_bytes=global_rules.stat().st_size)
-            )
-
-        for entry in memories_dir.iterdir():
-            if entry.is_file() and entry.suffix == ".md" and entry.name != "global_rules.md":
-                source.files.append(
-                    DiscoveredFile(path=str(entry), kind="memory", size_bytes=entry.stat().st_size)
-                )
-                source.memory_count_estimate += _count_md_bullets(entry)
-
-    source.confidence = "high" if source.memory_count_estimate > 0 or any(f.kind == "global_rules" for f in source.files) else "medium" if source.files else "low"
     return source if source.confidence != "low" else None
 
 
