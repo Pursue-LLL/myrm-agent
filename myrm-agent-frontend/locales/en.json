@@ -474,7 +474,47 @@
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
-      "showSystemMessagesWarning": "System messages contain AI behavior instructions, for development debugging only. Please disable in production."
+      "showSystemMessagesWarning": "System messages contain AI behavior instructions, for development debugging only. Please disable in production.",
+      "systemHealth": {
+        "title": "System Health",
+        "description": "Inspect memory paths, workspace readiness, and ripgrep availability before agents run.",
+        "refresh": "Refresh",
+        "loading": "Loading system health…",
+        "loadFailed": "Failed to load system health",
+        "meta": "Deploy: {deploy} · Storage: {storage} · Bundle: {bundle}",
+        "warnings": "Warnings",
+        "migrationPending": "Layout migration pending",
+        "migrationCount": "{count} action(s) required",
+        "applyMigration": "Apply migration",
+        "migrateConfirmTitle": "Apply context bundle migration?",
+        "migrateConfirmDesc": "This updates on-disk layout metadata. Existing data is preserved; only missing structure is created.",
+        "migrateSuccess": "Migration applied",
+        "migrateFailed": "Migration failed",
+        "cancel": "Cancel",
+        "ripgrepHint": "ripgrep (rg) not found — file search still works but is slower. Install rg for faster workspace search.",
+        "writable": "Volume writable",
+        "notWritable": "Volume not writable",
+        "manifestOk": "Manifest present",
+        "manifestMissing": "Manifest missing",
+        "memoryPath": "Memory root",
+        "harnessPath": "Harness root",
+        "status": {
+          "ready": "Healthy",
+          "degraded": "Degraded",
+          "missing": "Critical"
+        },
+        "sceneStatus": {
+          "ready": "Ready",
+          "degraded": "Degraded",
+          "missing": "Missing"
+        },
+        "scenes": {
+          "memory": "Memory",
+          "workspace": "Workspace",
+          "offload": "Offload",
+          "archive": "Archive"
+        }
+      }
     },
     "securityPolicy": {
       "title": "Security Policy",

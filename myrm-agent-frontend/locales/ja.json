@@ -2087,8 +2087,15 @@
           "confirmReject": "Confirm Reject",
           "reject": "Reject",
           "approve": "Approve",
-          "retryApply": "Retry Apply"
+          "retryApply": "Retry Apply",
+          "revise": "Revise",
+          "reviseLabel": "Edit Proposed Content",
+          "cancelRevise": "Cancel",
+          "saveRevision": "Save Revision"
         },
+        "reviseSuccess": "\"{name}\" revised successfully",
+        "reviseFailed": "Failed to revise \"{name}\"",
+        "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
         "rejectReasonLabel": "Reason for rejection",

@@ -16,7 +16,7 @@
 | `growth_lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级 | ✅ |
 | `auto_extractor.py` | 核心 | 技能物化辅助器。仅负责把已通过策略判断的成长结果落盘成真实技能或补丁，并发布 `SKILL_EVOLVED` 事件 | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检 + 24h 去重 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` / `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |
-| `evolution_reviews.py` | 核心 | evolution 审核生命周期服务。以 `ApprovalRecord` 为唯一事实源，提供创建、审批、拒绝、回滚、runtime failure 幂等证据与 apply-failed 重试语义 | ✅ |
+| `evolution_reviews.py` | 核心 | evolution 审核生命周期服务。以 `ApprovalRecord` 为唯一事实源，提供创建、审批、拒绝、修订、回滚、runtime failure 幂等证据与 apply-failed 重试语义 | ✅ |
 | `similarity_checker.py` | 核心 | 技能语义去重实现。基于 HybridSkillSearchEngine 检查新技能是否与已有技能功能重复，防止技能熵增 | ✅ |
 | `ws_hub.py` | 核心 | Evolution WebSocket 连接池与广播（`broadcast_proposal` / `broadcast_message`） | ✅ |
 | `evolution_events.py` | 辅助 | 技能进化 `SKILL_EVOLVED` 事件发布（services 层单一入口） | ✅ |

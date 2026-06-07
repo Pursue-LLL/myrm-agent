@@ -5,9 +5,9 @@
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。)
 - app.services.skills.experience_ledger::record_experience_event (POS: 学习资产事件账本服务)
 [OUTPUT]
-- EvolutionApprovalPayload / EvolutionReviewRecord / evolution review lifecycle helpers
+- EvolutionApprovalPayload / EvolutionReviewRecord / evolution review lifecycle helpers (create, approve, reject, revise, rollback)
 [POS]
-统一的 evolution 审核生命周期服务。以 ApprovalRecord 为唯一事实源，提供幂等落地、回滚与 apply-failed 重试语义。
+统一的 evolution 审核生命周期服务。以 ApprovalRecord 为唯一事实源，提供幂等落地、修订、回滚与 apply-failed 重试语义。
 """
 
 from __future__ import annotations

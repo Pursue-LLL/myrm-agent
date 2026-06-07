@@ -9,7 +9,7 @@
 |------|------|------|-------|
 | `derive.py` | 核心 | 技能衍生端点（从已有技能派生新版本） | ✅ |
 | `fix.py` | 核心 | 技能修复端点（支持 GUI-First 强制重试） | ✅ |
-| `pending.py` | 核心 | 待审核演进 approve/reject（`apply_mode`: immediate \| shadow） | ✅ |
+| `pending.py` | 核心 | 待审核演进 approve/reject/revise（`apply_mode`: immediate \| shadow） | ✅ |
 | `history.py` | 辅助 | 演进历史查询端点 | ⚠️ 待补 |
 | `rejections.py` | 辅助 | 演进驳回记录查询 | ⚠️ 待补 |
 | `helpers.py` | 辅助 | 演进操作辅助函数 | ⚠️ 待补 |

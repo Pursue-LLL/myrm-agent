@@ -474,7 +474,47 @@
       },
       "showSystemMessages": "显示系统消息",
       "showSystemMessagesDesc": "在聊天中显示 AI 的系统提示词（System Prompts）",
-      "showSystemMessagesWarning": "系统消息包含 AI 行为指令，仅用于开发调试。生产环境请关闭此选项。"
+      "showSystemMessagesWarning": "系统消息包含 AI 行为指令，仅用于开发调试。生产环境请关闭此选项。",
+      "systemHealth": {
+        "title": "系统健康",
+        "description": "在智能体运行前检查记忆路径、工作区状态与 ripgrep 是否可用。",
+        "refresh": "刷新",
+        "loading": "正在加载系统健康状态…",
+        "loadFailed": "加载系统健康状态失败",
+        "meta": "部署：{deploy} · 存储：{storage} · Bundle：{bundle}",
+        "warnings": "警告",
+        "migrationPending": "待执行布局迁移",
+        "migrationCount": "需处理 {count} 项",
+        "applyMigration": "应用迁移",
+        "migrateConfirmTitle": "确认应用 Context Bundle 迁移？",
+        "migrateConfirmDesc": "将更新磁盘布局元数据，不会删除已有数据，仅创建缺失的结构。",
+        "migrateSuccess": "迁移已应用",
+        "migrateFailed": "迁移失败",
+        "cancel": "取消",
+        "ripgrepHint": "未检测到 ripgrep (rg)，文件搜索仍可用但较慢。安装 rg 可加速工作区搜索。",
+        "writable": "卷可写",
+        "notWritable": "卷不可写",
+        "manifestOk": "清单已存在",
+        "manifestMissing": "清单缺失",
+        "memoryPath": "记忆根路径",
+        "harnessPath": "Harness 根路径",
+        "status": {
+          "ready": "健康",
+          "degraded": "降级",
+          "missing": "严重"
+        },
+        "sceneStatus": {
+          "ready": "就绪",
+          "degraded": "降级",
+          "missing": "缺失"
+        },
+        "scenes": {
+          "memory": "记忆",
+          "workspace": "工作区",
+          "offload": "卸载",
+          "archive": "归档"
+        }
+      }
     },
     "securityPolicy": {
       "title": "安全策略",

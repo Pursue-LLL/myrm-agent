@@ -5,7 +5,7 @@
 [OUTPUT]
 - Pending evolution review APIs
 [POS]
-evolution 审核接口层。对外提供 pending 列表、approve、reject，以 ApprovalRecord 为唯一事实源。
+evolution 审核接口层。对外提供 pending 列表、approve、reject、revise，以 ApprovalRecord 为唯一事实源。
 """
 
 from __future__ import annotations
