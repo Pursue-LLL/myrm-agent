@@ -336,6 +336,9 @@ class GeneralAgent(ToolSetupMixin):
         if self.model_cfg.max_context_tokens:
             context["max_context_tokens"] = self.model_cfg.max_context_tokens
 
+        if self.engine_params and self.engine_params.get("compress_start_ratio") is not None:
+            context["compress_start_ratio"] = self.engine_params["compress_start_ratio"]
+
         context["supports_vision"] = self.model_cfg.supports_vision
         if self.vision_fallback_model_cfg:
             context["vision_fallback_model_cfg"] = self.vision_fallback_model_cfg
