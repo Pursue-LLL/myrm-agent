@@ -8,6 +8,21 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 _DRAFTS_MODULE = None
+_CURATOR_MODULE = None
+
+
+def _load_module_by_path(module_name: str, filename: str):
+    """Load a module from app/api/skills/ without importing the package __init__."""
+    module_path = Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / filename
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load module from {module_path}")
+    import sys
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _load_drafts_module():
@@ -15,26 +30,27 @@ def _load_drafts_module():
     global _DRAFTS_MODULE
     if _DRAFTS_MODULE is not None:
         return _DRAFTS_MODULE
+    _DRAFTS_MODULE = _load_module_by_path("app.api.skills.drafts", "drafts.py")
+    return _DRAFTS_MODULE
 
-    drafts_path = Path(__file__).resolve().parents[3] / "app" / "api" / "skills" / "drafts.py"
-    spec = importlib.util.spec_from_file_location("app.api.skills.drafts", drafts_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load drafts module from {drafts_path}")
-    import sys
 
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["app.api.skills.drafts"] = module
-    spec.loader.exec_module(module)
-    _DRAFTS_MODULE = module
-    return module
+def _load_curator_module():
+    """Load curator router without importing app.api.skills package __init__."""
+    global _CURATOR_MODULE
+    if _CURATOR_MODULE is not None:
+        return _CURATOR_MODULE
+    _CURATOR_MODULE = _load_module_by_path("app.api.skills.curator", "curator.py")
+    return _CURATOR_MODULE
 
 
 @pytest.fixture(scope="function")
 def app() -> FastAPI:
-    """Create minimal test app for skills API (drafts-only to avoid heavy harness imports)."""
+    """Create minimal test app for skills API."""
     app = FastAPI(title="Skills Test App")
     drafts_module = _load_drafts_module()
     app.include_router(drafts_module.router, prefix="/api/v1/skills", tags=["skills-drafts"])
+    curator_module = _load_curator_module()
+    app.include_router(curator_module.router, prefix="/api/v1/skills", tags=["skills-curator"])
     return app
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 from myrm_agent_harness.toolkits.storage.paths import get_user_skill_config_path
@@ -77,7 +77,7 @@ class UserSkillConfigManager:
                 config.enabled_prebuilt_ids = sorted(enabled)
 
         if changed:
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now(UTC)
             await self.save_config(config)
             logger.info(
                 "Updated prebuilt skill enablement: %d enabled, %d disabled",
@@ -105,7 +105,7 @@ class UserSkillConfigManager:
         if enabled_local_skill_ids is not None:
             config.enabled_local_skill_ids = enabled_local_skill_ids
 
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(UTC)
         await self.save_config(config)
 
         logger.warning("Updated user skill config")
@@ -118,7 +118,7 @@ class UserSkillConfigManager:
         """更新的本地技能路径配置"""
         config = await self.get_config()
         config.local_skill_paths = paths
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(UTC)
         await self.save_config(config)
         logger.warning(f"✅ 更新本地技能路径: paths={paths}")
         return config
@@ -128,7 +128,7 @@ class UserSkillConfigManager:
         config = await self.get_config()
         if skill_id not in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.append(skill_id)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now(UTC)
             await self.save_config(config)
             logger.warning(f"✅ 启用本地技能: {skill_id}")
         return config
@@ -140,7 +140,7 @@ class UserSkillConfigManager:
             config.enabled_prebuilt_ids.remove(skill_id)
         if skill_id not in config.disabled_prebuilt_ids:
             config.disabled_prebuilt_ids.append(skill_id)
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(UTC)
         await self.save_config(config)
         logger.warning("Disabled prebuilt skill: %s", skill_id)
         return config
@@ -152,7 +152,7 @@ class UserSkillConfigManager:
             config.disabled_prebuilt_ids.remove(skill_id)
         if skill_id not in config.enabled_prebuilt_ids:
             config.enabled_prebuilt_ids.append(skill_id)
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(UTC)
         await self.save_config(config)
         logger.warning("Enabled prebuilt skill: %s", skill_id)
         return config
@@ -162,7 +162,7 @@ class UserSkillConfigManager:
         config = await self.get_config()
         if skill_id in config.enabled_local_skill_ids:
             config.enabled_local_skill_ids.remove(skill_id)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now(UTC)
             await self.save_config(config)
             logger.warning(f"🚫 禁用本地技能: {skill_id}")
         return config
@@ -174,7 +174,7 @@ class UserSkillConfigManager:
         """批量更新启用的本地技能列表"""
         config = await self.get_config()
         config.enabled_local_skill_ids = enabled_ids
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(UTC)
         await self.save_config(config)
         logger.warning(f"✅ 更新启用的本地技能: count={len(enabled_ids)}")
         return config
@@ -184,7 +184,7 @@ class UserSkillConfigManager:
         config = await self.get_config()
         if skill_id not in config.trusted_skill_ids:
             config.trusted_skill_ids.append(skill_id)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now(UTC)
             await self.save_config(config)
             logger.info("Trusted skill %s", skill_id)
         return config
@@ -194,7 +194,7 @@ class UserSkillConfigManager:
         config = await self.get_config()
         if skill_id in config.trusted_skill_ids:
             config.trusted_skill_ids.remove(skill_id)
-            config.updated_at = datetime.utcnow()
+            config.updated_at = datetime.now(UTC)
             await self.save_config(config)
             logger.info("Revoked trust for skill %s", skill_id)
         return config
