@@ -1913,6 +1913,7 @@
         "confirmRollback": "Are you sure you want to undo {name} and roll back to the previous version?",
         "rollbackSuccess": "Successfully rolled back and disabled: {name}",
         "rollbackFailed": "Rollback failed, please try again",
+        "cancel": "Cancel",
         "fetchError": "Failed to fetch skill history",
         "status": {
           "approved": "Applied",

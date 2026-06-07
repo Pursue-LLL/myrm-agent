@@ -1913,6 +1913,7 @@
         "confirmRollback": "确定要撤销技能 {name} 并将其退回上一版本吗？",
         "rollbackSuccess": "已成功撤销并停用：{name}",
         "rollbackFailed": "撤销失败，请重试",
+        "cancel": "取消",
         "fetchError": "获取技能历史失败",
         "status": {
           "approved": "已生效",

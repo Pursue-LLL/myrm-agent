@@ -8,6 +8,16 @@ import { RefreshCw, Undo2, CheckCircle2, XCircle, FileClock, History } from 'luc
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/primitives/alert-dialog';
 import { toast } from '@/hooks/useToast';
 import { useTheme } from 'next-themes';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -33,6 +43,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isRollingBack, setIsRollingBack] = useState<string | null>(null);
+  const [pendingRollback, setPendingRollback] = useState<{ id: string; name: string } | null>(null);
   const { theme } = useTheme();
 
   // Using English as default locale for date formatting if not zh
@@ -56,9 +67,10 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
     fetchHistory();
   }, [fetchHistory]);
 
-  const handleRollback = async (id: string, skillName: string) => {
-    if (!window.confirm(t('confirmRollback', { name: skillName }))) return;
-
+  const confirmRollback = async () => {
+    if (!pendingRollback) return;
+    const { id, name } = pendingRollback;
+    setPendingRollback(null);
     setIsRollingBack(id);
     try {
       const res = await fetch(`/api/v1/evolution/history/${id}/rollback`, {
@@ -67,10 +79,10 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
       if (!res.ok) {
         throw new Error('Rollback failed');
       }
-      toast({ title: t('rollbackSuccess', { name: skillName }) });
+      toast({ title: t('rollbackSuccess', { name }) });
       await fetchHistory();
     } catch {
-      toast({ title: t('rollbackFailed', { name: skillName }), variant: 'destructive' });
+      toast({ title: t('rollbackFailed', { name }), variant: 'destructive' });
     } finally {
       setIsRollingBack(null);
     }
@@ -164,7 +176,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRollback(record.id, record.skill_name)}
+                      onClick={() => setPendingRollback({ id: record.id, name: record.skill_name })}
                       disabled={isRollingBack === record.id}
                       className="h-8 shrink-0 text-xs gap-1.5 border-dashed"
                     >
@@ -182,7 +194,6 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                         height="300px"
                         original={record.original_content}
                         modified={record.evolved_content}
-                        language="python"
                         theme={theme === 'dark' ? 'vs-dark' : 'light'}
                         options={{
                           readOnly: true,
@@ -202,6 +213,21 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
           })}
         </div>
       )}
+
+      <AlertDialog open={!!pendingRollback} onOpenChange={(open) => !open && setPendingRollback(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('rollback')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRollback ? t('confirmRollback', { name: pendingRollback.name }) : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRollback}>{t('rollback')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
