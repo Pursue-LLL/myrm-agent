@@ -6,8 +6,12 @@ from dataclasses import dataclass
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import delete
 
 from app.core.security.auth.identity import LOCAL_USER_ID
+from app.database.connection import get_session
+from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent
+from app.platform_utils import get_database_engine
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,3 +29,16 @@ def _bypass_auth():
         return_value=_FakeIdentity(),
     ):
         yield
+
+
+@pytest.fixture(autouse=True)
+async def ensure_tables() -> None:
+    """Ensure DB tables exist for all evolution tests."""
+    engine = get_database_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with get_session() as db:
+        await db.execute(delete(ExperienceLedgerEvent))
+        await db.execute(delete(ApprovalRecord))
+        await db.commit()
