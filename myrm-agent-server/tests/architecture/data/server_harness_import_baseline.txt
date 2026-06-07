@@ -159,6 +159,7 @@ myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.detection.leak_detector
 myrm_agent_harness.core.security.path_security
+myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
 myrm_agent_harness.eval.protocols
