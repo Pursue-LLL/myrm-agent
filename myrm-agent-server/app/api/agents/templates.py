@@ -3,6 +3,19 @@ Exposes endpoints to list and instantiate pre-configured agent templates (YAML s
 
 Supports both individual and team templates. Team templates atomically create all
 member agents plus a leader, with full rollback on failure.
+
+[INPUT]
+- app.core.skills.store.service::skills_service (POS: Skill store singleton for prebuilt skill management)
+- app.database.dto::AgentCreate (POS: Agent creation request model)
+- app.services.agent.agent_service::AgentService (POS: Agent CRUD service)
+
+[OUTPUT]
+- list_templates(): GET endpoint returning available template metadata (with team members/use_cases)
+- instantiate_template(): POST endpoint creating agent(s) from a template atomically
+
+[POS]
+Agent template catalog and factory. Reads YAML seeds from assets/prebuilt_agents/,
+exposes listing and one-click instantiation for both individual and team templates.
 """
 
 import glob
@@ -126,7 +139,7 @@ async def list_templates(request: Request) -> JSONResponse:
                         ).model_dump(exclude_none=True)
                     )
             except Exception as e:
-                logger.error(f"Failed to parse template {file_path}: {e}")
+                logger.error("Failed to parse template %s: %s", file_path, e)
 
         return success_response(data=templates)
     except Exception as e:
@@ -177,7 +190,7 @@ async def _ensure_skills_enabled(prebuilt_skill_ids: list[str], template_id: str
         try:
             await skills_service.user_config.enable_prebuilt_skill(skill_id)
         except Exception as e:
-            logger.error(f"Failed to auto-enable skill {skill_id} for template {template_id}: {e}")
+            logger.error("Failed to auto-enable skill %s for template %s: %s", skill_id, template_id, e)
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to enable required skill '{skill_id}'. Agent creation aborted.",
@@ -327,9 +340,9 @@ def _build_leader_agent_data(
     # Carry over optional fields from leader config
     for field in (
         "mcp_ids", "mcp_tool_selections", "enabled_builtin_tools",
-        "skill_ids", "suggestion_prompts", "avatar_url",
+        "skill_ids", "suggestion_prompts",
     ):
-        if field in data and field != "avatar_url":
+        if field in data:
             leader_payload[field] = data[field]
 
     prebuilt_skill_ids = data.get("prebuilt_skill_ids", [])
@@ -343,6 +356,5 @@ def _build_leader_agent_data(
     # Remove team-specific fields that shouldn't go into AgentCreate
     leader_payload.pop("members", None)
     leader_payload.pop("use_cases", None)
-    leader_payload.pop("avatar_url", None)
 
     return AgentCreate.model_validate(leader_payload)

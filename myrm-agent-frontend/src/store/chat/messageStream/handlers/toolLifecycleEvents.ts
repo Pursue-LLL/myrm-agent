@@ -63,6 +63,18 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     }
 
+    // MCP Apps (ext-apps): detect mcp_app metadata and attach view to message
+    const mcpApp = (data as unknown as { mcp_app?: { resource_uri?: string; server_name?: string; structured_content?: Record<string, unknown> } }).mcp_app;
+    if (mcpApp && mcpApp.resource_uri) {
+      const view = {
+        resourceUri: mcpApp.resource_uri,
+        serverName: mcpApp.server_name ?? '',
+        structuredContent: mcpApp.structured_content,
+        toolName: data.tool_name,
+      };
+      message.mcpApps = [...(message.mcpApps ?? []), view];
+    }
+
     if (H.isMemoryRecallToolName(data.tool_name)) {
       if (Array.isArray(data.cited_memory_ids)) {
         const ids = data.cited_memory_ids.filter((id): id is string => typeof id === 'string' && id.length > 0);

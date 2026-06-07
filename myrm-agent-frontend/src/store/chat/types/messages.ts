@@ -19,6 +19,13 @@ import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
 import type { ToolImageOutput } from './agentStream/part3';
 
+export interface McpAppView {
+  resourceUri: string;
+  serverName: string;
+  structuredContent?: Record<string, unknown>;
+  toolName?: string;
+}
+
 export type Message = {
   messageId: string;
   chatId: string;
@@ -77,6 +84,7 @@ export type Message = {
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
   toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
+  mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;

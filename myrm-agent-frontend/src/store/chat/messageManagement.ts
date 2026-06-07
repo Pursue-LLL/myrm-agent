@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * @/services/chat::getChatDetail (POS: Chat API client)
+ * @/store/useWorkspaceStore::useWorkspaceStore (POS: Workspace state manager)
+ *
+ * [OUTPUT]
+ * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.
+ * loadMessages: Fetch chat history from DB.
+ * autoSaveChat: Auto-generate and save chat titles.
+ *
+ * [POS]
+ * Chat session lifecycle manager. Handles initialization, DB fetching, and snapshot-first rendering during tab switches.
+ */
+
 import crypto from 'crypto';
 import { Message, ChatHistoryItem, type ActionMode } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
@@ -6,6 +20,7 @@ import { ApiError } from '@/lib/api';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
+import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { moveChatToProject } from '@/services/projects';
 import { abortCurrentUpload } from '@/services/uploadController';
@@ -156,8 +171,7 @@ export const initializeChat = (
     abortCurrentUpload();
     
     // Check if we have a snapshot in WorkspaceStore
-    const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('../useWorkspaceStore').default);
-    const pane = workspaceStore.getState().panes.find((p: any) => p.chatId === id);
+    const pane = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === id);
     
     if (pane && pane.snapshot) {
       // Instant rendering from snapshot
@@ -184,7 +198,13 @@ export const initializeChat = (
           });
         }
       };
-      loadMessages(id, silentActions).catch(console.error);
+      const snapshot = useWorkspaceStore.getState().panes[id]?.snapshot;
+    if (snapshot?.loading) {
+      console.log(`[messageManagement] Skip loadMessages for ${id} because snapshot is loading`);
+      return;
+    }
+
+    loadMessages(id, silentActions).catch(console.error);
     } else {
       // 立即重置状态，确保不显示之前的聊天内容
       actions.setMessages((state) => {

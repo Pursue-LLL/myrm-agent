@@ -4,6 +4,13 @@
 
 Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStreamHandler.ts` 为热点模块）；其余 `use*Store.ts` 按产品域拆分。页面应保持薄，逻辑在本目录与 `services/`。
 
+### OS 级上下文切换架构 (Context Switching Architecture)
+针对多标签页并行（Multi-tab Parallelism），本模块采用了类似操作系统的上下文切换设计：
+- **`useChatStore` (CPU 寄存器)**：作为全局单例，永远只服务于当前处于 Active 状态的标签页，保证 320 个业务组件的极速读取，0 侵入。
+- **`useWorkspaceStore` (内存 RAM)**：负责持久化所有后台标签页的“现场快照（Snapshot）”和“控制句柄（AbortController）”。
+- **智能路由 (Smart Updater)**：在 `messageRequest.ts` 中拦截流式更新，若流属于后台 Tab，则直接写入 `WorkspaceStore` 快照，绝不污染当前 UI。
+- **快照直出 (Snapshot-First Rendering)**：切换标签页时，瞬间将 `WorkspaceStore` 中的快照恢复到 `useChatStore`，实现 0ms 极速切页。
+
 ## 子模块
 
 | 路径 | 职责 | 备注 |
@@ -16,7 +23,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | `useAuthStore.ts` | WebUI 会话 / SaaS OAuth 门控 | 本地模式不连 CP |
 | `useConfigStore.ts` | 用户设置镜像 | 与 Settings sections 同步 |
 | `useArtifactPortalStore.ts` | 工件门户 | 大文件，拆分候选 |
-| `useWorkspaceStore.ts` | 多标签页与状态快照管理 | 负责保存后台 Tab 的 ChatState 快照 |
+| `useWorkspaceStore.ts` | 多标签页与上下文切换（RAM） | 负责保存后台 Tab 的快照（Snapshot）与生命周期句柄（AbortController） |
 | `useFlowPadStore.ts` | FlowPad 模态窗口状态（截屏上下文、初始文本、开关） | 服务 Appshot 和 deep link 入口 |
 | `use*Store.ts`（根级） | 看板、审批、伴侣、浏览器检查器等 | 一域一 store |
 

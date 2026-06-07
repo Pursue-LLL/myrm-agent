@@ -272,6 +272,7 @@ myrm_agent_harness.toolkits.llms.video.providers
 myrm_agent_harness.toolkits.local_file_search
 myrm_agent_harness.toolkits.mcp
 myrm_agent_harness.toolkits.mcp.config
+myrm_agent_harness.toolkits.mcp.connection_manager
 myrm_agent_harness.toolkits.mcp.lifecycle
 myrm_agent_harness.toolkits.mcp.oauth
 myrm_agent_harness.toolkits.mcp.security

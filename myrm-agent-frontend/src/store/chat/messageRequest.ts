@@ -10,10 +10,11 @@
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
  * sendMessage: Submit user input into the chat stream lifecycle.
+ * createSmartUpdater: Route state updates to active store or background snapshot.
+ * attachToChat: Re-attach to an existing multiplexed SSE stream.
  *
  * [POS]
- * Chat message request assembly layer. It prepares model, agent, memory and
- * streaming payloads before invoking the backend SSE endpoint.
+ * Chat message request assembly layer. It prepares payloads and acts as the MMU (Memory Management Unit) routing stream updates to the correct store.
  */
 
 import crypto from 'crypto';
@@ -613,8 +614,7 @@ export const createSmartUpdater = (chatId: string | undefined, originalSetMessag
       return;
     }
 
-    const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
-    const workspaceState = workspaceStore.getState();
+    const workspaceState = useWorkspaceStore.getState();
     const activePane = workspaceState.panes.find((p: any) => p.id === workspaceState.activePaneId);
 
     if (activePane && activePane.chatId === chatId) {
@@ -628,7 +628,7 @@ export const createSmartUpdater = (chatId: string | undefined, originalSetMessag
         const nextSnapshot = produce(currentSnapshot, (draft: any) => {
           updater(draft as ChatActionsState);
         });
-        workspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
+        useWorkspaceStore.getState().savePaneSnapshot(pane.id, nextSnapshot);
       }
     }
   };
@@ -733,10 +733,9 @@ export const sendMessage = async (
     
     // Save the abort controller to the workspace store for the current pane
     if (state.chatId) {
-      const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
-      const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
       if (paneId) {
-        workspaceStore.getState().setPaneAbortController(paneId, abortController);
+        useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
       }
     }
 
@@ -850,10 +849,9 @@ export const sendMessage = async (
     });
     
     if (state.chatId) {
-      const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
-      const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+      const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
       if (paneId) {
-        workspaceStore.getState().setPaneAbortController(paneId, null);
+        useWorkspaceStore.getState().setPaneAbortController(paneId, null);
       }
     }
 
@@ -881,10 +879,9 @@ export const attachToChat = async (
 
   const abortController = new AbortController();
 
-  const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || useWorkspaceStore;
-  const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+  const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
   if (paneId) {
-    workspaceStore.getState().setPaneAbortController(paneId, abortController);
+    useWorkspaceStore.getState().setPaneAbortController(paneId, abortController);
   }
 
   smartActions.setMessages((draft) => {
@@ -939,7 +936,7 @@ export const attachToChat = async (
       draft.abortController = null;
     });
     if (paneId) {
-      workspaceStore.getState().setPaneAbortController(paneId, null);
+      useWorkspaceStore.getState().setPaneAbortController(paneId, null);
     }
   }
 };

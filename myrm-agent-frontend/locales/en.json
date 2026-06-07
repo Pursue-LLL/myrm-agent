@@ -4914,6 +4914,11 @@
     "toolImage": {
       "screenshotLabel": "Remote Desktop Screenshot"
     },
+    "mcpApp": {
+      "loading": "Loading MCP App...",
+      "loadFailed": "MCP App failed to load: {error}",
+      "title": "MCP App: {server}"
+    },
     "browserInspector": {
       "title": "Browser Live View",
       "toggleTitle": "Toggle Browser Inspector",

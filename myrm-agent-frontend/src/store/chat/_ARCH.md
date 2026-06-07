@@ -12,7 +12,8 @@
 | `messageStream/` | SSE dispatcher + `handlers/*` |
 | `schema.ts` / `knownSseEventTypes.ts` | SSE 入站校验与 harness 对齐 |
 | `streamConsumer.ts` | 读 SSE 行 → `parseSseEnvelope` → reducer |
-| `messageRequest.ts` | 组装请求并启动流 |
+| `messageRequest.ts` | 组装请求并启动流（含 Smart Updater 路由） |
+| `messageManagement.ts` | 会话初始化（含 Snapshot-First Rendering）、历史加载 |
 
 ## 依赖
 

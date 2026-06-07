@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * @/store/chat/messageRequest::sendMessage (POS: Chat message request assembly layer)
+ * @/store/useWorkspaceStore::useWorkspaceStore (POS: Workspace state manager)
+ *
+ * [OUTPUT]
+ * useChatStore: Global Zustand store for the currently active chat session.
+ *
+ * [POS]
+ * Active chat state manager. Acts as the CPU register in the OS Context Switching Architecture, exclusively serving the currently visible tab.
+ */
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import crypto from 'crypto';
@@ -16,6 +28,7 @@ import { sendMessage, attachToChat } from './chat/messageRequest';
 import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat } from './chat/messageManagement';
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
+import useWorkspaceStore from './useWorkspaceStore';
 import { getChatHistory, cancelAgentRequest } from '@/services/chat';
 import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -268,20 +281,19 @@ const useChatStore = create<ChatState>()(
         const { chatId } = get();
         if (!chatId) return;
 
-        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
-        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
         
         if (!paneId) return;
 
-        const abortController = workspaceStore.getState().getPaneAbortController(paneId);
-        const currentSessionMessageId = workspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
+        const abortController = useWorkspaceStore.getState().getPaneAbortController(paneId);
+        const currentSessionMessageId = useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
 
         if (abortController) {
           if (currentSessionMessageId) {
             cancelAgentRequest(currentSessionMessageId).catch(() => {});
           }
           abortController.abort();
-          workspaceStore.getState().setPaneAbortController(paneId, null);
+          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
           set((state) => {
             state.loading = false;
             state.abortController = null;
@@ -307,10 +319,9 @@ const useChatStore = create<ChatState>()(
       // 当前会话messageId管理
       getCurrentSessionMessageId: () => {
         const state = get();
-        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
-        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
         
-        let currentId = paneId ? workspaceStore.getState().getPaneCurrentSessionMessageId(paneId) : state.currentSessionMessageId;
+        let currentId = paneId ? useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId) : state.currentSessionMessageId;
 
         if (!currentId) {
           // 生成更强的唯一性ID用于请求关联
@@ -320,7 +331,7 @@ const useChatStore = create<ChatState>()(
           const counter = ((Math.random() * 0xffff) | 0).toString(36);
           const newMessageId = `r-${timestamp}-${microTime}-${randomBytes}-${counter}`;
           if (paneId) {
-            workspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
+            useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, newMessageId);
           }
           set({ currentSessionMessageId: newMessageId });
           return newMessageId;
@@ -329,10 +340,9 @@ const useChatStore = create<ChatState>()(
       },
       clearCurrentSessionMessageId: () => {
         const state = get();
-        const workspaceStore = (typeof window !== 'undefined' ? (window as any).__myrmWorkspaceStore : null) || (require('./useWorkspaceStore').default);
-        const paneId = workspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
+        const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === state.chatId)?.id;
         if (paneId) {
-          workspaceStore.getState().setPaneCurrentSessionMessageId(paneId, null);
+          useWorkspaceStore.getState().setPaneCurrentSessionMessageId(paneId, null);
         }
         set({ currentSessionMessageId: null });
       },
@@ -405,7 +415,9 @@ const useChatStore = create<ChatState>()(
         await loadMessages(chatId, actions);
 
         // 尝试无缝 Attach 到后台可能正在运行的任务
+        if (!paneConfig?.abortController) {
         attachToChat(chatId, actions, get).catch(console.error);
+      }
       },
 
       loadOlderMessages: async () => {
@@ -495,11 +507,6 @@ const useChatStore = create<ChatState>()(
       // 初始化聊天
       initializeChat: (id) => {
         const state = get();
-        // 隔离切换聊天时的线程缓存：如果正在生成内容，且切换到了不同的聊天，强制中止当前生成
-        // REMOVED: Do not stop message on tab switch to allow parallel execution
-        // if (state.abortController && state.chatId !== id) {
-        //   get().stopMessage();
-        // }
 
         // 重置相关状态
         // 新对话（无id）展开配置面板，有对话时收起

@@ -50,6 +50,7 @@ import ToolImageGallery from './ToolImageGallery';
 import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
+import { McpAppSection } from './McpAppSection';
 
 const ReasoningBlock = ({
   message,
@@ -463,6 +464,13 @@ const MessageBox = ({
 
         {/* 工具截屏图片（如 computer_use） */}
         {message.toolImages && message.toolImages.length > 0 && <ToolImageGallery images={message.toolImages} />}
+
+        {/* MCP Apps (ext-apps) 嵌入式 UI */}
+        {message.mcpApps && message.mcpApps.length > 0 && (
+          <ArtifactErrorBoundary fallbackMessage="MCP App failed to render">
+            <McpAppSection views={message.mcpApps} />
+          </ArtifactErrorBoundary>
+        )}
 
         {/* CLI Agent 工具调用审批 */}
         {message.toolCalls && message.toolCalls.length > 0 && chatId && (

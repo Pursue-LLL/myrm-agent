@@ -467,3 +467,67 @@ async def verify_mcp_service(
     except Exception as e:
         logger.error(f"MCP service verification error: {str(e)}", exc_info=True)
         raise external_service_error("MCP", f"Verification failed: {str(e)}") from e
+
+
+@router.get("/resource")
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def read_mcp_resource(
+    request: Request,
+    uri: str = Query(..., description="MCP resource URI (e.g. ui://server/path)"),
+    server: str = Query(..., description="MCP server name that owns the resource"),
+) -> JSONResponse:
+    """Proxy endpoint for frontend to fetch MCP App UI resources.
+
+    The frontend calls this when an MCP tool result carries ``_meta.ui.resourceUri``
+    (ext-apps standard). This endpoint reads the resource from the warm MCP session
+    and returns it as base64-encoded content with MIME type metadata.
+    """
+    import base64
+
+    from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
+
+    manager = MCPConnectionManager._instance
+    if manager is None:
+        raise external_service_error("MCP", "MCP connection pool not initialized")
+
+    connections = manager._connections
+    if not connections:
+        raise external_service_error("MCP", "No active MCP connections")
+
+    resource_bytes: bytes | None = None
+    last_error: str = ""
+    for conn in connections.values():
+        try:
+            resource_bytes = await asyncio.wait_for(
+                conn.read_resource(server, uri),
+                timeout=settings.mcp.verify_timeout,
+            )
+            break
+        except RuntimeError as e:
+            last_error = str(e)
+            continue
+        except asyncio.TimeoutError:
+            raise timeout_error(operation="MCP resource read")
+        except Exception as e:
+            last_error = str(e)
+            logger.warning("MCP resource read failed for server '%s': %s", server, e)
+            continue
+
+    if resource_bytes is None:
+        raise external_service_error("MCP", f"Resource not found: {last_error}")
+
+    content_b64 = base64.b64encode(resource_bytes).decode("ascii")
+    mime_type = "text/html"
+    if uri.endswith(".js"):
+        mime_type = "application/javascript"
+    elif uri.endswith(".css"):
+        mime_type = "text/css"
+    elif uri.endswith(".json"):
+        mime_type = "application/json"
+
+    return success_response(data={
+        "content": content_b64,
+        "mime_type": mime_type,
+        "uri": uri,
+        "server": server,
+    })

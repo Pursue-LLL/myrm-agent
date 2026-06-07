@@ -35,6 +35,15 @@
 | `SessionTrashPanel.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 
+## agent-config-panel/
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `AgentConfigPanel.tsx` | 核心 | Agent 配置面板入口 | ✅ |
+| `AgentConfigEditDialog.tsx` | 核心 | Agent 编辑对话框 | ✅ |
+| `TemplateMarket.tsx` | 核心 | Agent 模板市场。请求后端的 `/api/v1/agents/templates` 和 `instantiate-template` 接口，实现模板列表展示和带有原子化依赖预检的智能体实例化。 | ✅ |
+| `AgentGallery.tsx` | 辅助 | Agent 画廊展示 | ✅ |
+
 ## goals/
 
 | 文件 | 地位 | 职责 | I/O/P |

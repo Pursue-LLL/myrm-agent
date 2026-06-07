@@ -27,6 +27,7 @@
 | `TokenUsageDisplay.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `ToolCallApproval.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `ToolImageGallery.tsx` | 组件/模块 | 见源码 | 见源码 |
+| `McpAppSection.tsx` | 组件/模块 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | 见源码 |
 | `UserMessage.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `WaterDropCostView.tsx` | 组件/模块 | 见源码 | 见源码 |
 | `progress-steps/` | 目录 | 子模块 | 见源码 |

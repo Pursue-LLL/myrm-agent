@@ -80,8 +80,8 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     return null;
   }
 
-  const individualTemplates = templates.filter(t => t.agent_type !== 'team');
-  const teamTemplates = templates.filter(t => t.agent_type === 'team');
+  const individualTemplates = templates.filter(item => item.agent_type !== 'team');
+  const teamTemplates = templates.filter(item => item.agent_type === 'team');
 
   return (
     <div className={cn("space-y-3 pt-2", className)}>

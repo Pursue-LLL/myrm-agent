@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * @/services/agent::getActiveSessions (POS: Agent session API client)
+ *
+ * [OUTPUT]
+ * useWorkspaceStore: Zustand store for multi-tab workspace management, including active panes, background snapshots, and lifecycle controllers.
+ *
+ * [POS]
+ * Workspace state manager. Acts as the RAM in the OS Context Switching Architecture, storing snapshots and abort controllers for all background tabs.
+ */
+
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { ActiveSession, ActiveSessionsResponse } from '@/services/agent';
@@ -66,6 +77,18 @@ const useWorkspaceStore = create<WorkspaceState>()(
     },
 
     removePane: (paneId: string) => {
+      const pane = get().panes.find((p) => p.id === paneId);
+      if (pane) {
+        if (pane.abortController) {
+          pane.abortController.abort();
+        }
+        if (pane.currentSessionMessageId) {
+          import('@/services/chat').then(({ cancelAgentRequest }) => {
+            cancelAgentRequest(pane.currentSessionMessageId!).catch(() => {});
+          });
+        }
+      }
+
       set((state) => {
         state.panes = state.panes.filter((p) => p.id !== paneId);
         if (state.activePaneId === paneId) {
@@ -216,6 +239,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('multiplex_reconnected', () => {
     useWorkspaceStore.getState().syncBackgroundPanes();
   });
+  (window as any).__myrmWorkspaceStore = useWorkspaceStore;
 }
 
 export default useWorkspaceStore;

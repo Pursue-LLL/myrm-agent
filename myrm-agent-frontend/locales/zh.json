@@ -4913,6 +4913,11 @@
     "toolImage": {
       "screenshotLabel": "远程桌面截屏"
     },
+    "mcpApp": {
+      "loading": "正在加载 MCP 应用...",
+      "loadFailed": "MCP 应用加载失败: {error}",
+      "title": "MCP 应用: {server}"
+    },
     "browserInspector": {
       "title": "浏览器实时视图",
       "toggleTitle": "切换浏览器检查器",
