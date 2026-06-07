@@ -182,6 +182,13 @@ export const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   // 信息检索类
   web_search_tool: 'search',
   web_fetch_tool: 'search',
+  browser_navigate_tool: 'search',
+  browser_interact_tool: 'search',
+  browser_extract_tool: 'search',
+  browser_snapshot_tool: 'search',
+  browser_execute_tool: 'search',
+  desktop_snapshot_tool: 'search',
+  desktop_interact_tool: 'search',
 
   // 文件操作类
   file_read_tool: 'file',
