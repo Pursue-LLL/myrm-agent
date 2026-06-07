@@ -53,6 +53,39 @@ def _coerce_str_list(value: object) -> list[str]:
     return out
 
 
+def _filter_tools_by_profile(tools: list[object], enabled_builtin_tools: tuple[str, ...]) -> list[object]:
+    """Filter inherited tools based on the active agent's tool boundaries."""
+    from myrm_agent_harness.core.security.tool_registry import TOOL_TO_GROUP
+
+    active_groups = set()
+    if "web_search" in enabled_builtin_tools:
+        active_groups.add("web")
+    if "browser" in enabled_builtin_tools:
+        active_groups.add("browser")
+    if "file_ops" in enabled_builtin_tools:
+        active_groups.add("file_ops")
+    if "code_execute" in enabled_builtin_tools:
+        active_groups.add("shell")
+    if "computer_use" in enabled_builtin_tools:
+        active_groups.add("computer_use")
+    if "memory" in enabled_builtin_tools:
+        active_groups.add("memory")
+    if "kanban" in enabled_builtin_tools:
+        active_groups.add("kanban")
+    if "wiki" in enabled_builtin_tools:
+        active_groups.add("wiki")
+
+    filtered = []
+    for t in tools:
+        t_name = getattr(t, "name", "")
+        t_group = TOOL_TO_GROUP.get(t_name)
+        # If the tool is part of a canonical group but the group is not enabled, filter it out
+        if t_group is not None and t_group not in active_groups:
+            continue
+        filtered.append(t)
+    return filtered
+
+
 def _without_inherited_conversation_search(tools: list[object]) -> list[object]:
     """Prevent delegated agents from inheriting the parent's global chat-history tool."""
 
@@ -298,7 +331,9 @@ class CustomAgentFactory:
             max_iterations=max_iterations,
         )
 
-        all_tools = _without_inherited_conversation_search(list(cast("list[BaseTool]", tools)))
+        enabled_builtin = getattr(profile, "enabled_builtin_tools", ())
+        filtered_parent_tools = _filter_tools_by_profile(list(cast("list[BaseTool]", tools)), enabled_builtin)
+        all_tools = _without_inherited_conversation_search(filtered_parent_tools)
         _append_scoped_conversation_search(
             all_tools,
             current_chat_id=_parent_chat_id(parent_agent),
@@ -399,6 +434,12 @@ class EphemeralAgentFactory:
             max_iterations=config.max_turns,
         )
 
+        raw_builtin = self._metadata.get("enabled_builtin_tools")
+        if not isinstance(raw_builtin, (list, tuple)):
+            from app.services.agent.profile_resolver import DEFAULT_ENABLED_BUILTIN_TOOLS
+            raw_builtin = DEFAULT_ENABLED_BUILTIN_TOOLS
+        filtered_tools = _filter_tools_by_profile(list(tools), tuple(str(x) for x in raw_builtin))
+
         agent = await create_skill_agent(
             spec=spec,
             llm=llm,
@@ -406,7 +447,7 @@ class EphemeralAgentFactory:
             storage_backend=get_storage_provider(),
             skill_backend=None,
             memory_manager=None,
-            tools=_without_inherited_conversation_search(list(tools)),
+            tools=_without_inherited_conversation_search(filtered_tools),
             collect_artifacts=False,
             checkpointer=False,
         )

@@ -5350,6 +5350,7 @@
     "workflow_init": "동적 워크플로 초기화 중",
     "workflow_planning": "오케스트레이션 계획 생성 중",
     "workflow_execution": "워크플로 작업 실행 중",
+    "workflow_stage": "워크플로 단계 업데이트",
     "errorCategories": {
       "oom": "Out of Memory",
       "oom_killed": "OOM Killed",

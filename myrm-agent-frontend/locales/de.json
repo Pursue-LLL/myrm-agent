@@ -5350,6 +5350,7 @@
     "workflow_init": "Dynamischen Workflow initialisieren",
     "workflow_planning": "Orchestrierungsplan erstellen",
     "workflow_execution": "Workflow-Aufgaben ausführen",
+    "workflow_stage": "Workflow-Phasenaktualisierung",
     "errorCategories": {
       "oom": "Out of Memory",
       "oom_killed": "OOM Killed",

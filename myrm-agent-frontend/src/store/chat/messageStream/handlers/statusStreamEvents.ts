@@ -35,7 +35,8 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       stepKey === 'consensus_reference_done' ||
       stepKey === 'workflow_init' ||
       stepKey === 'workflow_planning' ||
-      stepKey === 'workflow_execution'
+      stepKey === 'workflow_execution' ||
+      stepKey === 'workflow_stage'
     ) {
       const displayKey =
         stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
@@ -65,7 +66,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
                     ? `(${(data.data.reference_models as string[]).join(', ')})`
                     : stepKey === 'consensus_reference_done' && data.data?.model
                       ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
-                      : (stepKey === 'workflow_init' || stepKey === 'workflow_planning' || stepKey === 'workflow_execution') && typeof data.data?.message === 'string'
+                      : (stepKey === 'workflow_init' || stepKey === 'workflow_planning' || stepKey === 'workflow_execution' || stepKey === 'workflow_stage') && typeof data.data?.message === 'string'
                         ? data.data.message
                         : '';
       actions.setMessages((state) => {
@@ -95,6 +96,17 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
             tool_name: stepKey === 'archive_checkpoint' ? undefined : (data.tool_name ?? undefined),
             status: data.status,
           };
+          if (stepKey === 'workflow_stage') {
+            const sd = data.data as Record<string, unknown> | undefined;
+            if (sd) {
+              if (typeof sd.notify_message === 'string') progressStep.notify_message = sd.notify_message;
+              if (typeof sd.notify_progress === 'number' && sd.notify_progress >= 0) progressStep.notify_progress = sd.notify_progress;
+              if (typeof sd.notify_step_index === 'number') progressStep.notify_step_index = sd.notify_step_index;
+              if (typeof sd.notify_total_steps === 'number') progressStep.notify_total_steps = sd.notify_total_steps;
+              if (typeof sd.notify_category === 'string') progressStep.notify_category = sd.notify_category;
+              if (typeof sd.notify_level === 'string') progressStep.notify_level = sd.notify_level as 'info' | 'warn' | 'alert';
+            }
+          }
           if (archiveRestoreBlock) {
             progressStep.archive_restore_block = archiveRestoreBlock;
           }

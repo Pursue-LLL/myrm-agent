@@ -5579,6 +5579,7 @@
     "workflow_init": "Initializing Dynamic Workflow",
     "workflow_planning": "Generating orchestration plan",
     "workflow_execution": "Executing workflow tasks",
+    "workflow_stage": "Workflow stage update",
     "iteration_limit_reached": "Iteration limit reached",
     "subagent_running": "Subagent running",
     "swarm_fission": "Parallel swarm fission ({count} tasks)",

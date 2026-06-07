@@ -213,4 +213,35 @@ async def finalize_agent_stream_session(
         except Exception as evo_exc:
             logger.debug("Skill evolution trigger skipped: %s", evo_exc)
 
+        # Flush remaining sliding window slice (sub-threshold residual)
+        try:
+            from myrm_agent_harness.agent.skills.evolution.core.types import (
+                EvolutionRequest,
+                EvolutionType,
+            )
+            from myrm_agent_harness.agent.skills.evolution.infra.integration import (
+                get_global_evolution_integration,
+            )
+            from myrm_agent_harness.agent.skills.evolution.infra.queue import QueuePriority
+
+            evo_integration = get_global_evolution_integration()
+            if evo_integration and session.request.chat_id:
+                remaining = evo_integration._slice_cursors.pop(session.request.chat_id, None)
+                if remaining:
+                    _count, ids = remaining
+                    if ids and evo_integration.queue:
+                        await evo_integration.queue.enqueue(
+                            EvolutionRequest(
+                                evolution_type=EvolutionType.SLICE_EXTRACTION,
+                                skill_id=f"slice_{session.request.chat_id}_{len(ids)}_calls",
+                                reason="Session-end residual trace slice",
+                                session_id=session.request.chat_id,
+                                tool_call_ids=ids,
+                                agent_id=getattr(session.request, "agent_id", None),
+                            ),
+                            priority=QueuePriority.LOW,
+                        )
+        except Exception as flush_exc:
+            logger.debug("Slice window flush skipped: %s", flush_exc)
+
     session.collector.cleanup()
