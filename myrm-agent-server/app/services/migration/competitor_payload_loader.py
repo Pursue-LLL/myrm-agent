@@ -68,6 +68,7 @@ def load_competitor_payload(payload: dict[str, object]) -> dict[str, object]:
         "cursor": _load_cursor,
         "codex": _load_codex,
         "claude": _load_claude,
+        "windsurf": _load_windsurf,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -365,6 +366,38 @@ def _load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
         skills = _load_skill_directories(skills_dir, source="claude")
         if skills:
             result["skills"] = skills
+
+    return result
+
+
+def _load_windsurf(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load Windsurf/Devin Desktop global rules and workspace memories."""
+
+    result: dict[str, object] = {}
+
+    global_rules = _path_by_kind(file_paths, "global_rules.md") or _find_file(root, "memories", "global_rules.md")
+    if global_rules:
+        content = _read_text(global_rules).strip()
+        if content:
+            result["semantic"] = [
+                {
+                    "content": content,
+                    "importance": 0.75,
+                    "confidence": 0.75,
+                    "tags": ["windsurf", "global_rules"],
+                },
+            ]
+
+    memories_dir = root / "memories"
+    if memories_dir.is_dir():
+        all_bullets: list[dict[str, object]] = []
+        for entry in sorted(memories_dir.iterdir()):
+            if entry.is_file() and entry.suffix == ".md" and entry.name != "global_rules.md":
+                content = _read_text(entry).strip()
+                if content:
+                    all_bullets.extend(_markdown_bullets_to_openclaw_memory(content, category="windsurf_memory"))
+        if all_bullets:
+            result["openclaw_memory"] = all_bullets
 
     return result
 

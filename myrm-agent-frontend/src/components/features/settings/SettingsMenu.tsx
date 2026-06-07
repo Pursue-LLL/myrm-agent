@@ -28,7 +28,6 @@ import {
   XCircle,
   Brain,
   Database,
-  FolderSearch,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 
@@ -75,7 +74,6 @@ export type SettingsTab =
   | 'companion'
   | 'usageStatistics'
   | 'experimentalFeatures'
-  | 'localFileSearch'
   | 'memory'
   | 'memory-backup'
   | 'memory-cloud-backup'
@@ -116,7 +114,6 @@ const menuItems: MenuItem[] = [
 
   // 知识与数据
   { id: 'wiki', icon: BookOpen, labelKey: 'wiki', group: 'knowledge' },
-  { id: 'localFileSearch', icon: FolderSearch, labelKey: 'localFileSearch', group: 'knowledge' },
   { id: 'memory', icon: Brain, labelKey: 'memory', group: 'knowledge' },
 
   // 通信与集成

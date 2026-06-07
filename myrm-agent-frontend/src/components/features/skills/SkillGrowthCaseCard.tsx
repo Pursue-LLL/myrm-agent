@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Clock3, ShieldAlert, X } from 'lucide-react';
+import { Check, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
@@ -17,6 +17,7 @@ interface SkillGrowthCaseCardProps {
   onApprove: () => Promise<void>;
   onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
+  onRevise?: (evolvedContent: string) => Promise<void>;
 }
 
 const STATUS_STYLES: Record<
@@ -50,11 +51,14 @@ export default function SkillGrowthCaseCard({
   onApprove,
   onApproveShadow,
   onReject,
+  onRevise,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
   const { theme } = useTheme();
   const [showRejectInput, setShowRejectInput] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
 
   const isDark = theme === 'dark';
   const statusStyle = STATUS_STYLES[item.status];
@@ -65,6 +69,7 @@ export default function SkillGrowthCaseCard({
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
   const runtimeFailure = item.runtimeFailure;
+  const canRevise = showReviewActions && item.source === 'evolution' && onRevise;
 
   const handleReject = async () => {
     if (!showRejectInput) {
@@ -75,6 +80,23 @@ export default function SkillGrowthCaseCard({
     setShowRejectInput(false);
     setRejectionReason('');
   };
+
+  const handleStartEdit = useCallback(() => {
+    setEditedContent(item.proposedContent ?? '');
+    setIsEditing(true);
+  }, [item.proposedContent]);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setEditedContent('');
+  }, []);
+
+  const handleSaveRevision = useCallback(async () => {
+    if (!onRevise || !editedContent.trim()) return;
+    await onRevise(editedContent);
+    setIsEditing(false);
+    setEditedContent('');
+  }, [onRevise, editedContent]);
 
   return (
     <div className="rounded-2xl border bg-background p-4">
@@ -115,6 +137,18 @@ export default function SkillGrowthCaseCard({
 
         {showReviewActions && (
           <div className="flex shrink-0 items-center gap-2">
+            {canRevise && !isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                onClick={handleStartEdit}
+                disabled={isProcessing}
+              >
+                <Edit3 className="mr-2 h-4 w-4" />
+                {t('actions.revise')}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -225,7 +259,31 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {showDiff && (
+      {isEditing && (
+        <div className="mt-4 rounded-xl border bg-muted/20 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('actions.reviseLabel')}</p>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isProcessing}>
+                <X className="mr-1 h-3.5 w-3.5" />
+                {t('actions.cancelRevise')}
+              </Button>
+              <Button size="sm" onClick={handleSaveRevision} disabled={isProcessing || !editedContent.trim()}>
+                <Check className="mr-1 h-3.5 w-3.5" />
+                {t('actions.saveRevision')}
+              </Button>
+            </div>
+          </div>
+          <textarea
+            value={editedContent}
+            onChange={(event) => setEditedContent(event.target.value)}
+            className="min-h-[300px] w-full rounded-xl border bg-background px-4 py-3 font-mono text-sm outline-none ring-0 transition-colors focus:border-primary resize-y"
+            spellCheck={false}
+          />
+        </div>
+      )}
+
+      {!isEditing && showDiff && (
         <div className="mt-4 overflow-hidden rounded-xl border">
           <ReactDiffViewer
             oldValue={item.originalContent ?? ''}
@@ -238,7 +296,7 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {!showDiff && item.proposedContent && (
+      {!isEditing && !showDiff && item.proposedContent && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('proposed')}</p>
           <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.proposedContent}</pre>

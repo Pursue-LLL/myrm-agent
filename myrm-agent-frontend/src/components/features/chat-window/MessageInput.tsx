@@ -395,13 +395,12 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               </div>
               {/* 右侧：发送操作 */}
               <div className="flex flex-row items-center gap-1 sm:gap-2 flex-shrink-0">
-                {/* 桌面端显示环境状态和上下文使用率 */}
                 <div className="flex items-center gap-1 overflow-x-auto max-w-[45vw] sm:max-w-none">
                   <WorkUnitBalanceBar compact className="shrink-0" />
+                  <ContextUsageIndicator />
                   <div className="hidden sm:flex items-center gap-1">
                     <EnvironmentShield />
                     <BudgetBadge />
-                    <ContextUsageIndicator />
                   </div>
                 </div>
                 {/* 附件按钮在所有设备上都显示在右侧 */}

@@ -865,6 +865,103 @@ async def reject_evolution_review_record(
     return review_record
 
 
+async def revise_evolution_review_record(
+    evolution_id: str,
+    *,
+    evolved_content: str,
+) -> EvolutionReviewRecord:
+    """Revise the proposed content of a pending evolution before approval.
+
+    Only PENDING_REVIEW or APPLY_FAILED records can be revised. Updates the
+    evolved_content field, re-runs security scanning, and records the revision
+    event in the experience ledger.
+
+    Args:
+        evolution_id: ID of the evolution record to revise.
+        evolved_content: New proposed content after human editing.
+
+    Returns:
+        Updated EvolutionReviewRecord.
+
+    Raises:
+        EvolutionApplyError: If record not found, invalid, or not in revisable state.
+    """
+    approval_record = await _load_approval_record(evolution_id)
+    if approval_record is None:
+        raise EvolutionApplyError(f"Evolution approval record not found: {evolution_id}")
+
+    payload = _approval_payload(approval_record)
+    if payload is None:
+        raise EvolutionApplyError(f"Invalid evolution approval record: {evolution_id}")
+
+    if payload.growth_status not in {
+        EvolutionGrowthStatus.PENDING_REVIEW,
+        EvolutionGrowthStatus.APPLY_FAILED,
+    }:
+        raise EvolutionApplyError(
+            f"Only pending or apply-failed proposals can be revised. Current status: {payload.growth_status.value}"
+        )
+
+    if not evolved_content or not evolved_content.strip():
+        raise EvolutionApplyError("Revised content cannot be empty.")
+
+    # Re-run security scan on the revised content
+    scan_passed = True
+    try:
+        from myrm_agent_harness.backends.skills.scanning.scanner import scan_skill_content
+
+        scan_result = scan_skill_content(payload.skill_name, evolved_content)
+        scan_passed = scan_result.is_clean
+    except Exception as exc:
+        logger.warning("Security scan failed during revision for %s: %s", evolution_id, exc)
+
+    payload.evolved_content = evolved_content
+    payload.test_passed = scan_passed
+    if not scan_passed:
+        payload.growth_status = EvolutionGrowthStatus.FAILED_SCAN
+        payload.reason_code = "revised_failed_scan"
+        payload.remediation = "Revised content failed security scan. Please fix the flagged issues."
+    else:
+        payload.growth_status = EvolutionGrowthStatus.PENDING_REVIEW
+        payload.apply_status = EvolutionApplyStatus.NOT_APPLIED
+        payload.apply_error = None
+        payload.reason_code = "revised"
+        payload.remediation = None
+
+    updated = await _persist_approval_payload(
+        evolution_id,
+        payload=payload,
+    )
+
+    await record_experience_event(
+        ExperienceLedgerWrite(
+            event_type=ExperienceEventType.EVOLUTION_PENDING,
+            entity_type=ExperienceEntityType.EVOLUTION,
+            entity_id=evolution_id,
+            lineage_id=evolution_lineage_id(evolution_id),
+            outcome="revised",
+            summary=f"Human revised evolution proposal for {payload.skill_name}",
+            artifact_refs={
+                "skill_id": payload.skill_id,
+                "skill_name": payload.skill_name,
+            },
+            metrics_snapshot={
+                "confidence": payload.confidence,
+                "test_passed": scan_passed,
+            },
+            detail={
+                "evolution_type": payload.evolution_type,
+                "revision_scan_passed": scan_passed,
+            },
+        )
+    )
+
+    review_record = approval_to_evolution_review_record(updated)
+    if review_record is None:
+        raise EvolutionApplyError(f"Failed to normalize revised evolution record: {updated.id}")
+    return review_record
+
+
 async def rollback_evolution_review_record(evolution_id: str) -> dict[str, object]:
     approval_record = await _load_approval_record(evolution_id)
     if approval_record is None:

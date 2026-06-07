@@ -44,8 +44,6 @@ ConfigKey = Literal[
     "onboarding",
     "budget_policy",
     "companion_config",
-    "local_file_search",
-    "local_file_search_records",
     "backupSync",
     "proxySettings",
     "securityDashboardSettings",

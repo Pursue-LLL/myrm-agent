@@ -19,6 +19,7 @@ import {
   approveSkillGrowthCase,
   listSkillGrowthCases,
   rejectSkillGrowthCase,
+  reviseSkillGrowthCase,
   type SkillGrowthCase,
 } from '@/services/skill-growth';
 import { useSkillStore } from '@/store/skill';
@@ -187,6 +188,27 @@ export function PendingEvolutionsDashboard() {
     [loadCases, processingCaseId, t, user?.id],
   );
 
+  const handleRevise = useCallback(
+    async (item: SkillGrowthCase, evolvedContent: string) => {
+      if (!user?.id || processingCaseId) return;
+      setProcessingCaseId(item.id);
+      try {
+        const result = await reviseSkillGrowthCase(item, evolvedContent);
+        if (result.test_passed) {
+          toast.success(t('reviseSuccess', { name: item.skillName }));
+        } else {
+          toast.error(t('reviseFailedScan', { name: item.skillName }));
+        }
+        await loadCases(true);
+      } catch (reviseError) {
+        toast.error(reviseError instanceof Error ? reviseError.message : t('reviseFailed', { name: item.skillName }));
+      } finally {
+        setProcessingCaseId(null);
+      }
+    },
+    [loadCases, processingCaseId, t, user?.id],
+  );
+
   return (
     <SettingsSection
       title={t('title')}
@@ -290,6 +312,7 @@ export function PendingEvolutionsDashboard() {
               onApprove={() => handleApprove(item, 'immediate')}
               onApproveShadow={() => handleApprove(item, 'shadow')}
               onReject={(reason?: string) => handleReject(item, reason)}
+              onRevise={(evolvedContent: string) => handleRevise(item, evolvedContent)}
             />
           ))}
         </div>

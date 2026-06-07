@@ -278,6 +278,25 @@ export async function rejectSkillGrowthCase(item: SkillGrowthCase, reason?: stri
   });
 }
 
+export interface SkillGrowthReviseResult {
+  status: string;
+  skill_id: string | null;
+  test_passed: boolean;
+  reason_code: string | null;
+  remediation: string | null;
+}
+
+export async function reviseSkillGrowthCase(
+  item: SkillGrowthCase,
+  evolvedContent: string,
+): Promise<SkillGrowthReviseResult> {
+  const evolutionId = item.id.replace('evolution:', '');
+  return apiRequest<SkillGrowthReviseResult>(`/evolution/pending/${evolutionId}/revise`, {
+    method: 'PATCH',
+    body: JSON.stringify({ evolved_content: evolvedContent }),
+  });
+}
+
 export async function listSkillGrowthAudit(limit: number = 20, days: number = 30): Promise<SkillGrowthAuditEntry[]> {
   const response = await apiRequest<SkillGrowthAuditApiResponse>(`/skill-growth/audit?limit=${limit}&days=${days}`);
   return response.items.map(mapAuditEntry);

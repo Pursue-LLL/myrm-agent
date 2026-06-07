@@ -32,7 +32,6 @@ const VALID_TABS = [
   'eval',
   'credentials',
   'wiki',
-  'localFileSearch',
   'memory',
   'cron',
   'kanban',
@@ -68,6 +67,7 @@ const DEPRECATED_TAB_MAP: Record<string, { parent: string; sub?: string }> = {
   usageStatistics: { parent: 'developer', sub: 'usage' },
   companion: { parent: 'developer', sub: 'companion' },
   importExport: { parent: 'developer', sub: 'importExport' },
+  eval: { parent: 'developer' },
   about: { parent: 'system', sub: 'about' },
 };
 

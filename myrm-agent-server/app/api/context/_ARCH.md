@@ -5,14 +5,14 @@
 - app.schemas.context.bundle (POS: bundle request/response models)
 
 [OUTPUT]
-- router: FastAPI router for /context-bundle and /context-search endpoints
+- router: FastAPI router for `/context-bundle` endpoints
 
 [POS]
-HTTP endpoints for context bundle health, non-destructive volume migration, and unified context search.
-Designed for GUI clients (like MemoryCommandCenterDoctorPanel) to query global sandbox context.
+HTTP endpoints for context bundle health and non-destructive volume migration.
+Designed for GUI clients to query global sandbox context layout.
 
 ## File Index
 
 | File | Role | Description |
 |------|------|-------------|
-| `router.py` | Core | `GET /context-bundle`, migrate dry-run/apply, `GET /context-search` |
+| `router.py` | Core | `GET /context-bundle`, `POST /context-bundle/migrate/dry-run`, `POST /context-bundle/migrate/apply` |

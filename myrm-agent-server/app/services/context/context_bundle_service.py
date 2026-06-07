@@ -20,9 +20,10 @@ from myrm_agent_harness.toolkits.context import (
     run_migration_dry_run,
 )
 from myrm_agent_harness.toolkits.context.health import (
-    LocalFileSearchSceneHealthBackend,
+    HealthProbe,
     MemorySceneHealthBackend,
     StaticSceneHealthBackend,
+    WorkspaceSceneHealthBackend,
 )
 
 from app.config.deploy_mode import get_deploy_mode, get_storage_mode
@@ -42,7 +43,7 @@ class ContextBundleService:
         facade = ContextAssemblyService.build_facade(ensure_layout=False)
         registry = facade.index()
         registry.register(MemorySceneHealthBackend(facade.memory_path()))
-        registry.register(LocalFileSearchSceneHealthBackend(_probe_local_file_search_health))
+        registry.register(WorkspaceSceneHealthBackend(_make_workspace_health_probe(facade)))
         registry.register(StaticSceneHealthBackend(ContextScene.OFFLOAD, _path_writable_status(facade.offload_root())))
         registry.register(StaticSceneHealthBackend(ContextScene.ARCHIVE, _path_writable_status(facade.archive_path())))
         return facade
@@ -94,15 +95,18 @@ class ContextBundleService:
         return self.run_migration_dry_run()
 
 
-async def _probe_local_file_search_health() -> str:
-    from app.services.local_file_search.service import get_local_file_search_service
+def _make_workspace_health_probe(facade: ContextBundleFacade) -> HealthProbe:
+    harness_path = facade.harness_path()
 
-    svc = get_local_file_search_service()
-    if not svc.is_initialized:
-        await svc.initialize()
-    if svc.search_engine is None:
-        return "missing"
-    return "ready"
+    async def probe() -> str:
+        path_status = _path_writable_status(harness_path)
+        if path_status != "ready":
+            return path_status
+        from shutil import which
+
+        return "ready" if which("rg") is not None else "degraded"
+
+    return probe
 
 
 def _path_writable_status(path: object) -> str:

@@ -86,7 +86,6 @@
       "toolStability": "Tool Stability",
       "toolQuality": "Execution Quality",
       "eval": "Evaluation",
-      "localFileSearch": "Local File Search",
       "memory": "Memory Management",
       "channelRouting": "Channel Routing",
       "openaiApi": "API Access",
@@ -5075,10 +5074,6 @@
       "memory": {
         "title": "Memory Management Center",
         "description": "Manage long-term memory, backups, and archival policies"
-      },
-      "localFileSearch": {
-        "title": "Local File Search",
-        "description": "Semantic search over your local documents with explicit authorization"
       }
     },
     "landingPageTitle": "Myrm - Your AI Work Partner",
@@ -9866,44 +9861,6 @@
     "pwaNewVersion": "New Version Available",
     "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
     "pwaRefresh": "Refresh Now"
-  },
-  "localFileSearch": {
-    "title": "Local File Search",
-    "description": "Search your local files using AI-powered semantic search. Only explicitly authorized directories are indexed.",
-    "directories": "Indexed Directories",
-    "addDirectory": "Add Directory",
-    "addDirectoryDesc": "Enter the absolute path to a directory you want to index",
-    "directoryPath": "Directory Path",
-    "directoryPathPlaceholder": "/Users/you/Documents",
-    "recursive": "Include subdirectories",
-    "noDirectories": "No directories configured. Add a directory to start indexing your files.",
-    "removeDirectory": "Remove Directory",
-    "removeDirectoryConfirm": "Remove this directory and all its indexed data?",
-    "indexNow": "Index Now",
-    "indexing": "Indexing...",
-    "stats": "Index Statistics",
-    "totalFiles": "Files Indexed",
-    "totalChunks": "Text Chunks",
-    "lastIndexed": "Last Indexed",
-    "status": "Status",
-    "progress": "Progress",
-    "errors": "Errors",
-    "idle": "Idle",
-    "never": "Never",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
-    "bundleHealth": "Context Bundle",
-    "bundleHealthDesc": "Unified volume for memory, workspace files, and session offload paths.",
-    "bundleManifest": "Manifest",
-    "bundleManifestPresent": "Present",
-    "bundleManifestMissing": "Missing — run migration from Memory Doctor",
-    "bundleWritable": "Volume writable",
-    "bundleNotWritable": "Volume not writable",
-    "bundleSchema": "Schema",
-    "bundleMigrateAction": "Initialize bundle",
-    "bundleMigrating": "Initializing...",
-    "bundleMigrateSuccess": "Context bundle initialized",
-    "bundleMigrateFailed": "Failed to initialize context bundle"
   },
   "errors": {
     "configIncomplete": {

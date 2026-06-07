@@ -24,6 +24,7 @@ from app.services.skills.evolution_reviews import (
     get_evolution_review_record,
     list_evolution_review_records,
     reject_evolution_review_record,
+    revise_evolution_review_record,
 )
 from app.services.skills.experience_ledger import (
     ExperienceEntityType,
@@ -62,6 +63,10 @@ class RejectEvolutionRequest(BaseModel):
 
 class ApproveEvolutionRequest(BaseModel):
     apply_mode: str = "immediate"
+
+
+class ReviseEvolutionRequest(BaseModel):
+    evolved_content: str
 
 
 def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResponse:
@@ -198,5 +203,34 @@ async def reject_pending_evolution(
         "status": "rejected",
         "skill_id": record.skill_id,
         "apply_status": record.apply_status.value,
+        "remediation": record.remediation,
+    }
+
+
+@router.patch("/pending/{evolution_id}/revise")
+async def revise_pending_evolution(
+    evolution_id: str,
+    request: ReviseEvolutionRequest,
+) -> dict[str, str | bool | None]:
+    """Revise the proposed content of a pending evolution before approval.
+
+    Allows the user to edit the evolved_content in-place, then re-validates
+    via security scanning. The record stays in PENDING_REVIEW state (or moves
+    to FAILED_SCAN if the revised content fails scanning).
+    """
+    try:
+        record = await revise_evolution_review_record(
+            evolution_id, evolved_content=request.evolved_content
+        )
+    except EvolutionApplyError as exc:
+        if "not found" in str(exc).lower():
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    return {
+        "status": record.status.value,
+        "skill_id": record.skill_id,
+        "test_passed": record.test_passed,
+        "reason_code": record.reason_code,
         "remediation": record.remediation,
     }

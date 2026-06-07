@@ -22,6 +22,7 @@ from .pending import (  # noqa: E402
     count_pending_evolution_records,
     list_pending_evolution_records,
     reject_pending_evolution_record,
+    revise_evolution_review_record,
 )
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "count_pending_evolution_records",
     "list_pending_evolution_records",
     "reject_pending_evolution_record",
+    "revise_evolution_review_record",
     "router",
 ]

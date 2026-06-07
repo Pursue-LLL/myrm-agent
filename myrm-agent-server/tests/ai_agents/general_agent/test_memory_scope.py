@@ -123,3 +123,67 @@ def test_build_runtime_context_includes_compression_intent() -> None:
         "failed_tool_call_ids": ["call_failed_9"],
         "user_goal_hint": "修复 app/services/agent/agent_service.py，并检查 app.services.agent",
     }
+
+
+def test_build_runtime_context_propagates_compress_start_ratio() -> None:
+    agent = _build_agent(
+        engine_params={"compress_start_ratio": 0.65, "max_tool_calls": 10},
+    )
+
+    context = agent._build_runtime_context(
+        query="hello",
+        chat_history=[],
+        effective_chat_id="chat-ratio-test",
+    )
+
+    assert context["compress_start_ratio"] == 0.65
+
+
+def test_build_runtime_context_omits_compress_start_ratio_when_absent() -> None:
+    agent = _build_agent(engine_params={"max_tool_calls": 10})
+
+    context = agent._build_runtime_context(
+        query="hello",
+        chat_history=[],
+        effective_chat_id="chat-no-ratio",
+    )
+
+    assert "compress_start_ratio" not in context
+
+
+def test_build_runtime_context_omits_compress_start_ratio_when_none() -> None:
+    agent = _build_agent(engine_params={"compress_start_ratio": None})
+
+    context = agent._build_runtime_context(
+        query="hello",
+        chat_history=[],
+        effective_chat_id="chat-none-ratio",
+    )
+
+    assert "compress_start_ratio" not in context
+
+
+def test_build_runtime_context_no_engine_params() -> None:
+    """engine_params=None (default) should not include compress_start_ratio."""
+    agent = _build_agent()
+
+    context = agent._build_runtime_context(
+        query="hello",
+        chat_history=[],
+        effective_chat_id="chat-default",
+    )
+
+    assert "compress_start_ratio" not in context
+
+
+def test_build_runtime_context_string_ratio_passthrough() -> None:
+    """String ratio from JSON is passed through; harness _coerce_optional_float handles conversion."""
+    agent = _build_agent(engine_params={"compress_start_ratio": "0.7"})
+
+    context = agent._build_runtime_context(
+        query="hello",
+        chat_history=[],
+        effective_chat_id="chat-string-ratio",
+    )
+
+    assert context["compress_start_ratio"] == "0.7"
