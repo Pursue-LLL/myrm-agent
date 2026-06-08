@@ -4053,7 +4053,19 @@
       }
     },
     "advancedEngineParams": "Advanced Engine Parameters",
-    "advancedEngineParamsDesc": "Configure internal engine limits and topology switches",
+    "advancedEngineParamsDesc": "내부 엔진 제한 및 토폴로지 스위치 구성",
+    "engineParam": {
+      "defaultValue": "기본값: {value}",
+      "defaultNone": "기본값: 없음",
+      "enableReplan": "리플랜 활성화",
+      "enableReplanDesc": "에이전트가 도구 오류를 자동으로 수정할 수 있도록 허용",
+      "contextCompression": "컨텍스트 압축",
+      "contextCompressionDesc": "긴 컨텍스트 기록을 자동 압축",
+      "parallelToolCalls": "병렬 도구 호출",
+      "parallelToolCallsDesc": "여러 도구를 동시에 실행 허용",
+      "adversarialVerifier": "적대적 검증기",
+      "adversarialVerifierDesc": "물리적 실행 샌드박스에서 테스트 강제 실행"
+    },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",
     "rollbackFailed": "Failed to roll back configuration",

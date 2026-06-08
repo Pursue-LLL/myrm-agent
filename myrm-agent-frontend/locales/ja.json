@@ -4053,7 +4053,19 @@
       }
     },
     "advancedEngineParams": "Advanced Engine Parameters",
-    "advancedEngineParamsDesc": "Configure internal engine limits and topology switches",
+    "advancedEngineParamsDesc": "内部エンジンの制限とトポロジースイッチを設定",
+    "engineParam": {
+      "defaultValue": "デフォルト: {value}",
+      "defaultNone": "デフォルト: なし",
+      "enableReplan": "リプラン有効化",
+      "enableReplanDesc": "エージェントがツールエラーを自動修正できるようにする",
+      "contextCompression": "コンテキスト圧縮",
+      "contextCompressionDesc": "長いコンテキスト履歴を自動圧縮",
+      "parallelToolCalls": "並列ツール呼び出し",
+      "parallelToolCallsDesc": "複数のツールを同時に実行可能にする",
+      "adversarialVerifier": "敵対的検証",
+      "adversarialVerifierDesc": "物理的な実行サンドボックスでのテストを強制"
+    },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",
     "rollbackFailed": "Failed to roll back configuration",

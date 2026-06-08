@@ -4053,7 +4053,19 @@
       }
     },
     "advancedEngineParams": "Advanced Engine Parameters",
-    "advancedEngineParamsDesc": "Configure internal engine limits and topology switches",
+    "advancedEngineParamsDesc": "Interne Engine-Limits und Topologie-Schalter konfigurieren",
+    "engineParam": {
+      "defaultValue": "Standard: {value}",
+      "defaultNone": "Standard: Keiner",
+      "enableReplan": "Replan aktivieren",
+      "enableReplanDesc": "Agent kann Werkzeugfehler selbst korrigieren",
+      "contextCompression": "Kontextkomprimierung",
+      "contextCompressionDesc": "Langen Kontextverlauf automatisch komprimieren",
+      "parallelToolCalls": "Parallele Werkzeugaufrufe",
+      "parallelToolCallsDesc": "Mehrere Werkzeuge gleichzeitig ausführen",
+      "adversarialVerifier": "Adversariale Verifizierung",
+      "adversarialVerifierDesc": "Tests in physischer Ausführungssandbox erzwingen"
+    },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",
     "rollbackFailed": "Failed to roll back configuration",

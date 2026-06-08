@@ -4020,6 +4020,18 @@
     "capabilitiesDesc": "Configure the tools and resources the agent can use",
     "advancedEngineParams": "Advanced Engine Parameters",
     "advancedEngineParamsDesc": "Configure internal engine limits and topology switches",
+    "engineParam": {
+      "defaultValue": "Default: {value}",
+      "defaultNone": "Default: None",
+      "enableReplan": "Enable Replan",
+      "enableReplanDesc": "Allow agent to self-correct tool errors",
+      "contextCompression": "Context Compression",
+      "contextCompressionDesc": "Auto-compress long context history",
+      "parallelToolCalls": "Parallel Tool Calls",
+      "parallelToolCallsDesc": "Allow multiple tools at once",
+      "adversarialVerifier": "Adversarial Verifier",
+      "adversarialVerifierDesc": "Force physical execution sandbox tests"
+    },
     "configured": "configured",
     "configure": "Configure",
     "save": "Save",

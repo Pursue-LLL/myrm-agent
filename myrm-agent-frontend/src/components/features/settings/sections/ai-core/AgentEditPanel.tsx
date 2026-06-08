@@ -464,7 +464,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                       <Input
                         type="number"
                         min={1}
-                        placeholder="Default: 30"
+                        placeholder={t('agent.engineParam.defaultValue', { value: '30' })}
                         value={(editor.engineParams?.max_tool_calls as number) ?? ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -481,7 +481,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                       <Input
                         type="number"
                         min={1}
-                        placeholder="Default: 15"
+                        placeholder={t('agent.engineParam.defaultValue', { value: '15' })}
                         value={(editor.engineParams?.max_bash_calls as number) ?? ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -498,7 +498,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                       <Input
                         type="number"
                         min={0}
-                        placeholder="Default: 3"
+                        placeholder={t('agent.engineParam.defaultValue', { value: '3' })}
                         value={(editor.engineParams?.max_replan_attempts as number) ?? ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -515,7 +515,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                       <Input
                         type="number"
                         min={1}
-                        placeholder="Default: None"
+                        placeholder={t('agent.engineParam.defaultNone')}
                         value={(editor.engineParams?.timeout_seconds as number) ?? ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -532,8 +532,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                   <div className="pt-2 border-t border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-foreground">Enable Replan</label>
-                        <p className="text-xs text-muted-foreground">Allow agent to self-correct tool errors</p>
+                        <label className="text-sm font-medium text-foreground">{t('agent.engineParam.enableReplan')}</label>
+                        <p className="text-xs text-muted-foreground">{t('agent.engineParam.enableReplanDesc')}</p>
                       </div>
                       <Switch
                         checked={editor.engineParams?.enable_replan !== false}
@@ -547,8 +547,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-foreground">Context Compression</label>
-                        <p className="text-xs text-muted-foreground">Auto-compress long context history</p>
+                        <label className="text-sm font-medium text-foreground">{t('agent.engineParam.contextCompression')}</label>
+                        <p className="text-xs text-muted-foreground">{t('agent.engineParam.contextCompressionDesc')}</p>
                       </div>
                       <Switch
                         checked={editor.engineParams?.enable_context_compression !== false}
@@ -562,8 +562,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-foreground">Parallel Tool Calls</label>
-                        <p className="text-xs text-muted-foreground">Allow multiple tools at once</p>
+                        <label className="text-sm font-medium text-foreground">{t('agent.engineParam.parallelToolCalls')}</label>
+                        <p className="text-xs text-muted-foreground">{t('agent.engineParam.parallelToolCallsDesc')}</p>
                       </div>
                       <Switch
                         checked={editor.engineParams?.enable_parallel_tool_calls !== false}
@@ -577,8 +577,8 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-sm font-medium text-foreground">Adversarial Verifier</label>
-                        <p className="text-xs text-muted-foreground">Force physical execution sandbox tests</p>
+                        <label className="text-sm font-medium text-foreground">{t('agent.engineParam.adversarialVerifier')}</label>
+                        <p className="text-xs text-muted-foreground">{t('agent.engineParam.adversarialVerifierDesc')}</p>
                       </div>
                       <Switch
                         checked={editor.engineParams?.adversarial_verification === true}

@@ -4090,6 +4090,18 @@
     "maxIterationsDesc": "Agent 单次对话中工具调用的最大轮数（留空使用默认值 100）",
     "advancedEngineParams": "高级引擎参数",
     "advancedEngineParamsDesc": "配置内部引擎限制和拓扑开关",
+    "engineParam": {
+      "defaultValue": "默认: {value}",
+      "defaultNone": "默认: 无",
+      "enableReplan": "启用重规划",
+      "enableReplanDesc": "允许智能体自动纠正工具调用错误",
+      "contextCompression": "上下文压缩",
+      "contextCompressionDesc": "自动压缩过长的上下文历史",
+      "parallelToolCalls": "并行工具调用",
+      "parallelToolCallsDesc": "允许同时调用多个工具",
+      "adversarialVerifier": "对抗性验证器",
+      "adversarialVerifierDesc": "强制在物理执行沙箱中运行测试"
+    },
     "modelParams": "模型参数",
     "modelParamsDesc": "为此智能体配置独立的模型调用参数",
     "temperature": "Temperature",
