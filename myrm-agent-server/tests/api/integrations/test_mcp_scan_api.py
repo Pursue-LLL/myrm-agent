@@ -21,7 +21,7 @@ def client() -> Iterator[TestClient]:
 
 
 class TestMCPScanEndpoint:
-    """POST /api/v1/mcp/scan — static MCP configuration scan (no network)."""
+    """POST /api/v1/integrations/mcp/scan — static MCP configuration scan (no network)."""
 
     def test_clean_config_allows_save(self, client: TestClient) -> None:
         response = client.post(

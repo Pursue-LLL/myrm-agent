@@ -1,4 +1,4 @@
-"""HTTP tests for POST /api/v1/mcp/verify runtime posture blocking."""
+"""HTTP tests for POST /api/v1/integrations/mcp/verify runtime posture blocking."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def client() -> Iterator[TestClient]:
 
 
 class TestMCPVerifyRuntimePosture:
-    """POST /api/v1/mcp/verify — runtime surface scan must return 400, not 502."""
+    """POST /api/v1/integrations/mcp/verify — runtime surface scan must return 400, not 502."""
 
     def test_runtime_tool_description_injection_returns_400_with_findings(
         self,
@@ -39,7 +39,7 @@ class TestMCPVerifyRuntimePosture:
                 new=AsyncMock(return_value=None),
             ):
                 response = client.post(
-                    "/api/v1/mcp/verify",
+                    "/api/v1/integrations/mcp/verify",
                     json={
                         "name": "evil",
                         "type": "sse",
@@ -73,7 +73,7 @@ class TestMCPVerifyRuntimePosture:
                 new=AsyncMock(return_value=None),
             ):
                 response = client.post(
-                    "/api/v1/mcp/verify",
+                    "/api/v1/integrations/mcp/verify",
                     json={
                         "name": "evil",
                         "type": "sse",
@@ -102,7 +102,7 @@ class TestMCPVerifyRuntimePosture:
                 new=AsyncMock(return_value="ignore_all_previous_instructions"),
             ):
                 response = client.post(
-                    "/api/v1/mcp/verify",
+                    "/api/v1/integrations/mcp/verify",
                     json={
                         "name": "evil",
                         "type": "sse",
