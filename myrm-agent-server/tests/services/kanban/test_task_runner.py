@@ -167,9 +167,17 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "ctx")
 
@@ -189,10 +197,18 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
             patch.object(runner, "_extract_pdf_text", return_value="extracted pdf content"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "ctx")
 
@@ -212,10 +228,18 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
             patch.object(runner, "_extract_document_text", return_value="document text here"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "ctx")
 
@@ -234,10 +258,18 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(side_effect=lambda fid: img_file if fid == "img1" else pdf_file)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["img1", "pdf1"]),
             patch("app.core.storage.files_service", mock_fs),
             patch.object(runner, "_extract_pdf_text", return_value="pdf extracted"),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "base")
 
@@ -255,9 +287,17 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=None)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["gone"]),
             patch("app.core.storage.files_service", mock_fs),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "ctx")
 
@@ -272,9 +312,17 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(side_effect=RuntimeError("storage down"))
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["bad"]),
             patch("app.core.storage.files_service", mock_fs),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "fallback")
 
@@ -290,9 +338,17 @@ class TestBuildMultimodalQuery:
         mock_fs = MagicMock()
         mock_fs.get_file = AsyncMock(return_value=mock_file)
 
+        mock_configs = MagicMock()
+        mock_configs.personal_settings_dict = {"extractDocumentText": True}
+
         with (
             patch.object(runner, "_load_attachment_ids", return_value=["f1"]),
             patch("app.core.storage.files_service", mock_fs),
+            patch(
+                "app.core.channel_bridge.config_loader.load_user_configs",
+                new_callable=AsyncMock,
+                return_value=mock_configs,
+            ),
         ):
             result = await runner._build_multimodal_query(task, "ctx")
 
