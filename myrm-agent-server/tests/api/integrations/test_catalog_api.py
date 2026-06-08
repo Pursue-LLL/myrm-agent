@@ -1,8 +1,8 @@
 """Tests for Integration Catalog API endpoints.
 
 Tests cover:
-- GET /catalog (list all, search, category filter)
-- GET /catalog/{entry_id} (single entry, 404)
+- GET /integrations/catalog (list all, search, category filter)
+- GET /integrations/catalog/{entry_id} (single entry, 404)
 - Response schema validation
 """
 
@@ -28,10 +28,10 @@ def client() -> Iterator[TestClient]:
 
 
 class TestCatalogListEndpoint:
-    """Tests for GET /api/v1/catalog."""
+    """Tests for GET /api/v1/integrations/catalog."""
 
     def test_list_all(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog")
+        response = client.get("/api/v1/integrations/catalog")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -41,34 +41,34 @@ class TestCatalogListEndpoint:
         assert len(payload["categories"]) == 9
 
     def test_list_with_category_filter(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog?category=development")
+        response = client.get("/api/v1/integrations/catalog?category=development")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["total"] >= 3
         assert all(e["category"] == "development" for e in data["entries"])
 
     def test_list_with_search_query(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog?q=notion")
+        response = client.get("/api/v1/integrations/catalog?q=notion")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["total"] == 1
         assert data["entries"][0]["id"] == "notion"
 
     def test_list_search_no_results(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog?q=xyznonexistent")
+        response = client.get("/api/v1/integrations/catalog?q=xyznonexistent")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["total"] == 0
         assert data["entries"] == []
 
     def test_list_empty_category(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog?category=nonexistent")
+        response = client.get("/api/v1/integrations/catalog?category=nonexistent")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["total"] == 0
 
     def test_response_schema(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog")
+        response = client.get("/api/v1/integrations/catalog")
         data = response.json()["data"]
         entry = data["entries"][0]
         required_fields = [
@@ -88,10 +88,10 @@ class TestCatalogListEndpoint:
 
 
 class TestCatalogDetailEndpoint:
-    """Tests for GET /api/v1/catalog/{entry_id}."""
+    """Tests for GET /api/v1/integrations/catalog/{entry_id}."""
 
     def test_get_existing_entry(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/github")
+        response = client.get("/api/v1/integrations/catalog/github")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["id"] == "github"
@@ -101,7 +101,7 @@ class TestCatalogDetailEndpoint:
         assert data["mcpConfig"] is not None
 
     def test_get_entry_with_mcp_config(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/notion")
+        response = client.get("/api/v1/integrations/catalog/notion")
         data = response.json()["data"]
         mcp = data["mcpConfig"]
         assert mcp is not None
@@ -110,22 +110,22 @@ class TestCatalogDetailEndpoint:
         assert "args" in mcp
 
     def test_get_nonexistent_entry(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/does_not_exist")
+        response = client.get("/api/v1/integrations/catalog/does_not_exist")
         assert response.status_code == 404
 
     def test_entry_has_help_url(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/notion")
+        response = client.get("/api/v1/integrations/catalog/notion")
         data = response.json()["data"]
         assert data["helpUrl"] is not None
         assert "notion.so" in data["helpUrl"]
 
     def test_entry_env_key_present(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/github")
+        response = client.get("/api/v1/integrations/catalog/github")
         data = response.json()["data"]
         assert data["envKey"] is not None
 
     def test_feishu_entry_has_credential_fields(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/feishu")
+        response = client.get("/api/v1/integrations/catalog/feishu")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["id"] == "feishu"
@@ -138,7 +138,7 @@ class TestCatalogDetailEndpoint:
         assert "{{app_secret}}" in keys
 
     def test_dingtalk_entry_has_credential_fields(self, client: TestClient) -> None:
-        response = client.get("/api/v1/catalog/dingtalk")
+        response = client.get("/api/v1/integrations/catalog/dingtalk")
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["id"] == "dingtalk"
