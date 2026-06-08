@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
@@ -10,6 +10,9 @@ import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { SkillGrowthCase } from '@/services/skill-growth';
+import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import type { DiffOnMount } from '@monaco-editor/react';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 interface SkillGrowthCaseCardProps {
   item: SkillGrowthCase;
@@ -59,8 +62,10 @@ export default function SkillGrowthCaseCard({
   const [rejectionReason, setRejectionReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
+  const modifiedEditorRef = useRef<{ getValue: () => string } | null>(null);
 
   const isDark = theme === 'dark';
+  const isMobile = useIsMobile();
   const statusStyle = STATUS_STYLES[item.status];
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
   const sourceLabel = item.source === 'draft' ? t('source.backgroundReview') : t('source.manualEvolution');
@@ -89,13 +94,24 @@ export default function SkillGrowthCaseCard({
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     setEditedContent('');
+    modifiedEditorRef.current = null;
+  }, []);
+
+  const handleDiffEditorMount: DiffOnMount = useCallback((editor) => {
+    const modifiedEditor = editor.getModifiedEditor();
+    modifiedEditorRef.current = modifiedEditor;
+    modifiedEditor.onDidChangeModelContent(() => {
+      setEditedContent(modifiedEditor.getValue());
+    });
   }, []);
 
   const handleSaveRevision = useCallback(async () => {
-    if (!onRevise || !editedContent.trim()) return;
-    await onRevise(editedContent);
+    const content = modifiedEditorRef.current?.getValue() ?? editedContent;
+    if (!onRevise || !content.trim()) return;
+    await onRevise(content);
     setIsEditing(false);
     setEditedContent('');
+    modifiedEditorRef.current = null;
   }, [onRevise, editedContent]);
 
   return (
@@ -274,12 +290,25 @@ export default function SkillGrowthCaseCard({
               </Button>
             </div>
           </div>
-          <textarea
-            value={editedContent}
-            onChange={(event) => setEditedContent(event.target.value)}
-            className="min-h-[300px] w-full rounded-xl border bg-background px-4 py-3 font-mono text-sm outline-none ring-0 transition-colors focus:border-primary resize-y"
-            spellCheck={false}
-          />
+          <div className="rounded-xl border overflow-hidden bg-background h-[300px] md:h-[400px]">
+            <LazyMonacoDiffEditor
+              height="100%"
+              original={item.originalContent ?? ''}
+              modified={editedContent}
+              theme={isDark ? 'vs-dark' : 'light'}
+              onMount={handleDiffEditorMount}
+              options={{
+                readOnly: false,
+                renderSideBySide: !isMobile,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                lineNumbersMinChars: 3,
+                padding: { top: 12, bottom: 12 },
+                originalEditable: false,
+              }}
+            />
+          </div>
         </div>
       )}
 

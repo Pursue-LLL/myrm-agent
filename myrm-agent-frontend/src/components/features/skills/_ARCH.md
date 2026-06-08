@@ -21,8 +21,8 @@
 | `SkillEmptyState.tsx` | 组件/模块 | — | — |
 | `SkillExportDialog.tsx` | 组件/模块 | — | — |
 | `SkillFilters.tsx` | 组件/模块 | — | — |
-| `SkillGrowthCaseCard.tsx` | 组件/模块 | — | — |
-| `SkillHistoryPanel.tsx` | 组件/模块 | — | — |
+| `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：Monaco DiffEditor 就地修订、审批/拒绝（接 evolution API） | ✅ |
+| `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |
 | `SkillInstanceManager.tsx` | 组件/模块 | — | — |
 | `SkillList.tsx` | 组件/模块 | — | — |
 | `SkillPermissionApprovalDialog.tsx` | 组件/模块 | — | — |

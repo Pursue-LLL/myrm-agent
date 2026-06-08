@@ -21,6 +21,7 @@ import {
 import { toast } from '@/hooks/useToast';
 import { useTheme } from 'next-themes';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import { apiRequest } from '@/lib/api';
 
 interface EvolutionRecord {
   id: string;
@@ -52,9 +53,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   const fetchHistory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/evolution/history?limit=20');
-      if (!res.ok) throw new Error('Failed to fetch history');
-      const data = await res.json();
+      const data = await apiRequest<{ items: EvolutionRecord[] }>('/evolution/history?limit=20', { silent: true });
       setRecords(data.items || []);
     } catch {
       toast({ title: t('fetchError'), variant: 'destructive' });
@@ -73,12 +72,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
     setPendingRollback(null);
     setIsRollingBack(id);
     try {
-      const res = await fetch(`/api/v1/evolution/history/${id}/rollback`, {
-        method: 'POST',
-      });
-      if (!res.ok) {
-        throw new Error('Rollback failed');
-      }
+      await apiRequest(`/evolution/${id}/rollback`, { method: 'POST', silent: true });
       toast({ title: t('rollbackSuccess', { name }) });
       await fetchHistory();
     } catch {
@@ -189,7 +183,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-border/40 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="mb-2 text-xs font-medium text-muted-foreground">{t('codeChanges')}</div>
-                    <div className="rounded-full border overflow-hidden bg-background h-[300px]">
+                    <div className="rounded-xl border overflow-hidden bg-background h-[300px]">
                       <DiffEditor
                         height="300px"
                         original={record.original_content}
