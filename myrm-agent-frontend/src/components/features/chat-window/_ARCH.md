@@ -32,6 +32,7 @@
 | `QuoteCard.tsx` | 组件/模块 | — | — |
 | `ReferenceMentionPopover.tsx` | 组件/模块 | — | — |
 | `SamplePrompts.tsx` | 组件/模块 | — | — |
+| `YoloModeBanner.tsx` | 组件/模块 | YOLO 模式全局警告横幅（读取 ConfigSyncManager 安全策略配置） | — |
 | `SessionTrashPanel.tsx` | 组件/模块 | — | — |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 
