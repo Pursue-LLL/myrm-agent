@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe } from 'lucide-react';
+import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe, ChevronDown, ChevronUp } from 'lucide-react';
 import { ApprovalPayload, ApprovalToolCall } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
 import { Textarea } from '@/components/primitives/textarea';
@@ -102,6 +102,69 @@ function getLanguageFromPath(filePath: string): string {
     default:
       return 'plaintext';
   }
+}
+
+function SkillApprovalContent({
+  reason,
+  content,
+  originalContent,
+  language,
+  isDark,
+  label,
+}: {
+  reason?: string;
+  content?: string;
+  originalContent?: string;
+  language: string;
+  isDark: boolean;
+  label: string;
+}) {
+  const [showDiff, setShowDiff] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      <h4 className="font-medium text-sm text-muted-foreground">{label}</h4>
+      {reason && <p className="text-sm text-foreground">{reason}</p>}
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        onClick={() => setShowDiff(!showDiff)}
+      >
+        {showDiff ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        {showDiff ? 'Hide changes' : 'View changes'}
+      </button>
+      {showDiff && (
+        <div className="rounded-lg border overflow-hidden h-[400px]">
+          {originalContent ? (
+            <DiffEditor
+              height="400px"
+              language={language}
+              theme={isDark ? 'vs-dark' : 'light'}
+              original={String(originalContent)}
+              modified={String(content || '')}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                wordWrap: 'on',
+              }}
+            />
+          ) : (
+            <Editor
+              height="400px"
+              language={language}
+              theme={isDark ? 'vs-dark' : 'light'}
+              value={String(content || '')}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                wordWrap: 'on',
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: PolymorphicApprovalCardProps) {
@@ -220,39 +283,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         const originalContent = approval.payload?.original_content;
         const language = 'markdown';
 
-        return (
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm text-muted-foreground">{t('skillGrowthPending')}</h4>
-            <div className="rounded-lg border overflow-hidden h-[400px]">
-              {originalContent ? (
-                <DiffEditor
-                  height="400px"
-                  language={language}
-                  theme={isDark ? 'vs-dark' : 'light'}
-                  original={String(originalContent)}
-                  modified={String(content || '')}
-                  options={{
-                    readOnly: true,
-                    minimap: { enabled: false },
-                    wordWrap: 'on',
-                  }}
-                />
-              ) : (
-                <Editor
-                  height="400px"
-                  language={language}
-                  theme={isDark ? 'vs-dark' : 'light'}
-                  value={String(content || '')}
-                  options={{
-                    readOnly: true,
-                    minimap: { enabled: false },
-                    wordWrap: 'on',
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        );
+        return <SkillApprovalContent
+          reason={approval.reason}
+          content={content}
+          originalContent={originalContent}
+          language={language}
+          isDark={isDark}
+          label={t('skillGrowthPending')}
+        />;
       }
       case 'tool_clarification': {
         const errorMsg = approval.reason || 'Tool execution failed';

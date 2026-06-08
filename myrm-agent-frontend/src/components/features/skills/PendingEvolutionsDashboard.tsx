@@ -7,12 +7,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 import { Skeleton } from '@/components/primitives/skeleton';
-import SkillGrowthCaseCard from '@/components/features/skills/SkillGrowthCaseCard';
+import SkillGrowthCaseCard, { type SkillGrowthViewMode } from '@/components/features/skills/SkillGrowthCaseCard';
 import SettingsSection from '@/components/features/settings/sections/SettingsSection';
 import { toast } from '@/hooks/useToast';
 import {
@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 type GrowthFilter = 'all' | 'pending' | 'applied' | 'blocked' | 'reviewed';
 
 const FILTER_ORDER: GrowthFilter[] = ['all', 'pending', 'applied', 'blocked', 'reviewed'];
+const VIEW_MODE_KEY = 'myrm:skill-growth-view-mode';
 
 function matchesFilter(item: SkillGrowthCase, filter: GrowthFilter): boolean {
   if (filter === 'all') return true;
@@ -71,6 +72,18 @@ export function PendingEvolutionsDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [processingCaseId, setProcessingCaseId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<GrowthFilter>('all');
+  const [viewMode, setViewMode] = useState<SkillGrowthViewMode>(() => {
+    if (typeof window === 'undefined') return 'simple';
+    return (localStorage.getItem(VIEW_MODE_KEY) as SkillGrowthViewMode) || 'simple';
+  });
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => {
+      const next: SkillGrowthViewMode = prev === 'simple' ? 'detailed' : 'simple';
+      localStorage.setItem(VIEW_MODE_KEY, next);
+      return next;
+    });
+  }, []);
 
   const refreshSkillInventory = useCallback(async () => {
     await Promise.all([fetchUserSkillConfig(true), fetchLocalSkills()]);
@@ -214,10 +227,21 @@ export function PendingEvolutionsDashboard() {
       title={t('title')}
       description={t('description')}
       action={
-        <Button variant="outline" size="sm" onClick={() => void loadCases()} disabled={isLoading}>
-          <RefreshCw className={cn('mr-2 h-4 w-4', isLoading && 'animate-spin')} />
-          {t('refresh')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={toggleViewMode}
+          >
+            {viewMode === 'simple' ? <List className="h-4 w-4" /> : <SquareStack className="h-4 w-4" />}
+            {t(`viewMode.${viewMode}` as Parameters<typeof t>[0])}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void loadCases()} disabled={isLoading}>
+            <RefreshCw className={cn('mr-2 h-4 w-4', isLoading && 'animate-spin')} />
+            {t('refresh')}
+          </Button>
+        </div>
       }
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -309,6 +333,7 @@ export function PendingEvolutionsDashboard() {
               key={item.id}
               item={item}
               isProcessing={processingCaseId === item.id}
+              viewMode={viewMode}
               onApprove={() => handleApprove(item, 'immediate')}
               onApproveShadow={() => handleApprove(item, 'shadow')}
               onReject={(reason?: string) => handleReject(item, reason)}

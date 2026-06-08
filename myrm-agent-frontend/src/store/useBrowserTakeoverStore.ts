@@ -1,4 +1,7 @@
 /**
+ * [INPUT]
+ * - zustand::create (POS: Lightweight state management)
+ *
  * [OUTPUT]
  * useBrowserTakeoverStore: Zustand store for browser takeover request state.
  *

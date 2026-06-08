@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
@@ -14,9 +14,12 @@ import { LazyMonacoDiffEditor } from '@/components/features/app-shell/lazy-monac
 import type { DiffOnMount } from '@monaco-editor/react';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
+export type SkillGrowthViewMode = 'simple' | 'detailed';
+
 interface SkillGrowthCaseCardProps {
   item: SkillGrowthCase;
   isProcessing: boolean;
+  viewMode?: SkillGrowthViewMode;
   onApprove: () => Promise<void>;
   onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
@@ -51,6 +54,7 @@ const STATUS_STYLES: Record<
 export default function SkillGrowthCaseCard({
   item,
   isProcessing,
+  viewMode = 'detailed',
   onApprove,
   onApproveShadow,
   onReject,
@@ -62,7 +66,9 @@ export default function SkillGrowthCaseCard({
   const [rejectionReason, setRejectionReason] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
+  const [expandedInSimple, setExpandedInSimple] = useState(false);
   const modifiedEditorRef = useRef<{ getValue: () => string } | null>(null);
+  const isSimple = viewMode === 'simple';
 
   const isDark = theme === 'dark';
   const isMobile = useIsMobile();
@@ -130,20 +136,28 @@ export default function SkillGrowthCaseCard({
               {item.growthType}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{item.summary}</p>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+          <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
+            {item.summary}
+          </p>
+          <div className={cn('flex flex-wrap items-center gap-3 text-muted-foreground', isSimple ? 'text-sm' : 'text-xs')}>
             <span className="inline-flex items-center gap-1">
               <Clock3 className="h-3.5 w-3.5" />
               {createdAt}
             </span>
             {item.confidence !== null && (
-              <span className="inline-flex items-center gap-1">
+              <span className={cn('inline-flex items-center gap-1', isSimple && (
+                item.confidence >= 0.8 ? 'text-emerald-600 dark:text-emerald-400' :
+                item.confidence >= 0.5 ? 'text-amber-600 dark:text-amber-400' :
+                'text-red-600 dark:text-red-400'
+              ))}>
                 <IconGlow className="h-3.5 w-3.5" />
                 {t('confidence', { value: (item.confidence * 100).toFixed(1) })}
               </span>
             )}
             {item.testPassed !== null && (
-              <span className="inline-flex items-center gap-1">
+              <span className={cn('inline-flex items-center gap-1', isSimple && (
+                item.testPassed ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+              ))}>
                 <ShieldAlert className="h-3.5 w-3.5" />
                 {item.testPassed ? t('testPassed') : t('testFailed')}
               </span>
@@ -249,6 +263,27 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
+      {isSimple && !expandedInSimple && (showDiff || item.proposedContent) && (
+        <button
+          type="button"
+          className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => setExpandedInSimple(true)}
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+          {t('viewChanges')}
+        </button>
+      )}
+      {isSimple && expandedInSimple && (
+        <button
+          type="button"
+          className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => setExpandedInSimple(false)}
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+          {t('hideChanges')}
+        </button>
+      )}
+
       {showRejectInput && (
         <div className="mt-3">
           <label className="mb-1 block text-xs font-medium text-muted-foreground">{t('rejectReasonLabel')}</label>
@@ -261,14 +296,14 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {item.triggerCondition && (
+      {(!isSimple || expandedInSimple) && item.triggerCondition && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('triggerCondition')}</p>
           <p className="mt-1 text-sm whitespace-pre-wrap">{item.triggerCondition}</p>
         </div>
       )}
 
-      {item.skillSteps && (
+      {(!isSimple || expandedInSimple) && item.skillSteps && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('skillSteps')}</p>
           <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.skillSteps}</pre>
@@ -312,7 +347,7 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {!isEditing && showDiff && (
+      {(!isSimple || expandedInSimple) && !isEditing && showDiff && (
         <div className="mt-4 overflow-hidden rounded-xl border">
           <ReactDiffViewer
             oldValue={item.originalContent ?? ''}
@@ -325,14 +360,14 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
-      {!isEditing && !showDiff && item.proposedContent && (
+      {(!isSimple || expandedInSimple) && !isEditing && !showDiff && item.proposedContent && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('proposed')}</p>
           <pre className="mt-1 whitespace-pre-wrap text-sm text-foreground">{item.proposedContent}</pre>
         </div>
       )}
 
-      {item.trajectory && (
+      {(!isSimple || expandedInSimple) && item.trajectory && (
         <div className="mt-4 rounded-xl border bg-muted/20 p-3">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('trajectoryAnalysis')}</p>
           <pre className="mt-1 whitespace-pre-wrap text-xs text-foreground font-mono overflow-x-auto">

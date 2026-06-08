@@ -2238,6 +2238,12 @@
         "title": "技能成长",
         "description": "把待审核学习结果、自动落地的新技能，以及被拦截的变更统一收敛到一个队列里查看和处理。",
         "refresh": "刷新",
+        "viewMode": {
+          "simple": "简洁",
+          "detailed": "详细"
+        },
+        "viewChanges": "查看变更",
+        "hideChanges": "收起变更",
         "loadFailed": "加载技能成长案例失败",
         "authRequired": "请先登录后再查看技能成长案例。",
         "approveSuccess": "已成功通过「{name}」",
@@ -10400,7 +10406,8 @@
       "loadFailed": "无法连接可视化桌面，请唤醒沙箱或升级至 Pro。",
       "disconnected": "连接已断开",
       "disconnectedHint": "Agent 沙箱可能处于休眠或不可用状态。",
-      "reconnect": "重新连接"
+      "reconnect": "重新连接",
+      "takeoverDone": "完成"
     },
     "pricing": {
       "title": "定价",

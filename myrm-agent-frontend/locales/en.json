@@ -2238,6 +2238,12 @@
         "title": "Skill Growth",
         "description": "Review pending learnings, auto-applied captures, and blocked changes in one unified queue.",
         "refresh": "Refresh",
+        "viewMode": {
+          "simple": "Simple",
+          "detailed": "Detailed"
+        },
+        "viewChanges": "View changes",
+        "hideChanges": "Hide changes",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",
@@ -10433,7 +10439,8 @@
       "loadFailed": "Unable to connect to visual desktop. Wake your sandbox or upgrade to Pro.",
       "disconnected": "Disconnected",
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
-      "reconnect": "Reconnect"
+      "reconnect": "Reconnect",
+      "takeoverDone": "Done"
     },
     "pricing": {
       "title": "Pricing",

@@ -21,7 +21,7 @@
 | `SkillEmptyState.tsx` | 组件/模块 | — | — |
 | `SkillExportDialog.tsx` | 组件/模块 | — | — |
 | `SkillFilters.tsx` | 组件/模块 | — | — |
-| `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：Monaco DiffEditor 就地修订、审批/拒绝（接 evolution API） | ✅ |
+| `SkillGrowthCaseCard.tsx` | 核心 | 技能进化提案卡片：Simple/Detailed 双视图模式、Monaco DiffEditor 就地修订、审批/拒绝（接 evolution API） | ✅ |
 | `SkillHistoryPanel.tsx` | 核心 | 技能进化历史面板：已处理记录列表、一键回滚（接 evolution API） | ✅ |
 | `SkillInstanceManager.tsx` | 组件/模块 | — | — |
 | `SkillList.tsx` | 组件/模块 | — | — |
@@ -34,7 +34,7 @@
 | `SkillUploadDialog.tsx` | 组件/模块 | — | — |
 | `SkillUrlImportDialog.tsx` | 组件/模块 | — | — |
 | `skillCategories.ts` | 组件/模块 | — | — |
-| `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表 | ✅ |
+| `PendingEvolutionsDashboard.tsx` | 核心 | 待审核技能进化列表，支持 Simple/Detailed 视图切换（localStorage 持久化） | ✅ |
 | `EvolutionRejectionDashboard.tsx` | 核心 | 技能进化拒绝/失败审计面板 | ✅ |
 
 ## 依赖

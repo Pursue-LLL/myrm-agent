@@ -2048,6 +2048,12 @@
         "title": "Skill Growth",
         "description": "Review pending learnings, auto-applied captures, and blocked changes in one unified queue.",
         "refresh": "Refresh",
+        "viewMode": {
+          "simple": "간단",
+          "detailed": "상세"
+        },
+        "viewChanges": "변경 사항 보기",
+        "hideChanges": "변경 사항 숨기기",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",
@@ -10291,7 +10297,8 @@
       "loadFailed": "Unable to connect to visual desktop. Wake your sandbox or upgrade to Pro.",
       "disconnected": "Disconnected",
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
-      "reconnect": "Reconnect"
+      "reconnect": "Reconnect",
+      "takeoverDone": "완료"
     },
     "pricing": {
       "title": "Pricing",
