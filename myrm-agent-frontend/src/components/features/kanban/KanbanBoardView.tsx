@@ -88,6 +88,10 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
     parentTitles: string[];
   } | null>(null);
 
+  const pendingUserWrites = useRef<Map<string, { targetStatus: TaskStatus; previousStatus: TaskStatus; ts: number }>>(
+    new Map(),
+  );
+
   const handleTaskSelect = useCallback(
     (taskId: string, event: React.MouseEvent) => {
       if (event.ctrlKey || event.metaKey) {
@@ -128,7 +132,22 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const fetchTasks = useCallback(async () => {
     try {
       const result = await listTasks(board.board_id, { limit: 200 });
-      setTasks(result.items);
+      const pending = pendingUserWrites.current;
+      if (pending.size === 0) {
+        setTasks(result.items);
+      } else {
+        const now = Date.now();
+        for (const [id, entry] of pending) {
+          if (now - entry.ts > 5_000) pending.delete(id);
+        }
+        setTasks(
+          result.items.map((serverTask) => {
+            const guard = pending.get(serverTask.task_id);
+            if (guard) return { ...serverTask, status: guard.targetStatus };
+            return serverTask;
+          }),
+        );
+      }
     } catch {
       toast.error(t('fetchError'));
     } finally {
@@ -296,10 +315,23 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
 
   const handleMoveTask = useCallback(
     async (taskId: string, targetStatus: TaskStatus, force = false) => {
+      const currentTask = tasks.find((tk) => tk.task_id === taskId);
+      const previousStatus = currentTask?.status;
+
+      if (previousStatus && previousStatus !== targetStatus) {
+        pendingUserWrites.current.set(taskId, { targetStatus, previousStatus, ts: Date.now() });
+        setTasks((prev) => prev.map((tk) => (tk.task_id === taskId ? { ...tk, status: targetStatus } : tk)));
+      }
+
       try {
         await moveTask(taskId, targetStatus, { force });
+        pendingUserWrites.current.delete(taskId);
         await fetchTasks();
       } catch (err) {
+        pendingUserWrites.current.delete(taskId);
+        if (previousStatus) {
+          setTasks((prev) => prev.map((tk) => (tk.task_id === taskId ? { ...tk, status: previousStatus } : tk)));
+        }
         if (err instanceof ApiError && err.businessCode === 'deps_unmet') {
           const parents = (err.data?.unmet_parents ?? []) as Array<{ task_id: string; title: string; status: string }>;
           const parentTitles = parents.map((p) => `${p.title} (${p.status})`);
@@ -309,7 +341,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
         toast.error(err instanceof ApiError ? err.message : t('moveError'));
       }
     },
-    [fetchTasks, t],
+    [tasks, fetchTasks, t],
   );
 
   const handleForcePromoteConfirm = useCallback(async () => {

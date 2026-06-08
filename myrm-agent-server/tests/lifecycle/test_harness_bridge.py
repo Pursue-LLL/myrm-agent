@@ -5,6 +5,7 @@ import pytest
 from myrm_agent_harness.runtime.events.skill_events import SkillFailureEvent
 from myrm_agent_harness.runtime.events.system_events import (
     DelegationPolicyDecision,
+    LocatorSelfHealedEvent,
     ResourceMetricsEvent,
     SubagentLifecycleData,
     SubagentLifecycleEvent,
@@ -140,6 +141,9 @@ async def test_emit_subagent_tree_with_checkpoints():
             agent_type = "dummy"
             progress = 100
             last_tool = "test"
+            interruption_reason = ""
+            recovery_attempts = 0
+            task_description = ""
 
         mock_list_checkpoints.return_value = [DummyCheckpoint()]
 
@@ -215,6 +219,7 @@ async def test_setup_stop_harness_bridge():
             SubagentLifecycleEvent,
             ResourceMetricsEvent,
             SkillFailureEvent,
+            LocatorSelfHealedEvent,
         ]
 
         await stop_harness_bridge()

@@ -24,6 +24,16 @@
 | BoardActivityFeed.tsx        | 核心 | Board 级活动流（filter pills + auto-follow + 实时追加）                          | ✅    |
 | kanban-styles.ts             | 辅助 | 共享样式常量                                                                     | ✅    |
 
+## Stale Write Guard（乐观 UI 防冲突）
+
+`KanbanBoardView` 内置 `pendingUserWrites` ref（`Map<taskId, { targetStatus, previousStatus, ts }>`）解决 SSE 推送 reload 与用户拖拽的竞态覆盖问题：
+
+1. **乐观更新** — 用户拖拽后立即更新本地 `tasks` 状态，无需等待 API 响应
+2. **Pending Guard** — `fetchTasks` 合并服务端数据时，对 pending 中的 task 保留用户设定的 `targetStatus`，阻止 SSE reload 覆盖
+3. **成功确认** — `moveTask` API 成功后移除 pending 条目，下次 reload 正常同步
+4. **失败回滚** — API 失败时恢复 `previousStatus` 并 toast 提示
+5. **超时安全阀** — 5s 后自动清除 pending 条目，防止泄漏
+
 ## 模块依赖
 
 - `@/services/kanban` — API 层（Board CRUD / Task CRUD / moveTask / edges）
