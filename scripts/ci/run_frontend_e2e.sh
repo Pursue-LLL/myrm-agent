@@ -39,7 +39,7 @@ echo "==> [1/4] Install backend dependencies"
 SERVER_ROOT="${SERVER_DIR}"
 # shellcheck source=../../myrm-agent-server/scripts/ci/lib_harness_deps.sh
 source "${SERVER_DIR}/scripts/ci/lib_harness_deps.sh"
-myrm_ci_install_server_deps --all-extras
+myrm_ci_install_server_deps --reuse-venv
 
 echo "==> [2/4] Start backend on :8080"
 cd "${SERVER_DIR}"

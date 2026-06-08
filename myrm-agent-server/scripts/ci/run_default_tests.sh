@@ -19,6 +19,6 @@ _run_pytest() {
   fi
 }
 
-myrm_ci_install_server_deps --all-extras
+myrm_ci_install_server_deps --reuse-venv
 _run_pytest
 echo "OK: server default pytest suite"

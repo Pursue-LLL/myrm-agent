@@ -79,7 +79,7 @@ myrm_ci_install_server_deps() {
 
   if myrm_ci_harness_on_pypi; then
     echo "CI deps: PyPI harness"
-    if ! uv sync --frozen --all-extras --group dev; then
+    if ! uv sync --frozen --group dev; then
       echo "ERROR: uv sync --frozen failed. Ensure uv.lock uses PyPI registry pins." >&2
       exit 1
     fi
