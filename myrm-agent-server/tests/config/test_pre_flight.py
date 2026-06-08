@@ -12,13 +12,16 @@ from app.config.pre_flight import preflight_check_config
 from app.core.types import ModelConfig
 
 
-def _clear_deploy_mode_cache() -> None:
+def _reset_deploy_caches() -> None:
     get_deploy_mode.cache_clear()
+    from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
+
+    _reset_capabilities_cache_for_testing()
 
 
 @pytest.mark.parametrize("deploy_mode", ["local", "tauri"])
 def test_preflight_warns_when_webui_model_missing(deploy_mode: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_deploy_mode_cache()
+    _reset_deploy_caches()
     monkeypatch.setenv("DEPLOY_MODE", deploy_mode)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
@@ -32,7 +35,7 @@ def test_preflight_warns_when_webui_model_missing(deploy_mode: str, monkeypatch:
 
 
 def test_webui_preflight_skipped_under_pytest(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_deploy_mode_cache()
+    _reset_deploy_caches()
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.setenv("PYTEST_CURRENT_TEST", "test_webui_preflight_skipped_under_pytest")
 
@@ -42,7 +45,7 @@ def test_webui_preflight_skipped_under_pytest(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_webui_preflight_skipped_in_sandbox(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_deploy_mode_cache()
+    _reset_deploy_caches()
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
@@ -52,7 +55,7 @@ def test_webui_preflight_skipped_in_sandbox(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_webui_preflight_warns_when_db_not_initialized(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_deploy_mode_cache()
+    _reset_deploy_caches()
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
@@ -66,7 +69,7 @@ def test_webui_preflight_warns_when_db_not_initialized(monkeypatch: pytest.Monke
 
 
 def test_webui_preflight_returns_warning_on_config_incomplete(monkeypatch: pytest.MonkeyPatch) -> None:
-    _clear_deploy_mode_cache()
+    _reset_deploy_caches()
     monkeypatch.setenv("DEPLOY_MODE", "local")
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
 
