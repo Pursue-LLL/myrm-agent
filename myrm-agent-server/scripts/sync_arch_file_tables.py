@@ -1,24 +1,31 @@
 #!/usr/bin/env python3
-"""Refresh _ARCH.md file tables from directory listings (no placeholder rows).
+"""Refresh _ARCH.md file tables from directory listings and file-header POS markers.
 
-Scans ``app/`` for ``_ARCH.md`` files that still contain placeholder markers
-(``待补`` or ``（见目录）``) and rewrites the file table from on-disk sources.
+Scans ``app/`` for ``_ARCH.md`` files that contain stub markers (``待补`` or
+``（见目录）``) and rewrites the file table from on-disk sources.
 
 Run from myrm-agent-server root::
 
     python3 scripts/sync_arch_file_tables.py
+    python3 scripts/sync_arch_file_tables.py --path-prefix api/
     python3 scripts/sync_arch_file_tables.py --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
-# Only rewrite stub _ARCH files created with the bulk placeholder table row.
-_STUB_ROW = "| （见目录） | — | 按文件名自解释 | ⚠️ 待补 |"
 _SKIP_NAMES = frozenset({"__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"})
 _SOURCE_SUFFIXES = (".py", ".json", ".yaml", ".yml", ".toml", ".md")
+_STUB_MARKERS = ("待补", "（见目录）")
+_POS_PATTERNS = (
+    re.compile(r"@pos:\s*(.+)", re.IGNORECASE),
+    re.compile(r"\[POS\]\s*\n?\s*(.+)", re.IGNORECASE),
+    re.compile(r"@pos\s+(.+)", re.IGNORECASE),
+)
+_HEADER_SCAN_LINES = 25
 
 
 def _parent_arch_href(arch_path: Path, app_root: Path) -> str:
@@ -48,7 +55,41 @@ def _infer_role(name: str) -> str:
         return "路由"
     if name.endswith(".json"):
         return "数据"
+    if name.startswith("test_"):
+        return "测试"
     return "模块"
+
+
+def _extract_pos(py_path: Path) -> str | None:
+    if py_path.suffix != ".py":
+        return None
+    head = "\n".join(py_path.read_text(encoding="utf-8").splitlines()[:_HEADER_SCAN_LINES])
+    for pattern in _POS_PATTERNS:
+        match = pattern.search(head)
+        if match:
+            pos = match.group(1).strip().rstrip(".")
+            if pos:
+                return pos[:120]
+    return None
+
+
+def _has_io_header(py_path: Path) -> bool:
+    if py_path.suffix != ".py":
+        return False
+    head = "\n".join(py_path.read_text(encoding="utf-8").splitlines()[:_HEADER_SCAN_LINES])
+    return bool(re.search(r"(\[POS\]|\[INPUT\]|@pos:|@input:)", head, re.IGNORECASE))
+
+
+def _describe_source(src: Path) -> tuple[str, str, str]:
+    role = _infer_role(src.name)
+    pos = _extract_pos(src)
+    if pos:
+        return role, pos, "✅"
+    if src.suffix == ".py" and _has_io_header(src):
+        return role, "见文件头 I/O/P", "✅"
+    if src.suffix == ".py":
+        return role, "见源码", "—"
+    return role, "静态配置/文档", "—"
 
 
 def _build_arch(rel_title: str, parent_href: str, sources: list[Path]) -> str:
@@ -68,14 +109,21 @@ def _build_arch(rel_title: str, parent_href: str, sources: list[Path]) -> str:
         lines.append("| — | — | 空目录或仅子目录 | — |")
     else:
         for src in sources:
-            role = _infer_role(src.name)
-            lines.append(f"| `{src.name}` | {role} | 见源码 | ⚠️ 待补 |")
+            role, duty, iop = _describe_source(src)
+            lines.append(f"| `{src.name}` | {role} | {duty} | {iop} |")
     lines.append("")
     return "\n".join(lines)
 
 
 def _needs_refresh(content: str) -> bool:
-    return _STUB_ROW in content
+    return any(marker in content for marker in _STUB_MARKERS)
+
+
+def _matches_prefix(rel: str, prefixes: tuple[str, ...]) -> bool:
+    if not prefixes:
+        return True
+    normalized = rel.replace("\\", "/")
+    return any(normalized == p.rstrip("/") or normalized.startswith(p) for p in prefixes)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -85,18 +133,27 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path(__file__).resolve().parent.parent / "app",
     )
+    parser.add_argument(
+        "--path-prefix",
+        action="append",
+        default=[],
+        help="Only refresh _ARCH.md under this app-relative prefix (repeatable).",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
     app_root: Path = args.app_root.resolve()
+    prefixes = tuple(args.path_prefix)
     updated = 0
     for arch in sorted(app_root.rglob("_ARCH.md")):
         if any(p in _SKIP_NAMES for p in arch.parts):
             continue
+        rel_title = str(arch.parent.relative_to(app_root)).replace("\\", "/")
+        if not _matches_prefix(rel_title, prefixes):
+            continue
         text = arch.read_text(encoding="utf-8")
         if not _needs_refresh(text):
             continue
-        rel_title = str(arch.parent.relative_to(app_root)).replace("\\", "/")
         parent_href = _parent_arch_href(arch, app_root)
         sources = _list_sources(arch.parent)
         new_text = _build_arch(rel_title, parent_href, sources)

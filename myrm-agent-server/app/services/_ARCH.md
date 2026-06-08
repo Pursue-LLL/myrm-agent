@@ -58,7 +58,6 @@
 | `migration/` | ✅ 辅助 | 竞品数据迁移服务（本地 AI 助手数据自动发现） | [_ARCH.md](migration/_ARCH.md) |
 | `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
-| `reasoning_content_manager.py` | ✅ 核心 | reasoning_content 生命周期管理（MiMo/DeepSeek/Kimi 模型回传支持） | — |
 
 ---
 

@@ -5,13 +5,17 @@ on:
     paths:
       - 'myrm-agent-server/app/**'
       - 'myrm-agent-server/scripts/check_fractal_docs.py'
+      - 'myrm-agent-server/scripts/check_file_line_budget.py'
       - 'myrm-agent-server/scripts/sync_arch_file_tables.py'
+      - 'myrm-agent-server/scripts/ci/file_line_budget_baseline.txt'
       - '.github/workflows/server-fractal-docs.yml'
   pull_request:
     paths:
       - 'myrm-agent-server/app/**'
       - 'myrm-agent-server/scripts/check_fractal_docs.py'
+      - 'myrm-agent-server/scripts/check_file_line_budget.py'
       - 'myrm-agent-server/scripts/sync_arch_file_tables.py'
+      - 'myrm-agent-server/scripts/ci/file_line_budget_baseline.txt'
       - '.github/workflows/server-fractal-docs.yml'
 
 jobs:
@@ -32,3 +36,5 @@ jobs:
           python3 scripts/check_fractal_docs.py \
             --strict-headers \
             --header-baseline tests/architecture/data/fractal_header_baseline.txt
+          python3 scripts/check_fractal_docs.py --no-stub
+          python3 scripts/check_file_line_budget.py

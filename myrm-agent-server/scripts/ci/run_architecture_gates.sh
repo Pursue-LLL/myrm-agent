@@ -99,6 +99,8 @@ _run_fractal_docs() {
   _fractal "${SERVER_ROOT}/scripts/check_fractal_docs.py" \
     --strict-headers \
     --header-baseline "${SERVER_ROOT}/tests/architecture/data/fractal_header_baseline.txt"
+  _fractal "${SERVER_ROOT}/scripts/check_fractal_docs.py" --no-stub
+  _fractal "${SERVER_ROOT}/scripts/check_file_line_budget.py"
 }
 
 _install_deps

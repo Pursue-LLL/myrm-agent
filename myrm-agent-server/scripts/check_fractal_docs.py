@@ -14,6 +14,7 @@ Exit codes:
     1  Strict header check found violations.
     2  One or more directories Missing _ARCH.md.
     3  Both directory and (strict) header violations.
+    4  Stub marker found in guarded _ARCH.md paths (--no-stub).
 """
 
 from __future__ import annotations
@@ -42,6 +43,9 @@ _HEADER_MAX_SCAN_LINES = 120
 _HEADER_PATTERN = re.compile(
     r"(?m)^\s*(\[POS\]|\[INPUT\]|@pos:|@input:)",
 )
+_STUB_MARKERS = ("待补", "（见目录）")
+# Public-facing API and channel provider docs must not ship placeholder tables.
+_NO_STUB_PREFIXES = ("api/", "channels/providers/")
 
 
 def _is_pruned_dir(path: Path) -> bool:
@@ -93,6 +97,24 @@ def _rel_app_path(app_root: Path, py_file: Path) -> str:
     return str(py_file.relative_to(app_root.parent))
 
 
+def _arch_has_stub(content: str) -> bool:
+    return any(marker in content for marker in _STUB_MARKERS)
+
+
+def _stub_arch_files(app_root: Path) -> list[Path]:
+    bad: list[Path] = []
+    for arch in sorted(app_root.rglob("_ARCH.md")):
+        if any(p in _PRUNE_DIR_NAMES for p in arch.parts):
+            continue
+        rel = str(arch.parent.relative_to(app_root)).replace("\\", "/")
+        if not any(rel == prefix.rstrip("/") or rel.startswith(prefix) for prefix in _NO_STUB_PREFIXES):
+            continue
+        text = arch.read_text(encoding="utf-8")
+        if _arch_has_stub(text):
+            bad.append(arch)
+    return bad
+
+
 def _missing_io_headers(app_root: Path) -> list[Path]:
     bad: list[Path] = []
     for py in sorted(app_root.rglob("*.py")):
@@ -127,6 +149,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="With --strict-headers: allow listed app-relative paths (one per line); fail only on new violations.",
     )
+    parser.add_argument(
+        "--no-stub",
+        action="store_true",
+        help="Fail if guarded paths (api/, channels/providers/) contain stub markers in _ARCH.md.",
+    )
     args = parser.parse_args(argv)
 
     app_root: Path = args.app_root.resolve()
@@ -140,6 +167,10 @@ def main(argv: list[str] | None = None) -> int:
         else:
             bad_headers = all_bad
 
+    stub_arch: list[Path] = []
+    if args.no_stub:
+        stub_arch = _stub_arch_files(app_root)
+
     if missing_arch:
         print("ERROR: Directories missing _ARCH.md:", file=sys.stderr)
         for d in missing_arch:
@@ -150,10 +181,17 @@ def main(argv: list[str] | None = None) -> int:
         for f in bad_headers:
             print(f"  - {f.relative_to(app_root.parent)}", file=sys.stderr)
 
-    if not missing_arch and not bad_headers:
+    if stub_arch:
+        print("ERROR: _ARCH.md stub markers in guarded paths (api/, channels/providers/):", file=sys.stderr)
+        for arch in stub_arch:
+            print(f"  - {arch.relative_to(app_root.parent)}", file=sys.stderr)
+
+    if not missing_arch and not bad_headers and not stub_arch:
         scope = "directory _ARCH.md"
         if args.strict_headers:
             scope += " + strict file headers"
+        if args.no_stub:
+            scope += " + no stub in api/channels/providers"
         print(f"OK ({scope}).")
         return 0
 
@@ -162,6 +200,8 @@ def main(argv: list[str] | None = None) -> int:
         code |= 2
     if bad_headers:
         code |= 1
+    if stub_arch:
+        code |= 4
     return code
 
 

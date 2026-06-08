@@ -1,15 +1,17 @@
+# api/skills/evolution/
 
-# app/api/skills/evolution 模块架构
+## 架构概述
 
-技能演进 API 子路由。管理技能的衍生、审核、历史、驳回等生命周期端点。
+本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `derive.py` | 核心 | 技能衍生端点（从已有技能派生新版本） | ✅ |
-| `fix.py` | 核心 | 技能修复端点（支持 GUI-First 强制重试） | ✅ |
-| `pending.py` | 核心 | 待审核演进 approve/reject/revise（`apply_mode`: immediate \| shadow） | ✅ |
-| `history.py` | 辅助 | 演进历史查询端点 | ⚠️ 待补 |
-| `rejections.py` | 辅助 | 演进驳回记录查询 | ⚠️ 待补 |
-| `helpers.py` | 辅助 | 演进操作辅助函数 | ⚠️ 待补 |
+| `__init__.py` | 入口 | 见源码 | — |
+| `derive.py` | 模块 | Evolution API endpoint for triggering derived evolution | ✅ |
+| `fix.py` | 模块 | Evolution API endpoint for triggering FIX evolution with GUI-First force retry support | ✅ |
+| `helpers.py` | 模块 | 见源码 | — |
+| `history.py` | 模块 | evolution 历史记录接口层。对外提供已处理的 evolution 历史查询（GET /history）与单条回滚（POST /{id}/rollback）。 | ✅ |
+| `pending.py` | 模块 | evolution 审核接口层。对外提供 pending 列表、approve、reject、revise，以 ApprovalRecord 为唯一事实源。 | ✅ |
+| `rejections.py` | 模块 | 见源码 | — |

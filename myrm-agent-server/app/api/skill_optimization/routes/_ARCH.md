@@ -1,14 +1,16 @@
+# api/skill_optimization/routes/
 
-# app/api/skill_optimization/routes 模块架构
+## 架构概述
 
-技能优化 API 子路由。按功能域拆分优化系统端点。
+本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `optimization.py` | 核心 | 单技能优化触发与反馈；批量任务状态见 `/batch-optimization/tasks` | ✅ |
-| `ab_testing.py` | 核心 | Shadow A/B：`start_shadow_ab_test` 启动 + promote/stop | ✅ |
-| `versions.py` | 核心 | 技能版本列表/对比/回滚（回滚同步磁盘） | ✅ |
-| `dashboard.py` | 辅助 | 优化仪表盘数据端点 | ⚠️ 待补 |
-| `system.py` | 辅助 | 系统状态端点 | ⚠️ 待补 |
+| `__init__.py` | 入口 | 见源码 | — |
+| `ab_testing.py` | 模块 | 见源码 | — |
+| `dashboard.py` | 模块 | 见源码 | — |
+| `optimization.py` | 模块 | 见源码 | — |
+| `system.py` | 模块 | 见源码 | — |
+| `versions.py` | 模块 | 见源码 | — |

@@ -8,6 +8,6 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | — | ⚠️ 待补 |
-| `api.py` | 模块 | — | ⚠️ 待补 |
-| `channel.py` | 模块 | — | ⚠️ 待补 |
+| `__init__.py` | 入口 | 见源码 | — |
+| `api.py` | 模块 | app.channels.providers.googlechat.api — Google Chat API client with Service Account JWT auth | ✅ |
+| `channel.py` | 模块 | app.channels.providers.googlechat.channel — Google Chat Webhook-based bidirectional messaging | ✅ |
