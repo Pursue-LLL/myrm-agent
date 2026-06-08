@@ -148,15 +148,15 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         {step === 'migration' && (
           <div className="space-y-6">
             <div className="text-center space-y-2 mb-8">
-              <h1 className="text-2xl font-bold">发现历史数据</h1>
-              <p className="text-muted-foreground">我们扫描到了您在其他 AI 助手中的数据，是否一键无缝导入？</p>
+              <h1 className="text-2xl font-bold">{t('onboarding.migrationTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.migrationDescription')}</p>
             </div>
-            <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <div className="bg-card border rounded-xl p-6">
               <MigrationWizardSection onMigrationComplete={handleMigrationCompleteOrSkip} />
             </div>
             <div className="flex justify-center mt-6">
               <Button variant="ghost" onClick={handleMigrationCompleteOrSkip}>
-                跳过此步
+                {t('onboarding.skipStep')}
               </Button>
             </div>
           </div>
@@ -165,10 +165,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         {step === 'capabilities' && (
           <div className="space-y-6">
             <div className="text-center space-y-2 mb-8">
-              <h1 className="text-2xl font-bold">配置 AI 引擎</h1>
-              <p className="text-muted-foreground">连接本地大模型与联网搜索，实现开箱即用的 AI 体验。</p>
+              <h1 className="text-2xl font-bold">{t('onboarding.capabilitiesTitle')}</h1>
+              <p className="text-muted-foreground">{t('onboarding.capabilitiesDescription')}</p>
             </div>
-            <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <div className="bg-card border rounded-xl p-6">
               <LocalCapabilitiesSetup probeResult={probe} onComplete={handleFinish} />
             </div>
           </div>

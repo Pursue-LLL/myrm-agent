@@ -27,6 +27,7 @@ interface LocalCapabilitiesSetupProps {
 export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onComplete }: LocalCapabilitiesSetupProps) {
   const t = useTranslations('chat.localCapabilities');
   const tModel = useTranslations('chat.localModelDetected');
+  const tBoot = useTranslations('boot');
   
   const [probeResult, setProbeResult] = useState<ProbeLocalResponse | null>(initialProbe);
   const [activatingModel, setActivatingModel] = useState(false);
@@ -152,7 +153,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
                       provider: availableModel.provider === 'ollama' ? 'Ollama' : 'LM Studio',
                       count: availableModel.models.length,
                     })
-                  : '未检测到本地大模型，您可以稍后在设置中手动配置 API Key。'}
+                  : tBoot('onboarding.noLocalModel')}
               </span>
             </div>
           </div>
@@ -171,7 +172,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
               </Button>
             ) : (
               <Button variant="outline" onClick={onComplete}>
-                稍后配置
+                {tBoot('onboarding.configureLater')}
               </Button>
             )}
           </div>
@@ -198,7 +199,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
             {searxngHit ? (
               <span className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
                 <IconCheck className="h-4 w-4" />
-                已就绪
+                {tBoot('onboarding.searchReady')}
               </span>
             ) : (
               <Button
@@ -219,7 +220,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
 
       <div className="flex justify-center pt-4">
         <Button size="lg" className="w-full sm:w-auto min-w-[200px]" onClick={onComplete}>
-          进入工作区
+          {tBoot('onboarding.enterWorkspace')}
         </Button>
       </div>
 

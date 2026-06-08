@@ -10309,7 +10309,18 @@
       "initServices": "Initializing services...",
       "ready": "Ready"
     },
-    "skipHint": "Click or press ESC to skip"
+    "skipHint": "Click or press ESC to skip",
+    "onboarding": {
+      "migrationTitle": "History Data Detected",
+      "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",
+      "skipStep": "Skip",
+      "capabilitiesTitle": "Configure AI Engine",
+      "capabilitiesDescription": "Connect local models and web search for an out-of-the-box AI experience.",
+      "noLocalModel": "No local models detected. You can configure an API Key manually in Settings later.",
+      "configureLater": "Configure Later",
+      "searchReady": "Ready",
+      "enterWorkspace": "Enter Workspace"
+    }
   },
   "appshot": {
     "permissionRequired": "Accessibility permission required for text extraction",

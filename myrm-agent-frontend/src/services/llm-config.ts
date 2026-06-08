@@ -145,26 +145,6 @@ export const checkModelReachability = async (config: ModelConfig): Promise<Reach
   }
 };
 
-/**
- * 验证模型配置
- */
-export const validateModelConfig = async (config: ModelConfig): Promise<ValidationResult> => {
-  const startTime = performance.now();
-
-  try {
-    await apiRequest('/llm/verify', {
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-
-    const latency = Math.round(performance.now() - startTime);
-    return { success: true, latency };
-  } catch (error) {
-    const latency = Math.round(performance.now() - startTime);
-    const errorMessage = error instanceof Error ? error.message : '网络请求失败';
-    return { success: false, message: errorMessage, latency };
-  }
-};
 
 const softSearchServiceValidationFailurePatterns =
   /quota exceeded|apiconnectionerror|rate limit|service unavailable|temporarily unavailable/i;
@@ -200,7 +180,7 @@ export const validateSearchServiceConfig = async (config: SearchServiceConfig): 
         businessCode: error.businessCode,
       };
     }
-    const errorMessage = error instanceof Error ? error.message : '网络请求失败';
+    const errorMessage = error instanceof Error ? error.message : 'Network request failed';
     return { success: false, message: errorMessage, latency };
   }
 };
@@ -274,7 +254,7 @@ export const validateMCPConfig = async (
         businessCode: error.businessCode,
       };
     }
-    const errorMessage = error instanceof Error ? error.message : '网络请求失败';
+    const errorMessage = error instanceof Error ? error.message : 'Network request failed';
     return { success: false, message: errorMessage, latency };
   }
 };
