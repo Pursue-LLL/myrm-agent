@@ -1,6 +1,6 @@
 /**
- * [INPUT] skills growth API via @/services
- * [OUTPUT] PendingEvolutionsDashboard: 待审核技能进化列表
+ * [INPUT] skills growth API via @/services, SkillGrowthCaseCard (POS: 技能进化提案卡片)
+ * [OUTPUT] PendingEvolutionsDashboard: 待审核技能进化列表（Simple/Detailed 双视图，localStorage 持久化）
  * [POS] features/skills 技能进化审核入口面板
  */
 'use client';
