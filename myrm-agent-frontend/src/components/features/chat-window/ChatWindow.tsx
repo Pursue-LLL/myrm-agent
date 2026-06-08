@@ -29,6 +29,7 @@ import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDeskt
 import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
 import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
 import { LifeStatusCapsule } from './LifeStatusCapsule';
+import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
@@ -386,6 +387,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
         {/* Idle Task Status Breathing Light */}
         <LifeStatusCapsule currentSessionId={id || null} />
+
+        {/* Pet Sprite Overlay */}
+        <PetOverlay />
       </>
     );
   }
@@ -400,6 +404,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <EmptyChat />
       <SubagentDashboard />
       <LifeStatusCapsule currentSessionId={id || null} />
+      <PetOverlay />
     </>
   );
 };

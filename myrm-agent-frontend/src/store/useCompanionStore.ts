@@ -15,6 +15,14 @@ import { persist } from 'zustand/middleware';
 import type { CompanionStats, Hat, Mood, Rarity, Species } from '@/components/features/companion/companionGenerator';
 import { getObserverLimits } from '@/components/features/companion/companionGenerator';
 
+import type { SpritesheetMeta } from '@/components/features/companion/sprite/SpriteEngine';
+
+export interface SpriteConfig {
+  sheetUrl: string;
+  meta?: Partial<SpritesheetMeta>;
+  name?: string;
+}
+
 const OBSERVER_DEBOUNCE_MS = 3000;
 const MAX_DAILY_SNACKS = 3;
 
@@ -61,6 +69,10 @@ interface CompanionState {
 
   // DAG State
   dagData: Record<string, unknown> | null;
+
+  // Sprite overlay state
+  spriteEnabled: boolean;
+  spriteConfig: SpriteConfig | null;
 }
 
 interface CompanionActions {
@@ -89,6 +101,9 @@ interface CompanionActions {
   resetSession: () => void;
   loadConfigFromServer: () => Promise<void>;
   saveConfigToServer: () => Promise<void>;
+
+  setSpriteEnabled: (enabled: boolean) => void;
+  setSpriteConfig: (config: SpriteConfig | null) => void;
 }
 
 type CompanionStore = CompanionState & CompanionActions;
@@ -125,6 +140,9 @@ const useCompanionStore = create<CompanionStore>()(
       mascotUnlockedTools: [],
 
       dagData: null,
+
+      spriteEnabled: false,
+      spriteConfig: null,
 
       setEnabled: (enabled) => set({ enabled }),
       setMuted: (muted) => set({ muted }),
@@ -230,6 +248,9 @@ const useCompanionStore = create<CompanionStore>()(
         }
       },
 
+      setSpriteEnabled: (spriteEnabled) => set({ spriteEnabled }),
+      setSpriteConfig: (spriteConfig) => set({ spriteConfig }),
+
       saveConfigToServer: async () => {
         try {
           const { apiRequest } = await import('@/lib/api');
@@ -268,6 +289,8 @@ const useCompanionStore = create<CompanionStore>()(
         evolvedAt: state.evolvedAt,
         snacksRemaining: state.snacksRemaining,
         lastSnackReset: state.lastSnackReset,
+        spriteEnabled: state.spriteEnabled,
+        spriteConfig: state.spriteConfig,
       }),
     },
   ),

@@ -11,6 +11,11 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
   const { data, actions } = ctx;
   if (data.type === H.AgentEventType.STATUS) {
     const stepKey = data.step_key;
+
+    // Emit pet-status-event for the sprite overlay state machine
+    if (typeof window !== 'undefined' && stepKey) {
+      window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: stepKey } }));
+    }
     if (
       stepKey === 'model_failover' ||
       stepKey === 'context_compaction' ||

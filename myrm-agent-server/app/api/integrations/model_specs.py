@@ -4,7 +4,7 @@
 - myrm-agent-server/assets/cookbook_specs.json (POS: 产品资产目录中的 bundled 规格表)
 
 [OUTPUT]
-- get_dynamic_model_specs: 带缓存的模型规格列表（bundled 优先，可选远程覆盖）
+- get_dynamic_model_specs: 带缓存的 bundled 模型规格列表
 
 [POS]
 Settings Hardware Cookbook 使用的 Ollama 模型规格数据源。
@@ -14,16 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
-import os
 import time
 from pathlib import Path
 
-import httpx
-
-logger = logging.getLogger(__name__)
-
-_DEFAULT_REMOTE_URL = "https://myrmagent.ai/cookbook_specs.json"
 _CACHE: tuple[float, list[dict[str, object]]] | None = None
 _LOCK = asyncio.Lock()
 
@@ -43,7 +36,7 @@ def _load_bundled_specs() -> list[dict[str, object]]:
 
 
 async def get_dynamic_model_specs() -> list[dict[str, object]]:
-    """Return cached model specs: bundled assets, optionally overridden by remote when available."""
+    """Return cached model specs from bundled assets."""
     global _CACHE
     now = time.monotonic()
 
@@ -55,17 +48,5 @@ async def get_dynamic_model_specs() -> list[dict[str, object]]:
             return _CACHE[1]
 
         specs = _load_bundled_specs()
-        remote_url = os.getenv("MYRM_MODEL_SPECS_REMOTE_URL", _DEFAULT_REMOTE_URL).strip()
-        if remote_url:
-            try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    response = await client.get(remote_url)
-                    if response.status_code == 200:
-                        data = response.json()
-                        if isinstance(data, list) and len(data) > 0:
-                            specs = data
-            except Exception as exc:
-                logger.warning("Failed to fetch remote model specs from %s, using bundled: %s", remote_url, exc)
-
         _CACHE = (now, specs)
         return specs

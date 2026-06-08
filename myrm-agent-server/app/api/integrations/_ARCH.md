@@ -16,7 +16,7 @@
 | `router.py` | ✅ 入口 | 子路由注册 |
 | `llms.py` | ✅ 核心 | LLM 提供商验证（连接测试、模型列表、轻量可达性探测 `/check-reachability` 含 30s TTL 缓存、批量流式测速 `/speed-test` 测 TTFT+TPS） |
 | `hardware.py` | ✅ 核心 | 硬件感知推荐（`GET /integrations/hardware/recommendations`）、Ollama pull/delete；规格见 `model_specs.py` + `assets/cookbook_specs.json` |
-| `model_specs.py` | ✅ 辅助 | bundled cookbook 规格加载与可选远程覆盖（`MYRM_MODEL_SPECS_REMOTE_URL`） |
+| `model_specs.py` | ✅ 辅助 | bundled cookbook 规格加载（带 1h 内存缓存） |
 | `mcp.py` | ✅ 核心 | MCP 静态扫描（`POST /mcp/scan`、`POST /mcp/scan-batch`）、verify 四段管线（静态→OSV→动态→runtime surface）；posture block 返回 400 + 结构化 findings |
 | `retrieval.py` | ✅ 核心 | 检索服务验证（Embedding、Reranker） |
 | `search.py` | ✅ 辅助 | 搜索服务验证 |
