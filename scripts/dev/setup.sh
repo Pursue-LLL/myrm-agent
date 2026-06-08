@@ -27,7 +27,7 @@ uv python install 3.13
 uv sync --all-extras
 
 echo "🌐 Installing browser runtime (patchright)..."
-uv run patchright install chromium
+uv run patchright install chromium || echo "⚠️  Browser install failed (non-fatal). Run: uv run patchright install chromium"
 
 echo "📦 Frontend: bun install..."
 cd "${FRONTEND_DIR}"

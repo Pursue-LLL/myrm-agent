@@ -17,7 +17,8 @@ uv python install 3.13
 uv sync --all-extras
 
 Write-Host "Installing browser runtime (patchright)..."
-uv run patchright install chromium
+uv run patchright install chromium 2>$null
+if ($LASTEXITCODE -ne 0) { Write-Host "Browser install failed (non-fatal). Run: uv run patchright install chromium" -ForegroundColor Yellow }
 
 Write-Host "Frontend: bun install..."
 Set-Location $FrontendDir

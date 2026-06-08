@@ -8,10 +8,12 @@
 
 | 文件 | 平台 | 职责 |
 |------|------|------|
-| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次 `uv sync` + `bun install` |
+| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次 `uv sync` + `patchright install chromium` + `bun install` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
 | `start.sh` / `start.ps1` | 双平台 | 后端 :8080 + 前端 `bun run dev` :3000 |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
+| `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
+| `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API + Playwright 全链路 E2E |
 | `lib/` | Unix | 开发子脚本共享库，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
 ## 依赖
