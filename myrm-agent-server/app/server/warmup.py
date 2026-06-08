@@ -187,7 +187,10 @@ async def run_async_warmup() -> None:
     set_global_wakeup_handler(ServerWakeupHandler())
     logger.info("[Startup] ServerWakeupHandler registered for async subagent completions")
 
-    await warmup_global_browser_pool()
+    try:
+        await warmup_global_browser_pool()
+    except Exception as exc:
+        logger.error("[Startup] Browser pool initialization failed: %s", exc, exc_info=True)
 
     # Thread cleanup always runs (zombie detection + old record deletion)
     warmup_tasks.append(cleanup_browser_threads())
