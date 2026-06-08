@@ -66,7 +66,8 @@ class TestWorkspaceRulesEndpoint:
 
         sources = [r["source"] for r in data["rules"]]
         assert "AGENTS.md" in sources
-        assert ".cursorrules" in sources
+        assert ".myrm/rules" in sources
+        assert ".cursor/rules" in sources
 
     def test_rule_item_schema(self, client: TestClient, workspace_with_rules: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

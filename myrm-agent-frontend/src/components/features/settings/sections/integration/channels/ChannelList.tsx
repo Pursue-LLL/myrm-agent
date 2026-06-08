@@ -13,8 +13,10 @@ export interface ChannelEntry {
   label: string;
 }
 
-export function buildChannelEntries(t: (key: string) => string): ChannelEntry[] {
-  return [
+export const SAAS_SUPPORTED_CHANNEL_IDS = ['feishu', 'slack', 'discord', 'telegram'] as const;
+
+export function buildChannelEntries(t: (key: string) => string, sandbox = false): ChannelEntry[] {
+  const all: ChannelEntry[] = [
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'wechat', label: t('wechatTitle') },
     { id: 'telegram', label: 'Telegram' },
@@ -39,6 +41,10 @@ export function buildChannelEntries(t: (key: string) => string): ChannelEntry[] 
     { id: 'irc', label: 'IRC' },
     { id: 'zalo', label: 'Zalo' },
   ];
+  if (sandbox) {
+    return all.filter((entry) => (SAAS_SUPPORTED_CHANNEL_IDS as readonly string[]).includes(entry.id));
+  }
+  return all;
 }
 
 export interface ChannelActivityInfo {

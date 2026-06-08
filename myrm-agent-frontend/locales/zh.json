@@ -8466,6 +8466,13 @@
     "slackReplyInThread": "在线程中回复",
     "slackReplyInThreadHint": "启用后机器人将在消息线程中回复，而非直接发送到频道",
     "slackSave": "保存",
+    "saasChannelInfo": "云托管版支持飞书、Slack、Discord、Telegram。其他通道请使用本地或桌面版。",
+    "cpWebhookUrlLabel": "入站 Webhook URL",
+    "cpInteractionsUrlLabel": "Interactions 端点 URL",
+    "cpWebhookHint": "保存凭据后，将此 URL 粘贴到对应平台的开发者控制台。",
+    "cpUrlCopy": "复制 URL",
+    "cpUrlCopied": "已复制",
+    "slackSigningSecret": "Signing Secret",
     "slackSaved": "Slack 配置已保存",
     "slackSaveError": "保存 Slack 配置失败",
     "slackTestConnection": "测试连接",
@@ -8477,6 +8484,10 @@
     "discordDesc": "配置 Discord Bot Token 以启用 Discord 机器人消息通道。",
     "discordBotToken": "Bot Token",
     "discordSave": "保存",
+    "discordApplicationId": "Application ID",
+    "discordPublicKey": "Public Key（十六进制）",
+    "discordEnableGateway": "Gateway 接收消息",
+    "discordEnableGatewayHint": "云托管接收 Discord 私信/频道消息需开启。按钮交互始终经 Webhook。",
     "discordSaved": "Discord 配置已保存",
     "discordSaveError": "保存 Discord 配置失败",
     "discordTestConnection": "测试连接",
@@ -9229,7 +9240,10 @@
       "label": "目标域名",
       "allowDomain": "始终允许此域名",
       "allowDomainDesc": "后续对该域名的请求将自动通过（仅当前会话）"
-    }
+    },
+    "highRiskDomAction": "检测到高风险浏览器操作",
+    "targetElement": "目标元素",
+    "action": "操作"
   },
   "notifications": {
     "title": "系统通知",
@@ -9532,6 +9546,19 @@
           }
         }
       }
+    },
+    "sprite": {
+      "contextTitle": "宠物精灵",
+      "size": "大小",
+      "resetPosition": "重置位置",
+      "hide": "隐藏宠物",
+      "enableLabel": "精灵覆盖",
+      "enableDesc": "在屏幕上显示动画宠物精灵",
+      "sheetUrl": "精灵图URL",
+      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
+      "apply": "应用",
+      "clear": "清除",
+      "codexHint": "支持 Codex 标准 8×9 (1536×1872px) 精灵图"
     }
   },
   "messageActions": {

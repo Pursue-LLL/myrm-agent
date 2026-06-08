@@ -4,7 +4,7 @@
 - myrm_agent_harness.toolkits.memory::MemoryManager (POS: Unified memory manager)
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - myrm_agent_harness.runtime.maintenance.scheduler::GlobalAdaptiveScheduler (POS: Load-aware capacity)
-- myrm_agent_harness.infra.sqlite_backup::SQLiteBackupManager (POS: SQLite 热备份工具)
+- app.database.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
 - app.services.agent.gateway::AgentGateway (POS: Active session tracking)
 - app.services.budget.enforcer::should_block_execution (POS: Budget enforcement)
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
@@ -325,20 +325,12 @@ def _run_sqlite_backup() -> None:
     Runs synchronously (backup is sub-millisecond for typical database sizes)
     and never raises — failures are logged but do not block the guardian.
     """
-    from pathlib import Path
-
-    from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
-
     try:
-        from app.config.settings import settings
+        from app.database.backup import get_sqlite_backup_manager
 
-        db_path = Path(settings.database.sqlite_path)
-        if not db_path.exists():
-            return
-
-        backup_dir = db_path.parent / "sqlite_backups"
-        manager = SQLiteBackupManager(db_path=db_path, backup_dir=backup_dir)
-        manager.create_backup()
+        manager = get_sqlite_backup_manager()
+        if manager is not None:
+            manager.create_backup()
     except Exception as exc:
         logger.warning("Memory guardian: SQLite backup failed (non-fatal): %s", exc)
 

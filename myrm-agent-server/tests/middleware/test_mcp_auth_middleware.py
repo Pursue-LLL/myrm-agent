@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from app.api.mcp_endpoint import _MCPTokenAuthMiddleware
+from app.api.mcp import _MCPTokenAuthMiddleware
 
 
 def _echo_handler(request: Request) -> JSONResponse:
@@ -30,7 +30,7 @@ def _build_test_client(mock_service=None) -> TestClient:
 
     if mock_service:
         patcher = patch(
-            "app.api.mcp_endpoint.get_connect_service",
+            "app.api.mcp.endpoint.get_connect_service",
             return_value=mock_service,
         )
         patcher.start()

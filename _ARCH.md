@@ -2,7 +2,17 @@
 
 ## 架构概述
 
-MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；贡献流程见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+
+## 根目录文件
+
+| 文件 | 职责 |
+|------|------|
+| `LICENSE` | MIT 许可（全仓） |
+| `CONTRIBUTING.md` | OSS 贡献指南 |
+| `SECURITY.md` | 漏洞报告策略 |
+| `ARCHITECTURE.md` | 五仓边界、三部署模式、文档索引 |
+| `_ARCH.md` | 本文件：子目录职责表 |
 
 ## 目录清单
 

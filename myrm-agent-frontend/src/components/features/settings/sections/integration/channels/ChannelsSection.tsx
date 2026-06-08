@@ -14,7 +14,7 @@ import { installChannelDependencies, type ChannelIssue } from '@/services/channe
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import type { WhatsAppCardProps } from './WhatsAppCard';
 import { Switch } from '@/components/primitives/switch';
-import { useChannelsState } from './useChannelsState';
+import { isSandbox } from '@/lib/deploy-mode';
 import { CardSkeleton } from '../../../common/SettingsSkeleton';
 
 // 动态加载渠道卡片
@@ -396,12 +396,12 @@ function ChannelConfigPanel({
 // ─── Main Section ────────────────────────────────────────────────────
 
 const CHANNEL_STORAGE_KEY = 'myrm-selected-channel';
-const DEFAULT_CHANNEL = 'whatsapp';
+const DEFAULT_CHANNEL = isSandbox() ? 'feishu' : 'whatsapp';
 
 export default function ChannelsSection() {
   const t = useTranslations('channels');
   const state = useChannelsState(t);
-  const channelEntries = buildChannelEntries(t);
+  const channelEntries = buildChannelEntries(t, isSandbox());
   const [selectedChannel, _setSelectedChannel] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_CHANNEL;
     const stored = localStorage.getItem(CHANNEL_STORAGE_KEY);
@@ -525,6 +525,11 @@ export default function ChannelsSection() {
         <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>
       </div>
       <p className="text-sm text-muted-foreground">{t('sectionDesc')}</p>
+      {isSandbox() && (
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          {t('saasChannelInfo')}
+        </p>
+      )}
 
       <SettingsSection title={t('channelConfigTitle')} description={t('channelConfigDesc')}>
         <div className="flex flex-col lg:flex-row gap-6 lg:min-h-[400px]">

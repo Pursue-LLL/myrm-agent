@@ -8,9 +8,11 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
+import { isSandbox } from '@/lib/deploy-mode';
 import type { BotCommand, TelegramCredentials } from '@/services/channels';
 import { getTelegramCredentials, saveTelegramCredentials, testTelegramConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
+import { CpInboundUrlBanner } from './CpInboundUrlBanner';
 import { useChannelConfig } from './useChannelConfig';
 
 const EMPTY_CREDS: TelegramCredentials = {
@@ -33,6 +35,7 @@ function validateCommand(cmd: BotCommand): { command?: string; description?: str
 
 export function TelegramConfigCard() {
   const t = useTranslations('channels');
+  const sandbox = isSandbox();
   const [showToken, setShowToken] = useState(false);
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
@@ -106,20 +109,24 @@ export function TelegramConfigCard() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="telegram-webhook-url">{t('telegramWebhookUrl')}</Label>
-        <Input
-          id="telegram-webhook-url"
-          type="url"
-          placeholder="https://your-domain.com/channels/telegram/webhook"
-          value={creds.webhookUrl ?? ''}
-          onChange={(e) => handleChange('webhookUrl', e.target.value)}
-        />
-        <p className="text-xs text-muted-foreground">{t('telegramWebhookHint')}</p>
-        {creds.webhookUrl && !creds.webhookUrl.startsWith('https://') && (
-          <p className="text-xs text-destructive">{t('telegramWebhookHttpsRequired')}</p>
-        )}
-      </div>
+      {sandbox ? (
+        <CpInboundUrlBanner channel="telegram" />
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="telegram-webhook-url">{t('telegramWebhookUrl')}</Label>
+          <Input
+            id="telegram-webhook-url"
+            type="url"
+            placeholder="https://your-domain.com/channels/telegram/webhook"
+            value={creds.webhookUrl ?? ''}
+            onChange={(e) => handleChange('webhookUrl', e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">{t('telegramWebhookHint')}</p>
+          {creds.webhookUrl && !creds.webhookUrl.startsWith('https://') && (
+            <p className="text-xs text-destructive">{t('telegramWebhookHttpsRequired')}</p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">

@@ -322,16 +322,10 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
     )
 
 
-def _get_sqlite_backup_manager() -> "SQLiteBackupManager":
-    from pathlib import Path
+def _get_sqlite_backup_manager() -> "SQLiteBackupManager | None":
+    from app.database.backup import get_sqlite_backup_manager
 
-    from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
-
-    from app.config.settings import settings
-
-    db_path = Path(settings.database.sqlite_path)
-    backup_dir = db_path.parent / "sqlite_backups"
-    return SQLiteBackupManager(db_path=db_path, backup_dir=backup_dir)
+    return get_sqlite_backup_manager()
 
 
 def _execute_sqlite_backup(request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
@@ -346,6 +340,14 @@ def _execute_sqlite_backup(request: RepairActionExecuteRequest) -> RepairActionE
 
     try:
         manager = _get_sqlite_backup_manager()
+        if manager is None:
+            return RepairActionExecuteResult(
+                action_id=RepairActionId.SQLITE_BACKUP_NOW,
+                status="failed",
+                changed=False,
+                dry_run=False,
+                message="Cannot backup: database is in-memory or file not found",
+            )
         record = manager.create_backup()
         return RepairActionExecuteResult(
             action_id=RepairActionId.SQLITE_BACKUP_NOW,
@@ -373,7 +375,7 @@ def _execute_sqlite_backup(request: RepairActionExecuteRequest) -> RepairActionE
 def _execute_sqlite_restore(request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
     if request.dry_run:
         manager = _get_sqlite_backup_manager()
-        backups = manager.list_backups()
+        backups = manager.list_backups() if manager else []
         return RepairActionExecuteResult(
             action_id=RepairActionId.SQLITE_RESTORE_LATEST,
             status="dry_run",
@@ -394,6 +396,14 @@ def _execute_sqlite_restore(request: RepairActionExecuteRequest) -> RepairAction
 
     try:
         manager = _get_sqlite_backup_manager()
+        if manager is None:
+            return RepairActionExecuteResult(
+                action_id=RepairActionId.SQLITE_RESTORE_LATEST,
+                status="failed",
+                changed=False,
+                dry_run=False,
+                message="Cannot restore: database is in-memory or file not found",
+            )
         result = manager.restore_latest()
         if result.restored:
             return RepairActionExecuteResult(

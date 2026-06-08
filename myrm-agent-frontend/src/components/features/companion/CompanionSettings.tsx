@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -95,12 +95,32 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
     nameOverride,
     speciesOverride,
     hatOverride,
+    spriteEnabled,
+    spriteConfig,
     setEnabled,
     setMuted,
     setNameOverride,
     setSpeciesOverride,
     setHatOverride,
+    setSpriteEnabled,
+    setSpriteConfig,
   } = useCompanionStore();
+
+  const [sheetUrlInput, setSheetUrlInput] = useState(spriteConfig?.sheetUrl ?? '');
+
+  const handleApplySheet = useCallback(() => {
+    const url = sheetUrlInput.trim();
+    if (url) {
+      setSpriteConfig({ sheetUrl: url });
+      setSpriteEnabled(true);
+    }
+  }, [sheetUrlInput, setSpriteConfig, setSpriteEnabled]);
+
+  const handleClearSheet = useCallback(() => {
+    setSpriteConfig(null);
+    setSpriteEnabled(false);
+    setSheetUrlInput('');
+  }, [setSpriteConfig, setSpriteEnabled]);
 
   const bones = useMemo(() => {
     if (!user?.id) return null;
@@ -201,6 +221,56 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
                   onClick={() => setHatOverride(h as Hat)}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* Sprite Overlay Section */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>{t('sprite.enableLabel')}</Label>
+                <p className="text-xs text-muted-foreground">{t('sprite.enableDesc')}</p>
+              </div>
+              <Switch
+                checked={spriteEnabled}
+                onCheckedChange={setSpriteEnabled}
+                disabled={!enabled || !spriteConfig?.sheetUrl}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t('sprite.sheetUrl')}</Label>
+              <div className="flex gap-1.5">
+                <Input
+                  value={sheetUrlInput}
+                  onChange={(e) => setSheetUrlInput(e.target.value)}
+                  placeholder={t('sprite.sheetUrlPlaceholder')}
+                  disabled={!enabled}
+                  className="text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplySheet}
+                  disabled={!enabled || !sheetUrlInput.trim()}
+                  className={cn(
+                    'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                    'bg-primary text-primary-foreground hover:bg-primary/90',
+                    (!enabled || !sheetUrlInput.trim()) && 'opacity-50 cursor-not-allowed',
+                  )}
+                >
+                  {t('sprite.apply')}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{t('sprite.codexHint')}</p>
+              {spriteConfig?.sheetUrl && (
+                <button
+                  type="button"
+                  onClick={handleClearSheet}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  {t('sprite.clear')}
+                </button>
+              )}
             </div>
           </div>
         </div>

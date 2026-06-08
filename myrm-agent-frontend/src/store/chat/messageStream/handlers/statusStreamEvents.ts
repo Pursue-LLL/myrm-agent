@@ -43,7 +43,8 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       stepKey === 'workflow_execution' ||
       stepKey === 'workflow_stage' ||
       stepKey === 'loop_guard_warn' ||
-      stepKey === 'loop_guard_break'
+      stepKey === 'loop_guard_break' ||
+      stepKey === 'crawl_task_progress'
     ) {
       const displayKey =
         stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
@@ -123,7 +124,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           if (archiveRestoreResult) {
             progressStep.archive_restore_result = archiveRestoreResult;
           }
-          if (stepKey === 'archive_restore_blocked' || stepKey === 'loop_guard_warn' || stepKey === 'loop_guard_break') {
+          if (stepKey === 'archive_restore_blocked' || stepKey === 'loop_guard_warn' || stepKey === 'loop_guard_break' || stepKey === 'crawl_task_progress') {
             const existingStep = state.messages[messageIndex].progressSteps!.find(
               (step) => step.step_key === stepKey,
             );

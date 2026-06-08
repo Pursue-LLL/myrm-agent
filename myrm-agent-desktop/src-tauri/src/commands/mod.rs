@@ -4,6 +4,7 @@
 
 pub mod agent;
 pub mod config;
+pub mod pet_overlay;
 pub mod power;
 pub mod screen_lock;
 pub mod visual_approval_overlay;
@@ -35,6 +36,7 @@ pub use screen_lock::{
     screen_lock_delete_password,
     screen_lock_platform_support,
 };
+pub use pet_overlay::{hide_pet_overlay, pet_overlay_set_row, show_pet_overlay};
 pub use visual_approval_overlay::{
     hide_visual_approval_overlay,
     show_visual_approval_overlay,

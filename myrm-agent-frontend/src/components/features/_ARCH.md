@@ -12,14 +12,13 @@
 | `chat-window/` | 主对话窗口、审批、Agent 配置、目标 DAG | [_ARCH.md](chat-window/_ARCH.md) |
 | `message-box/` | 消息渲染与进度 | [_ARCH.md](message-box/_ARCH.md) |
 | `sidebar/` | 会话侧栏 | [_ARCH.md](sidebar/_ARCH.md) |
-| `settings/` | 设置页各 Section | [_ARCH.md](settings/_ARCH.md) |
+| `settings/` | 设置页各 Section（含 Settings→通信→渠道 Provider 配置卡） | [_ARCH.md](settings/_ARCH.md) |
 | `memory/` | 记忆中心 | [_ARCH.md](memory/_ARCH.md) |
 | `skills/` | 技能管理、进化审核 Dashboard | [_ARCH.md](skills/_ARCH.md) |
 | `kanban/` | 看板 | [_ARCH.md](kanban/_ARCH.md) |
 | `health/` | System Doctor | [_ARCH.md](health/_ARCH.md) |
 | `onboarding/` | 首次启动向导（迁移 + 本地能力 + Cookbook） | [_ARCH.md](onboarding/_ARCH.md) |
 | `workspace/` | 工作区与文件树 | [_ARCH.md](workspace/_ARCH.md) |
-| `channels/` | 渠道 UI 入口 | [_ARCH.md](channels/_ARCH.md) |
 | `cron/` | 定时任务 UI | [_ARCH.md](cron/_ARCH.md) |
 | `artifacts/` | 工件与部署 | [_ARCH.md](artifacts/_ARCH.md) |
 | `companion/` | 桌宠伴侣 | [_ARCH.md](companion/_ARCH.md) |

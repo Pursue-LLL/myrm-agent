@@ -1,17 +1,18 @@
 """数据库容灾与恢复模块
 
-提供底层 SQLite 数据库损坏时的抢救、备份与恢复机制。
+提供底层 SQLite 数据库严重损坏时的 dump-based 抢救机制（.iterdump 逐行导出）。
+
+常规热备份与快照恢复由 ``myrm_agent_harness.infra.sqlite_backup.SQLiteBackupManager``
+负责。
 
 [INPUT]
 - (无)
 
 [OUTPUT]
 - rescue_database: 尝试通过 dump 机制抢救损坏的 SQLite 数据库。
-- restore_from_backup: 尝试从最后已知良好备份恢复。
-- backup_database: 创建最后已知良好备份。
 
 [POS]
-数据库容灾层。负责在数据库文件损坏时进行抢救和恢复。
+数据库容灾层。提供 dump-based 数据库抢救能力。
 """
 
 import logging
@@ -94,44 +95,3 @@ def rescue_database(db_path: str) -> bool:
         return False
 
 
-def restore_from_backup(db_path: str) -> bool:
-    """尝试从最后已知良好备份恢复"""
-    path = Path(db_path)
-    bak_path = path.with_suffix(".db.bak")
-    if not bak_path.exists():
-        return False
-
-    try:
-        if path.exists():
-            corrupted_path = path.with_suffix(".db.corrupted_before_restore")
-            if corrupted_path.exists():
-                corrupted_path.unlink()
-                _cleanup_wal_files(corrupted_path)
-            _move_db_with_wal(path, corrupted_path)
-
-        shutil.copy2(str(bak_path), str(path))
-        # 备份恢复后，确保没有旧的 WAL 文件干扰
-        _cleanup_wal_files(path)
-
-        logger.info("Restored database from backup: %s", bak_path)
-        return True
-    except Exception as e:
-        logger.error("Restore from backup failed: %s", e)
-        return False
-
-
-def backup_database(db_path: str) -> None:
-    """创建最后已知良好备份"""
-    path = Path(db_path)
-    if not path.exists():
-        return
-
-    bak_path = path.with_suffix(".db.bak")
-    try:
-        # 使用 sqlite3 的 backup API 进行安全备份（避免文件锁问题）
-        with sqlite3.connect(str(path)) as src:
-            with sqlite3.connect(str(bak_path)) as dst:
-                src.backup(dst)
-        logger.info("Created last-known-good backup: %s", bak_path)
-    except Exception as e:
-        logger.error("Failed to create database backup: %s", e)

@@ -1,3 +1,20 @@
+/**
+ * [INPUT]
+ * - PetStateMachine (POS: SSE event → animation row state machine)
+ * - SpriteRenderer (POS: React canvas wrapper for spritesheet rendering)
+ * - tauriPetBridge (POS: Tauri IPC bridge for native pet overlay window)
+ * - useCompanionStore (POS: Companion state with sprite config)
+ * - useChatStore (POS: Chat state for loading detection)
+ *
+ * [OUTPUT]
+ * - PetOverlay: Draggable floating sprite overlay with context menu
+ *
+ * [POS]
+ * Top-level pet overlay container rendered in ChatWindow. In Web/SaaS mode,
+ * renders an in-browser draggable canvas overlay. In Tauri desktop mode,
+ * delegates to the native transparent always-on-top window via tauriPetBridge.
+ * Integrates PetStateMachine for SSE-driven animation state transitions.
+ */
 'use client';
 
 import { useCallback, useEffect, useRef, useState, memo } from 'react';
@@ -9,6 +26,7 @@ import useCompanionStore from '@/store/useCompanionStore';
 
 import { AnimRow, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
 import SpriteRenderer from './SpriteRenderer';
+import { isTauriEnv, showPetOverlay, hidePetOverlay, setPetOverlayRow } from './tauriPetBridge';
 
 import type { SpriteLoadState } from './SpriteEngine';
 
@@ -199,7 +217,11 @@ const PetOverlay = memo(function PetOverlay() {
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ visible: true, x: e.clientX, y: e.clientY });
+    const menuW = 160;
+    const menuH = 180;
+    const x = Math.min(e.clientX, window.innerWidth - menuW);
+    const y = Math.min(e.clientY, window.innerHeight - menuH);
+    setContextMenu({ visible: true, x: Math.max(0, x), y: Math.max(0, y) });
   }, []);
 
   // Close context menu on outside click
@@ -247,7 +269,26 @@ const PetOverlay = memo(function PetOverlay() {
     return () => window.removeEventListener('resize', handleResize);
   }, [petSize]);
 
+  const isTauri = isTauriEnv();
+
+  // Tauri: manage native overlay window lifecycle
+  useEffect(() => {
+    if (!isTauri || !spriteEnabled || !spriteConfig?.sheetUrl) return;
+
+    showPetOverlay(spriteConfig.sheetUrl, petSize, animRow);
+    return () => { hidePetOverlay(); };
+  }, [isTauri, spriteEnabled, spriteConfig?.sheetUrl, petSize]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tauri: sync animation row changes to native overlay
+  useEffect(() => {
+    if (!isTauri || !spriteEnabled) return;
+    setPetOverlayRow(animRow);
+  }, [isTauri, spriteEnabled, animRow]);
+
   if (!spriteEnabled || !spriteConfig?.sheetUrl) return null;
+
+  // In Tauri mode, the native overlay handles rendering; skip in-browser overlay
+  if (isTauri) return null;
 
   return (
     <>

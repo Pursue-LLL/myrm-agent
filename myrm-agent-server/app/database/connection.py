@@ -73,10 +73,11 @@ async def init_database() -> None:
     # migrations (e.g. CREATE AS SELECT → DROP → RENAME) that leave the DB in
     # an inconsistent state if interrupted mid-sequence.
     try:
-        from app.config.settings import settings
-        from app.database.recovery import backup_database
+        from app.database.backup import get_sqlite_backup_manager
 
-        backup_database(settings.database.sqlite_path)
+        manager = get_sqlite_backup_manager()
+        if manager is not None:
+            manager.create_backup()
     except Exception as e:
         logger.warning("Pre-migration backup failed (continuing): %s", e)
 

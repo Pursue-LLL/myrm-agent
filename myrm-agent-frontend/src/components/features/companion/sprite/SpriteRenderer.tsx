@@ -26,11 +26,15 @@ interface SpriteRendererProps {
 /**
  * SpriteRenderer — React wrapper around SpriteEngine.
  *
- * Handles:
- * - Canvas lifecycle (create/destroy on mount/unmount)
- * - Sheet loading with fallback (shows a pulsing placeholder on error)
- * - Row changes via prop
- * - Pixel-art upscaling (image-rendering: pixelated)
+ * [INPUT]
+ * - SpriteEngine (POS: Canvas 2D rendering engine for spritesheet assets)
+ *
+ * [OUTPUT]
+ * - SpriteRenderer: React component rendering a canvas with fallback states
+ *
+ * [POS]
+ * React lifecycle wrapper for SpriteEngine. Manages canvas mount/unmount,
+ * sheet loading, row prop updates, and displays fallback UI on error/loading.
  */
 export default function SpriteRenderer({
   sheetUrl,

@@ -195,6 +195,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     });
     actions.setLoading(false);
+    // Override the CELEBRATING animation from setLoading(false) with approval waiting.
+    // setTimeout ensures this runs after React processes the loading state change.
+    if (typeof window !== 'undefined') {
+      setTimeout(() => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })), 0);
+    }
     return done(ctx);
   }
 
@@ -227,6 +232,9 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     });
     actions.setLoading(false);
+    if (typeof window !== 'undefined') {
+      setTimeout(() => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })), 0);
+    }
     return done(ctx);
   }
 
@@ -261,12 +269,17 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       });
       H.useToolApprovalStore.getState().addRequest(approvalRequest);
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } }));
+    }
     return done(ctx);
   }
 
   if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
-    // When approval is processed (e.g. via text interception), remove the request from the queue
     H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_released' } }));
+    }
     return done(ctx);
   }
 

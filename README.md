@@ -2,7 +2,7 @@
 
 MIT 开源产品仓（server + frontend + desktop）。
 
-模块架构与开发说明见 [_ARCH.md](_ARCH.md)。
+模块架构与开发说明见 [_ARCH.md](_ARCH.md)。贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。安全披露见 [SECURITY.md](SECURITY.md)。
 
 ```bash
 # 一键安装（任意目录）

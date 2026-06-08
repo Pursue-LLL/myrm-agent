@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock } from 'lucide-react';
+import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe } from 'lucide-react';
 import { ApprovalPayload, ApprovalToolCall } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
 import { Textarea } from '@/components/primitives/textarea';
@@ -296,6 +296,62 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             </div>
           </div>
         );
+      case 'high_risk_dom_action': {
+        const element = approval.payload?.element as { role?: string; name?: string; ref?: string } | undefined;
+        const pageUrl = (approval.payload?.page_url as string) || '';
+        const toolInput = approval.payload?.tool_input as { action?: string; ref?: string; text?: string } | undefined;
+        const reason = approval.reason || (approval.payload?.reason as string) || '';
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-destructive" />
+              <div>
+                <h4 className="font-semibold text-sm text-destructive">
+                  {t('highRiskDomAction')}
+                </h4>
+                <p className="text-xs text-destructive/80 mt-0.5">{reason}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {element && (
+                <div className="rounded-lg border bg-muted/50 p-3">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                    <MousePointerClick className="h-3.5 w-3.5" />
+                    {t('targetElement')}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-mono font-medium text-primary">
+                      {element.role}
+                    </span>
+                    <span className="font-medium text-foreground">&quot;{element.name}&quot;</span>
+                    <span className="text-muted-foreground text-xs">ref: {element.ref}</span>
+                  </div>
+                </div>
+              )}
+
+              {toolInput && (
+                <div className="rounded-lg border bg-muted/50 p-3">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">
+                    {t('action')}
+                  </div>
+                  <div className="font-mono text-sm">
+                    {toolInput.action}({toolInput.ref}{toolInput.text ? `, "${toolInput.text}"` : ''})
+                  </div>
+                </div>
+              )}
+
+              {pageUrl && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+                  <Globe className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate" title={pageUrl}>{pageUrl}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
       default:
         return (
           <div className="space-y-4">

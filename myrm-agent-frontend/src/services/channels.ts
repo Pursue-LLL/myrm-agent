@@ -1,10 +1,47 @@
-import { apiRequest } from '@/lib/api';
+import { apiRequest, BACKEND_BASE_URL } from '@/lib/api';
+import { isSandbox } from '@/lib/deploy-mode';
 
 // ==================== Channel Service Factory ====================
 
 export interface ChannelTestResult {
   ok: boolean;
   message: string;
+}
+
+async function cpChannelRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (!headers['Content-Type'] && options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BACKEND_BASE_URL}${path}`, {
+    cache: 'no-store',
+    credentials: 'include',
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('Authentication required for Control Plane channel API');
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `CP channel request failed: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function getCpChannelCredentialStatus(): Promise<{
+  configured: string[];
+  webhook_urls: Record<string, string>;
+}> {
+  return cpChannelRequest('/api/channels/credentials/status');
 }
 
 function createChannelCredentialService<T>(configKey: string, testEndpoint: string) {
@@ -353,6 +390,7 @@ export async function testDingTalkConnection(clientId: string, clientSecret: str
 export interface SlackCredentials {
   botToken: string;
   appToken: string;
+  signingSecret?: string;
   replyInThread: boolean;
 }
 
@@ -360,8 +398,39 @@ const slackService = createChannelCredentialService<SlackCredentials>(
   'slackCredentials',
   '/channels/manage/slack/test',
 );
-export const getSlackCredentials = slackService.get;
-export const saveSlackCredentials = slackService.save;
+
+export async function getSlackCredentials(): Promise<SlackCredentials | null> {
+  if (isSandbox()) {
+    try {
+      const status = await cpChannelRequest<{ configured: string[] }>('/api/channels/credentials/status');
+      if (!status.configured.includes('slack')) return null;
+      return { botToken: '', appToken: '', signingSecret: '', replyInThread: true };
+    } catch {
+      return null;
+    }
+  }
+  return slackService.get();
+}
+
+export async function saveSlackCredentials(creds: SlackCredentials): Promise<void> {
+  if (isSandbox()) {
+    if (!creds.signingSecret?.trim()) {
+      throw new Error('Signing secret is required for SaaS Slack');
+    }
+    await cpChannelRequest('/api/channels/credentials/slack', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot_token: creds.botToken,
+        signing_secret: creds.signingSecret,
+        app_token: creds.appToken,
+        reply_in_thread: creds.replyInThread,
+      }),
+    });
+    return;
+  }
+  await slackService.save(creds);
+}
 export async function testSlackConnection(botToken: string, appToken: string): Promise<ChannelTestResult> {
   return slackService.test({ botToken, appToken });
 }
@@ -370,6 +439,9 @@ export async function testSlackConnection(botToken: string, appToken: string): P
 
 export interface DiscordCredentials {
   botToken: string;
+  applicationId?: string;
+  publicKey?: string;
+  enableGateway?: boolean;
   botPolicy: 'deny' | 'mention_only' | 'allow';
   autoThread?: boolean;
   noThreadChannels?: string;
@@ -387,8 +459,39 @@ const discordService = createChannelCredentialService<DiscordCredentials>(
   'discordCredentials',
   '/channels/manage/discord/test',
 );
-export const getDiscordCredentials = discordService.get;
-export const saveDiscordCredentials = discordService.save;
+
+export async function getDiscordCredentials(): Promise<DiscordCredentials | null> {
+  if (isSandbox()) {
+    try {
+      const status = await cpChannelRequest<{ configured: string[] }>('/api/channels/credentials/status');
+      if (!status.configured.includes('discord')) return null;
+      return { botToken: '', botPolicy: 'mention_only', enableGateway: true };
+    } catch {
+      return null;
+    }
+  }
+  return discordService.get();
+}
+
+export async function saveDiscordCredentials(creds: DiscordCredentials): Promise<void> {
+  if (isSandbox()) {
+    if (!creds.applicationId?.trim() || !creds.publicKey?.trim()) {
+      throw new Error('Application ID and public key are required for SaaS Discord');
+    }
+    await cpChannelRequest('/api/channels/credentials/discord', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bot_token: creds.botToken,
+        application_id: creds.applicationId,
+        public_key: creds.publicKey,
+        enable_gateway: creds.enableGateway ?? true,
+      }),
+    });
+    return;
+  }
+  await discordService.save(creds);
+}
 export async function testDiscordConnection(botToken: string): Promise<ChannelTestResult> {
   return discordService.test({ botToken });
 }
@@ -497,8 +600,37 @@ const telegramService = createChannelCredentialService<TelegramCredentials>(
   'telegramCredentials',
   '/channels/manage/telegram/test',
 );
-export const getTelegramCredentials = telegramService.get;
-export const saveTelegramCredentials = telegramService.save;
+
+export async function getTelegramCredentials(): Promise<TelegramCredentials | null> {
+  if (isSandbox()) {
+    try {
+      const status = await cpChannelRequest<{ configured: string[]; webhook_urls: Record<string, string> }>(
+        '/api/channels/credentials/status',
+      );
+      if (!status.configured.includes('telegram')) return null;
+      return {
+        botToken: '',
+        botPolicy: 'mention_only',
+        webhookUrl: status.webhook_urls?.telegram,
+      };
+    } catch {
+      return null;
+    }
+  }
+  return telegramService.get();
+}
+
+export async function saveTelegramCredentials(creds: TelegramCredentials): Promise<void> {
+  if (isSandbox()) {
+    await cpChannelRequest('/api/channels/credentials/telegram', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_token: creds.botToken }),
+    });
+    return;
+  }
+  await telegramService.save(creds);
+}
 export async function testTelegramConnection(botToken: string): Promise<ChannelTestResult> {
   return telegramService.test({ botToken });
 }

@@ -104,7 +104,10 @@ async def test_recover_from_backup(tmp_path: Path) -> None:
 
     _corrupt_db(db)
 
-    with patch("app.core.infra.health.sqlite.settings") as mock_settings:
+    with (
+        patch("app.core.infra.health.sqlite.settings") as mock_settings,
+        patch("app.core.infra.health.sqlite.get_sqlite_backup_manager", return_value=mgr),
+    ):
         mock_settings.database.sqlite_path = str(db)
         from app.core.infra.health.sqlite import SQLiteHealthChecker
 
@@ -125,7 +128,10 @@ async def test_recover_no_backups(tmp_path: Path) -> None:
     db = tmp_path / "app.db"
     _create_test_db(db)
 
-    with patch("app.core.infra.health.sqlite.settings") as mock_settings:
+    with (
+        patch("app.core.infra.health.sqlite.settings") as mock_settings,
+        patch("app.core.infra.health.sqlite.get_sqlite_backup_manager", return_value=None),
+    ):
         mock_settings.database.sqlite_path = str(db)
         from app.core.infra.health.sqlite import SQLiteHealthChecker
 

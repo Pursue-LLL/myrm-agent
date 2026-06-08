@@ -99,7 +99,7 @@
 | `app/platform_utils/` | 平台抽象层   | 本地/沙箱模式差异化实现（文件存储、会话工厂、checkpointer 注入）                                                                 |
 | `app/tasks/`          | 后台任务层   | 异步任务执行器、后台 worker                                                                                                      |
 | `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
-| `tests/`              | 测试套件     | 单元测试、集成测试、API 测试                                                                                                     |
+| `tests/`              | 测试套件     | 单元/集成/API 测试；默认 `pytest -m 'not e2e'`；Playwright UI 测试不在此目录                                                                                                     |
 | `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁 `check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt` 防回退，见 `scripts/ci/run_architecture_gates.sh`） |
 | `docker/`             | 容器构建     | Server runtime：`Dockerfile.official`（源码双 wheel）；`../Dockerfile`（PyPI / 预构建 wheel）；`sandbox/` 技能沙箱镜像 |
 | `deployments/`        | 部署配置     | Prometheus 规则等运维配置                                                                                                        |

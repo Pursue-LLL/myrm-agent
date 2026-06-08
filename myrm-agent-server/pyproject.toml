@@ -132,7 +132,7 @@ ignore = ["B008", "E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-n auto --timeout=300"
+addopts = "-m 'not e2e' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
   "e2e: End-to-end tests against running app (may require network or API keys)",

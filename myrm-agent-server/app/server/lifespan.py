@@ -156,7 +156,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
     # MCP memory endpoint for external agents
     try:
-        from app.api.mcp_endpoint import setup_mcp_endpoint
+        from app.api.mcp import setup_mcp_endpoint
 
         await setup_mcp_endpoint(app_instance)
     except Exception as e:
@@ -192,33 +192,44 @@ async def _phase_1a_sequential() -> None:
     except Exception as e:
         logger.error("[Startup] Database initialization failed: %s", e)
 
-        # 触发容灾逻辑
         from app.config.settings import settings
-        from app.database.recovery import rescue_database, restore_from_backup
+        from app.database.recovery import rescue_database
         from app.platform_utils import reset_database_engine
         from app.server.status import system_status
 
         db_path = settings.database.sqlite_path
 
-        # 1. 尝试抢救
+        # 1. Try .iterdump rescue (last-resort row-level data salvage)
         if rescue_database(db_path):
             system_status.database_recovered = True
             await reset_database_engine()
             await init_database()
             logger.info("[Startup] Database rescued successfully")
-        # 2. 尝试备份恢复
-        elif restore_from_backup(db_path):
-            system_status.database_recovered = True
-            await reset_database_engine()
-            await init_database()
-            logger.info("[Startup] Database restored from backup successfully")
-        # 3. 降级到内存
         else:
-            logger.warning("[Startup] Database rescue failed, degrading to in-memory mode")
-            system_status.database_degraded = True
-            settings.database.sqlite_path = ":memory:"
-            await reset_database_engine()
-            await init_database()
+            # 2. Try multi-snapshot integrity-verified restore
+            restored = False
+            try:
+                from app.database.backup import get_sqlite_backup_manager
+
+                manager = get_sqlite_backup_manager()
+                if manager is not None:
+                    result = manager.restore_latest()
+                    if result.restored:
+                        restored = True
+                        system_status.database_recovered = True
+                        await reset_database_engine()
+                        await init_database()
+                        logger.info("[Startup] Database restored from snapshot %s", result.snapshot_file)
+            except Exception as restore_exc:
+                logger.warning("[Startup] Snapshot restore failed: %s", restore_exc)
+
+            # 3. Degrade to in-memory as ultimate fallback
+            if not restored:
+                logger.warning("[Startup] All recovery methods exhausted, degrading to in-memory mode")
+                system_status.database_degraded = True
+                settings.database.sqlite_path = ":memory:"
+                await reset_database_engine()
+                await init_database()
 
     await _register_db_pool_metrics_task()
 
@@ -502,7 +513,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         harness_bridge_task = _dummy()
 
     async def _shutdown_mcp() -> None:
-        from app.api.mcp_endpoint import shutdown_mcp_endpoint
+        from app.api.mcp import shutdown_mcp_endpoint
 
         await shutdown_mcp_endpoint()
 
@@ -550,13 +561,10 @@ async def _shutdown(app_instance: FastAPI) -> None:
     # Final: WAL checkpoint + engine dispose to ensure all data is flushed to disk
     try:
         from app.config.settings import settings
-        from app.database.recovery import backup_database
         from app.platform_utils import get_database_engine
 
         engine = get_database_engine()
         try:
-            # 优化: 不再强制执行 TRUNCATE 检查点，避免在并发测试时触发 database table is locked
-            # 仅执行 PASSIVE 检查点，让 SQLite 引擎自行决定何时合并 WAL
             async with engine.begin() as conn:
                 await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception as e:
@@ -564,8 +572,11 @@ async def _shutdown(app_instance: FastAPI) -> None:
         await engine.dispose()
         logger.info("[Shutdown] Database engine disposed")
 
-        # Create last-known-good backup after successful shutdown
-        backup_database(settings.database.sqlite_path)
+        from app.database.backup import get_sqlite_backup_manager
+
+        manager = get_sqlite_backup_manager()
+        if manager is not None:
+            manager.create_backup()
     except Exception as e:
         logger.error("[Shutdown] Database backup failed: %s", e)
 

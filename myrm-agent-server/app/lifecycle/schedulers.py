@@ -254,13 +254,14 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("SQLite WAL checkpoint failed: %s", e)
 
-    # Database Backup
+    # Database Backup (integrity-verified rotated snapshot)
     try:
-        from app.config.settings import settings
-        from app.database.recovery import backup_database
+        from app.database.backup import get_sqlite_backup_manager
 
-        backup_database(settings.database.sqlite_path)
-        logger.info("Periodic database backup completed")
+        manager = get_sqlite_backup_manager()
+        if manager is not None:
+            manager.create_backup()
+            logger.info("Periodic database backup completed")
     except Exception as e:
         logger.warning("Periodic database backup failed: %s", e)
 

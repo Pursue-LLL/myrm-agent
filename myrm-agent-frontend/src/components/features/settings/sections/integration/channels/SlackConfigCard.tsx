@@ -7,21 +7,28 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Switch } from '@/components/primitives/switch';
+import { isSandbox } from '@/lib/deploy-mode';
 import type { SlackCredentials } from '@/services/channels';
 import { getSlackCredentials, saveSlackCredentials, testSlackConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
+import { CpInboundUrlBanner } from './CpInboundUrlBanner';
 import { useChannelConfig } from './useChannelConfig';
 
-const EMPTY_CREDS: SlackCredentials = { botToken: '', appToken: '', replyInThread: true };
+const EMPTY_CREDS: SlackCredentials = { botToken: '', appToken: '', signingSecret: '', replyInThread: true };
 
 export function SlackConfigCard() {
   const t = useTranslations('channels');
+  const sandbox = isSandbox();
   const [showSecret, setShowSecret] = useState(false);
+
+  const requiredFields: (keyof SlackCredentials)[] = sandbox
+    ? ['botToken', 'signingSecret']
+    : ['botToken', 'appToken'];
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
     useChannelConfig<SlackCredentials>({
       emptyCreds: EMPTY_CREDS,
-      requiredFields: ['botToken', 'appToken'],
+      requiredFields,
       getCreds: getSlackCredentials,
       saveCreds: saveSlackCredentials,
       testConnection: (c) => testSlackConnection(c.botToken, c.appToken),
@@ -72,7 +79,22 @@ export function SlackConfigCard() {
             onChange={(e) => handleChange('appToken', e.target.value)}
           />
         </div>
+
+        {sandbox && (
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="slack-signing-secret">{t('slackSigningSecret')}</Label>
+            <Input
+              id="slack-signing-secret"
+              type={showSecret ? 'text' : 'password'}
+              placeholder="..."
+              value={creds.signingSecret ?? ''}
+              onChange={(e) => handleChange('signingSecret', e.target.value)}
+            />
+          </div>
+        )}
       </div>
+
+      {sandbox && <CpInboundUrlBanner channel="slack" />}
 
       <div className="flex items-center gap-3">
         <Switch

@@ -8929,7 +8929,10 @@
       "label": "Target Domain",
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
-    }
+    },
+    "highRiskDomAction": "高リスクブラウザ操作が検出されました",
+    "targetElement": "対象要素",
+    "action": "アクション"
   },
   "notifications": {
     "pairingPending": "New pairing request from {sender} on {channel}",
@@ -9232,7 +9235,20 @@
         }
       }
     },
-    "paletteTheme": "Theme Palette"
+    "paletteTheme": "Theme Palette",
+    "sprite": {
+      "contextTitle": "ペットスプライト",
+      "size": "サイズ",
+      "resetPosition": "位置をリセット",
+      "hide": "ペットを隠す",
+      "enableLabel": "スプライトオーバーレイ",
+      "enableDesc": "アニメーションペットスプライトを画面に表示",
+      "sheetUrl": "スプライトシートURL",
+      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
+      "apply": "適用",
+      "clear": "クリア",
+      "codexHint": "Codex標準 8×9 (1536×1872px) スプライトシート対応"
+    }
   },
   "messageActions": {
     "revertFiles": "Undo file changes",

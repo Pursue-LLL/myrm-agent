@@ -28,4 +28,4 @@ cd myrm-agent-server && .venv/bin/python -m pytest
 
 ## 许可证
 
-MIT — 见 [LICENSE](LICENSE)
+MIT — 见仓库根目录 [LICENSE](../LICENSE)

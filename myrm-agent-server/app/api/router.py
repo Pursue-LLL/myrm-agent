@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 
 from app.api.agents import agent as user_agent
 from app.api.agents import (
@@ -23,7 +22,6 @@ from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_optimization import router as batch_optimization_router
 from app.api.budget import budget_router
 from app.api.calendar.router import router as calendar_router
-from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.chats import router as chat_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
@@ -81,7 +79,6 @@ from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
 from app.api.wiki import router as wiki_router
 from app.api.workspace.router import router as workspace_router
-from app.api.workspace_rules import router as workspace_rules_router
 from app.config.deploy_mode import is_local_mode
 
 api_router = APIRouter()
@@ -89,21 +86,9 @@ api_router = APIRouter()
 api_router.include_router(workspace_router, prefix="/workspace", tags=["workspace"])
 
 
-# Agent interrupt endpoint (called by CP pipeline to stop running agents)
-@api_router.post("/agent/interrupt", tags=["agents"])
-async def interrupt_agent(request: Request) -> JSONResponse:
-    """Interrupt all running agents for the authenticated user."""
-    from app.services.agent.gateway import get_agent_gateway
-
-    gateway = get_agent_gateway()
-    interrupted = gateway.interrupt()
-    return JSONResponse({"interrupted": interrupted})
-
-
 # AI Agents
 
 api_router.include_router(notifications_router)
-api_router.include_router(channel_ingress_router, tags=["channels"])
 api_router.include_router(general_agent.router, prefix="/agents", tags=["agents"])
 api_router.include_router(templates.router, prefix="/agents", tags=["agents"])
 api_router.include_router(suggestions.router, prefix="/agents", tags=["agents"])
@@ -215,7 +200,6 @@ api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(system_shutdown_router, prefix="/system", tags=["system"])
 
 api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
-api_router.include_router(workspace_rules_router, tags=["workspace"])
 api_router.include_router(api_keys_router)
 api_router.include_router(companion_router, prefix="/companion", tags=["companion"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])

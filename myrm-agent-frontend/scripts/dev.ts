@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { type ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
@@ -34,14 +34,14 @@ if (clean) {
   fs.rmSync('.next', { recursive: true, force: true });
 }
 
-function setupSignalHandlers(childPid: number) {
+function setupSignalHandlers(child: ChildProcess) {
   const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
   signals.forEach((signal) => {
     process.on(signal, () => {
       console.log(`\n🛑 Received ${signal}, terminating Next.js on :${APP_DEV_PORT}...`);
       try {
-        process.kill(-childPid, 'SIGTERM');
+        child.kill('SIGTERM');
       } catch {
         // ignore
       }
@@ -67,12 +67,10 @@ if (bindLan) {
 console.log(`🚀 Starting Next.js on port ${APP_DEV_PORT}...`);
 const child = spawn('bunx', [...nextArgs], {
   stdio: 'inherit',
-  detached: true,
+  detached: false,
 });
 
-if (child.pid) {
-  setupSignalHandlers(child.pid);
-}
+setupSignalHandlers(child);
 
 child.on('exit', (code) => {
   console.log('🏁 Next.js exited with code:', code);

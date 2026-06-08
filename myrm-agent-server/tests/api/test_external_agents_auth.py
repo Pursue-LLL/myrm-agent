@@ -1,7 +1,7 @@
 """Tests for external agent subscription-auth API endpoints.
 
 [POS]
-Tests for app/api/external_agents.py: login-status reporting, SSE login event
+Tests for app/api/external_agents/: login-status reporting, SSE login event
 relay, credential import/logout round-trip, and feed-to-missing-session guard.
 """
 

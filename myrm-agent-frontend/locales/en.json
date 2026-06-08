@@ -8466,6 +8466,13 @@
     "slackReplyInThread": "Reply in Thread",
     "slackReplyInThreadHint": "When enabled, bot will reply in message thread instead of sending directly to channel",
     "slackSave": "Save",
+    "saasChannelInfo": "Cloud hosting supports Feishu, Slack, Discord, and Telegram. Other channels are available in local or desktop mode.",
+    "cpWebhookUrlLabel": "Inbound Webhook URL",
+    "cpInteractionsUrlLabel": "Interactions Endpoint URL",
+    "cpWebhookHint": "Paste this URL into your platform developer console after saving credentials.",
+    "cpUrlCopy": "Copy URL",
+    "cpUrlCopied": "Copied",
+    "slackSigningSecret": "Signing Secret",
     "slackSaved": "Slack Configuration Save",
     "slackSaveError": "Save Slack ConfigurationFailed",
     "slackTestConnection": "TestConnect",
@@ -8477,6 +8484,14 @@
     "discordDesc": "Configure Discord bot credentials to enable Discord messaging channel.",
     "discordBotToken": "Bot Token",
     "discordSave": "Save",
+    "discordApplicationId": "Application ID",
+    "discordPublicKey": "Public Key (hex)",
+    "discordEnableGateway": "Gateway for inbound messages",
+    "discordEnableGatewayHint": "Required for Discord DMs and channel messages in cloud hosting. Interactions always work via webhook.",
+    "discordApplicationId": "Application ID",
+    "discordPublicKey": "Public Key (hex)",
+    "discordEnableGateway": "Gateway for inbound messages",
+    "discordEnableGatewayHint": "Required for Discord DMs and channel messages in cloud hosting. Interactions always work via webhook.",
     "discordSaved": "Discord Configuration Saved",
     "discordSaveError": "Failed to save Discord Configuration",
     "discordTestConnection": "Test Connection",
@@ -9229,7 +9244,10 @@
       "label": "Target Domain",
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
-    }
+    },
+    "highRiskDomAction": "High-Risk Browser Action Detected",
+    "targetElement": "Target Element",
+    "action": "Action"
   },
   "notifications": {
     "title": "System Notifications",
@@ -9532,6 +9550,19 @@
           }
         }
       }
+    },
+    "sprite": {
+      "contextTitle": "Pet Sprite",
+      "size": "Size",
+      "resetPosition": "Reset Position",
+      "hide": "Hide Pet",
+      "enableLabel": "Sprite Overlay",
+      "enableDesc": "Show an animated pet sprite on screen",
+      "sheetUrl": "Spritesheet URL",
+      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
+      "apply": "Apply",
+      "clear": "Clear",
+      "codexHint": "Supports Codex standard 8×9 (1536×1872px) spritesheets"
     }
   },
   "messageActions": {

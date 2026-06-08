@@ -368,6 +368,13 @@ class MessageBus:
 
         t0 = time.monotonic()
         try:
+            if await self._try_cp_egress(msg):
+                latency_ms = (time.monotonic() - t0) * 1000
+                channel.activity.record_outbound(latency_ms=latency_ms)
+                if rate_limit > 0:
+                    self._last_send_times[msg.channel] = time.monotonic()
+                return "cp_egress"
+
             result = await send_with_retry(
                 channel.send,
                 msg,
@@ -388,6 +395,22 @@ class MessageBus:
 
     async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
         """Edit a previously sent message on a channel. Returns True if successful."""
+        from app.services.channels.cp_egress_client import send_via_control_plane, should_route_via_control_plane
+
+        if should_route_via_control_plane(channel_name, None):
+            tenant_id = ""
+            ctx = get_correlation_context()
+            if ctx and ctx.user_id:
+                tenant_id = ctx.user_id
+            result = await send_via_control_plane(
+                channel=channel_name,
+                chat_id=chat_id,
+                content=content,
+                tenant_id=tenant_id,
+                update_message_id=message_id,
+            )
+            return result is not None
+
         channel = self._channels.get(channel_name)
         if not channel:
             return False
@@ -472,6 +495,34 @@ class MessageBus:
         self._dlq = None
         logger.info("MessageBus stopped")
 
+    async def _try_cp_egress(self, msg: OutboundMessage) -> bool:
+        """Route outbound via Control Plane when running in SaaS sandbox."""
+        from app.services.channels.cp_egress_client import send_via_control_plane, should_route_via_control_plane
+
+        meta = msg.metadata if isinstance(msg.metadata, dict) else None
+        if not should_route_via_control_plane(msg.channel, meta):
+            return False
+
+        tenant_id = msg.user_id or ""
+        ctx = msg.correlation_context or get_correlation_context()
+        if ctx and ctx.user_id:
+            tenant_id = ctx.user_id
+
+        update_id = None
+        if meta and meta.get("update_message_id"):
+            update_id = str(meta["update_message_id"])
+
+        result = await send_via_control_plane(
+            channel=msg.channel,
+            chat_id=msg.recipient_id,
+            content=msg.content,
+            tenant_id=tenant_id,
+            reply_to_message_id=msg.reply_to_id,
+            update_message_id=update_id,
+            thread_id=msg.thread_id,
+        )
+        return result is not None
+
     async def _dispatch_loop(self) -> None:
         """Continuously dequeue outbound messages and route to channels (priority order)."""
         self._ensure_queues()
@@ -486,6 +537,8 @@ class MessageBus:
 
             channel = self._channels.get(msg.channel)
             if not channel:
+                if await self._try_cp_egress(msg):
+                    continue
                 logger.warning("No channel registered for '%s', dropping message", msg.channel)
                 continue
             if channel.status == ChannelStatus.DISABLED:
@@ -519,6 +572,14 @@ class MessageBus:
 
             t0 = time.monotonic()
             try:
+                if await self._try_cp_egress(msg):
+                    latency_ms = (time.monotonic() - t0) * 1000
+                    channel.activity.record_outbound(latency_ms=latency_ms)
+                    channel.health.record_success()
+                    if rate_limit > 0:
+                        self._last_send_times[msg.channel] = time.monotonic()
+                    continue
+
                 await send_with_retry(
                     channel.send,
                     msg,

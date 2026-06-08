@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import logging
 import os
 import shutil
 import tempfile
@@ -16,6 +17,7 @@ from dotenv import load_dotenv
 from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_secrets
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
+_logger = logging.getLogger(__name__)
 
 
 def _prepend_monorepo_pythonpath() -> None:
@@ -103,6 +105,26 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
     """Fixture that activates blockbuster for a single test."""
     with _blocking_io_gate_ctx() as bb:
         yield bb
+
+
+@pytest.fixture(autouse=True)
+async def _reset_global_browser_pool_after_test() -> None:
+    """Shut down harness GlobalBrowserPool between tests.
+
+    TestClient bypasses app lifespan, so Chromium instances otherwise accumulate
+    for the lifetime of each xdist worker process. Uses singleton module state
+    directly because ``get_global_browser_pool()`` would create a pool on first call.
+    """
+    yield
+    try:
+        import myrm_agent_harness.toolkits.browser.pool.singleton as pool_singleton
+
+        pool = pool_singleton._global_pool
+        if pool is not None:
+            await pool.shutdown()
+            pool_singleton._global_pool = None
+    except Exception as exc:
+        _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 
 
 @pytest.hookimpl(hookwrapper=True)

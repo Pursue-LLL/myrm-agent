@@ -8929,7 +8929,10 @@
       "label": "Target Domain",
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
-    }
+    },
+    "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
+    "targetElement": "Zielelement",
+    "action": "Aktion"
   },
   "notifications": {
     "pairingPending": "New pairing request from {sender} on {channel}",
@@ -9232,7 +9235,20 @@
         }
       }
     },
-    "paletteTheme": "Theme Palette"
+    "paletteTheme": "Theme Palette",
+    "sprite": {
+      "contextTitle": "Haustier-Sprite",
+      "size": "Größe",
+      "resetPosition": "Position zurücksetzen",
+      "hide": "Haustier ausblenden",
+      "enableLabel": "Sprite-Overlay",
+      "enableDesc": "Animiertes Haustier-Sprite auf dem Bildschirm anzeigen",
+      "sheetUrl": "Spritesheet-URL",
+      "sheetUrlPlaceholder": "https://example.com/pet-spritesheet.webp",
+      "apply": "Anwenden",
+      "clear": "Löschen",
+      "codexHint": "Unterstützt Codex-Standard 8×9 (1536×1872px) Spritesheets"
+    }
   },
   "messageActions": {
     "revertFiles": "Undo file changes",

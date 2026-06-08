@@ -1,14 +1,17 @@
 /**
  * PetStateMachine — maps agent SSE events to spritesheet animation rows.
  *
- * Inspired by clawdex StateMachine.swift's transient/sticky/release model:
- *  - transient: play a row for one cycle duration, then return to base.
- *  - sticky: hold a row until another event or release arrives.
- *  - heartbeat: keep-alive; absence (>15s) falls back to idle.
+ * [INPUT]
+ * - None (standalone state machine, receives events via ingest() calls)
  *
- * Row mapping follows the Codex standard 8×9 atlas:
- *  0=idle, 1=running, 2=sleeping, 3=coding, 4=thinking,
- *  5=celebrating, 6=failed, 7=reviewing, 8=waving
+ * [OUTPUT]
+ * - PetStateMachine: Event-driven state machine with transient/sticky/release modes
+ * - AnimRow: Enum of animation row indices (IDLE, RUNNING, THINKING, etc.)
+ * - stepKeyToPetEvent: SSE step_key → PetEvent mapping function
+ *
+ * [POS]
+ * State machine that translates agent SSE status events into spritesheet animation rows.
+ * Uses transient/sticky/release event modes with heartbeat timeout for idle fallback.
  */
 
 export enum AnimRow {
@@ -96,6 +99,12 @@ export function stepKeyToPetEvent(stepKey: string): PetEvent | null {
 
     case 'loop_guard_break':
       return { row: AnimRow.FAILED, mode: 'transient', ttlMs: 3000 };
+
+    case 'approval_waiting':
+      return { row: AnimRow.WAVING, mode: 'sticky' };
+
+    case 'approval_released':
+      return { row: AnimRow.IDLE, mode: 'release' };
 
     default:
       return null;

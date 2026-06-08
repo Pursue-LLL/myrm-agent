@@ -166,6 +166,10 @@ class FeishuChannel(BaseChannel):
         bot_policy: str = "deny",
     ) -> None:
         super().__init__()
+        if not app_id or not app_id.strip():
+            raise ValueError("app_id cannot be empty")
+        if not app_secret or not app_secret.strip():
+            raise ValueError("app_secret cannot be empty")
         self._app_id = app_id
         self._app_secret = app_secret
         self._encrypt_key = encrypt_key

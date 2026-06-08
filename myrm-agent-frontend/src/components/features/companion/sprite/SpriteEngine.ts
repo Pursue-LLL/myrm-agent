@@ -1,15 +1,18 @@
 /**
  * SpriteEngine — Canvas 2D spritesheet renderer for Codex-standard pet assets.
  *
- * Supports the standard 8-column × N-row atlas layout where each cell is
- * 192×208 pixels (Codex standard). Renders a single animation row at a
- * configurable FPS using requestAnimationFrame-driven timing.
+ * [INPUT]
+ * - None (standalone, no external module dependencies)
  *
- * Fallback chain:
- *  1. Try requested row+frame → draw it.
- *  2. Frame out of bounds → clamp to last valid frame in row.
- *  3. Row out of bounds → fall back to row 0 (idle).
- *  4. Image failed to load → fire onLoadError callback.
+ * [OUTPUT]
+ * - SpriteEngine: Canvas 2D renderer with rAF animation loop, row/frame clamping
+ * - SpritesheetMeta, CODEX_STANDARD: Spritesheet layout config and preset
+ * - SpriteLoadState: Load lifecycle state type
+ *
+ * [POS]
+ * Low-level Canvas 2D rendering engine for Codex-standard 8×N spritesheet assets.
+ * Drives animation via requestAnimationFrame, auto-detects grid from image dimensions,
+ * and falls back gracefully on missing rows/frames.
  */
 
 export interface SpritesheetMeta {

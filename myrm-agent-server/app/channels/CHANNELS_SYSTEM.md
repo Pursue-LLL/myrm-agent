@@ -662,7 +662,7 @@ registry.register_all(app)
 | **业务层（Server）** | RESTful API | `/api/channels/login/*` endpoints（已注册） |
 | | SSE Stream | Server-Sent Events实时状态推送 |
 | | Session清理 | 自动清理过期session（每5分钟） |
-| **业务层（Frontend）** | `ChannelLoginDialog` | 统一登录UI组件（QR显示+OAuth按钮+SSE订阅+状态更新） |
+| **业务层（Frontend）** | Settings 渠道 Section | `settings/sections/integration/channels/*ConfigCard.tsx` — 各 Provider QR/OAuth/配对 UI |
 | | API服务层 | `channels.ts` API调用封装 |
 | | TypeScript类型 | 完整类型定义（100%匹配后端） |
 | **控制平面（SaaS）** | Redis Store | 实现`LoginSessionStoreProtocol`（多租户） |
@@ -820,7 +820,7 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 | **SSE Stream** | ✅ 实时状态推送 | ⚠️ 轮询 | ⚠️ 轮询 | ⚠️ 轮询 | ❌ 无UI |
 | **多Method支持** | ✅ 5种（QR/OAuth2/Token/Password/SSO） | ⚠️ 仅QR | ⚠️ 仅QR | ⚠️ QR+Token | ❌ 无 |
 | **加密存储** | ✅ AES-256 + PBKDF2 | ❌ 明文 | ❌ 明文 | ⚠️ Base64 | ❌ 无持久化 |
-| **统一UI** | ✅ ChannelLoginDialog | ❌ Channel特定 | ❌ Channel特定 | ❌ Channel特定 | ❌ 无UI |
+| **统一UI** | ✅ Settings Provider 配置卡 | ❌ Channel特定 | ❌ Channel特定 | ❌ Channel特定 | ❌ 无UI |
 | **SaaS支持** | ✅ Redis多租户 | ❌ 单用户 | ❌ 单用户 | ⚠️ 部分 | ❌ 单用户 |
 
 **评分**：我们 10/10，竞品平均 5.5/10（+4.5分）🚀
@@ -837,25 +837,22 @@ Frontend ← SSE stream ← AsyncIterator[LoginEvent]
 
 #### 组件架构
 
-**ChannelLoginDialog** (`myrm-agent-frontend/src/components/ui/channels/ChannelLoginDialog.tsx`)：
+渠道登录与配置 UI 在 **Settings → 通信** 域，按 Provider 拆分配置卡（非统一 Dialog）：
 
-```typescript
-interface ChannelLoginDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  channel: ChannelInfo;
-  onSuccess?: (credentials: Record<string, unknown>) => void;
-}
-```
+| 路径 | 职责 |
+|------|------|
+| `myrm-agent-frontend/src/components/features/settings/sections/integration/channels/ChannelsSection.tsx` | 渠道总览、依赖安装、聚合各 Provider 卡 |
+| `.../FeishuConfigCard.tsx` | 飞书 QR 注册（`/channels/manage/feishu/qr-register`） |
+| `.../WeChatConfigCard.tsx` | 微信登录触发 |
+| `.../TelegramConfigCard.tsx` 等 | 各平台 Token/OAuth/配对 |
 
-**核心功能**：
-1. **方法选择界面**：支持QR码、OAuth2双模式
-2. **QR码显示**：实时显示、auto-refresh、过期倒计时
-3. **OAuth2授权**：一键跳转授权页面、等待回调
-4. **SSE实时订阅**：EventSource订阅`/stream`端点
-5. **状态驱动UI**：根据`LoginStatus`自动更新UI（加载/成功/失败/超时）
-6. **错误处理**：连接失败、API错误、超时的友好提示
-7. **取消机制**：用户可随时取消登录流程
+详见 monorepo 内 `myrm-agent-frontend/src/components/features/settings/sections/integration/channels/_ARCH.md`。
+
+**核心能力**（分布在各 ConfigCard 内）：
+1. Provider 专属 QR / OAuth / Token 表单
+2. SSE 或轮询订阅登录状态（如 Feishu QR poll）
+3. 连接状态 Badge、配对管理（`PairingManager.tsx`）
+4. 国际化：`locales/*.json` 中 `settings.channels.*` 键
 
 #### API服务层
 
@@ -883,41 +880,9 @@ interface ChannelLoginDialogProps {
 - 错误消息文案
 - OAuth2授权引导文案
 
-#### 使用示例
+#### 集成方式
 
-```typescript
-import ChannelLoginDialog from '@/components/ui/channels/ChannelLoginDialog';
-
-function ChannelsPage() {
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [selectedChannel, setSelectedChannel] = useState<ChannelInfo | null>(null);
-
-  const handleLoginSuccess = (credentials: Record<string, unknown>) => {
-    console.log('Login successful:', credentials);
-    // 更新UI，刷新channels列表
-  };
-
-  return (
-    <>
-      <Button onClick={() => {
-        setSelectedChannel(channel);
-        setLoginOpen(true);
-      }}>
-        Login
-      </Button>
-
-      {selectedChannel && (
-        <ChannelLoginDialog
-          open={loginOpen}
-          onOpenChange={setLoginOpen}
-          channel={selectedChannel}
-          onSuccess={handleLoginSuccess}
-        />
-      )}
-    </>
-  );
-}
-```
+用户在 WebUI **Settings → 通信** 打开对应 Provider 配置卡完成登录；后端 REST/SSE 由 `app/api/channels/login.py` 等与各 ConfigCard 对接。无需额外页面级 Dialog 包装。
 
 ### 10.10 最佳实践
 

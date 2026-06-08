@@ -319,6 +319,9 @@ fn main() {
             screen_lock_platform_support,
             show_visual_approval_overlay,
             hide_visual_approval_overlay,
+            show_pet_overlay,
+            hide_pet_overlay,
+            pet_overlay_set_row,
             tray::set_tray_status
         ])
         .build(tauri::generate_context!())

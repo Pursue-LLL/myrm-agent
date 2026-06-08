@@ -22,6 +22,9 @@ from fastapi import FastAPI
 from app.ai_agents.general_agent.tools import (
     _tool_layer_bootstrap,  # noqa: F401 — side-effect import: registers server-layer tools into harness _TOOL_LAYERS
 )
+from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router
+from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
+from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.openai_compat.router import openai_compat_router
 from app.api.router import api_router
 from app.api.webui.router import router as webui_router
@@ -47,6 +50,9 @@ app = FastAPI(
 register_middlewares(app)
 
 app.include_router(api_router, prefix=settings.api_prefix)
+app.include_router(channel_ingress_router, prefix="/api")
+app.include_router(internal_agent_interrupt_router, prefix="/api")
+app.include_router(internal_skills_killswitch_router)
 app.include_router(openai_compat_router)
 app.include_router(webui_router)
 

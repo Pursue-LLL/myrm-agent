@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.infra.health::HealthChecker (POS: 健康检查抽象基类)
-- myrm_agent_harness.infra.sqlite_backup::SQLiteBackupManager (POS: SQLite 热备份工具)
+- app.database.backup::get_sqlite_backup_manager (POS: SQLite 备份管理器工厂)
 - app.config.settings::settings (POS: 应用配置)
 
 [OUTPUT]
@@ -27,19 +27,10 @@ from myrm_agent_harness.infra.health.health_checker import (
     RecoveryResult,
     RecoveryStatus,
 )
-from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
-
 from app.config.settings import settings
+from app.database.backup import get_sqlite_backup_manager
 
 logger = logging.getLogger(__name__)
-
-_BACKUP_SUBDIR = "sqlite_backups"
-
-
-def _get_backup_manager() -> SQLiteBackupManager:
-    db_path = Path(settings.database.sqlite_path)
-    backup_dir = db_path.parent / _BACKUP_SUBDIR
-    return SQLiteBackupManager(db_path=db_path, backup_dir=backup_dir)
 
 
 class SQLiteHealthChecker(HealthChecker):
@@ -140,7 +131,13 @@ class SQLiteHealthChecker(HealthChecker):
         Quarantines the corrupted database files and restores from the most
         recent snapshot that passes ``PRAGMA integrity_check``.
         """
-        manager = _get_backup_manager()
+        manager = get_sqlite_backup_manager()
+        if manager is None:
+            return RecoveryResult(
+                status=RecoveryStatus.FAILED,
+                message="Database is in-memory or file does not exist, cannot restore",
+                actions_taken=[],
+            )
         result = manager.restore_latest()
 
         if result.restored:

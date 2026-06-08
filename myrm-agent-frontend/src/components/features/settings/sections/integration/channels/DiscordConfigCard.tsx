@@ -8,14 +8,19 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
+import { isSandbox } from '@/lib/deploy-mode';
 import type { DiscordCredentials } from '@/services/channels';
 import { getDiscordCredentials, saveDiscordCredentials, testDiscordConnection } from '@/services/channels';
 import { ConnectionBadge } from './ConnectionBadge';
+import { CpInboundUrlBanner } from './CpInboundUrlBanner';
 import { useChannelConfig } from './useChannelConfig';
 
 const EMPTY_CREDS: DiscordCredentials = {
   botToken: '',
-  botPolicy: 'deny',
+  applicationId: '',
+  publicKey: '',
+  enableGateway: true,
+  botPolicy: 'mention_only',
   autoThread: true,
   noThreadChannels: '',
   voiceEnabled: false,
@@ -30,12 +35,17 @@ const EMPTY_CREDS: DiscordCredentials = {
 
 export function DiscordConfigCard() {
   const t = useTranslations('channels');
+  const sandbox = isSandbox();
   const [showToken, setShowToken] = useState(false);
+
+  const requiredFields: (keyof DiscordCredentials)[] = sandbox
+    ? ['botToken', 'applicationId', 'publicKey']
+    : ['botToken'];
 
   const { creds, dirty, loading, saving, testing, connStatus, statusLabel, handleChange, handleSave, handleTest } =
     useChannelConfig<DiscordCredentials>({
       emptyCreds: EMPTY_CREDS,
-      requiredFields: ['botToken'],
+      requiredFields,
       getCreds: getDiscordCredentials,
       saveCreds: saveDiscordCredentials,
       testConnection: (c) => testDiscordConnection(c.botToken),
@@ -46,6 +56,81 @@ export function DiscordConfigCard() {
     return (
       <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
         <IconLoader className="h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
+
+  if (sandbox) {
+    return (
+      <div className="space-y-4">
+        <ConnectionBadge status={connStatus} label={statusLabel} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="discord-bot-token">{t('discordBotToken')}</Label>
+            <div className="relative">
+              <Input
+                id="discord-bot-token"
+                type={showToken ? 'text' : 'password'}
+                value={creds.botToken}
+                onChange={(e) => handleChange('botToken', e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowToken(!showToken)}
+              >
+                {showToken ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="discord-app-id">{t('discordApplicationId')}</Label>
+            <Input
+              id="discord-app-id"
+              value={creds.applicationId ?? ''}
+              onChange={(e) => handleChange('applicationId', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="discord-public-key">{t('discordPublicKey')}</Label>
+            <Input
+              id="discord-public-key"
+              value={creds.publicKey ?? ''}
+              onChange={(e) => handleChange('publicKey', e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+          <Switch
+            id="discord-enable-gateway"
+            checked={creds.enableGateway ?? true}
+            onCheckedChange={(v) => handleChange('enableGateway', v)}
+          />
+          <div>
+            <Label htmlFor="discord-enable-gateway">{t('discordEnableGateway')}</Label>
+            <p className="text-xs text-muted-foreground">{t('discordEnableGatewayHint')}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          <Button onClick={handleSave} disabled={saving || !dirty} size="sm">
+            {saving && <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />}
+            {t('discordSave')}
+          </Button>
+          <Button variant="outline" onClick={handleTest} disabled={testing || !creds.botToken} size="sm">
+            {testing ? (
+              <IconLoader className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <IconWifi className="mr-2 h-3.5 w-3.5" />
+            )}
+            {t('discordTestConnection')}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -221,6 +306,8 @@ export function DiscordConfigCard() {
           </>
         )}
       </div>
+
+      {sandbox && <CpInboundUrlBanner channel="discord" />}
 
       <div className="flex items-center gap-3 pt-2">
         <Button onClick={handleSave} disabled={saving || !dirty} size="sm">

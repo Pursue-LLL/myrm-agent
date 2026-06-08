@@ -18,7 +18,8 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | `__init__.py` | 模块入口 | 空（避免桶文件导出触发路由树加载） | ❌ |
 | `router.py` | ✅ 核心 | 主路由注册中心，按职责分组注册所有子路由 | ⚠️ 待补 |
 | `dependencies.py` | ✅ 核心 | 全局依赖注入（`get_deploy_identity`、数据库会话、部署模式守卫、`verify_voice_enabled` 语音特性门控） | ✅ |
-| `workspace_rules.py` | ✅ 核心 | 项目级规则文件自省（GET /workspace/rules），供前端展示已发现的 workspace 规则文件 | ✅ |
+| `approvals/` | ✅ 核心 | 统一审批决策（list/resolve/batch-resolve） | [_ARCH.md](approvals/_ARCH.md) |
+| `mcp/` | ✅ 核心 | 记忆 MCP 端点挂载（`/mcp`，lifespan 手动管理） | [_ARCH.md](mcp/_ARCH.md) |
 | `health/` | ✅ 基础设施 | 健康检查与诊断端点 | ⚠️ 待补 |
 
 ---
@@ -30,7 +31,7 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | 模块 | 路由前缀 | 职责 |
 |------|---------|------|
 | `agents/` | `/agents`, `/user-agents` | AI Agent 统一调用接口（fast/agent/deep_research/consensus 模式）+ 用户智能体 CRUD |
-| `external_agents.py` | `/external-agents` | 外部委托 Agent 订阅鉴权（登录状态徽章、SSE 交互式登录、凭据导入/登出）— local+SaaS 全模式注册 |
+| `external_agents/` | `/external-agents` | 外部委托 Agent 订阅鉴权（登录状态徽章、SSE 交互式登录、凭据导入/登出）— local+SaaS 全模式注册 | [_ARCH.md](external_agents/_ARCH.md) |
 | `chats/` | `/chats` | 聊天会话管理（创建、列表、删除、重命名、上下文压缩） |
 | `eval/` | `/eval` | Agent 评估与回归测试（运行、状态查询、用例管理、报告） |
 | `skills/` | `/skills`, `/evolution`, `/skill-quality`, `/experience-ledger`, `/migrations`, `/reviews` | 技能管理全域（CRUD、进化、质量、经验账本、迁移、审查收件箱；本地/预置/技能池、打包、一键回滚） |
@@ -42,6 +43,7 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 | 模块 | 路由前缀 | 职责 |
 |------|---------|------|
 | `projects/` | `/projects` | 项目管理（CRUD + 会话归属移动/批量移动） |
+| `approvals/` | `/approvals` | 统一审批决策（list/resolve/batch-resolve），见 [approvals/_ARCH.md](approvals/_ARCH.md) |
 | `files/` | `/files` | 文件管理（上传、静态服务、存储、加密、一键部署） |
 | `memory/` | `/memory` | 用户记忆管理（CRUD、待处理记忆；审批动作会写入 Experience Ledger） |
 | `cron/` | `/cron` | 定时任务管理（CRUD、暂停/恢复、触发、执行记录） |
@@ -57,12 +59,14 @@ FastAPI 路由层。纯 HTTP 接口定义，不包含业务逻辑（业务逻辑
 
 | 模块 | 路由前缀 | 职责 |
 |------|---------|------|
+| `internal/` | `/api/agent/interrupt`, `/api/internal/skills` | CP→沙箱内部端点（见 internal/_ARCH.md） |
 | `features/` | `/features` | Feature Flags 管理（状态查询、实验功能切换、重置） |
 | `integrations/` | `/integrations` | 外部服务验证（LLM、搜索、MCP、检索）+ 沙箱 MCP 代理 |
+| `mcp/` | `/mcp` | 记忆 MCP Streamable HTTP 端点（lifespan 挂载），见 [mcp/_ARCH.md](mcp/_ARCH.md) |
 | `system/` | `/system` | 系统信息、公网 ingress、优雅停机（`/shutdown`） |
 | `config/` | `/config` | 用户配置管理（带版本控制） |
 | `webui/` | `/webui` | WebUI 辅助接口（二维码、欢迎页面、认证） |
-| `workspace/` | `/workspace` | Workspace 级别端点（SSE Multiplexing 多路复用流） |
+| `workspace/` | `/workspace` | Workspace SSE 多路复用 + 规则文件自省（`GET /workspace/rules`） | [_ARCH.md](workspace/_ARCH.md) |
 
 ### 用户体验
 
@@ -113,7 +117,7 @@ api_router
   ├─ 用户体验 (companion, statistics, budget, kanban)
   ├─ 语音 (stt, tts, voice/ws)
   ├─ 安全 (security/allowlist)
-  ├─ 开发者 (workspace_rules)
+  ├─ 开发者 (workspace/rules)
   ├─ 集成与基础设施 (features, integrations, config, webui, workspace)
   ├─ OpenAI 兼容 (/v1 — Agent + LLM passthrough)
   ├─ [Local] migration/ (竞品数据自动发现)

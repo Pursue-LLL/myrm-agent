@@ -50,6 +50,9 @@
 ```
 myrm-agent/
 ├── ARCHITECTURE.md          ← 本文件（五仓 + 三模式 + 文档索引）
+├── LICENSE                  ← MIT（全仓）
+├── CONTRIBUTING.md          ← 贡献指南
+├── SECURITY.md              ← 漏洞报告策略
 ├── _ARCH.md                 ← 子目录职责表（分形 L3 入口）
 ├── shared/                  ← 前后端共享静态配置 → shared/_ARCH.md
 ├── myrm-agent-server/       ← FastAPI 业务层 → 详见 server/ARCHITECTURE.md
@@ -76,7 +79,7 @@ myrm-agent/
 
 ## 分形自文档（四层）
 
-1. **根** — `ARCHITECTURE.md`（本文件） / `_ARCH.md`
+1. **根** — `ARCHITECTURE.md`（本文件） / `_ARCH.md` / `CONTRIBUTING.md`
 2. **技术方案** — `*_SYSTEM.md`（如 `app/channels/CHANNELS_SYSTEM.md`）
 3. **模块** — 每目录 `_ARCH.md`（模块说明；GitHub 入口 README 仅保留快速启动）
 4. **文件** — `[INPUT]` / `[OUTPUT]` / `[POS]` 或 `@input` / `@output` / `@pos`
