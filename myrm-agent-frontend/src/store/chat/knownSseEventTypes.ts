@@ -27,6 +27,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'tool_end',
   'tool_failure',
   'tool_stdout_chunk',
+  'tool_evicted_ref',
   'tool_cancelled',
   'tool_timeout',
   'tool_retry',

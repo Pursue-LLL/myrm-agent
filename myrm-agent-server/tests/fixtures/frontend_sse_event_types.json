@@ -58,6 +58,7 @@
   "tool_approval_request",
   "tool_cancelled",
   "tool_end",
+  "tool_evicted_ref",
   "tool_failure",
   "tool_fallback",
   "tool_heartbeat",

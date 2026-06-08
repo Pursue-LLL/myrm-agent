@@ -385,7 +385,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
               {step.archive_restore_result && <ArchiveRestoreResultChip result={step.archive_restore_result} />}
 
-              <LiveTerminal stdout={step.stdout} />
+              <LiveTerminal stdout={step.stdout} evictedFileRef={step.evicted_file_ref} />
             </>
           )}
 
@@ -592,7 +592,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
 
         {!isExpanded && isCollapsedStepCurrent && collapsedStep.stdout && (
           <div className="mt-2 ml-7 slide-up">
-            <LiveTerminal stdout={collapsedStep.stdout} />
+            <LiveTerminal stdout={collapsedStep.stdout} evictedFileRef={collapsedStep.evicted_file_ref} />
           </div>
         )}
 

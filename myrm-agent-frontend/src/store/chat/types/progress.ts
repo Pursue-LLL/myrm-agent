@@ -66,4 +66,5 @@ export type ProgressItem = {
   progress_percent?: number; // 整体进度百分比（0-100）
   duration_ms?: number; // 工具执行耗时（毫秒）
   stdout?: string; // 实时终端输出流（用于 Live Terminal 组件）
+  evicted_file_ref?: string; // 被 evict 的完整输出文件名（用于"查看完整输出"按钮）
 };

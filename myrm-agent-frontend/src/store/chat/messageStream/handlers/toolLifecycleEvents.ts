@@ -112,10 +112,7 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     const steps = state.messages[messageIndex].progressSteps;
     if (steps && steps.length > 0) {
       const lastStep = steps[steps.length - 1];
-      // Avoid excessive re-renders by mutating cautiously or depending on how state updates work
-      // Since Immer is used, mutating lastStep works
       const newStdout = (lastStep.stdout || '') + data.data;
-      // 终端缓冲截断保护，防止浏览器 OOM（保留最后 3 万个字符，并在换行处安全截断以保护 ANSI 边界）
       if (newStdout.length > 30000) {
         const sliced = newStdout.slice(-30000);
         const newlineIndex = sliced.indexOf('\n');
@@ -124,6 +121,18 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
       } else {
         lastStep.stdout = newStdout;
       }
+    }
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.TOOL_EVICTED_REF) {
+    const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+    if (messageIndex === -1) return done(ctx);
+
+    const steps = state.messages[messageIndex].progressSteps;
+    if (steps && steps.length > 0) {
+      const lastStep = steps[steps.length - 1];
+      lastStep.evicted_file_ref = data.data;
     }
     return done(ctx);
   }

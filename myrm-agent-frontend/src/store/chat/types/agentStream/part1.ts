@@ -33,6 +33,7 @@ export const AgentEventType = {
   TOOL_END: 'tool_end',
   TOOL_FAILURE: 'tool_failure',
   TOOL_STDOUT_CHUNK: 'tool_stdout_chunk',
+  TOOL_EVICTED_REF: 'tool_evicted_ref',
   TOOL_CANCELLED: 'tool_cancelled',
   TOKEN_USAGE: 'token_usage',
   TOOL_APPROVAL_REQUEST: 'tool_approval_request',

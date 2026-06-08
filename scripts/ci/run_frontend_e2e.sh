@@ -50,14 +50,13 @@ uv run run.py --port 8080 >"${WS_DIR}/backend.log" 2>&1 &
 BACKEND_PID=$!
 _wait_http "http://127.0.0.1:8080/api/v1/health" "backend"
 
-echo "==> [3/4] Build and start frontend on :3000"
+echo "==> [3/4] Start frontend dev server on :3000"
 cd "${FRONTEND_DIR}"
 bun install --frozen-lockfile
 bunx playwright install chromium --with-deps
-NEXT_PUBLIC_DEPLOY_MODE=local bun run build
-PORT=3000 HOSTNAME=127.0.0.1 bun run start >"${WS_DIR}/frontend.log" 2>&1 &
+NEXT_PUBLIC_DEPLOY_MODE=local WEBUI_DEV_BIND_HOST=127.0.0.1 bun run dev >"${WS_DIR}/frontend.log" 2>&1 &
 FRONTEND_PID=$!
-_wait_http "http://127.0.0.1:3000/" "frontend" 90
+_wait_http "http://127.0.0.1:3000/" "frontend" 120
 
 echo "==> [4/4] Run Playwright E2E"
 PLAYWRIGHT_SKIP_WEBSERVER=1 \

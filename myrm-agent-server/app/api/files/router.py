@@ -13,6 +13,7 @@ from app.api.files import (
     browse,
     deploy_api,
     document_extract,
+    evicted,
     local_actions,
     pdf_extract,
     revert,
@@ -37,6 +38,7 @@ router.include_router(pdf_extract.router, tags=["files-pdf"])
 router.include_router(document_extract.router, tags=["files-document"])
 router.include_router(revert.router, prefix="/revert", tags=["files-revert"])
 router.include_router(browse.router, tags=["files-browse"])
+router.include_router(evicted.router, tags=["files-evicted"])
 router.include_router(suggest.router, tags=["files-suggest"])
 router.include_router(local_actions.router, tags=["files-local-actions"])
 router.include_router(workspace_ops.router, tags=["files-workspace-ops"])
