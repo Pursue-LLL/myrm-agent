@@ -13,7 +13,7 @@ async def warmup_global_browser_pool() -> None:
     from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 
-    from app.config.browser import get_browser_pool_config
+    from app.config.browser import get_browser_launch_options, get_browser_pool_config
     from app.config.settings import settings
     from app.core.security.browser_vault import get_global_session_vault
 
@@ -21,7 +21,12 @@ async def warmup_global_browser_pool() -> None:
     web_fetch_tools.set_session_vault(get_global_session_vault())
 
     config = get_browser_pool_config()
-    pool = get_global_browser_pool(max_browsers=settings.browser_pool.max_browsers, config=config)
+    launch_options = get_browser_launch_options()
+    pool = get_global_browser_pool(
+        max_browsers=settings.browser_pool.max_browsers,
+        config=config,
+        launch_options=launch_options,
+    )
     await pool.warmup(
         browsers=settings.browser_pool.warmup_browsers,
         pages_per_context=settings.browser_pool.warmup_pages,

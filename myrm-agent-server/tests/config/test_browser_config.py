@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from myrm_agent_harness.toolkits.browser.pool.config import _DEFAULT_CDP_ENDPOINT, LaunchMode
 
-from app.config.browser import get_browser_pool_config
+from app.config.browser import get_browser_launch_options, get_browser_pool_config
 
 
 class TestGetBrowserPoolConfig:
@@ -37,3 +37,18 @@ class TestGetBrowserPoolConfig:
         with patch("app.config.browser.is_local_mode", return_value=False):
             config = get_browser_pool_config()
             assert config.cdp_endpoint is None
+
+
+class TestGetBrowserLaunchOptions:
+    def test_local_mode_visible_fallback_launch(self) -> None:
+        with patch("app.config.browser.is_local_mode", return_value=True):
+            options = get_browser_launch_options()
+            assert options["headless"] is False
+
+    def test_sandbox_mode_keeps_default_headless(self) -> None:
+        with (
+            patch("app.config.browser.is_local_mode", return_value=False),
+            patch.dict("os.environ", {"VISUAL_DESKTOP": ""}, clear=False),
+        ):
+            options = get_browser_launch_options()
+            assert options["headless"] is True

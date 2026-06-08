@@ -4,7 +4,7 @@
 - 本地模式（LOCAL） → `BrowserPoolConfig.minimal()` + `LaunchMode.AUTO`（自动检测并连接系统 Chrome）
 - Sandbox → `BrowserPoolConfig.defensive()` + `LaunchMode.LAUNCH`（沙箱内无系统 Chrome）
 
-启动时通过 `get_browser_pool_config()` 取配置并传入 `GlobalBrowserPool`。
+启动时通过 `get_browser_pool_config()` 取池配置、`get_browser_launch_options()` 取 fallback 启动参数，并传入 `GlobalBrowserPool`。
 """
 
 import dataclasses
@@ -45,4 +45,18 @@ def get_browser_pool_config() -> BrowserPoolConfig:
     return BrowserPoolConfig.defensive()
 
 
-__all__ = ["get_browser_pool_config"]
+def get_browser_launch_options() -> dict[str, object]:
+    """Launch options for GlobalBrowserPool fallback browser launch.
+
+    Local mode uses a visible window when AUTO falls back to launching Chromium.
+    Sandbox mode keeps the default headless launch (unless VISUAL_DESKTOP=1).
+    """
+    from myrm_agent_harness.toolkits.browser.pool.browser_pool import _DEFAULT_LAUNCH_OPTIONS
+
+    options = dict(_DEFAULT_LAUNCH_OPTIONS)
+    if is_local_mode():
+        options["headless"] = False
+    return options
+
+
+__all__ = ["get_browser_pool_config", "get_browser_launch_options"]
