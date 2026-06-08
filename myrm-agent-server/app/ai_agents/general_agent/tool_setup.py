@@ -81,10 +81,26 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if self.enable_web_search and self.search_service_cfg:
             reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
             embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
+
+            sufficiency_cfg = None
+            sufficiency_llm = None
+            if getattr(self, "search_depth", "normal") == "deep":
+                from myrm_agent_harness.core.config.llm import LLMConfig
+                from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
+
+                sufficiency_cfg = SufficiencyConfig(enabled=True)
+                sufficiency_llm = LLMConfig(
+                    model=self.model_cfg.model,
+                    api_key=self.model_cfg.api_key,
+                    base_url=self.model_cfg.base_url,
+                )
+
             tools.append(
                 create_web_search_tool(
                     self.search_service_cfg,
                     reranker_config=reranker_cfg,
+                    sufficiency_config=sufficiency_cfg,
+                    sufficiency_llm_config=sufficiency_llm,
                 )
             )
             from app.config.deploy_mode import is_local_mode as _is_local
@@ -95,6 +111,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     embedding_config=embedding_cfg,
                     use_raw_markdown=self.fetch_raw_webpage,
                     allow_private_networks=_is_local(),
+                    sufficiency_config=sufficiency_cfg,
+                    sufficiency_llm_config=sufficiency_llm,
                 )
             )
             try:

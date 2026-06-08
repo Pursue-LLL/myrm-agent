@@ -154,6 +154,7 @@ myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
 myrm_agent_harness.core.artifacts.constants
 myrm_agent_harness.core.config.gateway
+myrm_agent_harness.core.config.llm
 myrm_agent_harness.core.events
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
@@ -317,6 +318,7 @@ myrm_agent_harness.toolkits.retriever.embedding.factory
 myrm_agent_harness.toolkits.retriever.reranker
 myrm_agent_harness.toolkits.retriever.reranker.cloud_reranker
 myrm_agent_harness.toolkits.retriever.reranker.factory
+myrm_agent_harness.toolkits.retriever.sufficiency
 myrm_agent_harness.toolkits.security.credential_vault
 myrm_agent_harness.toolkits.storage.base
 myrm_agent_harness.toolkits.storage.cached
