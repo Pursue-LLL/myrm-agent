@@ -69,6 +69,17 @@ async def init_database() -> None:
         logger.error("Database table init failed: %s", e)
         raise
 
+    # Pre-migration safety snapshot: protects against multi-step table rebuild
+    # migrations (e.g. CREATE AS SELECT → DROP → RENAME) that leave the DB in
+    # an inconsistent state if interrupted mid-sequence.
+    try:
+        from app.config.settings import settings
+        from app.database.recovery import backup_database
+
+        backup_database(settings.database.sqlite_path)
+    except Exception as e:
+        logger.warning("Pre-migration backup failed (continuing): %s", e)
+
     try:
         await run_migrations(engine)
     except Exception as e:
