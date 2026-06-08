@@ -1,4 +1,4 @@
-"""HTTP tests for POST /api/v1/mcp/scan static pre-flight endpoint."""
+"""HTTP tests for POST /api/v1/integrations/mcp/scan static pre-flight endpoint."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ class TestMCPScanEndpoint:
 
     def test_clean_config_allows_save(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "docs",
                 "type": "sse",
@@ -42,7 +42,7 @@ class TestMCPScanEndpoint:
 
     def test_hardcoded_env_secret_blocks_save(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "github",
                 "type": "stdio",
@@ -61,7 +61,7 @@ class TestMCPScanEndpoint:
 
     def test_risky_profile_flags_high(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "filesystem-tools",
                 "type": "stdio",
@@ -77,7 +77,7 @@ class TestMCPScanEndpoint:
 
     def test_scan_batch_returns_multiple_results(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan-batch",
+            "/api/v1/integrations/mcp/scan-batch",
             json={
                 "configs": [
                     {
@@ -106,7 +106,7 @@ class TestMCPScanEndpoint:
 
     def test_high_risk_requires_acknowledgement_flag(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "filesystem-tools",
                 "type": "stdio",
@@ -122,7 +122,7 @@ class TestMCPScanEndpoint:
 
     def test_ngrok_url_in_args_flagged(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "callback",
                 "type": "stdio",
@@ -137,7 +137,7 @@ class TestMCPScanEndpoint:
 
     def test_underscore_description_prompt_injection_flagged(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "docs",
                 "type": "sse",
@@ -152,7 +152,7 @@ class TestMCPScanEndpoint:
 
     def test_gnupg_path_in_args_flagged(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "fs",
                 "type": "stdio",
@@ -166,7 +166,7 @@ class TestMCPScanEndpoint:
 
     def test_kube_path_in_args_flagged(self, client: TestClient) -> None:
         response = client.post(
-            "/api/v1/mcp/scan",
+            "/api/v1/integrations/mcp/scan",
             json={
                 "name": "fs",
                 "type": "stdio",

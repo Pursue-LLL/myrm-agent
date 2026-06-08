@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-API_PREFIX = "/api/v1/mcp/oauth"
+API_PREFIX = "/api/v1/integrations/mcp/oauth"
 
 
 @pytest.fixture
