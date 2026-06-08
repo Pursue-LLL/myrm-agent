@@ -9161,6 +9161,8 @@
     "description": "Agent 请求执行以下操作。你可以批准、编辑参数后执行、或拒绝并反馈。",
     "subagentApprovalRequired": "子智能体任务需审批",
     "skillGrowthPending": "技能成长待审",
+    "viewChanges": "查看变更",
+    "hideChanges": "收起变更",
     "memoryUpdate": "记忆更新",
     "noContent": "无内容可预览",
     "payloadData": "审批数据",

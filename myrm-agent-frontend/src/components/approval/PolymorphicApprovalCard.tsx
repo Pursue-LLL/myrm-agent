@@ -111,6 +111,8 @@ function SkillApprovalContent({
   language,
   isDark,
   label,
+  viewChangesLabel,
+  hideChangesLabel,
 }: {
   reason?: string;
   content?: string;
@@ -118,6 +120,8 @@ function SkillApprovalContent({
   language: string;
   isDark: boolean;
   label: string;
+  viewChangesLabel: string;
+  hideChangesLabel: string;
 }) {
   const [showDiff, setShowDiff] = useState(false);
 
@@ -131,7 +135,7 @@ function SkillApprovalContent({
         onClick={() => setShowDiff(!showDiff)}
       >
         {showDiff ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        {showDiff ? 'Hide changes' : 'View changes'}
+        {showDiff ? hideChangesLabel : viewChangesLabel}
       </button>
       {showDiff && (
         <div className="rounded-lg border overflow-hidden h-[400px]">
@@ -290,6 +294,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           language={language}
           isDark={isDark}
           label={t('skillGrowthPending')}
+          viewChangesLabel={t('viewChanges')}
+          hideChangesLabel={t('hideChanges')}
         />;
       }
       case 'tool_clarification': {

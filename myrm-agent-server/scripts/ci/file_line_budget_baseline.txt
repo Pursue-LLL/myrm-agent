@@ -78,6 +78,7 @@ app/core/cron/adapters/agent_runner.py
 app/core/infra/frontend_launcher.py
 app/core/kanban/adapters/sqlalchemy_store.py
 app/core/media/batch/orchestrator.py
+app/core/skills/creation/service.py
 app/core/skills/curator_service.py
 app/core/storage/service.py
 app/core/utils/chat_utils.py

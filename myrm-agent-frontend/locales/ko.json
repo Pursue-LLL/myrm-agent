@@ -8851,6 +8851,8 @@
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
     "skillGrowthPending": "Skill Growth Review",
+    "viewChanges": "변경사항 보기",
+    "hideChanges": "변경사항 숨기기",
     "memoryUpdate": "Memory Update",
     "noContent": "No content to preview",
     "payloadData": "Payload Data",
