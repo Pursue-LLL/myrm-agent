@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 Vercel 307 指向本仓 `install-remote.*`，再执行 `install.*`。
+OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 Cloudflare Pages `public/_redirects` 307 指向本仓 `install-remote.*`，再执行 `install.*`。
 
 ## 文件清单
 
