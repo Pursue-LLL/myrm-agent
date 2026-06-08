@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `discovery.py` | 模块 | Local/Tauri-only endpoint for competitor data auto-discovery. Returns detected competitor AI assistant data directories with confidence scores and file metadata | ✅ |
+| `discovery.py` | 模块 | Local/Tauri-only endpoint for competitor data auto-discovery. | ✅ |

@@ -66,14 +66,47 @@ def _extract_pos(py_path: Path) -> str | None:
         if re.match(r"^\s*(\[POS\]|@pos:)", line, re.IGNORECASE):
             inline = re.sub(r"^\s*(\[POS\]|@pos:)\s*", "", line, flags=re.IGNORECASE).strip()
             if inline:
-                block.append(inline.rstrip(":"))
+                block.append(inline.rstrip(":").rstrip("."))
             in_block = True
             continue
         if in_block:
             stripped = line.strip()
-            if not stripped or stripped.startswith("-") or stripped.startswith("*"):
+            if not stripped:
                 break
-            block.append(stripped.rstrip(":"))
+            if stripped.startswith("-") or stripped.startswith("*"):
+                break
+            block.append(stripped.rstrip(":").rstrip("."))
+    if block:
+        sentence = " ".join(block)
+        if sentence.endswith(":"):
+            sentence = sentence[:-1].rstrip()
+        period_idx = sentence.find(". ")
+        if period_idx != -1:
+            sentence = sentence[: period_idx + 1]
+        return sentence[:160]
+    return None
+
+
+def _extract_output(py_path: Path) -> str | None:
+    if py_path.suffix != ".py":
+        return None
+    head = py_path.read_text(encoding="utf-8").splitlines()[:_HEADER_SCAN_LINES]
+    block: list[str] = []
+    in_block = False
+    for line in head:
+        if re.match(r"^\s*(\[OUTPUT\]|@output:)", line, re.IGNORECASE):
+            inline = re.sub(r"^\s*(\[OUTPUT\]|@output:)\s*", "", line, flags=re.IGNORECASE).strip()
+            if inline:
+                block.append(inline.rstrip(":").rstrip("."))
+            in_block = True
+            continue
+        if in_block:
+            stripped = line.strip()
+            if not stripped:
+                break
+            if stripped.startswith("-") or stripped.startswith("*"):
+                break
+            block.append(stripped.rstrip(":").rstrip("."))
     if block:
         return " ".join(block)[:160]
     return None
@@ -115,6 +148,9 @@ def _describe_source(src: Path) -> tuple[str, str, str]:
     pos = _extract_pos(src)
     if pos:
         return role, pos, "✅"
+    output = _extract_output(src)
+    if output:
+        return role, output, "✅"
     summary = _extract_module_summary(src)
     if summary:
         return role, summary, "✅"

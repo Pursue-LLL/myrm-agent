@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `router.py` | 路由 | Exposes the evaluation framework to the Frontend and Control Plane. """ | ✅ |
+| `router.py` | 路由 | Exposes the evaluation framework to the Frontend and Control Plane """ | ✅ |

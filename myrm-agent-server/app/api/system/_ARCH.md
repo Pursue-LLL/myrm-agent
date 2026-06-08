@@ -10,4 +10,4 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | System API routes. | ✅ |
 | `router.py` | 路由 | HTTP 入口层的 System API | ✅ |
-| `shutdown.py` | 模块 | HTTP shutdown control. Distinct from app/lifecycle/ daemon schedulers. """ | ✅ |
+| `shutdown.py` | 模块 | HTTP shutdown control. | ✅ |

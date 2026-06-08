@@ -83,8 +83,9 @@ _ENV_API_KEY_PATTERN = re.compile(
 def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explicit_home: Path | None) -> list[Path]:
     paths: list[Path] = []
 
-    if explicit_home:
+    if explicit_home is not None:
         paths.append(explicit_home / default_dot_dir)
+        return _dedupe_paths(paths)
 
     env_val = os.environ.get(env_var, "").strip()
     if env_val:
@@ -103,18 +104,21 @@ def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explici
 
     paths.append(Path.home() / default_dot_dir)
 
-    seen = set()
-    result = []
-    for p in paths:
+    return _dedupe_paths(paths)
+
+
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    seen: set[Path] = set()
+    result: list[Path] = []
+    for path in paths:
         try:
-            resolved = p.resolve()
-            if resolved not in seen:
-                seen.add(resolved)
-                result.append(resolved)
+            resolved = path.resolve()
         except OSError:
-            if p not in seen:
-                seen.add(p)
-                result.append(p)
+            resolved = path
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        result.append(resolved)
     return result
 
 

@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Skills management API module | ✅ |
 | `_staging.py` | 模块 | 管理批量导入技能时的持久化暂存区 (Persistent Staging Area)。 | ✅ |
-| `alert_rules.py` | 模块 | Business layer API for alert rule configuration management (CRUD operations). """ | ✅ |
+| `alert_rules.py` | 模块 | Business layer API for alert rule configuration management (CRUD operations) """ | ✅ |
 | `audit.py` | 模块 | Structured audit log for skill lifecycle operations. | ✅ |
 | `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口 | ✅ |
 | `config.py` | 模块 | Get user skill configuration (enabled prebuilt skills and local skill paths). | ✅ |
@@ -21,13 +21,13 @@
 | `drafts.py` | 模块 | Query skill drafts with optional lifecycle status filter. | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 """ | ✅ |
 | `growth.py` | 模块 | Unified skill growth query API. | ✅ |
-| `history.py` | 模块 | HTTP API for skill modification history and rollback operations. Business-layer endpoints that use HistoryTrackingSkillService. """ | ✅ |
+| `history.py` | 模块 | HTTP API for skill modification history and rollback operations Business-layer endpoints that use HistoryTrackingSkillService """ | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
 | `local.py` | 模块 | Local skills management endpoints | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API. | ✅ |
 | `packaging.py` | 模块 | Skill packaging and upload endpoints | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
-| `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. Includes three-way hash update control: reset-to-default restores bundled source; accept-upstream applies pendin | ✅ |
+| `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
 | `reviews.py` | 模块 | 统一审核收件箱接口层。聚合 memory / evolution / migration 待审项，并负责审核动作的统一对外契约。 """ | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |

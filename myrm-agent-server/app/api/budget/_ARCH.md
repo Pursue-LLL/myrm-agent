@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
-| `router.py` | 路由 | Budget management API. Exposes policy CRUD and real-time spend status. """ | ✅ |
+| `router.py` | 路由 | Budget management API. | ✅ |

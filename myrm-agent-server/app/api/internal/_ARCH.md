@@ -8,5 +8,5 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `agent_interrupt.py` | 模块 | CP-to-sandbox internal endpoint for interrupting agent execution. """ | ✅ |
-| `skills_killswitch.py` | 模块 | CP-to-sandbox internal endpoint for remote skill killswitch management. """ | ✅ |
+| `agent_interrupt.py` | 模块 | CP-to-sandbox internal endpoint for interrupting agent execution """ | ✅ |
+| `skills_killswitch.py` | 模块 | CP-to-sandbox internal endpoint for remote skill killswitch management """ | ✅ |

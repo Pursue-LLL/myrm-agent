@@ -13,7 +13,7 @@
 | `compaction.py` | 模块 | Compact chat context by generating a persistent summary. | ✅ |
 | `core.py` | 模块 | 获取聊天历史列表（支持分页、来源和项目过滤） | ✅ |
 | `fork.py` | 模块 | Fork conversation from specific message index. | ✅ |
-| `handoff.py` | 模块 | Web→Channel handoff API. Enables the frontend to migrate an active conversation to an IM channel (Telegram, WeChat, Feishu, etc.). """ | ✅ |
+| `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |
 | `messages.py` | 模块 | Full-text search across all chat messages using FTS5. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |

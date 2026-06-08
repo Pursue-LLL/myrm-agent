@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Commitment tracking API endpoints. | ✅ |
-| `router.py` | 路由 | Commitment tracking REST API. Provides endpoints for listing, dismissing, and snoozing commitments extracted from conversations. """ | ✅ |
+| `router.py` | 路由 | Commitment tracking REST API. | ✅ |
