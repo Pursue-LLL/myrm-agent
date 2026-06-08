@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconGlobe,
@@ -17,7 +17,7 @@ import { Users } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getDocsUrl } from '@/lib/deploy-mode';
+import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
 
 interface FeatureCardProps {
   icon: React.ElementType;
@@ -109,9 +109,19 @@ const ChangelogItem = memo<ChangelogItemProps>(({ version, date, items }) => (
 
 ChangelogItem.displayName = 'ChangelogItem';
 
+const FALLBACK_VERSION = '0.1.0';
+
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
-  const version = '0.1.0';
+  const [version, setVersion] = useState(FALLBACK_VERSION);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    import('@tauri-apps/api/app')
+      .then((mod) => mod.getVersion())
+      .then((v) => setVersion(v))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6">
