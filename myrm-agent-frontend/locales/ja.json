@@ -8948,6 +8948,14 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "batchCostTitle": "バッチタスク費用確認",
+    "batchCostDescription": "エージェントが複数のサブエージェントを起動しようとしています。推定費用を確認してから続行してください。",
+    "batchCostEstimated": "推定費用",
+    "batchCostTaskCount": "サブエージェント数",
+    "batchCostRemaining": "残り予算",
+    "batchCostParallel": "並列実行",
+    "batchCostRace": "レースモード（先着勝ち）",
+    "batchCostTournament": "トーナメントモード（最優秀者勝ち）",
     "highRiskDomAction": "高リスクブラウザ操作が検出されました",
     "targetElement": "対象要素",
     "action": "アクション"

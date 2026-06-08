@@ -8948,6 +8948,14 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
+    "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
+    "batchCostEstimated": "Geschaetzte Kosten",
+    "batchCostTaskCount": "Sub-Agenten",
+    "batchCostRemaining": "Verbleibendes Budget",
+    "batchCostParallel": "Parallele Ausfuehrung",
+    "batchCostRace": "Race-Modus (Erster gewinnt)",
+    "batchCostTournament": "Turnier-Modus (Bester gewinnt)",
     "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
     "targetElement": "Zielelement",
     "action": "Aktion"

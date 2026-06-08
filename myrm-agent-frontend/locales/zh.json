@@ -9259,6 +9259,14 @@
       "allowDomain": "始终允许此域名",
       "allowDomainDesc": "后续对该域名的请求将自动通过（仅当前会话）"
     },
+    "batchCostTitle": "批量任务费用确认",
+    "batchCostDescription": "智能体即将派发多个子任务。请确认预估费用后再继续。",
+    "batchCostEstimated": "预估费用",
+    "batchCostTaskCount": "子任务数",
+    "batchCostRemaining": "剩余预算",
+    "batchCostParallel": "并行执行",
+    "batchCostRace": "竞速模式（先完成者胜出）",
+    "batchCostTournament": "锦标赛模式（最优者胜出）",
     "highRiskDomAction": "检测到高风险浏览器操作",
     "targetElement": "目标元素",
     "action": "操作"

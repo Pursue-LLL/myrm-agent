@@ -9263,6 +9263,14 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "batchCostTitle": "Batch Task Cost Approval",
+    "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
+    "batchCostEstimated": "Estimated Cost",
+    "batchCostTaskCount": "Subagents",
+    "batchCostRemaining": "Remaining Budget",
+    "batchCostParallel": "Parallel Execution",
+    "batchCostRace": "Race Mode (first wins)",
+    "batchCostTournament": "Tournament Mode (best wins)",
     "highRiskDomAction": "High-Risk Browser Action Detected",
     "targetElement": "Target Element",
     "action": "Action"

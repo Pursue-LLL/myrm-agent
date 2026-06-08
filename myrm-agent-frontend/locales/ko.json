@@ -8948,6 +8948,14 @@
       "allowDomain": "Always Allow This Domain",
       "allowDomainDesc": "Future requests to this domain will be auto-approved (current session only)"
     },
+    "batchCostTitle": "일괄 작업 비용 확인",
+    "batchCostDescription": "에이전트가 여러 서브 에이전트를 생성하려고 합니다. 예상 비용을 확인한 후 진행하세요.",
+    "batchCostEstimated": "예상 비용",
+    "batchCostTaskCount": "서브 에이전트 수",
+    "batchCostRemaining": "잔여 예산",
+    "batchCostParallel": "병렬 실행",
+    "batchCostRace": "레이스 모드 (선착순 승리)",
+    "batchCostTournament": "토너먼트 모드 (최우수 승리)",
     "highRiskDomAction": "고위험 브라우저 작업이 감지되었습니다",
     "targetElement": "대상 요소",
     "action": "작업"
