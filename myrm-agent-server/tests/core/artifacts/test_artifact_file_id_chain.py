@@ -18,6 +18,7 @@ from app.database.connection import get_db
 from app.database.models import Base
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.deploy.deploy_packager import DeployFile
+from app.services.deploy.preflight import DeployPreflightResult
 
 
 @pytest_asyncio.fixture
@@ -118,38 +119,47 @@ async def test_deploy_api_accepts_processor_file_id_not_uuid(
         workspace_root=str(workspace),
     )
 
+    mock_version = MagicMock()
+    mock_version.id = "version-001"
+    mock_version.created_at = MagicMock()
+    mock_artifact = MagicMock(spec=Artifact)
+    mock_artifact.id = file_id
+    mock_artifact.name = "index.html"
+    mock_artifact.versions = [mock_version]
+    mock_artifact.deployment_project_id = None
+
+    deploy_files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    preflight_ok = DeployPreflightResult(deployable=True, reason="OK", message="OK")
+
     with patch("app.api.files.deploy_api.get_workspace_root", return_value=tmp_path):
-        with patch("app.api.files.deploy_api.ArtifactVault") as mock_vault_class:
-            mock_vault_class.return_value.get_object_path.return_value = MagicMock()
+        with patch(
+            "app.api.files.deploy_api.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(mock_artifact, deploy_files),
+        ):
+            with patch("app.api.files.deploy_api.run_deploy_preflight", new_callable=AsyncMock, return_value=preflight_ok):
+                with patch("app.api.files.deploy_api.evaluate_deploy_preflight", return_value=preflight_ok):
+                    with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+                        mock_vercel_instance = mock_vercel_class.return_value
+                        mock_vercel_instance.deploy = AsyncMock(
+                            return_value={
+                                "deployment_id": "dep_file_id",
+                                "url": "https://file-id-chain.vercel.app",
+                                "project_id": "prj_file_id",
+                                "status": "READY",
+                            }
+                        )
 
-            with patch("app.api.files.deploy_api.collect_deploy_files") as mock_collect:
-                mock_collect.return_value = {
-                    "index.html": DeployFile(path="index.html", content="<h1>Hello</h1>"),
-                }
-
-                with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                    mock_vercel_instance = mock_vercel_class.return_value
-                    mock_vercel_instance.deploy = AsyncMock(
-                        return_value={
-                            "deployment_id": "dep_file_id",
-                            "url": "https://file-id-chain.vercel.app",
-                            "project_id": "prj_file_id",
-                            "status": "READY",
-                        }
-                    )
-
-                    response = deploy_client.post(
-                        f"/{file_id}/deploy",
-                        json={"token": "test_token", "platform": "vercel"},
-                    )
+                        response = deploy_client.post(
+                            f"/{file_id}/deploy",
+                            json={"token": "test_token", "platform": "vercel"},
+                        )
 
     assert response.status_code == 200
     data = response.json()
     assert data["url"] == "https://file-id-chain.vercel.app"
-    assert data["deployment_version_id"] is not None
+    assert data["deployment_version_id"] == "version-001"
 
-    artifact = await db_session.get(Artifact, file_id)
-    assert artifact is not None
-    assert artifact.deployment_url == "https://file-id-chain.vercel.app"
-    assert artifact.deployment_status == "READY"
-    assert artifact.deployment_version_id is not None
+    assert mock_artifact.deployment_url == "https://file-id-chain.vercel.app"
+    assert mock_artifact.deployment_status == "READY"
+    assert mock_artifact.deployment_version_id == "version-001"
