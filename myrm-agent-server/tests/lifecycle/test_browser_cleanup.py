@@ -218,6 +218,29 @@ class TestThreadCleanupDecoupling:
         warmup_cond_pos = source.index("if settings.browser_auto_warmup:")
         assert cleanup_pos < warmup_cond_pos, "cleanup must be unconditional and precede warmup condition"
 
+    def test_warmup_initializes_browser_pool(self):
+        """warmup.py must call warmup_global_browser_pool() to initialize the singleton pool with correct config."""
+        from app.server.warmup import run_async_warmup
+
+        source = inspect.getsource(run_async_warmup)
+        assert "await warmup_global_browser_pool()" in source, (
+            "warmup_global_browser_pool() must be awaited during startup "
+            "to inject correct BrowserPoolConfig (LaunchMode.AUTO for local, defensive for sandbox) "
+            "and SessionVault into web_fetch_tools"
+        )
+
+    def test_browser_pool_init_precedes_dependent_code(self):
+        """warmup_global_browser_pool() must run BEFORE any code that calls get_global_browser_pool() without args."""
+        from app.server.warmup import run_async_warmup
+
+        source = inspect.getsource(run_async_warmup)
+        pool_init_pos = source.index("await warmup_global_browser_pool()")
+        cleanup_pos = source.index("warmup_tasks.append(cleanup_browser_threads())")
+        assert pool_init_pos < cleanup_pos, (
+            "warmup_global_browser_pool must run before cleanup_browser_threads "
+            "to ensure the singleton pool is initialized with correct config"
+        )
+
     def test_db_maintenance_job_includes_thread_cleanup(self):
         """db_maintenance_job must include periodic thread cleanup."""
         from app.lifecycle.schedulers import _db_maintenance_job

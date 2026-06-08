@@ -190,11 +190,11 @@ const CredentialsSection = memo(() => {
 
   const handleSaveVaultCredential = async () => {
     if (!vaultLabel.trim()) {
-      toast({ title: 'Label is required', variant: 'destructive' });
+      toast({ title: t('vaultLabelRequired'), variant: 'destructive' });
       return;
     }
     if (!vaultPassword.trim() && !vaultTotp.trim()) {
-      toast({ title: 'Password or TOTP seed is required', variant: 'destructive' });
+      toast({ title: t('vaultSecretRequired'), variant: 'destructive' });
       return;
     }
 
@@ -205,7 +205,7 @@ const CredentialsSection = memo(() => {
           totp_seed: vaultTotp || undefined,
           description: vaultDesc || undefined,
         });
-        toast({ title: 'Vault credential updated' });
+        toast({ title: t('vaultUpdated') });
       } else {
         await createVaultCredential({
           label: vaultLabel.trim(),
@@ -213,12 +213,12 @@ const CredentialsSection = memo(() => {
           totp_seed: vaultTotp || undefined,
           description: vaultDesc || undefined,
         });
-        toast({ title: 'Vault credential created' });
+        toast({ title: t('vaultCreated') });
       }
       setVaultModalOpen(false);
       loadVaultCredentials();
     } catch (e: any) {
-      toast({ title: e.message || 'Failed to save vault credential', variant: 'destructive' });
+      toast({ title: e.message || t('vaultSaveFailed'), variant: 'destructive' });
     }
   };
 
@@ -226,10 +226,10 @@ const CredentialsSection = memo(() => {
     if (!deleteVaultTarget) return;
     try {
       await deleteVaultCredential(deleteVaultTarget);
-      toast({ title: 'Vault credential deleted' });
+      toast({ title: t('vaultDeleted') });
       loadVaultCredentials();
     } catch (e: any) {
-      toast({ title: e.message || 'Failed to delete vault credential', variant: 'destructive' });
+      toast({ title: e.message || t('vaultDeleteFailed'), variant: 'destructive' });
     } finally {
       setDeleteVaultTarget(null);
     }
@@ -323,7 +323,7 @@ const CredentialsSection = memo(() => {
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium flex items-center gap-2">
               <IconCheckCircle className="h-5 w-5 text-primary" />
-              Form Credentials Vault (Zero-Disk)
+              {t('vaultTitle')}
               <Badge variant="secondary" className="ml-auto">
                 {vaultCredentials.length}
               </Badge>
@@ -336,11 +336,11 @@ const CredentialsSection = memo(() => {
               setVaultDesc('');
               setVaultModalOpen(true);
             }}>
-              + Add Credential
+              {t('vaultAdd')}
             </Button>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
-            Securely store passwords and TOTP seeds for browser/desktop automation. Secrets are encrypted and never exposed to the LLM context.
+            {t('vaultDescription')}
           </p>
 
           {isVaultLoading ? (
@@ -356,7 +356,7 @@ const CredentialsSection = memo(() => {
               ))}
             </div>
           ) : vaultCredentials.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">No form credentials stored.</div>
+            <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">{t('vaultEmpty')}</div>
           ) : (
             <div className="space-y-2">
               {vaultCredentials.map((cred) => (
@@ -386,7 +386,7 @@ const CredentialsSection = memo(() => {
                         setVaultModalOpen(true);
                       }}
                     >
-                      Edit
+                      {t('vaultEdit')}
                     </Button>
                     <Button
                       size="sm"
@@ -710,10 +710,10 @@ const CredentialsSection = memo(() => {
         onOpenChange={(open) => {
           if (!open) setDeleteVaultTarget(null);
         }}
-        title="Delete Vault Credential"
-        description={`Are you sure you want to delete the credential "${deleteVaultTarget}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('vaultDeleteTitle')}
+        description={t('vaultDeleteDesc', { label: deleteVaultTarget ?? '' })}
+        confirmText={t('deleteConfirmBtn', { defaultValue: 'Delete' })}
+        cancelText={t('deleteCancel', { defaultValue: 'Cancel' })}
         variant="destructive"
         onConfirm={handleDeleteVaultConfirm}
       />
@@ -731,22 +731,22 @@ const CredentialsSection = memo(() => {
           <DialogContent className="sm:max-w-md bg-card border border-border">
             <DialogHeader>
               <DialogTitle className="text-foreground">
-                {editingVaultCred ? 'Edit Vault Credential' : 'Add Vault Credential'}
+                {editingVaultCred ? t('vaultEditTitle') : t('vaultAddTitle')}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Store passwords and TOTP seeds securely. They will never be exposed to the LLM context.
+                {t('vaultDialogDesc')}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="vaultLabel" className="text-foreground">
-                  Label (Unique ID for LLM to use)
+                  {t('vaultLabelField')}
                 </Label>
                 <Input
                   id="vaultLabel"
                   type="text"
-                  placeholder="e.g. github-personal"
+                  placeholder={t('vaultLabelPlaceholder')}
                   value={vaultLabel}
                   onChange={(e) => setVaultLabel(e.target.value)}
                   disabled={!!editingVaultCred}
@@ -756,12 +756,12 @@ const CredentialsSection = memo(() => {
 
               <div className="space-y-2">
                 <Label htmlFor="vaultPassword" className="text-foreground">
-                  Password {editingVaultCred && '(Leave blank to keep existing)'}
+                  {editingVaultCred ? t('vaultPasswordKeep') : t('vaultPasswordField')}
                 </Label>
                 <Input
                   id="vaultPassword"
                   type="password"
-                  placeholder="Enter password"
+                  placeholder={t('vaultPasswordPlaceholder')}
                   value={vaultPassword}
                   onChange={(e) => setVaultPassword(e.target.value)}
                   className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
@@ -770,12 +770,12 @@ const CredentialsSection = memo(() => {
 
               <div className="space-y-2">
                 <Label htmlFor="vaultTotp" className="text-foreground">
-                  TOTP Seed {editingVaultCred && '(Leave blank to keep existing)'}
+                  {editingVaultCred ? t('vaultTotpKeep') : t('vaultTotpField')}
                 </Label>
                 <Input
                   id="vaultTotp"
                   type="password"
-                  placeholder="e.g. JBSWY3DPEHPK3PXP"
+                  placeholder={t('vaultTotpPlaceholder')}
                   value={vaultTotp}
                   onChange={(e) => setVaultTotp(e.target.value)}
                   className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
@@ -784,12 +784,12 @@ const CredentialsSection = memo(() => {
               
               <div className="space-y-2">
                 <Label htmlFor="vaultDesc" className="text-foreground">
-                  Description (Optional)
+                  {t('vaultDescField')}
                 </Label>
                 <Input
                   id="vaultDesc"
                   type="text"
-                  placeholder="What is this credential for?"
+                  placeholder={t('vaultDescPlaceholder')}
                   value={vaultDesc}
                   onChange={(e) => setVaultDesc(e.target.value)}
                   className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
@@ -802,9 +802,9 @@ const CredentialsSection = memo(() => {
                 variant="outline"
                 onClick={() => setVaultModalOpen(false)}
               >
-                Cancel
+                {t('deleteCancel', { defaultValue: 'Cancel' })}
               </Button>
-              <Button onClick={handleSaveVaultCredential}>Save</Button>
+              <Button onClick={handleSaveVaultCredential}>{t('vaultSave')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

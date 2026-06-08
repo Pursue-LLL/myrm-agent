@@ -41,6 +41,7 @@ from app.lifecycle import (
     start_memory_pressure_monitor,
     start_skill_optimization_listeners,
     warmup_browser_sessions,
+    warmup_global_browser_pool,
 )
 from app.services.agent.evolution.monitor_service import init_evolution_monitor_service
 from app.services.agent.wakeup_handler import ServerWakeupHandler
@@ -186,10 +187,7 @@ async def run_async_warmup() -> None:
     set_global_wakeup_handler(ServerWakeupHandler())
     logger.info("[Startup] ServerWakeupHandler registered for async subagent completions")
 
-    if settings.browser_pool.warmup_browsers > 0 or settings.browser_pool.warmup_pages > 0:
-        pass
-    else:
-        logger.debug("[Startup] Browser pool warmup skipped (warmup_browsers=0 and warmup_pages=0)")
+    await warmup_global_browser_pool()
 
     # Thread cleanup always runs (zombie detection + old record deletion)
     warmup_tasks.append(cleanup_browser_threads())
