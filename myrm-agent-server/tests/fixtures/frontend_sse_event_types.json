@@ -8,6 +8,8 @@
   "artifacts_ready",
   "async_wakeup",
   "bash_command_executed",
+  "browser_takeover_completed",
+  "browser_takeover_requested",
   "browser_view_update",
   "cancelled",
   "captcha_detected",
