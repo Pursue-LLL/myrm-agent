@@ -36,7 +36,9 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       stepKey === 'workflow_init' ||
       stepKey === 'workflow_planning' ||
       stepKey === 'workflow_execution' ||
-      stepKey === 'workflow_stage'
+      stepKey === 'workflow_stage' ||
+      stepKey === 'loop_guard_warn' ||
+      stepKey === 'loop_guard_break'
     ) {
       const displayKey =
         stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
@@ -116,9 +118,9 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           if (archiveRestoreResult) {
             progressStep.archive_restore_result = archiveRestoreResult;
           }
-          if (stepKey === 'archive_restore_blocked') {
+          if (stepKey === 'archive_restore_blocked' || stepKey === 'loop_guard_warn' || stepKey === 'loop_guard_break') {
             const existingStep = state.messages[messageIndex].progressSteps!.find(
-              (step) => step.step_key === 'archive_restore_blocked',
+              (step) => step.step_key === stepKey,
             );
             if (existingStep) {
               Object.assign(existingStep, progressStep);
@@ -137,6 +139,12 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
         const message = archiveRestoreBlock?.message ?? 'Archived context restore was blocked.';
         const { toast } = await import('@/lib/utils/toast');
         toast.warning(message, { duration: 6000 });
+      }
+
+      if (stepKey === 'loop_guard_break') {
+        const breakMsg = data.items?.[0]?.text ?? 'Agent loop detected and stopped.';
+        const { toast } = await import('@/lib/utils/toast');
+        toast.error(breakMsg, { duration: 8000 });
       }
 
       if (stepKey === 'ux_warning_truncated') {
