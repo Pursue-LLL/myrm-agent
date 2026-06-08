@@ -88,7 +88,8 @@ case "$COMMAND" in
         ;;
     update)
         git pull --ff-only
-        (cd "$SERVER_DIR" && uv sync --all-extras && uv run patchright install chromium 2>/dev/null || true)
+        (cd "$SERVER_DIR" && uv sync --all-extras)
+        (cd "$SERVER_DIR" && uv run patchright install chromium 2>/dev/null || true)
         (cd "$FRONTEND_DIR" && bun install && bun run build)
         ;;
     doctor)
