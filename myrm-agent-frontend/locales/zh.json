@@ -9122,6 +9122,10 @@
     "agentBridge": "Agent Bridge 模式",
     "agentBridgeDesc": "Agent 在服务端直接处理语音，降低响应延迟"
   },
+  "yoloBanner": {
+    "message": "YOLO 模式已开启 – 所有工具自动审批",
+    "disable": "关闭"
+  },
   "toolApproval": {
     "title": "工具执行审批",
     "batchTitle": "批量审批 ({count} 个工具)",

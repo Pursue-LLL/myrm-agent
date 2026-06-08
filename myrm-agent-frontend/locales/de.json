@@ -8823,6 +8823,10 @@
     "fullDuplex": "Full-duplex mode",
     "fullDuplexDesc": "Keep listening while speaking, auto-detect interruptions"
   },
+  "yoloBanner": {
+    "message": "YOLO-Modus aktiv – Alle Tools werden automatisch genehmigt",
+    "disable": "Deaktivieren"
+  },
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",

@@ -9122,6 +9122,10 @@
     "agentBridge": "Agent Bridge mode",
     "agentBridgeDesc": "Agent processes voice directly on server, reducing latency"
   },
+  "yoloBanner": {
+    "message": "YOLO Mode Active – All tools auto-approved",
+    "disable": "Disable"
+  },
   "toolApproval": {
     "title": "Tool Execution Approval",
     "batchTitle": "Batch Approval ({count} tools)",

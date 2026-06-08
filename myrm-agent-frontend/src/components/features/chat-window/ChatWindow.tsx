@@ -22,6 +22,7 @@ import { PermissionDialog } from '@/components/features/cli-agent/PermissionDial
 import ToolApprovalDialog from './ToolApprovalDialog';
 import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
 import AgentInfoBanner from './AgentInfoBanner';
+import YoloModeBanner from './YoloModeBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
 import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
@@ -352,6 +353,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           <div className="flex-1 min-w-0 w-full flex flex-col">
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
+            <YoloModeBanner />
 
             {/* 聊天内容 */}
             <div className="flex-1 min-h-0">
@@ -394,6 +396,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <PermissionDialog />
       <ToolApprovalDialog />
       <ToolApprovalExpiryWatcher />
+      <YoloModeBanner />
       <EmptyChat />
       <SubagentDashboard />
       <LifeStatusCapsule currentSessionId={id || null} />
