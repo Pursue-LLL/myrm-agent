@@ -55,12 +55,17 @@ if (SENTRY_ENABLED) {
 // (isTauriBuild is defined above for Serwist)
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = path.join(frontendRoot, '..');
+const sharedRoot = path.join(monorepoRoot, 'shared');
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: monorepoRoot,
+
   turbopack: {
-    root: frontendRoot,
+    root: monorepoRoot,
     resolveAlias: {
       '#locales': path.join(frontendRoot, 'locales'),
+      '@shared': sharedRoot,
     },
   },
 
@@ -113,6 +118,10 @@ const nextConfig: NextConfig = {
   
   // Webpack优化配置（当使用Webpack时生效）
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@shared': sharedRoot,
+    };
     if (!isServer) {
       // 分包策略优化
       config.optimization = {

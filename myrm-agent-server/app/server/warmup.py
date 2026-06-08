@@ -272,7 +272,7 @@ async def run_async_warmup() -> None:
         logger.warning("Vector store warmup skipped in warmup: %s", e)
 
     try:
-        from app.lifecycle_tasks import start_task_worker
+        from app.lifecycle.task_worker import start_task_worker
 
         warmup_tasks.append(start_task_worker())
     except Exception as e:

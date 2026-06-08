@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'myrm-agent-frontend/**'
+      - 'shared/**'
       - '.github/workflows/frontend-build.yml'
   push:
     branches:
       - main
     paths:
       - 'myrm-agent-frontend/**'
+      - 'shared/**'
       - '.github/workflows/frontend-build.yml'
 
 jobs:

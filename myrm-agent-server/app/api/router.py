@@ -183,7 +183,7 @@ if is_local_mode():
 api_router.include_router(features_router, prefix="/features", tags=["features"])
 
 # 集成与基础设施
-api_router.include_router(integrations_router, tags=["integrations"])
+api_router.include_router(integrations_router, prefix="/integrations", tags=["integrations"])
 api_router.include_router(connect_router, tags=["connect"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
 api_router.include_router(allowlist_router, prefix="/security/allowlist", tags=["security"])

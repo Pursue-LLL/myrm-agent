@@ -16,7 +16,7 @@ router = APIRouter(tags=["tasks"])
 
 async def get_task_store() -> TaskStore:
     """Get task store instance."""
-    from app.lifecycle_tasks import get_task_store as get_store
+    from app.lifecycle.task_worker import get_task_store as get_store
 
     return get_store()
 

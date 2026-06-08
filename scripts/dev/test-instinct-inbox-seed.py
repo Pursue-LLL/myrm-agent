@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-_AGENT_ROOT = Path(__file__).resolve().parent.parent
+_AGENT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_API_BASE = os.getenv("MYRM_API_BASE", "http://127.0.0.1:8080")
 SEED_PATH = "/api/v1/skills/drafts/test/seed-mock"
 

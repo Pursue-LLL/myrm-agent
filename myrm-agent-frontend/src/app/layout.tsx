@@ -5,7 +5,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import PageLayout from '@/components/PageLayout';
+import { PageLayout } from '@/components/layout';
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import ThemeProvider from '@/components/features/theme/ThemeProvider';
 import ToastServiceInitializer from '@/components/features/app-shell/toast-service-initializer';

@@ -2,13 +2,13 @@
 
 import React, { memo, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
-import { AppLayout } from './layout';
+import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
 import { getReadinessStatus } from '@/services/onboarding';
-import { shouldShowBootScreen } from './features/app-shell/boot-screen';
+import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
 
-const BootScreen = lazy(() => import('./features/app-shell/boot-screen'));
-const OnboardingWizard = lazy(() => import('./features/onboarding/OnboardingWizard'));
+const BootScreen = lazy(() => import('../features/app-shell/boot-screen'));
+const OnboardingWizard = lazy(() => import('../features/onboarding/OnboardingWizard'));
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -34,7 +34,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
 
   useEffect(() => {
     setMounted(true);
-    
+
     if (isStandaloneRoute) {
       setCheckingReadiness(false);
       return;
@@ -71,7 +71,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   }
 
   if (!mounted || checkingReadiness) {
-    return null; // Keep blank until readiness is checked to avoid flash
+    return null;
   }
 
   if (needsOnboarding) {

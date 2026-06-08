@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-GitHub Actions 工作流定义。关键流水线包括 server 架构/分形文档守门、`frontend-build.yml`（`next build`）、安装脚本冒烟。
+GitHub Actions 工作流定义。关键流水线包括 server 架构/分形文档守门（`shared/**`、`assets/**` 变更亦触发）、`frontend-build.yml`（`next build`，`shared/**` 变更亦触发）、安装脚本冒烟。
 
 ## 约束
 

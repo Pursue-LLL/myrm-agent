@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.integrations.model_specs import get_dynamic_model_specs
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
 
@@ -15,60 +16,6 @@ logger = logging.getLogger(__name__)
 
 _HARDWARE_PROFILE_CACHE: tuple[float, object] | None = None
 _HARDWARE_PROFILE_LOCK = asyncio.Lock()
-
-_MODEL_SPECS_CACHE: tuple[float, list[dict[str, object]]] | None = None
-_MODEL_SPECS_LOCK = asyncio.Lock()
-
-_FALLBACK_MODEL_SPECS = [
-    {
-        "id": "ollama/qwen2.5:0.5b",
-        "name": "Qwen 2.5 (0.5B)",
-        "description": "极速响应，适合简单任务和低配机器",
-        "req_vram_gb": 1.5,
-        "params_b": 0.5,
-        "disk_size_gb": 0.4,
-    },
-    {
-        "id": "ollama/qwen2.5:3b",
-        "name": "Qwen 2.5 (3B)",
-        "description": "速度与能力的良好平衡，适合主流轻薄本",
-        "req_vram_gb": 3.0,
-        "params_b": 3.0,
-        "disk_size_gb": 1.9,
-    },
-    {
-        "id": "ollama/llama3.2:8b",
-        "name": "Llama 3.2 (8B)",
-        "description": "强大的通用模型，适合主流开发机",
-        "req_vram_gb": 6.0,
-        "params_b": 8.0,
-        "disk_size_gb": 4.7,
-    },
-    {
-        "id": "ollama/qwen2.5:14b",
-        "name": "Qwen 2.5 (14B)",
-        "description": "极强的推理能力，适合高配工作站",
-        "req_vram_gb": 10.0,
-        "params_b": 14.0,
-        "disk_size_gb": 9.0,
-    },
-    {
-        "id": "ollama/deepseek-r1:32b",
-        "name": "DeepSeek R1 (32B)",
-        "description": "专家级推理模型，需要顶级硬件",
-        "req_vram_gb": 22.0,
-        "params_b": 32.0,
-        "disk_size_gb": 20.0,
-    },
-    {
-        "id": "ollama/llama3.1:70b",
-        "name": "Llama 3.1 (70B)",
-        "description": "超大规模模型，仅限顶级工作站",
-        "req_vram_gb": 40.0,
-        "params_b": 70.0,
-        "disk_size_gb": 39.0,
-    },
-]
 
 
 async def _get_cached_hardware_profile() -> object | None:
@@ -88,37 +35,6 @@ async def _get_cached_hardware_profile() -> object | None:
         profile = await asyncio.to_thread(detect_hardware_profile)
         _HARDWARE_PROFILE_CACHE = (now, profile)
         return profile
-
-
-async def _get_dynamic_model_specs() -> list[dict[str, object]]:
-    """动态拉取模型规格字典（带本地 Fallback）"""
-    global _MODEL_SPECS_CACHE
-    now = time.monotonic()
-
-    if _MODEL_SPECS_CACHE and (now - _MODEL_SPECS_CACHE[0]) < 3600.0:
-        return _MODEL_SPECS_CACHE[1]
-
-    async with _MODEL_SPECS_LOCK:
-        if _MODEL_SPECS_CACHE and (now - _MODEL_SPECS_CACHE[0]) < 3600.0:
-            return _MODEL_SPECS_CACHE[1]
-
-        specs = _FALLBACK_MODEL_SPECS
-        try:
-            # 尝试从云端拉取，设置 3 秒超时
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                # 使用 GitHub Raw 作为默认的云端配置源
-                response = await client.get(
-                    "https://raw.githubusercontent.com/yululiu/open-perplexity/main/myrm-agent-brand/myrm-website/public/cookbook_specs.json"
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    if isinstance(data, list) and len(data) > 0:
-                        specs = data
-        except Exception as e:
-            logger.warning(f"Failed to fetch dynamic model specs, using fallback: {e}")
-
-        _MODEL_SPECS_CACHE = (now, specs)
-        return specs
 
 
 async def _get_ollama_status() -> tuple[bool, list[str]]:
@@ -143,7 +59,7 @@ class OllamaDeleteRequest(BaseModel):
     model_name: str = Field(..., description="Ollama 模型名称，例如 qwen2.5:0.5b")
 
 
-@router.delete("/hardware/ollama/models")
+@router.delete("/ollama/models")
 async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
     """代理 Ollama 的 /api/delete 接口"""
     from app.config.deploy_mode import DeployMode, get_deploy_mode
@@ -162,7 +78,7 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/hardware/ollama/pull")
+@router.post("/ollama/pull")
 async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     """代理 Ollama 的 /api/pull 接口，返回流式进度"""
     from app.config.deploy_mode import DeployMode, get_deploy_mode
@@ -204,7 +120,7 @@ class HardwareRecommendationResponse(BaseModel):
     recommendations: list[dict[str, object]] = Field(default_factory=list, description="推荐模型列表")
 
 
-@router.get("/hardware/recommendations", response_model=StandardSuccessResponse)
+@router.get("/recommendations", response_model=StandardSuccessResponse)
 async def get_hardware_recommendations() -> JSONResponse:
     """
     获取基于本地硬件的模型推荐 (Fit Score)
@@ -220,7 +136,7 @@ async def get_hardware_recommendations() -> JSONResponse:
     if not profile:
         return success_response(data=HardwareRecommendationResponse(hardware_detected=False).model_dump())
 
-    model_specs = await _get_dynamic_model_specs()
+    model_specs = await get_dynamic_model_specs()
     is_ollama_running, installed_models = await _get_ollama_status()
 
     available_vram = 0.0

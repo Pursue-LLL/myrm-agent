@@ -21,12 +21,14 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "#locales/*": ["./locales/*"]
+      "#locales/*": ["./locales/*"],
+      "@shared/*": ["../shared/*"]
     }
   },
   "include": [
     "next-env.d.ts",
     "locales/**/*.json",
+    "../shared/**/*.json",
     "src/**/*.mts",
     "src/**/*.ts",
     "src/**/*.tsx",

@@ -16,6 +16,8 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_no_temp_docs_links.py` | 跟踪的 `*.md` 禁止 `temp-docs/` 相对路径（私有开发壳） |
 | `test_arch_no_placeholder.py` | 产品树 `_ARCH.md` 禁止「见源码」等占位短语 |
 | `test_oss_scripts_arch.py` | `scripts/` 子树（ci/dev/lib）必须有 `_ARCH.md` |
+| `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
+| `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` 结构校验（Hardware Cookbook bundled 源） |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `data/fractal_header_baseline.txt` | `check_fractal_docs --strict-headers` 已知缺 header 的 app 相对路径 |
 

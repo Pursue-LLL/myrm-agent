@@ -7,11 +7,14 @@ vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
 }));
 
-vi.mock('../layout', () => ({
-  AppLayout: ({ children }: { children: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
+vi.mock('../AppLayout', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="app-layout">{children}</div>
+  ),
 }));
 
-vi.mock('../features/app-shell/boot-screen', () => ({
+vi.mock('../../features/app-shell/boot-screen', () => ({
   __esModule: true,
   default: ({ onComplete }: { onComplete: () => void }) => (
     <div data-testid="boot-screen-mock">
@@ -24,7 +27,7 @@ vi.mock('../features/app-shell/boot-screen', () => ({
 }));
 
 import PageLayout from '../PageLayout';
-import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
+import { shouldShowBootScreen } from '../../features/app-shell/boot-screen';
 
 const mockShouldShowBootScreen = vi.mocked(shouldShowBootScreen);
 

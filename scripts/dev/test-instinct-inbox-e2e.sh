@@ -3,7 +3,7 @@
 # Prerequisite: backend on :8080 (./myrm dev). Frontend on :3000 optional for UI test.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 echo "==> [1/2] API integration (no browser)"

@@ -51,6 +51,7 @@
 myrm-agent/
 ├── ARCHITECTURE.md          ← 本文件（五仓 + 三模式 + 文档索引）
 ├── _ARCH.md                 ← 子目录职责表（分形 L3 入口）
+├── shared/                  ← 前后端共享静态配置 → shared/_ARCH.md
 ├── myrm-agent-server/       ← FastAPI 业务层 → 详见 server/ARCHITECTURE.md
 ├── myrm-agent-frontend/   ← Next.js WebUI
 ├── myrm-agent-desktop/      ← Tauri + sidecar 打包 → desktop/_ARCH.md

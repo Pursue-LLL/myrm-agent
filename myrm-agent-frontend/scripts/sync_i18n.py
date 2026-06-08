@@ -1,6 +1,6 @@
-import json
-import os
 import copy
+import json
+from pathlib import Path
 
 def sync_dict(source, target):
     """Recursively sync keys from source to target."""
@@ -15,12 +15,12 @@ def sync_dict(source, target):
     return changed
 
 def main():
-    locales_dir = "/Users/yululiu/projects/AI/open-perplexity/myrm-agent/myrm-agent-frontend/locales"
-    zh_path = os.path.join(locales_dir, "zh.json")
-    en_path = os.path.join(locales_dir, "en.json")
-    ja_path = os.path.join(locales_dir, "ja.json")
-    ko_path = os.path.join(locales_dir, "ko.json")
-    de_path = os.path.join(locales_dir, "de.json")
+    locales_dir = Path(__file__).resolve().parents[1] / "locales"
+    zh_path = locales_dir / "zh.json"
+    en_path = locales_dir / "en.json"
+    ja_path = locales_dir / "ja.json"
+    ko_path = locales_dir / "ko.json"
+    de_path = locales_dir / "de.json"
 
     with open(zh_path, 'r', encoding='utf-8') as f:
         zh_data = json.load(f)

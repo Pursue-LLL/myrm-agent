@@ -81,7 +81,6 @@ run.py
 | 文件 | 职责 | I/O/P |
 |------|------|-------|
 | `main.py` | FastAPI 应用入口（创建实例、注册路由/中间件、lifespan 管理） | ✅ |
-| `lifecycle_tasks.py` | 异步任务 worker 生命周期管理（包含 Vault GC 定时清理任务） | ✅ |
 
 ## 架构约束与类型安全防线 (Zero-Trust Progressive Typing)
 

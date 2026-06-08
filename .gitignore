@@ -22,7 +22,10 @@ failed_test*.png
 # Python scratch at repo root only
 /test_*.py
 __pycache__/
+**/__pycache__/
 *.pyc
+.pytest_cache/
+.benchmarks/
 
 # Node leftovers at repo root
 node_modules/

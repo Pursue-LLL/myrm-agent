@@ -10,7 +10,7 @@ from app.api.integrations.hardware import router as hardware_router
 from app.config.deploy_mode import DeployMode
 
 app = FastAPI()
-app.include_router(hardware_router, prefix="/api/v1/integrations")
+app.include_router(hardware_router, prefix="/api/v1/integrations/hardware")
 
 @pytest.mark.asyncio
 async def test_hardware_recommendations_sandbox_mode():
@@ -42,7 +42,7 @@ async def test_hardware_recommendations_local_mode():
             with patch("app.api.integrations.hardware._get_ollama_status") as mock_ollama:
                 mock_ollama.return_value = (True, ["qwen2.5:0.5b"])
                 
-                with patch("app.api.integrations.hardware._get_dynamic_model_specs") as mock_specs:
+                with patch("app.api.integrations.hardware.get_dynamic_model_specs") as mock_specs:
                     mock_specs.return_value = [
                         {
                             "id": "ollama/qwen2.5:0.5b",

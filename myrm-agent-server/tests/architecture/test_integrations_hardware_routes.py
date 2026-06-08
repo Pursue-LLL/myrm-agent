@@ -1,0 +1,16 @@
+"""Ensure integrations hardware routes are mounted at the public API paths."""
+
+from __future__ import annotations
+
+from app.main import app
+
+
+def test_integrations_hardware_routes_registered() -> None:
+    paths = {getattr(route, "path", None) for route in app.routes}
+    expected = {
+        "/api/v1/integrations/hardware/recommendations",
+        "/api/v1/integrations/hardware/ollama/pull",
+        "/api/v1/integrations/hardware/ollama/models",
+    }
+    missing = sorted(path for path in expected if path not in paths)
+    assert not missing, f"Missing integrations hardware routes: {missing}"

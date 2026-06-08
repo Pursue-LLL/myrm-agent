@@ -17,6 +17,7 @@ import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
 import { IconCheck, IconCpu, IconGlobe, IconLoader } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
+import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
 
 interface LocalCapabilitiesSetupProps {
   probeResult: ProbeLocalResponse | null;
@@ -124,6 +125,14 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
     handleEnableSearch('searxng', searxngBaseUrl);
   }, [searxngHit, searchConfigured, searxngBaseUrl, handleEnableSearch]);
 
+  const handleApplyCookbookModel = useCallback(
+    (modelId: string) => {
+      const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
+      void handleActivateModel('ollama', 'http://localhost:11434', pureModelName);
+    },
+    [handleActivateModel],
+  );
+
   const availableModel = probeResult?.results?.find((r) => r.available && r.models.length > 0);
   const recommendedModel = probeResult?.recommended_model;
 
@@ -167,6 +176,10 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
             )}
           </div>
         </div>
+      )}
+
+      {!hasEnabledProvider && (
+        <HardwareCookbook onApplyModel={handleApplyCookbookModel} />
       )}
 
       {!searchConfigured && (

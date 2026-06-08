@@ -23,8 +23,17 @@ from pathlib import Path
 from pydantic import BaseModel
 
 
+def _legacy_remap_path() -> Path:
+    for base in Path(__file__).resolve().parents:
+        candidate = base / "shared" / "config" / "provider_legacy_remap.json"
+        if candidate.is_file():
+            return candidate
+    msg = "provider_legacy_remap.json not found under shared/config/"
+    raise FileNotFoundError(msg)
+
+
 def _load_legacy_provider_remap() -> dict[str, str]:
-    path = Path(__file__).with_name("provider_legacy_remap.json")
+    path = _legacy_remap_path()
     raw_obj = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw_obj, dict):
         raise TypeError("provider_legacy_remap.json must contain a JSON object")

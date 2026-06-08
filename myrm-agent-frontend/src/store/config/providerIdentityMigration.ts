@@ -17,9 +17,9 @@ import { CUSTOM_PROVIDER_TYPE_INFO, getInitialDefaultModelConfig, PROVIDER_TO_LI
 import type { ProvidersConfigValue } from '@/services/config/types';
 import type { PersonalSettingsConfigValue, VideoGenerationConfig } from '@/services/config/types';
 
-import legacyRemapJson from './provider_legacy_remap.json';
+import legacyRemapJson from '@shared/config/provider_legacy_remap.json';
 
-/** Canonical remap — byte-synced with `provider_legacy_remap.json` beside `providers.py`. */
+/** Canonical remap — single source at `shared/config/provider_legacy_remap.json`. */
 const LEGACY_PROVIDER_ID_REMAP: Readonly<Record<string, string>> = legacyRemapJson as Record<string, string>;
 
 export function remapLegacyProviderId(providerId: string): string {

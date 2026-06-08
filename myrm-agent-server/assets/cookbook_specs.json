@@ -1,0 +1,50 @@
+[
+  {
+    "id": "ollama/qwen2.5:0.5b",
+    "name": "Qwen 2.5 (0.5B)",
+    "description": "极速响应，适合简单任务和低配机器",
+    "req_vram_gb": 1.5,
+    "params_b": 0.5,
+    "disk_size_gb": 0.4
+  },
+  {
+    "id": "ollama/qwen2.5:3b",
+    "name": "Qwen 2.5 (3B)",
+    "description": "速度与能力的良好平衡，适合主流轻薄本",
+    "req_vram_gb": 3.0,
+    "params_b": 3.0,
+    "disk_size_gb": 1.9
+  },
+  {
+    "id": "ollama/llama3.2:8b",
+    "name": "Llama 3.2 (8B)",
+    "description": "强大的通用模型，适合主流开发机",
+    "req_vram_gb": 6.0,
+    "params_b": 8.0,
+    "disk_size_gb": 4.7
+  },
+  {
+    "id": "ollama/qwen2.5:14b",
+    "name": "Qwen 2.5 (14B)",
+    "description": "极强的推理能力，适合高配工作站",
+    "req_vram_gb": 10.0,
+    "params_b": 14.0,
+    "disk_size_gb": 9.0
+  },
+  {
+    "id": "ollama/deepseek-r1:32b",
+    "name": "DeepSeek R1 (32B)",
+    "description": "专家级推理模型，需要顶级硬件",
+    "req_vram_gb": 22.0,
+    "params_b": 32.0,
+    "disk_size_gb": 20.0
+  },
+  {
+    "id": "ollama/llama3.1:70b",
+    "name": "Llama 3.1 (70B)",
+    "description": "超大规模模型，仅限顶级工作站",
+    "req_vram_gb": 40.0,
+    "params_b": 70.0,
+    "disk_size_gb": 39.0
+  }
+]

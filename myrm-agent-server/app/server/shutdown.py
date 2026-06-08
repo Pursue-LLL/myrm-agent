@@ -51,7 +51,7 @@ async def safe_stop_gateway() -> None:
 
 
 async def safe_stop_task_worker() -> None:
-    from app.lifecycle_tasks import stop_task_worker
+    from app.lifecycle.task_worker import stop_task_worker
 
     await stop_task_worker()
     logger.info("Task worker stopped")

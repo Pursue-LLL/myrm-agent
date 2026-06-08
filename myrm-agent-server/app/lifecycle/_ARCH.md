@@ -14,3 +14,4 @@
 | `monitors.py` | 辅助 | 后台监控器（内存压力、认证告警、健康历史等） | ⚠️ 待补 |
 | `harness_bridge.py` | 辅助 | 框架事件桥接器。监听 Harness 状态事件与 SkillFailureEvent，将 subagent 生命周期/策略拒绝状态广播为 AppEvent，并把技能失败证据交给 Server 免疫服务处理；关闭时经 `close_harness_resources` 统一释放 Harness 资源（事件总线 + MCP 持久连接池） | ✅ |
 | `skills.py` | 辅助 | 技能系统初始化（发现、加载） | ⚠️ 待补 |
+| `task_worker.py` | 辅助 | 异步任务 worker 生命周期（SQLite 任务存储、Vault GC 定时清理） | ✅ |
