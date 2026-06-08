@@ -5,7 +5,7 @@
 //! The overlay receives pet events via Tauri `emit`/`listen`.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
 const PET_OVERLAY_LABEL: &str = "pet-overlay";
 const PET_WINDOW_SIZE: f64 = 128.0;
