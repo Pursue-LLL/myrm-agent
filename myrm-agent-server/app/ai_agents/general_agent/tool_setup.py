@@ -455,6 +455,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         deferred_tools: list[object],
         effective_chat_id: str,
         vision_llm: "BaseChatModel" | None = None,
+        memory_manager: object | None = None,
     ) -> None:
         """Set up browser automation tools and session."""
         try:
@@ -508,6 +509,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 vision_llm=vision_llm,
                 engine_preference=getattr(self, "browser_engine", None),
             )
+
+            if memory_manager is not None:
+                from myrm_agent_harness.toolkits.browser.session import SessionMemoryBridge
+
+                bridge = SessionMemoryBridge(memory_manager)
+                browser_session.set_session_lifecycle_hook(bridge)
+                logger.info("SessionMemoryBridge wired: browser sessions → memory profile")
+
             logger.warning(f"BrowserSession created: context_key={browser_context_key} (thread_id={thread_id})")
 
             browser_tools = create_browser_tools(browser_session)

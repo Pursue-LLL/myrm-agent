@@ -6816,6 +6816,16 @@
       "collapse": "Collapse Preview",
       "loadError": "Failed to load preview"
     },
+    "ingestToWiki": {
+      "title": "지식 베이스에 추가",
+      "success": "지식 베이스에 추가되었습니다",
+      "failed": "지식 베이스에 추가하지 못했습니다"
+    },
+    "insertToChat": {
+      "title": "대화에 삽입",
+      "success": "첨부 파일로 삽입되었습니다",
+      "alreadyAttached": "이미 현재 메시지에 첨부되어 있습니다"
+    },
     "skillActions": {
       "moreActions": "More Actions",
       "packageDownload": "Package Workspace",

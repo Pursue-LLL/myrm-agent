@@ -1,5 +1,4 @@
 import { File } from '@/store/chat/types';
-import useProviderStore from '../useProviderStore';
 import { partitionFilesByType, fetchFileAsBase64DataURL, getMimeType } from '@/lib/utils/fileUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { fromStoreFile } from '@/services/file-service/types';
@@ -38,17 +37,11 @@ const buildExtractParams = (file: File): { fileId: string } | { filePath: string
   return { fileId: file.id || '' };
 };
 
-const currentModelSupportsVision = (): boolean => {
-  const { defaultModelConfig, getModelInfo } = useProviderStore.getState();
-  const selection = defaultModelConfig?.baseModel?.primary;
-  if (!selection) return false;
-  return getModelInfo(selection.providerId, selection.model)?.supports_vision ?? false;
-};
-
 /**
  * Process PDF files via backend extraction API (parallel).
  * Text-first; when text is sparse, backend renders pages as images.
- * If the model doesn't support vision, image parts are silently dropped.
+ * Image parts are always included — the server-side VisionFallback
+ * handles routing to a vision model when the primary model lacks vision.
  */
 const attachmentReferencePart = (fileName: string): VisionContentPart => ({
   type: 'text',
@@ -65,7 +58,6 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
     pdfFiles.map((file) => extractPdfContent(buildExtractParams(file)).then((result) => ({ file, result }))),
   );
 
-  const supportsVision = currentModelSupportsVision();
   const parts: VisionContentPart[] = [];
 
   for (const settled of results) {
@@ -79,13 +71,12 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
       parts.push({ type: 'text', text: `[PDF: ${file.fileName}]\n${result.text}` });
     }
 
-    if (supportsVision && result.images) {
+    if (result.images && result.images.length > 0) {
       for (const img of result.images) {
         const dataUrl = `data:${img.mimeType};base64,${img.data}`;
         parts.push({ type: 'image_url', image_url: { url: dataUrl, detail: 'auto' } });
       }
 
-      // Feature: Smart Meaningful Image Extractor Feedback Trace
       if (result.imageTrace && result.imageTrace.droppedCount > 0) {
         toast.success(
           `[PDF] 解析优化：已提取 ${result.imageTrace.keptCount} 张核心图像（拦截 ${result.imageTrace.droppedCount} 张视觉噪点，为您节省约 ${result.imageTrace.droppedCount * 2}s 耗时）`,
@@ -204,8 +195,13 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
 /**
  * Build multimodal query from attached files and optional camera frames.
  *
- * - Camera frames: injected as image_url parts when model supports vision.
+ * All visual content (images, camera frames, PDF charts) is always included
+ * regardless of primary model vision capability — the server-side
+ * VisionFallbackEngine handles routing to a vision model when needed.
+ *
+ * - Camera frames: injected as image_url parts.
  * - Images: converted to base64 data URLs as image_url parts.
+ * - Videos: passed as video_url parts for server-side analysis.
  * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
  * - Documents (.docx/.xlsx/.xls): extracted to Markdown text via backend.
  * - Text files (.csv/.txt/.md/.json): content fetched directly.
@@ -217,7 +213,7 @@ export const buildMultimodalQuery = async (
   cameraFrames?: string[],
 ): Promise<string | VisionContentPart[]> => {
   const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles } = partitionFilesByType(files);
-  const hasCameraFrames = cameraFrames && cameraFrames.length > 0 && currentModelSupportsVision();
+  const hasCameraFrames = cameraFrames && cameraFrames.length > 0;
   const hasAttachments =
     imageFiles.length > 0 ||
     videoFiles.length > 0 ||

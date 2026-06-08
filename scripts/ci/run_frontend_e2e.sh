@@ -32,6 +32,14 @@ _wait_http() {
     sleep 2
   done
   echo "ERROR: ${label} not ready at ${url}" >&2
+  if [[ -f "${WS_DIR}/frontend.log" ]]; then
+    echo "--- frontend.log (tail) ---" >&2
+    tail -30 "${WS_DIR}/frontend.log" >&2
+  fi
+  if [[ -f "${WS_DIR}/backend.log" ]]; then
+    echo "--- backend.log (tail) ---" >&2
+    tail -20 "${WS_DIR}/backend.log" >&2
+  fi
   return 1
 }
 
@@ -54,9 +62,11 @@ echo "==> [3/4] Start frontend dev server on :3000"
 cd "${FRONTEND_DIR}"
 bun install --frozen-lockfile
 bunx playwright install chromium --with-deps
-NEXT_PUBLIC_DEPLOY_MODE=local WEBUI_DEV_BIND_HOST=127.0.0.1 bun run dev >"${WS_DIR}/frontend.log" 2>&1 &
+export NEXT_PUBLIC_DEPLOY_MODE=local
+export API_PORT=8080
+bunx next dev -p 3000 -H 127.0.0.1 >"${WS_DIR}/frontend.log" 2>&1 &
 FRONTEND_PID=$!
-_wait_http "http://127.0.0.1:3000/" "frontend" 120
+_wait_http "http://127.0.0.1:3000/" "frontend" 180
 
 echo "==> [4/4] Run Playwright E2E"
 PLAYWRIGHT_SKIP_WEBSERVER=1 \
@@ -65,6 +75,6 @@ PLAYWRIGHT_API_BASE=http://127.0.0.1:8080 \
 PLAYWRIGHT_RUN_WEBUI_E2E=1 \
 PLAYWRIGHT_RUN_INSTINCT_INBOX_E2E=1 \
 PLAYWRIGHT_RUN_MCP_SCAN_E2E=1 \
-  bunx playwright test --reporter=line
+  bunx playwright test --reporter=line --workers=1
 
 echo "==> Frontend Playwright E2E passed."

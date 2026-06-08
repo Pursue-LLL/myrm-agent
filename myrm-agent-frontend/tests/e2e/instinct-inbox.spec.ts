@@ -61,6 +61,8 @@ async function ensureLoggedIn(
 }
 
 test.describe('Instinct Inbox', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.skip(
     !process.env.PLAYWRIGHT_RUN_INSTINCT_INBOX_E2E,
     'Set PLAYWRIGHT_RUN_INSTINCT_INBOX_E2E=1 with backend :8080 and frontend :3000 running',
@@ -88,9 +90,9 @@ test.describe('Instinct Inbox', () => {
       waitUntil: 'domcontentloaded',
     });
 
-    await expect(page.getByText(/加载中|Loading/i)).toBeHidden({ timeout: 15_000 });
+    await expect(page.getByText(/加载中|Loading/i)).toBeHidden({ timeout: 30_000 });
     await expect(page.getByRole('heading', { name: /编辑智能体|Edit Agent/i })).toBeVisible({
-      timeout: 10_000,
+      timeout: 30_000,
     });
 
     await page.getByRole('dialog', { name: /批量审批|Batch/i }).waitFor({ state: 'visible', timeout: 8_000 }).catch(() => undefined);

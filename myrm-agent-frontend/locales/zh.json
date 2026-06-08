@@ -7157,6 +7157,16 @@
       "collapse": "收起预览",
       "loadError": "预览加载失败"
     },
+    "ingestToWiki": {
+      "title": "添加到知识库",
+      "success": "已添加到知识库",
+      "failed": "添加到知识库失败"
+    },
+    "insertToChat": {
+      "title": "插入到对话",
+      "success": "已作为附件插入",
+      "alreadyAttached": "已添加到当前消息"
+    },
     "selectionToolbar": {
       "modify": "AI 修改",
       "explain": "解释",

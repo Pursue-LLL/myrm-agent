@@ -6816,6 +6816,16 @@
       "collapse": "Collapse Preview",
       "loadError": "Failed to load preview"
     },
+    "ingestToWiki": {
+      "title": "Zur Wissensdatenbank hinzufügen",
+      "success": "Zur Wissensdatenbank hinzugefügt",
+      "failed": "Hinzufügen zur Wissensdatenbank fehlgeschlagen"
+    },
+    "insertToChat": {
+      "title": "In Chat einfügen",
+      "success": "Als Anhang eingefügt",
+      "alreadyAttached": "Bereits an die aktuelle Nachricht angehängt"
+    },
     "skillActions": {
       "moreActions": "More Actions",
       "packageDownload": "Package Workspace",

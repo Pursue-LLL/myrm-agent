@@ -6816,6 +6816,16 @@
       "collapse": "Collapse Preview",
       "loadError": "Failed to load preview"
     },
+    "ingestToWiki": {
+      "title": "ナレッジベースに追加",
+      "success": "ナレッジベースに追加しました",
+      "failed": "ナレッジベースへの追加に失敗しました"
+    },
+    "insertToChat": {
+      "title": "チャットに挿入",
+      "success": "添付ファイルとして挿入しました",
+      "alreadyAttached": "既に現在のメッセージに添付されています"
+    },
     "skillActions": {
       "moreActions": "More Actions",
       "packageDownload": "Package Workspace",

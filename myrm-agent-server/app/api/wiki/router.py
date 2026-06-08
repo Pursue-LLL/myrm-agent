@@ -1,21 +1,23 @@
 """Wiki Knowledge Base API router.
 
 [INPUT]
-fastapi::APIRouter, Depends, HTTPException, status (POS: FastAPI 路由与依赖注入)
+fastapi::APIRouter, Depends, HTTPException, Query (POS: FastAPI 路由与依赖注入)
 pydantic::BaseModel, Field (POS: 数据验证与序列化)
-app.deps::get_deploy_identity, get_llm_for_user (POS: 依赖注入函数)
+app.api.dependencies::get_optional_llm_for_user, get_workspace_root (POS: 依赖注入函数)
 app.services.wiki::MemoryToWikiArchiver (POS: Memory→Wiki 自动归档服务)
 langchain_core.language_models::BaseChatModel (POS: LangChain LLM 基类)
+myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金库，ingest 端点延迟导入)
+app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
 
 [OUTPUT]
-router: Wiki API 路由器（完整增删改查及后台队列审核接口）
+router: Wiki API 路由器（完整增删改查、后台队列审核、artifact 内容写入接口）
 Wiki概念 CRUD 接口
 Wiki队列与审核状态接口
+Artifact 内容写入接口
 
 [POS]
 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用：
-查询/编译/维护 wiki。
-新增：/concepts (CRUD), /queue (状态控制), /pending (人工审核)。
+查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、/ingest (artifact 内容写入)。
 """
 
 from __future__ import annotations
@@ -576,6 +578,71 @@ async def deep_research(
         return OperationResult(success=False, message="Web search toolkit not configured")
     except Exception as e:
         logger.error(f"Deep research failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+class IngestArtifactRequest(BaseModel):
+    artifact_id: str = Field(..., min_length=1, description="Artifact ID to ingest into wiki")
+
+
+@router.post("/ingest", response_model=OperationResult)
+async def ingest_artifact(
+    request: IngestArtifactRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> OperationResult:
+    """Ingest an artifact's content into the wiki knowledge base."""
+    from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.api.dependencies import get_workspace_root
+    from app.database.connection import get_session
+    from app.database.models.artifact import Artifact
+
+    workspace_root = get_workspace_root()
+    try:
+        async with get_session() as db:
+            stmt = (
+                select(Artifact)
+                .options(selectinload(Artifact.versions))
+                .where(Artifact.id == request.artifact_id, Artifact.is_deleted.is_(False))
+            )
+            result = await db.execute(stmt)
+            artifact = result.scalars().first()
+
+        if not artifact:
+            raise HTTPException(status_code=404, detail="Artifact not found")
+        if not artifact.versions:
+            raise HTTPException(status_code=400, detail="Artifact has no versions")
+
+        latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
+        vault = ArtifactVault(workspace_root)
+        vault_uri = latest_version.vault_uri
+        obj_id = vault_uri[len("vault://"):] if vault_uri.startswith("vault://") else vault_uri
+        obj_path = vault.get_object_path(obj_id)
+
+        if not obj_path.exists():
+            raise HTTPException(status_code=404, detail="Artifact content not found on disk")
+
+        content = obj_path.read_text(encoding="utf-8")
+        if not content.strip():
+            return OperationResult(success=False, message="Artifact content is empty")
+
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        safe_name = artifact.name.replace(" ", "_").replace("/", "_")[:80]
+        raw_file = archiver._structure.raw_dir / f"artifact_{safe_name}_{timestamp}.md"
+        raw_file.write_text(content, encoding="utf-8")
+
+        archiver._compiler.enqueue_file(raw_file)
+
+        return OperationResult(
+            success=True,
+            message=f"Artifact '{artifact.name}' ingested, compilation started",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Artifact ingest failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

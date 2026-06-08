@@ -1,18 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/store/useProviderStore', () => ({
-  default: {
-    getState: () => ({
-      defaultModelConfig: {
-        baseModel: {
-          primary: { providerId: 'openai', model: 'gpt-4o' },
-        },
-      },
-      getModelInfo: () => ({ supports_vision: true }),
-    }),
-  },
-}));
-
 vi.mock('@/lib/deploy-mode', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
   return {
@@ -42,6 +29,12 @@ vi.mock('@/lib/utils/fileUtils', () => ({
   getMimeType: (ext: string) => `image/${ext}`,
 }));
 
+vi.mock('@/store/useConfigStore', () => ({
+  default: {
+    getState: () => ({ extractDocumentText: true }),
+  },
+}));
+
 import { buildMultimodalQuery, type VisionContentPart } from '@/store/chat/multimodalBuilder';
 
 describe('buildMultimodalQuery with cameraFrames', () => {
@@ -59,7 +52,7 @@ describe('buildMultimodalQuery with cameraFrames', () => {
     expect(result).toBe('hello');
   });
 
-  it('injects camera frames as image_url parts', async () => {
+  it('injects camera frames as image_url parts regardless of model vision support', async () => {
     const frames = ['data:image/jpeg;base64,abc123'];
     const result = await buildMultimodalQuery('describe this', [], frames);
 
@@ -93,32 +86,40 @@ describe('buildMultimodalQuery - undefined cameraFrames', () => {
   });
 });
 
-describe('buildMultimodalQuery - model vision support', () => {
-  it('ignores camera frames when model does not support vision', async () => {
-    const storeModule = await import('@/store/useProviderStore');
-    const originalGetState = storeModule.default.getState;
+describe('buildMultimodalQuery - vision-agnostic behavior', () => {
+  it('always sends camera frames to backend for VisionFallbackEngine routing', async () => {
+    const frames = ['data:image/jpeg;base64,abc123'];
+    const result = await buildMultimodalQuery('hello', [], frames);
 
-    storeModule.default.getState = () => {
-      const originalState = originalGetState();
-      return {
-        ...originalState,
-        defaultModelConfig: {
-          ...originalState.defaultModelConfig,
-          baseModel: {
-            ...originalState.defaultModelConfig.baseModel,
-            primary: { providerId: 'openai', model: 'gpt-3.5' },
-          },
-        },
-        getModelInfo: () => ({ source: 'user', lastUpdated: new Date().toISOString(), supports_vision: false }),
-      };
-    };
+    expect(typeof result).not.toBe('string');
+    const parts = result as VisionContentPart[];
+    expect(parts).toHaveLength(2);
+    expect(parts[1]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'data:image/jpeg;base64,abc123', detail: 'auto' },
+    });
+  });
+});
 
-    try {
-      const frames = ['data:image/jpeg;base64,abc123'];
-      const result = await buildMultimodalQuery('hello', [], frames);
-      expect(result).toBe('hello');
-    } finally {
-      storeModule.default.getState = originalGetState;
-    }
+describe('buildMultimodalQuery - PDF images always included', () => {
+  it('includes PDF images regardless of primary model vision capability', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    const mockExtract = vi.mocked(extractPdfContent);
+    mockExtract.mockResolvedValue({
+      text: 'Chart data summary',
+      images: [{ mimeType: 'image/png', data: 'base64chart' }],
+      imageTrace: { keptCount: 1, droppedCount: 2 },
+    });
+
+    const pdfFile = { id: 'f1', fileName: 'report.pdf', fileExtension: 'pdf', fileUrl: '/files/f1' };
+    const result = await buildMultimodalQuery('analyze this', [pdfFile] as any);
+
+    const parts = result as VisionContentPart[];
+    const imageParts = parts.filter((p) => p.type === 'image_url');
+    expect(imageParts).toHaveLength(1);
+    expect(imageParts[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'data:image/png;base64,base64chart', detail: 'auto' },
+    });
   });
 });

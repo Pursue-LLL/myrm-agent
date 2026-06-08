@@ -137,4 +137,11 @@ export const wikiService = {
       method: 'POST',
     });
   },
+
+  ingestArtifact: async (artifactId: string): Promise<OperationResult> => {
+    return apiRequest<OperationResult>('/wiki/ingest', {
+      method: 'POST',
+      body: JSON.stringify({ artifact_id: artifactId }),
+    });
+  },
 };

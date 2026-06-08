@@ -7157,6 +7157,16 @@
       "collapse": "Collapse Preview",
       "loadError": "Failed to load preview"
     },
+    "ingestToWiki": {
+      "title": "Add to Knowledge Base",
+      "success": "Added to knowledge base",
+      "failed": "Failed to add to knowledge base"
+    },
+    "insertToChat": {
+      "title": "Insert into Chat",
+      "success": "Inserted as attachment",
+      "alreadyAttached": "Already attached to current message"
+    },
     "selectionToolbar": {
       "modify": "AI Modify",
       "explain": "Explain",

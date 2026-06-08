@@ -4,13 +4,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact, ArtifactType } from '@/store/chat/types';
-import { ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, Play } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, Copy, Download, ExternalLink, Eye, FolderOpen, Globe, Link2, MessageSquarePlus, Play } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest, getApiUrl, getStorageUrl } from '@/lib/api';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { toast } from 'sonner';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import useChatStore from '@/store/useChatStore';
+import { wikiService } from '@/services/wikiService';
 import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
 import { HtmlPreview } from './renderers/MediaPreview';
 import {
@@ -67,6 +69,10 @@ function supportsInlinePreview(type: ArtifactType): boolean {
   return type === 'html';
 }
 
+function isIngestableToWiki(type: ArtifactType): boolean {
+  return ['code', 'document', 'html', 'svg', 'mermaid'].includes(type);
+}
+
 const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDownload }) => {
   const t = useTranslations('artifacts');
   const Icon = getArtifactIcon(artifact.type as ArtifactType, artifact.filename);
@@ -82,11 +88,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [ingestLoading, setIngestLoading] = useState(false);
   const [artifactState, setArtifactState] = useState(artifact);
   const hasLocalPath = Boolean(artifact.file_path);
   const isDeployCandidate = isDeployCandidateArtifactType(artifact.type as ArtifactType);
   const canDeploy = isDeployCandidate && deployPreflight?.deployable === true;
   const canSharePreview = isSharePreviewableArtifact(artifactState);
+  const canIngestToWiki = isIngestableToWiki(artifact.type as ArtifactType);
 
   useEffect(() => {
     setArtifactState(artifact);
@@ -333,6 +341,47 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     setTimeout(() => setPathCopied(false), 2000);
   }, [artifact.file_path]);
 
+  const handleIngestToWiki = useCallback(async () => {
+    if (ingestLoading) return;
+    setIngestLoading(true);
+    try {
+      const result = await wikiService.ingestArtifact(artifact.id);
+      if (result.success) {
+        toast.success(t('ingestToWiki.success'), { description: result.message });
+      } else {
+        toast.error(t('ingestToWiki.failed'), { description: result.message });
+      }
+    } catch {
+      toast.error(t('ingestToWiki.failed'));
+    } finally {
+      setIngestLoading(false);
+    }
+  }, [artifact.id, ingestLoading, t]);
+
+  const handleInsertToChat = useCallback(() => {
+    const isLocalMode = isTauriRuntime() && !!artifact.file_path;
+    const chatFile = {
+      fileName: artifact.filename,
+      fileExtension: artifact.filename.split('.').pop() || '',
+      localPath: isLocalMode ? artifact.file_path : undefined,
+      fileUrl: isLocalMode ? undefined : getStorageUrl(artifact.preview_url),
+      fileType: (isLocalMode ? 'local_path' : 'uploaded') as 'local_path' | 'uploaded',
+    };
+    const currentFiles = useChatStore.getState().files;
+    const alreadyAttached = currentFiles.some(
+      (f) =>
+        f.fileName === chatFile.fileName &&
+        ((chatFile.fileUrl && f.fileUrl === chatFile.fileUrl) ||
+          (chatFile.localPath && f.localPath === chatFile.localPath)),
+    );
+    if (alreadyAttached) {
+      toast.info(t('insertToChat.alreadyAttached'));
+      return;
+    }
+    useChatStore.getState().setFiles([...currentFiles, chatFile]);
+    toast.success(t('insertToChat.success'));
+  }, [artifact, t]);
+
   const handleDownload = async () => {
     if (onDownload) {
       onDownload(artifactState);
@@ -494,6 +543,33 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               <Globe className="w-4 h-4" />
             </Button>
           )}
+          {canIngestToWiki && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              disabled={ingestLoading}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleIngestToWiki();
+              }}
+              title={t('ingestToWiki.title')}
+            >
+              <BookOpen className={cn('w-4 h-4', ingestLoading && 'opacity-50 animate-pulse')} />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleInsertToChat();
+            }}
+            title={t('insertToChat.title')}
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+          </Button>
           {canInlinePreview && (
             <Button
               variant="ghost"

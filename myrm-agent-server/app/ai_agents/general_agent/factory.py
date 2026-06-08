@@ -192,7 +192,9 @@ async def build_general_agent(
     await agent_wrapper._setup_cron_tools(tools, deferred_tools, user_id=user_id)
 
     if agent_wrapper.enable_browser:
-        await agent_wrapper._setup_browser_tools(tools, deferred_tools, effective_chat_id, vision_llm=llm)
+        await agent_wrapper._setup_browser_tools(
+            tools, deferred_tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
+        )
 
     if agent_wrapper.enable_computer_use:
         agent_wrapper._setup_computer_use_tools(tools, deferred_tools)
