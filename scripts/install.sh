@@ -117,6 +117,8 @@ setup_backend() {
         exit 1
     fi
     verify_harness_install
+    log_info "Installing browser runtime (patchright) ..."
+    uv run patchright install chromium 2>/dev/null || log_warn "Browser install skipped (non-fatal)."
     cd "${PROJECT_ROOT}"
     log_success "Backend ready."
 }

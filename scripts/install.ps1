@@ -120,6 +120,9 @@ function Setup-Backend {
         throw "Backend dependency sync failed."
     }
     Verify-HarnessInstall
+    Write-Info "Installing browser runtime (patchright) ..."
+    uv run patchright install chromium 2>$null
+    if ($LASTEXITCODE -ne 0) { Write-WarnMsg "Browser install skipped (non-fatal)." }
     Set-Location $ProjectRoot
     Write-Ok "Backend ready."
 }

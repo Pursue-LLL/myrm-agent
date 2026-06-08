@@ -26,6 +26,7 @@ show_help() {
     echo "  dev      Backend only (:8080)"
     echo "  start    Backend + frontend (:8080 + :3000)"
     echo "  stop | status | update"
+    echo "  doctor   Browser & environment diagnostics"
     echo "  searxng start | stop | status"
 }
 
@@ -87,8 +88,13 @@ case "$COMMAND" in
         ;;
     update)
         git pull --ff-only
-        (cd "$SERVER_DIR" && uv sync --all-extras)
+        (cd "$SERVER_DIR" && uv sync --all-extras && uv run patchright install chromium 2>/dev/null || true)
         (cd "$FRONTEND_DIR" && bun install && bun run build)
+        ;;
+    doctor)
+        _py="${SERVER_DIR}/.venv/bin/python"
+        [[ -x "$_py" ]] || { echo -e "${RED}.venv not found. Run: myrm setup${NC}"; exit 1; }
+        "$_py" -c "import asyncio; from myrm_agent_harness.toolkits.browser.doctor import run_doctor, format_report; r = asyncio.run(run_doctor()); print(format_report(r)); exit(0 if r.overall_healthy else 1)"
         ;;
     searxng)
         SUBCMD=${1:-}

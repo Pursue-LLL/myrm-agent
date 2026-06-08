@@ -36,6 +36,7 @@ function Show-Help {
     Write-Host "  dev      Backend only (:8080)"
     Write-Host "  start    Backend + frontend (:8080 + :3000)"
     Write-Host "  stop | status | update"
+    Write-Host "  doctor   Browser & environment diagnostics"
     Write-Host "  searxng start | stop | status"
 }
 
@@ -123,10 +124,20 @@ switch ($Command) {
         git pull --ff-only
         Set-Location $ServerDir
         uv sync --all-extras
+        uv run patchright install chromium 2>$null
         Set-Location $FrontendDir
         bun install
         bun run build
         Write-Host "Update complete."
+    }
+    "doctor" {
+        $py = Join-Path $ServerDir ".venv\Scripts\python.exe"
+        if (-not (Test-Path $py)) {
+            Write-Error ".venv not found. Run: myrm setup"
+            exit 1
+        }
+        & $py -c "import asyncio; from myrm_agent_harness.toolkits.browser.doctor import run_doctor, format_report; r = asyncio.run(run_doctor()); print(format_report(r)); exit(0 if r.overall_healthy else 1)"
+        exit $LASTEXITCODE
     }
     "searxng" {
         Require-Docker

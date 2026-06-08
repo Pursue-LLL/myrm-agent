@@ -26,6 +26,9 @@ cd "${SERVER_DIR}"
 uv python install 3.13
 uv sync --all-extras
 
+echo "🌐 Installing browser runtime (patchright)..."
+uv run patchright install chromium
+
 echo "📦 Frontend: bun install..."
 cd "${FRONTEND_DIR}"
 bun install
