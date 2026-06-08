@@ -8,9 +8,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `audit.py` | 模块 | 见源码 | — |
-| `config.py` | 模块 | 见源码 | — |
-| `rules.py` | 模块 | 见源码 | — |
-| `templates.py` | 模块 | 见源码 | — |
-| `version.py` | 模块 | 见源码 | — |
+| `__init__.py` | 入口 | Message filter API endpoints. | ✅ |
+| `audit.py` | 模块 | Message filter audit API endpoints. | ✅ |
+| `config.py` | 模块 | Message filter configuration API endpoints. | ✅ |
+| `rules.py` | 模块 | Message filter rules API endpoints. | ✅ |
+| `templates.py` | 模块 | Message filter rule templates API endpoints. | ✅ |
+| `version.py` | 模块 | Message filter version history API endpoints. | ✅ |

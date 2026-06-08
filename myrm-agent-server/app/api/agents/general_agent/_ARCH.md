@@ -8,9 +8,9 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `active_sessions.py` | 模块 | 见源码 | — |
-| `clarify.py` | 模块 | 见源码 | — |
-| `media_config.py` | 模块 | 见源码 | — |
-| `streaming.py` | 模块 | 见源码 | — |
-| `suggestions.py` | 模块 | 见源码 | — |
+| `__init__.py` | 入口 | General Agent package. | ✅ |
+| `active_sessions.py` | 模块 | General Agent API — autonomous decision-making agent with streaming SSE. | ✅ |
+| `clarify.py` | 模块 | General Agent API — autonomous decision-making agent with streaming SSE. | ✅ |
+| `media_config.py` | 模块 | General Agent API — autonomous decision-making agent with streaming SSE. | ✅ |
+| `streaming.py` | 模块 | General Agent API — HTTP/SSE transport for streaming agent execution. | ✅ |
+| `suggestions.py` | 模块 | General Agent API — autonomous decision-making agent with streaming SSE. | ✅ |

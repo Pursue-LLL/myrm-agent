@@ -8,5 +8,5 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `router.py` | 路由 | 见源码 | — |
+| `__init__.py` | 入口 | Credentials API endpoints. | ✅ |
+| `router.py` | 路由 | Credentials management API router. | ✅ |

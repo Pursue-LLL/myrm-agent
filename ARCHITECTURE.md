@@ -84,7 +84,7 @@ myrm-agent/
 3. **模块** — 每目录 `_ARCH.md`（模块说明；GitHub 入口 README 仅保留快速启动）
 4. **文件** — `[INPUT]` / `[OUTPUT]` / `[POS]` 或 `@input` / `@output` / `@pos`
 
-Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt` 防回退）。Frontend：`next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）。
+Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`check_file_line_budget.py`（禁止新增 >400 行 Python 模块）。Frontend：`next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）。
 
 ---
 

@@ -1,18 +1,11 @@
-# Context API
+# api/context/
 
-[INPUT]
-- app.services.context.context_bundle_service::ContextBundleService (POS: bundle health and migration service)
-- app.schemas.context.bundle (POS: bundle request/response models)
+## 架构概述
 
-[OUTPUT]
-- router: FastAPI router for `/context-bundle` endpoints
+本目录模块说明。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
-[POS]
-HTTP endpoints for context bundle health and non-destructive volume migration.
-Designed for GUI clients to query global sandbox context layout.
+## 文件清单
 
-## File Index
-
-| File | Role | Description |
-|------|------|-------------|
-| `router.py` | Core | `GET /context-bundle`, `POST /context-bundle/migrate/dry-run`, `POST /context-bundle/migrate/apply` |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `router.py` | 路由 | Context bundle HTTP API. | ✅ |

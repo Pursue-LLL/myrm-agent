@@ -20,6 +20,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |
 | `data/fractal_header_baseline.txt` | `check_fractal_docs --strict-headers` 已知缺 header 的 app 相对路径 |
+| `../../scripts/ci/file_line_budget_baseline.txt` | `check_file_line_budget.py` grandfather 超标模块列表 |
 
 ## 依赖
 
@@ -28,5 +29,5 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 
 ## 运行
 
-- 本地 / vortexai：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（`check_fractal_docs.py` + pytest；旁路 `myrm-agent-harness/`）
+- 本地 / vortexai：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + line budget + architecture pytest）
 - CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）

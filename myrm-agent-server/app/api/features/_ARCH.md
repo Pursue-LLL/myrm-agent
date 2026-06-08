@@ -8,5 +8,5 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `router.py` | 路由 | 见源码 | — |
+| `__init__.py` | 入口 | 包入口与导出 | — |
+| `router.py` | 路由 | Feature flags API endpoints. | ✅ |

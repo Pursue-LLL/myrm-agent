@@ -1,16 +1,14 @@
-# signal/
+# channels/providers/signal/
 
-## Overview
-Signal channel provider via Signal CLI REST API.
+## 架构概述
 
-Inbound messages are received via WebSocket (real-time, preferred) with
-automatic fallback to HTTP polling for older signal-cli-rest-api versions.
+本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
 
-## File & Submodule Index
+## 文件清单
 
-| File | Role | Description | I/O/P |
-|------|------|-------------|-------|
-| __init__.py | Package | Signal channel provider via Signal CLI REST API. | — |
-| api.py | Core | Signal HTTP/WS layer. Called by channel.py via self._api. Provides REST messaging + WebSocket stream_events() for real-time inbound. | ✅ |
-| channel.py | Core | Signal integration. WebSocket-first inbound with HTTP polling fallback. Outbound via /v2/send. | ✅ |
-| helpers.py | Core | Signal envelope type definitions, constants (timeouts, WS settings), and pure functions. Referenced by channel.py and api.py. | ✅ |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | Signal channel provider via Signal CLI REST API. | ✅ |
+| `api.py` | 模块 | Signal HTTP/WS layer. Provides REST messaging, WebSocket stream_events(), and HTTP polling fallback. Called by channel.py via self._api. """ | ✅ |
+| `channel.py` | 模块 | Signal integration. Implemented via Signal CLI REST API | ✅ |
+| `helpers.py` | 模块 | Signal envelope type definitions, constants (timeouts, WS settings), and pure functions. Referenced by channel.py and api.py. """ | ✅ |

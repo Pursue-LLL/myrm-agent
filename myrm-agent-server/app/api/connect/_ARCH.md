@@ -8,5 +8,5 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `router.py` | 路由 | REST API for the Connect Wizard feature. Allows frontend to: | ✅ |
+| `__init__.py` | 入口 | Connect Wizard API module. | ✅ |
+| `router.py` | 路由 | REST API for the Connect Wizard feature. Allows frontend to | ✅ |

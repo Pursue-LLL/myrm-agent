@@ -1,25 +1,24 @@
-# memory/operations 模块架构
-
-
----
+# api/memory/operations/
 
 ## 架构概述
 
-记忆 API 操作层。实现记忆 CRUD、待处理记忆审核、备份归档、单用户 Memory Archive 恢复、服务端绑定导入确认、账本型导入回滚预演/回滚和 Shared Context 共享上下文治理。Shared Context 写入批准只委托服务层物化，不在 API 层直接写 MemoryManager；物化时的 embedding/LLM 依赖失败会映射为结构化 AI 服务错误，并提供独立健康检查端点提前验证 embedding 配置。
-
----
+本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
 
 ## 文件清单
 
-| 文件 | 地位 | 职责| I/O/P |
+| 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `crud.py` | ✅ 核心 | 记忆 CRUD HTTP 薄路由（绑定 `services/memory/operations/crud_handlers`） |
-| `archive_restore.py` | ✅ 核心 | Memory Archive 恢复操作。暴露归档恢复 dry-run、hash-gated confirm、rollback dry-run 和 rollback 端点，confirm 后自动运行内容盲 Memory Diagnostics 并回写恢复批次 metadata；恢复语义、journal 和安全预检由服务层执行 |
-| `pending.py` | ✅ 核心 | 待处理记忆操作（列表、批准、拒绝、批量操作）；单条/批量审批动作写入 Experience Ledger |
-| `shared_contexts.py` | ✅ 核心 | Shared Context 共享上下文操作。管理上下文 CRUD、按上下文/运行目标查询绑定、agent/channel/cron/conversation/task 绑定、写入提案创建/编辑/批准/拒绝 |
-| `shared_context_health.py` | ✅ 核心 | Shared Context 记忆健康操作。返回 embedding 配置状态和可选实时探测结果 |
-| `shared_context_history.py` | ✅ 核心 | Shared Context 历史证据操作。搜索会话历史并将选中消息提升为可审批写入提案 |
-| `shared_context_migration.py` | ✅ 核心 | Shared Context 迁移操作。将 legacy team-visible semantic/episodic 记忆复制到 `shared:legacy-team` |
-| `shared_context_serializers.py` | ✅ 辅助 | Shared Context ORM 到 Pydantic 响应模型转换 |
-| `command_center.py` | ✅ 核心 | 个人大脑指挥中心 API。聚合概览、空间、治理、时间线、回放、健康和运行时面板数据，提供 consolidation rollback 端点 |
-| `guardian.py` | ✅ 核心 | 记忆守护者 API。暴露记忆 4 维健康分数和定时维护调度器状态，提供手动触发维护入口 |
+| `__init__.py` | 入口 | Memory operations submodule | ✅ |
+| `archival.py` | 模块 | Memory archival endpoints. | ✅ |
+| `archive_restore.py` | 模块 | 记忆归档恢复 API 操作层。只编排请求/响应和错误映射，恢复语义由服务层负责。 """ | ✅ |
+| `backup.py` | 模块 | Memory backup and restore endpoints. | ✅ |
+| `backup_remote.py` | 模块 | Remote backup API endpoints. | ✅ |
+| `command_center.py` | 模块 | 记忆指挥中心 API 操作层。将单用户/单沙箱记忆运行快照暴露给设置页 UI。 """ | ✅ |
+| `crud.py` | 模块 | Memory CRUD HTTP routes — thin transport layer. | ✅ |
+| `guardian.py` | 模块 | 记忆守护者 API。暴露记忆系统健康分数和定时维护调度器状态，提供手动触发维护入口。 """ | ✅ |
+| `pending.py` | 模块 | 待处理记忆 API 操作层。提供待处理记忆的审批流管理。 """ | ✅ |
+| `shared_context_health.py` | 模块 | 共享上下文健康检查 API 操作层。提供 embedding 配置和实时探测状态，避免批准写入时才暴露不可用依赖。 """ | ✅ |
+| `shared_context_history.py` | 模块 | 共享上下文历史证据 API 操作层。提供从会话历史检索证据并生成可审批提案的产品入口。 """ | ✅ |
+| `shared_context_migration.py` | 模块 | 共享上下文迁移 API 操作层。只负责非破坏性迁移 legacy `visibility/team_id` 记忆到 `shared:legacy-team`。 """ | ✅ |
+| `shared_context_serializers.py` | 模块 | 共享上下文 API 序列化辅助层。集中管理 ORM 到响应模型的无副作用转换。 """ | ✅ |
+| `shared_contexts.py` | 模块 | 共享上下文 API 操作层。提供产品层共享记忆空间治理，不暴露 team memory 语义。 """ | ✅ |

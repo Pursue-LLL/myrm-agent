@@ -8,6 +8,6 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `router.py` | 路由 | 见源码 | — |
-| `schemas.py` | 模块 | 见源码 | — |
+| `__init__.py` | 入口 | Risk governance API module. | ✅ |
+| `router.py` | 路由 | Risk governance API endpoints. | ✅ |
+| `schemas.py` | 模块 | Risk governance API request/response schemas. | ✅ |

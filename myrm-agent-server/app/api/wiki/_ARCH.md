@@ -1,13 +1,12 @@
-# api/wiki 模块架构
-
+# api/wiki/
 
 ## 架构概述
 
-Wiki 知识库 API。提供 Wiki 页面的 CRUD、图谱查询和记忆转 Wiki 接口。
+本目录模块说明。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 路由导出 | — |
-| `router.py` | 核心 | Wiki REST 接口（CRUD、`/graph` 3D图谱、队列、草稿审核） | ✅ 完整 |
+| `__init__.py` | 入口 | Wiki API router. | ✅ |
+| `router.py` | 路由 | 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用： 查询/编译/维护 wiki。 新增：/concepts (CRUD), /queue (状态控制), /pending (人工审核)。 """ | ✅ |

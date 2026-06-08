@@ -50,9 +50,11 @@ Each directory under `myrm-agent-server/app/` must have `_ARCH.md` (not README).
 
 ```bash
 .venv/bin/python scripts/check_fractal_docs.py
+.venv/bin/python scripts/check_fractal_docs.py --no-stub
+.venv/bin/python scripts/check_file_line_budget.py
 ```
 
-CI enforces this on pull requests.
+CI enforces fractal docs, no-stub guards on `api/` and `channels/providers/`, and the line-budget gate on pull requests.
 
 ## Pull requests
 

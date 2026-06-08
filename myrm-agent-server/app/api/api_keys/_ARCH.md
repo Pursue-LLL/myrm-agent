@@ -8,5 +8,5 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 见源码 | — |
-| `router.py` | 路由 | GUI-facing CRUD for managing API keys. The plaintext key is only | ✅ |
+| `__init__.py` | 入口 | API Key management endpoints. | ✅ |
+| `router.py` | 路由 | GUI-facing CRUD for managing API keys. The plaintext key is only returned once during creation. All subsequent operations reference keys by ID or prefix. """ | ✅ |

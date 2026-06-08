@@ -11,12 +11,14 @@
 | deploy.py | 核心 | 统一部署入口（tauri/sandbox/docker 三模式） | ✅ |
 | deploy_pkg/ | 核心 | 部署子包：actions/checks/constants/docker_core/modes/postgres/utils | ✅ |
 | cli.py | 核心 | Myrm CLI 配置管理工具（config validate 等） | ✅ |
-| check_fractal_docs.py | 门禁 | 分形文档合规（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt` 防回退，见 `ci/run_architecture_gates.sh`） | ✅ |
-| sync_arch_file_tables.py | 工具 | 将含占位行的 stub `_ARCH.md` 刷新为真实文件表 | ✅ |
+| check_fractal_docs.py | 门禁 | 分形文档合规（`app/**` 目录 `_ARCH.md`；`--strict-headers` + baseline；`--no-stub` 守卫 `api/` 与 `channels/providers/`） | ✅ |
+| check_file_line_budget.py | 门禁 | 禁止新增超过 400 行的 Python 模块（`scripts/ci/file_line_budget_baseline.txt` grandfather 存量） | ✅ |
+| sync_arch_file_tables.py | 工具 | 从文件头 POS/模块 docstring 刷新 stub `_ARCH.md` 文件表（`--path-prefix` / `--force`） | ✅ |
 | run_myrm_core_coverage_gate.sh | 门禁 | Harness 核心搜索+上下文路径覆盖率 ≥80% 门禁 | ✅ |
 | cleanup_qdrant_locks.py | 运维 | 清理 Qdrant 嵌入式模式残留锁文件（运行时自动调用） | ✅ |
 | init-age.sql | 运维 | Apache AGE 扩展初始化（PostgreSQL 图数据库） | ✅ |
 | dev/profile_test_memory.py | 工具 | 按测试文件测量峰值 RSS，定位内存大户 | ✅ |
+| ci/ | 门禁 | CI 脚本与 baseline（见 [ci/_ARCH.md](ci/_ARCH.md)） | ✅ |
 
 ---
 
@@ -24,7 +26,7 @@
 
 ```
 scripts/ ──→ app/ (仅 deploy.py 和部分运维脚本导入 app 模块)
-         ──→ myrm-agent-harness (check_fractal_docs.py 扫描 harness _ARCH.md)
+scripts/ci/ ──→ run_architecture_gates.sh（fractal + line budget + architecture pytest）
 ```
 
 - 所有脚本均为独立入口，不被 `app/` 反向引用
