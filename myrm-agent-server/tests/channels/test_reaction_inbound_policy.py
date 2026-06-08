@@ -36,6 +36,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("discord")
+
 from app.channels.core.allow_policy import SELECTIVE_POLICY
 from app.channels.providers.registry import CHANNEL_META, get_channel_class
 from app.channels.types import InboundMessage

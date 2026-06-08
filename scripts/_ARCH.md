@@ -22,6 +22,8 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
 | `dev/test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox E2E：向运行中后端 POST seed-mock（或 `--direct` 直写 DB） |
 | `dev/test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox 全链路：pytest API + Playwright UI（依赖 `myrm dev`） |
+| `ci/run_frontend_e2e.sh` | 双平台 | Playwright UI E2E 一条龙（CI `frontend-e2e.yml`；本地等价 `bun run test:e2e:ci` 需自起服务） |
+| `ci/install-pre-push-hook.sh` | Unix | 安装 pre-push 架构守门钩子 |
 | `maintainer/` | — | **OSS 仓无脚本**；代码生成在闭源 `myrm-agent-harness/scripts/maintainer/`（如 `generate_litellm_routing.py`）。前端仅提交生成产物。见 [maintainer/_ARCH.md](maintainer/_ARCH.md) |
 
 ## 约束

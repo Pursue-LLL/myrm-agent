@@ -10,10 +10,10 @@ import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
-from tests.e2e.test_bash_compressor_e2e import _resolve_working_base_selection
-from tests.e2e.test_bash_compressor_live_api_e2e import (
+from tests.support.bash_compressor_e2e import (
     E2E_FILTERS_YAML,
-    _apply_workspace_compression,
+    apply_workspace_compression,
+    resolve_working_base_selection,
 )
 
 SERVER_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -96,7 +96,7 @@ def _collect_stream(client: TestClient, query: str, agent_id: str | None) -> tup
         "messageId": f"bce-{uuid.uuid4().hex[:12]}",
         "chatId": chat_id,
         "query": query,
-        "modelSelection": _resolve_working_base_selection(),
+        "modelSelection": resolve_working_base_selection(),
         "actionMode": "agent",
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
@@ -105,7 +105,7 @@ def _collect_stream(client: TestClient, query: str, agent_id: str | None) -> tup
         request_data["agentId"] = agent_id
 
     stdout_text, message_text, resume_payload = _parse_stream_lines(client, request_data)
-    stdout_text = _apply_workspace_compression(chat_id, stdout_text)
+    stdout_text = apply_workspace_compression(chat_id, stdout_text)
     if resume_payload is None:
         return stdout_text, message_text
 
@@ -115,7 +115,7 @@ def _collect_stream(client: TestClient, query: str, agent_id: str | None) -> tup
         "resumeValue": resume_payload,
     }
     stdout_resume, message_resume, _ = _parse_stream_lines(client, resume_request)
-    stdout_resume = _apply_workspace_compression(chat_id, stdout_resume)
+    stdout_resume = apply_workspace_compression(chat_id, stdout_resume)
     return f"{stdout_text}{stdout_resume}", f"{message_text}{message_resume}"
 
 

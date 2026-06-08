@@ -6,6 +6,10 @@ import struct
 import time
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytest.importorskip("discord")
+
 from app.channels.providers.discord.voice.receiver import (
     _BYTES_PER_SECOND,
     _MIN_SPEECH_DURATION,

@@ -1,0 +1,49 @@
+name: Frontend Playwright E2E
+
+on:
+  pull_request:
+    paths:
+      - 'myrm-agent-frontend/**'
+      - 'myrm-agent-server/app/**'
+      - 'shared/**'
+      - 'scripts/ci/run_frontend_e2e.sh'
+      - '.github/workflows/frontend-e2e.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-frontend/**'
+      - 'myrm-agent-server/app/**'
+      - 'shared/**'
+      - 'scripts/ci/run_frontend_e2e.sh'
+      - '.github/workflows/frontend-e2e.yml'
+
+concurrency:
+  group: frontend-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright-e2e:
+    name: Playwright UI E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Run Playwright E2E
+        run: bash scripts/ci/run_frontend_e2e.sh
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: myrm-agent-frontend/playwright-report/
+          retention-days: 7

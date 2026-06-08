@@ -28,6 +28,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_RUN_WEBUI_E2E=1 PLAYWRIGHT_RUN_INSTINCT_INBOX_E2E=1 PLAYWRIGHT_RUN_MCP_SCAN_E2E=1 playwright test",
     "verify:i18n": "bun scripts/verify-i18n.mjs",
     "pretest": "bun run verify:i18n"
   },

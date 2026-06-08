@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-import discord
 import pytest
+
+pytest.importorskip("discord")
+import discord
 
 from app.channels.core.base import BaseChannel
 from app.channels.providers.discord.channel import (

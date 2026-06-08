@@ -2,15 +2,16 @@
 
 ## 架构概述
 
-OSS 仓库 CI 辅助脚本（非运行时）。当前仅 pre-push 钩子安装。
+OSS 仓库 CI 辅助脚本（非运行时）。
 
 ## 文件清单
 
 | 文件 | 职责 |
 |------|------|
 | `install-pre-push-hook.sh` | 安装 git pre-push 钩子，本地推送前跑架构守门 |
+| `run_frontend_e2e.sh` | 起 backend:8080 + frontend:3000，跑 Playwright（CI `frontend-e2e.yml`） |
 
 ## 依赖
 
 - 父模块 [scripts/_ARCH.md](../_ARCH.md)
-- Server 架构测试：`myrm-agent-server/scripts/ci/run_architecture_gates.sh`
+- Server CI：`myrm-agent-server/scripts/ci/lib_harness_deps.sh`、`run_architecture_gates.sh`、`run_default_tests.sh`

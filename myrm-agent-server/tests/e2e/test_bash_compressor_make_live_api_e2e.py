@@ -14,7 +14,7 @@ import pytest
 from dotenv import load_dotenv
 from myrm_agent_harness.agent.meta_tools.bash.output_compressor import compress_output
 
-from tests.e2e.test_bash_compressor_e2e import _resolve_working_base_selection
+from tests.support.bash_compressor_e2e import resolve_working_base_selection
 
 SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
@@ -172,7 +172,7 @@ def test_bash_compressor_builtin_make_live_api() -> None:
             "messageId": f"live-make-{uuid.uuid4().hex[:10]}",
             "chatId": chat_id,
             "query": MAKE_PROMPT,
-            "modelSelection": _resolve_working_base_selection(),
+            "modelSelection": resolve_working_base_selection(backend_url=BACKEND_URL),
             "actionMode": "agent",
             "agentId": agent_id,
             "memoryRequireConfirmation": False,

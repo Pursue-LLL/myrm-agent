@@ -10,23 +10,16 @@ from pathlib import Path
 import httpx
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.agent.meta_tools.bash.output_compressor import compress_output
 
-from tests.e2e.test_bash_compressor_e2e import _resolve_working_base_selection
+from tests.support.bash_compressor_e2e import (
+    E2E_FILTERS_YAML,
+    apply_workspace_compression,
+    resolve_working_base_selection,
+)
 
 SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(SERVER_ROOT / ".env", override=True)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080").rstrip("/")
-
-E2E_FILTERS_YAML = """filters:
-  - name: e2e-filter-run
-    match_command: 'run\\.sh'
-    replace:
-      - pattern: 'E2E_MASK_TOKEN=\\w+'
-        replacement: 'E2E_MASKED_VAL'
-    strip_lines_matching:
-      - '^E2E_DEBUG:'
-"""
 
 E2E_PROMPT = (
     "E2E_BASH_COMPRESSOR_RUN: In the workspace sandbox, do exactly:\n"
@@ -79,20 +72,6 @@ def _create_bash_agent(client: httpx.Client) -> str:
     agent_id = body.get("data", {}).get("id") or body.get("id")
     assert isinstance(agent_id, str) and agent_id
     return agent_id
-
-
-def _apply_workspace_compression(chat_id: str, raw_stdout: str) -> str:
-    """Replay declarative compression on raw bash stdout (tool_stdout_chunk is pre-compression)."""
-    if not raw_stdout.strip():
-        return raw_stdout
-    ws = Path.home() / ".myrm/harness/workspaces" / f"chat_{chat_id}"
-    if not (ws / ".myrm/filters.yaml").exists():
-        return raw_stdout
-    for cmd in ("bash run.sh", "bash ./run.sh", "run.sh"):
-        compressed = compress_output(cmd, raw_stdout, workspace_root=str(ws))
-        if compressed != raw_stdout:
-            return compressed
-    return raw_stdout
 
 
 def _stream_once(
@@ -157,14 +136,14 @@ def _stream_collect(client: httpx.Client, agent_id: str) -> str:
         "messageId": f"live-bce-{uuid.uuid4().hex[:10]}",
         "chatId": chat_id,
         "query": E2E_PROMPT,
-        "modelSelection": _resolve_working_base_selection(),
+        "modelSelection": resolve_working_base_selection(backend_url=BACKEND_URL),
         "actionMode": "agent",
         "agentId": agent_id,
         "memoryRequireConfirmation": False,
         "enableMemoryAutoExtraction": False,
     }
     stdout_text, message_text, resume_payload, errors = _stream_once(client, request_data)
-    stdout_text = _apply_workspace_compression(chat_id, stdout_text)
+    stdout_text = apply_workspace_compression(chat_id, stdout_text)
     combined = f"{stdout_text}\n{message_text}"
     if resume_payload is None:
         if not combined.strip() and errors:
@@ -177,7 +156,7 @@ def _stream_collect(client: httpx.Client, agent_id: str) -> str:
     }
     resumed_stdout, resumed_msg, _, resume_errors = _stream_once(client, resume_request)
     errors.extend(resume_errors)
-    resumed_stdout = _apply_workspace_compression(chat_id, resumed_stdout)
+    resumed_stdout = apply_workspace_compression(chat_id, resumed_stdout)
     merged_stdout = f"{stdout_text}{resumed_stdout}"
     merged_all = f"{merged_stdout}\n{message_text}{resumed_msg}"
     if not merged_all.strip() and errors:

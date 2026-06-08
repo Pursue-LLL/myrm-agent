@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+pytest.importorskip("discord")
+
 from app.channels.providers.discord.voice.manager import (
     VoiceManager,
     _GuildVoiceState,

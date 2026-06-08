@@ -59,6 +59,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         tts_params: TTSParams | None
         chat_id: str | None
         model_cfg: ModelConfig
+        search_depth: str
         agent_id: str | None
         memory_require_confirmation: bool
         _lite_llm: object | None
@@ -84,7 +85,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             sufficiency_cfg = None
             sufficiency_llm = None
-            if getattr(self, "search_depth", "normal") == "deep":
+            if self.search_depth == "deep":
                 from myrm_agent_harness.core.config.llm import LLMConfig
                 from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
 

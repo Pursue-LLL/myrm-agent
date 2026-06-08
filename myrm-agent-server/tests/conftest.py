@@ -112,17 +112,13 @@ async def _reset_global_browser_pool_after_test() -> None:
     """Shut down harness GlobalBrowserPool between tests.
 
     TestClient bypasses app lifespan, so Chromium instances otherwise accumulate
-    for the lifetime of each xdist worker process. Uses singleton module state
-    directly because ``get_global_browser_pool()`` would create a pool on first call.
+    for the lifetime of each xdist worker process.
     """
     yield
     try:
-        import myrm_agent_harness.toolkits.browser.pool.singleton as pool_singleton
+        from myrm_agent_harness.toolkits.browser.pool import reset_global_browser_pool_for_tests
 
-        pool = pool_singleton._global_pool
-        if pool is not None:
-            await pool.shutdown()
-            pool_singleton._global_pool = None
+        await reset_global_browser_pool_for_tests()
     except Exception as exc:
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 

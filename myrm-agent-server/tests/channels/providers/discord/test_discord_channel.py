@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import discord
 import pytest
+
+pytest.importorskip("discord")
+import discord
 
 from app.channels.providers.discord.channel import (
     DiscordChannel,
