@@ -90,6 +90,8 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
     if (action.url?.startsWith('command://')) {
       const command = action.url.replace('command://', '');
       useChatStore.getState().sendMessage(command);
+    } else if (action.url?.startsWith('/')) {
+      window.location.href = action.url;
     } else if (action.url) {
       window.open(action.url, '_blank', 'noopener,noreferrer');
     }
