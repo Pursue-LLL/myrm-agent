@@ -67,6 +67,8 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'desktop_view_update',
   'ptc_notify',
   'locator_self_healed',
+  'browser_takeover_requested',
+  'browser_takeover_completed',
 ] as const;
 
 /** Harness name → frontend handler type (same payload shape). */

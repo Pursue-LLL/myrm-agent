@@ -16,9 +16,17 @@
     "disk_size_gb": 1.9
   },
   {
-    "id": "ollama/llama3.2:8b",
-    "name": "Llama 3.2 (8B)",
-    "description": "强大的通用模型，适合主流开发机",
+    "id": "ollama/qwen3:8b",
+    "name": "Qwen 3 (8B)",
+    "description": "最新一代通用模型，思考/非思考双模式，适合主流开发机",
+    "req_vram_gb": 6.0,
+    "params_b": 8.0,
+    "disk_size_gb": 4.9
+  },
+  {
+    "id": "ollama/llama3.1:8b",
+    "name": "Llama 3.1 (8B)",
+    "description": "Meta 经典通用模型，128K 上下文，适合主流开发机",
     "req_vram_gb": 6.0,
     "params_b": 8.0,
     "disk_size_gb": 4.7
@@ -40,11 +48,11 @@
     "disk_size_gb": 20.0
   },
   {
-    "id": "ollama/llama3.1:70b",
-    "name": "Llama 3.1 (70B)",
-    "description": "超大规模模型，仅限顶级工作站",
+    "id": "ollama/llama3.3:70b",
+    "name": "Llama 3.3 (70B)",
+    "description": "Meta 最新 70B 旗舰，超越 Llama 3.1 70B，仅限顶级工作站",
     "req_vram_gb": 40.0,
     "params_b": 70.0,
-    "disk_size_gb": 39.0
+    "disk_size_gb": 43.0
   }
 ]

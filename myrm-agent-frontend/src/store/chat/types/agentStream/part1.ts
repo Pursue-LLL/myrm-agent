@@ -79,6 +79,8 @@ export const AgentEventType = {
   PTC_NOTIFY: 'ptc_notify',
   TOOL_PROGRESS: 'tool_progress',
   FISSION_TOPOLOGY: 'fission_topology',
+  BROWSER_TAKEOVER_REQUESTED: 'browser_takeover_requested',
+  BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
 } as const;
 
 export interface BaseAgentEvent {

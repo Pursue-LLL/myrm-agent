@@ -96,19 +96,23 @@ class UserSkillConfigManager:
         self,
         enabled_prebuilt_ids: list[str] | None = None,
         enabled_local_skill_ids: list[str] | None = None,
+        evolution_strategy: str | None = None,
+        **_kwargs: object,
     ) -> UserSkillConfig:
-        """Update user skill configuration (prebuilt and/or local skill IDs)."""
+        """Update user skill configuration."""
         config = await self.get_config()
 
         if enabled_prebuilt_ids is not None:
             config.enabled_prebuilt_ids = enabled_prebuilt_ids
         if enabled_local_skill_ids is not None:
             config.enabled_local_skill_ids = enabled_local_skill_ids
+        if evolution_strategy is not None:
+            config.evolution_strategy = evolution_strategy
 
         config.updated_at = datetime.now(UTC)
         await self.save_config(config)
 
-        logger.warning("Updated user skill config")
+        logger.info("Updated user skill config")
         return config
 
     async def update_local_skill_paths(

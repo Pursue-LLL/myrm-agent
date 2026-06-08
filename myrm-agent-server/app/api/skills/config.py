@@ -32,6 +32,7 @@ async def get_user_skill_config() -> UserSkillConfigResponse:
         disabled_prebuilt_ids=config.disabled_prebuilt_ids,
         local_skill_paths=config.local_skill_paths,
         enabled_local_skill_ids=config.enabled_local_skill_ids,
+        evolution_strategy=config.evolution_strategy,
         updated_at=config.updated_at.isoformat(),
     )
 
@@ -40,16 +41,36 @@ async def get_user_skill_config() -> UserSkillConfigResponse:
 async def update_user_skill_config(
     request: UpdateUserSkillConfigRequest,
 ) -> UserSkillConfigResponse:
-    """Update user skill configuration (prebuilt skills enable status only)."""
-    config = await skills_service.user_config.update_config(
-        enabled_prebuilt_ids=request.enabled_prebuilt_ids,
-    )
+    """Update user skill configuration."""
+    kwargs: dict[str, object] = {}
+    if request.enabled_prebuilt_ids is not None:
+        kwargs["enabled_prebuilt_ids"] = request.enabled_prebuilt_ids
+    if request.evolution_strategy is not None:
+        kwargs["evolution_strategy"] = request.evolution_strategy
+
+    config = await skills_service.user_config.update_config(**kwargs)
+
+    # Hot-update harness screener strategy when changed
+    if request.evolution_strategy is not None:
+        try:
+            from myrm_agent_harness.agent.skills.evolution.infra.integration import (
+                get_global_evolution_integration,
+            )
+
+            integration = get_global_evolution_integration()
+            if integration:
+                integration.evolution_strategy = request.evolution_strategy
+                logger.info("Evolution strategy hot-updated to '%s'", request.evolution_strategy)
+        except Exception as e:
+            logger.warning("Failed to hot-update evolution strategy: %s", e)
+
     bump_skill_config_version()
     return UserSkillConfigResponse(
         enabled_prebuilt_ids=config.enabled_prebuilt_ids,
         disabled_prebuilt_ids=config.disabled_prebuilt_ids,
         local_skill_paths=config.local_skill_paths,
         enabled_local_skill_ids=config.enabled_local_skill_ids,
+        evolution_strategy=config.evolution_strategy,
         updated_at=config.updated_at.isoformat(),
     )
 

@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { MonitorPlay, X, RefreshCw } from 'lucide-react';
+import { MonitorPlay, X, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { VisualDesktop } from './VisualDesktop';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
+import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 
 export const VisualDesktopToggle = () => {
   const t = useTranslations('billing.vnc');
@@ -16,6 +17,13 @@ export const VisualDesktopToggle = () => {
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const { canUseVnc, isLoading: entitlementsLoading } = useFeatureEntitlements();
   const sandboxMode = isSandbox();
+  const { pending: takeoverPending, reason: takeoverReason, completeTakeover } = useBrowserTakeoverStore();
+
+  useEffect(() => {
+    if (takeoverPending && !isOpen) {
+      setIsOpen(true);
+    }
+  }, [takeoverPending, isOpen]);
 
   const loadVnc = useCallback(
     async (isMounted: { current: boolean }) => {
@@ -72,8 +80,8 @@ export const VisualDesktopToggle = () => {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-24 right-6 p-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-colors z-50 flex items-center justify-center max-sm:bottom-20 max-sm:right-4"
-        title={t('toggleTitle')}
+        className={`fixed bottom-24 right-6 p-3 rounded-full shadow-lg transition-colors z-50 flex items-center justify-center max-sm:bottom-20 max-sm:right-4 ${takeoverPending ? 'bg-amber-500 hover:bg-amber-600 text-white animate-pulse' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+        title={takeoverPending ? takeoverReason : t('toggleTitle')}
         aria-label={t('toggleTitle')}
       >
         <MonitorPlay size={24} />
@@ -104,6 +112,21 @@ export const VisualDesktopToggle = () => {
               </button>
             </div>
           </div>
+          {takeoverPending && (
+            <div className="px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <p className="text-sm text-amber-800 dark:text-amber-200 flex-1 line-clamp-2">
+                {takeoverReason}
+              </p>
+              <button
+                onClick={completeTakeover}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                <CheckCircle2 size={14} />
+                Done
+              </button>
+            </div>
+          )}
           <div className="flex-1 relative bg-muted/30">
             {sandboxMode && isLoadingUrl ? (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">

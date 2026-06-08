@@ -19,6 +19,7 @@ Security scanning is handled by the framework-layer ScanningSkillWriteBackend wr
 from __future__ import annotations
 
 import logging
+import re
 import shutil
 from pathlib import Path
 
@@ -80,6 +81,11 @@ class SkillCreationService:
 
         if not description:
             description = frontmatter.description or f"Skill: {name}"
+
+        target_dir = self.base_path / name
+        is_new = not (target_dir / SKILL_MD_FILE).exists()
+        if is_new and not frontmatter.evolution_locked:
+            content = self._ensure_evolution_locked(content)
 
         return await self._save_local(name, content, description)
 
@@ -281,6 +287,22 @@ class SkillCreationService:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _ensure_evolution_locked(content: str) -> str:
+        """Inject evolution-locked: true into frontmatter for new user-created skills.
+
+        Protects user-created skills from automated curator transitions
+        (stale/archive/consolidation) by default. Users can unlock via the UI.
+        """
+        fm_match = re.match(r"^---\s*\n(.*?)\n---", content, re.DOTALL)
+        if not fm_match:
+            return content
+        fm_body = fm_match.group(1)
+        if re.search(r"^evolution[-_]locked\s*:", fm_body, re.IGNORECASE | re.MULTILINE):
+            return content
+        new_fm = fm_body.rstrip() + "\nevolution-locked: true\n"
+        return content[: fm_match.start(1)] + new_fm + content[fm_match.end(1) :]
 
     def _validate_name(self, name: str) -> str | None:
         """Validate skill name."""

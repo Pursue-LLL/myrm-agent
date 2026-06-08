@@ -4,6 +4,9 @@ Tests the full API flow: list profiles, generate config, doctor, revoke,
 and status endpoints using FastAPI TestClient.
 """
 
+from collections.abc import Iterator
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,12 +16,16 @@ API_PREFIX = "/api/v1"
 
 
 @pytest.fixture(scope="module")
-def client():
-    """Create test client from the real application."""
+def client() -> Iterator[TestClient]:
+    """Create test client from the real application with auth bypassed."""
     import app.services.connect.service as svc
 
     svc._service = None
-    return TestClient(_app)
+    with patch(
+        "app.core.security.auth.identity.is_loopback_ip",
+        return_value=True,
+    ):
+        yield TestClient(_app)
 
 
 class TestConnectProfilesAPI:

@@ -31,6 +31,7 @@ class SkillEvolutionMonitorService:
         self._integration = integration
         self._monitor: MetricMonitor | None = None
         self._task: asyncio.Task[None] | None = None
+        self._evidence_task: asyncio.Task[None] | None = None
 
     async def _on_new_proposal(self, proposal: EvolutionProposal) -> None:
         """Callback invoked by the Harness when a new proposal is generated."""
@@ -55,6 +56,8 @@ class SkillEvolutionMonitorService:
         else:
             await broadcast_proposal(proposal_dict)
 
+    _EVIDENCE_INTERVAL_SECONDS = 3600  # Run evidence evolution every hour
+
     async def start(self) -> None:
         """Start the background monitor task."""
         if self._task is not None:
@@ -71,19 +74,41 @@ class SkillEvolutionMonitorService:
 
         # Start the background loop
         self._task = asyncio.create_task(self._monitor.start())
-        logger.info("SkillEvolutionMonitorService started")
+        self._evidence_task = asyncio.create_task(self._evidence_evolution_loop())
+        logger.info("SkillEvolutionMonitorService started (monitor + hourly evidence evolution)")
+
+    async def _evidence_evolution_loop(self) -> None:
+        """Periodically run cross-session evidence aggregation evolution."""
+        await asyncio.sleep(60)  # Initial delay to let system stabilize
+        while True:
+            try:
+                proposals = await self._integration.run_evidence_evolution(
+                    on_proposal_callback=self._on_new_proposal,
+                )
+                if proposals:
+                    logger.info(
+                        "Evidence evolution produced %d proposals",
+                        len(proposals),
+                    )
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error("Evidence evolution loop error: %s", e, exc_info=True)
+            await asyncio.sleep(self._EVIDENCE_INTERVAL_SECONDS)
 
     async def stop(self) -> None:
         """Stop the background monitor task."""
         if self._monitor:
             await self._monitor.stop()
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
+        for task in (self._task, getattr(self, "_evidence_task", None)):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        self._task = None
+        self._evidence_task = None
         logger.info("SkillEvolutionMonitorService stopped")
 
 

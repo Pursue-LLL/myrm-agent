@@ -158,6 +158,22 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
+    const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+    useBrowserTakeoverStore.getState().requestTakeover({
+      reason: data.data.reason,
+      screenshot_base64: data.data.screenshot_base64,
+      url: data.data.url,
+    });
+    return done(ctx);
+  }
+
+  if (data.type === H.AgentEventType.BROWSER_TAKEOVER_COMPLETED) {
+    const { default: useBrowserTakeoverStore } = await import('@/store/useBrowserTakeoverStore');
+    useBrowserTakeoverStore.getState().completeTakeover();
+    return done(ctx);
+  }
+
 
   return null;
 }

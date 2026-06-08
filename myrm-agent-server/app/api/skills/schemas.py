@@ -108,13 +108,15 @@ class UserSkillConfigResponse(BaseModel):
     disabled_prebuilt_ids: list[str] = []
     local_skill_paths: list[str] = []
     enabled_local_skill_ids: list[str] = []
+    evolution_strategy: str = "balanced"
     updated_at: str
 
 
 class UpdateUserSkillConfigRequest(BaseModel):
-    """Update enabled prebuilt skill IDs."""
+    """Update user skill configuration fields."""
 
-    enabled_prebuilt_ids: list[str]
+    enabled_prebuilt_ids: list[str] | None = None
+    evolution_strategy: str | None = None
 
 
 class LocalSkillPathsRequest(BaseModel):
