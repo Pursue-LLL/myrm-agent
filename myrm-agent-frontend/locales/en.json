@@ -1506,15 +1506,26 @@
       "disconnected": "Extension disconnected",
       "disconnectFailed": "Failed to disconnect",
       "setupGuide": "Quick Setup",
-      "step1": "Install the Myrm Agent Bridge extension from Chrome Web Store",
-      "step2": "Open the extension popup, enter this server's WebSocket URL",
-      "step3": "Click Connect — the extension will maintain a persistent connection",
+      "step1": "Load the myrm-agent-extension folder as an unpacked extension in Chrome or Edge (Developer mode)",
+      "step2": "Open the extension popup, enter this server's WebSocket URL and auth token",
+      "step3": "Click Connect — the extension maintains a persistent connection",
       "authorizedDomains": "Authorized Domains",
       "domainsHint": "Only tabs on authorized domains can be controlled by the Agent. This is your security boundary.",
+      "domainPlaceholder": "e.g. github.com",
       "addDomain": "Add",
       "domainAdded": "Domain authorized",
       "saveFailed": "Failed to save domain settings",
-      "availableTabs": "Available Tabs"
+      "availableTabs": "Available Tabs",
+      "tabActive": "Active",
+      "connectionInfo": "Connection Info",
+      "websocketUrl": "WebSocket URL",
+      "authTokenStatus": "Auth token",
+      "authTokenConfigured": "Configured (EXTENSION_AUTH_TOKEN)",
+      "authTokenOptional": "Not set — optional for local use",
+      "copyUrl": "Copy URL",
+      "copied": "Copied to clipboard",
+      "fetchError": "Cannot reach the server. Check that the backend is running.",
+      "retry": "Retry"
     },
     "credentials": {
       "title": "Credentials Management",
@@ -4525,6 +4536,32 @@
         "descriptionPlaceholder": "Describe the agent's purpose (optional)",
         "cancel": "Cancel",
         "save": "Save"
+      },
+      "dialogPolicy": {
+        "label": "Dialog Handling",
+        "description": "How the agent handles browser dialogs (alerts, confirms, prompts).",
+        "options": {
+          "smart": "Smart (Default)",
+          "smartDesc": "Auto-accept alerts/confirms, dismiss prompts.",
+          "autoAccept": "Auto Accept",
+          "autoAcceptDesc": "Accept all dialogs automatically.",
+          "autoDismiss": "Auto Dismiss",
+          "autoDismissDesc": "Dismiss all dialogs automatically.",
+          "waitForAgent": "Wait for Agent",
+          "waitForAgentDesc": "Pause and let the AI decide how to respond."
+        }
+      },
+      "sessionRecording": {
+        "label": "Session Recording",
+        "description": "Record browser sessions as WebM video for debugging and auditing.",
+        "options": {
+          "off": "Off (Default)",
+          "offDesc": "No video recording of browser sessions.",
+          "onFailure": "On Failure",
+          "onFailureDesc": "Keep recording only when a task fails.",
+          "always": "Always",
+          "alwaysDesc": "Record every browser session."
+        }
       }
     },
     "preview": "Preview",
@@ -7265,7 +7302,9 @@
       "retry": "Retry",
       "loading": "Loading...",
       "compileError": "Compile Error",
-      "lineInfo": "Line {line}"
+      "lineInfo": "Line {line}",
+      "saving": "Saving...",
+      "saved": "Saved"
     },
     "inlinePreview": {
       "expand": "Expand Inline Preview",

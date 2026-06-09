@@ -1506,15 +1506,26 @@
       "disconnected": "扩展已断开",
       "disconnectFailed": "断开失败",
       "setupGuide": "快速设置",
-      "step1": "从 Chrome 应用商店安装 Myrm Agent Bridge 扩展",
-      "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址",
+      "step1": "在 Chrome 或 Edge 开发者模式下，以「加载已解压的扩展程序」方式加载 myrm-agent-extension 目录",
+      "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址与认证 Token",
       "step3": "点击连接 — 扩展将保持持久连接",
       "authorizedDomains": "授权域名",
       "domainsHint": "仅授权域名上的标签页可被 Agent 控制。这是你的安全边界。",
+      "domainPlaceholder": "例如 github.com",
       "addDomain": "添加",
       "domainAdded": "域名已授权",
       "saveFailed": "保存域名设置失败",
-      "availableTabs": "可用标签页"
+      "availableTabs": "可用标签页",
+      "tabActive": "当前",
+      "connectionInfo": "连接信息",
+      "websocketUrl": "WebSocket 地址",
+      "authTokenStatus": "认证 Token",
+      "authTokenConfigured": "已配置（EXTENSION_AUTH_TOKEN）",
+      "authTokenOptional": "未配置 — 本地使用可选",
+      "copyUrl": "复制地址",
+      "copied": "已复制到剪贴板",
+      "fetchError": "无法连接服务器，请确认后端已启动。",
+      "retry": "重试"
     },
     "credentials": {
       "title": "凭据管理",
@@ -7265,7 +7276,9 @@
       "retry": "重试",
       "loading": "加载中...",
       "compileError": "编译错误",
-      "lineInfo": "第 {line} 行"
+      "lineInfo": "第 {line} 行",
+      "saving": "保存中...",
+      "saved": "已保存"
     },
     "inlinePreview": {
       "expand": "展开内联预览",
