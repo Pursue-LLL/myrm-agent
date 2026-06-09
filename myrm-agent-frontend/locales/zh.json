@@ -82,6 +82,8 @@
     "builtin": {
       "compact": "压缩对话上下文以节省 Token",
       "focus": "清除聊天历史但保留沙箱环境（节省 Token）",
+      "yolo": "切换 YOLO 模式（自动审批所有工具）。用法：/yolo [on|off|<秒数>]",
+      "freeze": "紧急停止 – 冻结所有工具执行。用法：/freeze [off|resume]",
       "compactToast": "手动压缩会清除 Prompt Cache。系统会在 Token 使用量达 90% 时自动压缩。",
       "compacting": "压缩中…",
       "compacted": "已压缩 {messageCount} 条消息，节省约 {tokensSaved} tokens",
@@ -90,7 +92,12 @@
       "focusFlushing": "正在清除聊天历史...",
       "focusSuccess": "聊天历史已清除，沙箱环境已保留。",
       "focusFailed": "清除聊天历史失败",
-      "noActiveChat": "没有活跃的对话"
+      "noActiveChat": "没有活跃的对话",
+      "yoloEnabled": "YOLO 模式已开启{timeout} – 所有工具自动审批",
+      "yoloDisabled": "YOLO 模式已关闭 – 恢复审批提示",
+      "freezeActivated": "紧急停止已激活 – 所有工具执行已冻结",
+      "freezeResumed": "紧急停止已解除 – 工具执行已恢复",
+      "freezeFailed": "切换紧急停止失败"
     }
   },
   "settings": {
@@ -4697,6 +4704,10 @@
       "ariaLabel": "对话导航",
       "title": "消息导航",
       "jumpTo": "跳转到消息"
+    },
+    "scrollCue": {
+      "scrollToBottom": "滚动到底部",
+      "newMessage": "新消息"
     },
     "newChat": "新对话",
     "placeholder": "有问题尽管问我......",

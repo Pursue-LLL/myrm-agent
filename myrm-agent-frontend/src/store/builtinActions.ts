@@ -3,6 +3,23 @@ import { compactChat, focusFlushChat } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
 
+function parseYoloArgs(inputValue: string): { action: 'toggle' | 'on' | 'off'; timeout?: number } {
+  const args = inputValue.replace(/^\/yolo\s*/i, '').trim().toLowerCase();
+  if (!args) return { action: 'toggle' };
+  if (args === 'on') return { action: 'on' };
+  if (args === 'off') return { action: 'off' };
+
+  const timeoutMatch = args.match(/^(?:on\s+)?(\d+)\s*([smh]?)$/);
+  if (timeoutMatch) {
+    let seconds = parseInt(timeoutMatch[1], 10);
+    const unit = timeoutMatch[2] || 's';
+    if (unit === 'm') seconds *= 60;
+    else if (unit === 'h') seconds *= 3600;
+    return { action: 'on', timeout: seconds };
+  }
+  return { action: 'toggle' };
+}
+
 export function buildBuiltinActions(): SlashAction[] {
   return [
     {
@@ -86,6 +103,80 @@ export function buildBuiltinActions(): SlashAction[] {
           showI18nToast('commands.builtin.focusFailed', undefined, { type: 'error' });
           toast.dismiss(toastId);
           return { success: false, error: 'Focus flush failed' };
+        }
+      },
+    },
+    {
+      id: 'builtin:yolo',
+      name: 'yolo',
+      description: 'commands.builtin.yolo',
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { getConfigSyncManager } = await import('@/services/config');
+        const syncManager = getConfigSyncManager();
+        const config = syncManager.get('securityConfig');
+        if (!config) {
+          return { success: false, error: 'Security config not loaded yet' };
+        }
+        const { action, timeout } = parseYoloArgs(inputValue);
+
+        const currentlyEnabled = config.yoloModeEnabled ?? false;
+
+        let newEnabled: boolean;
+        if (action === 'toggle') newEnabled = !currentlyEnabled;
+        else if (action === 'on') newEnabled = true;
+        else newEnabled = false;
+
+        syncManager.set('securityConfig', {
+          ...config,
+          yoloModeEnabled: newEnabled,
+          ...(newEnabled && timeout ? { yoloModeTimeout: timeout } : { yoloModeTimeout: undefined }),
+          ...(newEnabled ? { yoloModeEnabledAt: Math.floor(Date.now() / 1000) } : { yoloModeEnabledAt: undefined }),
+        });
+
+        if (newEnabled) {
+          const suffix = timeout ? ` (${timeout}s)` : '';
+          showI18nToast('commands.builtin.yoloEnabled', { timeout: suffix }, { type: 'warning' });
+        } else {
+          showI18nToast('commands.builtin.yoloDisabled', undefined, { type: 'success' });
+        }
+
+        return { success: true, newInputValue: '' };
+      },
+    },
+    {
+      id: 'builtin:freeze',
+      name: 'freeze',
+      description: 'commands.builtin.freeze',
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { apiRequest } = await import('@/lib/api');
+        const args = inputValue.replace(/^\/freeze\s*/i, '').trim().toLowerCase();
+        const shouldResume = args === 'off' || args === 'resume';
+
+        const toastId = toast.loading('…');
+        try {
+          await apiRequest<{ level: string; reason: string }>('/security/estop', {
+            method: 'POST',
+            body: JSON.stringify(
+              shouldResume
+                ? { action: 'resume' }
+                : { action: 'activate', level: 'tool_freeze', reason: 'User triggered /freeze' },
+            ),
+          });
+
+          toast.dismiss(toastId);
+          if (shouldResume) {
+            showI18nToast('commands.builtin.freezeResumed', undefined, { type: 'success' });
+          } else {
+            showI18nToast('commands.builtin.freezeActivated', undefined, { type: 'warning' });
+          }
+          return { success: true, newInputValue: '' };
+        } catch (e) {
+          toast.dismiss(toastId);
+          const msg = e instanceof Error ? e.message : 'Unknown error';
+          showI18nToast('commands.builtin.freezeFailed', undefined, { type: 'error' });
+          return { success: false, error: msg };
         }
       },
     },

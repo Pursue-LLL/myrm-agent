@@ -53,6 +53,7 @@ from app.api.notifications.router import router as notifications_router
 from app.api.projects import router as project_router
 from app.api.risk.router import router as risk_router
 from app.api.security.allowlist import router as allowlist_router
+from app.api.security.estop import router as security_estop_router
 from app.api.security.generate import router as security_generate_router
 from app.api.security.profiles import router as security_profiles_router
 from app.api.security.router import router as security_dashboard_router
@@ -172,6 +173,7 @@ api_router.include_router(integrations_router, prefix="/integrations", tags=["in
 api_router.include_router(connect_router, tags=["connect"])
 api_router.include_router(config_router, prefix="/config", tags=["config"])
 api_router.include_router(allowlist_router, prefix="/security/allowlist", tags=["security"])
+api_router.include_router(security_estop_router, tags=["security"])
 api_router.include_router(security_dashboard_router, tags=["security"])
 api_router.include_router(security_generate_router, tags=["security"])
 api_router.include_router(security_profiles_router, tags=["security"])

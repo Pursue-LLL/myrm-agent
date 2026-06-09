@@ -366,6 +366,8 @@ export interface SecurityConfigValue {
   networkAllowlist?: string[];
   domainHitlEnabled?: boolean;
   yoloModeEnabled?: boolean;
+  yoloModeEnabledAt?: number;
+  yoloModeTimeout?: number;
   autoReviewEnabled?: boolean;
   autoReviewModel?: string;
 }

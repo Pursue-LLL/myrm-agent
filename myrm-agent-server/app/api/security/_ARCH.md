@@ -11,6 +11,7 @@
 | `__init__.py` | 入口 | Security API module — dashboard and profile management. | ✅ |
 | `allowlist.py` | 模块 | Allowlist management API endpoints. | ✅ |
 | `dashboard_models.py` | 模块 | Pydantic models for the security dashboard API. | ✅ |
+| `estop.py` | 模块 | Emergency Stop HTTP API for WebUI — bridges /freeze command to harness EStopGuard. | ✅ |
 | `generate.py` | 模块 | Business-layer bridge between frontend NL input and harness-level policy generation """ | ✅ |
 | `profiles.py` | 模块 | REST API layer for security profile management """ | ✅ |
 | `router.py` | 路由 | Security Dashboard API | ✅ |

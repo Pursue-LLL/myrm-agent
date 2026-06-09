@@ -18,6 +18,8 @@
  *   - 支持向上滚动加载历史
  *   - 支持搜索结果跳转定位和高亮
  *   - 通过 scrollToMessageRef 暴露 scrollToIndex 给外部组件
+ *   - 通过 scrollToBottomRef 暴露 scrollToBottom 给外部组件
+ *   - 通过 onUserScrolledChange 通知外部滚动状态变化
  *
  * [POS]
  * 高性能虚拟滚动消息列表。替代传统的 messages.map 渲染方式，
@@ -54,6 +56,10 @@ interface VirtualMessageListProps {
   highlightMessageId?: string | null;
   /** 外部跳转：赋值后可调用 ref.current(index) 跳转到指定消息 */
   scrollToMessageRef?: React.MutableRefObject<((index: number) => void) | null>;
+  /** 外部 scrollToBottom：赋值后可调用 ref.current() 平滑滚动到底部 */
+  scrollToBottomRef?: React.MutableRefObject<(() => void) | null>;
+  /** 用户滚动状态变化回调（true=已滚离底部, false=回到底部） */
+  onUserScrolledChange?: (scrolledUp: boolean) => void;
 }
 
 /** 默认消息高度估算 */
@@ -80,6 +86,8 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
     chatId,
     highlightMessageId,
     scrollToMessageRef,
+    scrollToBottomRef,
+    onUserScrolledChange,
   }) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const { heightCache, setHeight, clearCache } = useMessageHeights();
@@ -142,6 +150,19 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
       [messages.length, virtualizer, userScrolledRef],
     );
 
+    // 暴露 scrollToBottom 给外部（ScrollToBottomButton 使用）
+    useEffect(() => {
+      if (!scrollToBottomRef) return;
+      scrollToBottomRef.current = () => {
+        userScrolledRef.current = false;
+        onUserScrolledChange?.(false);
+        virtualizer.scrollToIndex(messages.length - 1, { align: 'end', behavior: 'smooth' });
+      };
+      return () => {
+        scrollToBottomRef.current = null;
+      };
+    }, [scrollToBottomRef, virtualizer, messages.length, userScrolledRef, onUserScrolledChange]);
+
     // 流式更新时自动滚动
     useEffect(() => {
       const lastMessage = messages[messages.length - 1];
@@ -187,10 +208,16 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
         const isNearTop = currentScrollTop < 200;
 
         if (currentScrollTop < lastScrollTop - 5) {
-          userScrolledRef.current = true;
+          if (!userScrolledRef.current) {
+            userScrolledRef.current = true;
+            onUserScrolledChange?.(true);
+          }
         }
         if (currentScrollTop > lastScrollTop + 5 && isNearBottom) {
-          userScrolledRef.current = false;
+          if (userScrolledRef.current) {
+            userScrolledRef.current = false;
+            onUserScrolledChange?.(false);
+          }
         }
 
         if (isNearTop && hasMoreMessages && !loadingOlderRef.current) {
@@ -212,7 +239,7 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
 
       scrollElement.addEventListener('scroll', handleScroll, { passive: true });
       return () => scrollElement.removeEventListener('scroll', handleScroll);
-    }, [userScrolledRef, hasMoreMessages, loadOlderMessages]);
+    }, [userScrolledRef, hasMoreMessages, loadOlderMessages, onUserScrolledChange]);
 
     // 处理消息高度测量
     const handleHeightMeasure = useCallback(

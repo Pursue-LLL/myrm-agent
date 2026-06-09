@@ -10,11 +10,13 @@
  * - ../message-box/MessageBox (POS: 消息展示组件)
  * - ./ConversationJumpBar (POS: 长对话快速定位导航)
  * - ./approval/VisualApprovalAttentionBar (POS: 滚动区外 inline 审批可达条)
+ * - ./ScrollToBottomButton (POS: 滚动到底部按钮 + 新消息提示)
  *
  * [OUTPUT]
  * - Chat: 聊天主组件
  *   - 支持虚拟滚动（ENABLE_VIRTUAL_SCROLL 开关）
  *   - 消息列表渲染
+ *   - ScrollToBottomButton（滚动到底部 + 新消息提示）
  *   - VisualApprovalAttentionBar（输入框上方 pending 条）
  *   - 输入框
  *   - 智能体配置面板
@@ -54,6 +56,7 @@ import { useTranslations } from 'next-intl';
 import AgentWorkMap from './AgentWorkMap';
 import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
 import VisualApprovalOsOverlaySync from './VisualApprovalOsOverlaySync';
+import ScrollToBottomButton from './ScrollToBottomButton';
 
 /**
  * 虚拟滚动开关
@@ -76,8 +79,11 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
   const containerRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const [showInput, setShowInput] = useState(true);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
 
   const {
     messages: rawMessages,
@@ -148,6 +154,31 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
     [messages, userScrolledRef],
   );
 
+  // VirtualMessageList 滚动状态变化回调
+  const handleVirtualScrollStateChange = useCallback((scrolledUp: boolean) => {
+    setIsUserScrolledUp(scrolledUp);
+    if (!scrolledUp) setHasNewMessage(false);
+  }, []);
+
+  // ScrollToBottomButton 点击回调
+  const handleScrollToBottomClick = useCallback(() => {
+    // 虚拟滚动模式
+    if (virtualScrollToBottomRef.current) {
+      virtualScrollToBottomRef.current();
+      setIsUserScrolledUp(false);
+      setHasNewMessage(false);
+      return;
+    }
+    // 传统渲染模式
+    userScrolledRef.current = false;
+    setIsUserScrolledUp(false);
+    setHasNewMessage(false);
+    if (messageEnd.current) {
+      messageEnd.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+    setShowInput(true);
+  }, [userScrolledRef]);
+
   // 立即滚动函数，完全无延迟
   const scrollToBottom = useCallback(() => {
     if (!messageEnd.current || userScrolledRef.current) return;
@@ -159,10 +190,15 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
     setShowInput(true);
   }, [userScrolledRef]);
 
+  // 聊天切换时重置滚动状态
+  useEffect(() => {
+    setIsUserScrolledUp(false);
+    setHasNewMessage(false);
+  }, [chatId]);
+
   // 组件挂载时恢复滚动位置
   useEffect(() => {
     if (messages.length > 0) {
-      // 延迟恢复，确保内容已渲染
       const timer = setTimeout(restoreScrollPosition, 100);
       return () => clearTimeout(timer);
     }
@@ -249,15 +285,20 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
 
       // 如果向上滚动（scrollDelta < 0）且滚动量超过阈值
       if (scrollDelta < -5) {
-        userScrolledRef.current = true;
-        // 向上滚动时隐藏输入框
+        if (!userScrolledRef.current) {
+          userScrolledRef.current = true;
+          setIsUserScrolledUp(true);
+        }
         setShowInput(false);
       }
 
       // 向下滚动并且滚动到底部附近，才重置标志
       if (scrollDelta > 5 && isNearBottom()) {
-        userScrolledRef.current = false;
-        // 滚动到底部时显示输入框
+        if (userScrolledRef.current) {
+          userScrolledRef.current = false;
+          setIsUserScrolledUp(false);
+          setHasNewMessage(false);
+        }
         setShowInput(true);
       }
 
@@ -333,20 +374,21 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
 
     // 监听消息内容变化，处理自动滚动
     if (lastMessage?.role === 'assistant' && loading) {
-      // 立即滚动，处理内容快速更新
+      if (userScrolledRef.current) {
+        setHasNewMessage(true);
+      }
       scrollToBottom();
     }
 
     // 当用户发送消息时，滚动到消息底部
     if (messages[messages.length - 1]?.role === 'user') {
-      // 用户发送新消息时，重置滚动标志，强制滚动到底部
       userScrolledRef.current = false;
-      // 立即滚动
+      setIsUserScrolledUp(false);
+      setHasNewMessage(false);
       scrollToBottom();
     }
 
     if (messages.length === 1) {
-      // 剥离时间标签后设置标题
       const cleanContent = stripDatetimeTag(messages[0].content);
       document.title = `${cleanContent.substring(0, 30)} - Perplexica`;
     }
@@ -412,8 +454,15 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
               chatId={chatId}
               highlightMessageId={highlightMessageId}
               scrollToMessageRef={scrollToMessageRef}
+              scrollToBottomRef={virtualScrollToBottomRef}
+              onUserScrolledChange={handleVirtualScrollStateChange}
             />
             {inputElement}
+            <ScrollToBottomButton
+              visible={isUserScrolledUp}
+              hasNewMessage={hasNewMessage}
+              onClick={handleScrollToBottomClick}
+            />
           </div>
           <ConversationJumpBar
             messages={messages}
@@ -449,6 +498,11 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
           <div className="h-40 lg:h-[15rem] w-full" />
           <div ref={messageEnd} className="h-0" data-message-end="true" />
           {inputElement}
+          <ScrollToBottomButton
+            visible={isUserScrolledUp}
+            hasNewMessage={hasNewMessage}
+            onClick={handleScrollToBottomClick}
+          />
         </div>
         <ConversationJumpBar
           messages={messages}

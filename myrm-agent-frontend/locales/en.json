@@ -82,6 +82,8 @@
     "builtin": {
       "compact": "Compress conversation context to save tokens",
       "focus": "Clear chat history but keep the sandbox environment intact (Saves tokens)",
+      "yolo": "Toggle YOLO mode (auto-approve all tools). Usage: /yolo [on|off|<seconds>]",
+      "freeze": "Emergency stop – freeze all tool execution. Usage: /freeze [off|resume]",
       "compactToast": "Manual compaction clears Prompt Cache. The system auto-compacts at 90% token usage.",
       "compacting": "Compacting…",
       "compacted": "Compacted {messageCount} messages, ~{tokensSaved} tokens saved",
@@ -90,7 +92,12 @@
       "focusFlushing": "Flushing chat history...",
       "focusSuccess": "Chat history cleared. Sandbox environment retained.",
       "focusFailed": "Failed to flush chat",
-      "noActiveChat": "No active chat"
+      "noActiveChat": "No active chat",
+      "yoloEnabled": "YOLO mode enabled{timeout} – all tools auto-approved",
+      "yoloDisabled": "YOLO mode disabled – approval prompts restored",
+      "freezeActivated": "E-Stop activated – all tool execution frozen",
+      "freezeResumed": "E-Stop released – tool execution resumed",
+      "freezeFailed": "Failed to toggle E-Stop"
     }
   },
   "settings": {
@@ -4697,6 +4704,10 @@
       "ariaLabel": "Conversation navigation",
       "title": "Message Navigation",
       "jumpTo": "Jump to message"
+    },
+    "scrollCue": {
+      "scrollToBottom": "Scroll to bottom",
+      "newMessage": "New message"
     },
     "newChat": "New Chat",
     "placeholder": "Ask me anything...",
