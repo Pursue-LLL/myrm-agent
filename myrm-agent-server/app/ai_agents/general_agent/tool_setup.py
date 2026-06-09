@@ -509,6 +509,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 vision_llm=vision_llm,
                 engine_preference=getattr(self, "browser_engine", None),
                 launch_mode_preference=getattr(self, "browser_source", None),
+                dialog_policy=getattr(self, "dialog_policy", None),
             )
 
             if memory_manager is not None:

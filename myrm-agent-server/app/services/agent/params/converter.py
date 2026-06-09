@@ -413,6 +413,7 @@ async def convert_to_general_agent_params(
     enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
     auto_restore_domains: list[str] = []
     browser_source: str | None = None
+    dialog_policy: str | None = None
     resolved = None
 
     if request.agent_id:
@@ -453,6 +454,7 @@ async def convert_to_general_agent_params(
             engine_params = resolved.engine_params
             auto_restore_domains = list(resolved.auto_restore_domains)
             browser_source = resolved.browser_source
+            dialog_policy = resolved.dialog_policy
             openapi_services = resolved.openapi_services or None
 
             # Safety net: use agent's model when frontend didn't pass model_selection
@@ -541,12 +543,14 @@ async def convert_to_general_agent_params(
         auto_restore_domains = list(cfg.auto_restore_domains)
         browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
         browser_engine = cfg.browser_engine if hasattr(cfg, "browser_engine") else (resolved.browser_engine if resolved else None)
+        dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
         if getattr(cfg, "tool_gateway_config", None) is not None:
             tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
         else:
             tool_gateway_config = resolved.tool_gateway_config if resolved else None
     else:
         browser_engine = resolved.browser_engine if resolved else None
+        dialog_policy = resolved.dialog_policy if resolved else None
         tool_gateway_config = resolved.tool_gateway_config if resolved else None
 
     # Global PAT fallback logic
@@ -810,6 +814,7 @@ async def convert_to_general_agent_params(
         **tool_flags,
         browser_engine=browser_engine,
         browser_source=browser_source,
+        dialog_policy=dialog_policy,
         enable_memory=False if request.incognito_mode else request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
         enable_memory_auto_extraction=False

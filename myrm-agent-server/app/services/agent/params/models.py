@@ -55,6 +55,9 @@ class AgentConfigRequest(BaseModel):
     browser_source: str | None = Field(
         default=None, description="Browser acquisition mode (launch/connect/extension/auto/remote)"
     )
+    dialog_policy: str | None = Field(
+        default=None, description="Dialog handling strategy (smart/auto_accept/auto_dismiss/wait_for_agent)"
+    )
     auto_restore_domains: list[str] = []
     tool_gateway_config: ToolGatewayConfig | None = None
 

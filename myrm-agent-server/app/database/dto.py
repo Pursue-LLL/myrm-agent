@@ -405,6 +405,10 @@ class AgentBase(BaseModel):
         None,
         description="浏览器获取方式: 'launch'(新建)、'connect'(CDP)、'extension'(扩展桥接)、'auto'(自动)、'remote'(远程)。为空则使用系统默认。",
     )
+    dialog_policy: str | None = Field(
+        None,
+        description="弹窗处理策略: 'smart'(智能)、'auto_accept'(自动确认)、'auto_dismiss'(自动取消)、'wait_for_agent'(等待Agent处理)。为空则使用默认smart。",
+    )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")
     required_capabilities: list[str] = Field(
@@ -484,6 +488,10 @@ class AgentUpdate(BaseModel):
     browser_source: str | None = Field(
         None,
         description="浏览器获取方式: 'launch'/'connect'/'extension'/'auto'/'remote'。None=不修改。",
+    )
+    dialog_policy: str | None = Field(
+        None,
+        description="弹窗处理策略: 'smart'/'auto_accept'/'auto_dismiss'/'wait_for_agent'。None=不修改。",
     )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")
