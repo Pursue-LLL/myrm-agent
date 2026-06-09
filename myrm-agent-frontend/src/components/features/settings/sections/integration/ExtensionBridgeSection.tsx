@@ -1,17 +1,14 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Globe, PlugZap, Trash2, RefreshCw, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Input } from '@/components/primitives/input';
-import { IconCopy, IconCheck } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/useToast';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils';
-import { getWsUrl } from '@/lib/api';
-import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import {
   getExtensionStatus,
   updateAuthorizedDomains,
@@ -20,21 +17,12 @@ import {
   type ExtensionTab,
 } from '@/services/extension';
 
-const EXTENSION_WS_ENDPOINT = '/ws/extension';
-const EXTENSION_INSTALL_PATH = '~/.myrm/myrm-agent/myrm-agent-extension';
-const EXTENSION_DEV_PATH = 'myrm-agent/myrm-agent-extension';
-
 const ExtensionBridgeSection = memo(() => {
   const t = useTranslations('settings');
   const [status, setStatus] = useState<ExtensionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [domainInput, setDomainInput] = useState('');
   const [saving, setSaving] = useState(false);
-  const [copiedWs, setCopiedWs] = useState(false);
-  const [copiedInstallPath, setCopiedInstallPath] = useState(false);
-  const [copiedDevPath, setCopiedDevPath] = useState(false);
-
-  const wsUrl = useMemo(() => getWsUrl(EXTENSION_WS_ENDPOINT), []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -52,16 +40,6 @@ const ExtensionBridgeSection = memo(() => {
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
-
-  const handleCopy = useCallback(async (text: string, setCopied: (value: boolean) => void) => {
-    try {
-      await writeToClipboard(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ title: t('extension.copyFailed'), variant: 'destructive' });
-    }
-  }, [t]);
 
   const handleAddDomain = useCallback(async () => {
     const domain = domainInput.trim();
@@ -157,91 +135,13 @@ const ExtensionBridgeSection = memo(() => {
 
       {/* Setup Guide (when not connected) */}
       {!status?.connected && (
-        <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-4">
-          <h4 className="text-sm font-medium">{t('extension.setupGuide')}</h4>
+        <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+          <h4 className="text-sm font-medium mb-2">{t('extension.setupGuide')}</h4>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
             <li>{t('extension.step1')}</li>
             <li>{t('extension.step2')}</li>
             <li>{t('extension.step3')}</li>
           </ol>
-
-          <div className="space-y-3 pt-1">
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-foreground">{t('extension.wsUrlLabel')}</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <code className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60">
-                  {wsUrl}
-                </code>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => void handleCopy(wsUrl, setCopiedWs)}
-                >
-                  {copiedWs ? (
-                    <IconCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <IconCopy className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  {copiedWs ? t('extension.copied') : t('extension.copy')}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{t('extension.wsUrlHint')}</p>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-foreground">{t('extension.extensionPathLabel')}</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <code className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60">
-                  {EXTENSION_INSTALL_PATH}
-                </code>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => void handleCopy(EXTENSION_INSTALL_PATH, setCopiedInstallPath)}
-                >
-                  {copiedInstallPath ? (
-                    <IconCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <IconCopy className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  {copiedInstallPath ? t('extension.copied') : t('extension.copy')}
-                </Button>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <code className="flex-1 break-all rounded-md bg-background/80 px-2 py-1.5 text-xs text-muted-foreground border border-border/60">
-                  {EXTENSION_DEV_PATH}
-                </code>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => void handleCopy(EXTENSION_DEV_PATH, setCopiedDevPath)}
-                >
-                  {copiedDevPath ? (
-                    <IconCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <IconCopy className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  {copiedDevPath ? t('extension.copied') : t('extension.copyDevPath')}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{t('extension.extensionPathHint')}</p>
-            </div>
-
-            {status?.token_required && (
-              <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
-                  {t('extension.tokenRequiredTitle')}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">{t('extension.tokenRequiredHint')}</p>
-              </div>
-            )}
-          </div>
         </div>
       )}
 
@@ -253,7 +153,7 @@ const ExtensionBridgeSection = memo(() => {
         </h4>
         <p className="text-xs text-muted-foreground">{t('extension.domainsHint')}</p>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex gap-2">
           <Input
             value={domainInput}
             onChange={(e) => setDomainInput(e.target.value)}
@@ -261,7 +161,7 @@ const ExtensionBridgeSection = memo(() => {
             className="flex-1"
             onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
           />
-          <Button size="sm" onClick={handleAddDomain} disabled={saving || !domainInput.trim()} className="sm:shrink-0">
+          <Button size="sm" onClick={handleAddDomain} disabled={saving || !domainInput.trim()}>
             {t('extension.addDomain')}
           </Button>
         </div>

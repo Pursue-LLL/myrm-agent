@@ -66,13 +66,6 @@ describe('deploy-mode base url resolution', () => {
     expect(getWsUrl('/ws/voice/session')).toBe('wss://cp.example.com/proxy/me/api/v1/ws/voice/session');
   });
 
-  it('builds extension bridge websocket url from configured api base', () => {
-    process.env.NEXT_PUBLIC_DEPLOY_MODE = 'sandbox';
-    process.env.NEXT_PUBLIC_API_BASE_URL = 'https://cp.example.com/proxy/me/api/v1';
-
-    expect(getWsUrl('/ws/extension')).toBe('wss://cp.example.com/proxy/me/api/v1/ws/extension');
-  });
-
   it('resolves docs url from env with default fallback', () => {
     process.env.NEXT_PUBLIC_DOCS_URL = 'https://docs.example.com/';
     expect(getDocsUrl()).toBe('https://docs.example.com');

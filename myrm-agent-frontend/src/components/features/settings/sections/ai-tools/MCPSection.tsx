@@ -28,10 +28,15 @@ const MCPSection = memo(() => {
     setIsLoading(false);
   }, [initConfig]);
 
-  const installedNames = useMemo(
-    () => new Set(mcpConfigs.map((c) => c.name)),
-    [mcpConfigs],
-  );
+  const installedNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const c of mcpConfigs) {
+      names.add(c.name);
+      const qn = (c.extra_params as Record<string, unknown> | undefined)?.registryQualifiedName;
+      if (typeof qn === 'string') names.add(qn);
+    }
+    return names;
+  }, [mcpConfigs]);
 
   const handleSelectInstall = useCallback((qualifiedName: string) => {
     setInstallTarget(qualifiedName);
@@ -48,19 +53,26 @@ const MCPSection = memo(() => {
         });
         return;
       }
+      let finalConfig = { ...config };
       if (batchGate.scanResults[0]) {
         const { buildLastScanSummary } = await import('@/hooks/useMcpSecurityGate');
-        config.lastScanSummary = buildLastScanSummary(batchGate.scanResults[0]);
+        finalConfig = { ...finalConfig, lastScanSummary: buildLastScanSummary(batchGate.scanResults[0]) };
       }
-      addMCPConfig(config);
+      const existingNames = new Set(mcpConfigs.map((c) => c.name));
+      if (existingNames.has(finalConfig.name)) {
+        let suffix = 2;
+        while (existingNames.has(`${finalConfig.name}-${suffix}`)) suffix++;
+        finalConfig = { ...finalConfig, name: `${finalConfig.name}-${suffix}` };
+      }
+      addMCPConfig(finalConfig);
       toast({
         title: t('mcpRegistryInstallSuccess'),
-        description: t('mcpRegistryInstallSuccessDesc', { name: config.name }),
+        description: t('mcpRegistryInstallSuccessDesc', { name: finalConfig.name }),
       });
       setInstallTarget(null);
       setActiveTab('installed');
     },
-    [addMCPConfig, toast, t],
+    [addMCPConfig, mcpConfigs, toast, t],
   );
 
   const handleCancelInstall = useCallback(() => {

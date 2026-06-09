@@ -208,9 +208,11 @@ function buildConfigFromDetail(
   }
 
   const envEntries = Object.entries(envValues).filter(([, v]) => v.trim());
-  if (envEntries.length > 0 && type === 'stdio') {
-    config.extra_params = Object.fromEntries(envEntries);
+  const extra: Record<string, unknown> = { registryQualifiedName: detail.qualifiedName };
+  if (type === 'stdio') {
+    for (const [k, v] of envEntries) extra[k] = v;
   }
+  config.extra_params = extra;
 
   return config;
 }

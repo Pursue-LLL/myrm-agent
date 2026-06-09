@@ -548,7 +548,7 @@ export const searchMCPRegistry = async (
 };
 
 export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRegistryServerDetail> => {
-  return apiRequest<MCPRegistryServerDetail>(`/mcp/registry/detail/${encodeURIComponent(qualifiedName)}`, {
+  return apiRequest<MCPRegistryServerDetail>(`/mcp/registry/detail/${qualifiedName}`, {
     method: 'GET',
   });
 };

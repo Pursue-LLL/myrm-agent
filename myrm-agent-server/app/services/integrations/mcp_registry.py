@@ -86,6 +86,17 @@ class MCPRegistryService:
 
     def __init__(self) -> None:
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+        return self._client
+
+    async def close(self) -> None:
+        if self._client is not None and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     def _get_cached(self, key: str) -> RegistrySearchResult | RegistryServerDetail | None:
         entry = self._cache.get(key)
@@ -119,10 +130,10 @@ class MCPRegistryService:
         if query:
             params["q"] = query
 
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-            resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers", params=params)
-            resp.raise_for_status()
-            payload = resp.json()
+        client = self._get_client()
+        resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers", params=params)
+        resp.raise_for_status()
+        payload = resp.json()
 
         servers_raw = payload.get("servers") or []
         servers = [
@@ -152,10 +163,10 @@ class MCPRegistryService:
         if cached is not None:
             return cached  # type: ignore[return-value]
 
-        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-            resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers/{qualified_name}")
-            resp.raise_for_status()
-            payload = resp.json()
+        client = self._get_client()
+        resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers/{qualified_name}")
+        resp.raise_for_status()
+        payload = resp.json()
 
         connections = payload.get("connections") or []
         transport_type = "stdio"

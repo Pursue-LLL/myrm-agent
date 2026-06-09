@@ -33,7 +33,7 @@ from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
 )
 
 if TYPE_CHECKING:
-    from patchright.async_api import Playwright
+    from patchright.async_api import Browser, Playwright
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,7 @@ class ExtensionBridgeService:
         self._request_counter = 0
         self._heartbeat_task: asyncio.Task[None] | None = None
         self._receive_task: asyncio.Task[None] | None = None
+        self._cdp_endpoint: str | None = None
         self._lock = asyncio.Lock()
         self._playwright: Playwright | None = None
 
