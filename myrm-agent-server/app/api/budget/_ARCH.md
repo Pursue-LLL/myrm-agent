@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本目录模块说明。上级文档：[../../_ARCH.md](../../_ARCH.md)。
+Token 预算与 Work Unit 查询 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

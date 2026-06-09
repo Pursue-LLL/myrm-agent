@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-技能存储与管理，连接业务层和框架层。提供技能模型、CRUD 服务、打包/解包、本地提供者及 SkillBackend 工厂。专注于「适配」而非「实现」。通用能力（打包、历史记录与统计）由 `myrm-agent-harness` 提供，Server 层仅保留适配包装代码。
+技能存储与管理，连接业务层和框架层。提供技能模型、CRUD 服务、打包/解包、本地提供者及 SkillBackend 工厂。专注于「适配」而非「实现」。通用能力（打包、历史记录与统计）由 PyPI `myrm-agent-harness` 提供，Server 层仅保留适配包装代码。
 
 详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
 
@@ -44,7 +44,7 @@
 - `app/core/toolkits/storage/` — 对象存储抽象（如使用）
 
 **外部依赖**：
-- myrm-agent-harness — 底层通用 Agent 引擎及其技能生命周期能力（打包解包、用量历史统计）
+- `myrm_agent_harness` — 底层通用 Agent 引擎及其技能生命周期能力（打包解包、用量历史统计）
 
 **被依赖**：
 - `app/api/skills/` — 技能 API

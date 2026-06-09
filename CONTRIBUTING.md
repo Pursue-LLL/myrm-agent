@@ -56,6 +56,8 @@ Each directory under `myrm-agent-server/app/` must have `_ARCH.md` (not README).
 
 CI enforces fractal docs, no-stub guards on `api/` and `channels/providers/`, and the line-budget gate on pull requests.
 
+`scripts/sync_arch_file_tables.py` only refreshes stub `_ARCH.md` (markers `待补` / `（见目录）`) and skips directories that already have a substantive `## 架构概述`. Do not run it with `--force` on rich module docs (e.g. `services/memory/`, `core/skills/`).
+
 ## Pull requests
 
 1. Keep changes scoped to one concern.

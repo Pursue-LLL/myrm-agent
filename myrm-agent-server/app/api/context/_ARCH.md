@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本目录模块说明。上级文档：[../../_ARCH.md](../../_ARCH.md)。
+Context Bundle 卷布局 HTTP 层。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

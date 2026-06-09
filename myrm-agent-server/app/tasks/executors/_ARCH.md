@@ -1,13 +1,12 @@
-# tasks/executors 模块架构
-
+# tasks/executors/
 
 ## 架构概述
 
-具体任务执行器实现。每个执行器负责一种异步任务的完整执行逻辑。
+后台任务执行器实现。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 执行器导出 | — |
-| `image_executor.py` | 核心 | 图片生成任务执行器 | ⚠️ 待补 |
+| `__init__.py` | 入口 | Task executors. | ✅ |
+| `image_executor.py` | 模块 | Image task executor implementation. | ✅ |

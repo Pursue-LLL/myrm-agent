@@ -18,7 +18,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 | 目录 | 地位 | 职责 | 部署 |
 |------|------|------|------|
-| `shared/` | 辅助 | 前后端共享静态配置（如 provider legacy remap） | 随仓分发 |
+| `shared/` | 辅助 | 前后端共享静态配置（如 provider ID remap） | 随仓分发 |
 | `myrm-agent-server/` | 核心 | FastAPI 业务编排、API、渠道桥接 | Docker / sidecar / 本地 :8080 |
 | `myrm-agent-frontend/` | 核心 | Next.js Web UI、设置与对话界面 | 本地 :3000 / 静态导出 · [\_ARCH.md](myrm-agent-frontend/_ARCH.md) |
 | `myrm-agent-desktop/` | 核心 | Tauri 壳 + server sidecar | GitHub Releases |

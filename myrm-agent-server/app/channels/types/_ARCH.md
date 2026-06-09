@@ -1,18 +1,17 @@
-# types/
+# channels/types/ 模块架构
 
-## Overview
-Channel system domain types — pure data definitions, no I/O.
+## 架构概述
 
-Detailed design: [REPLY_CONTEXT_DESIGN.md](REPLY_CONTEXT_DESIGN.md)
+渠道域纯类型定义（无 I/O）：消息信封、会话策略、通知模式、UI 组件与 ReplyContext 结构化引用。Reply/Quote 协议详见 [REPLY_CONTEXT_DESIGN.md](REPLY_CONTEXT_DESIGN.md)。
 
-## File & Submodule Index
+## 文件清单
 
-| File | Role | Description | I/O/P |
-|------|------|-------------|-------|
-| __init__.py | Package | Channel system domain types — pure data definitions, no I/O. | — |
-| components.py | Core | UI component type definitions. Cross-channel interactive component abstractions for buttons, quick r | ✅ |
-| messages.py | Core | Core message type definitions. All cross-channel communication data structures | ✅ |
-| notification.py | Core | Channel notification mode enum, notify/guest/explicit-mention metadata keys, and `with_final_notify` helper. | ✅ |
-| session.py | Core | Session identity and policy definitions. Provides session-isolated key generation | ✅ |
-| status.py | Core | Channel status, StartMode, and diagnostic type definitions. Used for Gateway health checks and startup strategy. | ✅ |
-| thread_sharing.py | Core | Thread sharing mode enumeration for topic-level session isolation. | ✅ |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 类型包导出 | — |
+| `messages.py` | 核心 | 跨渠道消息数据结构 | ✅ |
+| `components.py` | 核心 | 跨渠道交互组件（按钮、快捷回复等）类型 | ✅ |
+| `session.py` | 核心 | 会话标识与隔离策略 | ✅ |
+| `notification.py` | 核心 | 通知模式枚举与显式 @ 元数据 | ✅ |
+| `status.py` | 核心 | 渠道状态、StartMode 与诊断类型 | ✅ |
+| `thread_sharing.py` | 核心 | 话题级 thread 共享/隔离模式 | ✅ |

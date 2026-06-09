@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本目录模块说明。上级文档：[../../_ARCH.md](../../_ARCH.md)。
+后台 durable 任务 HTTP 层：查询/取消/恢复离线 Agent 任务。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 Background tasks API 为前端 `BackgroundTasksPanel` 提供 REST 接口。
 任务通过 Kanban 系统持久化存储（系统 Board `__background_tasks__`），

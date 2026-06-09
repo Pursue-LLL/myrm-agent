@@ -1,13 +1,12 @@
-# core/media/batch 模块架构
-
+# core/media/batch/
 
 ## 架构概述
 
-批量媒体处理编排器。协调多个媒体处理任务的并发执行。
+媒体批量处理编排。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 导出 | — |
-| `orchestrator.py` | 核心 | 批量处理编排（并发控制、进度追踪） | ⚠️ 待补 |
+| `__init__.py` | 入口 | Batch image generation orchestrator. | ✅ |
+| `orchestrator.py` | 模块 | Batch image generation orchestrator. | ✅ |

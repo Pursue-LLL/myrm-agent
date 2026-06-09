@@ -167,7 +167,7 @@ def _build_arch(rel_title: str, parent_href: str, sources: list[Path]) -> str:
         "",
         "## 架构概述",
         "",
-        f"本目录模块说明。上级文档：[{parent_href}]({parent_href})。",
+        f"{rel_title} 模块。上级文档：[{parent_href}]({parent_href})。",
         "",
         "## 文件清单",
         "",
@@ -184,10 +184,27 @@ def _build_arch(rel_title: str, parent_href: str, sources: list[Path]) -> str:
     return "\n".join(lines)
 
 
+def _has_substantive_overview(content: str) -> bool:
+    """Skip auto-rewrite when _ARCH already has a multi-line architecture section."""
+    if "## 架构概述" not in content:
+        return False
+    _, _, tail = content.partition("## 架构概述")
+    section, _, _ = tail.partition("## ")
+    body = section.strip()
+    if not body:
+        return False
+    lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+    if len(lines) >= 2:
+        return True
+    return len(lines[0]) > 80
+
+
 def _needs_refresh(content: str, force: bool) -> bool:
     if force:
         return True
-    return any(marker in content for marker in _STUB_MARKERS)
+    if not any(marker in content for marker in _STUB_MARKERS):
+        return False
+    return not _has_substantive_overview(content)
 
 
 def _matches_prefix(rel: str, prefixes: tuple[str, ...]) -> bool:

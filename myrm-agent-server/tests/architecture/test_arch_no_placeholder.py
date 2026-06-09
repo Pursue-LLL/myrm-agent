@@ -11,6 +11,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 _BANNED_PHRASES = (
     "见源码",
+    "本目录模块说明",
 )
 
 # Scope: product code trees (exclude .venv, node_modules, caches).

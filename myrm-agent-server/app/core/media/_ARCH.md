@@ -1,20 +1,12 @@
-# core/media 模块架构
-
+# core/media/
 
 ## 架构概述
 
-媒体处理核心模块。提供媒体文件转换、批量编排能力。
+媒体处理服务。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 导出 | — |
-| `service.py` | 核心 | 媒体处理服务 | ⚠️ 待补 |
-| `batch/` | 子模块 | 批量媒体编排 | — |
-
-## 子模块
-
-| 模块 | 职责 |
-|------|------|
-| `batch/` | 批量媒体处理编排器 |
+| `__init__.py` | 入口 | Media library module — persistent gallery for AI-generated media. | ✅ |
+| `service.py` | 模块 | Media library service — CRUD, search, tagging for AI-generated media. | ✅ |

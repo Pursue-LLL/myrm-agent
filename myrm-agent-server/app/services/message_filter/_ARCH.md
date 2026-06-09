@@ -1,15 +1,14 @@
-# services/message_filter 模块架构
-
+# services/message_filter/
 
 ## 架构概述
 
-消息过滤服务层。提供过滤规则配置管理、版本控制和审计日志。
+消息过滤配置与审计服务。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 导出 | — |
-| `config_manager.py` | 核心 | 过滤规则配置管理 | ⚠️ 待补 |
-| `config_version_service.py` | 核心 | 配置版本控制服务 | ⚠️ 待补 |
-| `audit_service.py` | 辅助 | 审计日志服务 | ⚠️ 待补 |
+| `__init__.py` | 入口 | Message filter services. | ✅ |
+| `audit_service.py` | 模块 | Audit service for message filtering events. | ✅ |
+| `config_manager.py` | 模块 | Database-backed ConfigManager for hot-reloading filter configurations. | ✅ |
+| `config_version_service.py` | 模块 | Configuration version control service for message filtering. | ✅ |

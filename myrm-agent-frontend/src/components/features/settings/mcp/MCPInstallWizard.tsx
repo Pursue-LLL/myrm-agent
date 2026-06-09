@@ -4,6 +4,13 @@ import { IconLoader, IconShieldCheck, IconAlertTriangle } from '@/components/fea
 import { getMCPRegistryDetail, type MCPRegistryServerDetail } from '@/services/llm-config';
 import type { MCPServiceConfig } from '@/store/config/types';
 
+const SENSITIVE_KEYWORDS = ['key', 'secret', 'token', 'password', 'credential', 'auth'];
+
+function isSensitiveField(name: string): boolean {
+  const lower = name.toLowerCase();
+  return SENSITIVE_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 interface MCPInstallWizardProps {
   qualifiedName: string;
   onInstall: (config: MCPServiceConfig) => void;
@@ -96,7 +103,6 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center space-x-3">
         {detail.iconUrl ? (
           <img src={detail.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-muted" />
@@ -115,7 +121,6 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         <p className="text-sm text-muted-foreground leading-relaxed">{detail.description}</p>
       )}
 
-      {/* Transport info */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
         <span className="font-medium">{t('mcpRegistryTransport')}:</span>
         <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">
@@ -123,13 +128,11 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         </span>
       </div>
 
-      {/* Security notice */}
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
         <IconAlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
         <p className="text-xs text-amber-700 dark:text-amber-300">{t('mcpRegistrySecurityNotice')}</p>
       </div>
 
-      {/* Env var inputs */}
       {detail.envVars.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-foreground">{t('mcpRegistryConfiguration')}</h4>
@@ -143,7 +146,7 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
                 <p className="text-[11px] text-muted-foreground">{ev.description}</p>
               )}
               <input
-                type={ev.name.toLowerCase().includes('key') || ev.name.toLowerCase().includes('secret') || ev.name.toLowerCase().includes('token') || ev.name.toLowerCase().includes('password') ? 'password' : 'text'}
+                type={isSensitiveField(ev.name) ? 'password' : 'text'}
                 value={envValues[ev.name] ?? ''}
                 onChange={(e) => setEnvValues((prev) => ({ ...prev, [ev.name]: e.target.value }))}
                 placeholder={ev.required ? t('mcpRegistryRequired') : t('mcpRegistryOptional')}
@@ -160,7 +163,6 @@ export const MCPInstallWizard = memo(function MCPInstallWizard({
         </div>
       )}
 
-      {/* Action buttons */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           onClick={onCancel}

@@ -1,20 +1,19 @@
-# models/skill_optimization 模块架构
-
+# database/models/skill_optimization/
 
 ## 架构概述
 
-技能优化相关 SQLAlchemy ORM 模型。定义 A/B 测试、优化记录、质量历史等数据库表。
+技能优化 ORM 模型。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | 模型导出 | — |
-| `optimization_record.py` | 核心 | 优化记录模型 | ⚠️ 待补 |
-| `skill_quality_history.py` | 核心 | 质量历史模型 | ⚠️ 待补 |
-| `ab_test_result.py` | 核心 | A/B 测试结果模型 | ⚠️ 待补 |
-| `shadow_sample.py` | 核心 | 影子测试样本模型 | ⚠️ 待补 |
-| `skill_version.py` | 核心 | 技能版本模型 | ⚠️ 待补 |
-| `batch_task.py` | 核心 | 批量优化任务模型 | ⚠️ 待补 |
-| `batch_audit_log.py` | 辅助 | 批量优化审计日志模型 | ⚠️ 待补 |
-| `batch_snapshot.py` | 辅助 | 批量快照模型 | ⚠️ 待补 |
+| `__init__.py` | 入口 | Skill Optimization Models | ✅ |
+| `ab_test_result.py` | 模块 | A/B Test Result Model | ✅ |
+| `batch_audit_log.py` | 模块 | Batch Audit Log Model | ✅ |
+| `batch_snapshot.py` | 模块 | Batch Snapshot Model | ✅ |
+| `batch_task.py` | 模块 | Batch Optimization Task Model | ✅ |
+| `optimization_record.py` | 模块 | Optimization Record Model | ✅ |
+| `shadow_sample.py` | 模块 | Shadow Test Sample Model | ✅ |
+| `skill_quality_history.py` | 模块 | Skill Quality History Model | ✅ |
+| `skill_version.py` | 模块 | 定义skill_versions表的ORM模型，用于记录skill的每个版本，支持版本回滚。 | ✅ |

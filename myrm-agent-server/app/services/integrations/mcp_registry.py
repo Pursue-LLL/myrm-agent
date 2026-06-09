@@ -1,16 +1,13 @@
 """MCP registry proxy service.
 
-Proxies searches and detail lookups to the Smithery MCP registry,
-with LRU caching and rate-limit–friendly timeouts.  Install requests
-reuse the existing config_scan + posture pipeline so that every
-registry install gets the same 108-pattern security scan.
+[POS] Smithery MCP 注册中心代理。为前端提供搜索和详情查询能力，LRU 缓存减少外部请求。
 
 [INPUT]
-- httpx (async HTTP client for external registry)
-- app.services.integrations.mcp_posture (security scan integration)
+- httpx (POS: async HTTP client for external registry)
 
 [OUTPUT]
-- MCPRegistryService: search / detail / install_config
+- MCPRegistryService: search / detail proxy with LRU caching
+- get_mcp_registry: module-level singleton accessor
 """
 
 from __future__ import annotations
@@ -19,6 +16,7 @@ import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
+from typing import Any
 
 import httpx
 
@@ -73,13 +71,13 @@ class RegistryServerDetail:
     homepage: str | None = None
     use_count: int = 0
     transport_type: str = "stdio"
-    connections: list[dict] = field(default_factory=list)
+    connections: list[dict[str, Any]] = field(default_factory=list)
     env_vars: list[RegistryEnvVar] = field(default_factory=list)
 
 
 @dataclass
 class _CacheEntry:
-    data: object
+    data: RegistrySearchResult | RegistryServerDetail
     expires_at: float
 
 
@@ -89,7 +87,7 @@ class MCPRegistryService:
     def __init__(self) -> None:
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
 
-    def _get_cached(self, key: str) -> object | None:
+    def _get_cached(self, key: str) -> RegistrySearchResult | RegistryServerDetail | None:
         entry = self._cache.get(key)
         if entry is None:
             return None
@@ -99,7 +97,7 @@ class MCPRegistryService:
         self._cache.move_to_end(key)
         return entry.data
 
-    def _put_cache(self, key: str, data: object) -> None:
+    def _put_cache(self, key: str, data: RegistrySearchResult | RegistryServerDetail) -> None:
         if key in self._cache:
             self._cache.move_to_end(key)
         self._cache[key] = _CacheEntry(data=data, expires_at=time.monotonic() + CACHE_TTL_SECONDS)

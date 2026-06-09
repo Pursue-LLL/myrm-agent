@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
+Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
 ## 文件清单
 
@@ -15,4 +15,4 @@
 | `push_messages.py` | 模块 | Poll for recent cron push notifications (local single-user mode). | ✅ |
 | `runs.py` | 模块 | Cron run history REST endpoints. | ✅ |
 | `stats.py` | 模块 | Cron usage statistics REST endpoint. | ✅ |
-| `triggers.py` | 模块 | Cron trigger dispatch and integrity verification REST endpoints """ | ✅ |
+| `triggers.py` | 模块 | Cron trigger dispatch and integrity verification REST endpoints | ✅ |

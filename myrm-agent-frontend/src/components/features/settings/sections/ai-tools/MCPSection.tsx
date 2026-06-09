@@ -84,7 +84,6 @@ const MCPSection = memo(() => {
   return (
     <div className="space-y-6">
       <SettingsSection title={t('menu.mcp')}>
-        {/* Tabs */}
         <div className="flex items-center gap-1 mb-4 bg-secondary rounded-lg p-1">
           <button
             onClick={() => { setActiveTab('installed'); setInstallTarget(null); }}
@@ -108,7 +107,6 @@ const MCPSection = memo(() => {
           </button>
         </div>
 
-        {/* Content */}
         {activeTab === 'installed' && (
           <MCPConfigForm currentConfigs={mcpConfigs} onSave={setMCPConfigs} />
         )}

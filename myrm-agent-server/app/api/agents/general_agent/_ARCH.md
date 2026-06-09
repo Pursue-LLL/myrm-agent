@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本目录模块说明。上级文档：[../../../_ARCH.md](../../../_ARCH.md)。
+GeneralAgent 流式对话、重连与离线 durable 任务 HTTP 层。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 
 ## 文件清单
 
