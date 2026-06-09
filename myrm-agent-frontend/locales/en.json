@@ -9291,6 +9291,12 @@
     },
     "allowAlwaysAfterEdit": "Also mark as always allow",
     "editValidationError": "Parameter format error: {fields}",
+    "guidance": {
+      "toggle": "Add guidance for agent",
+      "placeholder": "Provide additional context or instructions for the agent (e.g., 'use the production API, not staging', 'skip error checking for this run')...",
+      "hint": "This guidance will be injected as context when the agent resumes execution.",
+      "hasGuidance": "Guidance attached"
+    },
     "allowAlwaysConfirm": {
       "title": "Confirm Always Allow?",
       "description": "This will automatically approve future matching operations without requiring approval again.",

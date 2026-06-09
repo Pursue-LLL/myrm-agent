@@ -173,6 +173,7 @@ export interface AgentUpdate {
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[];
   browser_engine?: string | null;
+  browser_source?: string | null;
   auto_restore_domains?: string[];
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
