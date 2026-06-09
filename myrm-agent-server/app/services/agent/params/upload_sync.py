@@ -4,7 +4,7 @@ app.core.storage.service::FilesService (POS: file storage service)
 
 [OUTPUT]
 sync_uploaded_files_to_workspace: copy large uploaded files to workspace
-_inject_uploaded_files_into_query: append file paths to the user query
+inject_uploaded_files_into_query: append file paths to the user query
 
 [POS]
 Uploaded-file workspace sync. Copies large attached files from StorageProvider
