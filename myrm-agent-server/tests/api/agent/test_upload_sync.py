@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.agent.params.upload_sync import (
+    _MAX_SYNC_TOTAL_BYTES,
     _SYNC_THRESHOLD_BYTES,
     _sanitize_filename,
     inject_uploaded_files_into_query,
@@ -119,6 +120,56 @@ class TestSyncUploadedFilesToWorkspace:
         assert rel_path == "_uploaded/report_1.csv"
         assert os.path.isfile(os.path.join(workspace, "_uploaded", "report.csv"))
         assert os.path.isfile(os.path.join(workspace, rel_path))
+
+
+    @pytest.mark.asyncio
+    async def test_respects_budget_limit(self):
+        """Files that would exceed 50 MB budget should be skipped."""
+        from app.core.storage.models import File, FilePurpose
+
+        file_size = _MAX_SYNC_TOTAL_BYTES - 1024
+        content_fit = b"a" * file_size
+        file_fit = File(
+            id="file_fit",
+            purpose=FilePurpose.UPLOAD,
+            filename="fit.bin",
+            content_type="application/octet-stream",
+            size=file_size,
+            storage_path="uploads/file_fit/fit.bin",
+        )
+
+        content_over = b"b" * (_SYNC_THRESHOLD_BYTES + 1)
+        file_over = File(
+            id="file_over",
+            purpose=FilePurpose.UPLOAD,
+            filename="over.bin",
+            content_type="application/octet-stream",
+            size=len(content_over),
+            storage_path="uploads/file_over/over.bin",
+        )
+
+        call_count = 0
+
+        async def mock_get_file(fid: str) -> File | None:
+            return {"file_fit": file_fit, "file_over": file_over}.get(fid)
+
+        async def mock_get_content(path: str) -> bytes | None:
+            nonlocal call_count
+            call_count += 1
+            return {"uploads/file_fit/fit.bin": content_fit}.get(path)
+
+        mock_svc = AsyncMock()
+        mock_svc.get_file = mock_get_file
+        mock_svc.get_file_content_by_path = mock_get_content
+        workspace = tempfile.mkdtemp()
+        with patch("app.core.storage.files_service", mock_svc):
+            result = await sync_uploaded_files_to_workspace(
+                ["file_fit", "file_over"], workspace
+            )
+
+        assert len(result) == 1
+        assert result[0][0] == "fit.bin"
+        assert call_count == 1
 
 
 class TestInjectUploadedFilesIntoQuery:
