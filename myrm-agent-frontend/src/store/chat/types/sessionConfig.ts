@@ -51,6 +51,7 @@ export interface AgentConfig {
   enabledBuiltinTools?: BuiltinToolId[];
   browserEngine?: string;
   browserSource?: string;
+  dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
   suggestionPrompts?: string[];
   ephemeralSubagents?: Record<string, unknown>;
   taskAdaptiveDigest?: Record<string, unknown>;

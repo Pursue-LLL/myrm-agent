@@ -15,18 +15,13 @@
 | **myrm-control-plane** | `myrm-control-plane/` | 闭源 | SaaS/企业：调度**每用户独立沙箱 + Volume**（非传统多租户 DB） |
 | **myrm-agent-brand** | `myrm-agent-brand/` | 闭源 | 官网 `myrm-website/`、文档 `myrm-docs/` |
 
-**禁止引用已删除路径**: `open-perplexity/myrm-website`、`myrm-docs`、`myrm-agent-server`、`myrm-agent-frontend`、`myrm-agent-desktop`（根目录旧布局）。产品代码仅在 `myrm-agent/` 下。
-
 **依赖铁律**
 
 - OSS **永不** vendoring harness 源码；server 仅 `uv.lock` → PyPI `myrm-agent-harness`。
 - server = **单租户**业务编排（`MYRM_DATA_DIR`），**无** `user_id` 多租户。
 - CP **不 import** harness；沙箱内跑 server。
 - harness **不感知** GUI / CP / 产品品牌。
-
-沙箱执行模型详见闭源文档：  
-`myrm-agent-harness/src/myrm_agent_harness/toolkits/code_execution/EXECUTION_SYSTEM.md`  
-框架原则：`myrm-agent-harness/FRAMEWORK_DESIGN_PRINCIPLES.md`
+- 沙箱代码执行、工具编排与记忆内核由 PyPI `myrm-agent-harness` 提供；本仓仅通过公开 API 消费。
 
 ---
 
@@ -73,9 +68,9 @@ myrm-agent/
 | Frontend 工具审批 UI | [myrm-agent-frontend/src/lib/approval/_ARCH.md](myrm-agent-frontend/src/lib/approval/_ARCH.md) · inline BBox · AttentionBar · Tauri OS overlay |
 | Desktop | [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) |
 | Browser Extension | [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md) |
-| Security Center（供应链仪表盘） | WebUI [`/security`](myrm-agent-frontend/src/app/security/page.tsx) · API `myrm-agent-server/app/api/security/router.py` · SaaS 告警 ingest 在闭源 CP |
+| Security Center（供应链仪表盘） | WebUI [`/security`](myrm-agent-frontend/src/app/security/page.tsx) · API `myrm-agent-server/app/api/security/router.py` · SaaS 部署时告警由 Control Plane 聚合，Server 经 internal API 拉取 |
 
-**Git 与分发**：本文件即 OSS 产品仓的 Git/五仓/三模式定稿。Monorepo 维护者私有开发壳（Git remote `vortexai`）使用 `./myrm` 与子模块指针；见维护者速查 `scripts/dev/MAINTAINER_QUICKSTART.md`（路径相对于 vortexai 根，不在本 OSS 仓内）。
+**Git 与分发**：本文件即 OSS 产品仓的 Git/五仓/三模式定稿。独立 clone 使用 `scripts/install.sh` 与 `myrm` CLI；发布与 CI 见 `.github/workflows/`。
 
 ---
 

@@ -7,7 +7,7 @@
 
 App 层记忆模块。提供框架 Protocol 的具体后端实现和记忆运行时绑定装配。
 
-核心记忆能力（Manager、Session、Retriever、Protocols、Types、Strategies）已迁移至框架层 `myrm_agent_harness.toolkits.memory`。
+核心记忆能力（Manager、Session、Retriever、Protocols、Types、Strategies）由 PyPI `myrm_agent_harness.toolkits.memory` 提供。
 Server 产品层 Shared Context 由 `app/services/memory/shared_context.py` 管理，本模块只消费解析后的 `shared_context_ids`。
 
 ---

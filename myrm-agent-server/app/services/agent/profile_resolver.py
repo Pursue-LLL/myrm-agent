@@ -126,6 +126,8 @@ class ResolvedAgentProfile:
     mcp_tool_selections: dict[str, tuple[str, ...]] = field(default_factory=dict, kw_only=True)
     """Per-MCP-server tool whitelist {server: (tool, ...)}; empty = no per-tool constraint."""
     browser_engine: str | None = field(default=None, kw_only=True)
+    browser_source: str | None = field(default=None, kw_only=True)
+    dialog_policy: str | None = field(default=None, kw_only=True)
 
     notify_targets: tuple[dict[str, str], ...] = field(default_factory=tuple, kw_only=True)
     """Configured notification targets: each dict has {channel, recipient_id, label?}."""
@@ -204,6 +206,10 @@ class AgentProfileResolver:
 
                 raw_browser_engine = metadata.get("browser_engine")
                 browser_engine = str(raw_browser_engine) if raw_browser_engine else None
+                raw_browser_source = getattr(agent, "browser_source", None) or metadata.get("browser_source")
+                browser_source = str(raw_browser_source) if raw_browser_source else None
+                raw_dialog_policy = getattr(agent, "dialog_policy", None) or metadata.get("dialog_policy")
+                dialog_policy = str(raw_dialog_policy) if raw_dialog_policy else None
 
                 raw_model_selection = getattr(agent, "model_selection", None)
                 model_kwargs: dict[str, object] | None = None
@@ -237,6 +243,8 @@ class AgentProfileResolver:
                     mcp_ids=mcp_tuple,
                     mcp_tool_selections=mcp_tool_selections,
                     browser_engine=browser_engine,
+                    browser_source=browser_source,
+                    dialog_policy=dialog_policy,
                     security_overrides=(raw_security if isinstance(raw_security, dict) else None),
                     personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),

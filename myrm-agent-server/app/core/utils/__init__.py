@@ -3,7 +3,6 @@
 业务特有的工具函数模块
 """
 
-# extract_file_id_from_url 已迁移到框架层，从框架层导入
 from myrm_agent_harness.utils import extract_file_id_from_url
 
 # 从框架层导入 ToolError（统一错误处理）

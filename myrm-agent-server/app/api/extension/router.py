@@ -5,7 +5,7 @@
 - app.core.infra.ws_origin_guard::verify_ws_origin (POS: WebSocket Origin guard)
 
 [OUTPUT]
-- ws_router: WebSocket endpoint for extension connection (ws://.../api/ws/extension)
+- ws_router: WebSocket endpoint for extension connection (ws://.../api/v1/ws/extension)
 - router: REST endpoints for domain authorization management
 
 [POS]
@@ -20,6 +20,7 @@ import logging
 from fastapi import APIRouter, Query, WebSocket
 from pydantic import BaseModel, Field
 
+from app.config.settings import settings
 from app.services.extension.bridge import get_extension_bridge
 
 logger = logging.getLogger(__name__)
@@ -44,8 +45,6 @@ async def extension_ws(
     Query params:
         token: Authentication token (validated against server's extension_auth_token)
     """
-    from app.config.settings import settings
-
     expected_token = settings.extension_auth_token.get_secret_value()
     if expected_token and token != expected_token:
         await websocket.close(code=4001, reason="Invalid token")
@@ -76,6 +75,7 @@ class ExtensionStatusResponse(BaseModel):
     browser_name: str = ""
     authorized_domains: list[str] = Field(default_factory=list)
     available_tabs: list[ExtensionTabResponse] = Field(default_factory=list)
+    token_required: bool = False
 
 
 class DomainsUpdateRequest(BaseModel):
@@ -91,6 +91,10 @@ class DomainsUpdateResponse(BaseModel):
     """Response after domain update."""
 
     authorized_domains: list[str]
+
+
+def _extension_token_required() -> bool:
+    return bool(settings.extension_auth_token.get_secret_value())
 
 
 @router.get("/extension/status", response_model=ExtensionStatusResponse)
@@ -113,6 +117,7 @@ async def get_extension_status() -> ExtensionStatusResponse:
             )
             for t in status.available_tabs
         ],
+        token_required=_extension_token_required(),
     )
 
 

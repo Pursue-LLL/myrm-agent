@@ -98,6 +98,7 @@ interface AgentConfigEditDialogProps {
   enabledBuiltinTools: BuiltinToolId[];
   browserEngine?: string;
   browserSource?: string;
+  dialogPolicy?: string;
   ephemeralSubagents?: Record<string, unknown>;
   // System Prompt控制
   isSystemPromptHidden?: boolean;
@@ -115,6 +116,7 @@ interface AgentConfigEditDialogProps {
     enabledBuiltinTools?: BuiltinToolId[];
     browserEngine?: string;
     browserSource?: string;
+    dialogPolicy?: string;
     autoRestoreDomains?: string[];
     ephemeralSubagents?: Record<string, unknown>;
     personalityStyle?: string;
@@ -143,6 +145,7 @@ const AgentConfigEditDialog = ({
   enabledBuiltinTools: initialBuiltinTools,
   browserEngine: initialBrowserEngine,
   browserSource: initialBrowserSource,
+  dialogPolicy: initialDialogPolicy,
   ephemeralSubagents: initialEphemeralSubagents = {},
   isSystemPromptHidden = false,
   loadingSystemPrompt = false,
@@ -169,6 +172,7 @@ const AgentConfigEditDialog = ({
   const [localBuiltinTools, setLocalBuiltinTools] = useState<BuiltinToolId[]>(initialBuiltinTools || []);
   const [localBrowserEngine, setLocalBrowserEngine] = useState<string | undefined>(initialBrowserEngine);
   const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
+  const [localDialogPolicy, setLocalDialogPolicy] = useState<string | undefined>(initialDialogPolicy);
   const [localEphemeralSubagents, setLocalEphemeralSubagents] = useState<Record<string, EphemeralSubagentConfig>>(
     initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>,
   );
@@ -423,6 +427,7 @@ const AgentConfigEditDialog = ({
           autoRestoreDomains: localAutoRestoreDomains,
           browserEngine: localBrowserEngine,
           browserSource: localBrowserSource,
+          dialogPolicy: localDialogPolicy,
         });
         break;
       case 'subagents':
@@ -1169,6 +1174,59 @@ const AgentConfigEditDialog = ({
                       {t('browserSource.extensionWarning')}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    {t('dialogPolicy.label')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('dialogPolicy.description')}
+                  </p>
+                  <Select
+                    value={localDialogPolicy || 'smart'}
+                    onValueChange={(value) =>
+                      setLocalDialogPolicy(value === 'smart' ? undefined : value)
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="smart">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('dialogPolicy.options.smart')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('dialogPolicy.options.smartDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto_accept">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('dialogPolicy.options.autoAccept')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('dialogPolicy.options.autoAcceptDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto_dismiss">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('dialogPolicy.options.autoDismiss')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('dialogPolicy.options.autoDismissDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="wait_for_agent">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('dialogPolicy.options.waitForAgent')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('dialogPolicy.options.waitForAgentDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}

@@ -27,6 +27,16 @@ const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {
   ),
 });
 
+// 动态导入表格预览组件
+const SpreadsheetPreviewDynamic = dynamic(() => import('./renderers/SpreadsheetPreview'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center">
+      <div className="animate-spin w-8 h-8 border-2 border-muted-foreground/30 border-t-primary rounded-full" />
+    </div>
+  ),
+});
+
 // 动态导入 React 预览组件
 const ReactPreviewDynamic = dynamic(() => import('./ReactPreview'), {
   ssr: false,
@@ -60,6 +70,13 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
   const isSvg = type === 'svg' || isSvgType(content_type, filename);
   const isMermaid = type === 'mermaid' || isMermaidType(content_type, filename);
   const isPdf = type === 'pdf' || content_type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
+  const isSpreadsheet =
+    type === 'spreadsheet' ||
+    /\.(csv|tsv|xlsx|xls)$/i.test(filename) ||
+    content_type === 'text/csv' ||
+    content_type === 'text/tab-separated-values' ||
+    content_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    content_type === 'application/vnd.ms-excel';
 
   // 检测是否为 React/JSX/TSX 文件
   const isReactFile =
@@ -82,6 +99,20 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
   // PDF 预览
   if (isPdf) {
     return <PdfPreviewDynamic url={getStorageUrl(preview_url)} filename={filename} />;
+  }
+
+  // 表格/电子表格预览
+  if (isSpreadsheet) {
+    if (displayMode === ArtifactDisplayMode.Code && content) {
+      return <CodePreview content={content} language="csv" artifactId={artifact.id} />;
+    }
+    return (
+      <SpreadsheetPreviewDynamic
+        content={content || ''}
+        filename={filename}
+        previewUrl={preview_url || undefined}
+      />
+    );
   }
 
   // React/JSX/TSX 组件预览

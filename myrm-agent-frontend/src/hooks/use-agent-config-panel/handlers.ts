@@ -25,6 +25,7 @@ export const createSaveConfigHandler = (
     enabledBuiltinTools?: BuiltinToolId[];
     browserEngine?: string;
     browserSource?: string;
+    dialogPolicy?: string;
     autoRestoreDomains?: string[];
     ephemeralSubagents?: Record<string, unknown>;
     personalityStyle?: string;

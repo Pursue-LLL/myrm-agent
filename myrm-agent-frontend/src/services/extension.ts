@@ -5,7 +5,7 @@
  * - @/lib/api::apiRequest, getApiUrl
  *
  * [OUTPUT]
- * - getExtensionStatus: Fetch current extension connection status
+ * - getExtensionStatus: Fetch current extension connection status (incl. token_required)
  * - getAuthorizedDomains: Fetch authorized domain list
  * - updateAuthorizedDomains: Update authorized domain list
  * - listExtensionTabs: List available tabs from extension
@@ -31,6 +31,7 @@ export interface ExtensionStatus {
   browser_name: string;
   authorized_domains: string[];
   available_tabs: ExtensionTab[];
+  token_required: boolean;
 }
 
 export async function getExtensionStatus(): Promise<ExtensionStatus> {

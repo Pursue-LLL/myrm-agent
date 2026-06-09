@@ -61,7 +61,7 @@ def test_uv_lock_harness_not_editable() -> None:
     )
     assert editable_harness is None, (
         "myrm-agent-server/uv.lock still pins myrm-agent-harness as editable. "
-        "Run: ./myrm harness sync-lock from vortexai root (after harness PyPI publish)."
+        "Refresh uv.lock with PyPI registry pin for myrm-agent-harness after harness publish."
     )
 
 
@@ -79,5 +79,5 @@ def test_uv_lock_harness_has_registry_source() -> None:
     )
     assert registry_harness is not None, (
         "myrm-agent-server/uv.lock has no PyPI registry entry for myrm-agent-harness. "
-        "Run: ./myrm harness sync-lock from vortexai root (after harness PyPI publish)."
+        "Refresh uv.lock with PyPI registry pin for myrm-agent-harness after harness publish."
     )

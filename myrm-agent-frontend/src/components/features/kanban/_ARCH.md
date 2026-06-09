@@ -34,9 +34,21 @@
 4. **失败回滚** — API 失败时恢复 `previousStatus` 并 toast 提示
 5. **超时安全阀** — 5s 后自动清除 pending 条目，防止泄漏
 
+## API 客户端映射（`@/services/kanban.ts`）
+
+| UI 组件 | 主要 API |
+|---------|----------|
+| `KanbanBoardView` / DnD | `listTasks`、`moveTask`、`bulkAction` |
+| `KanbanSpecifyDialog` | `specifyTask`（dryRun）→ `applySpec` |
+| `KanbanDecomposeDialog` | `decomposeTask` → `applyDecompose` |
+| `KanbanPipelineWizard` | `listPipelines`、`getPipelineDetail`、`instantiatePipeline` |
+| `KanbanDiagnosticsSection` | `getTaskDiagnostics` |
+| `KanbanEventTimeline` / `BoardActivityFeed` | `listEvents`、`listBoardEvents`、`addComment` |
+| `KanbanGraphView` | `listBoardEdges`、`listDependencies` |
+
 ## 模块依赖
 
-- `@/services/kanban` — API 层（Board CRUD / Task CRUD / moveTask / edges）
+- `@/services/kanban` — `/api/v1/kanban/*` 客户端（Board/Task/Specify/Decompose/Pipeline）
 - `@dnd-kit/core` — 拖拽基础设施（传感器 / 碰撞检测 / DragOverlay）
 - `@/components/features/app-shell/confirm-dialog` — 通用确认弹窗
 - `@/hooks/useAgentName` — 智能体名称映射

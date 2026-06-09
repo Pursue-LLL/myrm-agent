@@ -88,6 +88,7 @@ export interface Agent {
   enabled_builtin_tools?: string[] | null;
   browser_engine?: string | null;
   browser_source?: string | null;
+  dialog_policy?: string | null;
   auto_restore_domains?: string[] | null;
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
@@ -140,6 +141,7 @@ export interface AgentCreate {
   enabled_builtin_tools?: string[];
   browser_engine?: string | null;
   browser_source?: string | null;
+  dialog_policy?: string | null;
   auto_restore_domains?: string[];
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
@@ -174,6 +176,7 @@ export interface AgentUpdate {
   enabled_builtin_tools?: string[];
   browser_engine?: string | null;
   browser_source?: string | null;
+  dialog_policy?: string | null;
   auto_restore_domains?: string[];
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;

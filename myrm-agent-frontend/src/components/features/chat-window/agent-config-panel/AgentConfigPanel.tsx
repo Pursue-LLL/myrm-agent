@@ -283,6 +283,7 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
           enabledBuiltinTools={currentBuiltinTools}
           browserEngine={agentConfig?.browserEngine}
           browserSource={agentConfig?.browserSource}
+          dialogPolicy={agentConfig?.dialogPolicy}
           autoRestoreDomains={agentConfig?.autoRestoreDomains ?? EMPTY_AUTO_RESTORE_DOMAINS}
           ephemeralSubagents={agentConfig?.ephemeralSubagents || {}}
           onSave={handleSaveConfig}

@@ -1,4 +1,4 @@
-"""Architecture test: tracked markdown must not link into vortexai dev-shell temp-docs/."""
+"""Architecture test: tracked markdown must not link into private dev-shell temp-docs/."""
 
 from __future__ import annotations
 

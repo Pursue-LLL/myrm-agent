@@ -17,6 +17,7 @@ export type ArtifactType =
   | 'audio'
   | 'svg'
   | 'mermaid'
+  | 'spreadsheet'
   | 'binary'
   | 'interactive_ui';
 

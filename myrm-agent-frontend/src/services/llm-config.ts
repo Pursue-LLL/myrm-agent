@@ -499,3 +499,56 @@ export const disconnectMCPOAuth = async (serverName: string): Promise<void> => {
     method: 'DELETE',
   });
 };
+
+// ---------------------------------------------------------------------------
+// MCP Registry
+// ---------------------------------------------------------------------------
+
+export interface MCPRegistryServer {
+  qualifiedName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  homepage: string | null;
+  useCount: number;
+}
+
+export interface MCPRegistrySearchResult {
+  servers: MCPRegistryServer[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface MCPRegistryEnvVar {
+  name: string;
+  description: string;
+  required: boolean;
+}
+
+export interface MCPRegistryServerDetail {
+  qualifiedName: string;
+  displayName: string;
+  description: string;
+  iconUrl: string | null;
+  homepage: string | null;
+  useCount: number;
+  transportType: string;
+  envVars: MCPRegistryEnvVar[];
+}
+
+export const searchMCPRegistry = async (
+  query: string = '',
+  page: number = 1,
+  pageSize: number = 20,
+): Promise<MCPRegistrySearchResult> => {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+  if (query) params.set('q', query);
+  return apiRequest<MCPRegistrySearchResult>(`/mcp/registry/search?${params}`, { method: 'GET' });
+};
+
+export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRegistryServerDetail> => {
+  return apiRequest<MCPRegistryServerDetail>(`/mcp/registry/detail/${encodeURIComponent(qualifiedName)}`, {
+    method: 'GET',
+  });
+};

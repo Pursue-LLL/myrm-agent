@@ -1,26 +1,30 @@
-# services/extension/
+# services/extension/ 模块架构
 
-## Overview
-Browser Extension Bridge service. Manages WebSocket connection from the official browser extension (Chrome/Edge MV3), providing CDP proxy capabilities for Agent browser automation tasks.
+## 架构概述
 
-## File & Submodule Index
+浏览器扩展桥服务层：管理 Chrome MV3 扩展的 WebSocket 生命周期、心跳、CDP 命令代理与授权域名白名单；实现 harness `ExtensionBridge` Protocol，并在 warmup 注入 `GlobalBrowserPool` 供 `browser_source=extension` 复用用户真实会话。
 
-| File | Role | Description | I/O/P |
-|------|------|-------------|-------|
-| __init__.py | Package | Exports ExtensionBridgeService | ✅ |
-| bridge.py | Core | WebSocket connection lifecycle, heartbeat, CDP proxy, domain authorization. Implements harness ExtensionBridge Protocol. | ✅ |
+## 文件清单
 
-## Key Design Decisions
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 导出 bridge 单例访问器 | — |
+| `bridge.py` | 核心 | `ExtensionBridgeService`：WS 连接、CDP 代理、域名通配匹配、标签页枚举 | ✅ |
 
-- **Playwright singleton**: `_ensure_playwright()` caches a single Playwright instance across all CDP connections, stopping it only on `disconnect()`. Avoids memory leaks from spawning a new process per connection.
-- **Wildcard domain matching**: `_match_domain()` uses `fnmatch` for `*.example.com` patterns. Both `connect_to_domain()` and `list_tabs()` route through this method.
-- **Auth token**: Validated against `settings.extension_auth_token` (SecretStr) in the WS endpoint.
-- **Pool injection**: The singleton instance is injected into `GlobalBrowserPool` during warmup (`lifecycle/browser.py`), enabling agents with `browser_source=extension` to acquire pages through the user's real browser.
+## 设计要点
 
-## Key Dependencies
+- **Playwright 单例**：`_ensure_playwright()` 跨 CDP 连接复用同一 Playwright 实例，`disconnect()` 时释放。
+- **域名通配**：`_match_domain()` 使用 `fnmatch`（如 `*.example.com`）；`connect_to_domain()` 与 `list_tabs()` 均经此过滤。
+- **认证**：WebSocket `token` 对齐 `settings.extension_auth_token`（`api/extension/router.py` 校验）；REST `/extension/status` 返回 `token_required`（bool，不回传明文）。
+- **池注入**：`lifecycle/browser.py` warmup 将单例注入 `GlobalBrowserPool`。
 
-- `myrm_agent_harness.toolkits.browser.pool.extension_bridge` (Protocol contract)
-- `myrm_agent_harness.toolkits.browser.pool.browser_launcher` (BrowserInstance)
-- `starlette.websockets`
-- `patchright.async_api`
-- `fnmatch` (stdlib, wildcard domain matching)
+## 模块依赖
+
+- `myrm_agent_harness.toolkits.browser.pool.extension_bridge` — Protocol 契约
+- `myrm_agent_harness.toolkits.browser.pool.browser_launcher` — `BrowserInstance`
+- `patchright.async_api` — CDP 驱动
+
+## 对外入口
+
+- HTTP/WS：[api/extension/_ARCH.md](../../api/extension/_ARCH.md)
+- 客户端：[myrm-agent-extension/_ARCH.md](../../../../myrm-agent-extension/_ARCH.md)

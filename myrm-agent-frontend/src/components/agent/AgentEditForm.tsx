@@ -69,6 +69,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
 
   const [browserEngine, setBrowserEngine] = useState<string>('chromium_patchright');
   const [browserSource, setBrowserSource] = useState<string>('auto');
+  const [dialogPolicy, setDialogPolicy] = useState<string>('smart');
 
   const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () =>
     getAgent(agentId!, true),
@@ -119,6 +120,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         }
         setBrowserEngine(agent.browser_engine || 'chromium_patchright');
         setBrowserSource(agent.browser_source || 'auto');
+        setDialogPolicy(agent.dialog_policy || 'smart');
       } else if (!agentId) {
         reset({
           name: '',
@@ -148,6 +150,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         tool_gateway_config: toolGatewayConfig,
         browser_engine: browserEngine,
         browser_source: browserSource === 'auto' ? null : browserSource,
+        dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
       };
       if (agentId) {
         await updateAgent(agentId, payload);
@@ -442,6 +445,51 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                       {t('form.browserSourceExtensionWarning', { fallback: 'Requires Browser Extension to be connected. The agent will operate in your real browser.' })}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label className="text-sm font-medium">
+                    {t('form.dialogPolicy', { fallback: 'Dialog Handling' })}
+                  </Label>
+                  <Select value={dialogPolicy} onValueChange={setDialogPolicy}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="smart">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.dialogPolicySmart', { fallback: 'Smart (Default)' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.dialogPolicySmartDesc', { fallback: 'Auto-accept alerts/confirms, dismiss prompts.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto_accept">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.dialogPolicyAutoAccept', { fallback: 'Auto Accept' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.dialogPolicyAutoAcceptDesc', { fallback: 'Accept all dialogs automatically.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto_dismiss">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.dialogPolicyAutoDismiss', { fallback: 'Auto Dismiss' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.dialogPolicyAutoDismissDesc', { fallback: 'Dismiss all dialogs automatically.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="wait_for_agent">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.dialogPolicyWaitForAgent', { fallback: 'Wait for Agent' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.dialogPolicyWaitForAgentDesc', { fallback: 'Pause and let the AI decide how to respond.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

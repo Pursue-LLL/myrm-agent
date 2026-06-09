@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按域单文件或小目录组织；**禁止**桶导出（barrel index，除 `tasks/index.ts` 等历史例外）。
+React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按域单文件或小目录组织；**禁止**桶导出（barrel index），`tasks/index.ts` 为唯一允许的桶入口。
 
 ## 域划分
 

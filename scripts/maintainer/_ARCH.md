@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-**本目录在 MIT 开源仓中 intentionally 为空。** 维护者向代码生成脚本位于闭源 `myrm-agent-harness/scripts/maintainer/`。
+**本目录在 MIT 开源仓中为空。** 代码生成脚本在 PyPI `myrm-agent-harness` 维护者工具链中运行，产物提交到本仓。
 
 ## 生成物消费点（OSS）
 

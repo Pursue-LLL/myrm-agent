@@ -531,3 +531,141 @@ async def read_mcp_resource(
         "uri": uri,
         "server": server,
     })
+
+
+# =============================================================================
+# Registry proxy endpoints
+# =============================================================================
+
+
+class RegistryServerData(BaseModel):
+    """Single server in registry search results."""
+
+    qualified_name: str
+    display_name: str
+    description: str = ""
+    icon_url: str | None = None
+    homepage: str | None = None
+    use_count: int = 0
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class RegistrySearchData(BaseModel):
+    """Paged search result from MCP registry."""
+
+    servers: list[RegistryServerData] = Field(default_factory=list)
+    page: int = 1
+    page_size: int = 20
+    total_pages: int = 1
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class RegistryEnvVarData(BaseModel):
+    """Required env var template from registry metadata."""
+
+    name: str
+    description: str = ""
+    required: bool = True
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+class RegistryDetailData(BaseModel):
+    """Full detail for a single registry server."""
+
+    qualified_name: str
+    display_name: str
+    description: str = ""
+    icon_url: str | None = None
+    homepage: str | None = None
+    use_count: int = 0
+    transport_type: str = "stdio"
+    env_vars: list[RegistryEnvVarData] = Field(default_factory=list)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
+
+@router.get("/registry/search", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def registry_search(
+    request: Request,
+    q: str = Query("", description="Search query"),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=50, description="Results per page"),
+) -> JSONResponse:
+    """Search the MCP server registry.
+
+    Proxies to the Smithery registry with LRU caching.
+    """
+    _ = request
+    from app.services.integrations.mcp_registry import get_mcp_registry
+
+    try:
+        registry = get_mcp_registry()
+        result = await registry.search(query=q, page=page, page_size=page_size)
+        data = RegistrySearchData(
+            servers=[
+                RegistryServerData(
+                    qualified_name=s.qualified_name,
+                    display_name=s.display_name,
+                    description=s.description,
+                    icon_url=s.icon_url,
+                    homepage=s.homepage,
+                    use_count=s.use_count,
+                )
+                for s in result.servers
+            ],
+            page=result.page,
+            page_size=result.page_size,
+            total_pages=result.total_pages,
+        )
+        return success_response(data=data.model_dump(by_alias=True))
+    except Exception as e:
+        logger.error("MCP registry search failed: %s", e)
+        raise external_service_error("MCP Registry", f"Search failed: {e}") from e
+
+
+@router.get("/registry/detail/{qualified_name:path}", response_model=StandardSuccessResponse)
+@limiter.limit(settings.rate_limit.mcp_verify)
+async def registry_detail(
+    request: Request,
+    qualified_name: str,
+) -> JSONResponse:
+    """Get full detail for a single MCP server from the registry."""
+    _ = request
+    from app.services.integrations.mcp_registry import get_mcp_registry
+
+    try:
+        registry = get_mcp_registry()
+        detail = await registry.get_detail(qualified_name)
+        data = RegistryDetailData(
+            qualified_name=detail.qualified_name,
+            display_name=detail.display_name,
+            description=detail.description,
+            icon_url=detail.icon_url,
+            homepage=detail.homepage,
+            use_count=detail.use_count,
+            transport_type=detail.transport_type,
+            env_vars=[
+                RegistryEnvVarData(
+                    name=ev.name,
+                    description=ev.description,
+                    required=ev.required,
+                )
+                for ev in detail.env_vars
+            ],
+        )
+        return success_response(data=data.model_dump(by_alias=True))
+    except Exception as e:
+        logger.error("MCP registry detail failed for %s: %s", qualified_name, e)
+        raise external_service_error("MCP Registry", f"Detail lookup failed: {e}") from e

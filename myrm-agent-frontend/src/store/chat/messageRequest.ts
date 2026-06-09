@@ -508,6 +508,7 @@ export const createMessageRequest = async (
         enabled_builtin_tools: currentBuiltinTools,
         browser_engine: agentConfig?.browserEngine,
         browser_source: agentConfig?.browserSource,
+        dialog_policy: agentConfig?.dialogPolicy,
         auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
       },
     }),

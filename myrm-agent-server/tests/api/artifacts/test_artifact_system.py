@@ -435,6 +435,201 @@ class TestLocalArtifactProcessor:
         assert result is None
 
 
+class TestSpreadsheetArtifactIntegration:
+    """Spreadsheet artifact 全链路集成测试：harness 类型推断 → processor → 前端事件"""
+
+    @pytest.mark.asyncio
+    async def test_csv_artifact_type_flows_to_frontend_event(self) -> None:
+        """CSV 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
+        from app.core.artifacts import ArtifactProcessor
+
+        processor = ArtifactProcessor(chat_id="test_csv", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"name,age,city\nAlice,30,NYC\nBob,25,LA"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "data.csv", "path": "/workspace/data.csv", "type": "document"}],
+            "read_content": mock_read,
+            "message_id": "msg_csv",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "csv_file_id"
+
+        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert artifact["filename"] == "data.csv"
+        assert artifact["type"] == "spreadsheet"
+
+    @pytest.mark.asyncio
+    async def test_tsv_artifact_type_flows_to_frontend_event(self) -> None:
+        """TSV 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
+        from app.core.artifacts import ArtifactProcessor
+
+        processor = ArtifactProcessor(chat_id="test_tsv", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"name\tage\tcity\nAlice\t30\tNYC"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "data.tsv", "path": "/workspace/data.tsv", "type": "document"}],
+            "read_content": mock_read,
+            "message_id": "msg_tsv",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "tsv_file_id"
+
+        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert artifact["type"] == "spreadsheet"
+
+    @pytest.mark.asyncio
+    async def test_xlsx_artifact_type_flows_to_frontend_event(self) -> None:
+        """XLSX 文件经过 ArtifactProcessor 后，前端收到 type=spreadsheet"""
+        from app.core.artifacts import ArtifactProcessor
+
+        processor = ArtifactProcessor(chat_id="test_xlsx", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"PK\x03\x04fake-xlsx-content"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "report.xlsx", "path": "/workspace/report.xlsx", "type": "binary"}],
+            "read_content": mock_read,
+            "message_id": "msg_xlsx",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "xlsx_file_id"
+
+        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as mock_save:
+            mock_save.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert artifact["type"] == "spreadsheet"
+        assert "preview_url" in artifact
+        assert "download_url" in artifact
+
+    @pytest.mark.asyncio
+    async def test_mixed_artifacts_types_correct(self) -> None:
+        """混合文件类型时，各自的 type 均正确"""
+        from app.core.artifacts import ArtifactProcessor
+
+        processor = ArtifactProcessor(chat_id="test_mix", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"content"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [
+                {"filename": "data.csv", "path": "/workspace/data.csv", "type": "document"},
+                {"filename": "script.py", "path": "/workspace/script.py", "type": "code"},
+                {"filename": "image.png", "path": "/workspace/image.png", "type": "image"},
+            ],
+            "read_content": mock_read,
+            "message_id": "msg_mix",
+        }
+
+        file_counter = 0
+
+        async def mock_save(filename: str, content: bytes, content_type: str, source_chat_id: str) -> MagicMock:
+            nonlocal file_counter
+            file_counter += 1
+            mock_file = MagicMock()
+            mock_file.id = f"file_{file_counter}"
+            return mock_file
+
+        with patch("app.core.storage.service.FilesService.save_generated_file", new_callable=AsyncMock) as save_mock:
+            save_mock.side_effect = mock_save
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        data = result["data"]
+        assert len(data) == 3
+
+        types_by_name = {a["filename"]: a["type"] for a in data}
+        assert types_by_name["data.csv"] == "spreadsheet"
+        assert types_by_name["script.py"] == "code"
+        assert types_by_name["image.png"] == "image"
+
+
+class TestLocalSpreadsheetArtifactIntegration:
+    """本地模式下 spreadsheet artifact 全链路集成测试"""
+
+    @pytest.mark.asyncio
+    async def test_local_csv_artifact_type(self) -> None:
+        """本地模式下 CSV 文件也能正确推断为 spreadsheet"""
+        from app.core.artifacts import LocalArtifactProcessor
+
+        processor = LocalArtifactProcessor(chat_id="test_local_csv", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"id,name\n1,Alice"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "local.csv", "path": "/workspace/local.csv", "type": "document"}],
+            "read_content": mock_read,
+            "message_id": "msg_local_csv",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "local_csv_id"
+
+        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+            mock_save_ref.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert artifact["type"] == "spreadsheet"
+        assert artifact["filename"] == "local.csv"
+
+    @pytest.mark.asyncio
+    async def test_local_xls_artifact_type(self) -> None:
+        """本地模式下 .xls 文件正确推断为 spreadsheet"""
+        from app.core.artifacts import LocalArtifactProcessor
+
+        processor = LocalArtifactProcessor(chat_id="test_local_xls", api_prefix="/api/v1")
+
+        async def mock_read(path: str) -> bytes:
+            return b"\xd0\xcf\x11\xe0fake-xls"
+
+        event: dict[str, object] = {
+            "type": "artifacts_ready",
+            "data": [{"filename": "legacy.xls", "path": "/workspace/legacy.xls", "type": "binary"}],
+            "read_content": mock_read,
+            "message_id": "msg_local_xls",
+        }
+
+        mock_file = MagicMock()
+        mock_file.id = "local_xls_id"
+
+        with patch("app.core.storage.service.FilesService.save_file_reference", new_callable=AsyncMock) as mock_save_ref:
+            mock_save_ref.return_value = mock_file
+            result = await processor.process_artifacts_ready(event)
+
+        assert result is not None
+        artifact = result["data"][0]
+        assert artifact["type"] == "spreadsheet"
+
+
 class TestArtifactRegistry:
     """测试 ArtifactRegistry"""
 

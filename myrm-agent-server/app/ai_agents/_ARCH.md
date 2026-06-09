@@ -6,7 +6,7 @@
 ## 架构概述
 
 AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装业务 Agent。
-以 GeneralAgent 为核心，搜索能力通过 `prompt_mode="search"` 统一到 GeneralAgent 路径（已删除独立的 FastSearchAgent），走 SkillAgent 路径享有记忆和 PWA 断连恢复。共享的提示词和中间件由 `prompts/` 和 `agent_middlewares/` 提供。
+以 GeneralAgent 为核心，搜索能力通过 `prompt_mode="search"` 走 GeneralAgent 路径，享有 SkillAgent 记忆与 PWA 断连恢复。共享提示词与中间件由 `prompts/` 和 `agent_middlewares/` 提供。
 其中与“用户当前在解决什么任务”直接相关的语义推断保留在本层，
 例如 GeneralAgent 生成并注入 `compression_intent`，把聚焦文件、模块、用户目标和失败工具调用等信号
 交给 harness 执行通用上下文压缩。
@@ -60,7 +60,6 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 - `myrm_agent_harness/agent/`：Agent 基础实现
 - `app/core/`：安全、沙箱、存储等基础设施
-- `app/prompts/`（已废弃，提示词已移入 `prompts/`）
 
 ### 被依赖
 

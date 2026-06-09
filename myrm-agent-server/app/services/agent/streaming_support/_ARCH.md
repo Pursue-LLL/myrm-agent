@@ -1,6 +1,6 @@
 # streaming_support 模块架构
 
-Agent 流式传输辅助工具。从 API 层下沉至 services，供 orchestrator 与 reconnect 等模块复用。
+Agent 流式传输辅助工具层，供 orchestrator、reconnect 与 API 流式路由复用。
 
 ## 文件清单
 

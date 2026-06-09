@@ -42,11 +42,11 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 
 ### skill_optimization/
 
-**职责**：实现 `myrm-agent-harness/agent/skills/optimization/` 的 Storage Protocol
+**职责**：实现 PyPI `myrm_agent_harness.agent.skills.optimization` 的 Storage Protocol
 
 **框架 Protocol**：
 ```python
-# harness/agent/skills/optimization/protocols.py
+# myrm_agent_harness.agent.skills.optimization.protocols
 class SkillQualityDataSource(Protocol):
     async def get_quality_history(...) -> list[dict]: ...
     async def save_quality_score(...) -> None: ...
@@ -85,7 +85,7 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 
 ```
 ┌─────────────────────────────────────┐
-│ harness/agent/skills/optimization/  │ ← 框架层（Protocol 定义）
+│ myrm_agent_harness.agent.skills.optimization │ ← 框架层（Protocol 定义）
 │ - protocols.py (StorageProtocol)    │
 │ - in_memory_storage.py (默认实现)    │
 └─────────────────────────────────────┘
@@ -223,7 +223,7 @@ class RedisStore(BaseStore):
 ### 我们的对标
 
 ```python
-# harness/agent/skills/optimization/protocols.py
+# myrm_agent_harness.agent.skills.optimization.protocols
 class StorageProtocol(Protocol):
     """Abstract storage interface"""
     async def save(self, data): ...
@@ -239,6 +239,6 @@ class SQLAlchemyStorage:
 
 ## 文档导航
 
-- [harness/backends/skills/_ARCH.md](../../../myrm-agent-harness/src/myrm_agent_harness/backends/skills/_ARCH.md) — 技能系统后端架构
-- [harness/agent/skills/optimization/__init__.py](../../../myrm-agent-harness/src/myrm_agent_harness/agent/skills/optimization/__init__.py) — 技能优化系统架构
+- 框架层技能后端：`myrm_agent_harness.backends.skills`（PyPI `myrm-agent-harness`）
+- 框架层技能优化：`myrm_agent_harness.agent.skills.optimization`（PyPI `myrm-agent-harness`）
 - [server/ARCHITECTURE.md](../../ARCHITECTURE.md) — Server 总体架构

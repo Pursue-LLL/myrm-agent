@@ -2,8 +2,6 @@
 
 提供文件内容读取和 base64 转换功能。
 通过 FilesService + StorageProvider 统一存储访问。
-
-注：extract_file_id_from_url 已迁移到框架层（myrm_agent_harness.utils.files）
 """
 
 import base64

@@ -156,7 +156,7 @@
 - **API**：`app/api/security/router.py` — `/api/v1/security/dashboard`、`/setup-hints`、`/rate-limits`、`/audit/*`（与 Agent 工具策略 `allowlist`/`profiles` 等同包不同域，见 `app/api/security/_ARCH.md`）。
 - **合并逻辑**：`app/services/security/merged_dashboard.py` — sandbox 时 CP internal 告警 + 可选 GitHub PR/SBOM；`data_source=merged` 仅当 GitHub 补充有数据。
 - **用户仓库配置**：Omni-Config 键 `securityDashboardSettings.monitoredGithubRepos`（≤3），`dashboard_settings.py` 读取；零告警时仍可拉 Dependabot PR。
-- **SaaS ingest**：闭源 CP `security_webhook_routes.py`（GitHub webhook → `SecurityAggregator`）；Server 经 `cp_security_dashboard.py` 拉取，**不**在 OSS server 实现多租户。
+- **SaaS ingest**：Control Plane 接收 GitHub webhook 并聚合供应链告警；Server 经 `app/services/security/cp_security_dashboard.py` 拉取，**不**在 OSS server 实现多租户调度。
 - **前端**：`myrm-agent-frontend/src/app/security/page.tsx`；导航快捷入口 `NavBar` → `/security`。
 
 ### 0. 零开销本地模式 (Zero-Overhead Local Mode)

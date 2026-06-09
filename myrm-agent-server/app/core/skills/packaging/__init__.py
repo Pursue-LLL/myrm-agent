@@ -1,7 +1,6 @@
 """Packaging - 技能打包/解包
 
-提供技能的 ZIP 打包、验证和解包注册功能。
-此模块为业务层包装器，底层实现已迁移至 myrm_agent_harness 框架层。
+Server 层 Facade：技能的 ZIP 打包、验证、解包注册与导出脱敏，底层由 myrm_agent_harness 实现。
 """
 
 import logging

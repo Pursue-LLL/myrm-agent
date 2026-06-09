@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Chrome MV3 扩展，作为 **Browser Extension Bridge** 客户端。通过 WebSocket 连接 `myrm-agent-server` 的 `api/extension/`，在授权域名上代理 CDP（`chrome.debugger`）操作，使 Agent 能复用用户真实登录会话。
+Chrome MV3 扩展，作为 **Browser Extension Bridge** 客户端。通过 WebSocket 连接 `myrm-agent-server` 的 `/api/v1/ws/extension`，在授权域名上代理 CDP（`chrome.debugger`）操作，使 Agent 能复用用户真实登录会话。
 
 详细服务端 API 见 [myrm-agent-server/app/api/extension/_ARCH.md](myrm-agent-server/app/api/extension/_ARCH.md)。
 
@@ -24,10 +24,11 @@ Chrome MV3 扩展，作为 **Browser Extension Bridge** 客户端。通过 WebSo
 
 ```bash
 # Chrome → Extensions → Developer mode → Load unpacked
-# 选择 myrm-agent/myrm-agent-extension/
+# Install path: ~/.myrm/myrm-agent/myrm-agent-extension
+# Monorepo dev: myrm-agent/myrm-agent-extension
 ```
 
-在 popup 中配置 server WebSocket URL 与 auth token（与 WebUI 扩展设置一致）。
+在 popup 中粘贴 WebUI Settings 复制的 WebSocket URL；若 `token_required` 为 true，填写与 server `EXTENSION_AUTH_TOKEN` 相同的 token。
 
 ## 约束
 

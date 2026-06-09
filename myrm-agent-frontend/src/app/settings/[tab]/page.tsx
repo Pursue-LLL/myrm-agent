@@ -123,7 +123,7 @@ export async function generateMetadata({ params }: PageProps) {
 async function Page({ params }: PageProps) {
   const { tab } = await params;
 
-  // 如果是已废弃的旧路由，直接执行服务端 308/307 永久重定向，不让其在客户端二次装载闪烁！
+  // DEPRECATED_TAB_MAP 别名路由：服务端永久重定向到新 tab，避免客户端二次装载闪烁
   if (tab && DEPRECATED_TAB_MAP[tab]) {
     const mapping = DEPRECATED_TAB_MAP[tab];
     redirect(`/settings/${mapping.parent}${mapping.sub ? `?sub=${mapping.sub}` : ''}`);

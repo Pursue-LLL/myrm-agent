@@ -16,7 +16,7 @@
 | `skill*.ts` / `skills-*.ts` | 技能 CRUD、进化、打包 |
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
 | `memory*.ts` | 记忆、Shared Context |
-| `kanban*.ts` | 看板任务 |
+| `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |
 | `deploy*.ts` / `artifact*.ts` | 工件与部署 |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |
 | `*-api.ts` | 零散 REST 封装 |
