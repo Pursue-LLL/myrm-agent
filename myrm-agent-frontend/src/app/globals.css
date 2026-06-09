@@ -56,6 +56,7 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-rotate-step: rotate-step 1.5s ease-in-out infinite;
+  --animate-node-pulse: node-pulse 2s ease-in-out infinite;
 }
 
 /* PWA safe-area: iPhone 全面屏 standalone 模式下防止内容被圆角/Home Indicator 遮挡 */
@@ -734,6 +735,28 @@ a[href] {
 @media (max-width: 1023px) {
   .main-content-area {
     padding-left: 0 !important;
+  }
+}
+
+/* DAG 节点状态动画 — running 节点微妙 box-shadow 脉冲 */
+@keyframes node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+
+  50% {
+    box-shadow: 0 0 8px 2px color-mix(in srgb, var(--chart-4) 35%, transparent);
+  }
+}
+
+.animate-node-pulse {
+  animation: node-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-node-pulse {
+    animation: none;
   }
 }
 

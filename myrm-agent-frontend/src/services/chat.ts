@@ -399,6 +399,7 @@ interface AgentConfigPayload {
   skill_ids: string[];
   enabled_builtin_tools: string[];
   browser_engine?: string;
+  browser_source?: string;
 }
 
 export interface StreamRequestBody {

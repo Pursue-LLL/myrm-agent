@@ -24,7 +24,7 @@ import {
   type SessionResetMode,
   type ToolGatewayConfigDTO,
 } from '@/services/agent';
-import { Loader2, Upload, Users } from 'lucide-react';
+import { AlertCircle, Loader2, Upload, Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils';
@@ -68,6 +68,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [browserEngine, setBrowserEngine] = useState<string>('chromium_patchright');
+  const [browserSource, setBrowserSource] = useState<string>('auto');
 
   const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () =>
     getAgent(agentId!, true),
@@ -117,6 +118,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
           setToolGatewayConfig({ use_gateway: false });
         }
         setBrowserEngine(agent.browser_engine || 'chromium_patchright');
+        setBrowserSource(agent.browser_source || 'auto');
       } else if (!agentId) {
         reset({
           name: '',
@@ -145,6 +147,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         session_policy: sessionPolicyEnabled ? sessionPolicy : null,
         tool_gateway_config: toolGatewayConfig,
         browser_engine: browserEngine,
+        browser_source: browserSource === 'auto' ? null : browserSource,
       };
       if (agentId) {
         await updateAgent(agentId, payload);
@@ -396,6 +399,49 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label className="text-sm font-medium">
+                    {t('form.browserSource', { fallback: 'Browser Source' })}
+                  </Label>
+                  <Select value={browserSource} onValueChange={setBrowserSource}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.browserSourceAuto', { fallback: 'Auto (System Default)' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.browserSourceAutoDesc', { fallback: 'Automatically detect the best browser source.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="extension">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.browserSourceExtension', { fallback: 'Browser Extension' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.browserSourceExtensionDesc', { fallback: 'Use your real browser via extension bridge. Preserves your login sessions.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="launch">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.browserSourceLaunch', { fallback: 'Launch New Browser' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.browserSourceLaunchDesc', { fallback: 'Launch a fresh isolated browser instance.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {browserSource === 'extension' && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('form.browserSourceExtensionWarning', { fallback: 'Requires Browser Extension to be connected. The agent will operate in your real browser.' })}
+                    </p>
+                  )}
                 </div>
               </div>
 

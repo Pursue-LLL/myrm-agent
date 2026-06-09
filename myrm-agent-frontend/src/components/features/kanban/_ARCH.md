@@ -14,7 +14,7 @@
 | KanbanTaskDrawer.tsx         | 辅助 | 任务详情抽屉面板                                                                 | ✅    |
 | KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI                                                              | ✅    |
 | KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
-| KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化                                                              | ✅    |
+| KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |
 | KanbanPipelineWizard.tsx     | 辅助 | 流水线模板创建向导                                                               | ✅    |
 | KanbanDecomposeDialog.tsx    | 辅助 | AI 任务分解对话框                                                                | ✅    |
 | KanbanSpecifyDialog.tsx      | 辅助 | 任务规范化对话框                                                                 | ✅    |

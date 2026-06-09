@@ -15,6 +15,7 @@ Browser Extension Bridge service. Manages WebSocket connection from the official
 - **Playwright singleton**: `_ensure_playwright()` caches a single Playwright instance across all CDP connections, stopping it only on `disconnect()`. Avoids memory leaks from spawning a new process per connection.
 - **Wildcard domain matching**: `_match_domain()` uses `fnmatch` for `*.example.com` patterns. Both `connect_to_domain()` and `list_tabs()` route through this method.
 - **Auth token**: Validated against `settings.extension_auth_token` (SecretStr) in the WS endpoint.
+- **Pool injection**: The singleton instance is injected into `GlobalBrowserPool` during warmup (`lifecycle/browser.py`), enabling agents with `browser_source=extension` to acquire pages through the user's real browser.
 
 ## Key Dependencies
 

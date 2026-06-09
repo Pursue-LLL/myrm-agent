@@ -19,6 +19,7 @@ import {
   FileText,
   Wrench,
   Globe,
+  Cable,
   Monitor,
   Image,
   Video,
@@ -95,6 +96,7 @@ interface AgentConfigEditDialogProps {
   autoRestoreDomains?: string[];
   enabledBuiltinTools: BuiltinToolId[];
   browserEngine?: string;
+  browserSource?: string;
   ephemeralSubagents?: Record<string, unknown>;
   // System Prompt控制
   isSystemPromptHidden?: boolean;
@@ -111,6 +113,7 @@ interface AgentConfigEditDialogProps {
     useGlobalInstruction?: boolean;
     enabledBuiltinTools?: BuiltinToolId[];
     browserEngine?: string;
+    browserSource?: string;
     autoRestoreDomains?: string[];
     ephemeralSubagents?: Record<string, unknown>;
     personalityStyle?: string;
@@ -138,6 +141,7 @@ const AgentConfigEditDialog = ({
   autoRestoreDomains: initialAutoRestoreDomains = EMPTY_AUTO_RESTORE_DOMAINS,
   enabledBuiltinTools: initialBuiltinTools,
   browserEngine: initialBrowserEngine,
+  browserSource: initialBrowserSource,
   ephemeralSubagents: initialEphemeralSubagents = {},
   isSystemPromptHidden = false,
   loadingSystemPrompt = false,
@@ -163,6 +167,7 @@ const AgentConfigEditDialog = ({
   const [localAutoRestoreDomains, setLocalAutoRestoreDomains] = useState<string[]>(initialAutoRestoreDomains || []);
   const [localBuiltinTools, setLocalBuiltinTools] = useState<BuiltinToolId[]>(initialBuiltinTools || []);
   const [localBrowserEngine, setLocalBrowserEngine] = useState<string | undefined>(initialBrowserEngine);
+  const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
   const [localEphemeralSubagents, setLocalEphemeralSubagents] = useState<Record<string, EphemeralSubagentConfig>>(
     initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>,
   );
@@ -192,6 +197,7 @@ const AgentConfigEditDialog = ({
       setLocalAutoRestoreDomains(initialAutoRestoreDomains || []);
       setLocalBuiltinTools(initialBuiltinTools || []);
       setLocalBrowserEngine(initialBrowserEngine);
+      setLocalBrowserSource(initialBrowserSource);
       setLocalEphemeralSubagents(initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>);
       setSearchQuery('');
       setIsAddingSubagent(false);
@@ -411,7 +417,12 @@ const AgentConfigEditDialog = ({
         onSave({ systemPrompt: localPrompt, useGlobalInstruction: localUseGlobalInstruction });
         break;
       case 'builtin_tools':
-        onSave({ enabledBuiltinTools: localBuiltinTools, autoRestoreDomains: localAutoRestoreDomains });
+        onSave({
+          enabledBuiltinTools: localBuiltinTools,
+          autoRestoreDomains: localAutoRestoreDomains,
+          browserEngine: localBrowserEngine,
+          browserSource: localBrowserSource,
+        });
         break;
       case 'subagents':
         onSave({ ephemeralSubagents: localEphemeralSubagents });
@@ -1104,6 +1115,59 @@ const AgentConfigEditDialog = ({
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                {/* Browser Source (Launch Mode) */}
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Cable size={14} className="text-green-500" />
+                    {t('browserSource.label')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('browserSource.description')}
+                  </p>
+                  <Select
+                    value={localBrowserSource || 'auto'}
+                    onValueChange={(value) =>
+                      setLocalBrowserSource(value === 'auto' ? undefined : value)
+                    }
+                  >
+                    <SelectTrigger className="w-full bg-background">
+                      <SelectValue placeholder={t('browserSource.placeholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('browserSource.options.auto')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('browserSource.options.autoDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="extension">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('browserSource.options.extension')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('browserSource.options.extensionDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="launch">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('browserSource.options.launch')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('browserSource.options.launchDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {localBrowserSource === 'extension' && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('browserSource.extensionWarning')}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

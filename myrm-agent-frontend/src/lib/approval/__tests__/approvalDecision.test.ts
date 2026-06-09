@@ -52,4 +52,21 @@ describe('buildApprovalDecision', () => {
       extensions: { allowAlways: true },
     });
   });
+
+  it('includes guidance when provided', () => {
+    const result = buildApprovalDecision('approve', {
+      guidance: 'Use production API',
+    });
+    expect(result.guidance).toBe('Use production API');
+  });
+
+  it('omits guidance when empty', () => {
+    const result = buildApprovalDecision('approve', { guidance: '' });
+    expect(result.guidance).toBeUndefined();
+  });
+
+  it('omits guidance when not provided', () => {
+    const result = buildApprovalDecision('approve');
+    expect(result.guidance).toBeUndefined();
+  });
 });

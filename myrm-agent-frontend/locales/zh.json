@@ -4462,6 +4462,20 @@
         "staleSkillsNotice": "管家提醒：发现 {count} 个沉睡技能，正在拖累您的准确度！",
         "smartPrune": "一键净化释放动作空间"
       },
+      "browserSource": {
+        "label": "浏览器来源",
+        "description": "选择该智能体执行网页任务时如何获取浏览器实例。",
+        "placeholder": "选择浏览器来源",
+        "options": {
+          "auto": "自动（系统默认）",
+          "autoDesc": "自动检测并使用最佳可用来源。",
+          "extension": "浏览器扩展",
+          "extensionDesc": "使用你的真实浏览器（通过扩展桥接），保留已有登录状态。",
+          "launch": "启动新浏览器",
+          "launchDesc": "每次启动全新的隔离浏览器实例。"
+        },
+        "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。"
+      },
       "mcpTools": {
         "toolFilter": "工具筛选",
         "loading": "加载工具中...",
@@ -9287,6 +9301,12 @@
     },
     "allowAlwaysAfterEdit": "同时标记为始终允许",
     "editValidationError": "参数格式错误：{fields}",
+    "guidance": {
+      "toggle": "附加引导指令",
+      "placeholder": "为智能体提供额外的上下文或指令（例如：\u201c使用生产环境 API，不要用测试环境\u201d、\u201c这次跳过错误检查\u201d）...",
+      "hint": "此引导将在智能体恢复执行时作为上下文注入。",
+      "hasGuidance": "已附加引导"
+    },
     "allowAlwaysConfirm": {
       "title": "确认始终允许？",
       "description": "这将自动批准未来符合条件的操作，无需再次审批。",

@@ -282,6 +282,7 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
           useGlobalInstruction={agentConfig?.useGlobalInstruction ?? true}
           enabledBuiltinTools={currentBuiltinTools}
           browserEngine={agentConfig?.browserEngine}
+          browserSource={agentConfig?.browserSource}
           autoRestoreDomains={agentConfig?.autoRestoreDomains ?? EMPTY_AUTO_RESTORE_DOMAINS}
           ephemeralSubagents={agentConfig?.ephemeralSubagents || {}}
           onSave={handleSaveConfig}

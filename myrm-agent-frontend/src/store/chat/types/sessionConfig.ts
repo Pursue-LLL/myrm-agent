@@ -50,6 +50,7 @@ export interface AgentConfig {
   forceDelegateAgent?: string;
   enabledBuiltinTools?: BuiltinToolId[];
   browserEngine?: string;
+  browserSource?: string;
   suggestionPrompts?: string[];
   ephemeralSubagents?: Record<string, unknown>;
   taskAdaptiveDigest?: Record<string, unknown>;

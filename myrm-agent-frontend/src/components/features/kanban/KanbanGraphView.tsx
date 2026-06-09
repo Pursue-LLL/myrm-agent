@@ -68,6 +68,8 @@ function TaskNode({ data }: NodeProps<Node<TaskNodeData>>) {
           'transition-shadow hover:shadow-md',
           colors.bg,
           colors.border,
+          task.status === 'running' && 'animate-node-pulse',
+          task.status === 'failed' && 'animate-shake',
         )}
         onClick={() => onSelect?.(task.task_id)}
       >

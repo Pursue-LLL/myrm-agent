@@ -4462,6 +4462,20 @@
         "staleSkillsNotice": "Reminder: {count} dormant skill(s) are hurting accuracy.",
         "smartPrune": "Prune dormant skills to free action space"
       },
+      "browserSource": {
+        "label": "Browser Source",
+        "description": "Choose how this agent acquires browser instances for web tasks.",
+        "placeholder": "Select browser source",
+        "options": {
+          "auto": "Auto (System Default)",
+          "autoDesc": "Automatically detects and uses the best available source.",
+          "extension": "Browser Extension",
+          "extensionDesc": "Uses your real browser via the extension bridge. Preserves login sessions.",
+          "launch": "Launch New Browser",
+          "launchDesc": "Launches a fresh isolated browser instance every time."
+        },
+        "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser."
+      },
       "mcpTools": {
         "toolFilter": "Tool filter",
         "loading": "Loading tools...",
