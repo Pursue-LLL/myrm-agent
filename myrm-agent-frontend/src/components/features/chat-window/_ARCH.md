@@ -68,8 +68,8 @@
 | `approval/VisualApprovalHighlight.tsx` | UI | 红框 overlay | ✅ |
 | `VisualApprovalOsOverlaySync.tsx` | UI | Tauri OS overlay 同步 | ✅ |
 | `VisualApprovalAttentionBar.tsx` | UI | 滚动区外 pending 可达条 | ✅ |
-| `approval/ShellCommandDisplay.tsx` | UI | shell 命令终端展示 + pipeline span 高亮 | ✅ |
-| `SingleApprovalCard.tsx` | UI | 主 Agent 单条/批量审批卡片 | ✅ |
+| `approval/ShellCommandDisplay.tsx` | UI | shell 命令终端展示 + span 高亮 + unknown 段 risk reason tooltip | ✅ |
+| `SingleApprovalCard.tsx` | UI | 主 Agent 单条/批量审批（shell edit 经 mergeShellEditedArgs） | ✅ |
 | `ToolApprovalDialog.tsx` | UI | modal 非 visual 审批 | ✅ |
 | `MobileStatusBoard.tsx` | UI | 移动端审批面板 | ✅ |
 

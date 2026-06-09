@@ -28,6 +28,7 @@ import {
   XCircle,
   Brain,
   Database,
+  Cable,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 
@@ -81,6 +82,7 @@ export type SettingsTab =
   | 'memory-migration'
   | 'integrationCatalog'
   | 'integrationMemory'
+  | 'extensionBridge'
   | 'workspaceRules'
   | 'system'
   | 'about';
@@ -119,6 +121,7 @@ const menuItems: MenuItem[] = [
   // 通信与集成
   { id: 'integrationCatalog', icon: Plug, labelKey: 'integrationCatalog', group: 'integration' },
   { id: 'integrationMemory', icon: Database, labelKey: 'integrationMemory', group: 'integration' },
+  { id: 'extensionBridge', icon: Cable, labelKey: 'extensionBridge', group: 'integration' },
   { id: 'channels', icon: Radio, labelKey: 'channels', group: 'integration', tauriOnly: true },
   { id: 'openaiApi', icon: KeyRound, labelKey: 'openaiApi', group: 'integration' },
 

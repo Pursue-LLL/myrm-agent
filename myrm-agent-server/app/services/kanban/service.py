@@ -545,6 +545,20 @@ class KanbanService:
         )
         return saved
 
+    async def cancel_task_execution(self, task_id: str) -> bool:
+        """Cancel the asyncio execution of a task without modifying its state.
+
+        Used by cancel_background after move_task(FAILED) to immediately stop
+        the running coroutine. Returns True if execution was cancelled.
+        """
+        task = await self._store.get_task(task_id)
+        if task is None:
+            return False
+        dispatcher = self._dispatchers.get(task.board_id)
+        if dispatcher:
+            return await dispatcher.cancel_execution(task_id)
+        return False
+
     async def reclaim_task(
         self,
         task_id: str,

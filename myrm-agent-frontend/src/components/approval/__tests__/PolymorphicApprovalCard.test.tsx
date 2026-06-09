@@ -82,4 +82,65 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.getByText('dummy_native_tool')).toBeInTheDocument();
     expect(screen.getByText(/"query": "hello_world"/)).toBeInTheDocument();
   });
+
+  it('shows edit action for single shell subagent approval', () => {
+    renderCard({
+      approval_id: 'approval-edit',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [{ name: 'bash_code_execute_tool', args: { command: 'ls' } }],
+      },
+    });
+
+    expect(screen.getByRole('button', { name: /toolApproval\.edit/ })).toBeInTheDocument();
+  });
+
+  it('does not show edit for multi-tool subagent batch', () => {
+    renderCard({
+      approval_id: 'approval-no-edit',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [
+          { name: 'bash_code_execute_tool', args: { command: 'ls' } },
+          { name: 'bash_code_execute_tool', args: { command: 'pwd' } },
+        ],
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: /toolApproval\.edit/ })).not.toBeInTheDocument();
+  });
+
+  it('shows allow always action for subagent approvals', () => {
+    renderCard({
+      approval_id: 'approval-4',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [{ name: 'bash_code_execute_tool', args: { command: 'ls' } }],
+      },
+    });
+
+    expect(screen.getByRole('button', { name: 'toolApproval.allowAlways' })).toBeInTheDocument();
+  });
+
+  it('does not show allow always for non-subagent approvals', () => {
+    renderCard({
+      approval_id: 'approval-5',
+      user_id: 'user-1',
+      action_type: 'skill_draft',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: { content: '# draft' },
+    });
+
+    expect(screen.queryByRole('button', { name: 'toolApproval.allowAlways' })).not.toBeInTheDocument();
+  });
 });

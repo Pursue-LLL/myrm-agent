@@ -1,7 +1,7 @@
 """Tests for LLM speed test endpoint.
 
 Tests cover:
-- POST /api/v1/llm/speed-test (real streaming TTFT+TPS measurement)
+- POST /api/v1/integrations/llm/speed-test (real streaming TTFT+TPS measurement)
 - Error handling (invalid credentials)
 - Timeout protection behavior
 - Response schema validation
@@ -35,7 +35,7 @@ class TestSpeedTestSchema:
 
     def test_empty_models_list(self, client: TestClient) -> None:
         """Empty models list should return empty results."""
-        response = client.post("/api/v1/llm/speed-test", json={"models": []})
+        response = client.post("/api/v1/integrations/llm/speed-test", json={"models": []})
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -44,14 +44,14 @@ class TestSpeedTestSchema:
     def test_missing_required_fields(self, client: TestClient) -> None:
         """Missing model name should return 422."""
         response = client.post(
-            "/api/v1/llm/speed-test",
+            "/api/v1/integrations/llm/speed-test",
             json={"models": [{"api_key": "fake"}]},
         )
         assert response.status_code == 422
 
     def test_invalid_body(self, client: TestClient) -> None:
         """Invalid request body should return 422."""
-        response = client.post("/api/v1/llm/speed-test", json={"invalid": True})
+        response = client.post("/api/v1/integrations/llm/speed-test", json={"invalid": True})
         assert response.status_code == 422
 
 
@@ -61,7 +61,7 @@ class TestSpeedTestErrorHandling:
     def test_invalid_api_key(self, client: TestClient) -> None:
         """Invalid API key should return status=error with error message."""
         response = client.post(
-            "/api/v1/llm/speed-test",
+            "/api/v1/integrations/llm/speed-test",
             json={
                 "models": [
                     {
@@ -99,7 +99,7 @@ class TestSpeedTestE2E:
 
         model = normalize_env_model_selection_string(secrets.basic_model)
         response = client.post(
-            "/api/v1/llm/speed-test",
+            "/api/v1/integrations/llm/speed-test",
             json={
                 "models": [
                     {
@@ -164,7 +164,7 @@ class TestSpeedTestE2E:
             )
 
         response = client.post(
-            "/api/v1/llm/speed-test",
+            "/api/v1/integrations/llm/speed-test",
             json={"models": models_config},
         )
         assert response.status_code == 200
@@ -192,7 +192,7 @@ class TestSpeedTestE2E:
 
         model = normalize_env_model_selection_string(secrets.basic_model)
         response = client.post(
-            "/api/v1/llm/speed-test",
+            "/api/v1/integrations/llm/speed-test",
             json={
                 "models": [
                     {

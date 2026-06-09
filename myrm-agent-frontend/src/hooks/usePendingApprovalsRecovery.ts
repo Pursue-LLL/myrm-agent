@@ -35,9 +35,11 @@ async function fetchPendingApprovals(): Promise<ApprovalPayload[]> {
 
 /**
  * Recover pending approvals from the server and enqueue them into the global
- * approval store. Deduplicates against in-memory queue (handled by openApproval)
- * and debounces repeated calls within DEBOUNCE_WINDOW_MS to avoid request storms
- * during SSE exponential reconnect.
+ * approval store. The server excludes background growth drafts (see
+ * ApprovalRegistry.list_pending); this hook only receives inline HITL items.
+ * Deduplicates against in-memory queue (handled by openApproval) and debounces
+ * repeated calls within DEBOUNCE_WINDOW_MS to avoid request storms during SSE
+ * exponential reconnect.
  *
  * Returns the number of recovered approvals (after dedup with current queue).
  */

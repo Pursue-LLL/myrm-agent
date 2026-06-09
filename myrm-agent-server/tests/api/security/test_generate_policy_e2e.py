@@ -15,6 +15,8 @@ from app.main import app
 
 load_dotenv(override=False)
 
+pytestmark = pytest.mark.e2e
+
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from tests.api.agent.utils import get_model_selection
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_file_diff_stream_e2e(app) -> None:
     """

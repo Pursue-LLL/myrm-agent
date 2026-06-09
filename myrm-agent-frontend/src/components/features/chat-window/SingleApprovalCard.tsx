@@ -17,13 +17,18 @@ import AllowAlwaysConfirmDialog from './approval/AllowAlwaysConfirmDialog';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import { resolveVisualApprovalContextForRequest } from '@/lib/approval/visualApprovalContext';
-import { extractShellCommand, isShellApprovalTool } from '@/lib/approval/shellCommandDisplay';
+import {
+  extractShellCommand,
+  getShellEditInputEntries,
+  isShellApprovalTool,
+  mergeShellEditedArgs,
+} from '@/lib/approval/shellCommandDisplay';
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import ShellCommandDisplay from './approval/ShellCommandDisplay';
+import { type AllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
-type AllowAlwaysScope = 'permission' | 'tool' | 'exact';
 
 interface SingleApprovalCardProps {
   request: ToolApprovalRequest;
@@ -68,7 +73,12 @@ export default function SingleApprovalCard({
     [browserViewData, desktopViewData, request],
   );
 
-  const inputEntries = useMemo(() => Object.entries(request.toolInput).slice(0, 8), [request.toolInput]);
+  const inputEntries = useMemo(() => {
+    if (isShellApprovalTool(request.toolName)) {
+      return getShellEditInputEntries(request.toolInput);
+    }
+    return Object.entries(request.toolInput).slice(0, 8);
+  }, [request.toolInput, request.toolName]);
 
   const isSingleStringParam = inputEntries.length === 1 && typeof inputEntries[0][1] === 'string';
 
@@ -186,13 +196,9 @@ export default function SingleApprovalCard({
 
   const handleConfirmAlwaysAllow = useCallback(async () => {
     setShowAlwaysAllowConfirm(false);
-    const allowAlwaysValue =
-      allowAlwaysScope === 'permission'
-        ? true
-        : allowAlwaysScope === 'exact'
-          ? { tool: true, args: true }
-          : { tool: true };
-    await onResolve(request.requestId, 'approve', { allow_always: allowAlwaysValue });
+    await onResolve(request.requestId, 'approve', {
+      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope),
+    });
   }, [allowAlwaysScope, request.requestId, onResolve]);
 
   const handleConfirmEdit = useCallback(async () => {
@@ -221,11 +227,7 @@ export default function SingleApprovalCard({
 
     const allowAlwaysValue = !allowAlwaysInEdit
       ? false
-      : allowAlwaysScopeInEdit === 'permission'
-        ? true
-        : allowAlwaysScopeInEdit === 'exact'
-          ? { tool: true, args: true }
-          : { tool: true };
+      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
 
     const hasChanges = inputEntries.some(([key, original]) => {
       const editedVal = editedArgs[key];
@@ -234,8 +236,11 @@ export default function SingleApprovalCard({
     });
 
     if (hasChanges) {
+      const editedArgsPayload = shellCommand
+        ? mergeShellEditedArgs(request.toolInput, parsed)
+        : parsed;
       await onResolve(request.requestId, 'edit', {
-        edited_args: parsed,
+        edited_args: editedArgsPayload,
         allow_always: allowAlwaysValue,
       });
     } else {
@@ -245,7 +250,17 @@ export default function SingleApprovalCard({
     }
     setAllowAlwaysInEdit(false);
     setAllowAlwaysScopeInEdit('tool');
-  }, [editedArgs, inputEntries, allowAlwaysInEdit, allowAlwaysScopeInEdit, request.requestId, onResolve, t]);
+  }, [
+    editedArgs,
+    inputEntries,
+    allowAlwaysInEdit,
+    allowAlwaysScopeInEdit,
+    request.requestId,
+    request.toolInput,
+    shellCommand,
+    onResolve,
+    t,
+  ]);
 
   const handleConfirmReject = useCallback(
     async () => await onResolve(request.requestId, 'reject', { feedback: feedback || undefined }),
@@ -372,6 +387,7 @@ export default function SingleApprovalCard({
               command={shellCommand}
               commandSpans={request.commandSpans}
               commandSpanRisks={request.commandSpanRisks}
+              commandSpanReasons={request.commandSpanReasons}
               workspaceRoot={request.workspaceRoot}
             />
           ) : (

@@ -1,4 +1,4 @@
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
@@ -9,8 +9,9 @@ from app.main import app
 
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
-    with TestClient(app) as test_client:
-        yield test_client
+    with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
+        with TestClient(app) as test_client:
+            yield test_client
 
 
 def test_eval_router_coverage(client: TestClient):

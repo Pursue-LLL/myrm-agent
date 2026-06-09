@@ -15,8 +15,7 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-
-type AllowAlwaysScope = 'permission' | 'tool' | 'exact';
+import type { AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
 
 interface AllowAlwaysConfirmDialogProps {
   open: boolean;

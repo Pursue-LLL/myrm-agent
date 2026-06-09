@@ -210,3 +210,10 @@ if is_local_mode():
     from app.api.events import router as events_router
 
     api_router.include_router(events_router, tags=["events"])
+
+# Browser Extension Bridge
+from app.api.extension import router as extension_router
+from app.api.extension import ws_router as extension_ws_router
+
+api_router.include_router(extension_router, tags=["extension"])
+api_router.include_router(extension_ws_router, prefix="/ws", tags=["extension"])

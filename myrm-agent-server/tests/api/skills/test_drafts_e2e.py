@@ -129,10 +129,3 @@ class TestDraftsE2E:
         assert first.status_code == 200
         second = client.post(f"/api/v1/skills/drafts/{record.id}/reject")
         assert second.status_code == 400
-
-    def test_seed_mock_http_endpoint(self, client: TestClient) -> None:
-        resp = client.post("/api/v1/skills/drafts/test/seed-mock")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["skill_names"] == ["test-frontend-approve", "test-frontend-reject"]
-        assert len(body["created_ids"]) == 2

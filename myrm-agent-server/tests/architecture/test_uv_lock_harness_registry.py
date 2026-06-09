@@ -21,7 +21,7 @@ def _pypi_package_exists(package: str, version: str) -> bool:
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             return response.status == 200
-    except urllib.error.HTTPError:
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
         return False
 
 

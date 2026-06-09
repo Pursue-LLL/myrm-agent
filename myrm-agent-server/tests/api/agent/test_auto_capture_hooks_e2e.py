@@ -1,11 +1,15 @@
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import (
+    check_e2e_errors,
     get_model_selection,
 )
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_auto_capture_user_edict(client: TestClient):
     """Test that user edicts are automatically captured and put into pending state."""
@@ -24,10 +28,20 @@ async def test_auto_capture_user_edict(client: TestClient):
         "enableMemoryAutoExtraction": False,
     }
 
+    collected_events: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data) as response:
         assert response.status_code == 200
-        for _line in response.iter_lines():
-            pass
+        for line in response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+            try:
+                event = json.loads(line[6:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(event, dict):
+                collected_events.append(event)
+
+    check_e2e_errors(collected_events)
 
     # Check pending memories
     pending_response = client.get("/api/v1/memory/pending")

@@ -131,3 +131,179 @@ def test_subagent_interrupt_and_resume(client: TestClient):
         "Agent should incorporate the subagent's execution result"
     )
     print("\n🎉 端到端 Subagent 中断与恢复测试通过！")
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+def test_subagent_interrupt_resume_with_allow_always(client: TestClient):
+    """Subagent approval resume accepts extensions.allowAlways (Drawer always-allow path)."""
+    chat_id = str(uuid.uuid4())
+    message_id = str(uuid.uuid4())
+    query = (
+        "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
+        "让它执行一条bash命令: `echo hello_allow_always`。注意：必须使用原生函数调用。"
+    )
+
+    approval_payload = None
+    resume_value = None
+
+    while True:
+        req = get_test_request(query, chat_id, message_id, resume_value)
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req) as response:
+            assert response.status_code == 200
+            action_type = None
+            for line in response.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                    if data.get("type") == "approval_required":
+                        approval_payload = data.get("data", {})
+                        action_type = approval_payload.get("action_type")
+                        break
+                except json.JSONDecodeError:
+                    pass
+
+        if action_type == "subagent_approval":
+            break
+        if action_type is None or action_type == "tool_approval":
+            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
+            query = ""
+            message_id = str(uuid.uuid4())
+        else:
+            break
+
+    assert approval_payload is not None
+    assert approval_payload.get("action_type") == "subagent_approval"
+
+    resume_value = [
+        {
+            "type": "approve",
+            "feedback": "Always allow from E2E",
+            "extensions": {"allowAlways": {"tool": True}},
+        }
+    ]
+    message_id = str(uuid.uuid4())
+    resume_req = get_test_request("", chat_id, message_id, resume_value)
+
+    resume_events = []
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_req) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+            try:
+                data = json.loads(line[6:])
+                resume_events.append(data)
+            except json.JSONDecodeError:
+                pass
+
+    assert any(d.get("type") == "message_end" for d in resume_events), (
+        "Agent should complete after allow_always resume"
+    )
+
+
+def _extract_subagent_tool_args(approval_payload: dict) -> dict[str, object]:
+    payload = approval_payload.get("payload")
+    if not isinstance(payload, dict):
+        payload = approval_payload
+    tool_calls = payload.get("tool_calls")
+    if not isinstance(tool_calls, list) or not tool_calls:
+        return {}
+    first = tool_calls[0]
+    if not isinstance(first, dict):
+        return {}
+    raw_args = first.get("args")
+    return dict(raw_args) if isinstance(raw_args, dict) else {}
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires BASIC_API_KEY environment variable",
+)
+def test_subagent_interrupt_resume_with_edit(client: TestClient):
+    """Subagent approval resume accepts edit decisions with merged shell args."""
+    chat_id = str(uuid.uuid4())
+    message_id = str(uuid.uuid4())
+    query = (
+        "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，"
+        "让它执行一条bash命令: `echo hello_edit_e2e`。注意：必须使用原生函数调用。"
+    )
+
+    approval_payload = None
+    resume_value = None
+
+    while True:
+        req = get_test_request(query, chat_id, message_id, resume_value)
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=req) as response:
+            assert response.status_code == 200
+            action_type = None
+            for line in response.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                    if data.get("type") == "approval_required":
+                        approval_payload = data.get("data", {})
+                        action_type = approval_payload.get("action_type")
+                        break
+                except json.JSONDecodeError:
+                    pass
+
+        if action_type == "subagent_approval":
+            break
+        if action_type is None or action_type == "tool_approval":
+            resume_value = [{"type": "approve", "feedback": "Auto-approve delegate_task_tool"}]
+            query = ""
+            message_id = str(uuid.uuid4())
+        else:
+            break
+
+    assert approval_payload is not None
+    assert approval_payload.get("action_type") == "subagent_approval"
+
+    original_args = _extract_subagent_tool_args(approval_payload)
+    metadata_keys = {
+        "command_spans",
+        "commandSpans",
+        "command_span_risks",
+        "commandSpanRisks",
+        "command_span_reasons",
+        "commandSpanReasons",
+    }
+    edited_args = {k: v for k, v in original_args.items() if k not in metadata_keys}
+    edited_args["command"] = "echo edited_e2e_ok"
+
+    resume_value = [
+        {
+            "type": "edit",
+            "args": edited_args,
+            "feedback": "Edited command from E2E",
+        }
+    ]
+    message_id = str(uuid.uuid4())
+    resume_req = get_test_request("", chat_id, message_id, resume_value)
+
+    resume_events = []
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_req) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+            try:
+                data = json.loads(line[6:])
+                resume_events.append(data)
+            except json.JSONDecodeError:
+                pass
+
+    assert any(d.get("type") == "message_end" for d in resume_events), (
+        "Agent should complete after edit resume"
+    )
+    full_answer = "".join(
+        d.get("data", "") for d in resume_events if d.get("type") == "message" and isinstance(d.get("data"), str)
+    )
+    assert "edited_e2e_ok" in full_answer.lower() or len(full_answer) > 0

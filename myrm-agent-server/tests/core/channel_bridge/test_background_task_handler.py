@@ -1,19 +1,17 @@
-"""Tests for ChannelBackgroundTaskHandler — unit tests for background task lifecycle.
+"""Tests for ChannelBackgroundTaskHandler — unit tests for Kanban-backed background task lifecycle.
 
-Tests cover spawn, cancel, list, steer, timeout, concurrent limits,
-memory cleanup, and event emission without hitting real agent execution.
+Tests cover spawn, cancel, list, steer, concurrent limits, and runtime token
+management against a mocked KanbanService.
 """
 
 from __future__ import annotations
 
-import asyncio
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.protocols.background_task import BackgroundTaskInfo
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.types import InboundMessage
 
 
 def _make_msg(
@@ -32,145 +30,173 @@ def _make_msg(
     )
 
 
+def _mock_kanban_task(
+    task_id: str = "abc123",
+    title: str = "test",
+    description: str = "test task",
+    status: str = "READY",
+    metadata: dict | None = None,
+):
+    """Create a mock KanbanTask object."""
+    from datetime import datetime, UTC
+
+    task = MagicMock()
+    task.task_id = task_id
+    task.board_id = "board_sys"
+    task.title = title
+    task.description = description
+    task.metadata = metadata or {"background_source": "btw", "user_id": "uid1", "chat_id": "chat1", "channel": "test"}
+    task.created_at = datetime(2026, 1, 1, tzinfo=UTC)
+    task.completed_at = None
+    task.max_runtime_seconds = None
+
+    from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+    task.status = getattr(TaskStatus, status, TaskStatus.READY)
+    return task
+
+
 @pytest.fixture
 def handler():
     """Create a fresh ChannelBackgroundTaskHandler."""
     from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
 
-    return ChannelBackgroundTaskHandler()
+    h = ChannelBackgroundTaskHandler()
+    h._system_board_id = "board_sys"
+    return h
+
+
+@pytest.fixture
+def mock_kanban_svc():
+    """Mock KanbanService for unit testing."""
+    svc = MagicMock()
+    svc.store = MagicMock()
+    svc.store.list_tasks = AsyncMock(return_value=[])
+    svc.store.get_task = AsyncMock(return_value=None)
+    svc.store.save_task = AsyncMock()
+    svc.store.list_events = AsyncMock(return_value=[])
+    svc.list_boards = AsyncMock(return_value=[])
+    svc.add_task = AsyncMock()
+    svc.move_task = AsyncMock()
+    svc.cancel_task_execution = AsyncMock(return_value=True)
+    return svc
 
 
 class TestSpawnBackground:
     """Tests for spawn_background."""
 
     @pytest.mark.asyncio
-    async def test_spawn_returns_task_id(self, handler) -> None:
+    async def test_spawn_returns_task_id(self, handler, mock_kanban_svc) -> None:
         msg = _make_msg()
 
-        with patch(
-            "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._execute_with_timeout",
-            new_callable=AsyncMock,
-            return_value="result",
-        ):
-            task_id = await handler.spawn_background(msg, "test task")
+        mock_task = _mock_kanban_task(task_id="newtask1")
+        mock_kanban_svc.add_task = AsyncMock(return_value=mock_task)
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[])
 
-        assert task_id.startswith("bg_")
-        assert len(task_id) == 11  # "bg_" + 8 hex chars
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            with patch.object(handler, "_count_running", new_callable=AsyncMock, return_value=0):
+                task_id = await handler.spawn_background(msg, "test task")
 
-    @pytest.mark.asyncio
-    async def test_spawn_registers_task(self, handler) -> None:
-        msg = _make_msg()
-
-        with patch(
-            "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._execute_with_timeout",
-            new_callable=AsyncMock,
-            return_value="result",
-        ):
-            task_id = await handler.spawn_background(msg, "test task")
-
-        assert task_id in handler._tasks
-        record = handler._tasks[task_id]
-        assert record.prompt == "test task"
-        assert record.channel == "test"
-        assert record.user_id == "uid1"
+        assert task_id == "newtask1"
 
     @pytest.mark.asyncio
-    async def test_spawn_concurrent_limit(self, handler) -> None:
+    async def test_spawn_concurrent_limit(self, handler, mock_kanban_svc) -> None:
         from app.core.channel_bridge.background_task_handler import MAX_CONCURRENT_TASKS
 
+        running_tasks = [_mock_kanban_task(task_id=f"run{i}", status="RUNNING") for i in range(MAX_CONCURRENT_TASKS)]
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=running_tasks)
+
         msg = _make_msg()
 
-        # Simulate MAX_CONCURRENT_TASKS running tasks
-        for i in range(MAX_CONCURRENT_TASKS):
-            from app.core.channel_bridge.background_task_handler import _RunningTask
-
-            handler._tasks[f"bg_fake{i:03d}"] = _RunningTask(
-                task_id=f"bg_fake{i:03d}",
-                prompt=f"task {i}",
-                channel="test",
-                chat_id="chat1",
-                user_id="uid1",
-                thread_id=None,
-                status="running",
-            )
-
-        with pytest.raises(RuntimeError, match="Maximum concurrent"):
-            await handler.spawn_background(msg, "one too many")
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            # Also need to make _count_running see proper KanbanService type
+            with patch.object(handler, "_count_running", new_callable=AsyncMock, return_value=MAX_CONCURRENT_TASKS):
+                with pytest.raises(RuntimeError, match="Maximum concurrent"):
+                    await handler.spawn_background(msg, "one too many")
 
     @pytest.mark.asyncio
-    async def test_spawn_calls_cleanup(self, handler) -> None:
-        msg = _make_msg()
+    async def test_spawn_sets_metadata(self, handler, mock_kanban_svc) -> None:
+        msg = _make_msg(channel="telegram", chat_id="tg_chat", user_id="tg_user")
 
-        with (
-            patch(
-                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._execute_with_timeout",
-                new_callable=AsyncMock,
-                return_value="result",
-            ),
-            patch.object(handler, "cleanup_expired", wraps=handler.cleanup_expired) as mock_cleanup,
-        ):
-            await handler.spawn_background(msg, "task")
+        mock_task = _mock_kanban_task(task_id="meta001")
+        mock_task.metadata = {}
+        mock_kanban_svc.add_task = AsyncMock(return_value=mock_task)
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[])
 
-        mock_cleanup.assert_called_once()
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            with patch.object(handler, "_count_running", new_callable=AsyncMock, return_value=0):
+                await handler.spawn_background(msg, "research task")
+
+        assert mock_task.metadata["background_source"] == "btw"
+        assert mock_task.metadata["channel"] == "telegram"
+        assert mock_task.metadata["chat_id"] == "tg_chat"
+        assert mock_task.metadata["user_id"] == "tg_user"
+        mock_kanban_svc.store.save_task.assert_called_once_with(mock_task)
 
 
 class TestCancelBackground:
     """Tests for cancel_background."""
 
     @pytest.mark.asyncio
-    async def test_cancel_running_task(self, handler) -> None:
+    async def test_cancel_running_task(self, handler, mock_kanban_svc) -> None:
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
-
-        from app.core.channel_bridge.background_task_handler import _RunningTask
+        from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
         cancel_token = CancellationToken()
-        mock_task = MagicMock()
-        mock_task.done.return_value = False
-        mock_task.cancel = MagicMock()
+        handler.register_runtime_tokens("task001", cancel_token, SteeringToken())
 
-        handler._tasks["bg_test001"] = _RunningTask(
-            task_id="bg_test001",
-            prompt="cancellable",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            asyncio_task=mock_task,
-            cancel_token=cancel_token,
-            status="running",
-        )
+        running_task = _mock_kanban_task(task_id="task001", status="RUNNING")
+        mock_kanban_svc.store.get_task = AsyncMock(return_value=running_task)
 
         msg = _make_msg()
-        result = await handler.cancel_background(msg, "bg_test001")
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.cancel_background(msg, "task001")
 
         assert result is True
-        assert handler._tasks["bg_test001"].status == "cancelled"
         assert cancel_token.is_cancelled
-        mock_task.cancel.assert_called_once()
+        mock_kanban_svc.move_task.assert_called_once()
+        mock_kanban_svc.cancel_task_execution.assert_called_once_with("task001")
+        assert "task001" not in handler._runtime_tokens
 
     @pytest.mark.asyncio
-    async def test_cancel_nonexistent_task(self, handler) -> None:
+    async def test_cancel_ready_task(self, handler, mock_kanban_svc) -> None:
+        ready_task = _mock_kanban_task(task_id="ready01", status="READY")
+        mock_kanban_svc.store.get_task = AsyncMock(return_value=ready_task)
+
         msg = _make_msg()
-        result = await handler.cancel_background(msg, "bg_nonexist")
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.cancel_background(msg, "ready01")
+
+        assert result is True
+        mock_kanban_svc.move_task.assert_called_once()
+        mock_kanban_svc.cancel_task_execution.assert_called_once_with("ready01")
+
+    @pytest.mark.asyncio
+    async def test_cancel_nonexistent_task(self, handler, mock_kanban_svc) -> None:
+        mock_kanban_svc.store.get_task = AsyncMock(return_value=None)
+
+        msg = _make_msg()
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.cancel_background(msg, "nonexist")
+
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_cancel_already_completed(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_done001"] = _RunningTask(
-            task_id="bg_done001",
-            prompt="done",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="completed",
-            completed_at=time.time(),
-        )
+    async def test_cancel_completed_task(self, handler, mock_kanban_svc) -> None:
+        completed_task = _mock_kanban_task(task_id="done001", status="COMPLETED")
+        mock_kanban_svc.store.get_task = AsyncMock(return_value=completed_task)
 
         msg = _make_msg()
-        result = await handler.cancel_background(msg, "bg_done001")
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.cancel_background(msg, "done001")
+
         assert result is False
 
 
@@ -178,67 +204,52 @@ class TestListBackground:
     """Tests for list_background."""
 
     @pytest.mark.asyncio
-    async def test_list_empty(self, handler) -> None:
+    async def test_list_empty(self, handler, mock_kanban_svc) -> None:
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[])
+
         msg = _make_msg()
-        result = await handler.list_background(msg)
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.list_background(msg)
+
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_list_filters_by_user(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_mine001"] = _RunningTask(
-            task_id="bg_mine001",
-            prompt="my task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="running",
+    async def test_list_filters_by_user(self, handler, mock_kanban_svc) -> None:
+        my_task = _mock_kanban_task(
+            task_id="mine001",
+            metadata={"background_source": "btw", "user_id": "uid1", "chat_id": "chat1", "channel": "test"},
         )
-        handler._tasks["bg_other01"] = _RunningTask(
-            task_id="bg_other01",
-            prompt="other task",
-            channel="test",
-            chat_id="other_chat",
-            user_id="uid2",
-            thread_id=None,
-            status="running",
+        other_task = _mock_kanban_task(
+            task_id="other01",
+            metadata={"background_source": "btw", "user_id": "uid2", "chat_id": "other_chat", "channel": "test"},
         )
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[my_task, other_task])
 
         msg = _make_msg(user_id="uid1", chat_id="chat1")
-        result = await handler.list_background(msg)
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.list_background(msg)
 
         assert len(result) == 1
-        assert result[0].task_id == "bg_mine001"
+        assert result[0].task_id == "mine001"
 
     @pytest.mark.asyncio
-    async def test_list_returns_correct_info(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_info001"] = _RunningTask(
-            task_id="bg_info001",
-            prompt="detailed task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="completed",
-            completed_at=2000.0,
-            result="Full result text here",
-        )
+    async def test_list_returns_correct_info(self, handler, mock_kanban_svc) -> None:
+        task = _mock_kanban_task(task_id="info001", description="detailed task", status="RUNNING")
+        mock_kanban_svc.store.list_tasks = AsyncMock(return_value=[task])
 
         msg = _make_msg()
-        result = await handler.list_background(msg)
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            result = await handler.list_background(msg)
 
         assert len(result) == 1
         info = result[0]
         assert isinstance(info, BackgroundTaskInfo)
-        assert info.task_id == "bg_info001"
+        assert info.task_id == "info001"
         assert info.prompt == "detailed task"
-        assert info.status == "completed"
-        assert info.completed_at == 2000.0
-        assert info.result_preview == "Full result text here"
+        assert info.status == "running"
 
 
 class TestSteerBackground:
@@ -246,24 +257,14 @@ class TestSteerBackground:
 
     @pytest.mark.asyncio
     async def test_steer_running_task(self, handler) -> None:
+        from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
         from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
         steering_token = SteeringToken()
-        handler._tasks["bg_steer01"] = _RunningTask(
-            task_id="bg_steer01",
-            prompt="steerable",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            steering_token=steering_token,
-            status="running",
-        )
+        handler.register_runtime_tokens("steer01", CancellationToken(), steering_token)
 
         msg = _make_msg()
-        result = await handler.steer_background(msg, "bg_steer01", "focus on security")
+        result = await handler.steer_background(msg, "steer01", "focus on security")
 
         assert result is True
         assert steering_token.has_pending
@@ -273,333 +274,70 @@ class TestSteerBackground:
     @pytest.mark.asyncio
     async def test_steer_nonexistent(self, handler) -> None:
         msg = _make_msg()
-        result = await handler.steer_background(msg, "bg_nonexist", "instruction")
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_steer_completed_task(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_done001"] = _RunningTask(
-            task_id="bg_done001",
-            prompt="done",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="completed",
-        )
-
-        msg = _make_msg()
-        result = await handler.steer_background(msg, "bg_done001", "too late")
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_steer_no_steering_token(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_nostkn1"] = _RunningTask(
-            task_id="bg_nostkn1",
-            prompt="no token",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            steering_token=None,
-            status="running",
-        )
-
-        msg = _make_msg()
-        result = await handler.steer_background(msg, "bg_nostkn1", "instruction")
+        result = await handler.steer_background(msg, "nonexist", "instruction")
         assert result is False
 
 
-class TestCleanupExpired:
-    """Tests for cleanup_expired."""
+class TestRuntimeTokens:
+    """Tests for register/unregister runtime tokens."""
 
-    def test_removes_old_completed_tasks(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_old0001"] = _RunningTask(
-            task_id="bg_old0001",
-            prompt="old",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="completed",
-            completed_at=time.time() - 7200,
-        )
-        handler._tasks["bg_new0001"] = _RunningTask(
-            task_id="bg_new0001",
-            prompt="new",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="completed",
-            completed_at=time.time() - 100,
-        )
-
-        removed = handler.cleanup_expired(max_age_seconds=3600.0)
-
-        assert removed == 1
-        assert "bg_old0001" not in handler._tasks
-        assert "bg_new0001" in handler._tasks
-
-    def test_does_not_remove_running_tasks(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_run0001"] = _RunningTask(
-            task_id="bg_run0001",
-            prompt="running",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="running",
-        )
-
-        removed = handler.cleanup_expired(max_age_seconds=0)
-        assert removed == 0
-        assert "bg_run0001" in handler._tasks
-
-    def test_empty_tasks_no_error(self, handler) -> None:
-        removed = handler.cleanup_expired()
-        assert removed == 0
-
-
-class TestExecuteBackground:
-    """Tests for _execute_background (integration with mocks)."""
-
-    @pytest.mark.asyncio
-    async def test_execute_collects_full_output(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        record = _RunningTask(
-            task_id="bg_exec001",
-            prompt="test execution",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-        )
-        handler._tasks[record.task_id] = record
-
-        async def mock_execute_stream(*args, **kwargs):
-            yield OutboundMessage(
-                channel="test",
-                recipient_id="chat1",
-                content="Part 1",
-                user_id="uid1",
-            )
-            yield OutboundMessage(
-                channel="test",
-                recipient_id="chat1",
-                content="Part 2",
-                user_id="uid1",
-            )
-
-        with (
-            patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch(
-                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
-                new_callable=AsyncMock,
-            ),
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
-        ):
-            mock_executor = MagicMock()
-            mock_executor.execute_stream = mock_execute_stream
-            mock_executor_cls.return_value = mock_executor
-
-            result = await handler._execute_background(record)
-
-        assert "Part 1" in result
-        assert "Part 2" in result
-        assert record.status == "completed"
-        assert record.result is not None
-
-    @pytest.mark.asyncio
-    async def test_execute_uses_isolated_chat_id(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        record = _RunningTask(
-            task_id="bg_iso0001",
-            prompt="isolated",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-        )
-        handler._tasks[record.task_id] = record
-
-        captured_msg: list[InboundMessage] = []
-
-        async def mock_execute_stream(msg, *args, **kwargs):
-            captured_msg.append(msg)
-            return
-            yield  # make it an async generator
-
-        with (
-            patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch(
-                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
-                new_callable=AsyncMock,
-            ),
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
-        ):
-            mock_executor = MagicMock()
-            mock_executor.execute_stream = mock_execute_stream
-            mock_executor_cls.return_value = mock_executor
-
-            await handler._execute_background(record)
-
-        assert len(captured_msg) == 1
-        assert captured_msg[0].chat_id == f"bg_{record.task_id}"
-
-    @pytest.mark.asyncio
-    async def test_execute_creates_tokens(self, handler) -> None:
+    def test_register_and_unregister(self, handler) -> None:
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
         from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-        from app.core.channel_bridge.background_task_handler import _RunningTask
+        ct = CancellationToken()
+        st = SteeringToken()
+        handler.register_runtime_tokens("task1", ct, st)
 
-        record = _RunningTask(
-            task_id="bg_tok0001",
-            prompt="token test",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-        )
-        handler._tasks[record.task_id] = record
+        assert "task1" in handler._runtime_tokens
+        assert handler._runtime_tokens["task1"].cancel_token is ct
+        assert handler._runtime_tokens["task1"].steering_token is st
 
-        async def mock_execute_stream(*args, **kwargs):
-            return
-            yield
+        handler.unregister_runtime_tokens("task1")
+        assert "task1" not in handler._runtime_tokens
 
-        with (
-            patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch(
-                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_result",
-                new_callable=AsyncMock,
-            ),
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
-        ):
-            mock_executor = MagicMock()
-            mock_executor.execute_stream = mock_execute_stream
-            mock_executor_cls.return_value = mock_executor
+    def test_unregister_nonexistent_no_error(self, handler) -> None:
+        handler.unregister_runtime_tokens("nonexist")
 
-            await handler._execute_background(record)
 
-        assert isinstance(record.cancel_token, CancellationToken)
-        assert isinstance(record.steering_token, SteeringToken)
+class TestEnsureSystemBoard:
+    """Tests for _ensure_system_board."""
 
     @pytest.mark.asyncio
-    async def test_execute_handles_exception(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
+    async def test_creates_board_if_not_exists(self, handler, mock_kanban_svc) -> None:
+        handler._system_board_id = None
+        mock_kanban_svc.list_boards = AsyncMock(return_value=[])
 
-        record = _RunningTask(
-            task_id="bg_err0001",
-            prompt="error task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-        )
-        handler._tasks[record.task_id] = record
+        mock_board = MagicMock()
+        mock_board.board_id = "new_board_123"
+        mock_kanban_svc.create_board = AsyncMock(return_value=mock_board)
 
-        async def mock_execute_stream(*args, **kwargs):
-            raise ValueError("Test error")
-            yield  # noqa: RET503
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            board_id = await handler._ensure_system_board()
 
-        with (
-            patch("app.core.channel_bridge.agent_executor.ChannelAgentExecutor") as mock_executor_cls,
-            patch(
-                "app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._push_error", new_callable=AsyncMock
-            ),
-            patch("app.core.channel_bridge.background_task_handler.ChannelBackgroundTaskHandler._emit_event"),
-        ):
-            mock_executor = MagicMock()
-            mock_executor.execute_stream = mock_execute_stream
-            mock_executor_cls.return_value = mock_executor
-
-            result = await handler._execute_background(record)
-
-        assert record.status == "failed"
-        assert "Error" in result
-        assert record.completed_at is not None
-
-
-class TestExecuteWithTimeout:
-    """Tests for _execute_with_timeout."""
+        assert board_id == "new_board_123"
+        assert handler._system_board_id == "new_board_123"
+        mock_kanban_svc.create_board.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_timeout_marks_failed(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
+    async def test_reuses_existing_board(self, handler, mock_kanban_svc) -> None:
+        handler._system_board_id = None
 
-        record = _RunningTask(
-            task_id="bg_tmo0001",
-            prompt="slow task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-        )
-        handler._tasks[record.task_id] = record
+        existing_board = MagicMock()
+        existing_board.board_id = "existing_board"
+        existing_board.name = "__background_tasks__"
+        mock_kanban_svc.list_boards = AsyncMock(return_value=[existing_board])
 
-        async def slow_execute(rec):
-            await asyncio.sleep(100)
-            return "never"
+        with patch("app.services.kanban.KanbanService") as mock_cls:
+            mock_cls.get_instance.return_value = mock_kanban_svc
+            board_id = await handler._ensure_system_board()
 
-        with (
-            patch.object(handler, "_execute_background", side_effect=slow_execute),
-            patch.object(handler, "_push_error", new_callable=AsyncMock),
-            patch("app.core.channel_bridge.background_task_handler.TASK_TIMEOUT_SECONDS", 0.05),
-        ):
-            await handler._execute_with_timeout(record)
+        assert board_id == "existing_board"
+        mock_kanban_svc.create_board.assert_not_called()
 
-        assert record.status == "failed"
-        assert "timed out" in (record.result or "").lower()
-        assert record.completed_at is not None
-
-
-class TestOnTaskDone:
-    """Tests for _on_task_done callback."""
-
-    def test_marks_running_as_completed(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_done001"] = _RunningTask(
-            task_id="bg_done001",
-            prompt="task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="running",
-        )
-
-        handler._on_task_done("bg_done001")
-
-        assert handler._tasks["bg_done001"].status == "completed"
-        assert handler._tasks["bg_done001"].completed_at is not None
-
-    def test_does_not_change_non_running(self, handler) -> None:
-        from app.core.channel_bridge.background_task_handler import _RunningTask
-
-        handler._tasks["bg_canc001"] = _RunningTask(
-            task_id="bg_canc001",
-            prompt="task",
-            channel="test",
-            chat_id="chat1",
-            user_id="uid1",
-            thread_id=None,
-            status="cancelled",
-            completed_at=1000.0,
-        )
-
-        handler._on_task_done("bg_canc001")
-
-        assert handler._tasks["bg_canc001"].status == "cancelled"
-        assert handler._tasks["bg_canc001"].completed_at == 1000.0
+    @pytest.mark.asyncio
+    async def test_caches_board_id(self, handler) -> None:
+        handler._system_board_id = "cached_board"
+        board_id = await handler._ensure_system_board()
+        assert board_id == "cached_board"

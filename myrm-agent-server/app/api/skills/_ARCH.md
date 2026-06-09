@@ -18,7 +18,7 @@
 | `core.py` | 模块 | List skills filtered by type, sorted by the given field. | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
 | `discovery.py` | 模块 | Skill discovery API endpoints | ✅ |
-| `drafts.py` | 模块 | Query skill drafts with optional lifecycle status filter. | ✅ |
+| `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 """ | ✅ |
 | `growth.py` | 模块 | Unified skill growth query API. | ✅ |
 | `history.py` | 模块 | HTTP API for skill modification history and rollback operations Business-layer endpoints that use HistoryTrackingSkillService """ | ✅ |

@@ -176,6 +176,7 @@
       "openaiApi": "API 访问",
       "integrationCatalog": "服务目录",
       "integrationMemory": "集成记忆",
+      "extensionBridge": "浏览器扩展",
       "workspaceRules": "项目规则",
       "developer": "开发者",
       "importExport": "配置导入导出",
@@ -1488,6 +1489,25 @@
       "failed": "失败",
       "errors": "错误",
       "executionTime": "执行耗时"
+    },
+    "extension": {
+      "title": "浏览器扩展桥接",
+      "description": "连接你的浏览器到 Agent，使用真实登录态进行自动化操作。无需分享密码。",
+      "connected": "已连接",
+      "notConnected": "未连接",
+      "disconnect": "断开连接",
+      "disconnected": "扩展已断开",
+      "disconnectFailed": "断开失败",
+      "setupGuide": "快速设置",
+      "step1": "从 Chrome 应用商店安装 Myrm Agent Bridge 扩展",
+      "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址",
+      "step3": "点击连接 — 扩展将保持持久连接",
+      "authorizedDomains": "授权域名",
+      "domainsHint": "仅授权域名上的标签页可被 Agent 控制。这是你的安全边界。",
+      "addDomain": "添加",
+      "domainAdded": "域名已授权",
+      "saveFailed": "保存域名设置失败",
+      "availableTabs": "可用标签页"
     },
     "credentials": {
       "title": "凭据管理",
@@ -4534,8 +4554,15 @@
       "tabTitle": "洞察",
       "title": "待审洞察",
       "desc": "审阅并从近期对话中提炼的习惯，批准后永久提升此智能体。",
+      "approveBtn": "批准",
+      "dismissBtn": "忽略",
+      "loading": "加载洞察中...",
+      "skillProposalBadge": "新技能提案",
+      "proposedRulesLabel": "提议的规则",
       "approveSuccess": "洞察已批准并保存为技能。",
       "rejectSuccess": "洞察已忽略。",
+      "approveFailed": "批准失败",
+      "rejectFailed": "忽略失败",
       "emptyTitle": "暂无新洞察",
       "emptyDesc": "后台观察器近期尚未为此智能体提炼出新的习惯或纠正。"
     },
@@ -9275,6 +9302,14 @@
       "scopeToolDesc": "仅自动允许 {toolName} 工具",
       "scopeExactDesc": "仅当工具和参数完全相同时自动允许",
       "scopePermissionDesc": "自动允许所有 {permissionType} 类型的工具"
+    },
+    "spanRiskReasons": {
+      "safe": "已识别的安全只读命令",
+      "empty_segment": "管道片段为空",
+      "redirect": "包含 I/O 重定向，需人工确认",
+      "unknown_command": "命令不在安全白名单中",
+      "unknown_subcommand": "子命令未被识别为安全操作",
+      "invalid_flags": "命令参数不在安全白名单中"
     },
     "permissionTypes": {
       "codeInterpreter": "代码执行",

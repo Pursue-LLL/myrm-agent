@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-API_PREFIX = "/api/v1"
+API_PREFIX = "/api/v1/integrations"
 
 
 @pytest.fixture

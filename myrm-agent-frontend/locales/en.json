@@ -176,6 +176,7 @@
       "openaiApi": "API Access",
       "integrationCatalog": "Service Catalog",
       "integrationMemory": "Integration Memory",
+      "extensionBridge": "Browser Extension",
       "workspaceRules": "Workspace Rules",
       "developer": "Developer",
       "importExport": "Import / Export",
@@ -1488,6 +1489,25 @@
       "failed": "Failed",
       "errors": "Errors",
       "executionTime": "Execution Time"
+    },
+    "extension": {
+      "title": "Browser Extension Bridge",
+      "description": "Connect your browser to Agent for automation with real login sessions. No password sharing needed.",
+      "connected": "Connected",
+      "notConnected": "Not Connected",
+      "disconnect": "Disconnect",
+      "disconnected": "Extension disconnected",
+      "disconnectFailed": "Failed to disconnect",
+      "setupGuide": "Quick Setup",
+      "step1": "Install the Myrm Agent Bridge extension from Chrome Web Store",
+      "step2": "Open the extension popup, enter this server's WebSocket URL",
+      "step3": "Click Connect — the extension will maintain a persistent connection",
+      "authorizedDomains": "Authorized Domains",
+      "domainsHint": "Only tabs on authorized domains can be controlled by the Agent. This is your security boundary.",
+      "addDomain": "Add",
+      "domainAdded": "Domain authorized",
+      "saveFailed": "Failed to save domain settings",
+      "availableTabs": "Available Tabs"
     },
     "credentials": {
       "title": "Credentials Management",
@@ -4534,8 +4554,15 @@
       "tabTitle": "Insights",
       "title": "Pending Insights",
       "desc": "Review and approve habits extracted from recent conversations to permanently improve this agent.",
+      "approveBtn": "Approve",
+      "dismissBtn": "Dismiss",
+      "loading": "Loading insights...",
+      "skillProposalBadge": "New Skill Proposal",
+      "proposedRulesLabel": "Proposed Code/Rules",
       "approveSuccess": "Insight approved and saved as skill.",
       "rejectSuccess": "Insight dismissed.",
+      "approveFailed": "Approval failed",
+      "rejectFailed": "Rejection failed",
       "emptyTitle": "No new insights",
       "emptyDesc": "The Background Observer hasn't extracted any new habits or corrections for this agent recently."
     },
@@ -9279,6 +9306,14 @@
       "scopeToolDesc": "Only auto-allow {toolName} tool",
       "scopeExactDesc": "Only auto-allow when tool and arguments match exactly",
       "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
+    },
+    "spanRiskReasons": {
+      "safe": "Known safe read-only command",
+      "empty_segment": "Empty pipeline segment",
+      "redirect": "I/O redirection requires manual review",
+      "unknown_command": "Command is not on the safe allowlist",
+      "unknown_subcommand": "Subcommand is not recognized as safe",
+      "invalid_flags": "Command flags are not on the safe allowlist"
     },
     "permissionTypes": {
       "codeInterpreter": "Code Execution",

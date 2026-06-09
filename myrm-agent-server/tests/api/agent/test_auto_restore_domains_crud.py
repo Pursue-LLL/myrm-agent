@@ -2,14 +2,11 @@
 
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
 
-client = TestClient(app)
-
-
-def test_auto_restore_domains_create_and_get_roundtrip() -> None:
+def test_auto_restore_domains_create_and_get_roundtrip(client: TestClient) -> None:
     suffix = uuid.uuid4().hex[:8]
     payload = {
         "name": f"AutoRestore CRUD {suffix}",
@@ -19,7 +16,7 @@ def test_auto_restore_domains_create_and_get_roundtrip() -> None:
         "enabled_builtin_tools": ["browser", "web_search"],
         "auto_restore_domains": ["example.com", "github.com"],
     }
-    created = client.post("/api/v1/user-agents", json=payload)
+    created = client.post("/api/agents", json=payload)
     assert created.status_code == 200, created.text
     agent_id = created.json()["data"]["id"]
     try:
@@ -28,7 +25,7 @@ def test_auto_restore_domains_create_and_get_roundtrip() -> None:
             "github.com",
         ]
 
-        loaded = client.get(f"/api/v1/user-agents/{agent_id}")
+        loaded = client.get(f"/api/agents/{agent_id}")
         assert loaded.status_code == 200, loaded.text
         assert loaded.json()["data"]["auto_restore_domains"] == [
             "example.com",
@@ -36,10 +33,10 @@ def test_auto_restore_domains_create_and_get_roundtrip() -> None:
         ]
 
         updated = client.put(
-            f"/api/v1/user-agents/{agent_id}",
+            f"/api/agents/{agent_id}",
             json={"auto_restore_domains": ["wiki.example.org"]},
         )
         assert updated.status_code == 200, updated.text
         assert updated.json()["data"]["auto_restore_domains"] == ["wiki.example.org"]
     finally:
-        client.delete(f"/api/v1/user-agents/{agent_id}")
+        client.delete(f"/api/agents/{agent_id}")

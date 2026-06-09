@@ -47,6 +47,7 @@
 
 | 路径 | 文档 |
 |------|------|
+| `ai-core/agent/` | [ai-core/agent/_ARCH.md](ai-core/agent/_ARCH.md) |
 | `integration/channels/` | [integration/channels/_ARCH.md](integration/channels/_ARCH.md) |
 | `knowledge/wiki/` | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md) |
 

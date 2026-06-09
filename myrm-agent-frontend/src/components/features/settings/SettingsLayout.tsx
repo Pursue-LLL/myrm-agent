@@ -50,6 +50,9 @@ const IntegrationCatalogSection = dynamic(() => import('./sections/integration/i
 const IntegrationMemorySection = dynamic(() => import('./sections/integration/integrations/IntegrationMemorySection'), {
   loading: () => <SettingsSkeleton />,
 });
+const ExtensionBridgeSection = dynamic(() => import('./sections/integration/ExtensionBridgeSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 
 // 新增合并容器组件 (动态加载)
 const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSettingsSection'), {
@@ -172,6 +175,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   evolutionPending: UnifiedSkillsSection,
   evolutionRejection: UnifiedSkillsSection,
   credentials: CredentialsSection,
+  extensionBridge: ExtensionBridgeSection,
   wiki: WikiSection,
   memory: MemoryCenterSection,
   'memory-backup': MemoryCenterSection,

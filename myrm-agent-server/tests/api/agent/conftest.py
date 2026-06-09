@@ -266,9 +266,11 @@ async def setup_test_database(tmp_path: Path):
 
 
 @pytest.fixture(autouse=True)
-def mock_load_user_configs(monkeypatch: pytest.MonkeyPatch):
+def mock_load_user_configs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Mock load_user_configs 避免真实 DB 查询"""
-    monkeypatch.setenv("MEMORY_BASE_PATH", "./data/memory_test")
+    memory_path = tmp_path / "memory"
+    memory_path.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("MEMORY_BASE_PATH", str(memory_path))
     mock_configs = _build_mock_user_configs()
     mock_fn = AsyncMock(return_value=mock_configs)
 
@@ -336,3 +338,30 @@ def setup_random_mcp_port():
     """为每个测试分配随机 MCP HTTP 端口，避免端口冲突"""
     os.environ["MCP_HTTP_PORT"] = str(random.randint(10000, 60000))
     yield
+
+
+def _clear_agent_test_process_state() -> None:
+    import asyncio
+
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+    from app.platform_utils import _reset_checkpointer_for_testing
+    from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+
+    _reset_checkpointer_for_testing()
+    ApprovalTimeoutScheduler.get().cancel_all()
+    try:
+        asyncio.run(shutdown_cached_memory_managers())
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(shutdown_cached_memory_managers())
+        finally:
+            loop.close()
+
+
+@pytest.fixture(autouse=True)
+def _reset_agent_test_singletons():
+    """Reset process-level singletons that leak across agent API tests."""
+    _clear_agent_test_process_state()
+    yield
+    _clear_agent_test_process_state()

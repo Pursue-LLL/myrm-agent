@@ -12,6 +12,8 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+from tests.api.agent.utils import force_invalid_model_llm_error
+
 
 class TestLLMInfoPrecision:
     """Test precise model_name and endpoint info in diagnostic_result."""
@@ -38,18 +40,7 @@ class TestLLMInfoPrecision:
 
         diagnostic_result = None
 
-        from unittest.mock import patch
-
-        from app.core.types import ModelConfig
-
-        def mock_fallback_precision(providers_dict=None):
-            return ModelConfig(model=test_model, api_key="sk-123", base_url=None)
-
-        patcher = patch(
-            "app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_precision
-        )
-        patcher.start()
-        try:
+        with force_invalid_model_llm_error(test_model):
             with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
                 for line in response.iter_lines():
                     if not line or not line.startswith("data: "):
@@ -64,8 +55,6 @@ class TestLLMInfoPrecision:
                                 break
                     except json.JSONDecodeError:
                         continue
-        finally:
-            patcher.stop()
 
         assert diagnostic_result is not None, "Expected diagnostic_result in error event"
 
@@ -103,16 +92,7 @@ class TestLLMInfoPrecision:
 
         diagnostic_result = None
 
-        from unittest.mock import patch
-
-        from app.core.types import ModelConfig
-
-        def mock_fallback_diff(providers_dict=None):
-            return ModelConfig(model=test_model, api_key="sk-123", base_url=None)
-
-        patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_diff)
-        patcher.start()
-        try:
+        with force_invalid_model_llm_error(test_model):
             with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
                 for line in response.iter_lines():
                     if not line or not line.startswith("data: "):
@@ -126,8 +106,6 @@ class TestLLMInfoPrecision:
                                 break
                     except json.JSONDecodeError:
                         continue
-        finally:
-            patcher.stop()
 
         assert diagnostic_result is not None, "Expected diagnostic_result in error event"
 

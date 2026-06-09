@@ -3,7 +3,10 @@ import uuid
 
 import pytest
 
+from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
+
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_bash_streaming_and_grep_exit_code(client):
     """
@@ -15,9 +18,13 @@ async def test_bash_streaming_and_grep_exit_code(client):
     agent_payload = {
         "name": "Test Bash Agent",
         "description": "Agent for testing bash tool",
-        "agent_type": "general",
-        "system_prompt": "You are a helpful assistant. You MUST use the bash_code_execute_tool to execute the command provided by the user. Do not use any other tools.",
-        "skills": ["bash_code_execute_tool"],
+        "is_built_in": False,
+        "system_prompt": (
+            "You are a helpful assistant. You MUST use the bash_code_execute_tool to execute "
+            "the command provided by the user. Do not use any other tools."
+        ),
+        "skill_ids": ["bash"],
+        "enabled_builtin_tools": ["bash"],
     }
 
     response = client.post("/api/agents", json=agent_payload)
@@ -30,14 +37,18 @@ async def test_bash_streaming_and_grep_exit_code(client):
     # By default, tools require approval. We will just check if the agent attempts to use the tool
     # and if the tool call is correctly formatted.
     payload = {
-        "agentId": agent_id,
-        "message": "Please use bash_code_execute_tool to run exactly this command: `echo 'streaming_test_start' && sleep 1 && echo 'streaming_test_end'`",
+        "chatId": "test_session_bash_123",
+        "query": (
+            "Please use bash_code_execute_tool to run exactly this command: "
+            "`echo 'streaming_test_start' && sleep 1 && echo 'streaming_test_end'`"
+        ),
         "messageId": str(uuid.uuid4()),
-        "stream": True,
-        "sessionId": "test_session_bash_123",
+        "modelSelection": get_model_selection(),
+        "actionMode": "agent",
     }
 
-    tool_calls = []
+    tool_calls: list[dict[str, object]] = []
+    collected_events: list[dict[str, object]] = []
 
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as response:
         assert response.status_code == 200
@@ -48,10 +59,14 @@ async def test_bash_streaming_and_grep_exit_code(client):
                     break
                 try:
                     data = json.loads(data_str)
-                    if data.get("type") == "tool_call":
-                        tool_calls.append(data)
+                    if isinstance(data, dict):
+                        collected_events.append(data)
+                        if data.get("type") == "tool_call":
+                            tool_calls.append(data)
                 except json.JSONDecodeError:
                     continue
+
+    check_e2e_errors(collected_events)
 
     # Verify the agent attempted to call the bash tool
     print(f"Tool calls received: {tool_calls}")

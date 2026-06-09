@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.e2e
+
 TEST_WS = Path(os.environ["MYRM_DATA_DIR"])
 TEST_DB = TEST_WS / "data.db"
 

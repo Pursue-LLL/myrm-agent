@@ -1,7 +1,8 @@
 """Background task API routes.
 
 Provides REST endpoints for frontend to query, cancel, and steer
-background tasks spawned via /btw (/background /bg) slash commands.
+background tasks. Tasks are now persisted via the Kanban system,
+providing durability, restart recovery, and zombie detection.
 
 [INPUT]
 - app.core.channel_bridge.setup::get_background_task_handler (POS: Channel gateway lifecycle)
@@ -11,20 +12,19 @@ background tasks spawned via /btw (/background /bg) slash commands.
 - router: FastAPI APIRouter with /background-tasks endpoints (list, get, cancel, steer)
 
 [POS]
-REST API layer for background task management. Exposes in-memory task state
-from ChannelBackgroundTaskHandler to the frontend via standard HTTP endpoints.
+REST API layer for background task management. Reads persistent task state
+from the Kanban system via ChannelBackgroundTaskHandler, which delegates
+to KanbanService for durable storage.
 """
 
 from __future__ import annotations
 
-import logging
+import time
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.core.channel_bridge.setup import get_background_task_handler
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["background-tasks"])
 
@@ -53,7 +53,17 @@ async def list_background_tasks() -> dict[str, list[BackgroundTaskResponse]]:
     if not handler:
         return {"tasks": []}
 
-    tasks = list(handler._tasks.values())
+    from app.channels.types import InboundMessage
+
+    synthetic_msg = InboundMessage(
+        channel="webui",
+        sender_id="webui",
+        chat_id="webui",
+        content="",
+        user_id="webui",
+    )
+    task_infos = await handler.list_background(synthetic_msg)
+
     return {
         "tasks": [
             BackgroundTaskResponse(
@@ -62,9 +72,9 @@ async def list_background_tasks() -> dict[str, list[BackgroundTaskResponse]]:
                 status=t.status,
                 created_at=t.created_at,
                 completed_at=t.completed_at,
-                result_preview=t.result[:200] if t.result else None,
+                result_preview=t.result_preview,
             )
-            for t in sorted(tasks, key=lambda x: x.created_at, reverse=True)
+            for t in task_infos
         ]
     }
 
@@ -76,44 +86,48 @@ async def get_background_task(task_id: str) -> BackgroundTaskResponse:
     if not handler:
         raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
-    record = handler._tasks.get(task_id)
-    if not record:
+    from app.services.kanban import KanbanService
+
+    svc = KanbanService.get_instance()
+    task = await svc.store.get_task(task_id)
+    if not task:
         raise HTTPException(status_code=404, detail="Background task not found")
 
+    from app.core.channel_bridge.background_task_handler import _kanban_status_to_bg_status
+
+    status = _kanban_status_to_bg_status(task.status)
+    completed_at = task.completed_at.timestamp() if task.completed_at else None
+    created_at = task.created_at.timestamp() if task.created_at else time.time()
+
     return BackgroundTaskResponse(
-        task_id=record.task_id,
-        prompt=record.prompt,
-        status=record.status,
-        created_at=record.created_at,
-        completed_at=record.completed_at,
-        result_preview=record.result[:200] if record.result else None,
+        task_id=task.task_id,
+        prompt=task.description or task.title,
+        status=status,
+        created_at=created_at,
+        completed_at=completed_at,
+        result_preview=None,
     )
 
 
 @router.post("/{task_id}/cancel")
 async def cancel_background_task(task_id: str) -> dict[str, str]:
-    """Cancel a running background task."""
+    """Cancel a background task (running or queued)."""
     handler = get_background_task_handler()
     if not handler:
         raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
-    record = handler._tasks.get(task_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Background task not found")
-
-    if record.status != "running":
-        raise HTTPException(status_code=400, detail=f"Task is not running (status: {record.status})")
-
     from app.channels.types import InboundMessage
 
     synthetic_msg = InboundMessage(
-        channel=record.channel,
-        sender_id=record.chat_id,
-        chat_id=record.chat_id,
+        channel="webui",
+        sender_id="webui",
+        chat_id="webui",
         content="",
-        user_id=record.user_id,
+        user_id="webui",
     )
-    await handler.cancel_background(synthetic_msg, task_id)
+    success = await handler.cancel_background(synthetic_msg, task_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Task is not cancellable or not found")
 
     return {"message": "Background task cancelled", "task_id": task_id}
 
@@ -125,26 +139,19 @@ async def steer_background_task(task_id: str, body: SteerRequest) -> dict[str, s
     if not handler:
         raise HTTPException(status_code=404, detail="Background task handler not initialized")
 
-    record = handler._tasks.get(task_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Background task not found")
-
-    if record.status != "running":
-        raise HTTPException(status_code=400, detail=f"Task is not running (status: {record.status})")
-
     from app.channels.types import InboundMessage
 
     synthetic_msg = InboundMessage(
-        channel=record.channel,
-        sender_id=record.chat_id,
-        chat_id=record.chat_id,
+        channel="webui",
+        sender_id="webui",
+        chat_id="webui",
         content="",
-        user_id=record.user_id,
+        user_id="webui",
     )
 
     success = await handler.steer_background(synthetic_msg, task_id, body.instruction)
     if not success:
-        raise HTTPException(status_code=400, detail="Failed to steer task")
+        raise HTTPException(status_code=400, detail="Failed to steer task (not running or tokens unavailable)")
 
     return {"message": "Steering instruction sent", "task_id": task_id}
 

@@ -2,6 +2,7 @@
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 审批持久化模型)
 - app.services.event.app_event_bus::AppEvent (POS: 服务器级 SSE 总线)
+- app.services.skills.growth_constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
@@ -14,11 +15,12 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 
 from app.database.connection import get_session
 from app.database.models.approval import ApprovalRecord
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+from app.services.skills.growth_constants import GROWTH_ACTION_TYPES, is_background_growth_approval
 
 logger = logging.getLogger(__name__)
 
@@ -109,12 +111,18 @@ class ApprovalRegistry:
             await db.commit()
             await db.refresh(record)
 
-        # Broadcast SSE
+        # Broadcast SSE (background growth drafts use NEW_SKILL_DRAFT from draft_notification)
         try:
             bus = get_event_bus()
-            event_type = AppEventType.APPROVAL_REQUIRED if status == "PENDING" else AppEventType.SKILL_GROWTH_UPDATED
-            # Only broadcast if it's one of the types we added to AppEventType
-            if event_type in [e.value for e in AppEventType]:
+            event_type: AppEventType | None
+            if status == "PENDING" and not is_background_growth_approval(action_type, thread_id):
+                event_type = AppEventType.APPROVAL_REQUIRED
+            elif status != "PENDING":
+                event_type = AppEventType.SKILL_GROWTH_UPDATED
+            else:
+                event_type = None
+
+            if event_type is not None and event_type in [e.value for e in AppEventType]:
                 bus.publish(
                     AppEvent(
                         event_type=event_type,
@@ -221,10 +229,15 @@ class ApprovalRegistry:
 
     @classmethod
     async def list_pending(cls, limit: int = 50, offset: int = 0) -> list[ApprovalRecord]:
+        background_growth = and_(
+            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
+            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
+        )
         async with get_session() as db:
             stmt = (
                 select(ApprovalRecord)
                 .where(ApprovalRecord.status == "PENDING")
+                .where(~background_growth)
                 .order_by(ApprovalRecord.created_at.desc())
                 .offset(offset)
                 .limit(limit)

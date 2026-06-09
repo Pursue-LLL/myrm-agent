@@ -1,5 +1,8 @@
 """Integration tests for POST /agents/chats/{chat_id}/steer endpoint."""
 
+from collections.abc import Iterator
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
@@ -9,8 +12,9 @@ from app.services.agent.steering_registry import SteeringRegistry
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(app)
+def client() -> Iterator[TestClient]:
+    with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
+        yield TestClient(app)
 
 
 @pytest.fixture(autouse=True)

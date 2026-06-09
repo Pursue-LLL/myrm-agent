@@ -50,6 +50,7 @@ class Agent(Base):
     subagent_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     enabled_builtin_tools: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     browser_engine: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    browser_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     auto_restore_domains: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     security_overrides: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 

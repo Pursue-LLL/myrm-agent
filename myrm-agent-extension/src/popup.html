@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Myrm Agent Bridge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .header img { width: 32px; height: 32px; border-radius: 6px; }
+    .header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    .status-badge.connected { background: rgba(76, 175, 80, 0.15); color: #4CAF50; }
+    .status-badge.disconnected { background: rgba(158, 158, 158, 0.15); color: #9E9E9E; }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .section { margin-bottom: 14px; }
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #16213e;
+      color: #e0e0e0;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size: 12px; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-secondary { background: #333; color: #e0e0e0; }
+    .btn + .btn { margin-top: 8px; }
+    .hint {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .tabs-list {
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .tab-item {
+      padding: 4px 0;
+      border-bottom: 1px solid #222;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-item .domain { color: #6366f1; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Myrm Agent Bridge</h1>
+  </div>
+
+  <div id="status-container">
+    <div class="status-badge disconnected" id="status-badge">
+      <span class="status-dot"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Server WebSocket URL</div>
+    <input type="text" id="server-url" placeholder="ws://localhost:8000/api/ws/extension" />
+  </div>
+
+  <div class="section">
+    <div class="section-title">Auth Token (optional)</div>
+    <input type="password" id="auth-token" placeholder="Extension authentication token" />
+  </div>
+
+  <div class="section">
+    <div class="section-title">Authorized Domains (one per line)</div>
+    <textarea id="domains" placeholder="github.com&#10;*.google.com&#10;mail.example.com"></textarea>
+    <div class="hint">Only tabs matching these domains can be controlled by the Agent.</div>
+  </div>
+
+  <button class="btn btn-primary" id="btn-connect">Connect</button>
+  <button class="btn btn-danger" id="btn-disconnect" style="display:none;">Disconnect</button>
+
+  <div class="section" id="tabs-section" style="display:none; margin-top: 14px;">
+    <div class="section-title">Available Tabs</div>
+    <div class="tabs-list" id="tabs-list"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -16,11 +16,10 @@ from app.services.approvals.registry import ApprovalRegistry
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.evolution_events import publish_skill_evolved_event
 from app.services.skills.experience_ledger import record_skill_growth_event
+from app.services.skills.growth_constants import GROWTH_ACTION_TYPES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-_SKILL_DRAFT_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch", "semantic_memory")
 _TEST_MOCK_DRAFT_NAMES: tuple[str, ...] = ("test-frontend-approve", "test-frontend-reject")
 
 
@@ -127,7 +126,7 @@ async def _get_approval_skill_draft(draft_id: str) -> ApprovalRecord | None:
         result = await db.execute(
             select(ApprovalRecord).where(
                 ApprovalRecord.id == draft_id,
-                ApprovalRecord.action_type.in_(_SKILL_DRAFT_ACTION_TYPES),
+                ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
             )
         )
         return result.scalar_one_or_none()
@@ -161,7 +160,7 @@ async def get_skill_drafts(
         stmt = (
             select(ApprovalRecord)
             .where(
-                ApprovalRecord.action_type.in_(_SKILL_DRAFT_ACTION_TYPES),
+                ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
             )
             .order_by(ApprovalRecord.created_at.desc())
         )
@@ -196,7 +195,7 @@ async def get_unreviewed_draft_count() -> dict[str, object]:
         result = await db.execute(
             select(ApprovalRecord).where(
                 ApprovalRecord.status == "PENDING",
-                ApprovalRecord.action_type.in_(_SKILL_DRAFT_ACTION_TYPES),
+                ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
             )
         )
         count = sum(1 for record in result.scalars().all() if _approval_growth_status(record) == "PENDING_REVIEW")
@@ -244,13 +243,13 @@ async def seed_mock_drafts_for_e2e(agent_id: str = "default") -> dict[str, objec
 
 
 @router.post("/drafts/test/seed-mock", include_in_schema=False)
-async def seed_test_mock_drafts() -> dict[str, object]:
+async def seed_test_mock_drafts(agent_id: str = "default") -> dict[str, object]:
     """Local dev/test only: reset and seed Instinct Inbox E2E mock drafts."""
     from app.config.deploy_mode import is_local_mode
 
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
-    return await seed_mock_drafts_for_e2e()
+    return await seed_mock_drafts_for_e2e(agent_id=agent_id)
 
 
 @router.get("/drafts/{draft_id}", response_model=SkillDraftResponse)

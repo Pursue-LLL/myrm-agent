@@ -4,7 +4,7 @@
 - myrm_agent_harness.agent.types::Command (POS: LangGraph Resume 原语)
 
 [OUTPUT]
-- /api/v1/approvals: 审批接口
+- /api/v1/approvals: 审批接口（resolve 支持 comment、allow_always 透传）
 
 [POS]
 提供统一的审批决策接口。处理挂起任务的 approve/deny，恢复底层 agent 执行。
@@ -23,9 +23,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
+class AllowAlwaysValue(BaseModel):
+    tool: bool | None = None
+    args: bool | None = None
+
+
 class ResolveApprovalRequest(BaseModel):
-    decision: str  # "approve" | "deny"
+    decision: str  # "approve" | "deny" | "reject" (frontend alias)
     edited_payload: dict[str, Any] | None = None
+    comment: str | None = None
+    allow_always: bool | AllowAlwaysValue | None = None
 
 
 class BatchResolveApprovalRequest(BaseModel):
@@ -79,9 +86,11 @@ async def resolve_approval(
 ) -> ApprovalRecordResponse:
     """Resolve an approval and resume the agent (if applicable)."""
 
+    normalized_decision = "approve" if req.decision == "approve" else "deny"
+
     record = await ApprovalRegistry.resolve_approval(
         approval_id=approval_id,
-        decision=req.decision,
+        decision=normalized_decision,
         edited_payload=req.edited_payload,
     )
 
@@ -131,7 +140,9 @@ async def resolve_approval(
                             "thread_id": record.thread_id,
                             "chat_id": record.chat_id,
                             "agent_id": record.agent_id,
-                            "decision": req.decision,
+                            "decision": normalized_decision,
+                            "comment": req.comment,
+                            "allow_always": req.allow_always,
                             "edited_payload": req.edited_payload,
                         },
                     )

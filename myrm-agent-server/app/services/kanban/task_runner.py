@@ -49,6 +49,7 @@ from app.services.agent.profile_resolver import (
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT_SECONDS = 600
+_BACKGROUND_TASK_TIMEOUT_SECONDS = 3600
 _CHANNEL_NAME = "kanban"
 _WORKTREE_DIR_NAME = ".worktrees"
 
@@ -165,6 +166,9 @@ class KanbanTaskRunner:
         ``self._timeout_seconds`` (constructor default).  On timeout a
         ``TaskTimeoutError`` is raised so the dispatcher can distinguish
         timeouts from generic crashes.
+
+        Background tasks (source=btw) get a much higher default timeout
+        (3600s) since they are expected to run for extended periods.
         """
         context = await build_task_context(self._store, task.task_id)
         profile = await self._resolve_profile(task.agent_id)
@@ -173,7 +177,11 @@ class KanbanTaskRunner:
 
         workspace_root = await self._resolve_workspace(task)
 
-        effective_timeout = task.max_runtime_seconds or self._timeout_seconds
+        is_background_task = (task.metadata or {}).get("background_source") == "btw"
+        default_timeout = _BACKGROUND_TASK_TIMEOUT_SECONDS if is_background_task else self._timeout_seconds
+        effective_timeout = task.max_runtime_seconds or default_timeout
+
+        self._register_background_tokens(task)
         t0 = time.monotonic()
         try:
             return await asyncio.wait_for(
@@ -196,6 +204,41 @@ class KanbanTaskRunner:
         except Exception as exc:
             logger.warning("Kanban task %s failed: %s", task.task_id[:8], exc)
             return False, str(exc)
+        finally:
+            self._unregister_background_tokens(task)
+
+    def _register_background_tokens(self, task: KanbanTask) -> None:
+        """Register runtime tokens for /btw tasks so they can be steered/cancelled."""
+        if (task.metadata or {}).get("background_source") != "btw":
+            return
+        try:
+            from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
+            from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
+            from app.core.channel_bridge.setup import get_background_task_handler
+
+            handler = get_background_task_handler()
+            if handler:
+                handler.register_runtime_tokens(
+                    task.task_id,
+                    CancellationToken(),
+                    SteeringToken(),
+                )
+        except Exception:
+            logger.debug("Could not register background tokens for %s", task.task_id[:8])
+
+    def _unregister_background_tokens(self, task: KanbanTask) -> None:
+        """Unregister runtime tokens when a /btw task completes."""
+        if (task.metadata or {}).get("background_source") != "btw":
+            return
+        try:
+            from app.core.channel_bridge.setup import get_background_task_handler
+
+            handler = get_background_task_handler()
+            if handler:
+                handler.unregister_runtime_tokens(task.task_id)
+        except Exception:
+            logger.debug("Could not unregister background tokens for %s", task.task_id[:8])
 
     async def _resolve_base_dir(self, task: KanbanTask) -> str | None:
         """Resolve effective base directory: task-level > board-level default."""

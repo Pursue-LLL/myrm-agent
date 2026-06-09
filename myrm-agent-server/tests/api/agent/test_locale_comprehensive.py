@@ -9,7 +9,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from tests.api.agent.utils import get_model_selection
+from tests.api.agent.utils import force_invalid_model_llm_error, get_model_selection
 
 
 class TestLocaleComprehensive:
@@ -33,16 +33,8 @@ class TestLocaleComprehensive:
 
         print("\n=== Test Real Error with Chinese Locale ===")
 
-        from unittest.mock import patch
-
-        from app.core.types import ModelConfig
-
-        def mock_fallback_zh(providers_dict=None):
-            return ModelConfig(model="invalid-model-does-not-exist-12345", api_key="sk-123", base_url=None)
-
-        patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_zh)
-        patcher.start()
-        try:
+        invalid_model = "invalid-model-does-not-exist-12345"
+        with force_invalid_model_llm_error(invalid_model):
             with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
                 # May get 200 but error event, or 500
                 error_found = False
@@ -71,8 +63,6 @@ class TestLocaleComprehensive:
                 assert error_found, "Expected error event but none received"
                 # Note: Chinese may not appear if error happens before locale is processed
                 print(f"Has Chinese: {has_chinese}")
-        finally:
-            patcher.stop()
 
     def test_real_llm_error_with_english_locale(self, client: TestClient) -> None:
         """Trigger real LLM error with invalid model and verify English error message"""
@@ -91,16 +81,8 @@ class TestLocaleComprehensive:
 
         print("\n=== Test Real Error with English Locale ===")
 
-        from unittest.mock import patch
-
-        from app.core.types import ModelConfig
-
-        def mock_fallback_en(providers_dict=None):
-            return ModelConfig(model="invalid-model-does-not-exist-67890", api_key="sk-123", base_url=None)
-
-        patcher = patch("app.core.channel_bridge.model_resolver._fallback_model_from_providers", side_effect=mock_fallback_en)
-        patcher.start()
-        try:
+        invalid_model = "invalid-model-does-not-exist-67890"
+        with force_invalid_model_llm_error(invalid_model):
             with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
                 error_found = False
                 has_chinese = False
@@ -124,8 +106,6 @@ class TestLocaleComprehensive:
                         continue
 
                 assert error_found, "Expected error event but none received"
-        finally:
-            patcher.stop()
 
     def test_japanese_locale(self, client: TestClient) -> None:
         """Test Japanese locale propagation"""

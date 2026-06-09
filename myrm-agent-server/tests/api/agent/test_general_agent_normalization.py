@@ -16,6 +16,7 @@ from tests.api.agent.utils import (
 )
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_general_agent_content_normalization(client: TestClient):
     """Test that the agent handles dirty input strings correctly."""

@@ -14,6 +14,7 @@ describe('buildToolApprovalRequest', () => {
           { startIndex: 5, endIndex: 13 },
         ],
         command_span_risks: ['safe', 'unknown'],
+        command_span_reasons: ['safe', 'unknown_command'],
       },
       requestId: 'req-1',
       messageId: 'msg-1',
@@ -27,6 +28,7 @@ describe('buildToolApprovalRequest', () => {
 
     expect(request.commandSpans).toHaveLength(2);
     expect(request.commandSpanRisks).toEqual(['safe', 'unknown']);
+    expect(request.commandSpanReasons).toEqual(['safe', 'unknown_command']);
     expect(request.toolName).toBe('bash_code_execute_tool');
   });
 

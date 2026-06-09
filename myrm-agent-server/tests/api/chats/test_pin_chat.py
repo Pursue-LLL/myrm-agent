@@ -16,6 +16,16 @@ from httpx import ASGITransport
 from app.main import app
 
 
+async def _unpin_all(async_client: httpx.AsyncClient) -> None:
+    """Unpin all currently pinned chats to avoid cross-test pin limit conflicts."""
+    resp = await async_client.get("/api/v1/chats/", params={"page": 1, "page_size": 100})
+    if resp.status_code != 200:
+        return
+    for item in resp.json().get("data", {}).get("items", []):
+        if item.get("isPinned"):
+            await async_client.patch(f"/api/v1/chats/{item['id']}/unpin")
+
+
 @pytest.fixture
 async def async_client() -> httpx.AsyncClient:
     async with httpx.AsyncClient(
@@ -25,6 +35,12 @@ async def async_client() -> httpx.AsyncClient:
         timeout=60.0,
     ) as client:
         yield client
+
+
+@pytest.fixture(autouse=True)
+async def _cleanup_pinned_chats_before_test(async_client: httpx.AsyncClient) -> None:
+    """Shared test DB retains pin state; reset so MAX_PINNED limit tests stay isolated."""
+    await _unpin_all(async_client)
 
 
 async def _create_chat(chat_id: str) -> None:
@@ -153,15 +169,6 @@ async def test_pin_unpin_repin_lifecycle(async_client: httpx.AsyncClient) -> Non
     assert r2.status_code == 200
     assert r2.json()["data"]["isPinned"] is True
     assert r2.json()["data"]["pinOrder"] >= first_order
-
-
-async def _unpin_all(async_client: httpx.AsyncClient) -> None:
-    """Unpin all currently pinned chats to avoid cross-test pin limit conflicts."""
-    resp = await async_client.get("/api/v1/chats/", params={"page": 1, "page_size": 100})
-    if resp.status_code == 200:
-        for item in resp.json().get("data", {}).get("items", []):
-            if item.get("isPinned"):
-                await async_client.patch(f"/api/v1/chats/{item['id']}/unpin")
 
 
 @pytest.mark.asyncio

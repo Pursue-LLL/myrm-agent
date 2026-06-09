@@ -1,7 +1,11 @@
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { ActionMode } from '@/store/chat/types/sessionConfig';
 
-import { parseCommandSpanRisks, parseCommandSpans } from '@/lib/approval/shellCommandDisplay';
+import {
+  parseCommandSpanReasons,
+  parseCommandSpanRisks,
+  parseCommandSpans,
+} from '@/lib/approval/shellCommandDisplay';
 
 interface ApprovalActionPayload {
   action: string;
@@ -11,6 +15,7 @@ interface ApprovalActionPayload {
   ptc_annotations?: Record<string, boolean>;
   command_spans?: unknown;
   command_span_risks?: unknown;
+  command_span_reasons?: unknown;
 }
 
 interface ApprovalExtensionsPayload {
@@ -78,6 +83,9 @@ export function buildToolApprovalRequest({
     commandSpans,
     commandSpanRisks: commandSpans
       ? parseCommandSpanRisks(action.command_span_risks, commandSpans.length)
+      : undefined,
+    commandSpanReasons: commandSpans
+      ? parseCommandSpanReasons(action.command_span_reasons, commandSpans.length)
       : undefined,
     workspaceRoot: extensions.workspaceRoot,
   };

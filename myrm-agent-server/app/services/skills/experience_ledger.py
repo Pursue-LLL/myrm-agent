@@ -15,6 +15,7 @@ from sqlalchemy import desc, func, select
 
 from app.database.connection import get_session
 from app.database.models import ExperienceLedgerEvent
+from app.services.skills.growth_constants import LEDGER_GROWTH_ACTION_TYPES as SKILL_GROWTH_ACTION_TYPES
 
 
 class ExperienceEntityType(StrEnum):
@@ -64,7 +65,6 @@ SKILL_GROWTH_EVENT_TYPE_BY_STATUS: dict[str, ExperienceEventType] = {
     "FAILED_SCAN": ExperienceEventType.SKILL_GROWTH_FAILED_SCAN,
 }
 
-SKILL_GROWTH_ACTION_TYPES: tuple[str, ...] = ("skill_draft", "skill_patch")
 SKILL_GROWTH_EVENT_TYPES: tuple[str, ...] = tuple(SKILL_GROWTH_STATUS_MAP.keys())
 SKILL_GROWTH_NEGATIVE_EVENT_TYPES: tuple[str, ...] = (
     ExperienceEventType.SKILL_GROWTH_REJECTED.value,

@@ -377,3 +377,5 @@ myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
 myrm_agent_harness.toolkits.browser.pool.browser_pool
 myrm_agent_harness.toolkits.code_execution.workspace.registry
+myrm_agent_harness.toolkits.browser.pool.browser_launcher
+myrm_agent_harness.toolkits.browser.pool.extension_bridge

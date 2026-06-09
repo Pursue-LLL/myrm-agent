@@ -8,6 +8,7 @@ from starlette.testclient import TestClient
 from tests.api.agent.utils import get_model_selection
 
 
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_goal_acceptance_e2e_real_model(client: TestClient):
     """

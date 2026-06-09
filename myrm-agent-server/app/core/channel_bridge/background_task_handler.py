@@ -1,33 +1,30 @@
 """ChannelBackgroundTaskHandler — business-layer handler for /background slash commands.
 
-Spawns independent background agent sessions via ChannelAgentExecutor,
-manages their lifecycle in memory, and pushes completion notifications
-back to the originating channel and WebUI EventBus.
+Spawns persistent background tasks via the Kanban system for durability,
+zombie detection, and restart recovery. Maintains in-memory runtime tokens
+(CancellationToken, SteeringToken) for active task control.
 
 [INPUT]
-- app.channels.types::InboundMessage, OutboundMessage (POS: Channel message types)
+- app.channels.types::InboundMessage (POS: Channel message types)
 - app.channels.protocols.background_task (POS: Background task handler protocol)
-- myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token)
-- myrm_agent_harness.utils.runtime.steering::SteeringToken (POS: Runtime steering injection)
-- app.core.channel_bridge.agent_executor::ChannelAgentExecutor (POS: Channel agent execution pipeline)
-- app.services.event.app_event_bus::get_event_bus, AppEvent, AppEventType (POS: WebUI SSE event bus)
+- app.services.kanban::KanbanService (POS: Kanban business service)
+- myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskStatus (POS: Kanban domain types)
 
 [OUTPUT]
 - ChannelBackgroundTaskHandler: BackgroundTaskHandler protocol implementation for channel background tasks
 
 [POS]
-Business-layer adapter connecting /background (/btw /bg) slash commands to
-ChannelAgentExecutor. Each background task runs as an isolated agent session
-with full tool access and streaming support, without interfering with the
-user's active conversation.
+Business-layer adapter connecting /background (/btw /bg) slash commands to the
+persistent Kanban task system. Each background task is created as a KanbanTask,
+gaining automatic persistence (SQLAlchemy), restart recovery, zombie detection,
+heartbeat monitoring, and auto-retry — all provided by KanbanDispatcher.
+Runtime steering and cancellation use in-memory tokens tied to the executing task.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-import uuid
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -36,106 +33,135 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.channels.protocols.background_task import (
     BackgroundTaskInfo,
 )
-from app.channels.types import InboundMessage, OutboundMessage
+from app.channels.types import InboundMessage
 
 logger = logging.getLogger(__name__)
 
 MAX_CONCURRENT_TASKS = 5
-TASK_TIMEOUT_SECONDS = 600.0
+
+_SYSTEM_BOARD_NAME = "__background_tasks__"
+_SYSTEM_BOARD_DESCRIPTION = "System board for /btw background tasks"
 
 
 @dataclass
-class _RunningTask:
-    """In-memory record of a running background task."""
+class _RuntimeTokens:
+    """In-memory runtime tokens for an active background task."""
 
-    task_id: str
-    prompt: str
-    channel: str
-    chat_id: str
-    user_id: str
-    thread_id: str | None
-    asyncio_task: asyncio.Task[str] | None = None
-    cancel_token: CancellationToken | None = None
-    steering_token: SteeringToken | None = None
+    cancel_token: CancellationToken = field(default_factory=CancellationToken)
+    steering_token: SteeringToken = field(default_factory=SteeringToken)
     created_at: float = field(default_factory=time.time)
-    completed_at: float | None = None
-    status: str = "running"
-    result: str | None = None
 
 
 class ChannelBackgroundTaskHandler:
-    """BackgroundTaskHandler implementation for channel-based background tasks.
+    """BackgroundTaskHandler implementation backed by the persistent Kanban system.
 
-    Manages the lifecycle of background tasks spawned via /btw commands.
-    Tasks are executed as independent agent runs that don't interfere with
-    the user's current conversation.
+    Tasks are persisted as KanbanTasks, gaining zombie detection, restart
+    recovery, and auto-retry. In-memory runtime tokens allow cancel/steer
+    of currently executing tasks.
     """
 
     def __init__(self) -> None:
-        self._tasks: dict[str, _RunningTask] = {}
+        self._runtime_tokens: dict[str, _RuntimeTokens] = {}
+        self._system_board_id: str | None = None
+
+    async def _ensure_system_board(self) -> str:
+        """Get or create the system background tasks board."""
+        if self._system_board_id is not None:
+            return self._system_board_id
+
+        from myrm_agent_harness.toolkits.kanban.types import BoardSettings
+
+        from app.services.kanban import KanbanService
+
+        svc = KanbanService.get_instance()
+        boards = await svc.list_boards()
+        for board in boards:
+            if board.name == _SYSTEM_BOARD_NAME:
+                self._system_board_id = board.board_id
+                return board.board_id
+
+        board = await svc.create_board(
+            name=_SYSTEM_BOARD_NAME,
+            description=_SYSTEM_BOARD_DESCRIPTION,
+            settings=BoardSettings(
+                zombie_timeout_seconds=300,
+                auto_block_after_consecutive_failures=2,
+            ),
+        )
+        self._system_board_id = board.board_id
+        return board.board_id
 
     async def spawn_background(
         self,
         msg: InboundMessage,
         prompt: str,
     ) -> str:
-        """Spawn a new background task."""
-        self.cleanup_expired()
+        """Spawn a new background task as a persistent KanbanTask."""
+        from myrm_agent_harness.toolkits.kanban.types import TaskPriority, TaskStatus
 
-        running_count = sum(1 for t in self._tasks.values() if t.status == "running")
+        from app.services.kanban import KanbanService
+
+        svc = KanbanService.get_instance()
+        board_id = await self._ensure_system_board()
+
+        running_count = await self._count_running(board_id)
         if running_count >= MAX_CONCURRENT_TASKS:
             raise RuntimeError(
                 f"Maximum concurrent background tasks reached ({MAX_CONCURRENT_TASKS}). "
                 "Please wait for existing tasks to complete or cancel one."
             )
 
-        task_id = f"bg_{uuid.uuid4().hex[:8]}"
         chat_id = msg.chat_id or msg.sender_id
+        user_id = msg.user_id or ""
 
-        record = _RunningTask(
-            task_id=task_id,
-            prompt=prompt,
-            channel=msg.channel,
-            chat_id=chat_id,
-            user_id=msg.user_id or "",
-            thread_id=msg.thread_id,
+        task = await svc.add_task(
+            board_id=board_id,
+            title=prompt[:100],
+            description=prompt,
+            priority=TaskPriority.NORMAL,
+            initial_status=TaskStatus.READY,
+            agent_id=None,
         )
-        self._tasks[task_id] = record
 
-        asyncio_task = asyncio.create_task(
-            self._execute_with_timeout(record),
-            name=f"background-task-{task_id}",
-        )
-        record.asyncio_task = asyncio_task
-        asyncio_task.add_done_callback(lambda _t: self._on_task_done(task_id))
+        task.metadata = task.metadata or {}
+        task.metadata["background_source"] = "btw"
+        task.metadata["channel"] = msg.channel
+        task.metadata["chat_id"] = chat_id
+        task.metadata["user_id"] = user_id
+        task.metadata["thread_id"] = msg.thread_id
+        await svc.store.save_task(task)
 
         logger.info(
-            "Background task %s spawned for %s/%s: %s",
-            task_id,
+            "Background task %s spawned via Kanban for %s/%s: %s",
+            task.task_id,
             msg.channel,
             chat_id,
             prompt[:80],
         )
-        return task_id
+        return task.task_id
 
     async def cancel_background(
         self,
         msg: InboundMessage,
         task_id: str,
     ) -> bool:
-        """Cancel a running background task."""
-        record = self._tasks.get(task_id)
-        if not record or record.status != "running":
+        """Cancel a running or queued background task."""
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+        from app.services.kanban import KanbanService
+
+        svc = KanbanService.get_instance()
+        task = await svc.store.get_task(task_id)
+        if not task or task.status not in (TaskStatus.RUNNING, TaskStatus.READY):
             return False
 
-        if record.cancel_token:
-            record.cancel_token.cancel("user_cancelled")
+        tokens = self._runtime_tokens.get(task_id)
+        if tokens:
+            tokens.cancel_token.cancel("user_cancelled")
 
-        if record.asyncio_task and not record.asyncio_task.done():
-            record.asyncio_task.cancel()
-
-        record.status = "cancelled"
-        record.completed_at = time.time()
+        await svc.move_task(task_id, TaskStatus.FAILED, error="Cancelled by user")
+        await svc.cancel_task_execution(task_id)
+        self._runtime_tokens.pop(task_id, None)
         logger.info("Background task %s cancelled", task_id)
         return True
 
@@ -144,24 +170,54 @@ class ChannelBackgroundTaskHandler:
         msg: InboundMessage,
     ) -> list[BackgroundTaskInfo]:
         """List all background tasks for the current user."""
-        user_id = msg.user_id or msg.sender_id
-        results: list[BackgroundTaskInfo] = []
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
-        for record in self._tasks.values():
-            if record.user_id != user_id and record.chat_id != (msg.chat_id or msg.sender_id):
+        from app.services.kanban import KanbanService
+
+        svc = KanbanService.get_instance()
+
+        if self._system_board_id is None:
+            await self._ensure_system_board()
+        board_id = self._system_board_id
+        if board_id is None:
+            return []
+
+        tasks = await svc.store.list_tasks(board_id)
+        user_id = msg.user_id or msg.sender_id
+        chat_id = msg.chat_id or msg.sender_id
+
+        results: list[BackgroundTaskInfo] = []
+        for task in tasks:
+            meta = task.metadata or {}
+            task_user = meta.get("user_id", "")
+            task_chat = meta.get("chat_id", "")
+            if task_user != user_id and task_chat != chat_id:
                 continue
+
+            status = _kanban_status_to_bg_status(task.status)
+            completed_at = task.completed_at.timestamp() if task.completed_at else None
+            created_at = task.created_at.timestamp() if task.created_at else time.time()
+
+            result_text: str | None = None
+            if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+                events = await svc.store.list_events(task.task_id)
+                for ev in reversed(events):
+                    if ev.payload and ev.payload.get("result_preview"):
+                        result_text = str(ev.payload["result_preview"])[:100]
+                        break
+
             results.append(
                 BackgroundTaskInfo(
-                    task_id=record.task_id,
-                    prompt=record.prompt,
-                    status=record.status,
-                    created_at=record.created_at,
-                    completed_at=record.completed_at,
-                    result_preview=record.result[:100] if record.result else None,
+                    task_id=task.task_id,
+                    prompt=task.description or task.title,
+                    status=status,
+                    created_at=created_at,
+                    completed_at=completed_at,
+                    result_preview=result_text,
                 )
             )
 
-        return results
+        return sorted(results, key=lambda x: x.created_at, reverse=True)
 
     async def steer_background(
         self,
@@ -170,158 +226,51 @@ class ChannelBackgroundTaskHandler:
         instruction: str,
     ) -> bool:
         """Inject a steering instruction into a running background task."""
-        record = self._tasks.get(task_id)
-        if not record or record.status != "running":
+        tokens = self._runtime_tokens.get(task_id)
+        if not tokens:
             return False
+        tokens.steering_token.steer(instruction)
+        return True
 
-        if record.steering_token:
-            record.steering_token.steer(instruction)
-            return True
-
-        return False
-
-    async def _execute_with_timeout(self, record: _RunningTask) -> str:
-        """Wrap _execute_background with a timeout guard."""
-        try:
-            return await asyncio.wait_for(
-                self._execute_background(record),
-                timeout=TASK_TIMEOUT_SECONDS,
-            )
-        except asyncio.TimeoutError:
-            record.status = "failed"
-            record.result = f"Task timed out after {int(TASK_TIMEOUT_SECONDS)}s"
-            record.completed_at = time.time()
-            logger.warning("Background task %s timed out", record.task_id)
-            await self._push_error(record, record.result)
-            return record.result
-
-    async def _execute_background(self, record: _RunningTask) -> str:
-        """Execute the background task as an independent agent run.
-
-        Uses the same ChannelAgentExecutor pipeline but in an isolated context,
-        consuming the full stream to collect the final response.
-        """
-        from app.core.channel_bridge.agent_executor import ChannelAgentExecutor
-
-        try:
-            executor = ChannelAgentExecutor()
-            cancel_token = CancellationToken()
-            steering_token = SteeringToken()
-            record.cancel_token = cancel_token
-            record.steering_token = steering_token
-
-            synthetic_msg = InboundMessage(
-                channel=record.channel,
-                sender_id=record.chat_id,
-                chat_id=f"bg_{record.task_id}",
-                content=record.prompt,
-                user_id=record.user_id,
-                metadata={"background_task_id": record.task_id},
-            )
-
-            result_parts: list[str] = []
-            async for event in executor.execute_stream(
-                synthetic_msg,
-                user_id=record.user_id,
-                cancel_token=cancel_token,
-                steering_token=steering_token,
-            ):
-                if isinstance(event, OutboundMessage) and event.content:
-                    result_parts.append(event.content)
-
-            result = "\n".join(result_parts) if result_parts else "Task completed (no output)"
-            record.status = "completed"
-            record.result = result
-            record.completed_at = time.time()
-
-            await self._push_result(record)
-            self._emit_event(record)
-            return result
-
-        except asyncio.CancelledError:
-            record.status = "cancelled"
-            record.completed_at = time.time()
-            raise
-        except Exception as exc:
-            logger.error("Background task %s failed: %s", record.task_id, exc)
-            record.status = "failed"
-            record.result = f"Error: {exc}"
-            record.completed_at = time.time()
-
-            await self._push_error(record, str(exc))
-            self._emit_event(record)
-            return f"Error: {exc}"
-
-    async def _push_result(self, record: _RunningTask) -> None:
-        """Push background task result back to the originating channel."""
-        from app.core.channel_bridge import channel_gateway
-
-        bus = channel_gateway.bus
-
-        result_preview = record.result or ""
-        if len(result_preview) > 2000:
-            result_preview = result_preview[:2000] + "\n\n...(truncated)"
-
-        content = f"**Background task completed** `{record.task_id}`\n_Task: {record.prompt[:100]}_\n\n{result_preview}"
-
-        reply = OutboundMessage(
-            channel=record.channel,
-            recipient_id=record.chat_id,
-            content=content,
-            user_id=record.user_id,
-            thread_id=record.thread_id,
-        )
-        await bus.publish_outbound(reply)
-
-    async def _push_error(self, record: _RunningTask, error: str) -> None:
-        """Push background task error notification."""
-        from app.core.channel_bridge import channel_gateway
-
-        bus = channel_gateway.bus
-
-        content = f"**Background task failed** `{record.task_id}`\n_Task: {record.prompt[:100]}_\n\nError: {error}"
-
-        reply = OutboundMessage(
-            channel=record.channel,
-            recipient_id=record.chat_id,
-            content=content,
-            user_id=record.user_id,
-            thread_id=record.thread_id,
-        )
-        await bus.publish_outbound(reply)
-
-    def _emit_event(self, record: _RunningTask) -> None:
-        """Emit SSE event to WebUI EventBus for real-time frontend updates."""
-        from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-        event_bus = get_event_bus()
-        event_bus.publish(
-            AppEvent(
-                event_type=AppEventType.BACKGROUND_TASK_DONE,
-                data={
-                    "task_id": record.task_id,
-                    "status": record.status,
-                    "prompt": record.prompt[:100],
-                    "result_preview": record.result[:200] if record.result else None,
-                },
-            )
+    def register_runtime_tokens(
+        self,
+        task_id: str,
+        cancel_token: CancellationToken,
+        steering_token: SteeringToken,
+    ) -> None:
+        """Register runtime tokens for an active task (called by KanbanTaskRunner)."""
+        self._runtime_tokens[task_id] = _RuntimeTokens(
+            cancel_token=cancel_token,
+            steering_token=steering_token,
         )
 
-    def _on_task_done(self, task_id: str) -> None:
-        """Cleanup callback when a background asyncio task completes."""
-        record = self._tasks.get(task_id)
-        if record and record.status == "running":
-            record.status = "completed"
-            record.completed_at = time.time()
+    def unregister_runtime_tokens(self, task_id: str) -> None:
+        """Unregister runtime tokens when a task completes."""
+        self._runtime_tokens.pop(task_id, None)
 
-    def cleanup_expired(self, max_age_seconds: float = 3600.0) -> int:
-        """Remove completed tasks older than max_age_seconds. Returns count removed."""
-        now = time.time()
-        expired = [
-            tid
-            for tid, r in self._tasks.items()
-            if r.status != "running" and r.completed_at and (now - r.completed_at) > max_age_seconds
-        ]
-        for tid in expired:
-            del self._tasks[tid]
-        return len(expired)
+    async def _count_running(self, board_id: str) -> int:
+        """Count currently running tasks on the system board."""
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+        from app.services.kanban import KanbanService
+
+        svc = KanbanService.get_instance()
+        tasks = await svc.store.list_tasks(board_id)
+        return sum(1 for t in tasks if t.status == TaskStatus.RUNNING)
+
+
+def _kanban_status_to_bg_status(status: str) -> str:
+    """Map KanbanTask TaskStatus value to background task status string."""
+    from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
+    status_map = {
+        TaskStatus.READY: "running",
+        TaskStatus.RUNNING: "running",
+        TaskStatus.COMPLETED: "completed",
+        TaskStatus.FAILED: "failed",
+        TaskStatus.BLOCKED: "failed",
+        TaskStatus.BACKLOG: "running",
+        TaskStatus.TRIAGE: "running",
+        TaskStatus.ARCHIVED: "completed",
+    }
+    return status_map.get(status, "running")  # type: ignore[arg-type]

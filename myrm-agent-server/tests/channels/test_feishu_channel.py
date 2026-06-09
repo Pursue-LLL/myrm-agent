@@ -1040,5 +1040,5 @@ class TestCollectIssues:
         ):
             issues = ch.collect_issues()
         assert len(issues) == 1
-        assert issues[0].fix == "uv sync"
+        assert issues[0].fix == "uv sync --extra channels-sdk"
         assert "uv sync" in issues[0].message

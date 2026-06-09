@@ -1,24 +1,41 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe, ChevronDown, ChevronUp, DollarSign, Layers } from 'lucide-react';
-import { ApprovalPayload, ApprovalToolCall } from '@/store/useApprovalStore';
+import { MessageSquare, Clock, AlertTriangle, MousePointerClick, Globe, ChevronDown, ChevronUp, DollarSign, Layers, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
+import { ApprovalPayload } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
 import { Textarea } from '@/components/primitives/textarea';
 import { LazyMonacoEditor as Editor, LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
 import ShellCommandDisplay from '@/components/features/chat-window/approval/ShellCommandDisplay';
-import { extractShellCommand, isShellApprovalTool, parseCommandSpanRisks, parseCommandSpans } from '@/lib/approval/shellCommandDisplay';
+import EditModeView from '@/components/features/chat-window/approval/EditModeView';
+import AllowAlwaysConfirmDialog from '@/components/features/chat-window/approval/AllowAlwaysConfirmDialog';
+import { type AllowAlwaysScope, scopeToAllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
+import {
+  extractShellCommand,
+  getShellEditInputEntries,
+  isShellApprovalTool,
+  mergeShellEditedArgs,
+  parseCommandSpanReasons,
+  parseCommandSpanRisks,
+  parseCommandSpans,
+} from '@/lib/approval/shellCommandDisplay';
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
+
+type DrawerDecisionAction = 'approve' | 'reject' | 'edit';
+type CardDialogMode = 'default' | 'editing';
 
 interface PolymorphicApprovalCardProps {
   approval: ApprovalPayload;
   onResolve: (
-    action: 'approve' | 'reject',
+    action: DrawerDecisionAction,
     comment?: string,
     edited_payload?: Record<string, unknown>,
+    extra?: ToolApprovalResolveExtra,
   ) => Promise<void>;
   isSubmitting: boolean;
 }
@@ -177,6 +194,13 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const router = useRouter();
   const hideDrawer = useApprovalStore((s) => s.hideDrawer);
   const [comment, setComment] = useState('');
+  const [mode, setMode] = useState<CardDialogMode>('default');
+  const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
+  const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>('tool');
+  const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
+  const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>('tool');
+  const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
+  const [shellEditedArgs, setShellEditedArgs] = useState<Record<string, string>>({});
   const [editedArgs, setEditedArgs] = useState<string>(() => {
     if (approval.action_type === 'tool_clarification') {
       return JSON.stringify(approval.payload?.content || {}, null, 2);
@@ -186,6 +210,135 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const { resolvedTheme } = useTheme();
 
   const isDark = resolvedTheme === 'dark';
+  const isSubagentApproval = approval.action_type === 'subagent_approval';
+  const toolCalls = useMemo(
+    () => approval.payload?.tool_calls ?? [],
+    [approval.payload?.tool_calls],
+  );
+  const primaryToolName = toolCalls[0]?.name ?? 'unknown';
+  const singleShellToolCall = useMemo(() => {
+    if (!isSubagentApproval || toolCalls.length !== 1) {
+      return null;
+    }
+    const call = toolCalls[0];
+    if (!isShellApprovalTool(call.name) || typeof call.args !== 'object' || call.args === null) {
+      return null;
+    }
+    return call;
+  }, [isSubagentApproval, toolCalls]);
+
+  const shellInputEntries = useMemo(() => {
+    if (!singleShellToolCall || typeof singleShellToolCall.args !== 'object' || singleShellToolCall.args === null) {
+      return [] as Array<[string, unknown]>;
+    }
+    return getShellEditInputEntries(singleShellToolCall.args as Record<string, unknown>);
+  }, [singleShellToolCall]);
+
+  const isSingleStringShellParam =
+    shellInputEntries.length === 1 && typeof shellInputEntries[0][1] === 'string';
+
+  useEffect(() => {
+    if (!singleShellToolCall || typeof singleShellToolCall.args !== 'object' || singleShellToolCall.args === null) {
+      return;
+    }
+    const initial: Record<string, string> = {};
+    for (const [key, val] of shellInputEntries) {
+      if (typeof val === 'string') {
+        initial[key] = val;
+      } else if (val === undefined || val === null) {
+        initial[key] = '';
+      } else {
+        initial[key] = JSON.stringify(val, null, 2);
+      }
+    }
+    setShellEditedArgs(initial);
+  }, [shellInputEntries, singleShellToolCall]);
+
+  const permissionTypeLabel = useMemo(() => {
+    if (primaryToolName === 'bash_code_execute_tool' || primaryToolName === 'execute_code') {
+      return t('permissionTypes.codeInterpreter');
+    }
+    if (primaryToolName === 'bash_tool') {
+      return t('permissionTypes.shellExec');
+    }
+    if (primaryToolName.startsWith('browser_')) {
+      return t('permissionTypes.browser');
+    }
+    return t('permissionTypes.default');
+  }, [primaryToolName, t]);
+
+  const handleConfirmAlwaysAllow = useCallback(async () => {
+    setShowAlwaysAllowConfirm(false);
+    await onResolve('approve', comment, undefined, {
+      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope),
+      feedback: comment || undefined,
+    });
+  }, [allowAlwaysScope, comment, onResolve]);
+
+  const handleConfirmShellEdit = useCallback(async () => {
+    const parsed: Record<string, unknown> = {};
+    const errors: string[] = [];
+
+    for (const [key, val] of Object.entries(shellEditedArgs)) {
+      const trimmed = val.trim();
+      try {
+        parsed[key] = JSON.parse(val);
+      } catch {
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+          errors.push(key);
+        }
+        parsed[key] = val;
+      }
+    }
+
+    if (errors.length > 0) {
+      setEditValidationErrors(errors);
+      toast.error(t('editValidationError', { fields: errors.join(', ') }));
+      return;
+    }
+
+    setEditValidationErrors([]);
+
+    const allowAlwaysValue = !allowAlwaysInEdit
+      ? false
+      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
+
+    const hasChanges = shellInputEntries.some(([key, original]) => {
+      const editedVal = shellEditedArgs[key];
+      const originalStr = typeof original === 'string' ? original : JSON.stringify(original, null, 2);
+      return editedVal !== originalStr;
+    });
+
+    if (hasChanges) {
+      const originalArgs =
+        typeof singleShellToolCall?.args === 'object' && singleShellToolCall.args !== null
+          ? (singleShellToolCall.args as Record<string, unknown>)
+          : {};
+      await onResolve('edit', comment, undefined, {
+        edited_args: mergeShellEditedArgs(originalArgs, parsed),
+        allow_always: allowAlwaysValue,
+        feedback: comment || undefined,
+      });
+    } else {
+      await onResolve('approve', comment, undefined, {
+        allow_always: allowAlwaysValue || undefined,
+        feedback: comment || undefined,
+      });
+    }
+
+    setMode('default');
+    setAllowAlwaysInEdit(false);
+    setAllowAlwaysScopeInEdit('tool');
+  }, [
+    allowAlwaysInEdit,
+    allowAlwaysScopeInEdit,
+    comment,
+    onResolve,
+    shellEditedArgs,
+    shellInputEntries,
+    singleShellToolCall,
+    t,
+  ]);
 
   const handleJumpToChat = () => {
     if (!approval.chat_id) return;
@@ -196,7 +349,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const renderContent = () => {
     switch (approval.action_type) {
       case 'subagent_approval': {
-        const toolCalls: ApprovalToolCall[] = approval.payload?.tool_calls ?? [];
         const payloadRecord = approval.payload ?? {};
         const workspaceRoot =
           typeof payloadRecord.workspaceRoot === 'string'
@@ -255,6 +407,12 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                         commandSpans.length,
                       )
                     : undefined;
+                  const commandSpanReasons = commandSpans
+                    ? parseCommandSpanReasons(
+                        args.command_span_reasons ?? args.commandSpanReasons,
+                        commandSpans.length,
+                      )
+                    : undefined;
                   return (
                     <ShellCommandDisplay
                       key={idx}
@@ -262,6 +420,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                       command={command}
                       commandSpans={commandSpans}
                       commandSpanRisks={commandSpanRisks}
+                      commandSpanReasons={commandSpanReasons}
                       workspaceRoot={workspaceRoot}
                     />
                   );
@@ -486,6 +645,34 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
   const hasMeta = Boolean(approval.chat_id) || Boolean(approval.expires_at);
 
+  if (mode === 'editing' && singleShellToolCall) {
+    return (
+      <div className="space-y-6" data-subagent-task-id={approval.payload?.subagent_task_id || approval.subagent_task_id}>
+        <EditModeView
+          editedArgs={shellEditedArgs}
+          setEditedArgs={setShellEditedArgs}
+          inputEntries={shellInputEntries}
+          isSingleStringParam={isSingleStringShellParam}
+          editValidationErrors={editValidationErrors}
+          allowAlwaysInEdit={allowAlwaysInEdit}
+          setAllowAlwaysInEdit={setAllowAlwaysInEdit}
+          allowAlwaysScopeInEdit={allowAlwaysScopeInEdit}
+          setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
+          permissionTypeLabel={permissionTypeLabel}
+          toolName={singleShellToolCall.name}
+          requestId={approval.approval_id}
+          onConfirm={handleConfirmShellEdit}
+          onCancel={() => {
+            setMode('default');
+            setAllowAlwaysInEdit(false);
+            setEditValidationErrors([]);
+          }}
+          isLoading={isSubmitting}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" data-subagent-task-id={approval.payload?.subagent_task_id || approval.subagent_task_id}>
       {hasMeta && (
@@ -523,10 +710,26 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         />
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-4 border-t">
-        <Button variant="outline" onClick={() => onResolve('reject', comment)} disabled={isSubmitting}>
+      <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t">
+        <Button variant="outline" onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })} disabled={isSubmitting}>
           {t('reject')}
         </Button>
+        {singleShellToolCall && (
+          <Button variant="secondary" onClick={() => setMode('editing')} disabled={isSubmitting}>
+            <Pencil className="mr-1 h-3.5 w-3.5" />
+            {t('edit')}
+          </Button>
+        )}
+        {isSubagentApproval && (
+          <Button
+            variant="ghost"
+            onClick={() => setShowAlwaysAllowConfirm(true)}
+            disabled={isSubmitting}
+            className="text-xs text-amber-600 hover:text-amber-700"
+          >
+            {t('allowAlways')}
+          </Button>
+        )}
         <Button
           onClick={() => {
             let edited_payload: Record<string, unknown> | undefined = undefined;
@@ -535,17 +738,29 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 edited_payload = JSON.parse(editedArgs);
               } catch {
                 console.error('Invalid JSON payload');
-                // Could add toast here
                 return;
               }
             }
-            onResolve('approve', comment, edited_payload);
+            onResolve('approve', comment, edited_payload, { feedback: comment || undefined });
           }}
           disabled={isSubmitting}
         >
           {t('approve')}
         </Button>
       </div>
+
+      {isSubagentApproval && (
+        <AllowAlwaysConfirmDialog
+          open={showAlwaysAllowConfirm}
+          onOpenChange={setShowAlwaysAllowConfirm}
+          allowAlwaysScope={allowAlwaysScope}
+          setAllowAlwaysScope={setAllowAlwaysScope}
+          permissionTypeLabel={permissionTypeLabel}
+          toolName={primaryToolName}
+          onConfirm={handleConfirmAlwaysAllow}
+          isLoading={isSubmitting}
+        />
+      )}
     </div>
   );
 }

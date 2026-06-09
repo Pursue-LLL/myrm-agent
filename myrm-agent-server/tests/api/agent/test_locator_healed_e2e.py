@@ -27,8 +27,19 @@ async def test_locator_healed_event_bridged_to_sse_direct():
 
     await _handle_locator_healed_event(event)
 
-    received_event = await asyncio.wait_for(queue.get(), timeout=1.0)
+    received_event = None
+    deadline = asyncio.get_running_loop().time() + 1.0
+    while asyncio.get_running_loop().time() < deadline:
+        remaining = deadline - asyncio.get_running_loop().time()
+        try:
+            candidate = await asyncio.wait_for(queue.get(), timeout=max(remaining, 0.01))
+        except TimeoutError:
+            break
+        if candidate.event_type == "locator_healed":
+            received_event = candidate
+            break
 
+    assert received_event is not None, "Expected locator_healed event on server bus"
     assert received_event.event_type == "locator_healed"
     assert received_event.data["ref"] == "f0_e1"
     assert received_event.data["old_name"] == "Submit"

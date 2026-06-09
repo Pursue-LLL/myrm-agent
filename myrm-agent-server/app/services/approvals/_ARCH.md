@@ -4,16 +4,22 @@
 
 本模块实现跨端的统一拦截与审批决策业务层（Approval Registry）。
 基于 Harness 层抛出的 `ApprovalContract` 中断原语，将审批请求落库至 `approvals` 表（ORM：`ApprovalRecord`），并广播 SSE 事件至 Web 前端，同时支持拦截并转化成 `OutboundMessage` 发送至原生 IM 渠道（如 Slack/Feishu）。
-前端或 IM 调用相关 API 后，通过本模块记录决策并向底层 LangGraph/Harness 下发 `Command(resume=...)`。
+IM/渠道调用相关 API 后由 server 下发 `Command(resume=...)`（见 `channels/routing/router_commands.py`）。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
 支持通过 `expires_at` 和 Cron 定时任务进行超时审批 (TTL) 的自动降级与自动清理。
 
-本模块彻底取代了之前分散在各处的零碎审批拦截流（如硬编码的 `MemoryTaintedError` 拦截和 `SkillDraft` 模型）。
+Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储于 `ApprovalRecord`，但 **无 `thread_id` 的后台 growth 项不进 `GET /approvals` 全局 recovery 列表**（走 `/skills/drafts` + Agent 洞察 tab）；**有 `thread_id` 的 inline HITL** 仍走本模块与全局 Drawer。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels) 与批量/超时唤醒中枢 | ✅ |
+| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft | ✅ |
+
+## `list_pending` 契约
+
+- **包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
+- **排除**：`action_type ∈ growth_constants.GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **SSE**：后台 growth 创建时不广播 `APPROVAL_REQUIRED`（由 `draft_notification` 发 `NEW_SKILL_DRAFT`）。
 
 ## 模块依赖
 

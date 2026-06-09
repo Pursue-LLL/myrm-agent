@@ -26,6 +26,19 @@ describe('buildApprovalDecision', () => {
     });
   });
 
+  it('forwards structured allow_always extensions', () => {
+    expect(
+      buildApprovalDecision('approve', {
+        allow_always: { tool: true, args: true },
+      }),
+    ).toEqual({
+      type: 'approve',
+      args: undefined,
+      feedback: undefined,
+      extensions: { allowAlways: { tool: true, args: true } },
+    });
+  });
+
   it('builds edit decisions with edited args', () => {
     expect(
       buildApprovalDecision('edit', {

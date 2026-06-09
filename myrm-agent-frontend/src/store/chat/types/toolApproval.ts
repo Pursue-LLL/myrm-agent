@@ -40,6 +40,15 @@ export interface ToolApprovalRequest {
   commandSpans?: { startIndex: number; endIndex: number }[];
   /** Per-segment risk from harness risk_classifier */
   commandSpanRisks?: ('safe' | 'unknown')[];
+  /** Per-segment stable reason codes for tooltip i18n */
+  commandSpanReasons?: (
+    | 'safe'
+    | 'empty_segment'
+    | 'redirect'
+    | 'unknown_command'
+    | 'unknown_subcommand'
+    | 'invalid_flags'
+  )[];
   /** Sandbox workspace root for shell approvals */
   workspaceRoot?: string;
 }

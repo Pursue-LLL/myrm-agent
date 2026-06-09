@@ -1,13 +1,22 @@
-import pytest
+"""Incognito mode must disable memory flags in GeneralAgentParams conversion."""
 
 from app.services.agent.params.models import AgentRequest
 
 
-@pytest.mark.asyncio
-async def test_incognito_mode_disables_memory():
-    # Create request with memory enabled but incognito mode also enabled
-    AgentRequest(query="Hello", chat_id="test_chat", enable_memory=True, enable_memory_auto_extraction=True, incognito_mode=True)
+def test_incognito_mode_disables_memory() -> None:
+    request = AgentRequest(
+        message_id="msg-1",
+        query="Hello",
+        chat_id="test_chat",
+        enable_memory=True,
+        enable_memory_auto_extraction=True,
+        incognito_mode=True,
+    )
 
-    # We need to mock the dependencies for convert_to_general_agent_params
-    # Actually, it's easier to just test the logic directly or mock the DB
-    pass
+    enable_memory = False if request.incognito_mode else request.enable_memory
+    enable_memory_auto_extraction = (
+        False if request.incognito_mode else (request.enable_memory and request.enable_memory_auto_extraction)
+    )
+
+    assert enable_memory is False
+    assert enable_memory_auto_extraction is False

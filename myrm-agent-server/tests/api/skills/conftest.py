@@ -51,6 +51,13 @@ def app() -> FastAPI:
     app.include_router(drafts_module.router, prefix="/api/v1/skills", tags=["skills-drafts"])
     curator_module = _load_curator_module()
     app.include_router(curator_module.router, prefix="/api/v1/skills", tags=["skills-curator"])
+    sync_module = _load_module_by_path("app.api.skills.sync", "sync.py")
+    app.include_router(sync_module.router, prefix="/api/v1/skills", tags=["skills-sync"])
+    from app.api.skills.evolution import router as evolution_router
+    from app.api.skills.growth import router as skill_growth_router
+
+    app.include_router(evolution_router, prefix="/api/v1")
+    app.include_router(skill_growth_router, prefix="/api/v1")
     return app
 
 
@@ -96,6 +103,8 @@ async def setup_test_database():
         patch("app.api.skills.drafts.get_session", mock_get_session),
         patch("app.services.agent.backends.profile_backend.get_session", mock_get_session),
         patch("app.services.approvals.registry.get_session", mock_get_session),
+        patch("app.services.skills.evolution_reviews.get_session", mock_get_session),
+        patch("app.services.skills.growth_queries.get_session", mock_get_session),
         patch("app.platform_utils.get_session_factory", mock_get_session_factory),
         patch("app.database.repositories.uow.get_session_factory", mock_get_session_factory),
         patch("app.database.connection.get_session_factory", mock_get_session_factory),

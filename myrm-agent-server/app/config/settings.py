@@ -510,6 +510,9 @@ class AppSettings(BaseSettings):
     # --- [O] Browser session warmup ---
     browser_auto_warmup: bool = False  # BROWSER_AUTO_WARMUP
 
+    # --- [O] Browser extension bridge ---
+    extension_auth_token: SecretStr = SecretStr("")  # EXTENSION_AUTH_TOKEN
+
     # --- [O] Auth audit log rotation ---
     auth_audit_log_max_size_mb: int = 10  # AUTH_AUDIT_LOG_MAX_SIZE_MB
     auth_audit_log_max_age_days: int = 7  # AUTH_AUDIT_LOG_MAX_AGE_DAYS

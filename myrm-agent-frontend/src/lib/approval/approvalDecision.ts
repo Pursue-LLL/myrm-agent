@@ -5,7 +5,7 @@ export interface ApprovalDecision {
   args?: Record<string, unknown>;
   feedback?: string;
   extensions: {
-    allowAlways: boolean;
+    allowAlways: boolean | { tool?: boolean; args?: boolean };
     allowDomain?: boolean;
   };
 }

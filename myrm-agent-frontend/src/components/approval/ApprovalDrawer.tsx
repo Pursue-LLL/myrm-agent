@@ -8,6 +8,9 @@ import { PolymorphicApprovalCard } from './PolymorphicApprovalCard';
 import { Button } from '@/components/primitives/button';
 import { toast } from '@/lib/utils/toast';
 import { API_BASE_URL } from '@/lib/api';
+import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
+import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
+import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
 
 export function ApprovalDrawer() {
   const tNotifications = useTranslations('notifications');
@@ -16,18 +19,38 @@ export function ApprovalDrawer() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleResolve = async (
-    action: 'approve' | 'reject',
+    action: 'approve' | 'reject' | 'edit',
     approvalId: string,
     comment?: string,
     edited_payload?: Record<string, unknown>,
+    extra?: ToolApprovalResolveExtra,
   ) => {
+    const approval = queue.find((item) => item.approval_id === approvalId);
     setIsSubmitting(true);
     try {
+      if (approval && shouldResumeDrawerApproval(approval.action_type)) {
+        await resumeDrawerApprovalStream(
+          approval,
+          action,
+          {
+            ...extra,
+            feedback: extra?.feedback ?? comment,
+          },
+          tToolApproval('resumeError'),
+        );
+      }
+
+      const httpDecision = action === 'reject' ? 'reject' : 'approve';
       const response = await fetch(`${API_BASE_URL}/approvals/${approvalId}/resolve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ decision: action, comment, edited_payload }),
+        body: JSON.stringify({
+          decision: httpDecision,
+          comment,
+          edited_payload: action === 'edit' ? extra?.edited_args : edited_payload,
+          allow_always: extra?.allow_always,
+        }),
       });
 
       if (!response.ok) {
@@ -46,6 +69,16 @@ export function ApprovalDrawer() {
   const handleBatchResolve = async (action: 'approve' | 'reject') => {
     setIsSubmitting(true);
     try {
+      const resumableApprovals = queue.filter((item) => shouldResumeDrawerApproval(item.action_type));
+      for (const approval of resumableApprovals) {
+        await resumeDrawerApprovalStream(
+          approval,
+          action,
+          action === 'reject' ? { feedback: 'Batch rejected by user' } : undefined,
+          tToolApproval('resumeError'),
+        );
+      }
+
       const approvalIds = queue.map((a) => a.approval_id);
       const response = await fetch(`${API_BASE_URL}/approvals/batch-resolve`, {
         method: 'POST',
@@ -105,8 +138,8 @@ export function ApprovalDrawer() {
               <PolymorphicApprovalCard
                 key={approval.approval_id}
                 approval={approval}
-                onResolve={(action, comment, edited_payload) =>
-                  handleResolve(action, approval.approval_id, comment, edited_payload)
+                onResolve={(action, comment, edited_payload, extra) =>
+                  handleResolve(action, approval.approval_id, comment, edited_payload, extra)
                 }
                 isSubmitting={isSubmitting}
               />

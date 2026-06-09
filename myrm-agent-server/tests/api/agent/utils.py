@@ -5,13 +5,41 @@
 
 import json
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Optional
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
 
+from app.core.types import ModelConfig
+
 from tests.support.test_secrets import load_test_secrets, resolve_test_env
+
+
+@contextmanager
+def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
+    """Resolve a fake invalid model and block provider_scan so agent-stream emits ERROR quickly."""
+
+    def _mock_fallback(providers_dict: object | None = None) -> ModelConfig:
+        return ModelConfig(model=invalid_model, api_key="sk-invalid-test-key", base_url=None)
+
+    def _keep_requested_model(model_cfg: ModelConfig, *args: object, **kwargs: object) -> tuple[ModelConfig, str]:
+        return model_cfg, "main"
+
+    with (
+        patch(
+            "app.core.channel_bridge.model_resolver._fallback_model_from_providers",
+            side_effect=_mock_fallback,
+        ),
+        patch(
+            "app.services.agent.params.converter.select_tool_capable_model_cfg",
+            side_effect=_keep_requested_model,
+        ),
+    ):
+        yield
 
 # 顶层 error 事件中可识别为环境问题（而非真实 Agent bug）的关键字
 _ENV_SKIP_KEYWORDS = (
