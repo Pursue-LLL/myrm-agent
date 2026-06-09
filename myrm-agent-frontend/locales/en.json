@@ -4483,20 +4483,6 @@
         },
         "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser."
       },
-      "dialogPolicy": {
-        "label": "Dialog Handling",
-        "description": "How the agent handles JavaScript dialogs (alert, confirm, prompt) during web automation.",
-        "options": {
-          "smart": "Smart (Default)",
-          "smartDesc": "Auto-accept alerts/confirms, dismiss prompts. Safest for most workflows.",
-          "autoAccept": "Auto Accept",
-          "autoAcceptDesc": "Accept all dialogs automatically without agent intervention.",
-          "autoDismiss": "Auto Dismiss",
-          "autoDismissDesc": "Dismiss all dialogs automatically without agent intervention.",
-          "waitForAgent": "Wait for Agent",
-          "waitForAgentDesc": "Pause and let the AI agent decide how to respond to each dialog."
-        }
-      },
       "mcpTools": {
         "toolFilter": "Tool filter",
         "loading": "Loading tools...",
@@ -7139,7 +7125,20 @@
       "image": "Image",
       "svg": "Vector",
       "mermaid": "Diagram",
-      "binary": "File"
+      "binary": "File",
+      "spreadsheet": "Spreadsheet"
+    },
+    "spreadsheet": {
+      "search": "Search...",
+      "rows": "rows",
+      "of": "of",
+      "copy": "Copy",
+      "export": "Export",
+      "copyAll": "Copy all to clipboard",
+      "exportCsv": "Export as CSV",
+      "noData": "No data to display",
+      "loadError": "Failed to load",
+      "truncated": "Showing first {count} of {total} rows"
     },
     "noPreview": "Preview not available for this file type",
     "downloadHint": "Click download to save the file",

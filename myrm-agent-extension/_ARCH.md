@@ -33,4 +33,4 @@ Chrome MV3 扩展，作为 **Browser Extension Bridge** 客户端。通过 WebSo
 
 - 扩展不含业务逻辑；协议变更须与 server `extension` 模块同步
 - `host_permissions: <all_urls>` 为 CDP 所需；授权域名白名单由 server + storage 共同约束
-- 发布前替换 `icons/` 为品牌资产（当前为占位 PNG）
+- 发布前可替换 `icons/` 为品牌设计资产

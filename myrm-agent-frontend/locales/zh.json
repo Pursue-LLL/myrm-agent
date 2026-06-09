@@ -4483,20 +4483,6 @@
         },
         "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。"
       },
-      "dialogPolicy": {
-        "label": "弹窗处理策略",
-        "description": "智能体执行网页自动化时如何处理 JavaScript 弹窗（alert、confirm、prompt）。",
-        "options": {
-          "smart": "智能（默认）",
-          "smartDesc": "自动确认提示/确认框，自动取消输入框。适用于大多数场景。",
-          "autoAccept": "全部确认",
-          "autoAcceptDesc": "自动确认所有弹窗，无需智能体干预。",
-          "autoDismiss": "全部取消",
-          "autoDismissDesc": "自动取消所有弹窗，无需智能体干预。",
-          "waitForAgent": "等待 Agent 处理",
-          "waitForAgentDesc": "暂停并让 AI 智能体决定如何响应每个弹窗。"
-        }
-      },
       "mcpTools": {
         "toolFilter": "工具筛选",
         "loading": "加载工具中...",
@@ -7139,7 +7125,20 @@
       "image": "图片",
       "svg": "矢量图",
       "mermaid": "流程图",
-      "binary": "文件"
+      "binary": "文件",
+      "spreadsheet": "电子表格"
+    },
+    "spreadsheet": {
+      "search": "搜索...",
+      "rows": "行",
+      "of": "/",
+      "copy": "复制",
+      "export": "导出",
+      "copyAll": "复制全部到剪贴板",
+      "exportCsv": "导出为 CSV",
+      "noData": "无数据可显示",
+      "loadError": "加载失败",
+      "truncated": "显示前 {count} 行，共 {total} 行"
     },
     "noPreview": "该文件类型不支持预览",
     "downloadHint": "点击下载按钮保存文件",
