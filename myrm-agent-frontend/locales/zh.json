@@ -1506,7 +1506,7 @@
       "disconnected": "扩展已断开",
       "disconnectFailed": "断开失败",
       "setupGuide": "快速设置",
-      "step1": "从 Chrome 应用商店安装 Myrm Agent Bridge 扩展",
+      "step1": "在 Chrome 打开 chrome://extensions，开启开发者模式，点击「加载已解压的扩展程序」，选择本仓库中的 myrm-agent-extension 文件夹",
       "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址",
       "step3": "点击连接 — 扩展将保持持久连接",
       "authorizedDomains": "授权域名",
@@ -4482,6 +4482,20 @@
           "launchDesc": "每次启动全新的隔离浏览器实例。"
         },
         "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。"
+      },
+      "dialogPolicy": {
+        "label": "弹窗处理策略",
+        "description": "智能体执行网页自动化时如何处理 JavaScript 弹窗（alert、confirm、prompt）。",
+        "options": {
+          "smart": "智能（默认）",
+          "smartDesc": "自动确认提示/确认框，自动取消输入框。适用于大多数场景。",
+          "autoAccept": "全部确认",
+          "autoAcceptDesc": "自动确认所有弹窗，无需智能体干预。",
+          "autoDismiss": "全部取消",
+          "autoDismissDesc": "自动取消所有弹窗，无需智能体干预。",
+          "waitForAgent": "等待 Agent 处理",
+          "waitForAgentDesc": "暂停并让 AI 智能体决定如何响应每个弹窗。"
+        }
       },
       "mcpTools": {
         "toolFilter": "工具筛选",

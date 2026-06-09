@@ -1506,7 +1506,7 @@
       "disconnected": "Extension disconnected",
       "disconnectFailed": "Failed to disconnect",
       "setupGuide": "Quick Setup",
-      "step1": "Install the Myrm Agent Bridge extension from Chrome Web Store",
+      "step1": "In Chrome, go to chrome://extensions, enable Developer mode, click Load unpacked, and select the myrm-agent-extension folder from this repository",
       "step2": "Open the extension popup, enter this server's WebSocket URL",
       "step3": "Click Connect — the extension will maintain a persistent connection",
       "authorizedDomains": "Authorized Domains",
@@ -4482,6 +4482,20 @@
           "launchDesc": "Launches a fresh isolated browser instance every time."
         },
         "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser."
+      },
+      "dialogPolicy": {
+        "label": "Dialog Handling",
+        "description": "How the agent handles JavaScript dialogs (alert, confirm, prompt) during web automation.",
+        "options": {
+          "smart": "Smart (Default)",
+          "smartDesc": "Auto-accept alerts/confirms, dismiss prompts. Safest for most workflows.",
+          "autoAccept": "Auto Accept",
+          "autoAcceptDesc": "Accept all dialogs automatically without agent intervention.",
+          "autoDismiss": "Auto Dismiss",
+          "autoDismissDesc": "Dismiss all dialogs automatically without agent intervention.",
+          "waitForAgent": "Wait for Agent",
+          "waitForAgentDesc": "Pause and let the AI agent decide how to respond to each dialog."
+        }
       },
       "mcpTools": {
         "toolFilter": "Tool filter",

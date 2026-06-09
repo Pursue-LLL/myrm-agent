@@ -58,6 +58,7 @@ myrm-agent/
 ├── myrm-agent-server/       ← FastAPI 业务层 → 详见 server/ARCHITECTURE.md
 ├── myrm-agent-frontend/   ← Next.js WebUI
 ├── myrm-agent-desktop/      ← Tauri + sidecar 打包 → desktop/_ARCH.md
+├── myrm-agent-extension/    ← Chrome MV3 浏览器 CDP 桥 → extension/_ARCH.md
 └── scripts/                 ← OSS 安装与 myrm CLI → scripts/_ARCH.md
 ```
 
@@ -71,6 +72,7 @@ myrm-agent/
 | Frontend API 客户端 | [myrm-agent-frontend/src/services/_ARCH.md](myrm-agent-frontend/src/services/_ARCH.md) |
 | Frontend 工具审批 UI | [myrm-agent-frontend/src/lib/approval/_ARCH.md](myrm-agent-frontend/src/lib/approval/_ARCH.md) · inline BBox · AttentionBar · Tauri OS overlay |
 | Desktop | [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) |
+| Browser Extension | [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md) |
 | Security Center（供应链仪表盘） | WebUI [`/security`](myrm-agent-frontend/src/app/security/page.tsx) · API `myrm-agent-server/app/api/security/router.py` · SaaS 告警 ingest 在闭源 CP |
 
 **Git 与分发**：本文件即 OSS 产品仓的 Git/五仓/三模式定稿。Monorepo 维护者私有开发壳（Git remote `vortexai`）使用 `./myrm` 与子模块指针；见维护者速查 `scripts/dev/MAINTAINER_QUICKSTART.md`（路径相对于 vortexai 根，不在本 OSS 仓内）。

@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；贡献流程见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）、`myrm-agent-extension`（Chrome MV3 浏览器桥）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；贡献流程见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
 
 ## 根目录文件
 
@@ -22,6 +22,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 | `myrm-agent-server/` | 核心 | FastAPI 业务编排、API、渠道桥接 | Docker / sidecar / 本地 :8080 |
 | `myrm-agent-frontend/` | 核心 | Next.js Web UI、设置与对话界面 | 本地 :3000 / 静态导出 · [\_ARCH.md](myrm-agent-frontend/_ARCH.md) |
 | `myrm-agent-desktop/` | 核心 | Tauri 壳 + server sidecar | GitHub Releases |
+| `myrm-agent-extension/` | 辅助 | Chrome MV3 浏览器 CDP 桥（WebSocket 客户端） | 开发者 unpacked / 未来商店 · [\_ARCH.md](myrm-agent-extension/_ARCH.md) |
 
 ## 模块依赖
 
@@ -32,6 +33,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 - [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md)
 - [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md)
 - [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md)
+- [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md)
 
 ## 本地开发
 

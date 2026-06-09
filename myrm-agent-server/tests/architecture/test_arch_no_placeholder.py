@@ -18,6 +18,7 @@ _SCAN_ROOTS = (
     _REPO_ROOT / "myrm-agent-server" / "app",
     _REPO_ROOT / "myrm-agent-frontend" / "src",
     _REPO_ROOT / "myrm-agent-desktop",
+    _REPO_ROOT / "myrm-agent-extension",
     _REPO_ROOT / "scripts",
 )
 
