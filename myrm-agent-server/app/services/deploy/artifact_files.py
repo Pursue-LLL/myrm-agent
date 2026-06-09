@@ -33,15 +33,29 @@ async def resolve_artifact_deploy_files(
     db: AsyncSession,
     artifact_id: str,
     workspace_root: str,
+    *,
+    version_id: str | None = None,
 ) -> tuple[Artifact, dict[str, DeployFile]]:
-    """Load artifact and collect static files (vault object + sandbox asset_root)."""
+    """Load artifact and collect static files (vault object + sandbox asset_root).
+
+    When *version_id* is provided the exact version is resolved (used by share
+    bundle re-materialization to honour the pinned version in the JWT token).
+    Otherwise the latest version is used (deploy / preflight path).
+    """
     artifact = await ensure_artifact_for_deploy(db, artifact_id, workspace_root)
     if not artifact.versions:
         raise ValueError("NO_VERSIONS")
 
-    latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
+    if version_id is not None:
+        target_version = next(
+            (v for v in artifact.versions if v.id == version_id), None
+        )
+        if target_version is None:
+            raise LookupError(f"Artifact version {version_id} not found")
+    else:
+        target_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
     vault = ArtifactVault(workspace_root)
-    obj_path = _vault_object_path(vault, latest_version.vault_uri)
+    obj_path = _vault_object_path(vault, target_version.vault_uri)
     asset_root: Path | None = None
     if artifact.chat_id and artifact.name:
         resolved = resolve_sandbox_file_path(artifact.name, workspace_root, artifact.chat_id)

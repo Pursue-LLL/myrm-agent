@@ -127,7 +127,9 @@ async def materialize_share_bundle(
 ) -> ShareBundleManifest:
     """Collect deploy-equivalent files and persist them for public multi-file serving."""
     purge_expired_share_bundles()
-    _artifact, files = await resolve_artifact_deploy_files(db, claims.artifact_id, workspace_root)
+    _artifact, files = await resolve_artifact_deploy_files(
+        db, claims.artifact_id, workspace_root, version_id=claims.version_id
+    )
     if not files:
         raise ValueError("No files to share")
 

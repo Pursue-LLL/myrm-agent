@@ -14,7 +14,7 @@
 |------|------|------|
 | `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
 | `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
-| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — deploy / share 共用的工件文件收集 |
+| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files(version_id=)` — deploy / share 共用的工件文件收集；share 路径传入 JWT claims 中的 `version_id` 精确定位版本，deploy 路径使用 latest |
 | `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `evaluate_deploy_preflight` — FE 部署前门禁 |
 | `agent_deploy_service.py` | ✅ 核心 | `AgentDeployService` — 实现 harness `DeployBackend` Protocol，供 Agent 对话式部署 |
 

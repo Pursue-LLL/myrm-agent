@@ -32,3 +32,4 @@ node_modules/
 
 # Desktop orphan sidecar cache
 myrm-agent-desktop/agent-sidecar/
+.estop_state.json
