@@ -38,6 +38,7 @@ import {
   Layers,
   Volume2,
   Bot,
+  Link2,
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { Input } from '@/components/primitives/input';
