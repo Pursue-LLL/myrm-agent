@@ -9,7 +9,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
 

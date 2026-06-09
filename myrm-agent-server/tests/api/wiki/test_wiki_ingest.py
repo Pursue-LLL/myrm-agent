@@ -37,10 +37,13 @@ def _bypass_auth():
         yield
 
 
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="wiki")
+
+
 @pytest.fixture
 def client():
-    from app.main import app
-
     return TestClient(app)
 
 
@@ -132,7 +135,6 @@ def ingest_env(tmp_path: Path):
         )
 
         from app.api.wiki.router import _get_wiki_archiver
-        from app.main import app
 
         async def _override_archiver():
             return mock_archiver

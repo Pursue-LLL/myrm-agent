@@ -11,7 +11,8 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `@shared/*` | `tsconfig.json` paths + `next.config.ts` | 指向 `../shared/*` |
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
-| CI | `frontend-build.yml` | `myrm-agent-frontend/**` 与 `shared/**` 变更触发 `next build` |
+| Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |
+| CI | `frontend-build.yml` | `shared/**` 变更触发 remap vitest + `next build` |
 
 ## 子模块
 

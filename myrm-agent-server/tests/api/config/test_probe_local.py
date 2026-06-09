@@ -22,7 +22,9 @@ TEST_WS = Path(os.environ["MYRM_DATA_DIR"])
 TEST_DB = TEST_WS / "data.db"
 
 from app.database.connection import init_database  # noqa: E402
-from app.main import app  # noqa: E402
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="config")
 from app.services.config.onboarding import (  # noqa: E402
     LocalProbeResult,
     _probe_lm_studio,

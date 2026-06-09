@@ -17,21 +17,21 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |-----|------|------|-------|
-| `__init__.py` | 核心 | 模块入口，公共 API 导出 | ⚠️ 待补 |
-| `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | ⚠️ 待补 |
+| `__init__.py` | 核心 | 模块入口，公共 API 导出 | — |
+| `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | — |
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（三方哈希保护用户修改、upstream 更新检测）与幽灵清理 | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`） | ✅ |
 | `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询） | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
-| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | ⚠️ 待补 |
-| `store/service.py` | 核心 | 技能 CRUD 服务 | ⚠️ 待补 |
-| `store/reader.py` | 核心 | 技能读取 | ⚠️ 待补 |
-| `store/sanitizer.py` | 核心 | 技能内容清洗 | ⚠️ 待补 |
+| `utils.py` | 核心 | 技能名称标准化（normalize_skill_name） | — |
+| `store/service.py` | 核心 | 技能 CRUD 服务 | — |
+| `store/reader.py` | 核心 | 技能读取 | — |
+| `store/sanitizer.py` | 核心 | 技能内容清洗 | — |
 | `store/user_config.py` | 核心 | 用户技能配置（enabled/disabled prebuilt、本地路径） | ✅ |
-| `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配 | ⚠️ 待补 |
-| `history_tracking_service.py` | 核心 | 技能用量历史统计的业务 Facade 适配 | ⚠️ 待补 |
-| `providers/local.py` | 核心 | 本地文件系统技能提供者 | ⚠️ 待补 |
+| `packaging/__init__.py` | 核心 | 技能打包业务 Facade 适配 | — |
+| `history_tracking_service.py` | 核心 | 技能用量历史统计的业务 Facade 适配 | — |
+| `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation (Umbrella Merge) 集成与 agent 引用重写 | ✅ |

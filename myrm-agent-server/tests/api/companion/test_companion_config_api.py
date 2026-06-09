@@ -6,9 +6,9 @@ from sqlalchemy import delete
 
 from app.database.connection import get_session
 from app.database.models import UserConfig
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="companion")
 @pytest.mark.asyncio
 async def test_companion_config_flow() -> None:
     """Verify that companion customization config can be saved, updated, and retrieved from DB."""

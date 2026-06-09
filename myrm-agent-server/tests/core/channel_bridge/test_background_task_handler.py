@@ -38,7 +38,7 @@ def _mock_kanban_task(
     metadata: dict | None = None,
 ):
     """Create a mock KanbanTask object."""
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     task = MagicMock()
     task.task_id = task_id

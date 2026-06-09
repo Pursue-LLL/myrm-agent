@@ -4,17 +4,18 @@ from collections.abc import Iterator
 from unittest.mock import patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-from app.main import app
 from app.services.agent.steering_registry import SteeringRegistry
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
+def client(app: FastAPI) -> Iterator[TestClient]:
     with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):
-        yield TestClient(app)
+        with TestClient(app) as test_client:
+            yield test_client
 
 
 @pytest.fixture(autouse=True)

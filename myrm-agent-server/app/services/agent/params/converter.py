@@ -33,6 +33,7 @@ from .mention import (
 )
 from .models import AgentRequest
 from .resolvers import _resolve_model_config
+from .upload_sync import inject_uploaded_files_into_query, sync_uploaded_files_to_workspace
 
 logger = logging.getLogger(__name__)
 _MAX_ARCHIVE_RESTORE_ACTIONS = 3
@@ -414,6 +415,7 @@ async def convert_to_general_agent_params(
     auto_restore_domains: list[str] = []
     browser_source: str | None = None
     dialog_policy: str | None = None
+    session_recording: str | None = None
     resolved = None
 
     if request.agent_id:
@@ -455,6 +457,7 @@ async def convert_to_general_agent_params(
             auto_restore_domains = list(resolved.auto_restore_domains)
             browser_source = resolved.browser_source
             dialog_policy = resolved.dialog_policy
+            session_recording = resolved.session_recording
             openapi_services = resolved.openapi_services or None
 
             # Safety net: use agent's model when frontend didn't pass model_selection
@@ -544,6 +547,7 @@ async def convert_to_general_agent_params(
         browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
         browser_engine = cfg.browser_engine if hasattr(cfg, "browser_engine") else (resolved.browser_engine if resolved else None)
         dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
+        session_recording = cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
         if getattr(cfg, "tool_gateway_config", None) is not None:
             tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
         else:
@@ -551,6 +555,7 @@ async def convert_to_general_agent_params(
     else:
         browser_engine = resolved.browser_engine if resolved else None
         dialog_policy = resolved.dialog_policy if resolved else None
+        session_recording = resolved.session_recording if resolved else None
         tool_gateway_config = resolved.tool_gateway_config if resolved else None
 
     # Global PAT fallback logic
@@ -725,6 +730,15 @@ async def convert_to_general_agent_params(
                 len(mention_warnings),
             )
 
+    if request.uploaded_file_ids and chat_workspace_dir:
+        try:
+            synced = await sync_uploaded_files_to_workspace(request.uploaded_file_ids, chat_workspace_dir)
+            if synced:
+                final_query = inject_uploaded_files_into_query(final_query, synced)
+                logger.info("Synced %d uploaded files to workspace", len(synced))
+        except Exception:
+            logger.warning("Failed to sync uploaded files to workspace", exc_info=True)
+
     if request.mentioned_agent_ids:
         try:
             from app.services.agent.agent_service import AgentService
@@ -815,6 +829,7 @@ async def convert_to_general_agent_params(
         browser_engine=browser_engine,
         browser_source=browser_source,
         dialog_policy=dialog_policy,
+        session_recording=session_recording,
         enable_memory=False if request.incognito_mode else request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
         enable_memory_auto_extraction=False

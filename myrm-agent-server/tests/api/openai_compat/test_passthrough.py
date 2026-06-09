@@ -24,8 +24,9 @@ from app.api.openai_compat.types import (
     ChatCompletionRequest,
     ChatMessage,
 )
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="openai_compat_only", openai_compat=True)
 _MOCK_PROVIDERS_DICT: dict[str, object] = {
     "providers": [
         {

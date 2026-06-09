@@ -49,11 +49,16 @@ jobs:
     name: OSS server Docker image (PyPI harness)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: myrm-agent-server
     steps:
       - uses: actions/checkout@v4
 
       - name: Build public server image
-        run: docker build -t myrm-server:ci .
+        run: docker build -f myrm-agent-server/Dockerfile -t myrm-server:ci .
+
+      - name: Smoke import shared provider remap in container
+        run: |
+          docker run --rm myrm-server:ci python -c "
+          from app.services.agent.params.providers import LEGACY_STORAGE_PROVIDER_ID_REMAP
+          assert LEGACY_STORAGE_PROVIDER_ID_REMAP.get('google') == 'gemini'
+          print('provider remap ok', len(LEGACY_STORAGE_PROVIDER_ID_REMAP))
+          "

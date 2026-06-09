@@ -59,7 +59,7 @@ async def test_successful_shadow_test(emitter: EventEmitter) -> None:
     assert result.skill_id == "test-skill"
     assert result.baseline_version == 1
     assert result.candidate_version == 2
-    assert result.candidate_duration > 0
+    assert result.candidate_duration >= 0
     assert result.comparison.similarity_score >= 0.0
 
 

@@ -44,11 +44,11 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `agent.py` | 核心 | 通用 Agent 定义（420行） | ⚠️ 待补 |
-| `agent_middlewares/citation_rules_middleware.py` | 核心 | 引用规则中间件（129行） | ⚠️ 待补 |
-| `agent_middlewares/tool_selection_middleware.py` | 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护（112行） | ⚠️ 待补 |
-| `tools/answer_user_tool.py` | 核心 | 回答用户工具（75行） | ⚠️ 待补 |
-| `tools/render_ui_tool.py` | 核心 | UI 渲染工具（210行） | ⚠️ 待补 |
+| `agent.py` | 核心 | 通用 Agent 定义 | — |
+| `agent_middlewares/citation_rules_middleware.py` | 核心 | 引用规则中间件 | — |
+| `agent_middlewares/tool_selection_middleware.py` | 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 | — |
+| `tools/answer_user_tool.py` | 核心 | 回答用户工具 | — |
+| `tools/render_ui_tool.py` | 核心 | UI 渲染工具 | — |
 
 ### prompts/fast_search_agent_prompt.py
 

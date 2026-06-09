@@ -6,9 +6,9 @@ Tests the complete flow: backend API -> EventLogger -> EventLog files -> fronten
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="statistics")
 @pytest.mark.asyncio
 async def test_session_analytics_endpoint_with_real_session():
     """Test /api/v1/statistics/session/{session_id} with a real session."""

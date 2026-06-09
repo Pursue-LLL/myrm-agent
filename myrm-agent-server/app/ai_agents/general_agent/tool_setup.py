@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
@@ -495,12 +496,32 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
             from myrm_agent_harness.toolkits.browser.captcha import ManualSolver
+            from myrm_agent_harness.toolkits.browser.observability import (
+                BrowserObservability,
+                RecordingConfig,
+            )
+
+            observability: BrowserObservability | None = None
+            recording_mode = getattr(self, "session_recording", None)
+            if recording_mode and recording_mode != "off":
+                from app.config.settings import get_settings
+
+                recordings_dir = str(Path(get_settings().database.harness_dir) / "recordings")
+                observability = BrowserObservability(
+                    RecordingConfig(
+                        enabled=True,
+                        output_dir=recordings_dir,
+                        save_on_failure=True,
+                        save_on_success=(recording_mode == "always"),
+                    )
+                )
 
             browser_session = BrowserSession(
                 pool,
                 ContextType.AGENT,
                 context_key=browser_context_key,
                 session_vault=self._session_vault,
+                observability=observability,
                 domain_allowlist=domain_allowlist,
                 captcha_solver=ManualSolver(),
                 content_vault=ArtifactVault(os.getcwd()),
@@ -554,6 +575,21 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
+
+    def _setup_deploy_tools(self, deferred_tools: list[object]) -> None:
+        """Set up the artifact deployment agent tool."""
+        try:
+            from myrm_agent_harness.toolkits import create_deploy_tool
+
+            from app.platform_utils.workspace_root import get_workspace_root
+            from app.services.deploy.agent_deploy_service import AgentDeployService
+
+            backend = AgentDeployService(workspace_root=str(get_workspace_root()))
+            deploy_tools = create_deploy_tool(backend)
+            deferred_tools.extend(deploy_tools)
+            logger.info("🚀 Loaded %d deploy tool(s) [Deferred]", len(deploy_tools))
+        except Exception as e:
+            logger.warning("Deploy tool load failed (degraded): %s", e)
 
     def _setup_local_browser_data_tool(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""

@@ -10,7 +10,9 @@ from sqlalchemy import delete
 
 from app.database.connection import get_session
 from app.database.models import Base, PendingMigration
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="migrations_api")
 from app.platform_utils import get_database_engine
 
 

@@ -4,9 +4,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="eval")
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
     with patch("app.core.security.auth.identity.is_loopback_ip", return_value=True):

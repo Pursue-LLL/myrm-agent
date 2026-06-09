@@ -22,7 +22,7 @@ python build.py
 ## 技术细节
 
 - **后端入口**: `myrm-agent-server/app/main.py`
-- **打包**: PyInstaller `--onefile`
+- **打包**: PyInstaller `--onefile`，并 `--add-data` 打入 `shared/config/provider_legacy_remap.json`（供 server provider remap）
 - **环境变量**: `WEBUI_MODE`、`WEBUI_REMOTE_MODE`、`PORT`（Desktop 8080 / WebUI 25808）
 
 ## 运行模式

@@ -10,6 +10,7 @@
 |-------------|------|
 | `chat.ts` | 会话 CRUD、流式聊天 |
 | `channels.ts` | 渠道配置与状态 |
+| `extension.ts` | 浏览器扩展桥：`/extension/status|domains|tabs|disconnect|setup-hints`；`getExtensionWebSocketUrl()` |
 | `llm-config.ts` | Provider / 模型探测 |
 | `webui-auth.ts` | 本地 WebUI 登录/setup token |
 | `projects.ts` | 项目 CRUD、会话归属移动 |

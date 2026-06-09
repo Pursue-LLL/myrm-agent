@@ -1,25 +1,23 @@
-# services/extension/
+# services/extension/ 模块架构
 
-## Overview
-Browser Extension Bridge service. Manages WebSocket connection from the official browser extension (Chrome/Edge MV3), providing CDP proxy capabilities for Agent browser automation tasks.
+## 架构概述
 
-## File & Submodule Index
+浏览器扩展桥服务层。管理 Chrome/Edge MV3 扩展的 WebSocket 连接，代理 CDP 供 Agent 浏览器自动化使用用户真实会话。实现 harness `ExtensionBridge` Protocol。
 
-| File | Role | Description | I/O/P |
-|------|------|-------------|-------|
-| __init__.py | Package | Exports ExtensionBridgeService | ✅ |
-| bridge.py | Core | WebSocket connection lifecycle, heartbeat, CDP proxy, domain authorization. Implements harness ExtensionBridge Protocol. | ✅ |
+## 文件清单
 
-## Key Design Decisions
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 入口 | 导出 `ExtensionBridgeService`、`get_extension_bridge` | — |
+| `bridge.py` | 核心 | WebSocket 生命周期、心跳、CDP 代理、域名授权（`fnmatch` 通配） | ✅ |
 
-- **Playwright singleton**: `_ensure_playwright()` caches a single Playwright instance across all CDP connections, stopping it only on `disconnect()`. Avoids memory leaks from spawning a new process per connection.
-- **Wildcard domain matching**: `_match_domain()` uses `fnmatch` for `*.example.com` patterns. Both `connect_to_domain()` and `list_tabs()` route through this method.
-- **Auth token**: Validated against `settings.extension_auth_token` (SecretStr) in the WS endpoint.
+## 设计要点
 
-## Key Dependencies
+- **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。
+- **域名授权**：`_match_domain()` 支持 `*.example.com`；`connect_to_domain()` 与 `list_tabs()` 均经此过滤。
+- **认证**：WS 端点校验 `settings.extension_auth_token`（SecretStr）。
 
-- `myrm_agent_harness.toolkits.browser.pool.extension_bridge` (Protocol contract)
-- `myrm_agent_harness.toolkits.browser.pool.browser_launcher` (BrowserInstance)
-- `starlette.websockets`
-- `patchright.async_api`
-- `fnmatch` (stdlib, wildcard domain matching)
+## 依赖
+
+- PyPI `myrm-agent-harness` — `ExtensionBridge` Protocol、`BrowserInstance`
+- `patchright.async_api`、`starlette.websockets`

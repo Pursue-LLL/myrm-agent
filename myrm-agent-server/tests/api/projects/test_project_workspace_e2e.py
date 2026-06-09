@@ -5,7 +5,9 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="projects")
 from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,

@@ -7,8 +7,9 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="chats")
 HEADERS = {"Content-Type": "application/json", "Authorization": f"Bearer {os.environ.get('BASIC_API_KEY', 'dummy')}"}
 
 

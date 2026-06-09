@@ -15,7 +15,6 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.config.litellm_routing import normalize_env_model_selection_string
 
 from app.core.types import ModelConfig
-
 from tests.support.test_secrets import load_test_secrets, resolve_test_env
 
 

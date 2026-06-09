@@ -32,8 +32,8 @@ def test_eval_api_e2e() -> None:
     import app.ai_agents.agents as agent_types_mod
     from app.ai_agents.agents import GeneralAgentParams
     from app.config.settings import settings
-    from app.main import app as fastapi_app
-
+    from tests.support.minimal_app import build_minimal_app
+    fastapi_app = build_minimal_app(preset="eval")
     agent_types_mod.EmbeddingConfig = EmbeddingConfig
     agent_types_mod.RerankerConfig = RerankerConfig
     GeneralAgentParams.model_rebuild()

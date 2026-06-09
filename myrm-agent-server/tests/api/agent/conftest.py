@@ -193,7 +193,8 @@ def app() -> FastAPI:
 
 @pytest.fixture(scope="function")
 def client(app: FastAPI) -> TestClient:
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture(autouse=True)
@@ -343,11 +344,13 @@ def setup_random_mcp_port():
 def _clear_agent_test_process_state() -> None:
     import asyncio
 
-    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
-    from app.platform_utils import _reset_checkpointer_for_testing
     from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+    from app.platform_utils import _reset_checkpointer_for_testing, _reset_quota_manager_for_testing
+
     _reset_checkpointer_for_testing()
+    _reset_quota_manager_for_testing()
     ApprovalTimeoutScheduler.get().cancel_all()
     try:
         asyncio.run(shutdown_cached_memory_managers())

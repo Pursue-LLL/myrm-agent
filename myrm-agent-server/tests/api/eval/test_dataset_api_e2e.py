@@ -15,8 +15,8 @@ if not os.environ.get("MYRM_DLQ_DIR"):
 
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
-    from app.main import app
-
+    from tests.support.minimal_app import build_minimal_app
+    app = build_minimal_app(preset="eval")
     with TestClient(app) as test_client:
         yield test_client
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="security")
 @pytest.fixture
 def _reset_estop():
     """Ensure estop is inactive before/after each test."""

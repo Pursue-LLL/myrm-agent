@@ -14,4 +14,4 @@
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
 | `business.py` | ✅ 核心 | 业务层通用类型定义：ModelConfig、MCPServerConfig（含 mTLS 字段）等 |
-| `file_reference.py` | ✅ 辅助 | 文件引用类型定义（38行） |
+| `file_reference.py` | ✅ 辅助 | 文件引用类型定义 |

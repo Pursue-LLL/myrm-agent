@@ -17,7 +17,9 @@ from sqlalchemy import delete, select
 from app.api.memory.utils import get_crud_memory_manager, get_memory_manager
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent, PendingMigration
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="skills_api")
 from app.platform_utils import get_database_engine
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 

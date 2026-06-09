@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 
-import litellm
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.llms import llm_manager
 from myrm_agent_harness.toolkits.llms.fallback import ManagedLLM, ScenarioType
@@ -35,6 +34,8 @@ def _supports_function_calling(model_name: str) -> bool:
     if any(m in model_name.lower() for m in ["mimo", "deepseek", "minimax", "qwen"]):
         return True
     try:
+        import litellm
+
         return bool(litellm.supports_function_calling(model=model_name))
     except Exception as exc:
         logger.debug("LiteLLM capability probe failed for %s: %s", model_name, exc)

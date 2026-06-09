@@ -16,8 +16,9 @@ from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.channel_bridge.locale_provider import UserConfigLocaleProvider
 from app.database.connection import get_session
 from app.database.models import ConfigAuditLog, UserConfig
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="config")
 client = TestClient(app, root_path="", headers={"X-Forwarded-For": "127.0.0.1"})
 
 

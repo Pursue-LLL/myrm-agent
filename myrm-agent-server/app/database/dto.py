@@ -409,6 +409,10 @@ class AgentBase(BaseModel):
         None,
         description="弹窗处理策略: 'smart'(智能)、'auto_accept'(自动确认)、'auto_dismiss'(自动取消)、'wait_for_agent'(等待Agent处理)。为空则使用默认smart。",
     )
+    session_recording: str | None = Field(
+        None,
+        description="浏览器会话录制模式: 'off'(关闭)、'on_failure'(仅失败时保留)、'always'(始终保留)。为空则使用默认off。",
+    )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")
     required_capabilities: list[str] = Field(
@@ -492,6 +496,10 @@ class AgentUpdate(BaseModel):
     dialog_policy: str | None = Field(
         None,
         description="弹窗处理策略: 'smart'/'auto_accept'/'auto_dismiss'/'wait_for_agent'。None=不修改。",
+    )
+    session_recording: str | None = Field(
+        None,
+        description="浏览器会话录制模式: 'off'/'on_failure'/'always'。None=不修改。",
     )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     security_overrides: dict[str, object] | None = Field(None, description="Per-agent security policy overrides")

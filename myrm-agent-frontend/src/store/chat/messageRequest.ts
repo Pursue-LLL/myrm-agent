@@ -509,6 +509,7 @@ export const createMessageRequest = async (
         browser_engine: agentConfig?.browserEngine,
         browser_source: agentConfig?.browserSource,
         dialog_policy: agentConfig?.dialogPolicy,
+        session_recording: agentConfig?.sessionRecording,
         auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
       },
     }),
@@ -583,6 +584,10 @@ export const createMessageRequest = async (
         payload.mentioned_agent_ids = agentReferences.map(r => r.fileId).filter(Boolean);
       }
       return payload;
+    })(),
+    ...(() => {
+      const fileIds = state.files.map((f) => f.id).filter(Boolean) as string[];
+      return fileIds.length > 0 ? { uploaded_file_ids: fileIds } : {};
     })(),
   };
 

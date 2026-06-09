@@ -17,7 +17,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="agents_api")
 from tests.api.agent.utils import (
     _infer_provider_id,
     _require_env,

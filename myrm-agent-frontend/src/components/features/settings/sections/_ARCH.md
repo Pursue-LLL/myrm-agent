@@ -12,7 +12,7 @@
 | `ai-core/` | ai-core | 模型、搜索、Agent（含 `agent/` 子组件） |
 | `ai-tools/` | ai-tools | MCP、技能、工具质量 |
 | `knowledge/` | knowledge | 记忆、Wiki（含 `wiki/`）、迁移向导 |
-| `integration/` | integration | 凭证、外部 Agent、渠道（含 `channels/`、`integrations/`） |
+| `integration/` | integration | 凭证、外部 Agent、浏览器扩展桥、渠道（含 `channels/`、`integrations/`） |
 | `system/` | system | 安全、健康、开发者、关于 |
 
 ## 相对 import 铁律
@@ -48,6 +48,7 @@
 | 路径 | 文档 |
 |------|------|
 | `ai-core/agent/` | [ai-core/agent/_ARCH.md](ai-core/agent/_ARCH.md) |
+| `integration/` | [integration/_ARCH.md](integration/_ARCH.md) |
 | `integration/channels/` | [integration/channels/_ARCH.md](integration/channels/_ARCH.md) |
 | `knowledge/wiki/` | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md) |
 

@@ -13,9 +13,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.core.security.auth.identity import LOCAL_USER_ID
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="external_agents")
 @dataclass(frozen=True, slots=True)
 class _FakeIdentity:
     user_id: str = LOCAL_USER_ID

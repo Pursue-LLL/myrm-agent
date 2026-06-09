@@ -11,8 +11,9 @@ import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="security")
 load_dotenv(override=False)
 
 pytestmark = pytest.mark.e2e

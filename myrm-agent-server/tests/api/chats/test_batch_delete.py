@@ -14,9 +14,9 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="chats")
 @pytest.fixture
 async def async_client() -> httpx.AsyncClient:
     async with httpx.AsyncClient(

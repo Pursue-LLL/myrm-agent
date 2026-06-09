@@ -70,6 +70,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   const [browserEngine, setBrowserEngine] = useState<string>('chromium_patchright');
   const [browserSource, setBrowserSource] = useState<string>('auto');
   const [dialogPolicy, setDialogPolicy] = useState<string>('smart');
+  const [sessionRecording, setSessionRecording] = useState<string>('off');
 
   const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () =>
     getAgent(agentId!, true),
@@ -121,6 +122,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         setBrowserEngine(agent.browser_engine || 'chromium_patchright');
         setBrowserSource(agent.browser_source || 'auto');
         setDialogPolicy(agent.dialog_policy || 'smart');
+        setSessionRecording(agent.session_recording || 'off');
       } else if (!agentId) {
         reset({
           name: '',
@@ -151,6 +153,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         browser_engine: browserEngine,
         browser_source: browserSource === 'auto' ? null : browserSource,
         dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
+        session_recording: sessionRecording === 'off' ? null : sessionRecording,
       };
       if (agentId) {
         await updateAgent(agentId, payload);
@@ -485,6 +488,43 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                           <span>{t('form.dialogPolicyWaitForAgent', { fallback: 'Wait for Agent' })}</span>
                           <span className="text-xs text-muted-foreground">
                             {t('form.dialogPolicyWaitForAgentDesc', { fallback: 'Pause and let the AI decide how to respond.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <Label className="text-sm font-medium">
+                    {t('form.sessionRecording', { fallback: 'Session Recording' })}
+                  </Label>
+                  <Select value={sessionRecording} onValueChange={setSessionRecording}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.sessionRecordingOff', { fallback: 'Off (Default)' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.sessionRecordingOffDesc', { fallback: 'No video recording of browser sessions.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="on_failure">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.sessionRecordingOnFailure', { fallback: 'On Failure' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.sessionRecordingOnFailureDesc', { fallback: 'Keep recording only when task fails.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="always">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.sessionRecordingAlways', { fallback: 'Always' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.sessionRecordingAlwaysDesc', { fallback: 'Record every browser session.' })}
                           </span>
                         </div>
                       </SelectItem>

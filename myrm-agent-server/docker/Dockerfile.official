@@ -1,13 +1,13 @@
 # Official Myrm Runtime Image — source-built harness wheels
 #
-# BUILD CONTEXT (required): directory that contains both
-# myrm-agent-harness/ and myrm-agent-server/ (sibling trees).
+# BUILD CONTEXT (required): vortexai / open-perplexity root (`.`) with
+# `myrm-agent-harness/`, `myrm-agent/myrm-agent-server/`, and `myrm-agent/shared/`.
 #
 # Builds server + harness from source.
 # Produces the same runtime image as the public wheel-based Dockerfile,
 # but does not require pre-built wheels.
 #
-#   docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
+#   docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 
 # ============================================================================
 # Stage 1: Build harness production wheels (Nuitka core + stripped release)
@@ -55,13 +55,13 @@ WORKDIR /build
 COPY --from=harness-wheels /build/myrm-agent-harness/dist /wheels/dist
 COPY --from=harness-wheels /build/myrm-agent-harness/build/core/wheels /wheels/core
 
-COPY myrm-agent-server/pyproject.toml myrm-agent-server/uv.lock myrm-agent-server/
-COPY myrm-agent-server/app myrm-agent-server/app
-COPY myrm-agent-server/run.py myrm-agent-server/run.py
-COPY myrm-agent-server/docker/install_harness_wheels.sh myrm-agent-server/docker/install_harness_wheels.sh
-RUN chmod +x myrm-agent-server/docker/install_harness_wheels.sh
+COPY myrm-agent/myrm-agent-server/pyproject.toml myrm-agent/myrm-agent-server/uv.lock myrm-agent/myrm-agent-server/
+COPY myrm-agent/myrm-agent-server/app myrm-agent/myrm-agent-server/app
+COPY myrm-agent/myrm-agent-server/run.py myrm-agent/myrm-agent-server/run.py
+COPY myrm-agent/myrm-agent-server/docker/install_harness_wheels.sh myrm-agent/myrm-agent-server/docker/install_harness_wheels.sh
+RUN chmod +x myrm-agent/myrm-agent-server/docker/install_harness_wheels.sh
 
-WORKDIR /build/myrm-agent-server
+WORKDIR /build/myrm-agent/myrm-agent-server
 
 ENV PATCHRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
@@ -96,13 +96,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /build/myrm-agent-server/.venv /app/.venv
-COPY --from=builder /build/myrm-agent-server/app /app/app
-COPY --from=builder /build/myrm-agent-server/run.py /app/run.py
-COPY myrm-agent-server/docker/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder /build/myrm-agent/myrm-agent-server/.venv /app/.venv
+COPY --from=builder /build/myrm-agent/myrm-agent-server/app /app/app
+COPY --from=builder /build/myrm-agent/myrm-agent-server/run.py /app/run.py
+COPY myrm-agent/myrm-agent-server/docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-COPY myrm-agent-server/docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
+COPY myrm-agent/myrm-agent-server/docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
+COPY myrm-agent/shared /shared
 
 RUN /app/.venv/bin/verify-harness-distribution --matplotlib-cjk \
     && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib

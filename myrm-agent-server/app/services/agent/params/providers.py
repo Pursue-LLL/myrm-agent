@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.channel_bridge.model_resolver (POS: Business-layer model resolution; exposes `_extract_active_key` for enabled provider rows)
+- shared/config/provider_legacy_remap.json (POS: Cross-end static JSON; monorepo, Docker `/shared`, or PyInstaller bundle)
 
 [OUTPUT]
 - normalize_storage_provider_id: canonical storage id for inbound selections
@@ -17,18 +18,46 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import sys
 from pathlib import Path
 
 from pydantic import BaseModel
 
+_REMAP_RELATIVE = Path("shared") / "config" / "provider_legacy_remap.json"
+
+
+def _server_root() -> Path:
+    return Path(__file__).resolve().parents[4]
+
+
+def _legacy_remap_candidates() -> list[Path]:
+    candidates: list[Path] = []
+
+    env_root = os.environ.get("MYRM_SHARED_CONFIG_ROOT", "").strip()
+    if env_root:
+        candidates.append(Path(env_root) / "provider_legacy_remap.json")
+
+    candidates.append(Path("/shared/config/provider_legacy_remap.json"))
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if isinstance(meipass, str) and meipass:
+        candidates.append(Path(meipass) / "shared" / "config" / "provider_legacy_remap.json")
+
+    server_root = _server_root()
+    candidates.append(server_root.parent / _REMAP_RELATIVE)
+
+    return candidates
+
 
 def _legacy_remap_path() -> Path:
-    for base in Path(__file__).resolve().parents:
-        candidate = base / "shared" / "config" / "provider_legacy_remap.json"
+    candidates = _legacy_remap_candidates()
+    for candidate in candidates:
         if candidate.is_file():
             return candidate
-    msg = "provider_legacy_remap.json not found under shared/config/"
+    checked = ", ".join(str(path) for path in candidates)
+    msg = f"provider_legacy_remap.json not found; checked: {checked}"
     raise FileNotFoundError(msg)
 
 

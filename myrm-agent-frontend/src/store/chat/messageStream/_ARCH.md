@@ -15,7 +15,7 @@
 |------|------|------|-------|
 | `types.ts` | 核心 | `StreamHandlerState` / `StreamHandlerActions` | ✅ |
 | `streamContext.ts` | 核心 | 每事件 handler 上下文与 `done()` | ✅ |
-| `handleMessageStream.ts` | 核心 | SSE dispatcher（~60 行） | ✅ |
+| `handleMessageStream.ts` | 核心 | SSE 事件分发器 | ✅ |
 | `handlers/index.ts` | 核心 | `STREAM_EVENT_HANDLERS` 顺序表 | ✅ |
 | `handlers/handlerDeps.ts` | 辅助 | 切片共享 import | ✅ |
 | `handlers/*.ts` | 核心 | 各 `AgentEventType` 域的状态合并 | — |

@@ -9,7 +9,9 @@ from sqlalchemy import delete, select
 
 from app.database.connection import get_session
 from app.database.models import ApprovalRecord, Base, ExperienceLedgerEvent
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="evolution")
 from app.platform_utils import get_database_engine
 from app.services.agent.confidence_approval_flow import ConfidenceApprovalFlow
 from app.services.skills.evolution_reviews import EvolutionReviewRecord, create_evolution_review_record

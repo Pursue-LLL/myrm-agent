@@ -5,9 +5,9 @@ from datetime import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="chats")
 @pytest.fixture
 def client(init_test_database) -> TestClient:
     return TestClient(app, client=("127.0.0.1", 50000))

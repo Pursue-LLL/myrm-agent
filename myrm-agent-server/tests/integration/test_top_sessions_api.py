@@ -14,9 +14,9 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import StructuredEvent
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="statistics")
 @pytest.fixture(autouse=True)
 def _bypass_auth():
     if True:

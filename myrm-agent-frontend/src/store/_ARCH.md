@@ -16,7 +16,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 | 路径 | 职责 | 备注 |
 |------|------|------|
 | `chat/` | 消息列表、流式事件、发送队列、类型定义 | 流式 reducer 在 `chat/messageStream/`（见 `messageStream/_ARCH.md`） |
-| `config/` | 设置草稿、LiteLLM 路由生成产物、provider identity 迁移 | `litellmRouting.generated.ts` 由 harness 生成；legacy remap 见 [shared/config/_ARCH.md](../../../shared/config/_ARCH.md) |
+| `config/` | 设置草稿、LiteLLM 路由生成产物、provider identity 迁移 | `litellmRouting.generated.ts` 由 harness 生成；legacy remap 见 [shared/config/_ARCH.md](../../../shared/config/_ARCH.md) · 模块文档 [config/_ARCH.md](config/_ARCH.md) |
 | `memory/` | 记忆中心 UI 状态 | |
 | `skill/` | 技能选择与详情状态 | |
 | `tasks/` | 后台任务/命令中心 | |

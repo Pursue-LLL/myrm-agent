@@ -4,17 +4,17 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
 from app.database.recovery import rescue_database
 from app.server.status import system_status
-from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
 
 @pytest.fixture
 def app() -> FastAPI:
-    from app.main import app as main_app
+    from tests.support.minimal_app import build_minimal_app
 
-    return main_app
+    return build_minimal_app(preset="health")
 
 
 @pytest.fixture

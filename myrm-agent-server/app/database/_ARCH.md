@@ -15,7 +15,7 @@
 |------|------|------|-------|
 | `models/` | ✅ 核心 | SQLAlchemy ORM 模型包，按业务域拆分为子模块（chat/agent/memory/config/agent_event/cron/channel/media/security/skill/notification/message_filter），`memory.py` 包含 Shared Context 上下文/绑定/写入提案、记忆操作账本、导入 dry-run 审查会话模型、导入批次账本和导入条目账本，`agent.py` 包含 Agent 基础配置（含 `mcp_tool_selections` per-server 工具白名单 JSON 列）与 WebUI rollback 快照 (`AgentProfileSnapshot`)，`agent_history.py` 为乐观锁审计与 Prompt 浏览，`__init__.py` 统一 re-export |
 | `repositories/` | ✅ 核心 | 领域仓储层（Repository Pattern），封装 Agent/Chat 等聚合的读写与 ORM 映射 | ✅ |
-| `schemas.py` | ✅ 核心 | Pydantic Schema（API 响应模型）（214行） |
+| `schemas.py` | ✅ 核心 | Pydantic Schema（API 响应模型） |
 | `backup.py` | ✅ 核心 | SQLite 备份管理器工厂。`get_sqlite_backup_manager()` 返回配置好的 `SQLiteBackupManager` 实例（含 `:memory:` 安全检查），所有备份/恢复调用方统一使用 |
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前通过 `get_sqlite_backup_manager()` 执行完整性验证的 pre-migration safety snapshot，防止多步表重建迁移中断导致数据不一致 |
 | `recovery.py` | ✅ 核心 | 数据库容灾层。提供 dump-based `rescue_database()` 用于严重损坏时的数据抢救（.iterdump 逐行导出）；常规热备份与快照恢复由 `SQLiteBackupManager` 负责（通过 `backup.py` 工厂获取） |

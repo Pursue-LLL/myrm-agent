@@ -134,6 +134,10 @@ def build_backend(*, skip_harness_install: bool = False):
         raise FileNotFoundError(f"Main script not found: {main_script}")
 
     server_python = _server_python()
+    shared_json = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
+    if not shared_json.is_file():
+        raise FileNotFoundError(f"Missing cross-end provider remap artifact: {shared_json}")
+
     cmd = [
         str(server_python),
         "-m",
@@ -157,6 +161,8 @@ def build_backend(*, skip_harness_install: bool = False):
         "--workpath", str(OUTPUT_DIR / "build"),
         "--specpath", str(OUTPUT_DIR),
     ]
+    data_sep = ";" if SYSTEM == "windows" else ":"
+    cmd.extend(["--add-data", f"{shared_json}{data_sep}shared/config"])
 
     print(f"\n📦 Running PyInstaller...")
     print(f"Command: {' '.join(cmd)}\n")

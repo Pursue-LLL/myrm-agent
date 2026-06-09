@@ -3,9 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="security")
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)

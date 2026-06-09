@@ -16,6 +16,7 @@
 | `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — deploy / share 共用的工件文件收集 |
 | `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `evaluate_deploy_preflight` — FE 部署前门禁 |
+| `agent_deploy_service.py` | ✅ 核心 | `AgentDeployService` — 实现 harness `DeployBackend` Protocol，供 Agent 对话式部署 |
 
 ---
 
@@ -23,7 +24,7 @@
 
 - `httpx`：异步 HTTP 客户端
 - `tenacity`：网络抖动重试
-- 调用方：`app/api/files/deploy_api.py`、`app/api/files/artifact_share_api.py`、`app/services/artifacts/share_bundle.py`
+- 调用方：`app/api/files/deploy_api.py`、`app/api/files/artifact_share_api.py`、`app/services/artifacts/share_bundle.py`、`app/ai_agents/general_agent/tool_setup.py`（Agent deploy tool）
 
 ---
 

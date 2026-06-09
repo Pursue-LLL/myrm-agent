@@ -215,6 +215,12 @@ async def get_quota_manager() -> "SimpleStorageQuotaManager":
     return _quota_manager
 
 
+def _reset_quota_manager_for_testing() -> None:
+    """Reset process-level quota manager (tests only)."""
+    global _quota_manager
+    _quota_manager = None
+
+
 # =============================================================================
 # 工件处理器
 # =============================================================================
@@ -304,6 +310,7 @@ __all__ = [
     "get_checkpointer",
     "set_checkpointer",
     "_reset_checkpointer_for_testing",
+    "_reset_quota_manager_for_testing",
     "get_quota_manager",
     "get_execution_strategy",
     "get_deployment_capabilities",

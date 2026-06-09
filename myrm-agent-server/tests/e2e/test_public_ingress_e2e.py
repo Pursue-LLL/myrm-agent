@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="system")
 @pytest.fixture
 def e2e_client():
     """Client for E2E testing without mocks."""

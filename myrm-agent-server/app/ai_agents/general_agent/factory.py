@@ -203,6 +203,7 @@ async def build_general_agent(
         await _setup_kanban_tools(agent_wrapper, tools)
 
     agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
+    agent_wrapper._setup_deploy_tools(deferred_tools)
 
     await agent_wrapper._setup_external_agents(tools, deferred_tools)
 

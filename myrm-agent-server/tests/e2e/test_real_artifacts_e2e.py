@@ -18,7 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 # Must be set BEFORE importing app
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///file:testdb_{uuid.uuid4().hex}?mode=memory&cache=shared&uri=true"
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="files")
 from tests.api.agent.utils import (
     _infer_provider_id,
     _require_env,

@@ -58,6 +58,9 @@ class AgentConfigRequest(BaseModel):
     dialog_policy: str | None = Field(
         default=None, description="Dialog handling strategy (smart/auto_accept/auto_dismiss/wait_for_agent)"
     )
+    session_recording: str | None = Field(
+        default=None, description="Browser session recording mode (off/on_failure/always)"
+    )
     auto_restore_domains: list[str] = []
     tool_gateway_config: ToolGatewayConfig | None = None
 
@@ -179,6 +182,11 @@ class AgentRequest(BaseModel):
 
     mention_references: list[MentionReferenceRequest] | None = None
     mentioned_agent_ids: list[str] | None = Field(default=None, description="Explicitly @ mentioned agent IDs")
+    uploaded_file_ids: list[str] | None = Field(
+        default=None,
+        description="IDs of files attached to this message (from drag-and-drop upload). "
+        "Large files will be copied to the agent workspace for code execution access.",
+    )
     archive_restore_actions: list[ArchiveRestoreActionRequest] | None = None
     engine_params: dict[str, object] | None = None
 

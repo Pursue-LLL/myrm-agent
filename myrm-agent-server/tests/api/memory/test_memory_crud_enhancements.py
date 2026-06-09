@@ -6,9 +6,9 @@ from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemor
 
 from app.api.dependencies import get_deploy_identity
 from app.api.memory.utils import get_crud_memory_manager
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="memory")
 @pytest.fixture
 def client():
     return TestClient(app)

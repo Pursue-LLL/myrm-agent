@@ -199,12 +199,38 @@ def _has_substantive_overview(content: str) -> bool:
     return len(lines[0]) > 80
 
 
+def _has_curated_file_table(content: str) -> bool:
+    """True when the file table mixes stub markers with completed I/O/P or extra sections."""
+    in_table = False
+    for line in content.splitlines():
+        if line.startswith("|") and "I/O/P" in line:
+            in_table = True
+            continue
+        if in_table:
+            if not line.startswith("|"):
+                break
+            if any(marker in line for marker in _STUB_MARKERS):
+                continue
+            cells = [c.strip() for c in line.split("|")]
+            if len(cells) >= 5:
+                iop = cells[-2]
+                if iop in {"✅", "—", "-"}:
+                    return True
+    if content.count("## ") > 2:
+        return True
+    return False
+
+
 def _needs_refresh(content: str, force: bool) -> bool:
     if force:
         return True
     if not any(marker in content for marker in _STUB_MARKERS):
         return False
-    return not _has_substantive_overview(content)
+    if _has_substantive_overview(content):
+        return False
+    if _has_curated_file_table(content):
+        return False
+    return True
 
 
 def _matches_prefix(rel: str, prefixes: tuple[str, ...]) -> bool:

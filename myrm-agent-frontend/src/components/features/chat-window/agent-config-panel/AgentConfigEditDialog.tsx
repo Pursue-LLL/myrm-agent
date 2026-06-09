@@ -99,6 +99,7 @@ interface AgentConfigEditDialogProps {
   browserEngine?: string;
   browserSource?: string;
   dialogPolicy?: string;
+  sessionRecording?: string;
   ephemeralSubagents?: Record<string, unknown>;
   // System Prompt控制
   isSystemPromptHidden?: boolean;
@@ -117,6 +118,7 @@ interface AgentConfigEditDialogProps {
     browserEngine?: string;
     browserSource?: string;
     dialogPolicy?: string;
+    sessionRecording?: string;
     autoRestoreDomains?: string[];
     ephemeralSubagents?: Record<string, unknown>;
     personalityStyle?: string;
@@ -146,6 +148,7 @@ const AgentConfigEditDialog = ({
   browserEngine: initialBrowserEngine,
   browserSource: initialBrowserSource,
   dialogPolicy: initialDialogPolicy,
+  sessionRecording: initialSessionRecording,
   ephemeralSubagents: initialEphemeralSubagents = {},
   isSystemPromptHidden = false,
   loadingSystemPrompt = false,
@@ -173,6 +176,7 @@ const AgentConfigEditDialog = ({
   const [localBrowserEngine, setLocalBrowserEngine] = useState<string | undefined>(initialBrowserEngine);
   const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
   const [localDialogPolicy, setLocalDialogPolicy] = useState<string | undefined>(initialDialogPolicy);
+  const [localSessionRecording, setLocalSessionRecording] = useState<string | undefined>(initialSessionRecording);
   const [localEphemeralSubagents, setLocalEphemeralSubagents] = useState<Record<string, EphemeralSubagentConfig>>(
     initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>,
   );
@@ -428,6 +432,7 @@ const AgentConfigEditDialog = ({
           browserEngine: localBrowserEngine,
           browserSource: localBrowserSource,
           dialogPolicy: localDialogPolicy,
+          sessionRecording: localSessionRecording,
         });
         break;
       case 'subagents':
@@ -1222,6 +1227,51 @@ const AgentConfigEditDialog = ({
                           <span className="font-medium">{t('dialogPolicy.options.waitForAgent')}</span>
                           <span className="text-xs text-muted-foreground">
                             {t('dialogPolicy.options.waitForAgentDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    {t('sessionRecording.label')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {t('sessionRecording.description')}
+                  </p>
+                  <Select
+                    value={localSessionRecording || 'off'}
+                    onValueChange={(value) =>
+                      setLocalSessionRecording(value === 'off' ? undefined : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('sessionRecording.options.off')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('sessionRecording.options.offDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="on_failure">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('sessionRecording.options.onFailure')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('sessionRecording.options.onFailureDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="always">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('sessionRecording.options.always')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('sessionRecording.options.alwaysDesc')}
                           </span>
                         </div>
                       </SelectItem>

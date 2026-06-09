@@ -158,3 +158,20 @@ async def disconnect_extension() -> dict[str, str]:
     bridge = get_extension_bridge()
     await bridge.disconnect()
     return {"status": "disconnected"}
+
+
+class ExtensionSetupHintsResponse(BaseModel):
+    """Non-secret setup hints for the browser extension popup."""
+
+    auth_token_configured: bool = Field(
+        description="True when EXTENSION_AUTH_TOKEN is set on the server",
+    )
+
+
+@router.get("/extension/setup-hints", response_model=ExtensionSetupHintsResponse)
+async def get_extension_setup_hints() -> ExtensionSetupHintsResponse:
+    """Return whether extension auth token is configured (never exposes the token)."""
+    from app.config.settings import settings
+
+    configured = bool(settings.extension_auth_token.get_secret_value())
+    return ExtensionSetupHintsResponse(auth_token_configured=configured)

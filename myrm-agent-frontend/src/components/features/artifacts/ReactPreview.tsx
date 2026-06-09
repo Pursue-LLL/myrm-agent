@@ -121,7 +121,7 @@ const ReactPreview = memo<ReactPreviewProps>(({ code, filename, isDarkMode = fal
           {/* 保存状态指示器 */}
           {artifactId && (
             <span className="text-xs text-muted-foreground mr-2 hidden sm:inline-block">
-              {isDirty ? '保存中...' : '已保存'}
+              {isDirty ? t('reactPreview.saving') : t('reactPreview.saved')}
             </span>
           )}
 

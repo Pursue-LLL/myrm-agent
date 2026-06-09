@@ -241,6 +241,8 @@ myrm_agent_harness.toolkits.cron.protocols
 myrm_agent_harness.toolkits.cron.situation
 myrm_agent_harness.toolkits.cron.triggers
 myrm_agent_harness.toolkits.cron.types
+myrm_agent_harness.toolkits.deploy
+myrm_agent_harness.toolkits.deploy.deploy_agent_tools
 myrm_agent_harness.toolkits.file_parsers
 myrm_agent_harness.toolkits.file_parsers.docx
 myrm_agent_harness.toolkits.file_parsers.excel

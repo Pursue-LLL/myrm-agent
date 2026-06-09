@@ -7,7 +7,9 @@ from httpx import ASGITransport, AsyncClient
 
 from app.config.deploy_mode import get_deploy_mode
 from app.config.settings import settings
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(webui=True)
 from app.services.webui import admin_store
 from app.services.webui.auth_service import webui_auth_service
 from app.services.webui.passwords import hash_password

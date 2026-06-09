@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="health")
 from app.server.runtime_dev_info import set_runtime_listen
 
 

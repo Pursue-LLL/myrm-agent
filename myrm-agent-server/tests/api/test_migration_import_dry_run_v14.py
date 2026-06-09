@@ -9,9 +9,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-# Serial group: app startup + DB fixtures race under pytest-xdist -n auto.
+app = build_minimal_app(preset="migrations_api")
 pytestmark = pytest.mark.xdist_group(name="migration_import_api")
 
 

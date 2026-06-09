@@ -12,7 +12,9 @@ from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.agent.coordination.mailbox import TeammateMailbox, list_teammate_history
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpoint
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="agents_api")
 from app.services.chat.chat_service import ChatService
 
 

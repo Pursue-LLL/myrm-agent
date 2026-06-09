@@ -13,10 +13,10 @@
 
 | 文件 | 地位 | 职责| I/O/P |
 |------|------|------|-------|
-| `service.py` | ✅ 核心 | 文件服务，提供文件 CRUD 功能（491行） |
+| `service.py` | ✅ 核心 | 文件服务，提供文件 CRUD 功能 |
 | `smart_cache.py` | ✅ 辅助 | 薄包装层，re-export 框架 `CachedStorageProvider` as `SmartCachedStorage` |
-| `models.py` | ✅ 辅助 | 存储相关数据模型定义（88行） |
-| `lifecycle.py` | ✅ 辅助 | 文件生命周期管理（过期清理等）（102行） |
+| `models.py` | ✅ 辅助 | 存储相关数据模型定义 |
+| `lifecycle.py` | ✅ 辅助 | 文件生命周期管理（过期清理等） |
 
 ---
 

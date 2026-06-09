@@ -6,9 +6,9 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_db_session
 from app.channels.types import TopicContext
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="channels_local")
 async def override_get_deploy_identity():
     return "test_user_id"
 

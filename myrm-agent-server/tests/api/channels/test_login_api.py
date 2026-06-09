@@ -17,9 +17,9 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_db_session
 from app.channels.protocols import LoginMethod, LoginStatus
 from app.channels.types import ChannelStatus, StartMode
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="channels_local")
 async def _mock_db_gen():
     yield "mock_db"
 

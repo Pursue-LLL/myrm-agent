@@ -18,37 +18,24 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `adapters/setup.py` | 核心 | 组装入口，创建 CronScheduler + CronManager + CronStore 单例 | ⚠️ 待补 |
-| `adapters/sqlalchemy_store.py` | 核心 | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD + 用量聚合委托 | ⚠️ 待补 |
-| `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | ⚠️ 待补 |
-| `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | ⚠️ 待补 |
-| `adapters/agent_runner.py` | 核心 | JobRunner 实现：从 ConfigService 实时加载配置，通过 AgentFactory 执行，周期任务注入 [SILENT] 指令，heartbeat 任务自动注入 SituationReport | ⚠️ 待补 |
+| `adapters/setup.py` | 核心 | 组装入口，创建 CronScheduler + CronManager + CronStore 单例 | — |
+| `adapters/sqlalchemy_store.py` | 核心 | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD + 用量聚合委托 | — |
+| `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
+| `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
+| `adapters/agent_runner.py` | 核心 | JobRunner 实现：从 ConfigService 实时加载配置，通过 AgentFactory 执行，周期任务注入 [SILENT] 指令，heartbeat 任务自动注入 SituationReport | — |
 | `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
-| `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | ⚠️ 待补 |
-| `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ 已完成 |
-| `adapters/memory_lock.py` | 核心 | ConcurrencyLock 实现：基于 OS 级文件锁的跨进程协作 | ✅ 已完成 |
-| `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ 已完成 |
-| `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | ⚠️ 待补 |
-| `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | ⚠️ 待补 |
+| `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | — |
+| `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ |
+| `adapters/memory_lock.py` | 核心 | ConcurrencyLock 实现：基于 OS 级文件锁的跨进程协作 | ✅ |
+| `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
+| `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
+| `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
 
 ---
 
-## 框架层（myrm_agent_harness.toolkits.cron）
+## Harness 依赖
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `types.py` | 核心 | 领域类型（Schedule + stagger_ms, CronJob + ActiveHours + failure_delivery + failure_alert + cooldown_seconds + max_fires + expires_at + session_target + run_retention_days, CronConfig, FailureAlertConfig, SessionTarget, JobResult 等） | ⚠️ 待补 |
-| `protocols.py` | 核心 | 5 个 Protocol：CronStore（含 purge_old_runs / delete_job_cascade / batch_get_monitor_states）, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider | ✅ 已完成 |
-| `scheduler.py` | 核心 | CronScheduler — 精确定时器调度引擎 + 并发控制（双层 Semaphore）+ tick 分发 + 低频运行记录清理，组合 JobExecutor 和 StartupRecovery | ⚠️ 待补 |
-| `executor.py` | 核心 | JobExecutor — 单任务执行完整生命周期（run → record → deliver → update → alert），含 [SILENT] 检测、output hash 去重和失败告警 | ⚠️ 待补 |
-| `recovery.py` | 核心 | StartupRecovery — 三阶段启动恢复（Stale-Run → Missed-Slot → Grace Window） | ⚠️ 待补 |
-| `manager.py` | 核心 | CronManager — CRUD 编排 + 校验 + 级联删除 + 通知 scheduler + monitor state 查询（`get_monitor_state` / `batch_get_monitor_states`）+ 自动重置辅助方法 | ⚠️ 待补 |
-| `parser.py` | 核心 | cron 表达式解析、下次执行时间计算 | ⚠️ 待补 |
-| `helpers.py` | 核心 | 无状态辅助函数（stagger, active_hours, telemetry, stale/grace 判定） | ⚠️ 待补 |
-| `runners.py` | 核心 | ShellJobRunner — 内置 shell 执行器，安全检查委派给 shell_command_analyzer | ⚠️ 待补 |
-| `stores.py` | 核心 | InMemoryCronStore — 内置内存 CronStore 实现，用于开发和测试 | ⚠️ 待补 |
-| `delivery.py` | 核心 | WebhookDelivery — 内置 webhook ResultDelivery 实现，HMAC-SHA256 签名 + 指数退避重试 | ⚠️ 待补 |
-| `tools.py` | 核心 | create_cron_tools — Agent 工具工厂（支持 model 参数、recurring_confirmed 安全确认、最小间隔限制、cron self-scheduling guard） | ⚠️ 待补 |
+调度引擎与 `CronStore` / `JobRunner` / `ResultDelivery` / `ConcurrencyLock` / `TriggerProvider` Protocol 由 PyPI `myrm-agent-harness` 提供；本目录仅含 Server 侧 SQLAlchemy 存储、Agent 执行器、渠道投递与跨进程锁适配器。
 
 ---
 

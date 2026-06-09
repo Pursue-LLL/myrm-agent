@@ -113,14 +113,14 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 **示例：Memory System Adapter**
 
 ```python
-# harness/toolkits/memory/protocols.py (假设)
+# PyPI myrm-agent-harness 公开的 Protocol 定义
 class MemoryBackendProtocol(Protocol):
     async def store_memory(...) -> None: ...
     async def retrieve_memory(...) -> list[Memory]: ...
 
-# server/app/adapters/memory/
+# app/adapters/memory/
 ├── __init__.py
-└── postgres_backend.py  # PostgreSQL 实现
+└── postgres_backend.py  # Server 侧实现
 ```
 
 ### 与 repositories/ 的协作

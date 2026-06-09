@@ -128,6 +128,7 @@ class ResolvedAgentProfile:
     browser_engine: str | None = field(default=None, kw_only=True)
     browser_source: str | None = field(default=None, kw_only=True)
     dialog_policy: str | None = field(default=None, kw_only=True)
+    session_recording: str | None = field(default=None, kw_only=True)
 
     notify_targets: tuple[dict[str, str], ...] = field(default_factory=tuple, kw_only=True)
     """Configured notification targets: each dict has {channel, recipient_id, label?}."""
@@ -210,6 +211,8 @@ class AgentProfileResolver:
                 browser_source = str(raw_browser_source) if raw_browser_source else None
                 raw_dialog_policy = getattr(agent, "dialog_policy", None) or metadata.get("dialog_policy")
                 dialog_policy = str(raw_dialog_policy) if raw_dialog_policy else None
+                raw_session_recording = getattr(agent, "session_recording", None) or metadata.get("session_recording")
+                session_recording = str(raw_session_recording) if raw_session_recording else None
 
                 raw_model_selection = getattr(agent, "model_selection", None)
                 model_kwargs: dict[str, object] | None = None
@@ -245,6 +248,7 @@ class AgentProfileResolver:
                     browser_engine=browser_engine,
                     browser_source=browser_source,
                     dialog_policy=dialog_policy,
+                    session_recording=session_recording,
                     security_overrides=(raw_security if isinstance(raw_security, dict) else None),
                     personality_style=str(raw_personality) if raw_personality else None,
                     prompt_mode=str(metadata.get("prompt_mode", "full")),

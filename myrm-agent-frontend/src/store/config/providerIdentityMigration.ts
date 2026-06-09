@@ -24,8 +24,9 @@ const LEGACY_PROVIDER_ID_REMAP: Readonly<Record<string, string>> = legacyRemapJs
 
 export function remapLegacyProviderId(providerId: string): string {
   if (!providerId) return providerId;
-  const slug = providerId.replace(/-/g, '_');
-  return LEGACY_PROVIDER_ID_REMAP[slug] ?? LEGACY_PROVIDER_ID_REMAP[providerId] ?? providerId;
+  const trimmed = providerId.trim();
+  const slug = trimmed.replace(/-/g, '_').toLowerCase();
+  return LEGACY_PROVIDER_ID_REMAP[slug] ?? trimmed;
 }
 
 export function deriveRoutingProfile(provider: ProviderConfig): string {
@@ -99,11 +100,7 @@ function migrateCustomModelInfo(info: Record<string, CustomModelInfo>): Record<s
 
 function migrateVideoGeneration(cfg: VideoGenerationConfig | undefined): VideoGenerationConfig | undefined {
   if (!cfg) return cfg;
-  const mapPid = (s: string) => {
-    const slug = s.replace(/-/g, '_');
-    if (slug === 'google') return 'gemini';
-    return remapLegacyProviderId(s);
-  };
+  const mapPid = (s: string) => remapLegacyProviderId(s);
   const provider = mapPid(cfg.provider) as VideoGenerationConfig['provider'];
   const fallbackProviders = (cfg.fallbackProviders ?? []).map((fb) => ({
     ...fb,

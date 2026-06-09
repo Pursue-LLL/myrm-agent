@@ -81,8 +81,8 @@ const ArtifactPortal: React.FC = () => {
 
   // 使用从聊天历史中解析的版本列表
   const historyVersions = useArtifactVersionsFromHistory(currentArtifact?.id);
-  // 合并 store 中的临时版本（如果有）和历史版本，或者直接使用历史版本
-  const versions = historyVersions.length > 0 ? historyVersions : useArtifactVersions();
+  const storeVersions = useArtifactVersions();
+  const versions = historyVersions.length > 0 ? historyVersions : storeVersions;
 
   // Actions 只需要在需要时获取
   const {

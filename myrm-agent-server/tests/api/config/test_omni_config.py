@@ -3,7 +3,9 @@ from fastapi.testclient import TestClient
 
 from app.database.connection import get_session
 from app.database.models import ConfigAuditLog, UserConfig
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="config")
 from app.schemas.config import PersonalSettingsConfigValue
 
 client = TestClient(app)

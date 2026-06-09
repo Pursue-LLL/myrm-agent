@@ -19,7 +19,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="memory")
 from app.services.memory.backup_remote import (
     RemoteBackupFile,
     RemoteBackupStrategy,

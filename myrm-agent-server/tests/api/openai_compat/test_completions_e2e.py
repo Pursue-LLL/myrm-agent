@@ -11,8 +11,9 @@ import pytest
 from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="openai_compat_only", openai_compat=True)
 load_dotenv(override=False)
 
 BASIC_API_KEY = os.getenv("BASIC_API_KEY", "")

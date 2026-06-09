@@ -438,6 +438,7 @@ class GeneralAgent(ToolSetupMixin):
         if self._browser_session is not None:
             try:
                 await self._browser_session.close()
+                self._push_session_recording_artifact()
             except Exception as e:
                 logger.warning(f"⚠️ BrowserSession close failed: {e}")
             finally:
@@ -461,3 +462,29 @@ class GeneralAgent(ToolSetupMixin):
                 logger.warning(f"⚠️ 关闭 Agent 时发生错误: {e}")
             finally:
                 self.agent = None
+
+    def _push_session_recording_artifact(self) -> None:
+        """Push browser session recording as a video artifact if available."""
+        try:
+            session = self._browser_session
+            if session is None:
+                return
+            obs = getattr(session, "_observability", None)
+            if obs is None or not obs.recording_enabled:
+                return
+            video_path = obs.video_path
+            if video_path is None or not Path(video_path).exists():
+                return
+
+            from myrm_agent_harness.agent.artifacts import push_inline_artifact
+            from myrm_agent_harness.core.artifacts.constants import ArtifactType
+
+            push_inline_artifact(
+                filename=Path(video_path).name,
+                preview_url=str(video_path),
+                artifact_type=ArtifactType.VIDEO,
+                content_type="video/webm",
+            )
+            logger.info("Pushed session recording artifact: %s", video_path)
+        except Exception as e:
+            logger.debug("Session recording artifact push skipped: %s", e)

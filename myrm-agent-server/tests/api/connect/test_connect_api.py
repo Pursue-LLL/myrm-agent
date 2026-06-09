@@ -10,8 +10,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app as _app
+from tests.support.minimal_app import build_minimal_app
 
+_app = build_minimal_app(preset="connect")
 API_PREFIX = "/api/v1"
 
 

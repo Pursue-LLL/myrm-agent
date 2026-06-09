@@ -13,9 +13,9 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
-
+app = build_minimal_app(preset="chats")
 async def _unpin_all(async_client: httpx.AsyncClient) -> None:
     """Unpin all currently pinned chats to avoid cross-test pin limit conflicts."""
     resp = await async_client.get("/api/v1/chats/", params={"page": 1, "page_size": 100})

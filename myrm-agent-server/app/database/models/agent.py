@@ -52,6 +52,7 @@ class Agent(Base):
     browser_engine: Mapped[str | None] = mapped_column(String(50), nullable=True)
     browser_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     dialog_policy: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    session_recording: Mapped[str | None] = mapped_column(String(20), nullable=True)
     auto_restore_domains: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     security_overrides: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
 

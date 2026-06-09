@@ -21,6 +21,7 @@
 | 目录 | 职责 | 文档 |
 |------|------|------|
 | `sections/` | 各设置 Tab 的 Section 组件（六组子目录） | [sections/_ARCH.md](sections/_ARCH.md) |
+| `sections/integration/` | 集成域 Section（扩展桥、凭证、外部 Agent、通信容器） | [sections/integration/_ARCH.md](sections/integration/_ARCH.md) |
 | `sections/integration/channels/` | 渠道、路由、语音配置卡片 | [sections/integration/channels/_ARCH.md](sections/integration/channels/_ARCH.md) |
 | `sections/knowledge/wiki/` | Wiki 设置 | [sections/knowledge/wiki/_ARCH.md](sections/knowledge/wiki/_ARCH.md) |
 | `mcp/` | MCP 列表/编辑/安全扫描 Ack | [mcp/_ARCH.md](mcp/_ARCH.md) |

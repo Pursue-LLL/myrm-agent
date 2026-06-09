@@ -52,6 +52,7 @@ export interface AgentConfig {
   browserEngine?: string;
   browserSource?: string;
   dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
+  sessionRecording?: 'off' | 'on_failure' | 'always';
   suggestionPrompts?: string[];
   ephemeralSubagents?: Record<string, unknown>;
   taskAdaptiveDigest?: Record<string, unknown>;

@@ -40,8 +40,8 @@ def _init_with_overrides(overrides: dict[str, bool]) -> FeatureSet:
 
 @pytest.fixture
 async def async_client():
-    from app.main import app
-
+    from tests.support.minimal_app import build_minimal_app
+    app = build_minimal_app(preset="features")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 

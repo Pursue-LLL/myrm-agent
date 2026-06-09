@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7
 # MyrmAgent Server Docker Image (open-source distribution)
 #
-# BUILD CONTEXT (required): myrm-agent-server repository root.
+# BUILD CONTEXT (required): myrm-agent repository root (contains myrm-agent-server/ and shared/).
 # Installs myrm-agent-harness[compiled-core] from PyPI via uv.lock.
 #
-#   docker build -t myrm-server .
+#   docker build -f myrm-agent-server/Dockerfile -t myrm-server .
 #
 # For private CI that builds harness from source, use docker/Dockerfile.official
 
@@ -25,9 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-COPY pyproject.toml uv.lock ./
-COPY app ./app
-COPY run.py ./run.py
+COPY myrm-agent-server/pyproject.toml myrm-agent-server/uv.lock ./
+COPY myrm-agent-server/app ./app
+COPY myrm-agent-server/run.py ./run.py
 
 ENV PATCHRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
@@ -64,10 +64,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /build/.venv /app/.venv
 COPY --from=builder /build/app /app/app
 COPY --from=builder /build/run.py /app/run.py
-COPY docker/entrypoint.sh /app/entrypoint.sh
+COPY myrm-agent-server/docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-COPY docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
+COPY myrm-agent-server/docker/sandbox/matplotlibrc /opt/mpl-config/matplotlibrc
+COPY shared /shared
 
 RUN /app/.venv/bin/python -m myrm_agent_harness._verify_distribution --matplotlib-cjk \
     && rm -rf /tmp/_mpl_verify.png /tmp/matplotlib

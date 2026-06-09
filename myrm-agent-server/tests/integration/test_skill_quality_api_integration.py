@@ -85,7 +85,9 @@ def test_client(populated_db: async_sessionmaker, monkeypatch):
     """Create a test client with mocked session_factory and db_session."""
     from fastapi.testclient import TestClient
 
-    from app.main import app
+    from tests.support.minimal_app import build_minimal_app
+
+    app = build_minimal_app(preset="skills_api")
 
     monkeypatch.setattr("app.platform_utils.get_session_factory", lambda: populated_db)
     monkeypatch.setattr("app.database.connection.get_session_factory", lambda: populated_db)

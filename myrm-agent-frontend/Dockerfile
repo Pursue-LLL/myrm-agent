@@ -31,8 +31,11 @@ RUN corepack enable
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY myrm-agent-frontend/ .
+COPY --from=deps /app/node_modules ./frontend/node_modules
+COPY myrm-agent-frontend/ ./frontend
+COPY shared ./shared
+
+WORKDIR /app/frontend
 
 # Configurable API backend address (baked into build at rewrites compilation)
 ARG API_HOST=localhost
@@ -58,9 +61,9 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/frontend/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 
 USER nextjs
 

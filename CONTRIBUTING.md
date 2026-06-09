@@ -36,7 +36,8 @@ See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
 | Channels framework | `myrm-agent-server/app/channels/` | Provider bus, routing (see `CHANNELS_SYSTEM.md`) |
 | Web UI | `myrm-agent-frontend/src/` | Next.js; `features/` by product domain |
 | Desktop shell | `myrm-agent-desktop/` | Tauri + sidecar packaging |
-| Shared static config | `shared/` | Cross-end JSON consumed by server + frontend |
+| Browser extension | `myrm-agent-extension/` | Chrome MV3 CDP bridge (WebSocket client) |
+| Shared static config | `shared/` | Cross-end JSON; server Docker copies to `/shared`; frontend `@shared/*` in dev/build |
 
 **Dependency direction:** `api → services → ai_agents → core`. Never import `app.api` from `services/`.
 

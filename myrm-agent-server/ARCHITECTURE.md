@@ -159,6 +159,14 @@
 - **SaaS ingest**：Control Plane 接收 GitHub webhook 并聚合供应链告警；Server 经 `app/services/security/cp_security_dashboard.py` 拉取，**不**在 OSS server 实现多租户调度。
 - **前端**：`myrm-agent-frontend/src/app/security/page.tsx`；导航快捷入口 `NavBar` → `/security`。
 
+### 0.08 Browser Extension Bridge（CDP 代理）
+
+- **扩展包**：`myrm-agent-extension/`（Chrome/Edge MV3）— WebSocket 客户端 + `chrome.debugger` CDP 代理，使用用户真实浏览器会话。
+- **Server API**：`app/api/extension/` — `ws://…/api/v1/ws/extension` 持久连接；REST `/api/v1/extension/status|domains|tabs|disconnect|setup-hints`。
+- **服务层**：`app/services/extension/bridge.py` — 连接生命周期、域名授权、CDP 转发；实现 harness `ExtensionBridge` Protocol。
+- **认证**：`settings.extension_auth_token`（SecretStr）；WS 查询参数 `token` 校验。
+- **前端**：Settings → `extensionBridge`（`ExtensionBridgeSection.tsx` 含 WS URL 复制与 Token 配置状态）；API 客户端 `src/services/extension.ts`。
+
 ### 0. 零开销本地模式 (Zero-Overhead Local Mode)
 
 在 Agent-in-Sandbox 架构下，为了保证本地桌面（Tauri/Sidecar）环境的极致轻量化：

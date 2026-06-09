@@ -15,7 +15,9 @@ import pytest
 from httpx import ASGITransport
 
 from app.database.models.chat import Chat
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
+
+app = build_minimal_app(preset="projects")
 from app.platform_utils import get_session_factory
 
 PREFIX = "/api/v1/projects"
