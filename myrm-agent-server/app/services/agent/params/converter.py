@@ -412,6 +412,7 @@ async def convert_to_general_agent_params(
 
     enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
     auto_restore_domains: list[str] = []
+    browser_source: str | None = None
     resolved = None
 
     if request.agent_id:
@@ -451,6 +452,7 @@ async def convert_to_general_agent_params(
             agent_memory_decay_profile = resolved.memory_decay_profile
             engine_params = resolved.engine_params
             auto_restore_domains = list(resolved.auto_restore_domains)
+            browser_source = resolved.browser_source
             openapi_services = resolved.openapi_services or None
 
             # Safety net: use agent's model when frontend didn't pass model_selection
@@ -537,6 +539,7 @@ async def convert_to_general_agent_params(
             agent_skill_configs = cfg.skill_configs
         enabled_builtin_tools = cfg.enabled_builtin_tools
         auto_restore_domains = list(cfg.auto_restore_domains)
+        browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
         browser_engine = cfg.browser_engine if hasattr(cfg, "browser_engine") else (resolved.browser_engine if resolved else None)
         if getattr(cfg, "tool_gateway_config", None) is not None:
             tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
@@ -806,6 +809,7 @@ async def convert_to_general_agent_params(
         enable_web_search=search_available,
         **tool_flags,
         browser_engine=browser_engine,
+        browser_source=browser_source,
         enable_memory=False if request.incognito_mode else request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
         enable_memory_auto_extraction=False

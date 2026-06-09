@@ -508,6 +508,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 auto_restore_domains=getattr(self, "auto_restore_domains", []),
                 vision_llm=vision_llm,
                 engine_preference=getattr(self, "browser_engine", None),
+                launch_mode_preference=getattr(self, "browser_source", None),
             )
 
             if memory_manager is not None:

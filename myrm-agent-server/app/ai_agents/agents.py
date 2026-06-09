@@ -111,6 +111,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_render_ui: bool = False
     enable_browser: bool = False
     browser_engine: str | None = None
+    browser_source: str | None = None
     enable_computer_use: bool = False
     enable_file_ops: bool = True
     enable_code_execute: bool = True

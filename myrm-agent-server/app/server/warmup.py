@@ -6,6 +6,7 @@
 - app.services.agent.wakeup_handler (POS: 异步子代理唤醒处理器)
 - app.services.event.types (POS: 事件系统类型定义)
 - app.database.models (POS: ORM 模型定义)
+- myrm_agent_harness.utils.text_utils::preheat_tiktoken (POS: Text processing utilities)
 
 [OUTPUT]
 - run_async_warmup: 执行后台预热任务（调度器、浏览器池、批量恢复、stale turn 恢复、分词器等）
@@ -227,6 +228,16 @@ async def run_async_warmup() -> None:
         warmup_tasks.append(_preload_tokenizer())
     except Exception as e:
         logger.warning("Tokenizer preload skipped in warmup: %s", e)
+
+    try:
+        from myrm_agent_harness.utils.text_utils import preheat_tiktoken
+
+        async def _preheat_tiktoken() -> None:
+            await asyncio.to_thread(preheat_tiktoken)
+
+        warmup_tasks.append(_preheat_tiktoken())
+    except Exception as e:
+        logger.warning("tiktoken preheat skipped in warmup: %s", e)
 
     warmup_tasks.append(init_risk_rules())
 

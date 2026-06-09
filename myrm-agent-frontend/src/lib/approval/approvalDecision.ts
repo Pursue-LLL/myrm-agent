@@ -4,6 +4,7 @@ export interface ApprovalDecision {
   type: DecisionType;
   args?: Record<string, unknown>;
   feedback?: string;
+  guidance?: string;
   extensions: {
     allowAlways: boolean | { tool?: boolean; args?: boolean };
     allowDomain?: boolean;
@@ -17,6 +18,7 @@ export interface ResumeDecisionsPayload {
 export interface ToolApprovalResolveExtra {
   edited_args?: Record<string, unknown>;
   feedback?: string;
+  guidance?: string;
   allow_always?: boolean | { tool?: boolean; args?: boolean };
   allow_domain?: boolean;
 }
@@ -34,6 +36,7 @@ export function buildApprovalDecision(
     type: decision,
     args: extra?.edited_args,
     feedback: extra?.feedback,
+    ...(extra?.guidance && { guidance: extra.guidance }),
     extensions: {
       allowAlways: extra?.allow_always ?? false,
       ...(extra?.allow_domain && { allowDomain: true }),

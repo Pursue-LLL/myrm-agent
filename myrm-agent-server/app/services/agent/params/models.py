@@ -52,6 +52,9 @@ class AgentConfigRequest(BaseModel):
     browser_engine: str | None = Field(
         default=None, description="Default browser engine (e.g. chromium_patchright, firefox_camoufox)"
     )
+    browser_source: str | None = Field(
+        default=None, description="Browser acquisition mode (launch/connect/extension/auto/remote)"
+    )
     auto_restore_domains: list[str] = []
     tool_gateway_config: ToolGatewayConfig | None = None
 

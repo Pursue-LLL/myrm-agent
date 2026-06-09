@@ -2,12 +2,25 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Globe, Terminal, Clock, Pencil, MessageSquareX, CheckCircle2, ShieldAlert } from 'lucide-react';
+import {
+  Globe,
+  Terminal,
+  Clock,
+  Pencil,
+  MessageSquareX,
+  CheckCircle2,
+  ShieldAlert,
+  MessageSquarePlus,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { Progress } from '@/components/primitives/progress';
+import { Textarea } from '@/components/primitives/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/primitives/collapsible';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import EditModeView from './approval/EditModeView';
 import RejectModeView from './approval/RejectModeView';
@@ -64,6 +77,8 @@ export default function SingleApprovalCard({
   const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
   const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>('tool');
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
+  const [guidance, setGuidance] = useState('');
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
 
   const desktopViewData = useDesktopInspectorStore((s) => s.viewData);
   const browserViewData = useBrowserInspectorStore((s) => s.viewData);
@@ -180,9 +195,11 @@ export default function SingleApprovalCard({
   const progressPercent = Math.max(0, (remainingSeconds / request.timeoutSeconds) * 100);
   const isHandover = request.displayMode === 'handover';
 
+  const guidanceExtra = guidance.trim() ? { guidance: guidance.trim() } : undefined;
+
   const handleApprove = useCallback(
-    async () => await onResolve(request.requestId, 'approve'),
-    [request.requestId, onResolve],
+    async () => await onResolve(request.requestId, 'approve', guidanceExtra),
+    [request.requestId, onResolve, guidanceExtra],
   );
 
   const handleAlwaysAllow = useCallback(() => {
@@ -235,6 +252,7 @@ export default function SingleApprovalCard({
       return editedVal !== originalStr;
     });
 
+    const guidanceValue = guidance.trim() || undefined;
     if (hasChanges) {
       const editedArgsPayload = shellCommand
         ? mergeShellEditedArgs(request.toolInput, parsed)
@@ -242,10 +260,12 @@ export default function SingleApprovalCard({
       await onResolve(request.requestId, 'edit', {
         edited_args: editedArgsPayload,
         allow_always: allowAlwaysValue,
+        guidance: guidanceValue,
       });
     } else {
       await onResolve(request.requestId, 'approve', {
         allow_always: allowAlwaysValue || undefined,
+        guidance: guidanceValue,
       });
     }
     setAllowAlwaysInEdit(false);
@@ -425,6 +445,34 @@ export default function SingleApprovalCard({
         </div>
         <Progress value={progressPercent} className={`h-1 ${isUrgent ? '[&>div]:bg-destructive' : ''}`} />
       </div>
+
+      <Collapsible open={guidanceOpen} onOpenChange={setGuidanceOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {guidanceOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            <MessageSquarePlus className="h-3 w-3" />
+            <span>{t('guidance.toggle')}</span>
+            {guidance.trim() && !guidanceOpen && (
+              <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1">
+                {t('guidance.hasGuidance')}
+              </Badge>
+            )}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <Textarea
+            value={guidance}
+            onChange={(e) => setGuidance(e.target.value)}
+            placeholder={t('guidance.placeholder')}
+            className="min-h-[60px] max-h-[120px] text-xs resize-y"
+            rows={2}
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">{t('guidance.hint')}</p>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={handleApprove} disabled={isLoading || isExpired}>

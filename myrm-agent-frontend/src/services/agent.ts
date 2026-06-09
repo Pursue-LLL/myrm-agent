@@ -87,6 +87,7 @@ export interface Agent {
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[] | null;
   browser_engine?: string | null;
+  browser_source?: string | null;
   auto_restore_domains?: string[] | null;
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
@@ -138,6 +139,7 @@ export interface AgentCreate {
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[];
   browser_engine?: string | null;
+  browser_source?: string | null;
   auto_restore_domains?: string[];
   suggestion_prompts?: string[] | null;
   model_selection?: AgentModelSelection | null;
