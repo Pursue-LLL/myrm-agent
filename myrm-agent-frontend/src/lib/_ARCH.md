@@ -16,7 +16,7 @@
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
 | `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
 | `config/` | 设置表单 schema 工具 | — |
-| `search/` | SearXNG 预设 | — |
+| `search/` | SearXNG 预设 + Embedding/Reranker provider 目录 | [_ARCH.md](search/_ARCH.md) |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |
 | `intent-dispatcher/` | 意图分发 schema | — |
 | `vision/` | 语音视觉会话 | — |
@@ -28,7 +28,8 @@
 ## 依赖
 
 - 不依赖 `@/components`（单向：components → lib）
-- 可依赖 `@/config` 环境变量
+- `@/lib/api` — `API_BASE_URL`、通用 fetch
+- `@/lib/deploy-mode.ts` — 部署模式探测
 
 ## 约束
 

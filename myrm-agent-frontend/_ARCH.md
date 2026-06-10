@@ -21,4 +21,5 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | `src/app/` | [src/app/_ARCH.md](src/app/_ARCH.md) |
 | `src/components/` | [src/components/_ARCH.md](src/components/_ARCH.md) |
 | `src/store/` | [src/store/_ARCH.md](src/store/_ARCH.md) |
+| `src/lib/` | [src/lib/_ARCH.md](src/lib/_ARCH.md) |
 | `src/services/` | [src/services/_ARCH.md](src/services/_ARCH.md) |

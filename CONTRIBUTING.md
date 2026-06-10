@@ -8,6 +8,22 @@ Thank you for helping improve MyrmAgent. This repository is the MIT-licensed pro
 2. Read [_ARCH.md](_ARCH.md) for directory responsibilities.
 3. Agent execution lives in the closed-source PyPI package `myrm-agent-harness` — do not vendor harness source here.
 
+## Documentation reading path (~30 min)
+
+Use this order on your first contribution — you do not need to read all 300+ `_ARCH.md` files upfront.
+
+| Step | Read | Why |
+|------|------|-----|
+| 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | Five-repo boundaries, three deployment modes, harness vs server split |
+| 2 | [_ARCH.md](_ARCH.md) | Top-level package map (server / frontend / desktop / extension / shared) |
+| 3 | Area you will touch | Server: [app/_ARCH.md](myrm-agent-server/app/_ARCH.md) · Frontend: [src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) · Desktop: [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md) |
+| 4 | Target subdirectory `_ARCH.md` | File table for the module you are editing (CI requires keeping it in sync) |
+| 5 | Deep dive (optional) | Server channels: [CHANNELS_SYSTEM.md](myrm-agent-server/app/channels/CHANNELS_SYSTEM.md) · Full server layering: [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md) |
+
+**Channels note:** inbound messaging spans three layers — `app/channels/` (framework), `app/services/channels/` (business pairing), `app/core/channel_bridge/` (Agent binding). Start from [ARCHITECTURE.md § Channels](ARCHITECTURE.md) before editing any of them.
+
+**Fractal docs:** each directory under `myrm-agent-server/app/` has `_ARCH.md` (not README). Update the nearest `_ARCH.md` when you add or move files — see [Documentation convention](#documentation-convention) below.
+
 ## Development setup
 
 ```bash

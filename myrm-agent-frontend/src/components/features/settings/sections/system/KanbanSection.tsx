@@ -13,6 +13,13 @@ export default function KanbanSection() {
   const [boards, setBoards] = useState<KanbanBoard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBoard, setSelectedBoard] = useState<KanbanBoard | null>(null);
+  const selectBoard = useCallback((board: KanbanBoard | null) => {
+    setSelectedBoard(board);
+    try {
+      if (board) localStorage.setItem('kanban_last_board_id', board.board_id);
+      else localStorage.removeItem('kanban_last_board_id');
+    } catch { /* ignore */ }
+  }, []);
   const [showCreate, setShowCreate] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDesc, setNewBoardDesc] = useState('');
@@ -40,6 +47,17 @@ export default function KanbanSection() {
     fetchBoards();
   }, [fetchBoards]);
 
+  useEffect(() => {
+    if (loading || selectedBoard || boards.length === 0) return;
+    try {
+      const lastId = localStorage.getItem('kanban_last_board_id');
+      if (!lastId) return;
+      const match = boards.find((b) => b.board_id === lastId);
+      if (match) setSelectedBoard(match);
+      else localStorage.removeItem('kanban_last_board_id');
+    } catch { /* ignore */ }
+  }, [loading, boards, selectedBoard]);
+
   const handleCreate = useCallback(async () => {
     if (!newBoardName.trim()) return;
     try {
@@ -65,13 +83,13 @@ export default function KanbanSection() {
       await deleteBoard(deletingBoard.board_id);
       await fetchBoards();
       if (selectedBoard?.board_id === deletingBoard.board_id) {
-        setSelectedBoard(null);
+        selectBoard(null);
       }
       toast.success(t('boardDeleted'));
     } catch {
       toast.error(t('deleteBoardError'));
     }
-  }, [deletingBoard, fetchBoards, selectedBoard, t]);
+  }, [deletingBoard, fetchBoards, selectedBoard, selectBoard, t]);
 
   const startDelete = useCallback(async (board: KanbanBoard) => {
     setDeletingBoard(board);
@@ -130,7 +148,7 @@ export default function KanbanSection() {
   }, [editingBoard, editName, editDesc, editMaxConcurrent, editDefaultWorkdir, fetchBoards, t]);
 
   if (selectedBoard) {
-    return <KanbanBoardView board={selectedBoard} onBack={() => setSelectedBoard(null)} />;
+    return <KanbanBoardView board={selectedBoard} onBack={() => selectBoard(null)} />;
   }
 
   return (
@@ -207,9 +225,9 @@ export default function KanbanSection() {
                 key={board.board_id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setSelectedBoard(board)}
+                onClick={() => selectBoard(board)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') setSelectedBoard(board);
+                  if (e.key === 'Enter' || e.key === ' ') selectBoard(board);
                 }}
                 className="group flex items-center justify-between p-3 rounded-lg border hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-colors"
               >

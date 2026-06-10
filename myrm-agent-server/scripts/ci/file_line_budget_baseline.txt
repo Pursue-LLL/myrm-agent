@@ -106,9 +106,6 @@ app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/compact_service.py
 app/services/chat/conversation_search_service.py
-app/services/kanban/diagnostics.py
-app/services/kanban/service.py
-app/services/kanban/task_runner.py
 app/services/memory/archive_restore.py
 app/services/memory/archive_restore_executor.py
 app/services/memory/backup_remote.py

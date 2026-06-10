@@ -25,7 +25,8 @@
 ## 依赖
 
 - `@/lib/utils/authHeaders` — 认证头
-- `@/config/*` — `API_BASE_URL`、部署模式
+- `@/lib/api` — `API_BASE_URL`、通用 fetch
+- `@/lib/deploy-mode.ts` — 部署模式
 - 本地模式：**不**调用 CP（`cp-base-url.ts` 仅 sandbox 前端）
 
 ## 约束

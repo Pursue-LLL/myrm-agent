@@ -1,22 +1,22 @@
 /**
- * 检索服务提供商配置
+ * Retrieval service provider catalog (Embedding + Reranker).
  *
- * 定义 Embedding 和 Reranker 支持的提供商及其模型
+ * Defines supported providers and models for Settings → Retrieval.
  */
 
 export interface ModelOption {
-  value: string; // 真实模型名（非 LiteLLM 格式）
+  value: string; // Real model name (not LiteLLM format)
   label: string;
   description?: string;
 }
 
 export interface ProviderConfig {
   id: string; // LiteLLM provider prefix
-  name: string; // 显示名称
+  name: string; // Display name
   models: ModelOption[];
-  requiresApiBase?: boolean; // 是否需要自定义 API Base
-  defaultApiBase?: string; // 默认 API Base
-  modelListUrl?: string; // 模型列表网址（供用户参考）
+  requiresApiBase?: boolean; // Whether custom API Base is required
+  defaultApiBase?: string; // Default API Base
+  modelListUrl?: string; // Model list URL for user reference
 }
 
 // ==================== Embedding Providers ====================
@@ -303,7 +303,7 @@ export const RERANKER_PROVIDERS: ProviderConfig[] = [
 // ==================== Helper Functions ====================
 
 /**
- * 将 provider + model 转换为 LiteLLM 格式
+ * Convert provider + model to LiteLLM format.
  *
  * @example
  * toLiteLLMFormat('openai', 'text-embedding-3-small') → 'text-embedding-3-small'
@@ -311,58 +311,17 @@ export const RERANKER_PROVIDERS: ProviderConfig[] = [
  * toLiteLLMFormat('siliconflow', 'BAAI/bge-large-zh-v1.5') → 'openai/BAAI/bge-large-zh-v1.5'
  */
 export function toLiteLLMFormat(providerId: string, modelName: string): string {
-  // OpenAI 是默认 provider，不需要前缀
   if (providerId === 'openai') {
     return modelName;
   }
 
-  // SiliconFlow 使用 openai/ 前缀（兼容 OpenAI API）
   if (providerId === 'siliconflow') {
     return `openai/${modelName}`;
   }
 
-  // OpenAI Compatible 使用 openai/ 前缀
   if (providerId === 'openai_compatible') {
     return `openai/${modelName}`;
   }
 
-  // 其他 provider 使用 provider/model 格式
   return `${providerId}/${modelName}`;
-}
-
-/**
- * 从 LiteLLM 格式解析 provider 和 model
- *
- * @example
- * fromLiteLLMFormat('text-embedding-3-small') → { provider: 'openai', model: 'text-embedding-3-small' }
- * fromLiteLLMFormat('jina_ai/jina-embeddings-v3') → { provider: 'jina_ai', model: 'jina-embeddings-v3' }
- * fromLiteLLMFormat('openai/BAAI/bge-large-zh-v1.5') → { provider: 'siliconflow', model: 'BAAI/bge-large-zh-v1.5' }
- */
-export function fromLiteLLMFormat(litellmModel: string): { provider: string; model: string } {
-  if (!litellmModel.includes('/')) {
-    // 没有斜杠，默认是 OpenAI
-    return { provider: 'openai', model: litellmModel };
-  }
-
-  const [provider, ...modelParts] = litellmModel.split('/');
-  const model = modelParts.join('/'); // 处理模型名中可能包含斜杠的情况
-
-  // SiliconFlow 模型特征：openai/ 前缀 + 特殊模型名
-  if (
-    provider === 'openai' &&
-    (model.startsWith('BAAI/') ||
-      model.startsWith('Qwen/') ||
-      model.startsWith('Pro/') ||
-      model.includes('youdao') ||
-      model.includes('netease'))
-  ) {
-    return { provider: 'siliconflow', model };
-  }
-
-  // OpenAI Compatible 使用 openai/ 前缀（且模型名包含斜杠）
-  if (provider === 'openai' && model.includes('/')) {
-    return { provider: 'openai_compatible', model };
-  }
-
-  return { provider, model };
 }

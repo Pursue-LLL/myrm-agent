@@ -54,7 +54,6 @@ describe('SpriteEngine', () => {
 
   it('reports loading state when loadSheet is called', () => {
     const originalImage = globalThis.Image;
-    let imageInstance: any;
     globalThis.Image = class MockImage {
       crossOrigin = '';
       naturalWidth = 0;
@@ -62,9 +61,9 @@ describe('SpriteEngine', () => {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       set src(_url: string) {
-        imageInstance = this;
+        // Intentionally no-op: loadSheet only needs Image constructor side effects.
       }
-    } as any;
+    } as typeof Image;
 
     engine.loadSheet('https://example.com/sheet.webp');
     expect(loadStates).toContain('loading');

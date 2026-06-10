@@ -74,13 +74,21 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const [summaryData, setSummaryData] = useState<BoardSummary | null>(null);
   const summary = summaryData?.task_counts ?? {};
   const [edges, setEdges] = useState<TaskDependency[]>([]);
-  const [viewMode, setViewMode] = useState<'board' | 'graph' | 'activity'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'graph' | 'activity'>(() => {
+    if (typeof window === 'undefined') return 'board';
+    try {
+      const stored = localStorage.getItem('kanban_view_mode');
+      if (stored === 'board' || stored === 'graph' || stored === 'activity') return stored;
+    } catch { /* private mode / quota */ }
+    return 'board';
+  });
   const [drawerTaskId, setDrawerTaskId] = useState<string | null>(null);
   const [pipelineWizardOpen, setPipelineWizardOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
-  const [laneByProfile, setLaneByProfile] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem('kanban_lane_by_profile') !== 'false' : true,
-  );
+  const [laneByProfile, setLaneByProfile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try { return localStorage.getItem('kanban_lane_by_profile') !== 'false'; } catch { return true; }
+  });
   const [collapsedAgents, setCollapsedAgents] = useState<Set<string>>(new Set());
   const [forcePromoteState, setForcePromoteState] = useState<{
     taskId: string;
@@ -282,7 +290,7 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
   const toggleLaneByProfile = useCallback(() => {
     setLaneByProfile((prev) => {
       const next = !prev;
-      localStorage.setItem('kanban_lane_by_profile', String(next));
+      try { localStorage.setItem('kanban_lane_by_profile', String(next)); } catch { /* ignore */ }
       if (!next) setCollapsedAgents(new Set());
       return next;
     });
@@ -499,7 +507,11 @@ export default function KanbanBoardView({ board, onBack }: KanbanBoardViewProps)
       )}
 
       {/* View tabs */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'board' | 'graph' | 'activity')}>
+      <Tabs value={viewMode} onValueChange={(v) => {
+        const mode = v as 'board' | 'graph' | 'activity';
+        setViewMode(mode);
+        try { localStorage.setItem('kanban_view_mode', mode); } catch { /* ignore */ }
+      }}>
         <TabsList className="h-8">
           <TabsTrigger value="board" className="text-xs px-3 py-1">
             {t('viewBoard')}

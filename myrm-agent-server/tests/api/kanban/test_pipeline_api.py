@@ -165,7 +165,7 @@ class TestInstantiatePipeline:
         assert len(data["edges"]) == 4  # T0→T2, T1→T3, T2→T3, T3→T4
 
     def test_creates_task_graph_with_variant(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_instantiator import PipelineSpec, TaskGraphVariant, TaskSeed
+        from app.services.kanban.pipeline_spec_io import PipelineSpec, TaskGraphVariant, TaskSeed
 
         # Mock get_pipeline_skill to return a spec with variants
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
@@ -212,7 +212,7 @@ class TestInstantiatePipeline:
         assert len(data["edges"]) == 1
 
     def test_instantiate_invalid_variant_id_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_instantiator import PipelineSpec, TaskGraphVariant, TaskSeed
+        from app.services.kanban.pipeline_spec_io import PipelineSpec, TaskGraphVariant, TaskSeed
 
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
             return PipelineSpec(
@@ -246,7 +246,7 @@ class TestInstantiatePipeline:
         assert "Invalid variant_id: invalid-id" in resp.json()["detail"]
 
     def test_instantiate_empty_graph_returns_400(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.kanban.pipeline_instantiator import PipelineSpec
+        from app.services.kanban.pipeline_spec_io import PipelineSpec
 
         def mock_get_pipeline_skill(skill_id: str) -> PipelineSpec:
             return PipelineSpec(

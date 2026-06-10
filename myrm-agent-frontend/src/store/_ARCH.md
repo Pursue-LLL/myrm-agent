@@ -31,7 +31,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 
 - `@/services/*` — HTTP/SSE
 - `@/components/features/*` — 订阅 store
-- `@/lib/utils/*` — 纯函数（**勿**使用空的 `src/utils/`）
+- `@/lib/utils/*` — 纯函数（位于 `src/lib/utils/`，无顶层 `src/utils/`）
 
 ## 约束
 

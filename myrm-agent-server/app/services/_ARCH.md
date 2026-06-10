@@ -32,7 +32,7 @@
 | `skills/` | ✅ 核心 | 技能相关服务（权限、经验账本、草稿通知、自动提取） | [_ARCH.md](skills/_ARCH.md) |
 | `skill_optimization/` | ✅ 核心 | Skill 优化服务（AB 测试、基线同步、LLM 优化、回滚） | [_ARCH.md](skill_optimization/_ARCH.md) |
 | `event/` | ✅ 核心 | 事件记录（Agent 运行时事件持久化 + Turn 生命周期管理） | [_ARCH.md](event/_ARCH.md) |
-| `kanban/` | ✅ 核心 | Kanban 看板业务编排（Board/Task CRUD、Run/Event 查询） | [_ARCH.md](kanban/_ARCH.md) |
+| `kanban/` | ✅ 核心 | Kanban 看板业务编排（mixin facade + orchestrator 模块 + TaskRunner + diagnostics） | [_ARCH.md](kanban/_ARCH.md) |
 | `budget/` | ✅ 核心 | 预算治理服务（BudgetPolicy 持久化 + DailyBudgetGuard） | [_ARCH.md](budget/_ARCH.md) |
 | `connect/` | ✅ 核心 | 外部 Agent 连接管理（Profile 注册、Token 生成/验证/吊销、Doctor 健康检查） | [_ARCH.md](connect/_ARCH.md) |
 | `risk/` | ✅ 核心 | 风险检测服务（规则引擎、常量、检测逻辑） | [_ARCH.md](risk/_ARCH.md) |

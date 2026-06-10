@@ -24,7 +24,7 @@ import EnabledModelSelect from '../../default-model/EnabledModelSelect';
 import { ModelInfoDialog } from '../../model-service/ModelInfoCard';
 import SettingsSection from '../SettingsSection';
 import ProviderModelSelector from '../../retrieval/ProviderModelSelector';
-import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/config/retrievalProviders';
+import { EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 import useRetrievalStore from '@/store/useRetrievalStore';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/primitives/hover-card';
 import MediaGenerationSection from '../system/MediaGenerationSection';

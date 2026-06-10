@@ -15,7 +15,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
-import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/config/retrievalProviders';
+import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 
 export type ApplyStatus = 'idle' | 'applying' | 'success' | 'error';
 

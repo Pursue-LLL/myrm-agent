@@ -137,7 +137,7 @@ export async function executeStreamWithRetry(
               if (chunk.includes('"type":"message_end"') || chunk.includes('"type": "message_end"')) {
                 setTimeout(() => {
                   window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
-                  try { controller.close(); } catch (e) {}
+                  try { controller.close(); } catch { /* already closed */ }
                 }, 50);
               }
             };
@@ -146,7 +146,7 @@ export async function executeStreamWithRetry(
             
             abortController.signal.addEventListener('abort', () => {
               window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
-              try { controller.error(new Error('AbortError')); } catch (e) {}
+              try { controller.error(new Error('AbortError')); } catch { /* already errored */ }
             });
           }
         });
