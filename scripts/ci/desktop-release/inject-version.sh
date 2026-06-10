@@ -19,5 +19,5 @@ fi
 
 TMP="$(mktemp)"
 jq --arg version "$VERSION" '.version = $version' "$CONF" >"$TMP"
-mv "$TMP" "$CONF"
+mv -f "$TMP" "$CONF"
 echo "Injected tauri version: $VERSION (from $TAG_NAME)"
