@@ -85,6 +85,12 @@ jobs:
           cd myrm-agent-frontend
           bun install
 
+      - name: Build frontend for Tauri
+        run: |
+          cd myrm-agent-frontend
+          BUILD_MODE=tauri bun run build
+        shell: bash
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         id: tauri
