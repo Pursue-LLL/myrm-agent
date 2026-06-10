@@ -8,6 +8,17 @@
 
 从 [GitHub Releases](https://github.com/Pursue-LLL/myrm-agent/releases/latest) 或 [myrmagent.ai/download](https://myrmagent.ai/download) 下载安装包。
 
+## 发布（CI）
+
+推送语义化 tag 触发 `.github/workflows/desktop-release.yml`：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+工作流构建 macOS / Windows / Linux 安装包，合并 `latest.json`，并发布**非 draft** GitHub Release（`releases/latest` API 与官网 `bake:release` 可拾取）。签名密钥见 [SIGNING.md](SIGNING.md)。
+
 ## 本地构建
 
 ```bash

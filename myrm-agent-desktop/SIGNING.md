@@ -2,7 +2,7 @@
 
 Walkthrough for shipping a signed and notarized MyrmAgent desktop bundle across macOS, Windows, and Linux.
 
-The release workflow at `.github/workflows/tauri-release.yml` consumes every credential below from repository **Secrets** — nothing in this repo holds keys.
+The release workflow at `.github/workflows/desktop-release.yml` consumes every credential below from repository **Secrets** — nothing in this repo holds keys.
 
 Without secrets set, the workflow still produces installers, but they will be unsigned (macOS shows "damaged" warning; Windows triggers SmartScreen). For production releases, **all secrets must be present**.
 
