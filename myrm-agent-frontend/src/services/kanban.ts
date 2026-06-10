@@ -198,7 +198,7 @@ export async function updateTask(
 export async function moveTask(
   taskId: string,
   status: TaskStatus,
-  opts?: { force?: boolean; block_kind?: BlockKind; blocked_reason?: string; scheduled_until?: string },
+  opts?: { force?: boolean; block_kind?: BlockKind; blocked_reason?: string; scheduled_until?: string; result?: string; metadata?: Record<string, unknown> },
 ): Promise<KanbanTask> {
   const { force = false, ...rest } = opts ?? {};
   return apiRequest(`/kanban/tasks/${taskId}/move`, {
