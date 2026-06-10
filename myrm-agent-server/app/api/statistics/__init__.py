@@ -19,12 +19,14 @@ from fastapi import APIRouter
 
 def build_statistics_router() -> APIRouter:
     """Build the statistics API router without import-time submodule side effects."""
+    from app.api.statistics.agent_usage import router as agent_usage_router
     from app.api.statistics.daily_journal import router as daily_journal_router
     from app.api.statistics.growth_dashboard import router as growth_dashboard_router
     from app.api.statistics.router import router as base_router
 
     statistics_router = APIRouter()
     statistics_router.include_router(base_router)
+    statistics_router.include_router(agent_usage_router)
     statistics_router.include_router(growth_dashboard_router)
     statistics_router.include_router(daily_journal_router)
     return statistics_router
