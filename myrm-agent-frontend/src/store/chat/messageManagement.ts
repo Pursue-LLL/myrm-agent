@@ -16,7 +16,7 @@ import crypto from 'crypto';
 import { Message, ChatHistoryItem, type ActionMode } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
 import { getChatDetail, getMessages, generateChatTitle, updateChatTitle } from '@/services/chat';
-import { ApiError } from '@/lib/api';
+import { ApiError, apiRequest } from '@/lib/api';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
@@ -74,6 +74,12 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
         state.loading = false;
       }
     });
+
+    apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`).then((res) => {
+      if (res?.active && useChatStore.getState().chatId === chatId) {
+        useChatStore.getState().setSandboxMode(true);
+      }
+    }).catch(() => {});
   } catch (error) {
     console.error('Failed to load chat messages:', error, chatId);
 
@@ -158,6 +164,7 @@ export const initializeChat = (
       state.compactedBeforeId = null;
       state.workspaceDir = null;
       state.incognitoMode = false;
+      state.sandboxMode = false;
       const timestamp = Date.now().toString(36);
       const microTime = (performance.now() * 1000).toString(36).replace('.', '');
       const randomBytes = crypto.randomBytes(8).toString('hex');
@@ -218,6 +225,7 @@ export const initializeChat = (
         state.compactedBeforeId = null;
         state.workspaceDir = null;
         state.incognitoMode = false;
+        state.sandboxMode = false;
         state.chatId = id;
       });
       actions.clearCurrentSessionMessageId();

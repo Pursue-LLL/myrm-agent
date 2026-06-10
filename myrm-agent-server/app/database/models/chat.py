@@ -43,6 +43,9 @@ class Chat(Base):
     # Per-chat working directory: agent CWD and sandbox boundary
     workspace_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
+    # Original repo root when sandbox (git worktree) is active
+    sandbox_base_dir: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
     # Project grouping: organize chats into user-defined projects
     project_id: Mapped[str | None] = mapped_column(
         String(255), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True

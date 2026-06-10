@@ -57,6 +57,7 @@ RUN groupadd -r myrm && useradd -r -g myrm -m -d /home/myrm myrm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates xvfb x11vnc novnc websockify fluxbox \
+    scrot xdotool at-spi2-core dbus-x11 \
     fontconfig fonts-noto-cjk fonts-noto-color-emoji fonts-liberation \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*

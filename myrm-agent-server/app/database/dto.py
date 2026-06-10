@@ -88,6 +88,7 @@ class ChatDTO(BaseModel):
     ephemeral_subagents: dict[str, Any] | None = None
     task_adaptive_digest: dict[str, Any] | None = None
     workspace_dir: str | None = None
+    sandbox_base_dir: str | None = None
     project_id: str | None = None
     is_pinned: bool = False
     pin_order: int = 0

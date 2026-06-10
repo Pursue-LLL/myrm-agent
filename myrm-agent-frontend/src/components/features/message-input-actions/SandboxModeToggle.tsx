@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import useChatStore from '@/store/useChatStore';
+import { apiRequest } from '@/lib/api';
+import { useState } from 'react';
 
 const SandboxIcon = ({ className }: { className?: string }) => (
   <svg
@@ -32,11 +34,35 @@ const SandboxModeToggle = () => {
   const sandboxMode = useChatStore((s) => s.sandboxMode);
   const setSandboxMode = useChatStore((s) => s.setSandboxMode);
   const actionMode = useChatStore((s) => s.actionMode);
+  const chatId = useChatStore((s) => s.chatId);
+  const [loading, setLoading] = useState(false);
 
   if (actionMode !== 'agent') return null;
 
-  const toggle = () => {
-    setSandboxMode(!sandboxMode);
+  const toggle = async () => {
+    if (loading) return;
+
+    const newState = !sandboxMode;
+
+    if (!chatId) {
+      setSandboxMode(newState);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (newState) {
+        await apiRequest(`/chats/${chatId}/sandbox/enable`, { method: 'POST' });
+        setSandboxMode(true);
+      } else {
+        await apiRequest(`/chats/${chatId}/sandbox/disable`, { method: 'POST' });
+        setSandboxMode(false);
+      }
+    } catch {
+      // Keep current state on failure
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -47,12 +73,14 @@ const SandboxModeToggle = () => {
             type="button"
             aria-label={t('sandboxMode')}
             aria-pressed={sandboxMode}
+            disabled={loading}
             onClick={toggle}
             className={cn(
               'relative flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium transition-all duration-300 cursor-pointer select-none',
               sandboxMode
                 ? 'bg-primary/10 dark:bg-primary/15 text-primary border border-primary/30 dark:border-primary/25'
                 : 'bg-black/[0.04] dark:bg-white/[0.06] text-black/40 dark:text-white/40 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.1]',
+              loading && 'opacity-60 pointer-events-none',
             )}
           >
             <SandboxIcon
