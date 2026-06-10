@@ -4431,6 +4431,16 @@
         "llm_map": "对一批条目并行施加同一指令 — 一步完成整列的总结、分类或翻译",
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性"
       },
+      "cuPermission": {
+        "checking": "正在检查桌面权限…",
+        "allGranted": "桌面权限正常",
+        "missing": "缺少桌面权限",
+        "accessibilityMissing": "未授予辅助功能权限",
+        "screenRecordingMissing": "未授予屏幕录制权限",
+        "openSettings": "打开设置",
+        "recheckBtn": "重新检查",
+        "hint": "桌面控制需要 macOS 辅助功能和屏幕录制权限。"
+      },
       "memoryDecay": "记忆遗忘速度",
       "memoryDecayDesc": "控制智能体长期记忆的衰减速度",
       "memoryDecayPermanent": "永久记忆",
@@ -5188,6 +5198,13 @@
       "waitingForDesktop": "等待桌面控制活动...",
       "waitingHint": "当 Agent 使用桌面工具时，实时视图将自动显示",
       "permissionDenied": "需要辅助功能权限。请在系统设置中授权后重试。",
+      "permissionDeniedAccessibility": "需要辅助功能权限才能操作桌面元素。",
+      "permissionDeniedScreenRecording": "需要屏幕录制权限才能进行桌面截图。",
+      "permissionOpenSettings": "打开系统设置",
+      "permissionCheckAgain": "重新检查",
+      "permissionChecking": "正在检查权限…",
+      "permissionAllGranted": "所有权限已授予",
+      "permissionMissing": "缺少权限",
       "instructionPlaceholder": "描述你想在桌面上做什么...",
       "instructionWithElement": "Agent 应该对这个桌面元素做什么？",
       "send": "发送指令"

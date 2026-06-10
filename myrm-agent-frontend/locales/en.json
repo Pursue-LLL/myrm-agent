@@ -4431,6 +4431,16 @@
         "llm_map": "Apply one instruction across many items in parallel — summarize, classify, or translate a whole list in one step",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy"
       },
+      "cuPermission": {
+        "checking": "Checking desktop permissions…",
+        "allGranted": "Desktop permissions OK",
+        "missing": "Missing desktop permissions",
+        "accessibilityMissing": "Accessibility not granted",
+        "screenRecordingMissing": "Screen Recording not granted",
+        "openSettings": "Open Settings",
+        "recheckBtn": "Recheck",
+        "hint": "Desktop Control requires macOS Accessibility and Screen Recording permissions."
+      },
       "memoryDecay": "Memory Decay",
       "memoryDecayDesc": "Control the decay speed of long-term memory",
       "memoryDecayPermanent": "Permanent",
@@ -5189,6 +5199,13 @@
       "waitingForDesktop": "Waiting for desktop control activity...",
       "waitingHint": "The live view will appear when the agent uses desktop tools",
       "permissionDenied": "Accessibility permission is required. Grant access in System Settings, then retry.",
+      "permissionDeniedAccessibility": "Accessibility permission is required for desktop element interaction.",
+      "permissionDeniedScreenRecording": "Screen Recording permission is required for desktop screenshots.",
+      "permissionOpenSettings": "Open System Settings",
+      "permissionCheckAgain": "Check again",
+      "permissionChecking": "Checking permissions…",
+      "permissionAllGranted": "All permissions granted",
+      "permissionMissing": "Missing permissions",
       "instructionPlaceholder": "Describe what you want to do on the desktop...",
       "instructionWithElement": "What should the agent do with this desktop element?",
       "send": "Send instruction"
