@@ -8,7 +8,8 @@
 
 [POS]
 WebUI-facing endpoint that bridges the frontend /freeze command to the
-harness EStopGuard singleton. No CP token required (WebUI session auth).
+harness EStopGuard singleton. Activate also cancels all active streams via
+CancellationRegistry.cancel_all. No CP token required (WebUI session auth).
 """
 
 from __future__ import annotations
@@ -26,7 +27,6 @@ router = APIRouter(prefix="/security", tags=["security"])
 
 class EStopRequest(BaseModel):
     action: Literal["activate", "resume"]
-    level: Literal["tool_freeze", "kill_all"] = "tool_freeze"
     reason: str = Field(default="User triggered via WebUI")
 
 
@@ -48,8 +48,16 @@ async def estop_action(body: EStopRequest) -> EStopResponse:
     guard = get_estop_guard()
 
     if body.action == "activate":
-        level = EStopLevel(body.level)
-        state = guard.activate(level=level, reason=body.reason, activated_by="webui_user")
+        from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancelReason
+
+        state = guard.activate(
+            level=EStopLevel.TOOL_FREEZE,
+            reason=body.reason,
+            activated_by="webui_user",
+        )
+        cancelled = CancellationRegistry.cancel_all(CancelReason.ESTOP)
+        if cancelled:
+            logger.warning("E-Stop cancelled %d active agent stream(s)", cancelled)
     elif body.action == "resume":
         state = guard.resume(resumed_by="webui_user")
     else:

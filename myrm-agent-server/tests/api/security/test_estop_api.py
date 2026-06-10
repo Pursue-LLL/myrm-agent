@@ -32,7 +32,7 @@ class TestEstopAPI:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 "/api/v1/security/estop",
-                json={"action": "activate", "level": "tool_freeze", "reason": "test freeze"},
+                json={"action": "activate", "reason": "test freeze"},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -44,18 +44,31 @@ class TestEstopAPI:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             await ac.post(
                 "/api/v1/security/estop",
-                json={"action": "activate", "level": "tool_freeze", "reason": "temp"},
+                json={"action": "activate", "reason": "temp"},
             )
             resp = await ac.post("/api/v1/security/estop", json={"action": "resume"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["level"] == "none"
 
-    async def test_activate_kill_all(self, _reset_estop, _bypass_auth):
+    async def test_activate_cancels_active_streams(self, _reset_estop, _bypass_auth):
+        from myrm_agent_harness.utils.runtime.cancellation import (
+            CancellationRegistry,
+            CancellationToken,
+            CancelReason,
+        )
+
+        token = CancellationToken(request_id="stream-under-estop")
+        CancellationRegistry.register(token)
+
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 "/api/v1/security/estop",
-                json={"action": "activate", "level": "kill_all", "reason": "critical"},
+                json={"action": "activate", "reason": "critical"},
             )
+
+        CancellationRegistry.unregister("stream-under-estop")
         assert resp.status_code == 200
-        assert resp.json()["level"] == "kill_all"
+        assert resp.json()["level"] == "tool_freeze"
+        assert token.is_cancelled
+        assert token.cancel_reason == CancelReason.ESTOP

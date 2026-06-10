@@ -23,6 +23,7 @@ import ToolApprovalDialog from './ToolApprovalDialog';
 import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
 import AgentInfoBanner from './AgentInfoBanner';
 import YoloModeBanner from './YoloModeBanner';
+import EStopBanner from './EStopBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
 import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
@@ -355,6 +356,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             <YoloModeBanner />
+            <EStopBanner />
 
             {/* 聊天内容 */}
             <div className="flex-1 min-h-0">
@@ -401,6 +403,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <ToolApprovalDialog />
       <ToolApprovalExpiryWatcher />
       <YoloModeBanner />
+      <EStopBanner />
       <EmptyChat />
       <SubagentDashboard />
       <LifeStatusCapsule currentSessionId={id || null} />

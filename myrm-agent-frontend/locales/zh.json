@@ -9345,6 +9345,10 @@
     "message": "YOLO 模式已开启 – 所有工具自动审批",
     "disable": "关闭"
   },
+  "estopBanner": {
+    "message": "紧急制动已激活 – 所有工具执行已冻结",
+    "resume": "解除冻结"
+  },
   "toolApproval": {
     "title": "工具执行审批",
     "batchTitle": "批量审批 ({count} 个工具)",

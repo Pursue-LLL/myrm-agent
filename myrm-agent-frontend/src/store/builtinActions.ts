@@ -161,7 +161,7 @@ export function buildBuiltinActions(): SlashAction[] {
             body: JSON.stringify(
               shouldResume
                 ? { action: 'resume' }
-                : { action: 'activate', level: 'tool_freeze', reason: 'User triggered /freeze' },
+                : { action: 'activate', reason: 'User triggered /freeze' },
             ),
           });
 
@@ -171,6 +171,7 @@ export function buildBuiltinActions(): SlashAction[] {
           } else {
             showI18nToast('commands.builtin.freezeActivated', undefined, { type: 'warning' });
           }
+          window.dispatchEvent(new Event('estop-changed'));
           return { success: true, newInputValue: '' };
         } catch (e) {
           toast.dismiss(toastId);
