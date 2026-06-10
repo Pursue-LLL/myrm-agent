@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "identifier": "com.myrmagent.app",
   "build": {
-    "beforeDevCommand": "cd ../../myrm-agent-frontend && bun run dev",
-    "beforeBuildCommand": "cd ../../myrm-agent-frontend && BUILD_MODE=tauri bun run build",
+    "beforeDevCommand": "cd ../myrm-agent-frontend && bun run dev",
+    "beforeBuildCommand": "cd ../myrm-agent-frontend && BUILD_MODE=tauri bun run build",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../../myrm-agent-frontend/.next/standalone/.next"
   },
