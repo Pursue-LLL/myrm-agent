@@ -16,6 +16,8 @@ import type { WhatsAppCardProps } from './WhatsAppCard';
 import { Switch } from '@/components/primitives/switch';
 import { isSandbox } from '@/lib/deploy-mode';
 import { CardSkeleton } from '../../../common/SettingsSkeleton';
+import { useIngressRequirement } from '@/hooks/useIngressRequirement';
+import { ChannelIngressBadge } from './ChannelIngressBadge';
 
 // 动态加载渠道卡片
 const WhatsAppCard = dynamic(() => import('./WhatsAppCard').then((mod) => mod.WhatsAppCard), {
@@ -401,6 +403,7 @@ const DEFAULT_CHANNEL = isSandbox() ? 'feishu' : 'whatsapp';
 export default function ChannelsSection() {
   const t = useTranslations('channels');
   const state = useChannelsState(t);
+  const ingressSnapshot = useIngressRequirement();
   const channelEntries = buildChannelEntries(t, isSandbox());
   const [selectedChannel, _setSelectedChannel] = useState(() => {
     if (typeof window === 'undefined') return DEFAULT_CHANNEL;
@@ -470,6 +473,9 @@ export default function ChannelsSection() {
             channelName={ch}
             onInstalled={state.fetchChannelStatuses}
           />
+          {ingressSnapshot?.channels[ch] ? (
+            <ChannelIngressBadge mode={ingressSnapshot.channels[ch]} />
+          ) : null}
           <CredentialGuide channel={ch} t={t} />
           {status && status !== 'disabled' && status !== 'unavailable' && (
             <ChannelConfigPanel
@@ -515,7 +521,7 @@ export default function ChannelsSection() {
         </div>
       );
     },
-    [state, t, isChannelEffectivelyEnabled],
+    [state, t, isChannelEffectivelyEnabled, ingressSnapshot],
   );
 
   return (

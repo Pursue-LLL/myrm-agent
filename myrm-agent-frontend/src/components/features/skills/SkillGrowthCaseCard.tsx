@@ -7,7 +7,7 @@
 
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, ChevronDown, ChevronUp, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
+import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
@@ -29,6 +29,7 @@ interface SkillGrowthCaseCardProps {
   onApproveShadow?: () => Promise<void>;
   onReject: (reason?: string) => Promise<void>;
   onRevise?: (evolvedContent: string) => Promise<void>;
+  onCreateCron?: (scheduleHint: string) => Promise<void>;
 }
 
 const STATUS_STYLES: Record<
@@ -64,6 +65,7 @@ export default function SkillGrowthCaseCard({
   onApproveShadow,
   onReject,
   onRevise,
+  onCreateCron,
 }: SkillGrowthCaseCardProps) {
   const t = useTranslations('settings.skills.growth');
   const { theme } = useTheme();
@@ -200,13 +202,40 @@ export default function SkillGrowthCaseCard({
                 {t('actions.approveShadow')}
               </Button>
             )}
-            <Button size="sm" onClick={onApprove} disabled={isProcessing}>
-              <Check className="mr-2 h-4 w-4" />
-              {approveLabel}
-            </Button>
+            {item.growthType === 'cron_suggestion' && onCreateCron && item.formMetadata?.scheduleHint ? (
+              <Button
+                size="sm"
+                className="bg-violet-600 hover:bg-violet-700 text-white"
+                onClick={() => onCreateCron(item.formMetadata!.scheduleHint!)}
+                disabled={isProcessing}
+              >
+                <CalendarClock className="mr-2 h-4 w-4" />
+                {t('actions.createCron')}
+              </Button>
+            ) : (
+              <Button size="sm" onClick={onApprove} disabled={isProcessing}>
+                <Check className="mr-2 h-4 w-4" />
+                {approveLabel}
+              </Button>
+            )}
           </div>
         )}
       </div>
+
+      {item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint && (
+        <div className="mt-4 rounded-xl border border-violet-300/50 bg-violet-50/60 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t('cronSuggestion.title')}
+          </p>
+          <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+            <CalendarClock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <span>{item.formMetadata.scheduleHint}</span>
+          </div>
+          {item.formMetadata.formReasoning && (
+            <p className="mt-2 text-xs text-muted-foreground">{item.formMetadata.formReasoning}</p>
+          )}
+        </div>
+      )}
 
       {runtimeFailure && (
         <div className="mt-4 rounded-xl border border-sky-300/50 bg-sky-50/60 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">

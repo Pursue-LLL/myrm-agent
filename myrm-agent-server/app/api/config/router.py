@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
 from app.core.channel_bridge.config_parsers import invalidate_search_health_cache
+from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 from app.core.security.config_crypto import is_sensitive_config
 from app.schemas.config import (
     OMNI_CONFIG_MODELS,
@@ -312,6 +313,7 @@ async def set_config(
         )
         invalidate_user_configs_cache()
         invalidate_search_health_cache()
+        invalidate_ingress_requirement_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
             from app.core.channel_bridge.setup import refresh_reaction_policy
@@ -388,6 +390,7 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
 
         # Invalidate caches
         invalidate_user_configs_cache()
+        invalidate_ingress_requirement_cache()
         if config_key == "searchServices":
             invalidate_search_health_cache()
 
@@ -410,6 +413,7 @@ async def delete_config(
             raise HTTPException(status_code=404, detail=f"Config '{config_key}' not found")
         invalidate_user_configs_cache()
         invalidate_search_health_cache()
+        invalidate_ingress_requirement_cache()
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
             from app.core.channel_bridge.setup import refresh_reaction_policy
@@ -463,6 +467,7 @@ async def sync_configs(
         if result.new_versions:
             invalidate_user_configs_cache()
             invalidate_search_health_cache()
+            invalidate_ingress_requirement_cache()
             if "channels" in result.new_versions:
                 from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
                 from app.core.channel_bridge.setup import refresh_reaction_policy

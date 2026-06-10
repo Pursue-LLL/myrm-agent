@@ -140,6 +140,15 @@ class TaskUpdate(BaseModel):
         max_length=2000,
         description="Natural-language acceptance criteria for completion verification",
     )
+    result: str | None = Field(
+        None,
+        max_length=10000,
+        description="Task result / handoff text. Typically edited post-completion to fix hallucinations.",
+    )
+    metadata: dict[str, object] | None = Field(
+        None,
+        description="Structured metadata to merge into task.metadata (e.g. changed_files, test_count).",
+    )
 
 
 class TaskMoveRequest(BaseModel):

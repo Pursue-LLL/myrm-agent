@@ -203,6 +203,10 @@ async def update_task(task_id: str, body: TaskUpdate) -> TaskResponse:
             kwargs["extra_skill_ids"] = body.extra_skill_ids
         if "max_runtime_seconds" in body.model_fields_set:
             kwargs["max_runtime_seconds"] = body.max_runtime_seconds
+        if body.result is not None:
+            kwargs["result"] = body.result
+        if body.metadata is not None:
+            kwargs["metadata"] = body.metadata
         task = await svc.update_task(task_id, **kwargs)  # type: ignore[arg-type]
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

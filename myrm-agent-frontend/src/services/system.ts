@@ -7,10 +7,21 @@ export type TunnelStatus = {
   ingress_synced: boolean;
 };
 
+export type IngressRequirementSnapshot = {
+  required: boolean;
+  has_public_ingress: boolean;
+  reasons: string[];
+  channels: Record<string, 'outbound' | 'inbound'>;
+};
+
 export const systemService = {
   /**
    * Get the computed public ingress base URL.
    */
+  async getIngressRequirement(): Promise<IngressRequirementSnapshot> {
+    return apiRequest<IngressRequirementSnapshot>(`/system/ingress-requirement?t=${Date.now()}`);
+  },
+
   async getIngressUrl(): Promise<string> {
     const data = await apiRequest<{ ingress_url: string }>(`/system/ingress-url?t=${Date.now()}`);
     return data.ingress_url;

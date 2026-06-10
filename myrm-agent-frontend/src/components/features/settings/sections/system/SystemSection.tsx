@@ -31,6 +31,7 @@ import { DoctorDashboard } from '../../../health/DoctorDashboard';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
 import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
+import { useIngressRequirement } from '@/hooks/useIngressRequirement';
 
 /**
  * 系统设置 Section
@@ -157,7 +158,8 @@ function resolveWebuiPort(config: SystemConfig): number {
 const AccessCard = memo<{
   config: SystemConfig;
   localIP: string;
-}>(({ config, localIP }) => {
+  ingressSnapshot: ReturnType<typeof useIngressRequirement>;
+}>(({ config, localIP, ingressSnapshot }) => {
   const t = useTranslations('settings.system');
   const [copied, setCopied] = useState<string | null>(null);
   const [testingIngress, setTestingIngress] = useState(false);
@@ -201,6 +203,8 @@ const AccessCard = memo<{
   const tunnelUrl = tunnelStatus.running ? tunnelStatus.url : null;
   const tunnelActive = Boolean(tunnelUrl);
   const showLocalIngress = isLocalMode();
+  const ingressResolved = ingressSnapshot !== null;
+  const showPublicIngressOptions = ingressResolved && ingressSnapshot.required;
   const [lanNetworkUrl, setLanNetworkUrl] = useState('');
 
   useEffect(() => {
@@ -307,7 +311,12 @@ const AccessCard = memo<{
         <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
           <p className="text-sm font-bold text-indigo-300">{t('access.guide.title')}</p>
           <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.lanFirst')}</p>
-          <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.tunnelWhen')}</p>
+          {ingressResolved &&
+            (showPublicIngressOptions ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.tunnelWhen')}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.outboundOnly')}</p>
+            ))}
         </div>
       )}
 
@@ -415,7 +424,7 @@ const AccessCard = memo<{
       )}
 
       {/* 外网访问（可选） */}
-      {showLocalIngress && (
+      {showLocalIngress && showPublicIngressOptions && (
         <details className="group p-6 rounded-2xl bg-white/5 border border-white/10 open:pb-6">
           <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-sm font-bold text-foreground">
             <span className="flex items-center gap-2">
@@ -491,7 +500,7 @@ const AccessCard = memo<{
         </details>
       )}
 
-      {showLocalIngress && (
+      {showLocalIngress && showPublicIngressOptions && (
         <details className="p-6 rounded-2xl bg-white/5 border border-white/10">
           <summary className="cursor-pointer list-none text-sm font-bold text-foreground">
             {t('access.stableDomain.title')}
@@ -507,37 +516,39 @@ const AccessCard = memo<{
         </details>
       )}
 
-      <IngressEntitlementGate>
-        <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-          <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <IconGlobe className="w-4 h-4" />
-            {t('access.ingress.title')}
+      {showPublicIngressOptions && (
+        <IngressEntitlementGate>
+          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <IconGlobe className="w-4 h-4" />
+              {t('access.ingress.title')}
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t('access.ingress.description')}</p>
+            {tunnelActive && <p className="text-xs text-emerald-500/90">{t('access.ingress.syncedFromTunnel')}</p>}
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={publicIngressBaseUrl || ''}
+                onChange={(e) => setPublicIngressBaseUrl(e.target.value)}
+                readOnly={tunnelActive}
+                placeholder="https://..."
+                className={cn(
+                  'flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
+                  tunnelActive && 'opacity-70 cursor-not-allowed',
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => void handleTestIngress()}
+                disabled={testingIngress}
+                className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors whitespace-nowrap"
+              >
+                {testingIngress ? t('access.ingress.testing') : t('access.ingress.testButton')}
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">{t('access.ingress.description')}</p>
-          {tunnelActive && <p className="text-xs text-emerald-500/90">{t('access.ingress.syncedFromTunnel')}</p>}
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              value={publicIngressBaseUrl || ''}
-              onChange={(e) => setPublicIngressBaseUrl(e.target.value)}
-              readOnly={tunnelActive}
-              placeholder="https://..."
-              className={cn(
-                'flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
-                tunnelActive && 'opacity-70 cursor-not-allowed',
-              )}
-            />
-            <button
-              type="button"
-              onClick={() => void handleTestIngress()}
-              disabled={testingIngress}
-              className="px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors whitespace-nowrap"
-            >
-              {testingIngress ? t('access.ingress.testing') : t('access.ingress.testButton')}
-            </button>
-          </div>
-        </div>
-      </IngressEntitlementGate>
+        </IngressEntitlementGate>
+      )}
     </div>
   );
 });
@@ -546,6 +557,7 @@ AccessCard.displayName = 'AccessCard';
 const SystemSection = memo(() => {
   const t = useTranslations('settings.system');
   const isLocal = isLocalMode();
+  const ingressSnapshot = useIngressRequirement();
   const { config, currentMode, localIP, loading, saveConfig, saveAndRestart } = useSystemConfig();
   const [localConfig, setLocalConfig] = useState<SystemConfig>(DEFAULT_SYSTEM_CONFIG);
   const [isDirty, setIsDirty] = useState(false);
@@ -932,7 +944,7 @@ const SystemSection = memo(() => {
           </h2>
         </div>
 
-        <AccessCard config={config} localIP={localIP} />
+        <AccessCard config={config} localIP={localIP} ingressSnapshot={ingressSnapshot} />
       </section>
 
       {/* Locked Use (Computer Use + Screen Lock) */}

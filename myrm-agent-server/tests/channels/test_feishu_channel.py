@@ -590,9 +590,9 @@ class TestHandleWebhookEventMedia:
 
 
 class TestFromCredentials:
-    def test_defaults_to_webhook(self) -> None:
+    def test_defaults_to_websocket(self) -> None:
         ch = FeishuChannel.from_credentials({"app_id": "a", "app_secret": "s"})
-        assert ch._transport == "webhook"
+        assert ch._transport == "websocket"
 
     def test_websocket_transport(self) -> None:
         ch = FeishuChannel.from_credentials(
@@ -600,11 +600,11 @@ class TestFromCredentials:
         )
         assert ch._transport == "websocket"
 
-    def test_invalid_transport_falls_back_to_webhook(self) -> None:
+    def test_invalid_transport_falls_back_to_websocket(self) -> None:
         ch = FeishuChannel.from_credentials(
             {"app_id": "a", "app_secret": "s", "transport": "garbage"},
         )
-        assert ch._transport == "webhook"
+        assert ch._transport == "websocket"
 
 
 class TestStop:

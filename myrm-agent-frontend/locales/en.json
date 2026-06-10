@@ -2356,12 +2356,16 @@
           "revise": "Revise",
           "reviseLabel": "Edit Proposed Content",
           "cancelRevise": "Cancel",
-          "saveRevision": "Save Revision"
+          "saveRevision": "Save Revision",
+          "createCron": "Create Scheduled Task"
         },
         "approveShadowSuccess": "Shadow test started for {name}",
         "reviseSuccess": "\"{name}\" revised successfully",
         "reviseFailed": "Failed to revise \"{name}\"",
         "reviseFailedScan": "\"{name}\" revised but failed security scan. Please fix the flagged issues.",
+        "cronSuggestion": {
+          "title": "Suggested Schedule"
+        },
         "riskInterceptionTitle": "Risk Interception",
         "applyFailureTitle": "Apply Failure",
         "rejectReasonLabel": "Reason for rejection",
@@ -2939,7 +2943,8 @@
         "guide": {
           "title": "Which should I use?",
           "lanFirst": "Phone or colleagues on the same Wi‑Fi or office LAN → use the LAN URL below. No tunnel, no trycloudflare link.",
-          "tunnelWhen": "Away from home, on cellular, or a different network → expand Public access for Quick Tunnel or a stable domain."
+          "tunnelWhen": "Away from home, on cellular, or a different network → expand Public access for Quick Tunnel or a stable domain.",
+          "outboundOnly": "Your channels use outbound long connections — no public Ingress needed. Use LAN access below; enable the tunnel only when you need WebUI from the public internet."
         },
         "lan": {
           "title": "LAN access",
@@ -8331,7 +8336,8 @@
       "branch_switched": "Branch Switched",
       "specified": "Specified",
       "decomposed": "Decomposed",
-      "timed_out": "Timed Out"
+      "timed_out": "Timed Out",
+      "edited": "Edited"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -8377,6 +8383,10 @@
     "skillsUpdateError": "Failed to update skills",
     "timeoutUpdated": "Task timeout updated",
     "timeoutUpdateError": "Failed to update timeout",
+    "taskResult": "Task Result",
+    "resultUpdated": "Task result updated",
+    "noResult": "No result yet",
+    "saving": "Saving...",
     "verificationReason": "Reason",
     "addCommentError": "Failed to add comment",
     "selectAgent": "Assign Agent (optional)",
@@ -8615,6 +8625,13 @@
     "feishuTransportWebhook": "Webhook (requires public IP)",
     "feishuTransportWebsocket": "WebSocket (no public IP needed)",
     "feishuTransportHint": "WebSocket uses lark-oapi SDK for persistent connection, no public IP required. Install: pip install lark-oapi",
+    "feishuTransportLocalRecommended": "Recommended locally",
+    "feishuWebhookLocalWarning": "Webhook mode on a local instance needs public Ingress. Prefer WebSocket; if you must use Webhook, go to",
+    "feishuWebhookLocalWarningLink": "System · Public access",
+    "connectivityBadgeOutbound": "No public IP needed",
+    "connectivityBadgeInbound": "Ingress required",
+    "connectivityBadgeInboundHint": "External services must reach your instance. Go to",
+    "connectivityBadgeIngressLink": "System · Public access",
     "feishuRenderMode": "Message Format",
     "feishuRenderAuto": "Auto (Recommended)",
     "feishuRenderRaw": "Plain Text",

@@ -59,6 +59,18 @@ def _build_trigger_condition(proposal: EvolutionProposal) -> str:
     return proposal.reasoning.strip()
 
 
+_FORM_TO_GROWTH_TYPE: dict[str, str] = {
+    "skill": "skill_draft",
+    "cron_job": "cron_suggestion",
+    "skip": "skip",
+}
+
+
+def _resolve_growth_type(proposal: EvolutionProposal) -> str:
+    """Map recommended_form to growth lifecycle type."""
+    return _FORM_TO_GROWTH_TYPE.get(proposal.recommended_form, "skill_draft")
+
+
 def build_skill_growth_result(
     proposal: EvolutionProposal,
     *,
@@ -93,14 +105,17 @@ def build_skill_growth_result(
         base_payload["edit_summary"] = proposal.edit_summary
 
     if proposal.evolution_type == EvolutionType.CAPTURED:
+        growth_type = _resolve_growth_type(proposal)
         base_payload.update(
             {
-                "type": "skill_draft",
+                "type": growth_type,
                 "trigger_condition": _build_trigger_condition(proposal),
                 "skill_steps": proposal.proposed_content,
                 "content": proposal.proposed_content,
             }
         )
+        if proposal.form_metadata:
+            base_payload["form_metadata"] = proposal.form_metadata
         return base_payload
 
     if proposal.evolution_type == EvolutionType.OPTIMIZE_DESCRIPTION:

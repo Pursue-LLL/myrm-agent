@@ -230,12 +230,21 @@ async def start_idle_task_listeners() -> None:
                     and event.data["proposal"]
                 ):
                     proposal = event.data["proposal"]
-                    from app.services.skills.growth_lifecycle import process_skill_review_result
+                    recommended_form = proposal.get("recommended_form", "skill")
+                    if recommended_form == "skip":
+                        logger.debug(
+                            "CAPTURED proposal '%s' skipped (form=skip)",
+                            proposal.get("skill_id"),
+                        )
+                    else:
+                        from app.services.skills.growth_lifecycle import process_skill_review_result
 
-                    try:
-                        await process_skill_review_result(
-                            {
-                                "type": "skill_draft",
+                        _form_type_map = {"skill": "skill_draft", "cron_job": "cron_suggestion"}
+                        growth_type = _form_type_map.get(recommended_form, "skill_draft")
+
+                        try:
+                            payload: dict = {
+                                "type": growth_type,
                                 "has_value": True,
                                 "skill_name": proposal.get("skill_id"),
                                 "skill_description": proposal.get("reasoning"),
@@ -244,13 +253,16 @@ async def start_idle_task_listeners() -> None:
                                 "agent_id": proposal.get("agent_id", "default"),
                                 "chat_id": proposal.get("chat_id"),
                             }
-                        )
-                        logger.info(
-                            "CAPTURED skill proposal '%s' routed through growth lifecycle",
-                            proposal.get("skill_id"),
-                        )
-                    except Exception as e:
-                        logger.error("Failed to process CAPTURED skill proposal: %s", e, exc_info=True)
+                            if proposal.get("form_metadata"):
+                                payload["form_metadata"] = proposal["form_metadata"]
+                            await process_skill_review_result(payload)
+                            logger.info(
+                                "CAPTURED skill proposal '%s' routed through growth lifecycle (form=%s)",
+                                proposal.get("skill_id"),
+                                recommended_form,
+                            )
+                        except Exception as e:
+                            logger.error("Failed to process CAPTURED skill proposal: %s", e, exc_info=True)
 
                 from app.database.connection import get_session
                 from app.database.models.notification import SystemNotification

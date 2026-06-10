@@ -36,6 +36,7 @@ export const EVENT_KIND_STYLES: Record<string, string> = {
   specified: 'bg-purple-500/20 text-purple-500',
   decomposed: 'bg-blue-500/20 text-blue-500',
   timed_out: 'bg-chart-5/20 text-chart-5',
+  edited: 'bg-chart-4/20 text-chart-4',
 };
 
 export const PRIORITY_INDICATORS: Record<TaskPriority, string> = {

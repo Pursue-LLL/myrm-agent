@@ -12,8 +12,9 @@
 | `ChannelRoutingSection.tsx` | 渠道路由、线程共享、Shared Context 绑定 |
 | `VoiceSection.tsx` | 语音输入输出设置 |
 | `ChannelList.tsx` / `ChannelIcon.tsx` | 渠道列表与图标 |
-| `ConnectionBadge.tsx` / `PairingManager.tsx` | 连接状态与配对管理 |
+| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx` | 连接状态、Ingress 提示与配对管理 |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks |
+| `@/hooks/useIngressRequirement.ts` | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge` |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx` | 各平台配置 UI（全部在本目录） |
 | `DmPolicySelector.tsx` / `GroupManager.tsx` | DM 策略与群组管理 |
 | `NotificationChannelEditor.tsx` | 通知渠道编辑（Preferences 复用） |

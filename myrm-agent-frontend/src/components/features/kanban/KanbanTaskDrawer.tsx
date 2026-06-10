@@ -84,6 +84,9 @@ export default function KanbanTaskDrawer({
   const [reclaiming, setReclaiming] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [editingResult, setEditingResult] = useState(false);
+  const [resultText, setResultText] = useState('');
+  const [savingResult, setSavingResult] = useState(false);
 
   const allTasksRef = useRef(allTasks);
   allTasksRef.current = allTasks;
@@ -428,6 +431,23 @@ export default function KanbanTaskDrawer({
     },
     [task, onRefresh, t],
   );
+
+  const handleSaveResult = useCallback(async () => {
+    if (!task) return;
+    setSavingResult(true);
+    try {
+      await updateTask(task.task_id, { result: resultText });
+      setEditingResult(false);
+      onRefresh();
+      toast.success(t('resultUpdated'));
+    } catch {
+      toast.error(t('updateError'));
+    } finally {
+      setSavingResult(false);
+    }
+  }, [task, resultText, onRefresh, t]);
+
+  const isTerminal = task?.status === 'completed' || task?.status === 'failed' || task?.status === 'archived';
 
   const latestSummary = useMemo(() => {
     for (let i = runs.length - 1; i >= 0; i--) {
@@ -963,6 +983,60 @@ export default function KanbanTaskDrawer({
                 setTimeout(() => commentInputRef.current?.focus(), 300);
               }}
             />
+
+            {/* Task result */}
+            {(task.result || isTerminal) && (
+              <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t('taskResult')}
+                  </h4>
+                  {isTerminal && !editingResult && (
+                    <button
+                      onClick={() => {
+                        setResultText(task.result || '');
+                        setEditingResult(true);
+                      }}
+                      className="text-[10px] px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary/70 hover:text-primary transition-colors"
+                    >
+                      {t('edit')}
+                    </button>
+                  )}
+                </div>
+                {editingResult ? (
+                  <div className="space-y-1.5">
+                    <textarea
+                      value={resultText}
+                      onChange={(e) => setResultText(e.target.value)}
+                      rows={4}
+                      className="w-full rounded border bg-background px-2 py-1.5 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+                      maxLength={10000}
+                    />
+                    <div className="flex gap-1.5 justify-end">
+                      <button
+                        onClick={() => setEditingResult(false)}
+                        className="text-[11px] px-2 py-0.5 rounded border hover:bg-muted transition-colors"
+                      >
+                        {t('cancel')}
+                      </button>
+                      <button
+                        onClick={handleSaveResult}
+                        disabled={savingResult}
+                        className="text-[11px] px-2 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      >
+                        {savingResult ? t('saving') : t('save')}
+                      </button>
+                    </div>
+                  </div>
+                ) : task.result ? (
+                  <KanbanMarkdown className="text-foreground/80" maxLines={6}>
+                    {task.result}
+                  </KanbanMarkdown>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">{t('noResult')}</p>
+                )}
+              </div>
+            )}
 
             {/* Latest progress */}
             {latestSummary && (

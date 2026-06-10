@@ -190,6 +190,8 @@ export async function updateTask(
     attachment_ids?: string[];
     max_runtime_seconds?: number | null;
     completion_criteria?: string | null;
+    result?: string;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<KanbanTask> {
   return apiRequest(`/kanban/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) });

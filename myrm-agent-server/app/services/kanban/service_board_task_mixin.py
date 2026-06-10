@@ -167,6 +167,8 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         extra_skill_ids: list[str] | None | Sentinel = UNSET,
         max_runtime_seconds: int | None | Sentinel = UNSET,
         completion_criteria: str | None = None,
+        result: str | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> KanbanTask | None:
         return await run_update_task(
             self._store,
@@ -178,6 +180,8 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
             extra_skill_ids=extra_skill_ids,
             max_runtime_seconds=max_runtime_seconds,
             completion_criteria=completion_criteria,
+            result=result,
+            metadata=metadata,
             validate_agent_id=self._validate_agent_id,
         )
 

@@ -135,6 +135,8 @@ async def update_task(
     extra_skill_ids: list[str] | None | Sentinel = UNSET,
     max_runtime_seconds: int | None | Sentinel = UNSET,
     completion_criteria: str | None = None,
+    result: str | None = None,
+    metadata: dict[str, object] | None = None,
     validate_agent_id: ValidateAgentId,
 ) -> KanbanTask | None:
     task = await store.get_task(task_id)
@@ -165,6 +167,13 @@ async def update_task(
             task.metadata["completion_criteria"] = completion_criteria
         else:
             task.metadata.pop("completion_criteria", None)
+    edited_fields: list[str] = []
+    if result is not None:
+        task.result = result
+        edited_fields.append("result")
+    if metadata is not None:
+        task.metadata.update(metadata)
+        edited_fields.append("metadata")
     saved = await store.save_task(task)
     publish_kanban_event(saved.board_id, task_id, "updated", title=saved.title)
     if agent_changed:
@@ -175,6 +184,12 @@ async def update_task(
                 "old_agent_id": old_agent_id,
                 "new_agent_id": saved.agent_id,
             },
+        )
+    if edited_fields:
+        await store.append_event(
+            task_id,
+            TaskEventKind.EDITED,
+            payload={"fields": edited_fields},
         )
     return saved
 

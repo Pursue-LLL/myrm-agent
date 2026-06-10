@@ -35,6 +35,7 @@ const VISIBLE_KINDS = [
   'decomposed',
   'specified',
   'branch_switched',
+  'edited',
 ] as const;
 
 interface BoardActivityFeedProps {

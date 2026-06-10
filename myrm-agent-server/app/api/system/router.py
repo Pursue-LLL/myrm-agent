@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.config.settings import settings
 from app.core.infra.ingress import get_public_ingress_base_url
+from app.core.infra.ingress_requirement import resolve_ingress_requirement
 from app.core.infra.tunnel import get_tunnel_manager
 from app.core.infra.tunnel.manager import TunnelError, TunnelStatus
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_public_ingress_entitlement
@@ -33,6 +34,13 @@ class TunnelStatusResponse(BaseModel):
     url: str | None
     target_port: int | None
     ingress_synced: bool
+
+
+class IngressRequirementResponse(BaseModel):
+    required: bool
+    has_public_ingress: bool
+    reasons: list[str]
+    channels: dict[str, str]
 
 
 def _to_tunnel_response(status: TunnelStatus) -> TunnelStatusResponse:
@@ -75,6 +83,18 @@ async def get_gateway_health(
         return {"status": "error", "message": f"Gateway returned error: {e.response.status_code}", "details": e.response.text}
     except Exception as e:
         return {"status": "error", "message": f"Failed to connect to Gateway: {str(e)}"}
+
+
+@router.get("/ingress-requirement", response_model=IngressRequirementResponse)
+async def get_ingress_requirement() -> IngressRequirementResponse:
+    """Whether public Ingress/Tunnel is needed given configured channels and cron webhooks."""
+    snapshot = await resolve_ingress_requirement()
+    return IngressRequirementResponse(
+        required=snapshot.required,
+        has_public_ingress=snapshot.has_public_ingress,
+        reasons=list(snapshot.reasons),
+        channels=dict(snapshot.channels),
+    )
 
 
 @router.get("/ingress-url")

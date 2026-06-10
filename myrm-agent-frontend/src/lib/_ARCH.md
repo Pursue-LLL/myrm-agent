@@ -18,6 +18,7 @@
 | `config/` | 设置表单 schema 工具 | — |
 | `search/` | SearXNG 预设 + Embedding/Reranker provider 目录 | [_ARCH.md](search/_ARCH.md) |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |
+| `channels/` | 渠道 Ingress 静态分类与凭证判定 | [_ARCH.md](channels/_ARCH.md) |
 | `intent-dispatcher/` | 意图分发 schema | — |
 | `vision/` | 语音视觉会话 | — |
 | `widget-theme-bridge.ts` | Artifact iframe 运行时脚本注入：主题同步、高度 sync、链接拦截、DOM 元素拾取 | — |

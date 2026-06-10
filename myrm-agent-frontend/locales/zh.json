@@ -2356,12 +2356,16 @@
           "revise": "修订",
           "reviseLabel": "编辑提案内容",
           "cancelRevise": "取消",
-          "saveRevision": "保存修订"
+          "saveRevision": "保存修订",
+          "createCron": "创建定时任务"
         },
         "approveShadowSuccess": "已为 {name} 启动 Shadow 测试",
         "reviseSuccess": "\"{name}\" 修订成功",
         "reviseFailed": "\"{name}\" 修订失败",
         "reviseFailedScan": "\"{name}\" 已修订但安全扫描未通过，请修复标记的问题。",
+        "cronSuggestion": {
+          "title": "建议的执行计划"
+        },
         "riskInterceptionTitle": "风控拦截",
         "applyFailureTitle": "应用失败",
         "rejectReasonLabel": "拒绝原因",
@@ -2939,7 +2943,8 @@
         "guide": {
           "title": "怎么选？",
           "lanFirst": "手机/同事和你在同一 WiFi 或公司内网 → 直接用下方「内网访问」地址，不必开隧道，也不必访问 trycloudflare 外网链接。",
-          "tunnelWhen": "人在外网、4G/5G 或不同网络 → 再展开「外网访问」启动 Quick Tunnel，或配置稳定域名。"
+          "tunnelWhen": "人在外网、4G/5G 或不同网络 → 再展开「外网访问」启动 Quick Tunnel，或配置稳定域名。",
+          "outboundOnly": "当前渠道均为长连接出站，无需公网 Ingress。仅在本机或内网访问 WebUI 即可；外网访问时再启用下方隧道。"
         },
         "lan": {
           "title": "内网访问",
@@ -8331,7 +8336,8 @@
       "branch_switched": "分支切换",
       "specified": "已规范化",
       "decomposed": "已分解",
-      "timed_out": "已超时"
+      "timed_out": "已超时",
+      "edited": "已编辑"
     },
     "depBadge": "{count} 个依赖",
     "commentBadge": "{count} 条评论",
@@ -8377,6 +8383,10 @@
     "skillsUpdateError": "更新任务技能失败",
     "timeoutUpdated": "任务超时已更新",
     "timeoutUpdateError": "更新超时失败",
+    "taskResult": "任务结果",
+    "resultUpdated": "任务结果已更新",
+    "noResult": "暂无结果",
+    "saving": "保存中...",
     "verificationReason": "原因",
     "addCommentError": "评论添加失败",
     "selectAgent": "分配智能体（可选）",
@@ -8615,6 +8625,13 @@
     "feishuTransportWebhook": "Webhook（需要公网 IP）",
     "feishuTransportWebsocket": "WebSocket（免公网 IP）",
     "feishuTransportHint": "WebSocket 使用 lark-oapi SDK 长连接，无需公网 IP。需安装：pip install lark-oapi",
+    "feishuTransportLocalRecommended": "本地推荐",
+    "feishuWebhookLocalWarning": "本地 Webhook 模式需要公网 Ingress。推荐切换为 WebSocket；若必须使用 Webhook，请前往",
+    "feishuWebhookLocalWarningLink": "系统设置 · 公网访问",
+    "connectivityBadgeOutbound": "无需公网",
+    "connectivityBadgeInbound": "需要 Ingress",
+    "connectivityBadgeInboundHint": "外部服务需回调你的实例，请前往",
+    "connectivityBadgeIngressLink": "系统设置 · 公网访问",
     "feishuRenderMode": "消息格式",
     "feishuRenderAuto": "自动（推荐）",
     "feishuRenderRaw": "纯文本",

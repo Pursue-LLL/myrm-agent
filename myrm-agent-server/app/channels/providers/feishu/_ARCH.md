@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | Feishu/Lark channel provider — bidirectional messaging via Open API. | ✅ |
 | `api.py` | 模块 | Re-export of Feishu SDK public surface. Canonical source: .sdk.client. | ✅ |
 | `cards.py` | 模块 | Feishu card builders, post format builders, and streaming text utilities. | ✅ |
-| `channel.py` | 模块 | Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging. | ✅ |
+| `channel.py` | 模块 | Feishu/Lark channel — dual transport (webhook / websocket) bidirectional messaging. Default transport: **websocket** (outbound, no public IP). | ✅ |
 | `comment_content.py` | 模块 | Comment content extraction and prompt construction. Pure functions, zero I/O (except wiki link resolution which requires FeishuClient). | ✅ |
 | `comment_handler.py` | 模块 | Feishu drive document comment handler. Converts comment events to InboundMessage | ✅ |
 | `models.py` | 模块 | Pydantic models for Feishu/Lark event subscription webhook payloads. | ✅ |

@@ -113,14 +113,18 @@ async def list_channel_status() -> list[ChannelStatusResponse]:
     """Get runtime status of registered channels plus SDK-unavailable catalog entries."""
     from app.channels.providers.registry import probe_sdk_channel_issues
     from app.core.channel_bridge import channel_gateway
+    from app.core.infra.ingress_requirement import resolve_ingress_requirement, supplement_ingress_issues
 
     statuses = channel_gateway.get_status()
     probe_map = probe_sdk_channel_issues()
+    ingress_snapshot = await resolve_ingress_requirement()
     result: list[ChannelStatusResponse] = []
     for name, ch_status in statuses.items():
         ch = channel_gateway.bus.get_channel(name)
         activity = ch.activity if ch else None
-        issues = _issues_to_response(_merged_issues_for_channel(name, probe_map=probe_map))
+        merged = _merged_issues_for_channel(name, probe_map=probe_map)
+        merged = supplement_ingress_issues(name, merged, ingress_snapshot)
+        issues = _issues_to_response(merged)
         base_type = channel_gateway._resolve_channel_type(ch) if ch else name
         connected = False
         if ch and ch_status == ChannelStatus.RUNNING:

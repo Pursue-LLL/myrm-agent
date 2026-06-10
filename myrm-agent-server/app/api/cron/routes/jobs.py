@@ -31,6 +31,7 @@ from app.api.cron.schemas import (
     CronJobsListResponse,
     CronJobUpdate,
 )
+from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 
 from . import helpers as _h
 
@@ -112,6 +113,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    invalidate_ingress_requirement_cache()
     return _h._to_response(job)
 
 
@@ -179,6 +181,7 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
         raise HTTPException(status_code=400, detail=str(e)) from e
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    invalidate_ingress_requirement_cache()
     return _h._to_response(job)
 
 
@@ -188,6 +191,7 @@ async def delete_job(job_id: str) -> None:
     deleted = await mgr.delete_job(job_id, USER_ID)
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found")
+    invalidate_ingress_requirement_cache()
 
 
 @router.post("/{job_id}/pause", response_model=CronJobResponse)

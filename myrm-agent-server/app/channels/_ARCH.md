@@ -12,6 +12,7 @@ Detailed design: [CHANNELS_SYSTEM.md](CHANNELS_SYSTEM.md)
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Channels toolkit entry point. Aggregates channel abstractions, message bus, gateway, | ✅ |
+| inbound_profile.py | Module | Per-channel inbound/outbound transport profile for Ingress requirement SSOT. | ✅ |
 
 | Submodule | Description |
 |-----------|-------------|

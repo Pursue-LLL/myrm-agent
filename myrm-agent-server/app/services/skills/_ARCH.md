@@ -13,7 +13,7 @@
 | `growth_queries.py` | 核心 | 统一技能成长查询层。整合审批主链 evolution / draft 记录与 ledger 事件，为前端中心页、审计页和成长仪表盘提供单一查询语义 | ✅ |
 | `growth_projection_queries.py` | 核心 | 技能成长账本投影查询层。负责把 `skill_growth.*` ledger 事件规范化为 projection 事件列表与摘要，补齐 `APPLY_FAILED` 等负向状态，供经验账本投影接口复用 | ✅ |
 | `growth_lifecycle.py` | 核心 | 技能成长统一编排入口。接收 Harness 复盘结果，按类型与风险决定自动落地、人工审核、锁定拦截或扫描失败降级 | ✅ |
-| `evolution_growth.py` | 核心 | Harness 演化提案到 Server 技能成长生命周期的适配层，以 ApprovalRecord 为唯一事实源 | ✅ |
+| `evolution_growth.py` | 核心 | Harness 演化提案到 Server 技能成长生命周期的适配层（含 form routing: skill_draft/cron_suggestion/skip），以 ApprovalRecord 为唯一事实源 | ✅ |
 | `auto_extractor.py` | 核心 | 技能物化辅助器。仅负责把已通过策略判断的成长结果落盘成真实技能或补丁，并发布 `SKILL_EVOLVED` 事件 | ✅ |
 | `growth_constants.py` | 核心 | `GROWTH_ACTION_TYPES` SSOT；`is_background_growth_approval()` 供 drafts API 与 ApprovalRegistry 分流 | ✅ |
 | `draft_notification.py` | 核心 | 技能成长记录持久化 + 安全预检 + 24h 去重 + `ApprovalRecord` rich status 落库 + `SKILL_GROWTH_UPDATED` / `NEW_SKILL_DRAFT` 事件发布 + ledger 镜像 | ✅ |

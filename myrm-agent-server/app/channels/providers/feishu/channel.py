@@ -111,7 +111,7 @@ class FeishuChannel(BaseChannel):
         encrypt_key=credential_field("encryptKey", "FEISHU_ENCRYPT_KEY"),
         use_lark=credential_field("useLark", "FEISHU_USE_LARK", "false"),
         render_mode=credential_field("renderMode", "FEISHU_RENDER_MODE", "auto"),
-        transport=credential_field("transport", "FEISHU_TRANSPORT", "webhook"),
+        transport=credential_field("transport", "FEISHU_TRANSPORT", "websocket"),
         verification_token=credential_field("verificationToken", "FEISHU_VERIFICATION_TOKEN"),
         bot_policy=credential_field("botPolicy", "FEISHU_BOT_POLICY", "deny"),
     )
@@ -139,9 +139,9 @@ class FeishuChannel(BaseChannel):
 
     @classmethod
     def from_credentials(cls, creds: dict[str, str]) -> Self:
-        transport = creds.get("transport", "webhook")
+        transport = creds.get("transport", "websocket")
         if transport not in ("webhook", "websocket"):
-            transport = "webhook"
+            transport = "websocket"
         return cls(
             app_id=creds.get("app_id", ""),
             app_secret=creds.get("app_secret", ""),
@@ -161,7 +161,7 @@ class FeishuChannel(BaseChannel):
         encrypt_key: str = "",
         use_lark: bool = False,
         render_mode: str = "auto",
-        transport: str = "webhook",
+        transport: str = "websocket",
         verification_token: str = "",
         bot_policy: str = "deny",
     ) -> None:

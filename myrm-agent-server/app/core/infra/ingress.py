@@ -23,9 +23,12 @@ def set_runtime_tunnel_ingress(url: str | None) -> None:
     global _runtime_tunnel_ingress
     if url is None:
         _runtime_tunnel_ingress = None
-        return
-    normalized = url.strip().rstrip("/")
-    _runtime_tunnel_ingress = normalized or None
+    else:
+        normalized = url.strip().rstrip("/")
+        _runtime_tunnel_ingress = normalized or None
+    from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
+
+    invalidate_ingress_requirement_cache()
 
 
 async def get_public_ingress_base_url() -> str:

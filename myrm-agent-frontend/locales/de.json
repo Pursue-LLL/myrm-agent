@@ -2513,7 +2513,8 @@
         "guide": {
           "title": "Which should I use?",
           "lanFirst": "Phone or colleagues on the same Wi‑Fi or office LAN → use the LAN URL below. No tunnel, no trycloudflare link.",
-          "tunnelWhen": "Away from home, on cellular, or a different network → expand Public access for Quick Tunnel or a stable domain."
+          "tunnelWhen": "Away from home, on cellular, or a different network → expand Public access for Quick Tunnel or a stable domain.",
+          "outboundOnly": "Your channels use outbound long connections — no public Ingress needed. Use LAN access below; enable the tunnel only when you need WebUI from the public internet."
         },
         "lan": {
           "title": "LAN access",
@@ -7862,7 +7863,8 @@
       "branch_switched": "Branch Switched",
       "specified": "Specified",
       "decomposed": "Decomposed",
-      "timed_out": "Timed Out"
+      "timed_out": "Timed Out",
+      "edited": "Bearbeitet"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -7912,6 +7914,10 @@
     "skillsUpdateError": "Failed to update skills",
     "timeoutUpdated": "Task timeout updated",
     "timeoutUpdateError": "Failed to update timeout",
+    "taskResult": "Aufgabenergebnis",
+    "resultUpdated": "Aufgabenergebnis aktualisiert",
+    "noResult": "Kein Ergebnis",
+    "saving": "Speichern...",
     "selectAgent": "Assign Agent (optional)",
     "timeoutDefault": "Timeout (system default)",
     "timeout1m": "Timeout: 1 min",
@@ -8172,6 +8178,13 @@
     "feishuTransportWebhook": "Webhook (requires public IP)",
     "feishuTransportWebsocket": "WebSocket (no public IP needed)",
     "feishuTransportHint": "WebSocket uses lark-oapi SDK for persistent connection, no public IP required. Install: pip install lark-oapi",
+    "feishuTransportLocalRecommended": "Recommended locally",
+    "feishuWebhookLocalWarning": "Webhook mode on a local instance needs public Ingress. Prefer WebSocket; if you must use Webhook, go to",
+    "feishuWebhookLocalWarningLink": "System · Public access",
+    "connectivityBadgeOutbound": "No public IP needed",
+    "connectivityBadgeInbound": "Ingress required",
+    "connectivityBadgeInboundHint": "External services must reach your instance. Go to",
+    "connectivityBadgeIngressLink": "System · Public access",
     "feishuRenderMode": "Message Format",
     "feishuRenderAuto": "Auto (Recommended)",
     "feishuRenderRaw": "Plain Text",

@@ -32,7 +32,7 @@ from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
 )
 from myrm_agent_harness.toolkits.cron.heartbeat import HEARTBEAT_JOB_NAME
 from myrm_agent_harness.toolkits.cron.situation import SituationContext, SituationReportBuilder
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, ScheduleKind, SessionTarget
 
 from .injection_scan import scan_cron_prompt
 
@@ -411,6 +411,22 @@ class _StreamAccumulator:
         )
 
 
+async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
+    """Load chat history when session_target is MAIN and chat_id is available."""
+    if job.session_target != SessionTarget.MAIN or not job.chat_id:
+        return None
+    try:
+        from app.services.chat.chat_history import _ChatHistoryMixin
+
+        return await _ChatHistoryMixin.load_web_chat_history(
+            chat_id=job.chat_id,
+            max_messages=30,
+        )
+    except Exception:
+        logger.warning("Cron job %s: failed to load thread history for chat %s", job.id, job.chat_id)
+        return None
+
+
 async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) -> JobResult:
     from app.ai_agents.general_agent import GeneralAgent
 
@@ -418,10 +434,11 @@ async def _consume_stream(agent: object, job: CronJob, effective_prompt: str) ->
 
     acc = _StreamAccumulator()
     model_name: str | None = getattr(agent.model_cfg, "model", None)
+    chat_history = await _load_thread_history(job)
 
     async for event in agent.process_stream(
         query=effective_prompt,
-        chat_history=None,
+        chat_history=chat_history,
         chat_id=job.chat_id,
     ):
         event_type = event.get("type", "")
