@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-GitHub Actions 工作流定义。关键流水线包括 server 架构守门（`server-architecture.yml`）、server 默认 pytest（`server-unit-tests.yml`）、`frontend-build.yml`（PR `next build`）、`frontend-e2e.yml`（PR Playwright）、安装脚本冒烟、`desktop-release.yml`（`v*` tag → `prepare-frontend` 单次构建 → `check-updater-pubkey.sh` → mac ARM 先发 Release → Win/Linux 追加 updater 包与 `.sig` → `finalize-release.sh` 生成带签名的 `latest.json` + `.sha256` → `trigger-website-release.sh` 联动官网 deploy）。
+GitHub Actions 工作流定义。关键流水线包括 server 架构守门（`server-architecture.yml`）、server 默认 pytest（`server-unit-tests.yml`）、`frontend-build.yml`（PR `next build`）、`frontend-e2e.yml`（PR Playwright）、安装脚本冒烟、`desktop-release.yml`（`v*` tag → `prepare-frontend` → `check-updater-pubkey.sh` → mac ARM 先发 Release → mac Intel + Win/Linux 追加包与 `.sig` → `finalize-release.sh`（无 `.sig` 不进 OTA manifest）→ `trigger-website-release.sh`）。
 
 ## 约束
 

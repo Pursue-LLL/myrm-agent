@@ -109,7 +109,7 @@
       "endpoints": [
         "https://github.com/Pursue-LLL/myrm-agent/releases/latest/download/latest.json"
       ],
-      "pubkey": "UNSAFE_UPDATER_PUBKEY_PLACEHOLDER_GENERATE_BEFORE_RELEASE"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE0RTQyRUFGNDUxQzQ1MjMKUldRalJSeEZyeTdrRk45a2lQWkZObUF4UWtka3pXQ01IelNXNzY1VDJPWFFlSlYydmpraUVDUU8K"
     }
   }
 }

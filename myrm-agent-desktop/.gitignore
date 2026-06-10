@@ -30,6 +30,9 @@ Thumbs.db
 .env
 .env.*
 
+# Tauri updater signing keys (never commit private key)
+.tauri/
+
 # Python
 __pycache__/
 *.py[cod]

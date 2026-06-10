@@ -37,8 +37,8 @@ pick_platform_asset() {
   local candidates=()
   case "$tauri_key" in
     darwin-aarch64)
-      # Tauri macOS updater bundle is often MyrmAgent.app.tar.gz (no arch in filename).
-      candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz *.app.tar.gz)
+      # Prefer the canonical Tauri bundle name; avoid generic *.app.tar.gz cross-match.
+      candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz)
       ;;
     darwin-x86_64)
       candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
@@ -92,6 +92,10 @@ build_platform_entry() {
 PLATFORMS_JSON='{}'
 for tauri_key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
   if asset_name="$(pick_platform_asset "$tauri_key")"; then
+    if ! read_asset_signature "$asset_name" >/dev/null 2>&1; then
+      echo "latest.json skip: $tauri_key -> ${asset_name} (no .sig; OTA omitted, manual install still available)" >&2
+      continue
+    fi
     url="https://github.com/${REPO}/releases/download/${TAG}/${asset_name}"
     entry="$(build_platform_entry "$url" "$asset_name")"
     PLATFORMS_JSON="$(jq --arg key "$tauri_key" --argjson entry "$entry" '. + {($key): $entry}' <<<"$PLATFORMS_JSON")"

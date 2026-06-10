@@ -154,6 +154,91 @@ jobs:
           prerelease: ${{ contains(github.ref_name, 'rc') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
           generate_release_notes: true
 
+  build-macos-x64:
+    name: Build macOS Intel (x86_64)
+    needs:
+      - prepare-frontend
+      - publish-release
+    if: needs.publish-release.result == 'success'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+
+      - name: Download cloudflared (x86_64)
+        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh x86_64-apple-darwin
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        with:
+          projectPath: myrm-agent-desktop
+          args: --target x86_64-apple-darwin --no-sign
+
+      - name: Upload macOS Intel assets to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s globstar nullglob
+          files=(myrm-agent-desktop/src-tauri/target/**/release/bundle/dmg/*.dmg
+                 myrm-agent-desktop/src-tauri/target/**/release/bundle/macos/*.tar.gz
+                 myrm-agent-desktop/src-tauri/target/**/*.sig)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No macOS Intel release assets found"
+            exit 1
+          fi
+          gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
+        shell: bash
+
   build-extra-platforms:
     name: Build ${{ matrix.platform }}
     needs:
@@ -276,6 +361,7 @@ jobs:
     name: Finalize manifest (latest.json + sha256)
     needs:
       - publish-release
+      - build-macos-x64
       - build-extra-platforms
     if: always() && needs.publish-release.result == 'success'
     runs-on: ubuntu-latest
