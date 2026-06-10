@@ -132,6 +132,30 @@ class TestGCTaskRuns:
 
         assert deleted == 0
 
+    @pytest.mark.asyncio
+    async def test_multiple_batches(self) -> None:
+        """Verify runs loop continues when batch is full (500)."""
+        mock_result_full = MagicMock()
+        mock_result_full.rowcount = 500
+
+        mock_result_partial = MagicMock()
+        mock_result_partial.rowcount = 20
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(side_effect=[mock_result_full, mock_result_partial])
+        mock_session.commit = AsyncMock()
+
+        mock_ctx = AsyncMock()
+        mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.services.kanban.gc.get_session", return_value=mock_ctx):
+            svc = KanbanGCService()
+            deleted = await svc.gc_task_runs(retention_days=30)
+
+        assert deleted == 520
+        assert mock_session.execute.call_count == 2
+
 
 class TestGCWorkspaces:
     @pytest.mark.asyncio
@@ -230,6 +254,75 @@ class TestGCWorkspaces:
             assert Path(outside_dir).exists()
 
 
+    @pytest.mark.asyncio
+    async def test_already_deleted_workspace(self) -> None:
+        """workspace_path points to non-existent dir → NULLed, deleted=0."""
+        with tempfile.TemporaryDirectory() as harness_root:
+            gone_path = str(Path(harness_root) / "gone_dir")
+            task_id = "task-gone-12345678"
+            select_result = MagicMock()
+            select_result.fetchall = MagicMock(return_value=[(task_id, gone_path)])
+
+            update_result = MagicMock()
+
+            mock_session = AsyncMock()
+            mock_session.execute = AsyncMock(side_effect=[select_result, update_result])
+            mock_session.commit = AsyncMock()
+
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+            mock_settings = MagicMock()
+            mock_settings.database.harness_dir = harness_root
+
+            with (
+                patch("app.services.kanban.gc.get_session", return_value=mock_ctx),
+                patch("app.config.settings.settings", mock_settings),
+            ):
+                svc = KanbanGCService()
+                deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+            assert deleted == 0
+            assert freed == 0
+            assert mock_session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_workspace_is_file_not_dir(self) -> None:
+        """workspace_path is a file instead of directory → NULLed, not deleted."""
+        with tempfile.TemporaryDirectory() as harness_root:
+            file_path = Path(harness_root) / "not_a_dir.txt"
+            file_path.write_text("I am a file")
+
+            task_id = "task-file-12345678"
+            select_result = MagicMock()
+            select_result.fetchall = MagicMock(return_value=[(task_id, str(file_path))])
+
+            update_result = MagicMock()
+
+            mock_session = AsyncMock()
+            mock_session.execute = AsyncMock(side_effect=[select_result, update_result])
+            mock_session.commit = AsyncMock()
+
+            mock_ctx = AsyncMock()
+            mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
+            mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+            mock_settings = MagicMock()
+            mock_settings.database.harness_dir = harness_root
+
+            with (
+                patch("app.services.kanban.gc.get_session", return_value=mock_ctx),
+                patch("app.config.settings.settings", mock_settings),
+            ):
+                svc = KanbanGCService()
+                deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+            assert deleted == 0
+            assert freed == 0
+            assert file_path.exists()
+
+
 class TestRunGC:
     @pytest.mark.asyncio
     async def test_run_gc_orchestration(self) -> None:
@@ -264,3 +357,41 @@ class TestRunGC:
         assert stats.runs_deleted == 3
         assert len(stats.errors) == 1
         assert "events" in stats.errors[0]
+
+    @pytest.mark.asyncio
+    async def test_run_gc_all_three_fail(self) -> None:
+        """All three GC layers fail — errors accumulated, no crash."""
+        svc = KanbanGCService()
+
+        with (
+            patch.object(svc, "gc_task_events", new_callable=AsyncMock, side_effect=RuntimeError("e1")),
+            patch.object(svc, "gc_task_runs", new_callable=AsyncMock, side_effect=RuntimeError("r1")),
+            patch.object(svc, "gc_workspaces", new_callable=AsyncMock, side_effect=RuntimeError("w1")),
+        ):
+            stats = await svc.run_gc()
+
+        assert stats.events_deleted == 0
+        assert stats.runs_deleted == 0
+        assert stats.workspaces_deleted == 0
+        assert len(stats.errors) == 3
+        assert "events" in stats.errors[0]
+        assert "runs" in stats.errors[1]
+        assert "workspaces" in stats.errors[2]
+
+    @pytest.mark.asyncio
+    async def test_run_gc_nothing_to_clean(self) -> None:
+        """All layers return zero → stats show 0, no errors."""
+        svc = KanbanGCService()
+
+        with (
+            patch.object(svc, "gc_task_events", new_callable=AsyncMock, return_value=0),
+            patch.object(svc, "gc_task_runs", new_callable=AsyncMock, return_value=0),
+            patch.object(svc, "gc_workspaces", new_callable=AsyncMock, return_value=(0, 0)),
+        ):
+            stats = await svc.run_gc()
+
+        assert stats.events_deleted == 0
+        assert stats.runs_deleted == 0
+        assert stats.workspaces_deleted == 0
+        assert stats.errors == []
+        assert stats.duration_ms > 0

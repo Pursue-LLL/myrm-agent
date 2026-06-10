@@ -148,6 +148,52 @@ class TestGCEventsIntegration:
             assert await _count_events(s, task_done) == 1
             assert await _count_events(s, task_active) == 2
 
+    @pytest.mark.asyncio
+    async def test_archived_task_events_also_cleaned(self) -> None:
+        """Events for 'archived' tasks (not just 'done') are GC'd."""
+        board_id = _uid()
+        task_archived = _uid()
+
+        async with get_session() as s:
+            await _insert_board(s, board_id)
+            await _insert_task(s, task_archived, board_id, status="archived")
+
+            for _ in range(3):
+                await _insert_event(s, task_archived, _old_dt(60))
+
+            await s.commit()
+
+        svc = KanbanGCService()
+        deleted = await svc.gc_task_events(retention_days=30)
+
+        assert deleted == 3
+
+        async with get_session() as s:
+            assert await _count_events(s, task_archived) == 0
+
+    @pytest.mark.asyncio
+    async def test_backlog_task_events_not_touched(self) -> None:
+        """Events for 'backlog' tasks must never be GC'd."""
+        board_id = _uid()
+        task_backlog = _uid()
+
+        async with get_session() as s:
+            await _insert_board(s, board_id)
+            await _insert_task(s, task_backlog, board_id, status="backlog")
+
+            for _ in range(2):
+                await _insert_event(s, task_backlog, _old_dt(60))
+
+            await s.commit()
+
+        svc = KanbanGCService()
+        deleted = await svc.gc_task_events(retention_days=30)
+
+        assert deleted == 0
+
+        async with get_session() as s:
+            assert await _count_events(s, task_backlog) == 2
+
 
 class TestGCRunsIntegration:
     """Real DB: runs for archived tasks older than retention are deleted."""
@@ -257,6 +303,119 @@ class TestGCWorkspacesIntegration:
 
             async with get_session() as s:
                 assert await _get_workspace_path(s, task_id) is None
+
+
+    @pytest.mark.asyncio
+    async def test_already_gone_workspace_nulled(self) -> None:
+        """workspace_path in DB points to non-existent dir → path NULLed."""
+        with tempfile.TemporaryDirectory() as harness_root:
+            board_id = _uid()
+            task_id = _uid()
+            gone_dir = str(Path(harness_root) / "already_deleted")
+
+            async with get_session() as s:
+                await _insert_board(s, board_id)
+                await _insert_task(
+                    s, task_id, board_id,
+                    status="archived",
+                    updated_at=_old_dt(30),
+                    workspace_path=gone_dir,
+                )
+                await s.commit()
+
+            from unittest.mock import MagicMock, patch
+            mock_settings = MagicMock()
+            mock_settings.database.harness_dir = harness_root
+
+            with patch("app.config.settings.settings", mock_settings):
+                svc = KanbanGCService()
+                deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+            assert deleted == 0
+            assert freed == 0
+
+            async with get_session() as s:
+                assert await _get_workspace_path(s, task_id) is None
+
+    @pytest.mark.asyncio
+    async def test_fresh_archived_task_workspace_not_touched(self) -> None:
+        """Recently updated archived task's workspace should NOT be cleaned."""
+        with tempfile.TemporaryDirectory() as harness_root:
+            board_id = _uid()
+            task_id = _uid()
+            ws_dir = Path(harness_root) / "recent_ws"
+            ws_dir.mkdir()
+            (ws_dir / "data.txt").write_text("keep me")
+
+            async with get_session() as s:
+                await _insert_board(s, board_id)
+                await _insert_task(
+                    s, task_id, board_id,
+                    status="archived",
+                    updated_at=_fresh_dt(),
+                    workspace_path=str(ws_dir),
+                )
+                await s.commit()
+
+            from unittest.mock import MagicMock, patch
+            mock_settings = MagicMock()
+            mock_settings.database.harness_dir = harness_root
+
+            with patch("app.config.settings.settings", mock_settings):
+                svc = KanbanGCService()
+                deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+            assert deleted == 0
+            assert freed == 0
+            assert ws_dir.exists()
+
+            async with get_session() as s:
+                assert await _get_workspace_path(s, task_id) == str(ws_dir)
+
+    @pytest.mark.asyncio
+    async def test_done_task_workspace_not_cleaned(self) -> None:
+        """Only 'archived' tasks have workspaces cleaned, not 'done'."""
+        with tempfile.TemporaryDirectory() as harness_root:
+            board_id = _uid()
+            task_id = _uid()
+            ws_dir = Path(harness_root) / "done_ws"
+            ws_dir.mkdir()
+            (ws_dir / "result.txt").write_text("keep")
+
+            async with get_session() as s:
+                await _insert_board(s, board_id)
+                await _insert_task(
+                    s, task_id, board_id,
+                    status="done",
+                    updated_at=_old_dt(60),
+                    workspace_path=str(ws_dir),
+                )
+                await s.commit()
+
+            from unittest.mock import MagicMock, patch
+            mock_settings = MagicMock()
+            mock_settings.database.harness_dir = harness_root
+
+            with patch("app.config.settings.settings", mock_settings):
+                svc = KanbanGCService()
+                deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+            assert deleted == 0
+            assert ws_dir.exists()
+
+    @pytest.mark.asyncio
+    async def test_empty_db_gc_no_error(self) -> None:
+        """GC on empty (no kanban data) DB completes without error."""
+        from unittest.mock import MagicMock, patch
+        mock_settings = MagicMock()
+        mock_settings.database.harness_dir = "/tmp/nonexistent_harness"
+
+        with patch("app.config.settings.settings", mock_settings):
+            svc = KanbanGCService()
+            deleted, freed = await svc.gc_workspaces(min_age_days=7)
+
+        assert deleted == 0
+        assert freed == 0
 
 
 class TestRunGCFullIntegration:
