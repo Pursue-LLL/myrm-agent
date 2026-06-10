@@ -14,6 +14,17 @@
 | `finalize-release.sh` | 下载 Release 资产 → 生成 `latest.json` + 逐文件 `.sha256` → upload |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
 
+## Workflow jobs
+
+| Job | 职责 |
+|-----|------|
+| `prepare-frontend` | `bun run build:tauri` 一次，artifact 供 mac/win/linux 复用 |
+| `build-macos-arm` | 主路径发 Release |
+| `build-extra-platforms` | Win/Linux 追加资产 |
+| `finalize-release` | `latest.json` + sha256 + 官网 trigger |
+
+`trigger-website-release.sh`：`REQUIRE_WEBSITE_DEPLOY=true`（CI 默认）时缺 Secret **exit 1**；本地 dry run 设 `REQUIRE_WEBSITE_DEPLOY=false`。
+
 ## Secrets（myrm-agent 仓库）
 
 | Secret | 用途 |

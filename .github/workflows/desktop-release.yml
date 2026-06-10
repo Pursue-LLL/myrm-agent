@@ -14,11 +14,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare-frontend:
+    name: Prepare frontend (build once)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
+      - name: Install frontend dependencies
+        run: |
+          cd myrm-agent-frontend
+          bun install
+
+      - name: Build frontend for Tauri
+        run: |
+          cd myrm-agent-frontend
+          bun run build:tauri
+
+      - name: Upload frontend standalone artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+          retention-days: 1
+
   build-macos-arm:
     name: Build macOS Apple Silicon (primary)
+    needs: prepare-frontend
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
@@ -53,16 +91,6 @@ jobs:
         run: |
           cd myrm-agent-desktop/sidecar
           python build.py
-
-      - name: Install frontend dependencies
-        run: |
-          cd myrm-agent-frontend
-          bun install
-
-      - name: Build frontend for Tauri
-        run: |
-          cd myrm-agent-frontend
-          bun run build:tauri
 
       - name: Download cloudflared (aarch64)
         run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh aarch64-apple-darwin
@@ -123,7 +151,9 @@ jobs:
 
   build-extra-platforms:
     name: Build ${{ matrix.platform }}
-    needs: publish-release
+    needs:
+      - prepare-frontend
+      - publish-release
     if: needs.publish-release.result == 'success'
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -143,6 +173,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
 
       - name: Install dependencies (Linux only)
         if: matrix.runner == 'ubuntu-22.04'
@@ -186,18 +222,6 @@ jobs:
         run: |
           cd myrm-agent-desktop/sidecar
           python build.py
-        shell: bash
-
-      - name: Install frontend dependencies
-        run: |
-          cd myrm-agent-frontend
-          bun install
-        shell: bash
-
-      - name: Build frontend for Tauri
-        run: |
-          cd myrm-agent-frontend
-          bun run build:tauri
         shell: bash
 
       - name: Download cloudflared (${{ matrix.platform }})
@@ -264,4 +288,5 @@ jobs:
           DESKTOP_TAG: ${{ github.ref_name }}
           BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
           CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+          REQUIRE_WEBSITE_DEPLOY: 'true'
         run: bash scripts/ci/desktop-release/trigger-website-release.sh

@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
 # Tag myrm-agent-brand website-v* on main HEAD and POST CF Pages Deploy Hook after desktop finalize.
-# Secrets: BRAND_RELEASE_PAT, CF_PAGES_DEPLOY_HOOK (both optional; skip when unset).
+# Secrets: BRAND_RELEASE_PAT, CF_PAGES_DEPLOY_HOOK.
+# Set REQUIRE_WEBSITE_DEPLOY=false for local dry runs only; CI release tags default to true (fail if missing).
 set -euo pipefail
 
 DESKTOP_TAG="${DESKTOP_TAG:?Set DESKTOP_TAG (e.g. v0.1.14)}"
 BRAND_REPO="${BRAND_REPO:-Pursue-LLL/myrm-agent-brand}"
 WEBSITE_TAG="website-v${DESKTOP_TAG#v}"
+REQUIRE_WEBSITE_DEPLOY="${REQUIRE_WEBSITE_DEPLOY:-true}"
 
-if [[ -z "${BRAND_RELEASE_PAT:-}" ]]; then
-  echo "[trigger-website-release] BRAND_RELEASE_PAT not set; skipping website deploy trigger." >&2
-  exit 0
-fi
+missing=()
+[[ -z "${BRAND_RELEASE_PAT:-}" ]] && missing+=("BRAND_RELEASE_PAT")
+[[ -z "${CF_PAGES_DEPLOY_HOOK:-}" ]] && missing+=("CF_PAGES_DEPLOY_HOOK")
 
-if [[ -z "${CF_PAGES_DEPLOY_HOOK:-}" ]]; then
-  echo "[trigger-website-release] CF_PAGES_DEPLOY_HOOK not set; skipping website deploy trigger." >&2
+if [[ ${#missing[@]} -gt 0 ]]; then
+  msg="[trigger-website-release] Missing secrets: ${missing[*]}"
+  if [[ "$REQUIRE_WEBSITE_DEPLOY" == "true" ]]; then
+    echo "$msg" >&2
+    echo "[trigger-website-release] Set myrm-agent repository secrets or REQUIRE_WEBSITE_DEPLOY=false (local only)." >&2
+    exit 1
+  fi
+  echo "$msg; skipping (REQUIRE_WEBSITE_DEPLOY=false)." >&2
   exit 0
 fi
 
