@@ -12,6 +12,7 @@ import {
   ViewIcon,
   Maximize01Icon,
   Minimize01Icon,
+  Cursor02Icon,
 } from 'hugeicons-react';
 import { Button } from '@/components/primitives/button';
 import { Artifact, ArtifactType, ArtifactVersion } from '@/store/chat/types';
@@ -33,12 +34,16 @@ interface PortalHeaderProps {
   versions: ArtifactVersion[];
   /** 当前查看的版本索引（-1 表示最新） */
   viewingVersionIndex: number;
+  /** Element picker mode active */
+  pickerMode?: boolean;
   onSetDisplayMode: (mode: ArtifactDisplayMode) => void;
   onCopy: () => void;
   onDownload: () => void;
   onOpenInNewTab: () => void;
   onToggleFullscreen: () => void;
   onClose: () => void;
+  /** Toggle element picker */
+  onTogglePicker?: () => void;
   /** 切换版本 */
   onSwitchVersion: (index: number) => void;
   /** 回滚版本 */
@@ -53,6 +58,7 @@ interface PortalHeaderProps {
     close: string;
     generating: string;
     type: (type: string) => string;
+    elementPicker?: string;
   };
 }
 
@@ -67,6 +73,7 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
   canPreviewContent,
   isHtml,
   isImage,
+  pickerMode,
   versions,
   viewingVersionIndex,
   onSetDisplayMode,
@@ -75,6 +82,7 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
   onOpenInNewTab,
   onToggleFullscreen,
   onClose,
+  onTogglePicker,
   onSwitchVersion,
   onRollbackVersion,
   labels,
@@ -152,6 +160,19 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
               {labels.code}
             </button>
           </div>
+        )}
+
+        {/* Element picker toggle */}
+        {isHtml && displayMode === ArtifactDisplayMode.Preview && onTogglePicker && !isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn('w-8 h-8 flex-shrink-0', pickerMode && 'bg-primary/10 text-primary')}
+            onClick={onTogglePicker}
+            title={labels.elementPicker}
+          >
+            <Cursor02Icon className="w-4 h-4" />
+          </Button>
         )}
 
         {/* 复制按钮 */}

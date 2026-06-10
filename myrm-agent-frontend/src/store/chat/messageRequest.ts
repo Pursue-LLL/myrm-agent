@@ -120,6 +120,8 @@ const extractInlineMentionReferences = (input: string): MentionReference[] => {
       references.push({ type: 'git_staged', label: '@staged', source: 'special', size: null });
     } else if (token === '@diff') {
       references.push({ type: 'git_diff', label: '@diff', source: 'special', size: null });
+    } else if (token === '@codebase') {
+      references.push({ type: 'codebase', label: '@codebase', source: 'special', size: null });
     } else if (token.startsWith('@folder:') && token.length > '@folder:'.length) {
       const path = token.slice('@folder:'.length);
       references.push({ type: 'workspace_folder', label: token, path, source: 'workspace', size: null });

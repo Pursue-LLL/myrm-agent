@@ -212,6 +212,10 @@ class AgentService:
             "tool_gateway_config": agent_data.tool_gateway_config.model_dump(mode="json")
             if getattr(agent_data, "tool_gateway_config", None)
             else None,
+            "browser_engine": agent_data.browser_engine,
+            "browser_source": agent_data.browser_source,
+            "dialog_policy": agent_data.dialog_policy,
+            "session_recording": agent_data.session_recording,
         }
 
         profile = AgentProfile(
@@ -325,6 +329,14 @@ class AgentService:
                     if getattr(agent_data, "tool_gateway_config", None)
                     else None
                 )
+            if "browser_engine" in agent_data.model_fields_set:
+                new_metadata["browser_engine"] = agent_data.browser_engine
+            if "browser_source" in agent_data.model_fields_set:
+                new_metadata["browser_source"] = agent_data.browser_source
+            if "dialog_policy" in agent_data.model_fields_set:
+                new_metadata["dialog_policy"] = agent_data.dialog_policy
+            if "session_recording" in agent_data.model_fields_set:
+                new_metadata["session_recording"] = agent_data.session_recording
 
             updates["metadata"] = new_metadata
 

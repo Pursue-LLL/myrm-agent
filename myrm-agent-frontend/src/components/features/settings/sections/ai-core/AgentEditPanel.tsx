@@ -29,6 +29,7 @@ import { AgentProfileTimeMachine } from './agent/AgentProfileTimeMachine';
 import { AgentNotifyTargets } from './agent/AgentNotifyTargets';
 import { AgentOpenAPIServicesTab } from './agent/AgentOpenAPIServicesTab';
 import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
+import { AgentBrowserConfigSection } from './agent/AgentBrowserConfigSection';
 import { Input } from '@/components/primitives/input';
 import { Switch } from '@/components/primitives/switch';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
@@ -860,6 +861,18 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
                 )}
               </div>
 
+              {/* Per-Agent Browser Config */}
+              <AgentBrowserConfigSection
+                browserEngine={editor.browserEngine}
+                onBrowserEngineChange={editor.setBrowserEngine}
+                browserSource={editor.browserSource}
+                onBrowserSourceChange={editor.setBrowserSource}
+                dialogPolicy={editor.dialogPolicy}
+                onDialogPolicyChange={editor.setDialogPolicy}
+                sessionRecording={editor.sessionRecording}
+                onSessionRecordingChange={editor.setSessionRecording}
+              />
+
               {/* Per-Agent Session Policy */}
               <div className="rounded-xl bg-card/60 border border-border/50 p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1032,6 +1045,10 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         systemPrompt={editor.systemPrompt}
         useGlobalInstruction={editor.useGlobalInstruction}
         autoRestoreDomains={editor.autoRestoreDomains}
+        browserEngine={editor.browserEngine}
+        browserSource={editor.browserSource}
+        dialogPolicy={editor.dialogPolicy}
+        sessionRecording={editor.sessionRecording}
         enabledBuiltinTools={editor.enabledBuiltinTools}
         isSystemPromptHidden={editor.isSystemPromptHidden}
         loadingSystemPrompt={editor.loadingSystemPrompt}

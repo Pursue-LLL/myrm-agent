@@ -205,7 +205,7 @@ class AgentProfileResolver:
                 raw_auto_restore = metadata.get("auto_restore_domains")
                 auto_domains_tuple = _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
 
-                raw_browser_engine = metadata.get("browser_engine")
+                raw_browser_engine = getattr(agent, "browser_engine", None) or metadata.get("browser_engine")
                 browser_engine = str(raw_browser_engine) if raw_browser_engine else None
                 raw_browser_source = getattr(agent, "browser_source", None) or metadata.get("browser_source")
                 browser_source = str(raw_browser_source) if raw_browser_source else None

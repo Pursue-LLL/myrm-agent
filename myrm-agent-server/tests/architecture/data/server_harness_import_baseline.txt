@@ -383,3 +383,4 @@ myrm_agent_harness.toolkits.browser.pool.browser_launcher
 myrm_agent_harness.toolkits.browser.pool.extension_bridge
 myrm_agent_harness.agent.security.guards.estop
 myrm_agent_harness.toolkits.browser.observability
+myrm_agent_harness.toolkits.code_index

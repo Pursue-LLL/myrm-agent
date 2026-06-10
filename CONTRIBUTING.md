@@ -34,7 +34,7 @@ See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
 | Agent definitions | `myrm-agent-server/app/ai_agents/` | Agent config, middleware, tools |
 | Domain primitives | `myrm-agent-server/app/core/` | Reusable capabilities, adapters |
 | Channels framework | `myrm-agent-server/app/channels/` | Provider bus, routing (see `CHANNELS_SYSTEM.md`) |
-| Web UI | `myrm-agent-frontend/src/` | Next.js; `features/` by product domain |
+| Web UI | `myrm-agent-frontend/src/` | Next.js; product UI in `features/` by domain; shared cross-feature primitives in `components/agent/`, `auth/`, `billing/`, `security/`, `approval/`, `error-boundary/`, `layout/`, `primitives/` |
 | Desktop shell | `myrm-agent-desktop/` | Tauri + sidecar packaging |
 | Browser extension | `myrm-agent-extension/` | Chrome MV3 CDP bridge (WebSocket client) |
 | Shared static config | `shared/` | Cross-end JSON; server Docker copies to `/shared`; frontend `@shared/*` in dev/build |

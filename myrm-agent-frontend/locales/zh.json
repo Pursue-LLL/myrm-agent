@@ -1343,6 +1343,7 @@
       "setAsFallback": "设为备用模型",
       "clearFallback": "移除备用",
       "selectModel": "选择模型",
+      "autoFollowMain": "自动（跟随主模型）",
       "selectModels": "模型部署",
       "selectModelPlaceholder": "从已启用的模型中选择",
       "searchModels": "搜索模型...",

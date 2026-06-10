@@ -85,6 +85,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   const [mcpToolSelections, setMcpToolSelections] = useState<Record<string, string[]>>({});
   const [useGlobalInstruction, setUseGlobalInstruction] = useState(true);
   const [autoRestoreDomains, setAutoRestoreDomains] = useState<string[]>([]);
+  const [browserEngine, setBrowserEngine] = useState<string | undefined>(undefined);
+  const [browserSource, setBrowserSource] = useState<string | undefined>(undefined);
+  const [dialogPolicy, setDialogPolicy] = useState<string | undefined>(undefined);
+  const [sessionRecording, setSessionRecording] = useState<string | undefined>(undefined);
   const [enabledBuiltinTools, setEnabledBuiltinTools] = useState<BuiltinToolId[]>([...DEFAULT_ENABLED_BUILTIN_TOOLS]);
   const [modelSelection, setModelSelection] = useState<AgentModelSelection | null>(null);
 
@@ -147,6 +151,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     mountedSkillIds: [] as string[],
     selectedMcpNames: [] as string[],
     autoRestoreDomains: [] as string[],
+    browserEngine: undefined as string | undefined,
+    browserSource: undefined as string | undefined,
+    dialogPolicy: undefined as string | undefined,
+    sessionRecording: undefined as string | undefined,
     enabledBuiltinTools: [...DEFAULT_ENABLED_BUILTIN_TOOLS] as BuiltinToolId[],
     modelSelection: null as AgentModelSelection | null,
     selectedSubagentIds: [] as string[],
@@ -187,6 +195,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       !arraysEqual(mountedSkillIds, originalData.mountedSkillIds) ||
       !arraysEqual(selectedMcpNames, originalData.selectedMcpNames) ||
       !arraysEqual(autoRestoreDomains, originalData.autoRestoreDomains) ||
+      browserEngine !== originalData.browserEngine ||
+      browserSource !== originalData.browserSource ||
+      dialogPolicy !== originalData.dialogPolicy ||
+      sessionRecording !== originalData.sessionRecording ||
       !arraysEqual(enabledBuiltinTools, originalData.enabledBuiltinTools) ||
       !arraysEqual(selectedSubagentIds, originalData.selectedSubagentIds) ||
       modelChanged ||
@@ -211,6 +223,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     mountedSkillIds,
     selectedMcpNames,
     autoRestoreDomains,
+    browserEngine,
+    browserSource,
+    dialogPolicy,
+    sessionRecording,
     enabledBuiltinTools,
     selectedSubagentIds,
     modelSelection,
@@ -271,6 +287,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setSelectedMcpNames(data.mcp_ids || []);
       setMcpToolSelections(data.mcp_tool_selections || {});
       setAutoRestoreDomains(data.auto_restore_domains || []);
+      setBrowserEngine(data.browser_engine ?? undefined);
+      setBrowserSource(data.browser_source ?? undefined);
+      setDialogPolicy(data.dialog_policy ?? undefined);
+      setSessionRecording(data.session_recording ?? undefined);
       setSuggestionPrompts(data.suggestion_prompts || []);
       const agentBuiltinTools = (data.enabled_builtin_tools ?? [...DEFAULT_ENABLED_BUILTIN_TOOLS]) as BuiltinToolId[];
       setEnabledBuiltinTools(agentBuiltinTools);
@@ -296,6 +316,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         mountedSkillIds: data.mounted_skill_ids || [],
         selectedMcpNames: data.mcp_ids || [],
         autoRestoreDomains: data.auto_restore_domains || [],
+        browserEngine: data.browser_engine ?? undefined,
+        browserSource: data.browser_source ?? undefined,
+        dialogPolicy: data.dialog_policy ?? undefined,
+        sessionRecording: data.session_recording ?? undefined,
         enabledBuiltinTools: agentBuiltinTools,
         selectedSubagentIds: data.subagent_ids || [],
         modelSelection: data.model_selection ?? null,
@@ -385,6 +409,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           mounted_skill_ids: mountedSkillIds,
           enabled_builtin_tools: enabledBuiltinTools,
           auto_restore_domains: autoRestoreDomains,
+          browser_engine: browserEngine || null,
+          browser_source: browserSource || null,
+          dialog_policy: dialogPolicy || null,
+          session_recording: sessionRecording || null,
           suggestion_prompts: suggestionPrompts.length > 0 ? suggestionPrompts : null,
           model_selection: modelSelection,
           security_overrides: securityOverrides,
@@ -415,6 +443,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           mounted_skill_ids: mountedSkillIds,
           enabled_builtin_tools: enabledBuiltinTools,
           auto_restore_domains: autoRestoreDomains,
+          browser_engine: browserEngine || null,
+          browser_source: browserSource || null,
+          dialog_policy: dialogPolicy || null,
+          session_recording: sessionRecording || null,
           suggestion_prompts: suggestionPrompts.length > 0 ? suggestionPrompts : null,
           model_selection: modelSelection,
           security_overrides: securityOverrides,
@@ -449,6 +481,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           mountedSkillIds: [...mountedSkillIds],
           selectedMcpNames: [...selectedMcpNames],
           autoRestoreDomains: [...autoRestoreDomains],
+          browserEngine,
+          browserSource,
+          dialogPolicy,
+          sessionRecording,
           enabledBuiltinTools: [...enabledBuiltinTools],
           selectedSubagentIds: [...selectedSubagentIds],
           modelSelection,
@@ -537,6 +573,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       useGlobalInstruction?: boolean;
       enabledBuiltinTools?: BuiltinToolId[];
       autoRestoreDomains?: string[];
+      browserEngine?: string;
+      browserSource?: string;
+      dialogPolicy?: string;
+      sessionRecording?: string;
     }) => {
       if (data.selectedSkillIds !== undefined) setSelectedSkillIds(data.selectedSkillIds);
       if (data.mountedSkillIds !== undefined) setMountedSkillIds(data.mountedSkillIds);
@@ -546,6 +586,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       if (data.useGlobalInstruction !== undefined) setUseGlobalInstruction(data.useGlobalInstruction);
       if (data.enabledBuiltinTools !== undefined) setEnabledBuiltinTools(data.enabledBuiltinTools);
       if (data.autoRestoreDomains !== undefined) setAutoRestoreDomains(data.autoRestoreDomains);
+      if (data.browserEngine !== undefined) setBrowserEngine(data.browserEngine || undefined);
+      if (data.browserSource !== undefined) setBrowserSource(data.browserSource || undefined);
+      if (data.dialogPolicy !== undefined) setDialogPolicy(data.dialogPolicy || undefined);
+      if (data.sessionRecording !== undefined) setSessionRecording(data.sessionRecording || undefined);
     },
     [],
   );
@@ -574,6 +618,14 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     mcpToolSelections,
     autoRestoreDomains,
     setAutoRestoreDomains,
+    browserEngine,
+    setBrowserEngine,
+    browserSource,
+    setBrowserSource,
+    dialogPolicy,
+    setDialogPolicy,
+    sessionRecording,
+    setSessionRecording,
     suggestionPrompts,
     setSuggestionPrompts,
     enabledBuiltinTools,

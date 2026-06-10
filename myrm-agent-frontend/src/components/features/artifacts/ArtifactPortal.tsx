@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { DragDropVerticalIcon } from 'hugeicons-react';
 import { Info } from 'lucide-react';
+import type { PickedElement } from './renderers/MediaPreview';
 import useArtifactPortalStore, {
   ArtifactErrorType,
   parseErrorFromResponse,
@@ -41,6 +42,7 @@ import { MOBILE_BREAKPOINT, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
 import PortalHeader from './portal/PortalHeader';
 import PortalTabs from './portal/PortalTabs';
 import PortalErrorDisplay from './portal/PortalErrorDisplay';
+import ElementPickerToolbar from './portal/ElementPickerToolbar';
 import { VersionHistoryBanner } from './portal/VersionHistory';
 import { usePortalGestures } from './portal/usePortalGestures';
 import { usePortalKeyboard } from './portal/usePortalKeyboard';
@@ -103,6 +105,8 @@ const ArtifactPortal: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pickerMode, setPickerMode] = useState(false);
+  const [pickedElement, setPickedElement] = useState<PickedElement | null>(null);
   const isMobile = useIsMobile();
   const portalRef = useRef<HTMLDivElement>(null);
 
@@ -251,6 +255,16 @@ const ArtifactPortal: React.FC = () => {
     loadContent();
   }, [clearError, loadContent]);
 
+  const handleElementPick = useCallback((el: PickedElement) => {
+    setPickedElement(el);
+    setPickerMode(false);
+  }, []);
+
+  const handlePickerDismiss = useCallback(() => {
+    setPickedElement(null);
+    setPickerMode(false);
+  }, []);
+
   // 键盘快捷键
   usePortalKeyboard({
     isOpen,
@@ -268,6 +282,11 @@ const ArtifactPortal: React.FC = () => {
     onCopy: handleCopy,
     onCloseAllTabs: closeAllTabs,
   });
+
+  useEffect(() => {
+    setPickerMode(false);
+    setPickedElement(null);
+  }, [activeTabIndex]);
 
   // 打开 Portal 时自动聚焦
   useEffect(() => {
@@ -418,6 +437,7 @@ const ArtifactPortal: React.FC = () => {
           canPreviewContent={canPreviewContent}
           isHtml={isHtml}
           isImage={isImage}
+          pickerMode={pickerMode}
           versions={versions}
           viewingVersionIndex={viewingVersionIndex}
           onSetDisplayMode={setDisplayMode}
@@ -426,6 +446,7 @@ const ArtifactPortal: React.FC = () => {
           onOpenInNewTab={handleOpenInNewTab}
           onToggleFullscreen={toggleFullscreen}
           onClose={closePortal}
+          onTogglePicker={() => { setPickerMode((p) => !p); setPickedElement(null); }}
           onSwitchVersion={handleSwitchVersion}
           onRollbackVersion={handleRollbackVersion}
           labels={{
@@ -438,6 +459,7 @@ const ArtifactPortal: React.FC = () => {
             close: t('close'),
             generating: t('tabs.generating'),
             type: (type: string) => t(`types.${type}`),
+            elementPicker: t('elementPicker.toggle'),
           }}
         />
 
@@ -483,6 +505,8 @@ const ArtifactPortal: React.FC = () => {
                 displayMode={displayMode}
                 loading={contentLoading}
                 onDownload={handleDownload}
+                pickerMode={pickerMode}
+                onElementPick={handleElementPick}
               />
 
               {/* 行号滚动逻辑 */}
@@ -505,6 +529,15 @@ const ArtifactPortal: React.FC = () => {
                     {t('tabs.generating')}
                   </div>
                 </div>
+              )}
+
+              {/* Element picker toolbar */}
+              {isHtml && displayMode === ArtifactDisplayMode.Preview && (
+                <ElementPickerToolbar
+                  pickedElement={pickedElement}
+                  artifactId={currentArtifact.id}
+                  onDismiss={handlePickerDismiss}
+                />
               )}
             </div>
           )}

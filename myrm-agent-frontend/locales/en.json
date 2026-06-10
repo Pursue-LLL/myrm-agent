@@ -1343,6 +1343,7 @@
       "setAsFallback": "Set as fallback model",
       "clearFallback": "Remove fallback",
       "selectModel": "Select Model",
+      "autoFollowMain": "Auto (Follow Main Model)",
       "selectModels": "Model Deployments",
       "selectModelPlaceholder": "Select from enabled models",
       "searchModels": "Search models...",

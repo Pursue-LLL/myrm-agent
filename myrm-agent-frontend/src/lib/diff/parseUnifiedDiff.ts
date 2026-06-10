@@ -1,25 +1,14 @@
 /**
- * Diff 解析 Hook
- *
- * 1. 本文件的 INPUT/OUTPUT/POS 注释
- * 2. 所属文件夹的 _ARCH.md
- *
  * [INPUT]
  * - unified diff 格式字符串
  *
  * [OUTPUT]
- * - useDiffParser: 解析 unified diff 为结构化数据
- *   - filePath: 文件路径
- *   - hunks: diff 块列表
- *   - additions: 新增行数
- *   - deletions: 删除行数
+ * - parseUnifiedDiff: 解析为结构化 ParsedDiff
+ * - DiffLine / DiffHunk / ParsedDiff 类型
  *
  * [POS]
- * CLI 可视化工具的 Diff 解析 Hook。将 unified diff 格式
- * 解析为结构化数据，供 CLIDiffViewer 渲染。
+ * 跨 feature 共用的 unified diff 纯函数解析器（cli-visualization、markdown-render-tools）。
  */
-
-import { useMemo } from 'react';
 
 /** Diff 行类型 */
 export type DiffLineType = 'context' | 'addition' | 'deletion' | 'header';
@@ -54,12 +43,8 @@ export interface ParsedDiff {
   isBinary: boolean;
 }
 
-/**
- * 解析 unified diff 格式
- */
-function parseUnifiedDiff(diff: string): ParsedDiff {
-  const lines = diff.split('\n');
-  const result: ParsedDiff = {
+function createEmptyParsedDiff(): ParsedDiff {
+  return {
     filePath: '',
     oldFilePath: null,
     newFilePath: null,
@@ -70,13 +55,22 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
     isDeletedFile: false,
     isBinary: false,
   };
+}
+
+/** 解析 unified diff 格式 */
+export function parseUnifiedDiff(diff: string): ParsedDiff {
+  if (!diff) {
+    return createEmptyParsedDiff();
+  }
+
+  const lines = diff.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const result = createEmptyParsedDiff();
 
   let currentHunk: DiffHunk | null = null;
   let oldLineNumber = 0;
   let newLineNumber = 0;
 
   for (const line of lines) {
-    // 解析 diff --git 行
     if (line.startsWith('diff --git')) {
       const match = line.match(/diff --git a\/(.+) b\/(.+)/);
       if (match) {
@@ -87,25 +81,21 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
       continue;
     }
 
-    // 检测新文件
     if (line.startsWith('new file mode')) {
       result.isNewFile = true;
       continue;
     }
 
-    // 检测删除文件
     if (line.startsWith('deleted file mode')) {
       result.isDeletedFile = true;
       continue;
     }
 
-    // 检测二进制文件
     if (line.includes('Binary files')) {
       result.isBinary = true;
       continue;
     }
 
-    // 解析 --- 行
     if (line.startsWith('---')) {
       const match = line.match(/^--- (?:a\/)?(.+)$/);
       if (match) {
@@ -114,19 +104,18 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
       continue;
     }
 
-    // 解析 +++ 行
     if (line.startsWith('+++')) {
       const match = line.match(/^\+\+\+ (?:b\/)?(.+)$/);
       if (match) {
-        result.newFilePath = match[1];
-        result.filePath = match[1];
+        const newPath = match[1];
+        result.newFilePath = newPath;
+        result.filePath =
+          newPath === '/dev/null' && result.oldFilePath ? result.oldFilePath : newPath;
       }
       continue;
     }
 
-    // 解析 hunk header (@@ ... @@)
     if (line.startsWith('@@')) {
-      // 保存之前的 hunk
       if (currentHunk) {
         result.hunks.push(currentHunk);
       }
@@ -143,7 +132,6 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
         oldLineNumber = currentHunk.oldStart;
         newLineNumber = currentHunk.newStart;
 
-        // 添加 header 行
         currentHunk.lines.push({
           type: 'header',
           content: line,
@@ -154,7 +142,6 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
       continue;
     }
 
-    // 解析 diff 内容行
     if (currentHunk) {
       if (line.startsWith('+')) {
         currentHunk.lines.push({
@@ -183,37 +170,9 @@ function parseUnifiedDiff(diff: string): ParsedDiff {
     }
   }
 
-  // 保存最后一个 hunk
   if (currentHunk) {
     result.hunks.push(currentHunk);
   }
 
   return result;
 }
-
-/**
- * Diff 解析 Hook
- *
- * @param diff - unified diff 格式字符串
- * @returns 解析后的结构化 diff 数据
- */
-export function useDiffParser(diff: string): ParsedDiff {
-  return useMemo(() => {
-    if (!diff) {
-      return {
-        filePath: '',
-        oldFilePath: null,
-        newFilePath: null,
-        hunks: [],
-        additions: 0,
-        deletions: 0,
-        isNewFile: false,
-        isDeletedFile: false,
-        isBinary: false,
-      };
-    }
-    return parseUnifiedDiff(diff);
-  }, [diff]);
-}
-
-export default useDiffParser;

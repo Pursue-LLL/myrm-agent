@@ -694,6 +694,10 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS ix_memory_archive_restore_items_batch_section ON memory_archive_restore_items(batch_id, section)",
     "CREATE INDEX IF NOT EXISTS ix_memory_archive_restore_items_batch_status ON memory_archive_restore_items(batch_id, status)",
     "CREATE INDEX IF NOT EXISTS ix_memory_archive_restore_items_target ON memory_archive_restore_items(item_kind, target_id)",
+    "ALTER TABLE agents ADD COLUMN browser_engine VARCHAR(50)",
+    "ALTER TABLE agents ADD COLUMN browser_source VARCHAR(20)",
+    "ALTER TABLE agents ADD COLUMN dialog_policy VARCHAR(20)",
+    "ALTER TABLE agents ADD COLUMN session_recording VARCHAR(20)",
 ]
 
 

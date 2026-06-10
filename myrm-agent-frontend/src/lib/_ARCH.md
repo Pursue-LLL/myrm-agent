@@ -14,11 +14,13 @@
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | — |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
+| `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
 | `config/` | 设置表单 schema 工具 | — |
 | `search/` | SearXNG 预设 | — |
 | `approval/` | 工具审批决策与 visual 上下文 | [_ARCH.md](approval/_ARCH.md) |
 | `intent-dispatcher/` | 意图分发 schema | — |
 | `vision/` | 语音视觉会话 | — |
+| `widget-theme-bridge.ts` | Artifact iframe 运行时脚本注入：主题同步、高度 sync、链接拦截、DOM 元素拾取 | — |
 | `constants/` | 路径、artifact、主题常量 | — |
 | `server/` | Next Route Handler 用 HTTP 辅助 | — |
 | `__tests__/` | lib 层单元测试 | — |

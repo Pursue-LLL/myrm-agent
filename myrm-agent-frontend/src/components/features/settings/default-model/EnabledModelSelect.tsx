@@ -112,10 +112,16 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
     const selectedProvider = value ? providers.find((p) => p.id === value.providerId) : null;
     const displayValue = value
       ? `${selectedProvider?.name || value.providerId} / ${value.model}`
-      : placeholder || t('selectModel');
+      : placeholder || t('autoFollowMain');
 
     const handleSelect = (providerId: string, model: string) => {
       onChange({ providerId, model });
+      setOpen(false);
+      setSearch('');
+    };
+
+    const handleSelectAuto = () => {
+      onChange(null);
       setOpen(false);
       setSearch('');
     };
@@ -157,6 +163,20 @@ const EnabledModelSelect = memo<EnabledModelSelectProps>(
 
             {/* 模型列表 */}
             <div className="max-h-64 overflow-y-auto">
+              {/* Auto (Follow Main Model) option */}
+              <button
+                type="button"
+                onClick={handleSelectAuto}
+                className={cn(
+                  'flex items-center w-full px-3 py-2.5 text-sm hover:bg-accent transition-colors cursor-pointer gap-2 border-b border-border/50',
+                  !value && 'bg-primary/10 text-primary',
+                )}
+              >
+                <IconChevronDown className="w-3.5 h-3.5 text-muted-foreground rotate-90" />
+                <span className="truncate flex-1 text-left font-medium">{t('autoFollowMain')}</span>
+                {!value && <span className="text-xs text-primary">✓</span>}
+              </button>
+
               {modelsByProvider.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">{t('noEnabledModels')}</div>
               ) : (

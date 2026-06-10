@@ -18,11 +18,11 @@ Markdown 渲染扩展与工具块展示。
 | `MermaidLegendPanel.tsx` | 组件/模块 | — | — |
 | `ThinkBox.tsx` | 组件/模块 | — | — |
 | `ThinkTagProcessor.tsx` | 组件/模块 | — | — |
-| `hooks/` | 目录 | 子模块 | — |
 | `mermaid-theme.ts` | 组件/模块 | — | — |
 | `rehypeHeadingIds.ts` | 组件/模块 | — | — |
 
 ## 依赖
 
+- `@/hooks/useDiffParser`、`@/lib/diff/parseUnifiedDiff`（InlineDiffViewer diff 解析）
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

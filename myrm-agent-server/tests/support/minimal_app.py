@@ -210,7 +210,10 @@ def _resolve_router_keys(
     if preset is not None:
         if preset not in PRESETS:
             raise ValueError(f"Unknown preset {preset!r}; known: {sorted(PRESETS)}")
-        return PRESETS[preset]
+        base = PRESETS[preset]
+        if router_keys:
+            return (*base, *router_keys)
+        return base
     return tuple(router_keys)
 
 

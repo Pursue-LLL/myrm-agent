@@ -140,7 +140,8 @@ export type MentionReferenceType =
   | 'generated_file'
   | 'git_diff'
   | 'git_staged'
-  | 'url';
+  | 'url'
+  | 'codebase';
 
 export interface MentionReference {
   type: MentionReferenceType;

@@ -125,6 +125,9 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                       @diff
                     </code>
                     <code className="px-1.5 py-0.5 text-[10px] bg-background/60 rounded border border-border/40 text-primary/80">
+                      @codebase
+                    </code>
+                    <code className="px-1.5 py-0.5 text-[10px] bg-background/60 rounded border border-border/40 text-primary/80">
                       @folder:path
                     </code>
                     <code className="px-1.5 py-0.5 text-[10px] bg-background/60 rounded border border-border/40 text-primary/80">

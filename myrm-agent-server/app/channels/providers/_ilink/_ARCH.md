@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-iLink 渠道 Provider 实现（入站/出站、凭证、路由）。上级文档：[../../_ARCH.md](../../_ARCH.md)。
+iLink **共享协议库**（非独立渠道）：WeChat/WhatsApp 等 Provider 复用的 Bot 协议客户端、加解密与媒体处理。目录名 `_ilink` 遵循 providers 层 `_` 前缀共享库约定。上级文档：[../_ARCH.md](../_ARCH.md)。
 
 ## 文件清单
 

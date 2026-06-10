@@ -153,6 +153,7 @@ ${FORM_STYLES}
  * 1. Height synchronization via ResizeObserver + postMessage
  * 2. Link click interception (opens in parent window)
  * 3. Theme update reception via postMessage
+ * 4. Element picker mode (toggled by parent via postMessage)
  */
 export function buildWidgetRuntimeScript(): string {
   return `<script>
@@ -166,30 +167,135 @@ export function buildWidgetRuntimeScript(): string {
   if(window.ResizeObserver){
     new ResizeObserver(syncHeight).observe(document.body);
   }
-  // Initial sync after DOM ready
   syncHeight();
   setTimeout(syncHeight,100);
   setTimeout(syncHeight,500);
 
   // Link interception: external links open in parent
   document.addEventListener('click',function(e){
+    if(window.__pickerActive)return;
     var a=e.target;
     while(a&&a.tagName!=='A')a=a.parentElement;
     if(!a||!a.href)return;
     var url=a.href;
-    // Allow anchor links within the widget
     if(url.startsWith('#')||url.startsWith('javascript:'))return;
     e.preventDefault();
     window.parent.postMessage({type:'widget-navigate',url:url},'*');
   },true);
 
-  // Theme update: parent sends new CSS variables
+  // --- Element Picker ---
+  window.__pickerActive=false;
+  var overlay=null;
+  var SKIP_TAGS={HTML:1,HEAD:1,BODY:1,SCRIPT:1,STYLE:1,LINK:1,META:1,NOSCRIPT:1};
+
+  function bubbleUp(el){
+    while(el&&el.parentElement){
+      var tag=el.tagName;
+      if(tag==='SPAN'||tag==='I'||tag==='B'||tag==='STRONG'||tag==='EM'||tag==='SMALL'||tag==='BR'){
+        var p=el.parentElement;
+        if(p&&!SKIP_TAGS[p.tagName]){el=p;continue}
+      }
+      break;
+    }
+    return el;
+  }
+
+  function cssSelector(el){
+    var parts=[];
+    while(el&&el.nodeType===1&&el.tagName!=='HTML'&&el.tagName!=='BODY'){
+      var tag=el.tagName.toLowerCase();
+      if(el.id){parts.unshift(tag+'#'+el.id);break}
+      var cls=Array.prototype.slice.call(el.classList).filter(function(c){return c.indexOf('__picker')!==0}).slice(0,2).join('.');
+      var seg=cls?tag+'.'+cls:tag;
+      var parent=el.parentElement;
+      if(parent){
+        var siblings=parent.children;
+        var same=0,idx=0;
+        for(var i=0;i<siblings.length;i++){if(siblings[i].tagName===el.tagName){same++;if(siblings[i]===el)idx=same}}
+        if(same>1)seg+=':nth-of-type('+idx+')';
+      }
+      parts.unshift(seg);
+      el=parent;
+      if(parts.length>=5)break;
+    }
+    return parts.join(' > ');
+  }
+
+  function breadcrumb(el){
+    var crumbs=[];
+    while(el&&el.nodeType===1&&el.tagName!=='HTML'){
+      var tag=el.tagName.toLowerCase();
+      if(tag==='body'){crumbs.unshift('body');break}
+      var cls=el.classList.length?'.'+el.classList[0]:'';
+      var id=el.id?'#'+el.id:'';
+      crumbs.unshift(tag+id+cls);
+      el=el.parentElement;
+      if(crumbs.length>=6)break;
+    }
+    return crumbs.join(' > ');
+  }
+
+  function truncateHtml(html,max){return html.length>max?html.substring(0,max)+'...':html}
+
+  function showOverlay(el){
+    removeOverlay();
+    var rect=el.getBoundingClientRect();
+    overlay=document.createElement('div');
+    overlay.className='__picker-overlay';
+    overlay.style.cssText='position:fixed;pointer-events:none;z-index:999999;border:2px solid hsl(var(--widget-primary,217 91% 60%));background:hsla(var(--widget-primary,217 91% 60%),.08);transition:all .1s ease;';
+    overlay.style.top=rect.top+'px';overlay.style.left=rect.left+'px';
+    overlay.style.width=rect.width+'px';overlay.style.height=rect.height+'px';
+    var label=document.createElement('div');
+    label.className='__picker-label';
+    label.style.cssText='position:absolute;top:-20px;left:0;font-size:11px;line-height:1;padding:2px 6px;border-radius:3px;background:hsl(var(--widget-primary,217 91% 60%));color:#fff;white-space:nowrap;font-family:monospace;pointer-events:none;';
+    label.textContent=el.tagName.toLowerCase()+(el.id?'#'+el.id:el.classList.length?'.'+el.classList[0]:'');
+    overlay.appendChild(label);
+    document.body.appendChild(overlay);
+  }
+
+  function removeOverlay(){if(overlay){overlay.remove();overlay=null}}
+
+  function onHover(e){
+    if(!window.__pickerActive)return;
+    var el=bubbleUp(e.target);
+    if(!el||SKIP_TAGS[el.tagName])return;
+    showOverlay(el);
+  }
+  function onPickClick(e){
+    if(!window.__pickerActive)return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    var el=bubbleUp(e.target);
+    if(!el||SKIP_TAGS[el.tagName])return;
+    removeOverlay();
+    window.__pickerActive=false;
+    document.body.style.cursor='';
+    window.parent.postMessage({
+      type:'widget-element-pick',
+      selector:cssSelector(el),
+      breadcrumb:breadcrumb(el),
+      tagName:el.tagName.toLowerCase(),
+      outerHTML:truncateHtml(el.outerHTML,800)
+    },'*');
+  }
+
   window.addEventListener('message',function(e){
-    if(!e.data||e.data.type!=='widget-theme-update')return;
-    var vars=e.data.vars;
-    var root=document.documentElement;
-    for(var k in vars){if(vars.hasOwnProperty(k))root.style.setProperty(k,vars[k])}
+    if(!e.data||typeof e.data!=='object')return;
+    if(e.data.type==='widget-theme-update'){
+      var vars=e.data.vars;var root=document.documentElement;
+      for(var k in vars){if(vars.hasOwnProperty(k))root.style.setProperty(k,vars[k])}
+    }
+    if(e.data.type==='widget-picker-toggle'){
+      window.__pickerActive=!!e.data.active;
+      if(window.__pickerActive){
+        document.body.style.cursor='crosshair';
+      }else{
+        document.body.style.cursor='';
+        removeOverlay();
+      }
+    }
   });
+  document.addEventListener('mouseover',onHover,true);
+  document.addEventListener('click',onPickClick,true);
 })();
 </script>`;
 }

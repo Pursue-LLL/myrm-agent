@@ -15,7 +15,7 @@ import DocumentPreview from './renderers/DocumentPreview';
 import MermaidPreview from './renderers/MermaidPreview';
 import SkeletonLoader from './renderers/SkeletonLoader';
 import NoPreview from './renderers/NoPreview';
-import { HtmlPreview, ImagePreview, VideoPreview, SvgPreview, AudioPreview } from './renderers/MediaPreview';
+import { HtmlPreview, ImagePreview, VideoPreview, SvgPreview, AudioPreview, type PickedElement } from './renderers/MediaPreview';
 
 // 动态导入 PDF 预览组件
 const PdfPreviewDynamic = dynamic(() => import('./PdfPreview'), {
@@ -53,10 +53,12 @@ interface ArtifactRendererProps {
   displayMode: ArtifactDisplayMode;
   loading: boolean;
   onDownload: () => void;
+  pickerMode?: boolean;
+  onElementPick?: (element: PickedElement) => void;
 }
 
 /** 内部渲染器 */
-const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload }) => {
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick }) => {
   const t = useTranslations('artifacts');
 
   if (loading) {
@@ -158,9 +160,8 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
     if (displayMode === ArtifactDisplayMode.Code) {
       return <CodePreview content={content} language="html" artifactId={artifact.id} />;
     }
-    // 优先使用远程 URL，如果没有则使用内容创建 Blob URL
     const htmlUrl = preview_url ? getStorageUrl(preview_url) : undefined;
-    return <HtmlPreview url={htmlUrl} content={content} />;
+    return <HtmlPreview url={htmlUrl} content={content} artifactId={artifact.id} pickerMode={pickerMode} onElementPick={onElementPick} />;
   }
 
   // 视频类型

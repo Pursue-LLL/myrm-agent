@@ -30,9 +30,9 @@ export type { CLIFilePreviewProps } from './CLIFilePreview';
 export { CLIContextMenu } from './CLIContextMenu';
 export type { CLIContextMenuProps } from './CLIContextMenu';
 
-// Hooks
-export { useDiffParser } from './hooks/useDiffParser';
-export type { ParsedDiff, DiffHunk, DiffLine, DiffLineType } from './hooks/useDiffParser';
+// Hooks（共用实现见 @/hooks/useDiffParser、@/lib/diff/parseUnifiedDiff）
+export { useDiffParser } from '@/hooks/useDiffParser';
+export type { ParsedDiff, DiffHunk, DiffLine, DiffLineType } from '@/lib/diff/parseUnifiedDiff';
 
 export { useFilePreview } from './hooks/useFilePreview';
 export type { UseFilePreviewReturn, FileType } from './hooks/useFilePreview';

@@ -156,6 +156,7 @@ const AgentConfigEditDialog = ({
   onSave,
 }: AgentConfigEditDialogProps) => {
   const t = useTranslations('agent.configEditor');
+  const tAgent = useTranslations('agent');
   const tPanel = useTranslations('agent.configPanel');
   const tCommon = useTranslations('common');
 
@@ -1092,11 +1093,10 @@ const AgentConfigEditDialog = ({
                 <div className="space-y-2 pt-2 border-t border-border/50">
                   <Label className="text-sm font-medium flex items-center gap-2">
                     <Globe size={14} className="text-blue-500" />
-                    默认浏览器引擎 (Default Browser Engine)
+                    {tAgent('browserEngine.label')}
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    选择该智能体执行网页浏览任务时默认使用的浏览器引擎。极速模式适合普通网页，深度隐身模式适合突破高难度反爬（如
-                    Cloudflare）。
+                    {tAgent('browserEngine.description')}
                   </p>
                   <Select
                     value={localBrowserEngine || 'chromium_patchright'}
@@ -1105,22 +1105,22 @@ const AgentConfigEditDialog = ({
                     }
                   >
                     <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="选择浏览器引擎" />
+                      <SelectValue placeholder={tAgent('browserEngine.label')} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="chromium_patchright">
                         <div className="flex flex-col py-1">
-                          <span className="font-medium">极速 Chromium (Patchright)</span>
+                          <span className="font-medium">{tAgent('browserEngine.chromium')}</span>
                           <span className="text-xs text-muted-foreground">
-                            默认选项。速度快，资源占用低，适合绝大多数常规网页。
+                            {tAgent('browserEngine.chromiumDesc')}
                           </span>
                         </div>
                       </SelectItem>
                       <SelectItem value="firefox_camoufox">
                         <div className="flex flex-col py-1">
-                          <span className="font-medium">深度隐身 Camoufox (Firefox)</span>
+                          <span className="font-medium">{tAgent('browserEngine.camoufox')}</span>
                           <span className="text-xs text-muted-foreground">
-                            专为突破高强度反爬设计。速度稍慢，资源占用较高。
+                            {tAgent('browserEngine.camoufoxDesc')}
                           </span>
                         </div>
                       </SelectItem>

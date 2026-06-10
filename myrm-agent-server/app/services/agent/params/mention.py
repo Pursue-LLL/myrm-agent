@@ -91,6 +91,8 @@ def _text_reference_to_structured(ref: str) -> MentionReferenceRequest:
         return MentionReferenceRequest(type="git_staged", label="@staged")
     if ref == "@diff":
         return MentionReferenceRequest(type="git_diff", label="@diff")
+    if ref == "@codebase":
+        return MentionReferenceRequest(type="codebase", label="@codebase")
     if ref.startswith("@folder:"):
         path = ref.removeprefix("@folder:")
         return MentionReferenceRequest(type="workspace_folder", path=path or ".", label=ref)
@@ -341,6 +343,12 @@ async def _build_mention_reference_context(
             total_bytes += consumed_bytes
             continue
 
+        if ref.type == "codebase":
+            codebase_part, codebase_bytes = await _codebase_search_part(workspace_real, total_bytes)
+            parts.append(codebase_part)
+            total_bytes += codebase_bytes
+            continue
+
         parts.append(_xml_error(ref.label or ref.type, "unsupported reference"))
 
     if not parts:
@@ -500,6 +508,39 @@ def _parse_document(path: str, ext: str) -> str | None:
     except Exception as e:
         logger.warning("Failed to parse document %s: %s", path, e)
     return None
+
+
+async def _codebase_search_part(workspace_dir: str, current_total_bytes: int) -> tuple[str, int]:
+    """Build context from code index for @codebase mention.
+
+    Uses the CodeIndexer to provide a codebase overview with indexed symbols
+    and file structure when the user references @codebase.
+    """
+    try:
+        from pathlib import Path as _Path
+
+        from myrm_agent_harness.toolkits.code_index import CodeIndexConfig, CodeIndexer
+
+        workspace_path = _Path(workspace_dir)
+        indexer = CodeIndexer(workspace_path, CodeIndexConfig(enable_vector_search=False))
+        stats = await indexer.ensure_indexed()
+
+        index_stats = indexer.get_stats()
+        overview_parts: list[str] = [
+            f"Codebase Index: {index_stats['indexed_files']} files, {index_stats['indexed_symbols']} symbols",
+        ]
+        if index_stats.get("languages"):
+            lang_summary = ", ".join(f"{lang}: {cnt}" for lang, cnt in list(index_stats["languages"].items())[:10])
+            overview_parts.append(f"Languages: {lang_summary}")
+
+        overview = "\n".join(overview_parts)
+        overview_bytes = len(overview.encode("utf-8"))
+        if _can_inline(overview_bytes, current_total_bytes):
+            return _xml_part("@codebase", "codebase-index", overview), overview_bytes
+        return _xml_metadata("@codebase", "codebase-index", f"Index available ({index_stats['indexed_files']} files)"), 0
+    except Exception as e:
+        logger.debug("@codebase indexing unavailable: %s", e)
+        return _xml_metadata("@codebase", "codebase-index", "Code indexing unavailable — use grep_tool for code search"), 0
 
 
 def _format_size(size_bytes: int) -> str:

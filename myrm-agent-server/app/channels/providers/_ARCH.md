@@ -4,6 +4,13 @@
 
 多平台 IM Provider 注册表与共享基础设施。上级文档：[../_ARCH.md](../_ARCH.md)。
 
+## 命名约定
+
+| 前缀 | 含义 | 示例 |
+|------|------|------|
+| `_` 开头目录/文件 | **共享库**（非独立渠道，供多个 Provider 复用） | `_ilink/`（WeChat iLink 协议）、`_http_timeout.py`、`_twilio_utils.py` |
+| 小写目录名 | **独立渠道 Provider** 包 | `discord/`、`feishu/`、`telegram/` |
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

@@ -27,7 +27,8 @@ import React, { memo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { useDiffParser, type DiffLine } from './hooks/useDiffParser';
+import { useDiffParser } from '@/hooks/useDiffParser';
+import type { DiffLine } from '@/lib/diff/parseUnifiedDiff';
 import { CLIFileIcon } from './CLIFileIcon';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 

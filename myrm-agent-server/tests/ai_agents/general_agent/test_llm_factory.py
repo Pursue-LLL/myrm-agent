@@ -9,14 +9,10 @@ def test_select_tool_capable_model_cfg_keeps_main_when_it_supports_tools(
     main_cfg = ModelConfig(model="deepseek/deepseek-chat", api_key="main-key")
     fallback_cfg = ModelConfig(model="minimax/MiniMax-M2.5", api_key="fallback-key")
 
-    def fake_supports_function_calling(*, model: str) -> bool:
-        return model == main_cfg.model
+    def fake_supports(model_name: str) -> bool:
+        return model_name == main_cfg.model
 
-    monkeypatch.setattr(
-        llm_factory.litellm,
-        "supports_function_calling",
-        fake_supports_function_calling,
-    )
+    monkeypatch.setattr(llm_factory, "_supports_function_calling", fake_supports)
 
     selected_cfg, source = select_tool_capable_model_cfg(
         main_cfg,
@@ -33,14 +29,10 @@ def test_select_tool_capable_model_cfg_uses_explicit_fallback_for_tools(
     main_cfg = ModelConfig(model="unknown/unknown-model", api_key="main-key")
     fallback_cfg = ModelConfig(model="minimax/MiniMax-M2.5", api_key="fallback-key")
 
-    def fake_supports_function_calling(*, model: str) -> bool:
-        return model == fallback_cfg.model
+    def fake_supports(model_name: str) -> bool:
+        return model_name == fallback_cfg.model
 
-    monkeypatch.setattr(
-        llm_factory.litellm,
-        "supports_function_calling",
-        fake_supports_function_calling,
-    )
+    monkeypatch.setattr(llm_factory, "_supports_function_calling", fake_supports)
 
     selected_cfg, source = select_tool_capable_model_cfg(
         main_cfg,
@@ -76,14 +68,10 @@ def test_select_tool_capable_model_cfg_scans_providers_for_tool_model(
         ],
     }
 
-    def fake_supports_function_calling(*, model: str) -> bool:
-        return model == "minimax/MiniMax-M2.5"
+    def fake_supports(model_name: str) -> bool:
+        return model_name == "minimax/MiniMax-M2.5"
 
-    monkeypatch.setattr(
-        llm_factory.litellm,
-        "supports_function_calling",
-        fake_supports_function_calling,
-    )
+    monkeypatch.setattr(llm_factory, "_supports_function_calling", fake_supports)
 
     selected_cfg, source = select_tool_capable_model_cfg(
         main_cfg,

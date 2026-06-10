@@ -6,16 +6,21 @@ from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
 
-app = build_minimal_app(preset="channels_local")
+app = build_minimal_app("user_agents", preset="channels_local")
+
+
 @asynccontextmanager
-async def _noop_lifespan(app):
+async def _db_lifespan(app):
+    from app.database.connection import init_database
+
+    await init_database()
     yield
 
 
 @pytest.fixture
 def client():
     original_lifespan = app.router.lifespan_context
-    app.router.lifespan_context = _noop_lifespan
+    app.router.lifespan_context = _db_lifespan
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.router.lifespan_context = original_lifespan

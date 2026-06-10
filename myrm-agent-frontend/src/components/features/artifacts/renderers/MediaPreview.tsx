@@ -7,6 +7,14 @@ import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 
+/** Picked element data from iframe postMessage */
+export interface PickedElement {
+  selector: string;
+  breadcrumb: string;
+  tagName: string;
+  outerHTML: string;
+}
+
 interface HtmlPreviewProps {
   /** Remote URL (takes priority) */
   url?: string;
@@ -18,15 +26,21 @@ interface HtmlPreviewProps {
   injectTheme?: boolean;
   /** Enable auto height sync (for inline preview mode) */
   autoHeight?: boolean;
+  /** Artifact ID for element picker context */
+  artifactId?: string;
+  /** Whether element picker mode is active */
+  pickerMode?: boolean;
+  /** Callback when an element is picked */
+  onElementPick?: (element: PickedElement) => void;
 }
 
 const SANDBOX_POLICY = 'allow-scripts';
 const MIN_IFRAME_HEIGHT = 100;
 const MAX_IFRAME_HEIGHT = 2000;
 
-/** HTML Preview — sandboxed iframe with theme bridge, height sync, and link interception */
+/** HTML Preview — sandboxed iframe with theme bridge, height sync, link interception, and element picker */
 export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
-  ({ url, content, isStreaming = false, injectTheme = true, autoHeight = false }) => {
+  ({ url, content, isStreaming = false, injectTheme = true, autoHeight = false, artifactId: _artifactId, pickerMode = false, onElementPick }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -62,6 +76,11 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
       return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming);
     }, [url, content, isStreaming, injectTheme]);
 
+    // Send picker mode toggle to iframe when pickerMode changes
+    useEffect(() => {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'widget-picker-toggle', active: pickerMode }, '*');
+    }, [pickerMode]);
+
     // Listen for postMessage events from our own iframe only
     const handleMessage = useCallback(
       (e: MessageEvent) => {
@@ -76,8 +95,17 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         if (e.data.type === 'widget-navigate' && typeof e.data.url === 'string') {
           window.open(e.data.url, '_blank', 'noopener,noreferrer');
         }
+
+        if (e.data.type === 'widget-element-pick' && onElementPick) {
+          onElementPick({
+            selector: e.data.selector,
+            breadcrumb: e.data.breadcrumb,
+            tagName: e.data.tagName,
+            outerHTML: e.data.outerHTML,
+          });
+        }
       },
-      [autoHeight],
+      [autoHeight, onElementPick],
     );
 
     useEffect(() => {

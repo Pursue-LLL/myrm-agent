@@ -17,7 +17,8 @@
 | `DeployModal.tsx` | 核心 | Vercel 部署；打开时拉取 preflight |
 | `artifactUtils.ts` | 辅助 | preflight/share API 客户端、`isDeploymentStale`、图标 |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由（code/document/html/pdf/svg/mermaid/image/video/audio/spreadsheet） |
-| `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe（主题桥、自动高度） |
+| `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe（主题桥、自动高度、DOM 元素拾取） |
+| `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取后的悬浮指令输入栏；拼接 `<element_context>` 发送到 Agent |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 交互式表格预览 |
 | `renderers/SpreadsheetPreview/CsvParser.ts` | 辅助 | RFC 4180 合规 CSV/TSV 解析器，自动检测分隔符 |
 | `renderers/SpreadsheetPreview/DataGrid.tsx` | 辅助 | 虚拟滚动表格（排序/搜索/复制/导出） |

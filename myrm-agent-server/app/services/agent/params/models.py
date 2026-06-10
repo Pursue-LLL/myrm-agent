@@ -64,6 +64,38 @@ class AgentConfigRequest(BaseModel):
     auto_restore_domains: list[str] = []
     tool_gateway_config: ToolGatewayConfig | None = None
 
+    @field_validator("browser_engine")
+    @classmethod
+    def validate_browser_engine(cls, v: str | None) -> str | None:
+        valid = {"chromium_patchright", "firefox_camoufox"}
+        if v is not None and v not in valid:
+            raise ValueError(f"browser_engine must be one of {valid}, got '{v}'")
+        return v
+
+    @field_validator("browser_source")
+    @classmethod
+    def validate_browser_source(cls, v: str | None) -> str | None:
+        valid = {"auto", "launch", "connect", "extension", "remote"}
+        if v is not None and v not in valid:
+            raise ValueError(f"browser_source must be one of {valid}, got '{v}'")
+        return v
+
+    @field_validator("dialog_policy")
+    @classmethod
+    def validate_dialog_policy(cls, v: str | None) -> str | None:
+        valid = {"smart", "auto_accept", "auto_dismiss", "wait_for_agent"}
+        if v is not None and v not in valid:
+            raise ValueError(f"dialog_policy must be one of {valid}, got '{v}'")
+        return v
+
+    @field_validator("session_recording")
+    @classmethod
+    def validate_session_recording(cls, v: str | None) -> str | None:
+        valid = {"off", "on_failure", "always"}
+        if v is not None and v not in valid:
+            raise ValueError(f"session_recording must be one of {valid}, got '{v}'")
+        return v
+
     class Config:
         alias_generator = to_camel
         populate_by_name = True
@@ -96,6 +128,7 @@ class MentionReferenceRequest(BaseModel):
         "git_diff",
         "git_staged",
         "url",
+        "codebase",
     ]
     path: str | None = Field(None, max_length=4096)
     file_id: str | None = Field(None, max_length=256)
