@@ -9350,8 +9350,10 @@
     "disable": "Disable"
   },
   "estopBanner": {
-    "message": "Emergency Stop Active – All tool execution is frozen",
-    "resume": "Resume"
+    "message": "Emergency Stop Active",
+    "hint": "All agents and scheduled tasks are paused. Type /freeze resume to continue.",
+    "resume": "Resume Now",
+    "resuming": "Resuming…"
   },
   "toolApproval": {
     "title": "Tool Execution Approval",
@@ -11350,5 +11352,17 @@
     "modeAgent": "AI Agent",
     "sidecarFailedTitle": "CLI runner unavailable",
     "sidecarUnavailable": "CLI unavailable"
+  },
+  "sandbox": {
+    "sandboxMode": "Sandbox",
+    "sandboxModeDesc": "Isolate all file changes in a temporary branch. Freely experiment without affecting your main codebase — merge or discard when done.",
+    "enableSandbox": "Enable Sandbox",
+    "disableSandbox": "Exit Sandbox",
+    "mergeSandbox": "Merge Changes",
+    "discardSandbox": "Discard Changes",
+    "active": "Sandbox Active",
+    "mergeSuccess": "Changes merged successfully",
+    "mergeFailed": "Merge failed — resolve conflicts manually",
+    "discardSuccess": "Sandbox discarded"
   }
 }

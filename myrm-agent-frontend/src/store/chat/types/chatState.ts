@@ -54,6 +54,7 @@ export interface ChatState {
   isGoalMode: boolean;
   isWorkflowMode: boolean;
   incognitoMode: boolean;
+  sandboxMode: boolean;
   goalBudgetTokens: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
@@ -140,6 +141,7 @@ export interface ChatState {
   setIsGoalMode: (isGoalMode: boolean) => void;
   setIsWorkflowMode: (isWorkflowMode: boolean) => void;
   setIncognitoMode: (incognitoMode: boolean) => void;
+  setSandboxMode: (sandboxMode: boolean) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
   setGoalAcceptanceCriteria: (criteria: Array<Record<string, unknown>> | null) => void;
   setGoalConstraints: (constraints: string[] | null) => void;

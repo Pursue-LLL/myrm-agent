@@ -56,6 +56,7 @@ class StreamContentCollector:
         self._cache_break: dict[str, object] | None = None
         self._token_economics: dict[str, object] | None = None
         self._usage_alert: dict[str, object] | None = None
+        self._session_recording: dict[str, object] | None = None
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
@@ -215,6 +216,8 @@ class StreamContentCollector:
             route = data.get("route")
             if isinstance(route, str):
                 self._privacy_route = route
+        elif event_type == "session_recording" and isinstance(data, dict):
+            self._session_recording = _string_keyed_dict(data)
         elif event_type == "status":
             step_key = event.get("step_key")
             if step_key == "cache_break" and isinstance(data, dict):
@@ -292,6 +295,8 @@ class StreamContentCollector:
             result["citedMemoryRefs"] = self._cited_memory_refs
         if self._memory_retrieval_traces:
             result["memoryRetrievalTraces"] = self._memory_retrieval_traces
+        if self._session_recording:
+            result["sessionRecording"] = self._session_recording
         if self.reasoning:
             result["reasoning"] = self.reasoning
         return result or None

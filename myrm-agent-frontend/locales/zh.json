@@ -9346,8 +9346,10 @@
     "disable": "关闭"
   },
   "estopBanner": {
-    "message": "紧急制动已激活 – 所有工具执行已冻结",
-    "resume": "解除冻结"
+    "message": "紧急制动已激活",
+    "hint": "所有智能体与定时任务已暂停。输入 /freeze resume 可恢复。",
+    "resume": "立即解除",
+    "resuming": "解除中…"
   },
   "toolApproval": {
     "title": "工具执行审批",
@@ -11346,5 +11348,17 @@
         "high": "High Risk"
       }
     }
+  },
+  "sandbox": {
+    "sandboxMode": "沙箱模式",
+    "sandboxModeDesc": "将所有文件变更隔离在临时分支中。自由实验而不影响主代码库 — 完成后合并或丢弃。",
+    "enableSandbox": "启用沙箱",
+    "disableSandbox": "退出沙箱",
+    "mergeSandbox": "合并变更",
+    "discardSandbox": "丢弃变更",
+    "active": "沙箱已激活",
+    "mergeSuccess": "变更已成功合并",
+    "mergeFailed": "合并失败 — 请手动解决冲突",
+    "discardSuccess": "沙箱已丢弃"
   }
 }

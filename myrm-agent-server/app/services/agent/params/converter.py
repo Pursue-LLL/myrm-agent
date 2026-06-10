@@ -679,6 +679,14 @@ async def convert_to_general_agent_params(
             persist_workspace=chat_loaded and not db_had_workspace,
         )
 
+    sandbox_worktree_dir: str | None = None
+    if request.sandbox_mode and chat_workspace_dir and request.chat_id:
+        from app.services.chat.sandbox_worktree import create_sandbox_worktree
+
+        sandbox_worktree_dir = await create_sandbox_worktree(chat_workspace_dir, request.chat_id)
+        if sandbox_worktree_dir:
+            chat_workspace_dir = sandbox_worktree_dir
+
     memory_shared_context_ids: list[str] = []
     try:
         from app.services.memory.shared_context import resolve_shared_context_ids

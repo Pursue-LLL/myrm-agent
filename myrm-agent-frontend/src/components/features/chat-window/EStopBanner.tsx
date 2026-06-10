@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { OctagonPause } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
+import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { showI18nToast } from '@/services/i18nToastService';
 
@@ -72,23 +73,55 @@ export default function EStopBanner() {
   const reasonText = status.reason.trim();
 
   return (
-    <div className="flex items-center justify-between gap-2 px-4 py-1.5 bg-rose-500/10 border-b border-rose-500/20 text-rose-700 dark:text-rose-400">
-      <div className="flex items-center gap-2 min-w-0">
-        <OctagonPause className="h-3.5 w-3.5 shrink-0" />
-        <span className="text-xs font-medium truncate">
-          {t('message')}
-          {reasonText ? ` — ${reasonText}` : ''}
-        </span>
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-xs text-rose-700 hover:text-rose-900 hover:bg-rose-500/20 dark:text-rose-400 dark:hover:text-rose-200 dark:hover:bg-rose-500/20 shrink-0"
-        onClick={() => void handleResume()}
-        disabled={resuming}
+    <div
+      role="alert"
+      aria-live="assertive"
+      className={cn(
+        'relative overflow-hidden border-b border-destructive/20',
+        'bg-gradient-to-r from-destructive/10 via-destructive/5 to-transparent',
+        'backdrop-blur-md supports-[backdrop-filter]:bg-destructive/5',
+      )}
+    >
+      <div className="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-destructive/80 via-destructive to-destructive/40" />
+      <div
+        className={cn(
+          'flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between',
+          'px-3 py-2.5 pl-4 sm:px-4 sm:py-2 sm:pl-5',
+        )}
       >
-        {t('resume')}
-      </Button>
+        <div className="flex min-w-0 items-start gap-2.5 sm:items-center">
+          <span
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+              'bg-destructive/15 text-destructive ring-1 ring-destructive/25',
+              'dark:bg-destructive/20 dark:text-destructive dark:ring-destructive/30',
+            )}
+          >
+            <OctagonPause className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-sm font-semibold leading-tight text-destructive dark:text-destructive">
+              {t('message')}
+            </p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {reasonText || t('hint')}
+            </p>
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className={cn(
+            'h-8 w-full shrink-0 rounded-full px-4 text-xs font-semibold sm:w-auto',
+            'bg-destructive/90 hover:bg-destructive',
+          )}
+          onClick={() => void handleResume()}
+          disabled={resuming}
+        >
+          {resuming ? t('resuming') : t('resume')}
+        </Button>
+      </div>
     </div>
   );
 }

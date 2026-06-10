@@ -8,6 +8,7 @@ from .core import router as core_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
 from .messages import router as messages_router
+from .sandbox import router as sandbox_router
 from .title import router as title_router
 from .trash import router as trash_router
 from .turn import router as turn_router
@@ -23,3 +24,4 @@ router.include_router(turn_router)
 router.include_router(compaction_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)
+router.include_router(sandbox_router)

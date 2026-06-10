@@ -493,6 +493,7 @@ export const createMessageRequest = async (
     ...(isStreamingMode && {
       enable_memory_auto_extraction: useConfigStore.getState().enableMemoryAutoExtraction,
       incognito_mode: useChatStore.getState().incognitoMode,
+      ...(useChatStore.getState().sandboxMode && { sandbox_mode: true }),
     }),
     ...(isStreamingMode && {
       pre_compact_enabled: useConfigStore.getState().preCompactEnabled,

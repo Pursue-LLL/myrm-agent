@@ -35,6 +35,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填、重建、增量追加、排除/恢复、删除、健康检查和管理列表。 | ✅ |
 | `conversation_fork_manager.py` | ✅ 核心 | 对话分支管理（checkpoint克隆 + Fork关系追踪 + 查询 + fork 失败时清理孤儿 checkpoint） | ✅ |
 | `handoff.py` | ✅ 辅助 | 跨平台会话交接：将 Chat 的 channel_session_key 重绑定到目标渠道，支持 UNIQUE 冲突自动解决和 pairing 验证 | ✅ |
+| `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用 | ✅ |
 
 ---
 

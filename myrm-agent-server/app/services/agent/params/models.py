@@ -210,6 +210,11 @@ class AgentRequest(BaseModel):
     privacy_sensitive_tools_s3: list[str] | None = None
     privacy_deep_scan: bool = False
     code_execution_allow_network: bool | None = None
+    sandbox_mode: bool = Field(
+        default=False,
+        description="When True, agent operates in an isolated git worktree. "
+        "Changes are confined to a temporary branch until explicitly merged or discarded.",
+    )
     timestamp: float | None = None
     quote: str | None = None
 

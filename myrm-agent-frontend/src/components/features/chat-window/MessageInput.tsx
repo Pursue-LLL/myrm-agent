@@ -30,6 +30,7 @@ import VoiceSessionButton from '../message-input-actions/VoiceSessionButton';
 import ThinkingIntensityButton from '../message-input-actions/ThinkingIntensityButton';
 import GoalModeToggle from '../message-input-actions/GoalModeToggle';
 import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
+import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
 import FocusFlushButton from '../message-input-actions/FocusFlushButton';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
 import { useTranslations } from 'next-intl';
@@ -376,6 +377,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <DeepSearchToggle />
                   <WorkflowModeToggle />
                   <IncognitoModeToggle />
+                  <SandboxModeToggle />
                   <AgentIndicator />
                 </div>
                 {/* 桌面版：显示所有按钮 */}
@@ -387,6 +389,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <ThinkingIntensityButton actionMode={actionMode} agentConfig={agentConfig} />
                   <GoalModeToggle />
                   <IncognitoModeToggle />
+                  <SandboxModeToggle />
                   <FocusFlushButton />
                   <AgentIndicator />
                   <ToolsPanel />
