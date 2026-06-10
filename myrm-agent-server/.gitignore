@@ -112,6 +112,8 @@ user-*/
 
 # 临时目录和运行时数据
 data/
+!tests/architecture/data/
+!tests/architecture/data/fractal_header_baseline.txt
 !app/core/integrations/catalog/data/
 ppt_workspace/
 workspace/
