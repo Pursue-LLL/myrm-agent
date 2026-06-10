@@ -21,4 +21,4 @@ if [[ -d .next/standalone ]]; then
   echo "Frontend dist already present, skipping BUILD_MODE=tauri build."
   exit 0
 fi
-exec env BUILD_MODE=tauri bun run build
+exec bun run build:tauri

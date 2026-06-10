@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url';
 
 import createNextIntlPlugin from 'next-intl/plugin';
 import type { NextConfig } from 'next';
-import withSerwistInit from '@serwist/next';
 import type { withSentryConfig as sentryConfigWrapper } from '@sentry/nextjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
@@ -13,13 +12,23 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // 注意：Tauri 模式现在也使用 standalone，以支持动态路由和 API 路由
 const isTauriBuild = process.env.BUILD_MODE === 'tauri';
 
-// Serwist PWA Configuration
-const withSerwist = withSerwistInit({
-  swSrc: 'src/app/sw.ts',
-  swDest: 'public/sw.js',
-  disable: isTauriBuild || process.env.NODE_ENV === 'development',
-  reloadOnOnline: false,
-});
+// Serwist PWA (optional; skipped for Tauri — desktop shell does not ship a web PWA)
+let withSerwist: (config: NextConfig) => NextConfig = (config) => config;
+if (!isTauriBuild) {
+  try {
+    const withSerwistInit = require('@serwist/next').default as (
+      options: Parameters<typeof import('@serwist/next').default>[0],
+    ) => (config: NextConfig) => NextConfig;
+    withSerwist = withSerwistInit({
+      swSrc: 'src/app/sw.ts',
+      swDest: 'public/sw.js',
+      disable: process.env.NODE_ENV === 'development',
+      reloadOnOnline: false,
+    });
+  } catch {
+    console.warn('[Build] @serwist/next not installed; PWA wrapper skipped.');
+  }
+}
 
 // Bundle Analyzer (optional, controlled by env var)
 const ANALYZE = process.env.ANALYZE === 'true';

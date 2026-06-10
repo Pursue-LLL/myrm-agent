@@ -88,7 +88,7 @@ jobs:
       - name: Build frontend for Tauri
         run: |
           cd myrm-agent-frontend
-          BUILD_MODE=tauri bun run build
+          bun run build:tauri
         shell: bash
 
       - name: Build Tauri app
