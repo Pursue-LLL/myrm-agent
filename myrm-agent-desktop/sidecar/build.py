@@ -48,7 +48,7 @@ def check_pyinstaller() -> None:
             check=True,
             capture_output=True,
         )
-        print("✅ PyInstaller is installed in server venv")
+        print("[OK] PyInstaller is installed in server venv")
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("PyInstaller not found in server venv, installing via uv pip...")
         subprocess.run(
@@ -165,13 +165,13 @@ def build_backend(*, skip_harness_install: bool = False):
     data_sep = ";" if SYSTEM == "windows" else ":"
     cmd.extend(["--add-data", f"{shared_json}{data_sep}shared/config"])
 
-    print(f"\n📦 Running PyInstaller...")
+    print("\nRunning PyInstaller...")
     print(f"Command: {' '.join(cmd)}\n")
 
     result = subprocess.run(cmd, capture_output=False, cwd=SERVER_ROOT)
 
     if result.returncode != 0:
-        print(f"\n❌ Build failed with exit code {result.returncode}")
+        print(f"\n[ERROR] Build failed with exit code {result.returncode}")
         sys.exit(1)
 
     output_file = OUTPUT_DIR / BINARY_NAME
@@ -185,13 +185,13 @@ def build_backend(*, skip_harness_install: bool = False):
 
     if output_file.exists():
         size_mb = output_file.stat().st_size / (1024 * 1024)
-        print(f"\n✅ Build successful!")
-        print(f"📍 Output: {output_file}")
-        print(f"📊 Size: {size_mb:.2f} MB")
+        print("\n[OK] Build successful!")
+        print(f"Output: {output_file}")
+        print(f"Size: {size_mb:.2f} MB")
         if SYSTEM != "windows":
             os.chmod(output_file, 0o755)
     else:
-        print(f"\n❌ Output file not found: {output_file}")
+        print(f"\n[ERROR] Output file not found: {output_file}")
         sys.exit(1)
 
     build_dir = OUTPUT_DIR / "build"
@@ -200,7 +200,7 @@ def build_backend(*, skip_harness_install: bool = False):
         shutil.rmtree(build_dir)
     if spec_file.exists():
         spec_file.unlink()
-    print("✅ Cleanup complete")
+    print("[OK] Cleanup complete")
 
 
 def _agent_runner_binary_name() -> str:
@@ -227,12 +227,12 @@ def build_agent_runner():
     entrypoint = runner_src / "src" / "index.ts"
 
     if not entrypoint.exists():
-        print(f"⚠️  Agent runner source not found: {entrypoint}, skipping.")
+        print(f"[WARN] Agent runner source not found: {entrypoint}, skipping.")
         return
 
     # Ensure dependencies installed
     if not (runner_src / "node_modules").exists():
-        print("📦 Installing agent-runner dependencies...")
+        print("Installing agent-runner dependencies...")
         subprocess.run(["bun", "install"], cwd=runner_src, check=True)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -253,27 +253,27 @@ def build_agent_runner():
         "--outfile", str(output_path),
     ]
 
-    print(f"\n📦 Running: {' '.join(cmd)}\n")
+    print(f"\nRunning: {' '.join(cmd)}\n")
     result = subprocess.run(cmd, cwd=runner_src)
 
     if result.returncode != 0:
-        print(f"\n❌ Agent runner build failed (exit {result.returncode})")
+        print(f"\n[ERROR] Agent runner build failed (exit {result.returncode})")
         sys.exit(1)
 
     if output_path.exists():
         size_mb = output_path.stat().st_size / (1024 * 1024)
-        print(f"\n✅ Agent runner built successfully!")
-        print(f"📍 Output: {output_path}")
-        print(f"📊 Size: {size_mb:.1f} MB")
+        print("\n[OK] Agent runner built successfully!")
+        print(f"Output: {output_path}")
+        print(f"Size: {size_mb:.1f} MB")
         if SYSTEM != "windows":
             os.chmod(output_path, 0o755)
     else:
-        print(f"\n❌ Output not found: {output_path}")
+        print(f"\n[ERROR] Output not found: {output_path}")
         sys.exit(1)
 
 
 def main():
-    print("🚀 MyrmAgent - Sidecar Builder")
+    print("MyrmAgent - Sidecar Builder")
     print(f"Platform: {SYSTEM}")
     print(f"Backend binary: {BINARY_NAME}")
     print(f"Agent runner binary: {_agent_runner_binary_name()}\n")
@@ -287,7 +287,7 @@ def main():
     build_agent_runner()
 
     print("\n" + "=" * 60)
-    print("✅ All Sidecars Built!")
+    print("[OK] All Sidecars Built!")
     print("=" * 60)
     print(f"\nNext steps:")
     print(f"1. Test backend: {OUTPUT_DIR / BINARY_NAME}")
