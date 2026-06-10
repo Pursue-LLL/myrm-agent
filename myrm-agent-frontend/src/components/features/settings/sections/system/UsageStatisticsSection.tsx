@@ -17,6 +17,7 @@ import {
 import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
+import AgentUsageCard from './AgentUsageCard';
 import RoutingAnalyticsPanel, { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import SessionAnalyticsDialog from './SessionAnalyticsDialog';
 import { localizeReactNode } from '@/lib/utils/localeText';
@@ -938,6 +939,9 @@ function UsageStatisticsSection() {
       <SettingsSection title={t('trendsTitle')}>
         <DailyChart data={daily} t={t} />
       </SettingsSection>
+
+      {/* Per-Agent Usage (auto-hidden when <=1 agent) */}
+      <AgentUsageCard />
 
       {/* Routing analytics (conditional) */}
       {stats.routingBreakdown && Object.keys(stats.routingBreakdown).length > 0 && (

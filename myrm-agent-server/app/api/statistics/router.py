@@ -24,6 +24,7 @@ from app.core.utils.errors import internal_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db, get_session
 from app.database.models import Chat, Message, SystemNotification
+from app.database.models.agent import Agent
 from app.database.models.approval import ApprovalRecord
 from app.database.models.cron import CronRunModel
 
@@ -110,6 +111,91 @@ async def get_usage_radar(
         )
     except Exception as e:
         raise internal_error(operation="Get usage radar statistics", exception=e) from e
+
+
+@router.get("/usage/by-agent")
+async def get_usage_by_agent(
+    days: int = Query(7, ge=1, le=365, description="Number of days to look back"),
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Get token usage breakdown grouped by agent.
+
+    Aggregates total_calls, total_tokens, and total_usd from the Chat table
+    grouped by agent_id, joined with Agent table for display metadata.
+    Returns per-agent totals with percentage breakdown.
+    """
+    try:
+        from datetime import timedelta
+
+        end_dt = datetime.now(timezone.utc)
+        start_dt = end_dt - timedelta(days=days)
+
+        filters = [Chat.deleted_at.is_(None), Chat.created_at >= start_dt]
+
+        stmt = (
+            select(
+                func.coalesce(Chat.agent_id, "default").label("agent_id"),
+                func.sum(Chat.total_calls).label("calls"),
+                func.sum(Chat.total_tokens).label("tokens"),
+                func.sum(Chat.total_usd).label("cost_usd"),
+                func.count(Chat.id).label("session_count"),
+            )
+            .where(and_(*filters))
+            .group_by(func.coalesce(Chat.agent_id, "default"))
+            .order_by(func.sum(Chat.total_usd).desc())
+        )
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        agent_ids = [r.agent_id for r in rows if r.agent_id != "default"]
+        agent_map: dict[str, tuple[str, str | None]] = {}
+        if agent_ids:
+            agent_stmt = select(Agent.id, Agent.name, Agent.avatar).where(Agent.id.in_(agent_ids))
+            agent_result = await db.execute(agent_stmt)
+            for agent_row in agent_result.all():
+                agent_map[agent_row[0]] = (agent_row[1], agent_row[2])
+
+        grand_total_tokens = sum(r.tokens or 0 for r in rows)
+        grand_total_usd = sum(r.cost_usd or 0.0 for r in rows)
+
+        agents = []
+        for row in rows:
+            agent_id = row.agent_id
+            name, avatar = agent_map.get(agent_id, (None, None))
+            if agent_id == "default" and name is None:
+                name = "Default Agent"
+
+            tokens = row.tokens or 0
+            cost_usd = row.cost_usd or 0.0
+
+            agents.append(
+                {
+                    "agentId": agent_id,
+                    "name": name or agent_id,
+                    "avatar": avatar,
+                    "totalTokens": tokens,
+                    "totalUsd": round(cost_usd, 6),
+                    "totalCalls": row.calls or 0,
+                    "sessions": row.session_count or 0,
+                    "percentTokens": round(tokens / grand_total_tokens * 100, 1) if grand_total_tokens > 0 else 0.0,
+                    "percentUsd": round(cost_usd / grand_total_usd * 100, 1) if grand_total_usd > 0 else 0.0,
+                    "sparkline": [],
+                }
+            )
+
+        return success_response(
+            data={
+                "agents": agents,
+                "total_agents": len(agents),
+                "grand_total_tokens": grand_total_tokens,
+                "grand_total_usd": round(grand_total_usd, 6),
+            }
+        )
+    except Exception as e:
+        if "validation" in type(e).__name__.lower():
+            raise
+        raise internal_error(operation="Get usage by agent", exception=e) from e
 
 
 @router.get("/usage/daily")

@@ -183,67 +183,94 @@ class KanbanGCService:
         Returns (directories_deleted, bytes_freed).
         Only removes workspace_path directories that are within the
         configured harness_dir (safety check against path traversal).
+        Successfully cleaned entries have workspace_path set to NULL
+        to avoid repeated scanning of already-removed directories.
         """
         from app.config.settings import settings
 
         harness_root = Path(settings.database.harness_dir).resolve()
         cutoff_iso = _cutoff_iso(min_age_days)
 
-        async with get_session() as session:
-            result = await session.execute(
-                text(
-                    "SELECT id, workspace_path FROM kanban_tasks"
-                    " WHERE status = 'archived'"
-                    " AND workspace_path IS NOT NULL"
-                    " AND workspace_path != ''"
-                    " AND updated_at < :cutoff"
-                    " LIMIT :batch"
-                ),
-                {"cutoff": cutoff_iso, "batch": _WORKSPACE_BATCH_SIZE},
-            )
-            rows = result.fetchall()
+        total_deleted = 0
+        total_bytes_freed = 0
 
-        deleted = 0
-        bytes_freed = 0
+        while True:
+            async with get_session() as session:
+                result = await session.execute(
+                    text(
+                        "SELECT id, workspace_path FROM kanban_tasks"
+                        " WHERE status = 'archived'"
+                        " AND workspace_path IS NOT NULL"
+                        " AND workspace_path != ''"
+                        " AND updated_at < :cutoff"
+                        " LIMIT :batch"
+                    ),
+                    {"cutoff": cutoff_iso, "batch": _WORKSPACE_BATCH_SIZE},
+                )
+                rows = result.fetchall()
 
-        for row in rows:
-            task_id: str = row[0]
-            ws_path_str: str = row[1]
+            if not rows:
+                break
 
-            try:
-                ws_path = Path(ws_path_str).resolve()
+            cleaned_task_ids: list[str] = []
+
+            for row in rows:
+                task_id: str = row[0]
+                ws_path_str: str = row[1]
 
                 try:
-                    ws_path.relative_to(harness_root)
-                except ValueError:
+                    ws_path = Path(ws_path_str).resolve()
+
+                    try:
+                        ws_path.relative_to(harness_root)
+                    except ValueError:
+                        logger.warning(
+                            "Kanban GC: skipping workspace outside harness root: %s (task=%s)",
+                            ws_path,
+                            task_id[:8],
+                        )
+                        cleaned_task_ids.append(task_id)
+                        continue
+
+                    if not ws_path.exists() or not ws_path.is_dir():
+                        cleaned_task_ids.append(task_id)
+                        continue
+
+                    dir_size = _dir_size_bytes(ws_path)
+                    shutil.rmtree(ws_path, ignore_errors=True)
+
+                    if not ws_path.exists():
+                        total_deleted += 1
+                        total_bytes_freed += dir_size
+                        logger.debug("Kanban GC: removed workspace %s (task=%s)", ws_path, task_id[:8])
+
+                    cleaned_task_ids.append(task_id)
+
+                except Exception as exc:
                     logger.warning(
-                        "Kanban GC: skipping workspace outside harness root: %s (task=%s)",
-                        ws_path,
+                        "Kanban GC: workspace cleanup failed for task %s: %s",
                         task_id[:8],
+                        exc,
                     )
-                    continue
 
-                if not ws_path.exists() or not ws_path.is_dir():
-                    continue
+                await asyncio.sleep(0)
 
-                dir_size = _dir_size_bytes(ws_path)
-                shutil.rmtree(ws_path, ignore_errors=True)
+            if cleaned_task_ids:
+                placeholders = ",".join(f":id_{i}" for i in range(len(cleaned_task_ids)))
+                params = {f"id_{i}": tid for i, tid in enumerate(cleaned_task_ids)}
+                async with get_session() as session:
+                    await session.execute(
+                        text(f"UPDATE kanban_tasks SET workspace_path = NULL WHERE id IN ({placeholders})"),
+                        params,
+                    )
+                    await session.commit()
 
-                if not ws_path.exists():
-                    deleted += 1
-                    bytes_freed += dir_size
-                    logger.debug("Kanban GC: removed workspace %s (task=%s)", ws_path, task_id[:8])
-
-            except Exception as exc:
-                logger.warning(
-                    "Kanban GC: workspace cleanup failed for task %s: %s",
-                    task_id[:8],
-                    exc,
-                )
+            if len(rows) < _WORKSPACE_BATCH_SIZE:
+                break
 
             await asyncio.sleep(0)
 
-        return deleted, bytes_freed
+        return total_deleted, total_bytes_freed
 
 
 def _cutoff_iso(days: int) -> str:

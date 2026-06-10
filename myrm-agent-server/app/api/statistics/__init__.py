@@ -3,6 +3,7 @@
 [INPUT]
 - fastapi::APIRouter (POS: FastAPI router composition)
 - app.api.statistics.router (POS: base statistics API routes)
+- app.api.statistics.agent_usage (POS: per-agent usage analytics routes)
 - app.api.statistics.growth_dashboard (POS: growth dashboard routes)
 - app.api.statistics.daily_journal (POS: daily journal aggregation routes)
 
