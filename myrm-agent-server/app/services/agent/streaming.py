@@ -272,8 +272,18 @@ async def ai_agent_service_stream(
                 logger.warning("Failed to process dag state update: %s", ex)
 
             yield event
+    except Exception:
+        if hasattr(agent, "_browser_session") and agent._browser_session is not None:
+            agent._browser_session.mark_task_failure()
+        raise
     finally:
         await agent.close()
+        recording_info = getattr(agent, "_session_recording_info", None)
+        if recording_info:
+            yield {
+                "type": "session_recording",
+                "data": recording_info,
+            }
 
 
 async def ai_deep_research_service_stream(

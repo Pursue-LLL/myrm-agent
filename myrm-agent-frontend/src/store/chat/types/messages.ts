@@ -85,6 +85,7 @@ export type Message = {
   fileMutationFailures?: FileMutationFailure[]; // 本轮失败的文件修改操作
   toolImages?: ToolImageOutput[]; // 工具输出的图片（如 computer_use 截屏）
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
+  sessionRecording?: { filename: string; preview_url: string; content_type: string };
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;

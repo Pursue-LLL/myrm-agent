@@ -69,6 +69,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'locator_self_healed',
   'browser_takeover_requested',
   'browser_takeover_completed',
+  'session_recording',
 ] as const;
 
 /** Harness name → frontend handler type (same payload shape). */

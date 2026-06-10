@@ -42,17 +42,9 @@ def _fallback_get_remote_address(request: Request) -> str:
 
 get_remote_address = _fallback_get_remote_address
 
-try:
-    from slowapi.util import get_remote_address  # type: ignore[no-redef]
-except ImportError:
-    pass
-
 
 class _RateLimiterWrapper:
-    """Wrapper for RateLimiter with decorator interface.
-
-    Provides drop-in replacement for slowapi's @limiter.limit() decorator.
-    """
+    """Wrapper for RateLimiter with decorator interface."""
 
     def __init__(self, config: RateLimitConfig | None = None) -> None:
         self._limiter = MemoryRateLimiter(config)

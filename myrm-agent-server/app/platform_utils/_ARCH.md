@@ -76,7 +76,7 @@ ThreadStore（线程生命周期管理）
 |------|--------|------|
 | `CHECKPOINTER_MODE` | (空) | 强制指定模式：`memory`/`sqlite`/`postgres` |
 | `DEPLOY_MODE` | `local` | 部署模式：`local`/`tauri`/`sandbox` |
-| `MYRM_DATA_DIR` | `~/.myrm` | 数据根目录；`data.db` / `checkpoints.db` / `qdrant` 等由此派生 |
+| `MYRM_DATA_DIR` | `~/.myrm` | 数据根目录；`data.db` / `checkpoints.db` / `qdrant` / `.estop_state.json` 等由此派生 |
 | `DATABASE_URL` | (无) | PostgreSQL 连接串（仅 `CHECKPOINTER_MODE=postgres` 时使用） |
 
 ---

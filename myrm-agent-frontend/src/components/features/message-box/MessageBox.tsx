@@ -47,6 +47,7 @@ import WaterDropCostView from './WaterDropCostView';
 import MemoryInsightPanel from './MemoryInsightPanel';
 import { FileMutationWarning } from './FileMutationWarning';
 import ToolImageGallery from './ToolImageGallery';
+import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/VisualApprovalInlineSection';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
@@ -464,6 +465,14 @@ const MessageBox = ({
 
         {/* 工具截屏图片（如 computer_use） */}
         {message.toolImages && message.toolImages.length > 0 && <ToolImageGallery images={message.toolImages} />}
+
+        {/* 会话录制回放 */}
+        {message.sessionRecording && (
+          <SessionRecordingCard
+            filename={message.sessionRecording.filename}
+            previewUrl={message.sessionRecording.preview_url}
+          />
+        )}
 
         {/* MCP Apps (ext-apps) 嵌入式 UI */}
         {message.mcpApps && message.mcpApps.length > 0 && (

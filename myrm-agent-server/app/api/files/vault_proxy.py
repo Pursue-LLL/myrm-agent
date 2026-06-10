@@ -1,7 +1,7 @@
 """Vault secure artifact proxy router.
 
-Serves user-generated plotting artifacts securely with session token checking
-to prevent cross-tenant and path traversal security leaks.
+Serves user-generated artifacts (plots, recordings, media) securely with
+session token checking to prevent cross-tenant and path traversal security leaks.
 """
 
 import logging
@@ -16,20 +16,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_ALLOWED_EXTENSIONS: dict[str, str] = {
+    ".webp": "image/webp",
+    ".webm": "video/webm",
+    ".mp4": "video/mp4",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+}
+
 
 def verify_session_token(
     session_token: str | None = Query(None, alias="token", description="Active user session token"),
 ) -> str:
     """Validate that the caller is authenticated and has an active session."""
-    # In Local Web / Tauri desktop deployment, authentication is automatically trusted
     if is_local_mode():
         return "local_session"
 
-    # In multi-tenant / SaaS cloud deployment:
     if not session_token or len(session_token) < 16:
         raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
-    # Real SaaS verification would check against the Control Plane session registry.
     return session_token
 
 
@@ -37,18 +43,17 @@ def verify_session_token(
 async def render_vault_artifact(
     filepath: str = Query(
         ...,
-        description="The absolute or relative path to the WebP plot file inside the sandbox",
+        description="Relative or absolute path to an artifact file inside the sandbox",
     ),
     workspace: str = Query(..., description="The workspace root directory boundary for path security"),
     token: str = Depends(verify_session_token),
 ) -> FileResponse:
-    """Securely proxy and render WebP plotted files from the user's sandbox directory."""
+    """Securely proxy and render sandbox artifacts (images, videos, plots)."""
     from myrm_agent_harness.agent.security.path_security import (
         is_dangerous_path,
         is_within_boundary,
     )
 
-    # Clean path resolution
     workspace_resolved = os.path.realpath(os.path.expanduser(workspace))
     raw_path = os.path.expanduser(filepath)
     if os.path.isabs(raw_path):
@@ -56,7 +61,6 @@ async def render_vault_artifact(
     else:
         resolved = os.path.realpath(os.path.join(workspace_resolved, raw_path))
 
-    # Verify path security: boundary compliance and avoid dangerous files (e.g. system files)
     if is_dangerous_path(resolved):
         raise HTTPException(status_code=403, detail="Access denied: Dangerous path detected")
 
@@ -64,17 +68,18 @@ async def render_vault_artifact(
         raise HTTPException(status_code=403, detail="Access denied: Path is outside workspace boundary")
 
     if not os.path.isfile(resolved):
-        raise HTTPException(status_code=404, detail="Requested plot file not found")
+        raise HTTPException(status_code=404, detail="Requested artifact file not found")
 
-    # Verify file is indeed a WebP image (plotting format)
-    if not resolved.lower().endswith(".webp"):
+    ext = os.path.splitext(resolved.lower())[1]
+    media_type = _ALLOWED_EXTENSIONS.get(ext)
+    if media_type is None:
         raise HTTPException(
             status_code=400,
-            detail="Only .webp format artifacts are allowed to be rendered via this proxy",
+            detail=f"File type '{ext}' is not allowed. Supported: {', '.join(_ALLOWED_EXTENSIONS.keys())}",
         )
 
     return FileResponse(
         path=resolved,
-        media_type="image/webp",
+        media_type=media_type,
         filename=os.path.basename(resolved),
     )

@@ -117,8 +117,6 @@ sandbox = [
   "prometheus-fastapi-instrumentator>=8.0.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
   "granian>=2.7.5", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
-  # --- 限流 ---
-  "slowapi>=0.1.9",        # API 限流中间件 (limiter.py try/except, sandbox only)
 ]
 
 [tool.ruff]

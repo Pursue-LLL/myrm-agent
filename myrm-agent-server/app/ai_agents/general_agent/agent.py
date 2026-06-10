@@ -438,7 +438,7 @@ class GeneralAgent(ToolSetupMixin):
         if self._browser_session is not None:
             try:
                 await self._browser_session.close()
-                self._push_session_recording_artifact()
+                self._capture_session_recording_info()
             except Exception as e:
                 logger.warning(f"⚠️ BrowserSession close failed: {e}")
             finally:
@@ -463,8 +463,8 @@ class GeneralAgent(ToolSetupMixin):
             finally:
                 self.agent = None
 
-    def _push_session_recording_artifact(self) -> None:
-        """Push browser session recording as a video artifact if available."""
+    def _capture_session_recording_info(self) -> None:
+        """Store session recording metadata for SSE delivery after close."""
         try:
             session = self._browser_session
             if session is None:
@@ -476,15 +476,20 @@ class GeneralAgent(ToolSetupMixin):
             if video_path is None or not Path(video_path).exists():
                 return
 
-            from myrm_agent_harness.agent.artifacts import push_inline_artifact
-            from myrm_agent_harness.core.artifacts.constants import ArtifactType
+            from app.config.settings import get_settings
 
-            push_inline_artifact(
-                filename=Path(video_path).name,
-                preview_url=str(video_path),
-                artifact_type=ArtifactType.VIDEO,
-                content_type="video/webm",
-            )
-            logger.info("Pushed session recording artifact: %s", video_path)
+            harness_dir = get_settings().database.harness_dir
+            relative_path = str(video_path)
+            if relative_path.startswith(harness_dir):
+                relative_path = relative_path[len(harness_dir):]
+                if relative_path.startswith("/"):
+                    relative_path = relative_path[1:]
+
+            self._session_recording_info: dict[str, str] = {
+                "filename": Path(video_path).name,
+                "preview_url": f"/api/v1/files/vault/render?filepath={relative_path}&workspace={harness_dir}",
+                "content_type": "video/webm",
+            }
+            logger.info("Session recording captured: %s", video_path)
         except Exception as e:
-            logger.debug("Session recording artifact push skipped: %s", e)
+            logger.debug("Session recording capture skipped: %s", e)

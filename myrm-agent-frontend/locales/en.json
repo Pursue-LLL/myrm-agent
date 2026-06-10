@@ -5153,6 +5153,9 @@
     "toolImage": {
       "screenshotLabel": "Remote Desktop Screenshot"
     },
+    "sessionRecording": {
+      "label": "Session Recording"
+    },
     "mcpApp": {
       "loading": "Loading MCP App...",
       "loadFailed": "MCP App failed to load: {error}",

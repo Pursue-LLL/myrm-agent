@@ -2,12 +2,15 @@ name: Server fractal docs
 
 on:
   push:
+    branches:
+      - main
     paths:
       - 'myrm-agent-server/app/**'
       - 'myrm-agent-server/scripts/check_fractal_docs.py'
       - 'myrm-agent-server/scripts/check_file_line_budget.py'
       - 'myrm-agent-server/scripts/sync_arch_file_tables.py'
       - 'myrm-agent-server/scripts/ci/file_line_budget_baseline.txt'
+      - 'myrm-agent-server/tests/architecture/data/fractal_header_baseline.txt'
       - '.github/workflows/server-fractal-docs.yml'
   pull_request:
     paths:
@@ -16,6 +19,7 @@ on:
       - 'myrm-agent-server/scripts/check_file_line_budget.py'
       - 'myrm-agent-server/scripts/sync_arch_file_tables.py'
       - 'myrm-agent-server/scripts/ci/file_line_budget_baseline.txt'
+      - 'myrm-agent-server/tests/architecture/data/fractal_header_baseline.txt'
       - '.github/workflows/server-fractal-docs.yml'
 
 jobs:

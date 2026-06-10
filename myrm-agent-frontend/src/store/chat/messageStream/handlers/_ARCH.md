@@ -22,6 +22,7 @@
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA | — |
 | `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE | — |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示 | — |
+| `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级通知 | — |
 | `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存 | — |
 

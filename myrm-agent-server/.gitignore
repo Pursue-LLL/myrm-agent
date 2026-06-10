@@ -136,6 +136,6 @@ external_reference_project/
 .myrm-dev-backend.pid
 .myrm-dev-backend.log
 .myrm/
-.estop_state.json
+.estop_state.json  # legacy CWD location; canonical path is under MYRM_DATA_DIR
 
 # Legacy local eval/cache tree (replaced by .myrm/; do not commit)

@@ -27,6 +27,7 @@
 | `TokenUsageDisplay.tsx` | 组件/模块 | — | — |
 | `ToolCallApproval.tsx` | 组件/模块 | — | — |
 | `ToolImageGallery.tsx` | 组件/模块 | — | — |
+| `SessionRecordingCard.tsx` | 组件/模块 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件/模块 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | — |
 | `UserMessage.tsx` | 组件/模块 | — | — |
 | `WaterDropCostView.tsx` | 组件/模块 | — | — |

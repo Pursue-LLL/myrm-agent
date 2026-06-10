@@ -5152,6 +5152,9 @@
     "toolImage": {
       "screenshotLabel": "远程桌面截屏"
     },
+    "sessionRecording": {
+      "label": "会话录制"
+    },
     "mcpApp": {
       "loading": "正在加载 MCP 应用...",
       "loadFailed": "MCP 应用加载失败: {error}",

@@ -81,6 +81,7 @@ export const AgentEventType = {
   FISSION_TOPOLOGY: 'fission_topology',
   BROWSER_TAKEOVER_REQUESTED: 'browser_takeover_requested',
   BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
+  SESSION_RECORDING: 'session_recording',
 } as const;
 
 export interface BaseAgentEvent {
