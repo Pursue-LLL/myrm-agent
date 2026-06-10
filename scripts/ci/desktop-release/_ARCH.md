@@ -27,10 +27,12 @@
 | `build-macos-x64` | macOS Intel (x86_64) 追加 dmg/tar.gz/.sig |
 | `build-windows` | Windows 追加资产（finalize 门禁平台） |
 | `build-linux` | Linux 追加资产（不阻塞 finalize） |
-| `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify + 官网 trigger |
-| `refinalize-after-linux` | Linux 上传后重跑 finalize + verify + 官网 redeploy |
+| `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify |
+| `deploy-website` | secrets 已配时：brand `website-v*` tag + CF hook（不阻塞 OTA） |
+| `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
+| `redeploy-website-after-linux` | secrets 已配时：Linux 资产上线后 redeploy |
 
-`trigger-website-release.sh`：workflow 默认 `REQUIRE_WEBSITE_DEPLOY=true`；缺 `BRAND_RELEASE_PAT`/`CF_PAGES_DEPLOY_HOOK` 时 finalize 失败。
+`trigger-website-release.sh`：`deploy-website` job 内 `REQUIRE_WEBSITE_DEPLOY=true`。agent 仓未配 `BRAND_RELEASE_PAT`/`CF_PAGES_DEPLOY_HOOK` 时跳过该 job；改在 brand 仓打 `website-v*` tag（`website-release.yml` 含 `CF_PAGES_DEPLOY_HOOK`）。
 
 `collect-bundle-assets.sh`：`find` 收集 bundle 资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
 
