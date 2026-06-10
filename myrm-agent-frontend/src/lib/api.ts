@@ -150,7 +150,6 @@ function inferRetriable(httpCode: number, businessCode?: number | string): boole
     const code = Number(businessCode);
 
     // 明确可重试的BusinessCode
-    if (code === 51006) return true; // DB_TRANSIENT_RETRY
     if (code === 51005) return true; // DB_STORAGE_BUSY
     if (code === 51004) return true; // DB_TIMEOUT_ERROR
     if (code === 53002) return true; // AI_RATE_LIMIT_ERROR

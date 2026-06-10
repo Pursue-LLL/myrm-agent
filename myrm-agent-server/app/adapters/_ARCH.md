@@ -7,7 +7,7 @@
 
 Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 
-本模块提供对 `myrm-agent-harness` 框架 Protocol 的具体实现，使用 Server 层的技术栈（SQLAlchemy、SQLite、PostgreSQL 等）。
+本模块提供对 `myrm-agent-harness` 框架 Protocol 的具体实现，使用 Server 层的技术栈（SQLAlchemy、SQLite 等）。
 
 ---
 
@@ -22,7 +22,7 @@ Framework Protocol 实现层（Business Layer 的 harness 适配器）。
 
 **业务层（server/adapters）负责**：
 - 实现框架 Protocol（使用业务技术栈）
-- 适配数据存储（SQLite, PostgreSQL, S3 等）
+- 适配数据存储（SQLite、S3 等）
 - 与业务系统集成
 
 ### 2. 与 repositories/ 的区别
@@ -110,7 +110,7 @@ class SQLAlchemyStorage(SkillOptimizationStorage):
 
 当 harness 定义新的 Protocol 时，在 `app/adapters/` 下创建新的实现：
 
-**示例：Memory System Adapter**
+**示例：Memory System Adapter（未来扩展）**
 
 ```python
 # PyPI myrm-agent-harness 公开的 Protocol 定义
@@ -120,7 +120,7 @@ class MemoryBackendProtocol(Protocol):
 
 # app/adapters/memory/
 ├── __init__.py
-└── postgres_backend.py  # Server 侧实现
+└── sqlite_backend.py  # Server 侧实现（SQLite on persistent volume）
 ```
 
 ### 与 repositories/ 的协作
@@ -128,15 +128,14 @@ class MemoryBackendProtocol(Protocol):
 如果 Protocol 实现需要复杂的数据访问逻辑，可以创建对应的 Repository：
 
 ```python
-# app/adapters/memory/postgres_backend.py
+# app/adapters/memory/sqlite_backend.py
 from app.repositories.memory import MemoryRepository  # 如果需要
 
-class PostgresMemoryBackend:
+class SQLiteMemoryBackend:
     def __init__(self, session: AsyncSession):
         self.repo = MemoryRepository(session)
-    
+
     async def store_memory(self, ...):
-        # 使用 Repository 处理复杂查询
         return await self.repo.create_with_embedding(...)
 ```
 
@@ -230,9 +229,9 @@ class StorageProtocol(Protocol):
 
 # server/app/adapters/skill_optimization/sqlalchemy_storage.py
 class SQLAlchemyStorage:
-    """PostgreSQL implementation"""
+    """SQLite implementation via SQLAlchemy"""
     async def save(self, data):
-        # PostgreSQL-specific implementation
+        # SQLite-specific implementation
 ```
 
 ---

@@ -356,6 +356,17 @@ class DatabaseSettings(BaseSettings):
     qdrant_api_key: SecretStr = SecretStr("")  # QDRANT_API_KEY
     checkpointer_mode: str = ""  # CHECKPOINTER_MODE (memory|sqlite; empty = sqlite)
 
+    @field_validator("checkpointer_mode")
+    @classmethod
+    def _validate_checkpointer_mode(cls, v: str) -> str:
+        normalized = v.strip().lower()
+        if normalized not in {"", "memory", "sqlite"}:
+            raise ValueError(
+                f"CHECKPOINTER_MODE must be empty, 'memory', or 'sqlite'; got {v!r}. "
+                "PostgreSQL checkpoint is not supported; use SQLite on the persistent volume."
+            )
+        return normalized
+
     @staticmethod
     def _resolve(current: str, base: Path, default_subdir: str) -> str:
         """Resolve a path field: use *base / default_subdir* when empty, else expand the user-supplied value."""

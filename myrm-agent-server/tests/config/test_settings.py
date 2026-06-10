@@ -252,6 +252,20 @@ class TestSandboxValidation:
         s.validate_for_sandbox()
 
 
+class TestCheckpointerModeValidation:
+    def test_invalid_checkpointer_mode_rejected(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="CHECKPOINTER_MODE"):
+            DatabaseSettings(checkpointer_mode="postgres")
+
+    def test_allowed_checkpointer_modes(self) -> None:
+        assert DatabaseSettings(checkpointer_mode="").checkpointer_mode == ""
+        assert DatabaseSettings(checkpointer_mode="sqlite").checkpointer_mode == "sqlite"
+        assert DatabaseSettings(checkpointer_mode="memory").checkpointer_mode == "memory"
+        assert DatabaseSettings(checkpointer_mode="SQLITE").checkpointer_mode == "sqlite"
+
+
 # ---------------------------------------------------------------------------
 # C4: SecretStr 字段
 # ---------------------------------------------------------------------------

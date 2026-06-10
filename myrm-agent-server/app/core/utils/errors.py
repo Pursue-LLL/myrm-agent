@@ -37,7 +37,6 @@ _BUSINESS_CODE_TO_HTTP: dict[BusinessCode, int] = {
     BusinessCode.DB_INTEGRITY_ERROR: 500,
     BusinessCode.DB_TIMEOUT_ERROR: 504,
     BusinessCode.DB_STORAGE_BUSY: 503,
-    BusinessCode.DB_TRANSIENT_RETRY: 503,
     BusinessCode.EXTERNAL_SERVICE_ERROR: 502,
     BusinessCode.SEARCH_SERVICE_ERROR: 502,
     BusinessCode.FILE_SERVICE_ERROR: 502,
