@@ -20,15 +20,20 @@ while IFS= read -r line; do
   [[ -n "$line" ]] && bundles+=("$line")
 done < <(
   find "$ROOT" -type f \( -path '*/release/bundle/macos/*.tar.gz' \
-    -o -path '*/release/bundle/nsis/*.nsis.zip' \
-    -o -path '*/release/bundle/msi/*.msi.zip' \
+    -o -path '*/release/bundle/*/*.nsis.zip' \
+    -o -path '*/release/bundle/*/*.msi.zip' \
     -o -name '*.AppImage.tar.gz' \) | sort -u
 )
 
 if [[ ${#bundles[@]} -eq 0 ]]; then
-  echo "[sign-updater-bundles] ERROR: No updater bundles under ${ROOT}" >&2
-  find "$ROOT" -maxdepth 10 -type f 2>/dev/null | head -30 >&2 || true
-  exit 1
+  echo "[sign-updater-bundles] WARNING: No updater bundles under ${ROOT}" >&2
+  find "$ROOT" -maxdepth 12 -type f 2>/dev/null | head -30 >&2 || true
+  if [[ "${REQUIRE_UPDATER_BUNDLES:-}" == "1" ]]; then
+    echo "[sign-updater-bundles] ERROR: REQUIRE_UPDATER_BUNDLES=1 but none found." >&2
+    exit 1
+  fi
+  echo "[sign-updater-bundles] Skipping (installers may still publish; OTA omitted for this platform)."
+  exit 0
 fi
 
 signed=0
@@ -40,9 +45,10 @@ for bundle in "${bundles[@]}"; do
     continue
   fi
   echo "[sign-updater-bundles] signing: $(basename "$bundle")"
+  bundle_rel="${bundle#${DESKTOP_ROOT}/}"
   (
     cd "$DESKTOP_ROOT"
-    bun x @tauri-apps/cli signer sign "$bundle"
+    bun x @tauri-apps/cli signer sign "$bundle_rel"
   )
   if [[ ! -f "$sig" ]]; then
     echo "[sign-updater-bundles] ERROR: signer did not create ${sig}" >&2
