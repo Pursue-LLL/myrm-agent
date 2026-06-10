@@ -9,7 +9,11 @@ if [[ ! -d "$ROOT" ]]; then
   exit 1
 fi
 
-mapfile -t files < <(
+# macOS GHA runners ship Bash 3.2 (no mapfile); use a portable read loop.
+files=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && files+=("$line")
+done < <(
   find "$ROOT" -type f \( -path '*/release/bundle/*' \) \( \
     -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \
     -o -name '*.nsis.zip' -o -name '*.msi.zip' \

@@ -29,7 +29,7 @@
 
 `trigger-website-release.sh`：workflow 默认 `REQUIRE_WEBSITE_DEPLOY=false`（官网由 brand `website-v*` GHA 发布）；设 `true` 可恢复 finalize 硬门禁。
 
-`collect-bundle-assets.sh`：替代 globstar，修复 cross-target（如 Intel Mac）产物路径匹配失败。
+`collect-bundle-assets.sh`：`find` 收集 bundle 资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
 
 ## Secrets（myrm-agent 仓库）
 

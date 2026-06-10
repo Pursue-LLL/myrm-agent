@@ -228,7 +228,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -t files < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
@@ -332,7 +335,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -t files < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
