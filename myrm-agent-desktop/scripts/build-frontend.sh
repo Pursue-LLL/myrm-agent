@@ -18,8 +18,8 @@ if [[ "$MODE" == "dev" ]]; then
   exec bun run dev
 fi
 
-if [[ -d .next/standalone ]]; then
-  echo "Frontend dist already present, skipping build:tauri."
+if [[ -f .next/standalone/myrm-agent-frontend/server.js ]]; then
+  echo "Next standalone server already present, skipping build:tauri."
   exit 0
 fi
 

@@ -49,7 +49,7 @@ pub async fn start_frontend(
             .parent()
             .and_then(|p| p.parent())
             .ok_or("Failed to get project root")?;
-        project_root.join("myrm-agent-frontend/.next/standalone")
+        project_root.join("myrm-agent-frontend/.next/standalone/myrm-agent-frontend")
     } else {
         app.path()
             .resolve("frontend", tauri::path::BaseDirectory::Resource)

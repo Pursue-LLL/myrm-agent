@@ -6,11 +6,14 @@
     "beforeDevCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\" dev'",
     "beforeBuildCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\"'",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../../myrm-agent-frontend/.next/standalone/.next"
+    "frontendDist": "frontend-shell"
   },
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend"
+    },
     "icon": [
       "icons/icon.png"
     ],

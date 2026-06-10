@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MyrmAgent</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, sans-serif;
+        background: #0a0a0a;
+        color: #e5e5e5;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Starting MyrmAgent…</p>
+    <script>
+      const host = "127.0.0.1";
+      const port = 3000;
+      const target = `http://${host}:${port}`;
+      const poll = () => {
+        fetch(target, { mode: "no-cors" })
+          .then(() => {
+            window.location.replace(target);
+          })
+          .catch(() => {
+            setTimeout(poll, 500);
+          });
+      };
+      poll();
+    </script>
+  </body>
+</html>
