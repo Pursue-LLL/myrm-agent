@@ -59,14 +59,22 @@ class RoleTemplate:
     required_skills: list[str] = field(default_factory=list)
 
 
+MAX_REPEAT: int = 20
+
+
 @dataclass(frozen=True, slots=True)
 class TaskSeed:
-    """A single task node in the pipeline graph template."""
+    """A single task node in the pipeline graph template.
+
+    When ``repeat_for`` names a multi-select question id, the instantiator
+    expands this single seed into N parallel tasks — one per selected option.
+    """
 
     title_template: str
     description_template: str
     role: str
     parents: list[int] = field(default_factory=list)
+    repeat_for: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +109,18 @@ class InstantiateResult:
     task_ids: list[str]
     edges: list[tuple[str, str]]  # (parent_task_id, child_task_id)
     role_agent_mapping: dict[str, str | None]
+
+
+def _parse_task_seed(raw: dict[str, object]) -> TaskSeed:
+    """Parse a single TaskSeed dict from YAML frontmatter."""
+    repeat_for_val = raw.get("repeat_for")
+    return TaskSeed(
+        title_template=str(raw.get("title_template", "")),
+        description_template=str(raw.get("description_template", "")),
+        role=str(raw.get("role", "")),
+        parents=[int(p) for p in raw.get("parents", []) if isinstance(p, (int, float))],
+        repeat_for=str(repeat_for_val) if repeat_for_val else None,
+    )
 
 
 def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> PipelineSpec | None:
@@ -152,14 +172,7 @@ def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> Pipel
     for s_raw in seeds_raw:
         if not isinstance(s_raw, dict):
             continue
-        seeds.append(
-            TaskSeed(
-                title_template=str(s_raw.get("title_template", "")),
-                description_template=str(s_raw.get("description_template", "")),
-                role=str(s_raw.get("role", "")),
-                parents=[int(p) for p in s_raw.get("parents", []) if isinstance(p, (int, float))],
-            )
-        )
+        seeds.append(_parse_task_seed(s_raw))
 
     variants_raw = raw_spec.get("task_graph_variants", [])
     variants: list[TaskGraphVariant] = []
@@ -171,14 +184,7 @@ def _parse_pipeline_spec(skill_id: str, frontmatter: dict[str, object]) -> Pipel
         for s_raw in v_seeds_raw:
             if not isinstance(s_raw, dict):
                 continue
-            v_seeds.append(
-                TaskSeed(
-                    title_template=str(s_raw.get("title_template", "")),
-                    description_template=str(s_raw.get("description_template", "")),
-                    role=str(s_raw.get("role", "")),
-                    parents=[int(p) for p in s_raw.get("parents", []) if isinstance(p, (int, float))],
-                )
-            )
+            v_seeds.append(_parse_task_seed(s_raw))
         variants.append(
             TaskGraphVariant(
                 id=str(v_raw.get("id", "")),
