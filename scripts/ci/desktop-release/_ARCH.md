@@ -43,6 +43,7 @@
 | `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
 | `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages `website-release` hook；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
 | `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 包签名；与 `tauri.conf.json#plugins.updater.pubkey` 成对 |
+| `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖
 
