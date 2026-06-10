@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: desktop-release
+  cancel-in-progress: true
+
 jobs:
   build-tauri:
     name: Build on ${{ matrix.platform }}
@@ -17,18 +21,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # First public release: macOS ARM only (covers Apple Silicon Macs).
+          # Re-enable intel/windows/linux after signing + platform fixes.
           - platform: macos-apple-silicon
             runner: macos-14
             target_arch: arm64
-          - platform: macos-intel
-            runner: macos-13
-            target_arch: x86_64
-          - platform: windows
-            runner: windows-latest
-            target_arch: x86_64
-          - platform: linux
-            runner: ubuntu-22.04
-            target_arch: x86_64
 
     steps:
       - uses: actions/checkout@v4
