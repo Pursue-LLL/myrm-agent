@@ -6612,6 +6612,7 @@
       "task_digest": "Key information and result summaries of tasks"
     },
     "export": "Export Memories",
+    "exportMarkdown": "Export as Markdown (Obsidian-compatible)",
     "import": "Import Memories",
     "exportDesc": "Export all memories as a JSON file",
     "importDesc": "Import memories from a JSON file",

@@ -80,6 +80,12 @@ background_steer_fail = Task `{ $task_id }` not found or already finished.
 background_started =
     Background task started: `{ $task_id }`
     I'll notify you when it's done.
+background_completed =
+    ✅ Background task completed: "{ $title }"
+    { $result }
+background_failed =
+    ❌ Background task failed: "{ $title }"
+    { $result }
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }

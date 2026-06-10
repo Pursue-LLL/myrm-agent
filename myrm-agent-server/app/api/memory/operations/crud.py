@@ -40,6 +40,7 @@ router.get("/search", response_model=MemorySearchResponse)(handlers.search_memor
 router.get("/stats", response_model=MemoryStatsResponse)(handlers.get_memory_stats)
 router.get("/context")(handlers.get_memory_context)
 router.get("/export", response_model=MemoryExportResponse)(handlers.export_memories)
+router.get("/export/markdown")(handlers.export_memories_markdown)
 router.get("/archive/export", response_model=MemoryArchiveExportResponse)(handlers.export_memory_archive)
 router.post("/archive/dry-run", response_model=MemoryArchiveDryRunResponse)(handlers.dry_run_memory_archive)
 router.post("/import", response_model=MemoryImportResponse)(handlers.import_memories)

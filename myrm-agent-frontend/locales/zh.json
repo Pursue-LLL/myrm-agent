@@ -6615,6 +6615,7 @@
       "task_digest": "任务的关键信息和结果摘要"
     },
     "export": "导出记忆",
+    "exportMarkdown": "导出为 Markdown（兼容 Obsidian）",
     "import": "导入记忆",
     "exportDesc": "导出全部记忆为 JSON 文件",
     "importDesc": "从 JSON 文件导入记忆",

@@ -80,6 +80,12 @@ background_steer_fail = 任务 `{ $task_id }` 未找到或已结束。
 background_started =
     后台任务已启动：`{ $task_id }`
     完成后将通知你。
+background_completed =
+    ✅ 后台任务完成："{ $title }"
+    { $result }
+background_failed =
+    ❌ 后台任务失败："{ $title }"
+    { $result }
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }

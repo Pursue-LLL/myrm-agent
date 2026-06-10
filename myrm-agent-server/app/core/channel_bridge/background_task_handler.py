@@ -129,6 +129,8 @@ class ChannelBackgroundTaskHandler:
         task.metadata["chat_id"] = chat_id
         task.metadata["user_id"] = user_id
         task.metadata["thread_id"] = msg.thread_id
+        meta = msg.metadata or {}
+        task.metadata["locale"] = meta.get("locale") or meta.get("platform_locale") or "en"
         await svc.store.save_task(task)
 
         logger.info(

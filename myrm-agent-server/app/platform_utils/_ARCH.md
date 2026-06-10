@@ -40,7 +40,7 @@
 
 **启动注入**：`app/server/lifespan.py` 在 `_phase_1b_parallel()` → `_init_checkpointer_task()` 中 `await create_checkpointer(...)`，随后调用 `app.platform_utils.set_checkpointer(checkpointer)` 写入全局单例。
 
-**读取**：业务与路由通过 `app.platform_utils.get_checkpointer()` 获取；若启动未完成初始化，则 `__init__.py` 内懒加载 **MemorySaver** 作为兜底（并打日志提示应在启动路径注入）。
+**读取**：业务与路由通过 `app.platform_utils.get_checkpointer()` 获取；若启动未完成初始化则 **raise RuntimeError**（禁止 silent MemorySaver fallback）。
 
 **`create_checkpointer()` 返回 `(checkpointer, cleanup_callback)`**：清理回调由 lifespan 持有，在应用关闭阶段释放底层连接等资源；具体分支（memory/sqlite）以 harness 内实现为准。
 
@@ -67,7 +67,7 @@ ThreadStore（线程生命周期管理）
 - **启动**：`app/server/lifespan.py::optimized_lifespan` 调度 `_init_checkpointer_task()` → `create_checkpointer()` → `set_checkpointer()`
 - **关闭**：调用 harness 返回的 cleanup 回调清理连接资源
 - **清理**：业务层通过 `cp.adelete_thread(thread_id)` 清除已删除会话的 checkpoint 数据，避免孤儿 checkpoint 持续占用存储。调用点：永久删除（`chat_crud._cleanup_checkpointer`）、清空回收站、焦点刷新、fork 回滚、Resume 失败恢复
-- **错误处理**：以 harness / lifespan 实现为准；`get_checkpointer()` 惰性 fallback 仅用于健壮性
+- **错误处理**：sqlite 模式 `create_checkpointer()` fail-fast（启动失败）；`get_checkpointer()` 未注入时 **RuntimeError**
 - **恢复容错**：如果历史 checkpoint 因序列化类签名变更等原因无法反序列化，增量 checkpointer 会记录警告并按“无历史状态”重新启动，避免单条坏数据阻断整个流式请求
 
 #### 环境变量

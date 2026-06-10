@@ -13,9 +13,20 @@
 # ============================================================================
 FROM python:3.13-slim AS builder
 
+# China mainland mirror acceleration: docker build --build-arg USE_CN_MIRROR=1
+ARG USE_CN_MIRROR
+ARG APT_MIRROR
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1
+
+RUN if [ "${USE_CN_MIRROR}" = "1" ] && [ -z "${APT_MIRROR}" ]; then \
+      APT_MIRROR="mirrors.aliyun.com"; \
+    fi; \
+    if [ -n "${APT_MIRROR}" ]; then \
+      sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
+    fi
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
@@ -33,6 +44,9 @@ ENV PATCHRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "${USE_CN_MIRROR}" = "1" ]; then \
+      export UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"; \
+    fi; \
     uv venv \
     && uv sync --frozen --no-dev --all-extras --no-install-project
 

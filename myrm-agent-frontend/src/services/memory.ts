@@ -249,6 +249,26 @@ export const exportMemories = async (): Promise<MemoryExportResponse> => {
   return apiRequest<MemoryExportResponse>('/memory/export');
 };
 
+export const exportMemoriesMarkdown = async (agentId?: string): Promise<void> => {
+  const params = new URLSearchParams();
+  if (agentId) params.append('agent_id', agentId);
+  const qs = params.toString();
+  const response = await fetch(`/api/v1/memory/export/markdown${qs ? `?${qs}` : ''}`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Export markdown failed');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const disposition = response.headers.get('Content-Disposition');
+  a.download = disposition?.match(/filename="(.+)"/)?.[1] ?? 'memories_markdown.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export interface RateMemoryResponse {
   success: boolean;
   memory_id: string;

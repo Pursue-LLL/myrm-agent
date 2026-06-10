@@ -174,21 +174,19 @@ def get_checkpointer() -> "BaseCheckpointSaver[str]":
     """获取 LangGraph checkpointer
 
     正常情况下，checkpointer 由 `app/server/lifespan.py` 在启动阶段通过 `set_checkpointer()` 注入。
-    此函数提供简单的延迟 fallback，确保即使启动时未初始化也不会崩溃。
 
     Returns:
         BaseCheckpointSaver: LangGraph checkpointer 实例
+
+    Raises:
+        RuntimeError: 启动阶段尚未调用 set_checkpointer()（编程错误，禁止 silent MemorySaver）。
     """
     global _checkpointer
     if _checkpointer is None:
-        import logging
-
-        from langgraph.checkpoint.memory import MemorySaver
-
-        logger = logging.getLogger(__name__)
-        _checkpointer = MemorySaver()
-        logger.warning("🔖 Checkpointer: MemorySaver (lazy fallback)")
-        logger.warning("   Note: Checkpointer should be initialized in app/server/lifespan startup")
+        raise RuntimeError(
+            "Checkpointer not initialized. "
+            "App startup must inject via set_checkpointer() in app/server/lifespan.py."
+        )
 
     return _checkpointer
 

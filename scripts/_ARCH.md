@@ -26,6 +26,15 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `ci/install-pre-push-hook.sh` | Unix | 安装 pre-push 架构守门钩子 |
 | `maintainer/` | — | **OSS 仓无脚本**；`generate_litellm_routing.py` 等生成器在 PyPI `myrm-agent-harness` 维护者工具链运行，前端仅提交生成产物。见 [maintainer/_ARCH.md](maintainer/_ARCH.md) |
 
+## 中国大陆网络自适应
+
+`install.sh` / `install.ps1` 内置自动检测逻辑，无需用户手动配置：
+
+1. **检测**：时区匹配 (Asia/Shanghai 等) + 探测 pypi.org 是否 3s 内可达
+2. **切换**：自动设置 `UV_DEFAULT_INDEX`（清华 PyPI）、`BUN_CONFIG_REGISTRY`（npmmirror）、`PLAYWRIGHT_DOWNLOAD_HOST`（npmmirror）
+3. **环境变量覆盖**：`MYRM_USE_CN_MIRROR=1` 强制启用 / `MYRM_NO_CN_MIRROR=1` 强制禁用 / 用户已设 `UV_DEFAULT_INDEX` 则不覆盖
+4. **Docker**：`docker build --build-arg USE_CN_MIRROR=1` 启用 APT 阿里云 + PyPI 清华
+
 ## 约束
 
 - 默认克隆到 `~/.myrm/myrm-agent`（Windows：`%USERPROFILE%\.myrm\myrm-agent`）

@@ -180,6 +180,17 @@
 
 无论是 `local` 还是 `sandbox` 模式，Server 业务层默认使用 `LocalStorageBackend`（沙箱模式下指向 Control Plane 挂载的 Volume/PVC）。主路径不依赖 S3；`aioboto3` 仅用于可选远程备份（`app/services/memory/backup_remote.py` lazy import）及沙箱存储适配，未配置 S3 时不加载。
 
+**持久化分层（Agent-in-Sandbox）**：
+
+| 层 | 存储 | 职责 |
+| --- | --- | --- |
+| LangGraph checkpoint | Volume 上 SQLite（`{MYRM_DATA_DIR}/checkpoints`） | 对话 thread 状态、工具中间态、审批 interrupt 恢复 |
+| 业务 ORM | 同 Volume SQLite（`settings.database.sqlite_path`） | Chat、Agent 配置、Cron、渠道绑定等 |
+| 向量记忆 | Qdrant embedded 或远程 URL | 语义记忆检索 |
+| 可选图存储 | `DATABASE_URL` 设置时 PostgreSQL+AGE | **仅** episodic graph 扩展，**非** LangGraph checkpoint |
+
+Checkpointer 由 harness `create_checkpointer()` 创建（`memory` 仅 dev/test；默认 `sqlite` fail-fast），经 `lifespan.py` 注入 `platform_utils.set_checkpointer()`。不支持共享 PostgreSQL checkpoint（一用户一卷模型）。
+
 ### 0.2 工业级单机并发安全 (Industrial-Grade Standalone Concurrency)
 
 针对单机环境（Sandbox/Local）中可能存在的跨进程资源竞争，系统拒绝引入 Redis 等外部锁服务，转而采用 **OS 原生文件锁 (File Locks)** 实现「精钢级」并发安全：

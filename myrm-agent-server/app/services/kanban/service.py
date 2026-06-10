@@ -135,6 +135,43 @@ def _publish_kanban_event(
     )
 
 
+_BTW_TERMINAL_EVENTS = frozenset({"task_completed", "task_failed"})
+
+
+def _emit_btw_done(event_type: str, task: KanbanTask) -> None:
+    """Publish BACKGROUND_TASK_DONE when a /btw task reaches a terminal state.
+
+    Runs synchronously inside KanbanDispatcher.emit(); the actual channel
+    delivery is handled asynchronously by BtwTaskNotifier subscribing to
+    the EventBus.
+    """
+    if event_type not in _BTW_TERMINAL_EVENTS:
+        return
+    meta = task.metadata or {}
+    if meta.get("background_source") != "btw":
+        return
+    channel = meta.get("channel")
+    chat_id = meta.get("chat_id")
+    if not channel or not chat_id:
+        return
+    get_event_bus().publish(
+        AppEvent(
+            event_type=AppEventType.BACKGROUND_TASK_DONE,
+            data={
+                "task_id": task.task_id,
+                "status": "completed" if event_type == "task_completed" else "failed",
+                "title": task.title,
+                "result": task.result or task.error or "",
+                "channel": channel,
+                "chat_id": chat_id,
+                "thread_id": meta.get("thread_id", ""),
+                "user_id": meta.get("user_id", ""),
+                "locale": meta.get("locale", "en"),
+            },
+        )
+    )
+
+
 class DependencyUnmetError(ValueError):
     """Raised when a task cannot be promoted to READY due to unmet parent dependencies."""
 
@@ -923,6 +960,7 @@ class KanbanService:
                 detail=task.result or task.blocked_reason or task.error or "",
             )
         )
+        dispatcher.on_event(_emit_btw_done)
         await dispatcher.start()
         self._dispatchers[board_id] = dispatcher
         logger.info("Started dispatcher for board %s", board_id)

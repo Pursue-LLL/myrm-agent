@@ -8,6 +8,7 @@ import {
   IconArrowUp,
   IconArrowUpDown,
   IconDownload,
+  IconFileText,
   IconInbox,
   IconLoader,
   IconPlus,
@@ -45,7 +46,7 @@ import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/useToast';
-import { exportMemories, updateMemoryStatus } from '@/services/memory';
+import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 
@@ -121,6 +122,7 @@ const MemorySection = memo(() => {
     }
   }, [searchParams]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingMd, setIsExportingMd] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -227,6 +229,22 @@ const MemorySection = memo(() => {
       });
     } finally {
       setIsExporting(false);
+    }
+  }, [t]);
+
+  const handleExportMarkdown = useCallback(async () => {
+    setIsExportingMd(true);
+    try {
+      await exportMemoriesMarkdown();
+      toast({ title: t('exportSuccess') });
+    } catch (error) {
+      toast({
+        title: t('exportFailed'),
+        description: error instanceof Error ? error.message : t('unknownError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExportingMd(false);
     }
   }, [t]);
 
@@ -451,6 +469,27 @@ const MemorySection = memo(() => {
                 <IconDownload className="w-[18px] h-[18px] text-muted-foreground" />
               )}
             </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleExportMarkdown}
+                  disabled={isExportingMd}
+                  title={t('exportMarkdown') || 'Export as Markdown'}
+                  className={cn(
+                    'p-2 rounded-lg transition-colors',
+                    'hover:bg-accent',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                  )}
+                >
+                  {isExportingMd ? (
+                    <IconLoader className="w-[18px] h-[18px] animate-spin text-muted-foreground" />
+                  ) : (
+                    <IconFileText className="w-[18px] h-[18px] text-muted-foreground" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t('exportMarkdown') || 'Export as Markdown (Obsidian-compatible)'}</TooltipContent>
+            </Tooltip>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}

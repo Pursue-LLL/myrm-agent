@@ -75,6 +75,34 @@ function Add-UserPathEntry {
     }
 }
 
+function Test-CnNetwork {
+    if ($env:MYRM_USE_CN_MIRROR -eq "1") { return $true }
+    if ($env:MYRM_NO_CN_MIRROR -eq "1") { return $false }
+    if ($env:UV_DEFAULT_INDEX) { return $false }
+    # Timezone hint
+    $tz = [System.TimeZoneInfo]::Local.Id
+    $cnZones = @("China Standard Time", "Asia/Shanghai", "Asia/Chongqing")
+    if ($cnZones -notcontains $tz) { return $false }
+    # Network probe
+    try {
+        $null = Invoke-WebRequest -Uri "https://pypi.org/simple/" -TimeoutSec 3 -UseBasicParsing -Method Head
+        return $false
+    }
+    catch {
+        return $true
+    }
+}
+
+function Set-CnMirrors {
+    $env:UV_DEFAULT_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple"
+    $env:BUN_CONFIG_REGISTRY = "https://registry.npmmirror.com"
+    $env:PLAYWRIGHT_DOWNLOAD_HOST = "https://cdn.npmmirror.com/binaries/playwright"
+    Write-Info "[CN] Detected China mainland network, using domestic mirrors"
+    Write-Info "   PyPI: pypi.tuna.tsinghua.edu.cn"
+    Write-Info "   npm:  registry.npmmirror.com"
+    Write-Info "   Browser: cdn.npmmirror.com"
+}
+
 function Install-PackageManagers {
     Write-Info "Checking uv and bun ..."
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
@@ -184,6 +212,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 Set-Location $ProjectRoot
 Ensure-ProjectRoot
 Write-Ok "Detected OS: windows"
+if (Test-CnNetwork) { Set-CnMirrors }
 Install-PackageManagers
 Setup-Backend
 if ($env:MYRM_INSTALL_SKIP_FRONTEND -ne "1") {

@@ -20,9 +20,13 @@ memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服
 
 from __future__ import annotations
 
+import io
 import logging
+import tempfile
+import zipfile
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryOperationKind, MemoryOperationStatus
 
 from app.database.connection import get_session
@@ -74,6 +78,35 @@ async def export_memories(
             data[key] = rows
     total = sum(len(entries) for entries in data.values())
     return MemoryExportResponse(version=MEMORY_EXPORT_VERSION, data=data, total_count=total)
+
+
+async def export_memories_markdown(
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+    agent_id: str | None = Query(default=None, description="Filter by agent scope"),
+) -> StreamingResponse:
+    """Export all memories as a ZIP of Markdown files with YAML frontmatter."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        counts = await manager.export_markdown(tmp_dir, agent_id=agent_id)
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            from pathlib import Path
+
+            root = Path(tmp_dir)
+            for file_path in root.rglob("*.md"):
+                arcname = str(file_path.relative_to(root))
+                zf.write(file_path, arcname)
+
+        buf.seek(0)
+        total = sum(counts.values())
+        return StreamingResponse(
+            buf,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="memories_markdown_{total}.zip"',
+                "X-Export-Count": str(total),
+            },
+        )
 
 
 async def export_memory_archive(

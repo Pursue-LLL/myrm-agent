@@ -81,6 +81,7 @@ data-viz = [
 [tool.uv]
 index-url = "https://pypi.org/simple"
 # Universal lock: harness==0.1.0rc2 + compiled-core platform wheels from PyPI registry.
+# After publishing harness 0.1.0rc3 + platform wheels, bump pin and re-lock.
 prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [

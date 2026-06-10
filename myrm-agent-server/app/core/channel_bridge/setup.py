@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 from app.config.deploy_mode import is_local_mode
 from app.core.channel_bridge import channel_gateway
 from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
+from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 from app.core.channel_bridge.channel_factory import create_all_channels
 from app.core.notifications.dispatcher import NotificationDispatcher
 
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _notification_dispatcher: NotificationDispatcher | None = None
+_btw_notifier: BtwTaskNotifier | None = None
 _background_task_handler: ChannelBackgroundTaskHandler | None = None
 
 
@@ -66,13 +68,28 @@ async def start_channel_gateway() -> None:
 
     await _restore_channel_instances()
 
+    bus = get_event_bus()
+
     global _notification_dispatcher  # noqa: PLW0603
-    _notification_dispatcher = NotificationDispatcher(get_event_bus())
+    _notification_dispatcher = NotificationDispatcher(bus)
     await _notification_dispatcher.start()
+
+    global _btw_notifier  # noqa: PLW0603
+    _btw_notifier = BtwTaskNotifier(bus)
+    await _btw_notifier.start()
 
 
 async def stop_channel_gateway() -> None:
     """Stop the Channel Gateway."""
+    global _btw_notifier  # noqa: PLW0603
+    if _btw_notifier:
+        try:
+            await _btw_notifier.stop()
+        except Exception as e:
+            logger.warning("Failed to stop btw notifier: %s", e)
+        finally:
+            _btw_notifier = None
+
     global _notification_dispatcher  # noqa: PLW0603
     if _notification_dispatcher:
         try:
