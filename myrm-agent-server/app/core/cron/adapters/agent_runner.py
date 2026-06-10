@@ -418,10 +418,13 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
     try:
         from app.services.chat.chat_service import ChatService
 
-        return await ChatService.load_web_chat_history(
+        history = await ChatService.load_web_chat_history(
             chat_id=job.chat_id,
             max_messages=30,
         )
+        if history:
+            logger.debug("Cron job %s: loaded %d history entries from chat %s", job.id, len(history), job.chat_id)
+        return history
     except Exception:
         logger.warning("Cron job %s: failed to load thread history for chat %s", job.id, job.chat_id)
         return None
