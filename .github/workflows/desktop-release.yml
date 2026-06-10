@@ -257,3 +257,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Trigger marketing site deploy (website-v* tag + CF hook)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          DESKTOP_TAG: ${{ github.ref_name }}
+          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
+          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+        run: bash scripts/ci/desktop-release/trigger-website-release.sh

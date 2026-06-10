@@ -49,7 +49,7 @@
           "German"
         ],
         "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.png",
+        "installerIcon": "icons/icon.ico",
         "installMode": "perMachine"
       }
     },
