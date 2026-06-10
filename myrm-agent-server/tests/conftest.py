@@ -60,6 +60,22 @@ def _cleanup_temp_workspace() -> None:
 atexit.register(_cleanup_temp_workspace)
 
 
+def _cleanup_browser_child_processes() -> None:
+    try:
+        from myrm_agent_harness.testing.browser_process_cleanup import terminate_browser_processes_in_tree
+
+        terminate_browser_processes_in_tree(os.getpid())
+    except Exception as exc:
+        _logger.warning("Failed to cleanup browser child processes: %s", exc)
+
+
+atexit.register(_cleanup_browser_child_processes)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    _cleanup_browser_child_processes()
+
+
 @pytest.fixture(scope="session")
 def test_secrets():
     """Session-scoped [T] secrets fixture for new tests."""

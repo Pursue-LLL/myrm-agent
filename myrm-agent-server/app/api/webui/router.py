@@ -406,6 +406,36 @@ async def get_browser_snapshot() -> JSONResponse:
         )
 
 
+@router.get("/desktop/permissions")
+async def get_desktop_permissions() -> JSONResponse:
+    """Probe OS-level permissions required for desktop CU (Accessibility, Screen Recording).
+
+    Returns per-capability booleans, platform name, and deep-link URLs
+    to the OS settings page where the user can grant access.
+    Does NOT require an active desktop session — creates a temporary backend probe.
+    """
+    try:
+        from myrm_agent_harness.toolkits.computer_use.session import create_computer_session
+
+        session = create_computer_session()
+        status = await session.check_permissions()
+        return JSONResponse(
+            content={
+                "accessibility": status.accessibility,
+                "screen_recording": status.screen_recording,
+                "all_granted": status.all_granted,
+                "platform": status.platform,
+                "settings_deeplinks": status.settings_deeplinks,
+            }
+        )
+    except Exception as e:
+        logger.error("Desktop permissions check failed: %s", e, exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "permissions_check_failed", "message": str(e)},
+        )
+
+
 @router.get("/desktop/snapshot")
 async def get_desktop_snapshot() -> JSONResponse:
     """Get the latest desktop snapshot for the Desktop Inspector panel."""

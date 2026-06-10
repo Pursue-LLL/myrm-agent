@@ -25,3 +25,12 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 - SSE: `desktop_view_update` via `messageStreamHandler.ts`
 - REST refresh: `GET /webui/desktop/snapshot` on `desktop_*` TOOL_END
+- REST: `GET /webui/desktop/permissions` — proactive TCC permission probe (Accessibility + Screen Recording)
+
+## Permission Guidance
+
+When `viewData.needsPermission` is true, `DesktopLiveView` renders an enhanced `PermissionBanner` that:
+1. Calls `/webui/desktop/permissions` to distinguish Accessibility vs Screen Recording failure
+2. Shows per-capability status messages (i18n: `desktopInspector.permissionDenied*`)
+3. Offers an "Open System Settings" button using `@tauri-apps/plugin-shell` deep links (macOS `x-apple.systempreferences:` URLs), falling back to Apple support page
+4. Provides a "Check again" button to re-probe without page reload

@@ -2,13 +2,90 @@
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Monitor } from 'lucide-react';
+import { Monitor, ExternalLink, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { ElementOverlay } from '@/components/features/browser-inspector';
+import { apiRequest } from '@/lib/api';
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
+
+interface PermissionsResponse {
+  accessibility: boolean;
+  screen_recording: boolean;
+  all_granted: boolean;
+  platform: string;
+  settings_deeplinks: Record<string, string>;
+}
+
+function openDeepLink(url: string) {
+  import('@tauri-apps/plugin-shell')
+    .then((mod) => mod.open(url))
+    .catch(() => {
+      window.open(
+        'https://support.apple.com/guide/mac-help/allow-accessibility-apps-to-access-your-mac-mh43185/mac',
+        '_blank',
+      );
+    });
+}
+
+const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
+  const [details, setDetails] = useState<PermissionsResponse | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const fetchPermissions = useCallback(async () => {
+    setChecking(true);
+    try {
+      const data = await apiRequest<PermissionsResponse>('/webui/desktop/permissions', {
+        silent: true,
+      });
+      setDetails(data);
+    } catch {
+      // API unavailable — keep showing generic banner
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPermissions();
+  }, [fetchPermissions]);
+
+  const missingParts: string[] = [];
+  if (details && !details.accessibility) missingParts.push(t('permissionDeniedAccessibility'));
+  if (details && !details.screen_recording) missingParts.push(t('permissionDeniedScreenRecording'));
+  const message = missingParts.length > 0 ? missingParts.join(' ') : t('permissionDenied');
+
+  return (
+    <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/20 flex items-center gap-2 flex-wrap">
+      <span className="flex-1 min-w-0">{message}</span>
+      {details?.settings_deeplinks && (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+          onClick={() => {
+            const link =
+              details.settings_deeplinks.accessibility || details.settings_deeplinks.screen_recording;
+            if (link) openDeepLink(link);
+          }}
+        >
+          <ExternalLink className="w-3 h-3" />
+          {t('permissionOpenSettings')}
+        </button>
+      )}
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-destructive/20 hover:bg-destructive/30 text-destructive font-medium transition-colors whitespace-nowrap"
+        onClick={fetchPermissions}
+        disabled={checking}
+      >
+        <RefreshCw className={cn('w-3 h-3', checking && 'animate-spin')} />
+        {t('permissionCheckAgain')}
+      </button>
+    </div>
+  );
+};
 
 interface DesktopLiveViewProps {
   onSendInstruction: (instruction: string, refId: string | null) => void;
@@ -152,9 +229,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
         />
 
         {viewData?.needsPermission && (
-          <div className="px-3 py-2 text-xs bg-destructive/10 text-destructive border-b border-destructive/20">
-            {t('permissionDenied')}
-          </div>
+          <PermissionBanner t={t} />
         )}
 
         <div
