@@ -51,7 +51,7 @@ checksum_ok=0
 while IFS= read -r asset; do
   [[ -n "$asset" ]] || continue
   case "$asset" in
-    *.dmg|*.exe|*.msi|*.AppImage|*.deb)
+    *.dmg|*.exe|*.msi|*.AppImage|*.AppImage.tar.gz|*.deb)
       if require_asset "${asset}.sha256"; then
         checksum_ok=1
       fi
