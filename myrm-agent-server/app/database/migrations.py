@@ -581,6 +581,9 @@ INDEX_STATEMENTS = [
     # Kanban edge indexes
     "CREATE INDEX IF NOT EXISTS idx_kanban_edges_parent ON kanban_task_edges(parent_task_id)",
     "CREATE INDEX IF NOT EXISTS idx_kanban_edges_child ON kanban_task_edges(child_task_id)",
+    # Kanban GC acceleration indexes (composite for time-range queries on events/runs)
+    "CREATE INDEX IF NOT EXISTS ix_kanban_events_task_created ON kanban_task_events(task_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS ix_kanban_runs_task_started ON kanban_task_runs(task_id, started_at)",
     # Calendar indexes
     "CREATE INDEX IF NOT EXISTS idx_calendar_events_start_at ON calendar_events(start_at)",
     "CREATE INDEX IF NOT EXISTS idx_calendar_events_agent_id ON calendar_events(agent_id)",

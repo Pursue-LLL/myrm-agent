@@ -36,10 +36,11 @@ pick_platform_asset() {
   local candidates=()
   case "$tauri_key" in
     darwin-aarch64)
-      candidates=(*aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz)
+      # Tauri macOS updater bundle is often MyrmAgent.app.tar.gz (no arch in filename).
+      candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz *.app.tar.gz)
       ;;
     darwin-x86_64)
-      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
+      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz *.app.tar.gz)
       ;;
     windows-x86_64)
       candidates=(*x86_64*.msi *x64*.msi *setup*.exe *x86_64*.exe)

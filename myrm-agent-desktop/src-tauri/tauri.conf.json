@@ -40,7 +40,14 @@
       "timestampUrl": "http://timestamp.digicert.com",
       "tsp": false,
       "nsis": {
-        "languages": ["English", "SimpChinese", "TradChinese", "Japanese", "Korean", "German"],
+        "languages": [
+          "English",
+          "SimpChinese",
+          "TradChinese",
+          "Japanese",
+          "Korean",
+          "German"
+        ],
         "displayLanguageSelector": true,
         "installerIcon": "icons/icon.png",
         "installMode": "perMachine"
@@ -70,7 +77,15 @@
     "security": {
       "csp": null,
       "assetProtocol": {
-        "scope": ["$HOME/**", "$APPDATA/**", "$LOCALAPPDATA/**", "$DOCUMENT/**", "$DOWNLOAD/**", "$PICTURE/**", "$DESKTOP/**"]
+        "scope": [
+          "$HOME/**",
+          "$APPDATA/**",
+          "$LOCALAPPDATA/**",
+          "$DOCUMENT/**",
+          "$DOWNLOAD/**",
+          "$PICTURE/**",
+          "$DESKTOP/**"
+        ]
       }
     }
   },
@@ -86,7 +101,9 @@
       }
     },
     "fs": {
-      "scope": ["$HOME/**"]
+      "scope": [
+        "$HOME/**"
+      ]
     },
     "updater": {
       "endpoints": [

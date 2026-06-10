@@ -5,43 +5,6 @@ use tauri::State;
 use crate::cli_agent_types::PermissionMode;
 use super::{ensure_sidecar_ready, AgentSystemState};
 
-// ============================================================================
-// OS 系统权限探针（macOS Accessibility / Screen Recording）
-// ============================================================================
-
-/// 检测 macOS Accessibility 权限是否已授予。
-/// Windows/Linux 始终返回 true（无此限制）。
-#[tauri::command]
-pub async fn check_accessibility_permission() -> Result<bool, String> {
-    #[cfg(target_os = "macos")]
-    {
-        Ok(macos_accessibility_trusted())
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        Ok(true)
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn macos_accessibility_trusted() -> bool {
-    use std::process::Command;
-    // Use osascript to probe AX access — same technique as appshot.rs
-    let result = Command::new("osascript")
-        .args(["-e", r#"tell application "System Events" to get name of first application process whose frontmost is true"#])
-        .output();
-    match result {
-        Ok(output) => {
-            if output.status.success() {
-                return true;
-            }
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            !(stderr.contains("不允许辅助访问") || stderr.to_lowercase().contains("not allowed assistive"))
-        }
-        Err(_) => false,
-    }
-}
-
 #[tauri::command]
 pub async fn respond_agent_permission(
     state: State<'_, AgentSystemState>,

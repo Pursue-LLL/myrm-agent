@@ -343,6 +343,14 @@ async def _db_maintenance_job() -> None:
     except Exception as e:
         logger.warning("Chat trash auto-purge failed: %s", e)
 
+    # Kanban data GC: clean old events/runs/workspaces for terminal tasks
+    try:
+        from app.services.kanban.gc import KanbanGCService
+
+        await KanbanGCService().run_gc()
+    except Exception as e:
+        logger.warning("Kanban data GC failed: %s", e)
+
 
 async def _incognito_cleanup_job() -> None:
     """Incognito chat auto-purge: permanently delete incognito chats older than 1 hour"""

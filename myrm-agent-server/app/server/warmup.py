@@ -290,6 +290,24 @@ async def run_async_warmup() -> None:
     except Exception as e:
         logger.warning("Task worker startup skipped in warmup: %s", e)
 
+    async def _kanban_gc_warmup() -> None:
+        """Run initial kanban GC to clean up data accumulated while offline."""
+        try:
+            from app.services.kanban.gc import KanbanGCService
+
+            stats = await KanbanGCService().run_gc()
+            if stats.events_deleted or stats.runs_deleted or stats.workspaces_deleted:
+                logger.info(
+                    "[Startup] Kanban GC: %d events, %d runs, %d workspaces cleaned",
+                    stats.events_deleted,
+                    stats.runs_deleted,
+                    stats.workspaces_deleted,
+                )
+        except Exception as exc:
+            logger.warning("[Startup] Kanban GC warmup failed: %s", exc)
+
+    warmup_tasks.append(_kanban_gc_warmup())
+
     results = await asyncio.gather(*warmup_tasks, return_exceptions=True)
 
     for i, result in enumerate(results):

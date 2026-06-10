@@ -307,7 +307,6 @@ fn main() {
             get_permission_mode,
             set_permission_mode,
             cycle_permission_mode,
-            check_accessibility_permission,
             power_lock_acquire,
             power_lock_release,
             power_lock_status,
