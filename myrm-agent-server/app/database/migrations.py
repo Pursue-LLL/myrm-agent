@@ -481,6 +481,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN is_incognito BOOLEAN DEFAULT 0 NOT NULL;",
     # Project workspace path for multi-agent collaboration
     "ALTER TABLE projects ADD COLUMN workspace_path VARCHAR(1024)",
+    # Sandbox worktree: stores original workspace path when sandbox is active
+    "ALTER TABLE chats ADD COLUMN sandbox_base_dir VARCHAR(1024)",
 ]
 
 # 创建索引的SQL语句列表

@@ -339,7 +339,7 @@ class _ChatCrudMixin(_ChatServiceBase):
         """Clear LangGraph checkpointer state for a chat session.
 
         Uses the standard ``adelete_thread`` API provided by all LangGraph
-        checkpointer backends (MemorySaver, AsyncSqliteSaver, AsyncPostgresSaver).
+        checkpointer backends (MemorySaver, AsyncSqliteSaver).
         Idempotent: deleting a non-existent thread is a no-op.
         """
         try:

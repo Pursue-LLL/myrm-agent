@@ -23,8 +23,14 @@ from myrm_agent_harness.toolkits.context.health import (
     HealthProbe,
     MemorySceneHealthBackend,
     StaticSceneHealthBackend,
-    WorkspaceSceneHealthBackend,
 )
+
+try:
+    from myrm_agent_harness.toolkits.context.health import WorkspaceSceneHealthBackend
+except ImportError:
+    from myrm_agent_harness.toolkits.context.health import (
+        LocalFileSearchSceneHealthBackend as WorkspaceSceneHealthBackend,
+    )
 
 from app.config.deploy_mode import get_deploy_mode, get_storage_mode
 from app.config.settings import settings

@@ -26,11 +26,32 @@ from typing import TYPE_CHECKING
 from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from myrm_agent_harness.toolkits.browser.pool.browser_launcher import BrowserInstance
-from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
-    ExtensionBridgeNotAvailable,
-    ExtensionStatus,
-    ExtensionTab,
-)
+
+try:
+    from myrm_agent_harness.toolkits.browser.pool.extension_bridge import (
+        ExtensionBridgeNotAvailable,
+        ExtensionStatus,
+        ExtensionTab,
+    )
+except ImportError:
+    from dataclasses import dataclass, field
+
+    class ExtensionBridgeNotAvailable(Exception):
+        pass
+
+    @dataclass
+    class ExtensionTab:
+        tab_id: int = 0
+        url: str = ""
+        title: str = ""
+        active: bool = False
+
+    @dataclass
+    class ExtensionStatus:
+        connected: bool = False
+        authorized_domains: list[str] = field(default_factory=list)
+        tabs: list[ExtensionTab] = field(default_factory=list)
+        version: str = ""
 
 if TYPE_CHECKING:
     from patchright.async_api import Browser, Playwright

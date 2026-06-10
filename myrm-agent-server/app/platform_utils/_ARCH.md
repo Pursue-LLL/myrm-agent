@@ -36,18 +36,18 @@
 
 ### LangGraph Checkpointer（创建与注入）
 
-**创建**由框架包 `myrm_agent_harness.runtime.checkpointing.factory.create_checkpointer()` 完成（按 `settings.database.checkpointer_mode`、`sqlite_db_path`、`database_url`、`deploy_mode` 等参数）。
+**创建**由框架包 `myrm_agent_harness.runtime.checkpointing.factory.create_checkpointer()` 完成（按 `settings.database.checkpointer_mode`、`sqlite_db_path`、`deploy_mode` 等参数）。
 
 **启动注入**：`app/server/lifespan.py` 在 `_phase_1b_parallel()` → `_init_checkpointer_task()` 中 `await create_checkpointer(...)`，随后调用 `app.platform_utils.set_checkpointer(checkpointer)` 写入全局单例。
 
 **读取**：业务与路由通过 `app.platform_utils.get_checkpointer()` 获取；若启动未完成初始化，则 `__init__.py` 内懒加载 **MemorySaver** 作为兜底（并打日志提示应在启动路径注入）。
 
-**`create_checkpointer()` 返回 `(checkpointer, cleanup_callback)`**：清理回调由 lifespan 持有，在应用关闭阶段释放底层连接等资源；具体分支（memory/sqlite/postgres）以 harness 内实现为准。
+**`create_checkpointer()` 返回 `(checkpointer, cleanup_callback)`**：清理回调由 lifespan 持有，在应用关闭阶段释放底层连接等资源；具体分支（memory/sqlite）以 harness 内实现为准。
 
 #### 存储层结构（概念）
 
 ```
-LangGraph 官方 Saver (AsyncSqliteSaver/AsyncPostgresSaver)
+LangGraph 官方 Saver (AsyncSqliteSaver)
   ├─ 对话状态持久化（checkpoints 表）
   └─ 由 LangGraph 框架自动调用（每步自动保存/恢复）
 
@@ -74,10 +74,10 @@ ThreadStore（线程生命周期管理）
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `CHECKPOINTER_MODE` | (空) | 强制指定模式：`memory`/`sqlite`/`postgres` |
+| `CHECKPOINTER_MODE` | (空) | 强制指定模式：`memory`/`sqlite`（空 = sqlite） |
 | `DEPLOY_MODE` | `local` | 部署模式：`local`/`tauri`/`sandbox` |
 | `MYRM_DATA_DIR` | `~/.myrm` | 数据根目录；`data.db` / `checkpoints.db` / `qdrant` / `.estop_state.json` 等由此派生 |
-| `DATABASE_URL` | (无) | PostgreSQL 连接串（仅 `CHECKPOINTER_MODE=postgres` 时使用） |
+| `DATABASE_URL` | (无) | 可选：PostgreSQL + AGE 图存储（默认 SQLite 图存储） |
 
 ---
 

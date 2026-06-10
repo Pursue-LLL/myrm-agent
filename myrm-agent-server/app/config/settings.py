@@ -351,11 +351,10 @@ class DatabaseSettings(BaseSettings):
     sqlite_pool_size: int = 5  # SQLITE_POOL_SIZE
     sqlite_busy_timeout_ms: int = 3000  # SQLITE_BUSY_TIMEOUT_MS
     database_echo: bool = False  # DATABASE_ECHO
-    database_url: str = ""  # DATABASE_URL (postgres checkpointer)
+    database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
     qdrant_url: str = ""  # QDRANT_URL (remote vector store)
     qdrant_api_key: SecretStr = SecretStr("")  # QDRANT_API_KEY
-    checkpointer_mode: str = ""  # CHECKPOINTER_MODE (sqlite|postgres)
-    postgres_transient_retry_after_seconds: int = 3  # POSTGRES_TRANSIENT_RETRY_AFTER_SECONDS
+    checkpointer_mode: str = ""  # CHECKPOINTER_MODE (memory|sqlite; empty = sqlite)
 
     @staticmethod
     def _resolve(current: str, base: Path, default_subdir: str) -> str:
@@ -387,11 +386,6 @@ class DatabaseSettings(BaseSettings):
     @classmethod
     def _clamp_busy_timeout(cls, v: int) -> int:
         return max(0, min(60000, v))
-
-    @field_validator("postgres_transient_retry_after_seconds")
-    @classmethod
-    def _clamp_retry(cls, v: int) -> int:
-        return max(1, min(60, v))
 
 
 # ---------------------------------------------------------------------------
@@ -590,8 +584,6 @@ class AppSettings(BaseSettings):
             missing.append("SANDBOX_API_KEY")
         if not self.config_encryption_key.get_secret_value():
             missing.append("CONFIG_ENCRYPTION_KEY")
-        if self.database.checkpointer_mode.lower() == "postgres" and not self.database.database_url:
-            missing.append("DATABASE_URL (required by CHECKPOINTER_MODE=postgres)")
         if missing:
             raise RuntimeError(f"Sandbox mode requires: {', '.join(missing)}")
 

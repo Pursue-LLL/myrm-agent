@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | deploy.py | 核心 | 统一部署入口（tauri/sandbox/docker 三模式） | ✅ |
-| deploy_pkg/ | 核心 | 部署子包：actions/checks/constants/docker_core/modes/postgres/utils | ✅ |
+| deploy_pkg/ | 核心 | 部署子包：actions/checks/constants/docker_core/modes/utils | ✅ |
 | cli.py | 核心 | Myrm CLI 配置管理工具（config validate 等） | ✅ |
 | check_fractal_docs.py | 门禁 | 分形文档合规（`app/**` 目录 `_ARCH.md`；`--strict-headers` + baseline；`--no-stub` 守卫 `api/` 与 `channels/providers/`） | ✅ |
 | check_file_line_budget.py | 门禁 | 禁止新增超过 400 行的 Python 模块（`scripts/ci/file_line_budget_baseline.txt` grandfather 存量） | ✅ |

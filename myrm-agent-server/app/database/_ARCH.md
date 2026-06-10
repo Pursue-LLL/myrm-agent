@@ -24,16 +24,13 @@
 | `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` param per protocol. Provides load/save/remove operations with UUID primary keys |
 | `standard_responses.py` | ✅ 辅助 | 标准化响应模型；业务码含 `DB_STORAGE_BUSY`（51005）、`DB_TRANSIENT_RETRY`（51006）等 |
 | `sqlite_storage_busy.py` | ✅ 辅助 | 识别 SQLite 忙/锁异常；`sqlite_busy_retry_after_seconds()` 基于 `get_sqlite_busy_timeout_ms()` |
-| `postgres_transient.py` | ⚠️ 可选 | PostgreSQL / asyncpg 瞬时失败检测（仅 CHECKPOINTER_MODE=postgres 时使用）；`postgres_transient_retry_after_seconds()` |
-| `db_operational_handlers.py` | ✅ 辅助 | `register_database_operational_handlers(app)`：`sqlite3` 与 SQLAlchemy `OperationalError` → SQLite 忙 **503/51005**、PG 瞬时 **503/51006**、其余 **500/51002** |
+| `db_operational_handlers.py` | ✅ 辅助 | `register_database_operational_handlers(app)`：`sqlite3` 与 SQLAlchemy `OperationalError` → SQLite 忙 **503/51005**、其余 **500/51002** |
 
 ---
 
 ## Sandbox 模式
 
 - 所有部署模式统一使用 SQLite（存储在沙箱持久化卷 `/persistent/data/myrm.db`）。
-- `postgres_transient.py` 仅在 `CHECKPOINTER_MODE=postgres` 时被 LangGraph checkpointer 使用。
-- SQLSTATE 白名单与可选 asyncpg 异常类型见 `postgres_transient.py`。
 
 ---
 

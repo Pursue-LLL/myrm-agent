@@ -244,34 +244,10 @@ class TestSandboxValidation:
         with pytest.raises(RuntimeError, match="CONFIG_ENCRYPTION_KEY"):
             s.validate_for_sandbox()
 
-    def test_missing_database_url_for_postgres(self) -> None:
-        from pydantic import SecretStr as _SecretStr
-
-        s = AppSettings(
-            sandbox_api_key=_SecretStr("test"),
-            config_encryption_key=_SecretStr("test"),
-            database=DatabaseSettings(checkpointer_mode="postgres", database_url=""),
-        )
-        with pytest.raises(RuntimeError, match="DATABASE_URL"):
-            s.validate_for_sandbox()
-
     def test_all_present_passes(self) -> None:
         s = _make_settings(
             SANDBOX_API_KEY="test-key",
             CONFIG_ENCRYPTION_KEY="test-enc",
-        )
-        s.validate_for_sandbox()
-
-    def test_postgres_with_url_passes(self) -> None:
-        from pydantic import SecretStr as _SecretStr
-
-        s = AppSettings(
-            sandbox_api_key=_SecretStr("test"),
-            config_encryption_key=_SecretStr("test"),
-            database=DatabaseSettings(
-                checkpointer_mode="postgres",
-                database_url="postgresql://localhost/test",
-            ),
         )
         s.validate_for_sandbox()
 

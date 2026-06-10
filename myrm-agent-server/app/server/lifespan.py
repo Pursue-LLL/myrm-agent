@@ -288,7 +288,6 @@ async def _phase_1b_parallel() -> None:
         checkpointer, _checkpointer_cleanup = await create_checkpointer(
             mode=settings.database.checkpointer_mode,
             sqlite_db_path=settings.database.sqlite_db_path,
-            postgres_url=settings.database.database_url,
             deploy_mode=get_deploy_mode().value,
         )
         set_checkpointer(checkpointer)

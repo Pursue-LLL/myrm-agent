@@ -15,7 +15,9 @@
       "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend"
     },
     "icon": [
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.ico",
+      "icons/icon.icns"
     ],
     "externalBin": [
       "binaries/myrmagent-backend",
