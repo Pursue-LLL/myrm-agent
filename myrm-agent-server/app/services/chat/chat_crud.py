@@ -250,15 +250,26 @@ class _ChatCrudMixin(_ChatServiceBase):
     @staticmethod
     async def permanently_delete_chat(chat_id: str) -> bool:
         """Permanently delete a trashed chat and its workspace."""
+        sandbox_base_dir: str | None = None
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
             sess = uow.session
             assert sess is not None
+            chat = await repo.get_chat_by_id(chat_id, load_messages=False)
+            if chat:
+                sandbox_base_dir = chat.sandbox_base_dir
             await ConversationRecallIndexService.delete_chat(sess, chat_id)
             ok = await repo.permanently_delete_chat(chat_id)
 
         if ok:
             await _ChatCrudMixin._cleanup_checkpointer(chat_id)
+            if sandbox_base_dir:
+                try:
+                    from app.services.chat.sandbox_worktree import cleanup_sandbox_worktree
+
+                    await cleanup_sandbox_worktree(sandbox_base_dir, chat_id)
+                except Exception as e:
+                    logger.warning("Sandbox worktree cleanup failed (chat=%s): %s", chat_id, e)
             try:
                 from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
 
@@ -299,6 +310,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             repo = _ChatServiceBase._cr(uow)
             trashed, _ = await repo.get_trashed_chats_paginated(0, 10000)
             chat_ids = [c.id for c in trashed]
+            sandbox_map = {c.id: c.sandbox_base_dir for c in trashed if c.sandbox_base_dir}
             sess = uow.session
             assert sess is not None
             for cid in chat_ids:
@@ -307,6 +319,13 @@ class _ChatCrudMixin(_ChatServiceBase):
 
         for cid in chat_ids:
             await _ChatCrudMixin._cleanup_checkpointer(cid)
+            if cid in sandbox_map:
+                try:
+                    from app.services.chat.sandbox_worktree import cleanup_sandbox_worktree
+
+                    await cleanup_sandbox_worktree(sandbox_map[cid], cid)
+                except Exception as e:
+                    logger.warning("Sandbox worktree cleanup failed during empty_trash (chat=%s): %s", cid, e)
             try:
                 from app.services.infra.sandbox_cleanup import cleanup_chat_workspace
 

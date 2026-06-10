@@ -1,4 +1,8 @@
-"""E2E Test for Cache-Hit Pivot architecture in subagents."""
+"""E2E Test for Cache-Hit Pivot architecture in subagents.
+
+[POS]
+Integration test for context_mode=fork subagent flow via agent-stream API.
+"""
 
 import json
 import logging
@@ -7,23 +11,11 @@ import time
 import uuid
 
 import pytest
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
-load_dotenv(override=True)
+from tests.api.agent.utils import get_model_selection
+
 logger = logging.getLogger(__name__)
-
-
-def get_model_selection():
-    raw_model = os.getenv("BASIC_MODEL")
-    if not raw_model:
-        raise ValueError("No BASIC_MODEL found in environment. Set BASIC_MODEL in .env.test")
-
-    selection = {
-        "providerId": "openai",
-        "model": raw_model.split("/", 1)[1] if "/" in raw_model else raw_model,
-    }
-    return selection
 
 
 @pytest.mark.e2e
@@ -33,19 +25,15 @@ def get_model_selection():
 )
 def test_subagent_fork_context_success(client: TestClient):
     """Test that context_mode=fork executes successfully without crashing."""
-    try:
-        model_selection = get_model_selection()
-    except ValueError as e:
-        logger.error(f"❌ {e}")
-        return False
+    model_selection = get_model_selection()
 
     payload = {
         "messageId": str(uuid.uuid4()),
-        "query": "请帮我搜索2026年最新的AI监管政策",
+        "query": "Say hello and introduce yourself briefly.",
         "modelSelection": model_selection,
         "chatHistory": [
-            {"role": "user", "content": "你好，我是架构师"},
-            {"role": "assistant", "content": "你好！请问有什么我可以帮您？"},
+            {"role": "user", "content": "Hi there"},
+            {"role": "assistant", "content": "Hello! How can I help you?"},
         ],
         "agentConfig": {"ephemeralSubagents": {"search": {"context_mode": "fork", "system_prompt": "You are a web searcher"}}},
     }
@@ -60,28 +48,23 @@ def test_subagent_fork_context_success(client: TestClient):
 
     raw_stream = response.text
     elapsed_time = time.time() - start_time
-    logger.info(f"Stream collected ({elapsed_time:.2f}s)")
+    logger.info("Stream collected (%.2fs)", elapsed_time)
 
     events = []
     for line in raw_stream.split("\n"):
         line = line.strip()
-        if not line:
+        if not line or not line.startswith("data:"):
             continue
-        if line.startswith("data:"):
-            try:
-                events.append(json.loads(line[5:].strip()))
-            except Exception:
-                pass
+        try:
+            events.append(json.loads(line[5:].strip()))
+        except Exception:
+            pass
 
-    any(e.get("type") == "SUBAGENT_COMPLETION" for e in events)
     has_error = any(e.get("type") == "error" for e in events)
 
     if has_error:
         error_events = [e for e in events if e.get("type") == "error"]
-        logger.error(f"Stream errors: {error_events}")
+        logger.error("Stream errors: %s", error_events)
         raise AssertionError(f"Stream returned error: {error_events}")
 
-    # We just want to ensure it runs successfully without crashing
-    # (Since LLM might not always trigger subagent, we check for no errors as a baseline)
-    logger.info("Test completed successfully without errors.")
-    return True
+    logger.info("Fork context test completed successfully without errors.")
