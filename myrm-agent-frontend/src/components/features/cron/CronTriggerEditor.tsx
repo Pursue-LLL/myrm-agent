@@ -81,7 +81,7 @@ function WebhookDisplay({ path, secret }: { path?: string | null; secret?: strin
       {!loading && isLocalhost && (
         <div className="text-[10px] text-amber-500 italic mt-0.5 leading-relaxed">
           {t('triggerLocalhostWarning')}{' '}
-          <Link href="/settings/system#public-access" className="underline font-medium not-italic hover:text-amber-400">
+          <Link href="/settings/system#public-ingress" className="underline font-medium not-italic hover:text-amber-400">
             {t('triggerOpenSystemSettings')}
           </Link>
         </div>

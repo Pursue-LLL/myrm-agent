@@ -2513,8 +2513,8 @@
         "guide": {
           "title": "Which should I use?",
           "lanFirst": "Phone or colleagues on the same Wi‑Fi or office LAN → use the LAN URL below. No tunnel, no trycloudflare link.",
-          "tunnelWhen": "Away from home, on cellular, or a different network → expand Public access for Quick Tunnel or a stable domain.",
-          "outboundOnly": "Your channels use outbound long connections — no public Ingress needed. Use LAN access below; enable the tunnel only when you need WebUI from the public internet."
+          "publicIngressRequired": "Inbound channels or cron webhooks are configured → set Public Ingress below (see docs for tunnel tools).",
+          "publicIngressOptional": "Remote WebUI from cellular or inbound channels → run your tunnel tool, then paste the HTTPS URL below."
         },
         "lan": {
           "title": "LAN access",
@@ -2525,38 +2525,13 @@
           "webDevHint": "For dev run bun run dev:lan, save remote access below, then restart the frontend.",
           "tauriEnableRemote": "If your phone cannot connect, enable remote access below, save, and restart the app."
         },
-        "tunnel": {
-          "sectionTitle": "Public access (different network)",
-          "sectionCollapsed": "Expand when not on the same LAN",
-          "whenNeeded": "Only needed when the visitor is not on your LAN. On the same network use the LAN URL above.",
-          "title": "Quick Tunnel",
-          "description": "Temporary public URL via Cloudflare (changes each restart).",
-          "startButton": "Start tunnel",
-          "stopButton": "Stop tunnel",
-          "startingButton": "Starting...",
-          "runningButton": "Running",
-          "starting": "Allocating tunnel URL...",
-          "stopped": "Tunnel stopped",
-          "publicLink": "Your public URL:",
-          "scanHint": "Scan to open on your phone",
-          "qrAlt": "Tunnel QR code",
-          "passwordRequired": "Enable password protection before starting a public tunnel.",
-          "cloudflaredMissing": "cloudflared not found. Update the Tauri app, or set CLOUDFLARED_PATH and restart the backend for dev.",
-          "corpNetworkTitle": "Corporate networks often block Quick Tunnel",
-          "corpNetworkHint": "trycloudflare.com is frequently blocked by enterprise firewalls (timeout or connection failed). Use the LAN URL below on the same office Wi‑Fi/VPN instead.",
-          "corpNetworkSteps": "For local dev run bun run dev:lan (binds 0.0.0.0), then open the LAN URL on your phone. On Tauri desktop enable remote access in System settings and restart."
-        },
-        "stableDomain": {
-          "title": "Stable domain (your hostname)",
-          "description": "Use your own domain for webhooks and long-lived public access. Do not use Quick Tunnel for this.",
-          "step1": "Create a Cloudflare Named Tunnel (or reverse proxy) pointing to your WebUI port.",
-          "step2": "Enter https://your.domain below in Public Ingress.",
-          "step3": "Run the connectivity test, then configure channels."
-        },
         "ingress": {
-          "title": "Public Ingress (Webhooks & Callbacks)",
-          "description": "Base URL for channel webhooks and OAuth callbacks. When a tunnel is active, this field is synced automatically.",
-          "syncedFromTunnel": "Synced from active tunnel.",
+          "title": "Public Ingress (Remote WebUI & Webhooks)",
+          "description": "HTTPS base URL for webhooks, OAuth callbacks, and remote WebUI access. Use your own tunnel tool, then paste the URL here.",
+          "requiredBadge": "Required",
+          "docsHint": "Not sure which tunnel to use?",
+          "docsLink": "Read the tunnel guide",
+          "passwordRequired": "Enable WebUI password protection before exposing a public URL.",
           "testButton": "Test connectivity",
           "testing": "Testing...",
           "testSuccess": "Public ingress is reachable.",
@@ -7645,7 +7620,7 @@
     "triggerWebhookPath": "Path",
     "triggerWebhookSecret": "Secret",
     "triggerWebhookUrl": "URL",
-    "triggerLocalhostWarning": "This webhook uses a local address. External schedulers cannot reach it until you enable a public tunnel or set Public Ingress.",
+    "triggerLocalhostWarning": "This webhook uses a local address. External schedulers cannot reach it until you configure Public Ingress (see Settings → System or /guides/tunnel).",
     "triggerOpenSystemSettings": "Open System Settings",
     "triggerWebhookCurl": "cURL Example",
     "triggerWebhookAdd": "Add Webhook",

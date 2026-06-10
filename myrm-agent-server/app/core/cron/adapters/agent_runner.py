@@ -416,9 +416,9 @@ async def _load_thread_history(job: CronJob) -> list[list[str | object]] | None:
     if job.session_target != SessionTarget.MAIN or not job.chat_id:
         return None
     try:
-        from app.services.chat.chat_history import _ChatHistoryMixin
+        from app.services.chat.chat_service import ChatService
 
-        return await _ChatHistoryMixin.load_web_chat_history(
+        return await ChatService.load_web_chat_history(
             chat_id=job.chat_id,
             max_messages=30,
         )

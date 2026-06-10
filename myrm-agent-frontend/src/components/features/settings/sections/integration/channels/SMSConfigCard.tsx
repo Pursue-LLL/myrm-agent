@@ -115,7 +115,7 @@ export function SMSConfigCard() {
         {!webhookLoading && isLocalhost && (
           <p className="text-xs text-amber-500 mt-1 leading-relaxed">
             {t('smsLocalhostWarning')}{' '}
-            <Link href="/settings/system#public-access" className="underline font-medium hover:text-amber-400">
+            <Link href="/settings/system#public-ingress" className="underline font-medium hover:text-amber-400">
               {t('smsOpenSystemSettings')}
             </Link>
           </p>

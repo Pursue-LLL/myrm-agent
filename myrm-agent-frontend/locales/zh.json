@@ -2942,9 +2942,9 @@
         "scanToAccess": "手机扫码即可访问",
         "guide": {
           "title": "怎么选？",
-          "lanFirst": "手机/同事和你在同一 WiFi 或公司内网 → 直接用下方「内网访问」地址，不必开隧道，也不必访问 trycloudflare 外网链接。",
-          "tunnelWhen": "人在外网、4G/5G 或不同网络 → 再展开「外网访问」启动 Quick Tunnel，或配置稳定域名。",
-          "outboundOnly": "当前渠道均为长连接出站，无需公网 Ingress。仅在本机或内网访问 WebUI 即可；外网访问时再启用下方隧道。"
+          "lanFirst": "手机/同事和你在同一 WiFi 或公司内网 → 直接用下方「内网访问」地址，最快最稳。",
+          "publicIngressRequired": "已配置需要公网回调的渠道或 Cron Webhook → 请在下方填写公网 Ingress 地址（穿透工具见文档）。",
+          "publicIngressOptional": "外出用手机/外网访问 WebUI，或配置 inbound 渠道时 → 用 cpolar/NATAPP/frp 等工具获得 HTTPS 地址后粘贴到下方。"
         },
         "lan": {
           "title": "内网访问",
@@ -2955,43 +2955,19 @@
           "webDevHint": "开发环境请先执行 bun run dev:lan，保存下方「允许远程访问」后重启前端。",
           "tauriEnableRemote": "若手机无法打开，请在下方开启「允许远程访问」并保存重启应用。"
         },
-        "tunnel": {
-          "sectionTitle": "外网访问（跨网络）",
-          "sectionCollapsed": "不在家 / 不在同一网络时再展开",
-          "whenNeeded": "仅当访问者与 Agent 不在同一局域网时需要。同一内网请用上方的内网地址。",
-          "title": "Quick Tunnel",
-          "description": "通过 Cloudflare 临时公网链接访问（域名每次重启会变）。",
-          "startButton": "启动隧道",
-          "stopButton": "停止隧道",
-          "startingButton": "启动中...",
-          "runningButton": "运行中",
-          "starting": "正在分配隧道 URL...",
-          "stopped": "隧道已停止",
-          "publicLink": "您的公网链接：",
-          "scanHint": "手机扫码直接访问",
-          "qrAlt": "隧道二维码",
-          "passwordRequired": "启动公网隧道前请先开启访问密码。",
-          "cloudflaredMissing": "未找到 cloudflared。Tauri 用户请更新桌面版；开发环境请配置 CLOUDFLARED_PATH 后重启后端。",
-          "corpNetworkTitle": "公司内网常见：Quick Tunnel 被防火墙拦截",
-          "corpNetworkHint": "trycloudflare.com 常被企业网关/DLP 阻断，表现为超时或无法连接。请改用下方局域网地址（同一公司 WiFi/VPN 内可访问）。",
-          "corpNetworkSteps": "开发环境请用 bun run dev:lan 绑定 0.0.0.0 后，用手机访问上方内网 IP 链接；Tauri 桌面端请在系统设置中开启「允许远程访问」并保存重启。"
-        },
-        "stableDomain": {
-          "title": "稳定域名（自有主机名）",
-          "description": "为 Webhook 与长期公网访问使用你自己的域名。请勿用 Quick Tunnel 实现此目的。",
-          "step1": "在 Cloudflare 创建 Named Tunnel（或反向代理），指向 WebUI 端口。",
-          "step2": "在下方 Public Ingress 填写 https://你的域名。",
-          "step3": "运行连通性测试，再配置渠道。"
-        },
         "ingress": {
-          "title": "公网 Ingress（Webhook 与回调）",
-          "description": "渠道 Webhook 与 OAuth 回调使用的基础地址。隧道运行时会自动同步。",
-          "syncedFromTunnel": "已与当前隧道同步。",
+          "title": "公网 Ingress（远程访问与 Webhook）",
+          "description": "渠道 Webhook、OAuth 回调与外出访问 WebUI 使用的基础 HTTPS 地址。请用自选穿透工具获得后粘贴（国内推荐 cpolar，见文档）。",
+          "requiredBadge": "需要公网",
+          "docsHint": "不确定用哪种穿透？",
+          "docsLink": "查看穿透方案文档",
+          "passwordRequired": "暴露到公网前请先开启 WebUI 访问密码。",
           "testButton": "测试连通性",
           "testing": "测试中...",
           "testSuccess": "公网 Ingress 可达。",
           "testFailed": "连通性测试失败，请检查地址与网络。",
-          "notConfigured": "未配置公网 Ingress 地址。"
+          "notConfigured": "未配置公网 Ingress 地址。",
+          "httpsRequired": "公网 Ingress 必须使用 HTTPS（https://...）。"
         }
       }
     },
@@ -8116,7 +8092,7 @@
     "triggerWebhookPath": "路径",
     "triggerWebhookSecret": "密钥",
     "triggerWebhookUrl": "URL",
-    "triggerLocalhostWarning": "当前为本地地址，外部服务无法访问。请先开启公网隧道或配置 Public Ingress。",
+    "triggerLocalhostWarning": "当前为本地地址，外部服务无法访问。请在设置 → 系统 配置 Public Ingress，或参阅文档 /guides/tunnel。",
     "triggerOpenSystemSettings": "打开系统设置",
     "triggerWebhookCurl": "cURL 示例",
     "triggerWebhookAdd": "添加 Webhook",

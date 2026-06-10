@@ -32,7 +32,7 @@ export function ChannelIngressBadge({ mode, className }: ChannelIngressBadgeProp
         <p className="text-xs text-muted-foreground leading-relaxed break-words">
           {t('connectivityBadgeInboundHint')}{' '}
           <Link
-            href="/settings/system#public-access"
+            href="/settings/system#public-ingress"
             className="text-primary underline underline-offset-2 hover:text-primary/80"
           >
             {t('connectivityBadgeIngressLink')}

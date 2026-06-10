@@ -96,7 +96,7 @@ Notarization uses the Apple ID, not the cert. At <https://appleid.apple.com> →
 
 Without these entitlements, Apple Notary Service still signs successfully but **runtime functionality silently fails** (Appshot crashes, sidecar refuses to spawn, global shortcuts cannot register). The plist is the minimum set; adding more triggers extra Apple notary review.
 
-> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. Python sidecar, Node Agent Runner, and `cloudflared` are signed independently by `tauri-action` during bundling; the embedded binaries are co-signed using the same Developer ID so they pass Gatekeeper on launch.
+> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. Python sidecar and Node Agent Runner are signed independently by `tauri-action` during bundling; the embedded binaries are co-signed using the same Developer ID so they pass Gatekeeper on launch.
 
 TCC permissions (screen recording, accessibility, microphone) are **not** declared here — they are granted by the user at first-use prompt.
 

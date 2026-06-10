@@ -3,7 +3,6 @@
 //! [INPUT]
 //! - config::ConfigManager (POS: 配置管理)
 //! - runtime::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend} (POS: Sidecar 进程管理)
-//! - tunnel::stop_quick_tunnel_via_backend (POS: 通知 Server 停止 Quick Tunnel)
 //!
 //! [OUTPUT]
 //! - graceful_shutdown: 完整优雅停机流程（防重入 + 5s timeout + 强制 kill 兜底）
@@ -18,8 +17,6 @@ use tauri::{AppHandle, Manager};
 use tokio::time::timeout;
 
 use crate::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend};
-use crate::tunnel::stop_quick_tunnel_via_backend;
-
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);
 
 /// 发送优雅停机信号给后端
@@ -85,8 +82,6 @@ pub async fn graceful_shutdown(app: AppHandle) {
     
     let frontend_state = app.state::<NextJSFrontend>();
     let _ = stop_frontend(frontend_state);
-    
-    stop_quick_tunnel_via_backend(port).await;
     
     println!("Graceful shutdown complete.");
 }

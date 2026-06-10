@@ -36,14 +36,6 @@ async def graceful_shutdown_task() -> None:
 
     await close_harness_resources()
 
-    logger.info("Step 3b: Stopping Quick Tunnel if active...")
-    try:
-        from app.core.infra.tunnel import get_tunnel_manager
-
-        await get_tunnel_manager().stop()
-    except Exception as exc:
-        logger.warning("Quick Tunnel stop during shutdown failed: %s", exc)
-
     logger.info("Step 4: Sending SIGTERM to self...")
     os.kill(os.getpid(), signal.SIGTERM)
 

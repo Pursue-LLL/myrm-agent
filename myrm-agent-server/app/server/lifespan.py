@@ -549,14 +549,6 @@ async def _shutdown(app_instance: FastAPI) -> None:
         if isinstance(r, Exception):
             logger.error("[Shutdown] Component stop failed: %s", r)
 
-    try:
-        from app.core.infra.tunnel import get_tunnel_manager
-
-        await get_tunnel_manager().stop()
-        logger.info("[Shutdown] Quick Tunnel stopped")
-    except Exception as e:
-        logger.warning("[Shutdown] Quick Tunnel stop failed: %s", e)
-
     # Final: WAL checkpoint + engine dispose to ensure all data is flushed to disk
     try:
         from app.config.settings import settings

@@ -1,6 +1,6 @@
 """
-@input: 依赖 app.config.settings.settings 获取网关配置，依赖 app.core.infra 的 Tunnel 控制
-@output: 对外提供公网 ingress 获取、Gateway 健康探测代理和 Tunnel 生命周期控制端点
+@input: 依赖 app.config.settings.settings 获取网关配置
+@output: 对外提供公网 ingress 获取、Gateway 健康探测代理与 Ingress 需求判定端点
 @pos: HTTP 入口层的 System API
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
@@ -14,26 +14,9 @@ from pydantic import BaseModel, Field
 from app.config.settings import settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
-from app.core.infra.tunnel import get_tunnel_manager
-from app.core.infra.tunnel.manager import TunnelError, TunnelStatus
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_public_ingress_entitlement
 
 router = APIRouter()
-
-
-class TunnelStartRequest(BaseModel):
-    port: int = Field(..., ge=1, le=65535, description="WebUI port to expose via Quick Tunnel")
-    password_protection_enabled: bool = Field(
-        ...,
-        description="Must be true — public tunnel requires WebUI password protection",
-    )
-
-
-class TunnelStatusResponse(BaseModel):
-    running: bool
-    url: str | None
-    target_port: int | None
-    ingress_synced: bool
 
 
 class IngressRequirementResponse(BaseModel):
@@ -41,15 +24,6 @@ class IngressRequirementResponse(BaseModel):
     has_public_ingress: bool
     reasons: list[str]
     channels: dict[str, str]
-
-
-def _to_tunnel_response(status: TunnelStatus) -> TunnelStatusResponse:
-    return TunnelStatusResponse(
-        running=status.running,
-        url=status.url,
-        target_port=status.target_port,
-        ingress_synced=status.ingress_synced,
-    )
 
 
 class GatewayHealthRequest(BaseModel):
@@ -87,7 +61,7 @@ async def get_gateway_health(
 
 @router.get("/ingress-requirement", response_model=IngressRequirementResponse)
 async def get_ingress_requirement() -> IngressRequirementResponse:
-    """Whether public Ingress/Tunnel is needed given configured channels and cron webhooks."""
+    """Whether public Ingress is needed given configured channels and cron webhooks."""
     snapshot = await resolve_ingress_requirement()
     return IngressRequirementResponse(
         required=snapshot.required,
@@ -103,9 +77,8 @@ async def get_ingress_url() -> dict[str, str]:
 
     Priority:
     1. CP_PUBLIC_INGRESS_URL (from SaaS Control Plane env injection)
-    2. Active Quick Tunnel runtime URL (when tunnel is running)
-    3. UserConfig.personalSettings.publicIngressBaseUrl (from user configuration)
-    4. Empty string (fallback to local generation in frontend)
+    2. UserConfig.personalSettings.publicIngressBaseUrl (user-provided tunnel/proxy URL)
+    3. Empty string (fallback to local generation in frontend)
     """
     try:
         require_public_ingress_entitlement()
@@ -120,41 +93,8 @@ async def get_ingress_url() -> dict[str, str]:
 async def get_local_network(
     port: int = Query(3000, ge=1, le=65535, description="WebUI port for LAN URL"),
 ) -> dict[str, str]:
-    """Return LAN URL for same-intranet access (bypasses blocked Quick Tunnel domains)."""
+    """Return LAN URL for same-intranet access."""
     ip = get_local_ip()
     if not ip:
         return {"ip": "", "url": "", "hint": "Could not detect local IP"}
     return {"ip": ip, "url": f"http://{ip}:{port}", "hint": ""}
-
-
-@router.get("/tunnel/status", response_model=TunnelStatusResponse)
-async def get_tunnel_status() -> TunnelStatusResponse:
-    """Return Quick Tunnel runtime status."""
-    manager = get_tunnel_manager()
-    status = await manager.get_status()
-    return _to_tunnel_response(status)
-
-
-@router.post("/tunnel/start", response_model=TunnelStatusResponse)
-async def start_tunnel(body: TunnelStartRequest) -> TunnelStatusResponse:
-    """Start a Cloudflare Quick Tunnel to the given WebUI port."""
-    manager = get_tunnel_manager()
-    try:
-        status = await manager.start(
-            body.port,
-            password_protection_enabled=body.password_protection_enabled,
-        )
-    except TunnelError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _to_tunnel_response(status)
-
-
-@router.post("/tunnel/stop", response_model=TunnelStatusResponse)
-async def stop_tunnel() -> TunnelStatusResponse:
-    """Stop the active Quick Tunnel and restore the previous ingress URL."""
-    manager = get_tunnel_manager()
-    try:
-        status = await manager.stop()
-    except TunnelError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return _to_tunnel_response(status)

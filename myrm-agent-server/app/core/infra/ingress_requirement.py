@@ -30,7 +30,7 @@ from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
 from app.core.channel_bridge.config_loader import load_user_config_entry
 from app.core.infra.ingress import get_public_ingress_base_url
 
-_INGRESS_FIX = "Open Settings → System → Public access to configure Ingress or Quick Tunnel."
+_INGRESS_FIX = "Open Settings → System → Public access to set your public Ingress URL (see docs for tunnel options)."
 _CACHE_TTL_SECONDS = 10.0
 
 

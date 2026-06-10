@@ -120,3 +120,24 @@ export const splitTextWithAtLinks = (text: string): Array<{ type: 'text' | 'link
 
   return parts;
 };
+
+/** Trim and strip trailing slashes from a Public Ingress base URL. */
+export function normalizePublicIngressBaseUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+/** Public Ingress must be empty or HTTPS for webhook/OAuth safety. */
+export function isValidPublicIngressBaseUrl(url: string): boolean {
+  if (!url) {
+    return true;
+  }
+  try {
+    return new URL(url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}

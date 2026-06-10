@@ -20,8 +20,8 @@ import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
 import { SystemConfig, DEFAULT_SYSTEM_CONFIG } from '@/types/system';
 import { useSystemConfig } from '@/hooks/useSystemConfig';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
-import { useTunnel } from '@/hooks/useTunnel';
 import useConfigStore from '@/store/useConfigStore';
+import { getDocsUrl } from '@/lib/deploy-mode';
 import { systemService } from '@/services/system';
 import IngressEntitlementGate from '@/components/billing/IngressEntitlementGate';
 import BrowserPoolCard from './BrowserPoolCard';
@@ -32,6 +32,7 @@ import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
 import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
 import { useIngressRequirement } from '@/hooks/useIngressRequirement';
+import { isValidPublicIngressBaseUrl } from '@/lib/utils/urlUtils';
 
 /**
  * 系统设置 Section
@@ -194,17 +195,10 @@ const AccessCard = memo<{
   const passwordProtectionEnabled = isTauriRuntime()
     ? config.requirePassword
     : (serverRequirePassword ?? config.requirePassword);
-  const {
-    status: tunnelStatus,
-    starting: isTunnelStarting,
-    start: startTunnel,
-    stop: stopTunnel,
-  } = useTunnel(webuiPort, passwordProtectionEnabled);
-  const tunnelUrl = tunnelStatus.running ? tunnelStatus.url : null;
-  const tunnelActive = Boolean(tunnelUrl);
   const showLocalIngress = isLocalMode();
   const ingressResolved = ingressSnapshot !== null;
-  const showPublicIngressOptions = ingressResolved && ingressSnapshot.required;
+  const ingressRequired = ingressResolved && ingressSnapshot.required;
+  const docsTunnelUrl = getDocsUrl('/guides/tunnel');
   const [lanNetworkUrl, setLanNetworkUrl] = useState('');
 
   useEffect(() => {
@@ -238,42 +232,11 @@ const AccessCard = memo<{
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const handleStartTunnel = async () => {
-    if (!passwordProtectionEnabled) {
-      toast.error(t('access.tunnel.passwordRequired'));
-      if (isTauriRuntime()) {
-        document.getElementById('require-password')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-    try {
-      await startTunnel();
-      toast.success(t('access.tunnel.starting'));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.toLowerCase().includes('cloudflared')) {
-        toast.error(t('access.tunnel.cloudflaredMissing'));
-      } else {
-        toast.error(message);
-      }
-    }
-  };
-
   const lanQrSrc = remoteUrl
     ? localIP
       ? `/webui/qrcode.png?host=${localIP}&port=${webuiPort}`
       : `/webui/qrcode.png?url=${encodeURIComponent(remoteUrl)}`
     : '';
-
-  const handleStopTunnel = async () => {
-    try {
-      await stopTunnel();
-      toast.success(t('access.tunnel.stopped'));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      toast.error(message);
-    }
-  };
 
   const handleTestIngress = async () => {
     setTestingIngress(true);
@@ -281,6 +244,10 @@ const AccessCard = memo<{
       const ingressUrl = (await systemService.getIngressUrl()) || publicIngressBaseUrl;
       if (!ingressUrl) {
         toast.error(t('access.ingress.notConfigured'));
+        return;
+      }
+      if (!isValidPublicIngressBaseUrl(ingressUrl)) {
+        toast.error(t('access.ingress.httpsRequired'));
         return;
       }
       const ok = await systemService.testIngressHealth(ingressUrl);
@@ -312,10 +279,10 @@ const AccessCard = memo<{
           <p className="text-sm font-bold text-indigo-300">{t('access.guide.title')}</p>
           <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.lanFirst')}</p>
           {ingressResolved &&
-            (showPublicIngressOptions ? (
-              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.tunnelWhen')}</p>
+            (ingressRequired ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.publicIngressRequired')}</p>
             ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.outboundOnly')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.publicIngressOptional')}</p>
             ))}
         </div>
       )}
@@ -423,119 +390,45 @@ const AccessCard = memo<{
         </div>
       )}
 
-      {/* 外网访问（可选） */}
-      {showLocalIngress && showPublicIngressOptions && (
-        <details className="group p-6 rounded-2xl bg-white/5 border border-white/10 open:pb-6">
-          <summary className="cursor-pointer list-none flex items-center justify-between gap-2 text-sm font-bold text-foreground">
-            <span className="flex items-center gap-2">
-              <IconGlobe className="w-4 h-4" />
-              {t('access.tunnel.sectionTitle')}
-            </span>
-            <span className="text-xs font-normal text-muted-foreground group-open:hidden">
-              {t('access.tunnel.sectionCollapsed')}
-            </span>
-          </summary>
-          <div className="mt-4 space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.whenNeeded')}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => void handleStartTunnel()}
-              disabled={isTunnelStarting || tunnelActive || !passwordProtectionEnabled}
-              className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors"
-            >
-              {isTunnelStarting
-                ? t('access.tunnel.startingButton')
-                : tunnelActive
-                  ? t('access.tunnel.runningButton')
-                  : t('access.tunnel.startButton')}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleStopTunnel()}
-              disabled={!isTunnelStarting && !tunnelActive}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors"
-            >
-              {t('access.tunnel.stopButton')}
-            </button>
-          </div>
-          {!passwordProtectionEnabled && (
-            <p className="text-xs text-amber-500/90">{t('access.tunnel.passwordRequired')}</p>
-          )}
-          {tunnelUrl && (
-            <div className="pt-2 border-t border-white/10 space-y-2">
-              <p className="text-xs text-muted-foreground">{t('access.tunnel.publicLink')}</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 px-3 py-2 bg-black/20 rounded-lg text-xs font-mono text-emerald-400 break-all">
-                  {tunnelUrl}
-                </code>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(tunnelUrl, 'tunnel_url')}
-                  className="p-2 hover:bg-white/5 rounded-lg transition-colors"
-                  title={t('access.copy')}
-                >
-                  {copied === 'tunnel_url' ? (
-                    <IconCheck className="w-4 h-4 text-emerald-500" />
-                  ) : (
-                    <IconCopy className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </button>
-              </div>
-              <div className="hidden md:flex flex-col items-center gap-2 pt-2">
-                <div className="p-3 bg-white rounded-xl">
-                  <img
-                    src={`/webui/qrcode.png?url=${encodeURIComponent(tunnelUrl)}`}
-                    alt={t('access.tunnel.qrAlt')}
-                    width={160}
-                    height={160}
-                    className="block"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">{t('access.tunnel.scanHint')}</p>
-              </div>
-            </div>
-          )}
-          </div>
-        </details>
-      )}
-
-      {showLocalIngress && showPublicIngressOptions && (
-        <details className="p-6 rounded-2xl bg-white/5 border border-white/10">
-          <summary className="cursor-pointer list-none text-sm font-bold text-foreground">
-            {t('access.stableDomain.title')}
-          </summary>
-          <div className="mt-3 space-y-2">
-            <p className="text-xs text-muted-foreground leading-relaxed">{t('access.stableDomain.description')}</p>
-            <ol className="list-decimal list-inside space-y-1 text-xs text-muted-foreground leading-relaxed">
-              <li>{t('access.stableDomain.step1')}</li>
-              <li>{t('access.stableDomain.step2')}</li>
-              <li>{t('access.stableDomain.step3')}</li>
-            </ol>
-          </div>
-        </details>
-      )}
-
-      {showPublicIngressOptions && (
+      {showLocalIngress && (
         <IngressEntitlementGate>
-          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
-            <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <IconGlobe className="w-4 h-4" />
-              {t('access.ingress.title')}
+          <div
+            id="public-ingress"
+            className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <IconGlobe className="w-4 h-4" />
+                {t('access.ingress.title')}
+              </div>
+              {ingressRequired && (
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-400">
+                  {t('access.ingress.requiredBadge')}
+                </span>
+              )}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('access.ingress.description')}</p>
-            {tunnelActive && <p className="text-xs text-emerald-500/90">{t('access.ingress.syncedFromTunnel')}</p>}
-            <div className="flex items-center gap-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t('access.ingress.docsHint')}{' '}
+              <a
+                href={docsTunnelUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                {t('access.ingress.docsLink')}
+              </a>
+            </p>
+            {!passwordProtectionEnabled && (
+              <p className="text-xs text-amber-500/90">{t('access.ingress.passwordRequired')}</p>
+            )}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <input
                 type="text"
                 value={publicIngressBaseUrl || ''}
                 onChange={(e) => setPublicIngressBaseUrl(e.target.value)}
-                readOnly={tunnelActive}
                 placeholder="https://..."
-                className={cn(
-                  'flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50',
-                  tunnelActive && 'opacity-70 cursor-not-allowed',
-                )}
+                className="flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               />
               <button
                 type="button"

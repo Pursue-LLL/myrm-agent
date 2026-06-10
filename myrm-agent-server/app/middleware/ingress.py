@@ -3,11 +3,28 @@
 Fixes Webhook signature validation and OAuth callback generation in non-standard proxy environments.
 """
 
+import ipaddress
 from urllib.parse import urlparse
 
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.infra.ingress import get_public_ingress_base_url
+
+
+def should_skip_ingress_rewrite(host_header: str) -> bool:
+    """Return True when the request targets loopback or a private LAN host.
+
+    Local WebUI and same-network access must not be rewritten to a configured
+    public Ingress URL; otherwise API calls resolve to an unreachable public host.
+    """
+    host_only = host_header.split(":")[0].strip().lower()
+    if host_only in {"localhost", "0.0.0.0"} or host_only.endswith(".local"):
+        return True
+    try:
+        address = ipaddress.ip_address(host_only)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_private or address.is_link_local
 
 
 class PublicIngressMiddleware:
@@ -30,13 +47,11 @@ class PublicIngressMiddleware:
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Process ASGI request."""
         if scope["type"] == "http" and scope["path"].startswith(self.prefix):
-            # Local WebUI proxy (127.0.0.1 / localhost) must not be rewritten to a stale
-            # public ingress URL when Quick Tunnel is stopped — otherwise API calls 307 away.
             host_header = next(
                 (v.decode("utf-8", errors="ignore") for k, v in scope.get("headers", []) if k == b"host"),
                 "",
             )
-            if host_header.split(":")[0] in {"127.0.0.1", "localhost", "0.0.0.0"}:
+            if should_skip_ingress_rewrite(host_header):
                 await self.app(scope, receive, send)
                 return
 

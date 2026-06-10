@@ -21,7 +21,7 @@ export function useIngressRequirement(): IngressRequirementSnapshot | null {
       }
     } catch {
       if (!cancelled()) {
-        setSnapshot({ ...EMPTY_SNAPSHOT, required: true });
+        setSnapshot(EMPTY_SNAPSHOT);
       }
     }
   }, []);
@@ -43,10 +43,12 @@ export function useIngressRequirement(): IngressRequirementSnapshot | null {
     };
     window.addEventListener('channel-credentials-saved', refresh);
     window.addEventListener('cron_updated', refresh);
+    window.addEventListener('ingress-requirement-changed', refresh);
     return () => {
       disposed = true;
       window.removeEventListener('channel-credentials-saved', refresh);
       window.removeEventListener('cron_updated', refresh);
+      window.removeEventListener('ingress-requirement-changed', refresh);
     };
   }, [evaluate]);
 

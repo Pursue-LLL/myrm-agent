@@ -12,7 +12,6 @@ use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
-use crate::tunnel;
 
 pub struct PythonBackend {
     pub process: Arc<Mutex<Option<Child>>>,
@@ -126,10 +125,6 @@ pub async fn start_backend_with_config(
     cmd.env("DEPLOY_MODE", "local")
         .env("PORT", config.port.to_string())
         .env("HOST", &config.host);
-
-    if let Ok(cloudflared_path) = tunnel::resolve_cloudflared_path(&app) {
-        cmd.env("CLOUDFLARED_PATH", cloudflared_path);
-    }
 
     if config.webui_mode {
         cmd.env("WEBUI_MODE", "true");

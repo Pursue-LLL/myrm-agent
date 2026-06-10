@@ -20,7 +20,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射 |
 | `sqlalchemy_aggregation.py` | Token 用量聚合查询 |
 | `python_condition.py` | PreFlightCondition 协议实现：SandboxedPythonCondition 在沙箱内安全执行前置探针脚本 |
-| `agent_runner.py` | JobRunner 协议实现：通过 Agent 管道执行 cron 任务。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止定时任务被 HITL 交互阻塞。当 CronJob.agent_id 存在时，通过 AgentProfileResolver 加载完整配置（含 `enabled_builtin_tools`、`auto_restore_domains`、`memory_decay_profile`），并通过 `resolve_builtin_tool_flags()` 统一映射 6 个工具 flag，解析 agent/cron/chat 绑定的 Shared Context 注入 `memory_shared_context_ids` |
+| `agent_runner.py` | JobRunner 协议实现：通过 Agent 管道执行 cron 任务。始终以 `unattended_mode=True` 运行（跳过 ask_question_tool 工具注册 + 注入无人值守系统提示词），防止定时任务被 HITL 交互阻塞。当 CronJob.agent_id 存在时，通过 AgentProfileResolver 加载完整配置（含 `enabled_builtin_tools`、`auto_restore_domains`、`memory_decay_profile`），并通过 `resolve_builtin_tool_flags()` 统一映射 6 个工具 flag，解析 agent/cron/chat 绑定的 Shared Context 注入 `memory_shared_context_ids`。**Thread Automation**：当 `session_target=MAIN` 且 `chat_id` 存在时，通过 `_load_thread_history` 加载目标会话的 compacted_summary + 近 30 条消息作为 `chat_history` 注入 Agent，实现定时任务的上下文连续性 |
 | `channel_delivery.py` | ResultDelivery 协议实现：IM 渠道投递 + Webhook |
 
 ---
@@ -33,6 +33,7 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 - `../../channels/config_loader`：用户配置加载（agent_runner 使用）
 - `../../../ai_agents/`：AgentFactory（agent_runner 使用）
 - `../../../services/agent/profile_resolver`：AgentProfileResolver（agent_runner 使用，agent_id 绑定时加载完整配置）
+- `../../../services/chat/chat_service`：`ChatService.load_web_chat_history`（agent_runner 使用，Thread Automation 模式加载会话历史）
 - `../../../services/memory/shared_context`：Shared Context 绑定解析（agent_runner 使用）
 - `../../../database/`：CronJob / CronRun ORM
 

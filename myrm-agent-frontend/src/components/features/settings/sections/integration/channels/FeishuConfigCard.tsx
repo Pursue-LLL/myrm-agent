@@ -341,7 +341,7 @@ export function FeishuConfigCard() {
               <p className="text-xs leading-relaxed text-amber-600 dark:text-amber-400/90">
                 {t('feishuWebhookLocalWarning')}{' '}
                 <Link
-                  href="/settings/system#public-access"
+                  href="/settings/system#public-ingress"
                   className="font-medium underline underline-offset-2 hover:text-amber-500"
                 >
                   {t('feishuWebhookLocalWarningLink')}

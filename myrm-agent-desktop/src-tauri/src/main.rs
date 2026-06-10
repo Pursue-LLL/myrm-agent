@@ -35,7 +35,6 @@ mod runtime;
 mod sessions;
 mod sidecar;
 mod tray;
-mod tunnel;
 mod utils;
 
 use std::sync::{Arc, Mutex};
