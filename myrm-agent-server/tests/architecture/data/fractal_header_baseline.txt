@@ -247,7 +247,6 @@ app/database/models/skill_optimization/batch_task.py
 app/database/models/skill_optimization/optimization_record.py
 app/database/models/skill_optimization/shadow_sample.py
 app/database/models/skill_optimization/skill_quality_history.py
-app/database/postgres_transient.py
 app/database/repositories/fission_repo.py
 app/database/sqlite_storage_busy.py
 app/lifecycle/__init__.py
