@@ -235,28 +235,13 @@ jobs:
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
-  build-extra-platforms:
-    name: Build ${{ matrix.platform }}
+  build-windows:
+    name: Build windows
     needs:
       - prepare-frontend
       - publish-release
     if: needs.publish-release.result == 'success'
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows
-            runner: windows-latest
-            target_arch: x86_64
-            cloudflared_target: x86_64-pc-windows-msvc
-            tauri_args: ''
-          - platform: linux
-            runner: ubuntu-22.04
-            target_arch: x86_64
-            cloudflared_target: x86_64-unknown-linux-gnu
-            tauri_args: ''
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -266,8 +251,84 @@ jobs:
           name: frontend-tauri-standalone
           path: myrm-agent-frontend/.next/standalone
 
-      - name: Install dependencies (Linux only)
-        if: matrix.runner == 'ubuntu-22.04'
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+        shell: bash
+
+      - name: Set TARGET_ARCH for Sidecar Build
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Sync server venv (desktop production)
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+        shell: bash
+
+      - name: Build Sidecars
+        run: |
+          cd myrm-agent-desktop/sidecar
+          python build.py
+        shell: bash
+
+      - name: Download cloudflared (windows)
+        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh x86_64-pc-windows-msvc
+        shell: bash
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: myrm-agent-desktop
+          args: ''
+
+      - name: Upload assets to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=()
+          while IFS= read -r f; do
+            [[ -n "$f" ]] && files+=("$f")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
+          gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
+        shell: bash
+
+  build-linux:
+    name: Build linux
+    needs:
+      - prepare-frontend
+      - publish-release
+    if: needs.publish-release.result == 'success'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend standalone artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-tauri-standalone
+          path: myrm-agent-frontend/.next/standalone
+
+      - name: Install Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
@@ -292,27 +353,22 @@ jobs:
 
       - name: Inject version from tag
         run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
-        shell: bash
 
       - name: Set TARGET_ARCH for Sidecar Build
-        run: echo "TARGET_ARCH=${{ matrix.target_arch }}" >> $GITHUB_ENV
-        shell: bash
+        run: echo "TARGET_ARCH=x86_64" >> $GITHUB_ENV
 
       - name: Sync server venv (desktop production)
         env:
           MYRM_HARNESS_INSTALL_MODE: pypi
         run: bash scripts/ci/desktop-release/sync-server-venv.sh
-        shell: bash
 
       - name: Build Sidecars
         run: |
           cd myrm-agent-desktop/sidecar
           python build.py
-        shell: bash
 
-      - name: Download cloudflared (${{ matrix.platform }})
-        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh "${{ matrix.cloudflared_target }}"
-        shell: bash
+      - name: Download cloudflared (linux)
+        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh x86_64-unknown-linux-gnu
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -320,16 +376,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
-          args: ${{ matrix.tauri_args }}
+          args: ''
 
       - name: Upload assets to existing GitHub Release
         env:
@@ -340,15 +389,18 @@ jobs:
             [[ -n "$f" ]] && files+=("$f")
           done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
-        shell: bash
 
   finalize-release:
     name: Finalize manifest (latest.json + sha256)
     needs:
       - publish-release
       - build-macos-x64
-      - build-extra-platforms
-    if: always() && needs.publish-release.result == 'success'
+      - build-windows
+    if: >-
+      always() &&
+      needs.publish-release.result == 'success' &&
+      needs.build-macos-x64.result == 'success' &&
+      needs.build-windows.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -362,11 +414,54 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: bash scripts/ci/desktop-release/finalize-release.sh
 
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/ci/desktop-release/verify-release.sh
+
       - name: Trigger marketing site deploy (website-v* tag + CF hook)
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           DESKTOP_TAG: ${{ github.ref_name }}
           BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
           CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
-          REQUIRE_WEBSITE_DEPLOY: 'false'
+          REQUIRE_WEBSITE_DEPLOY: 'true'
+        run: bash scripts/ci/desktop-release/trigger-website-release.sh
+
+  refinalize-after-linux:
+    name: Refinalize manifest after Linux upload
+    needs:
+      - finalize-release
+      - build-linux
+    if: >-
+      always() &&
+      needs.finalize-release.result == 'success' &&
+      needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Regenerate latest.json + checksums (include Linux)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/ci/desktop-release/verify-release.sh
+
+      - name: Redeploy marketing site (pick up Linux assets)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          DESKTOP_TAG: ${{ github.ref_name }}
+          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
+          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+          REQUIRE_WEBSITE_DEPLOY: 'true'
         run: bash scripts/ci/desktop-release/trigger-website-release.sh

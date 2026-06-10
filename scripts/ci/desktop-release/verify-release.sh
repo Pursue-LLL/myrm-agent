@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Post-finalize smoke: assert latest.json, OTA signatures, and installer checksum sidecars exist.
+set -euo pipefail
+
+TAG="${TAG:?Set TAG (e.g. v0.1.20)}"
+REPO="${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY}"
+
+MANIFEST_URL="https://github.com/${REPO}/releases/download/${TAG}/latest.json"
+VERSION="${TAG#v}"
+
+echo "[verify-release] Fetching ${MANIFEST_URL}"
+manifest="$(curl -fsSL "$MANIFEST_URL")"
+
+manifest_version="$(jq -r '.version // empty' <<<"$manifest")"
+if [[ "$manifest_version" != "$VERSION" ]]; then
+  echo "[verify-release] version mismatch: expected ${VERSION}, got ${manifest_version:-<empty>}" >&2
+  exit 1
+fi
+
+platform_count="$(jq '.platforms | keys | length' <<<"$manifest")"
+if [[ "$platform_count" -lt 1 ]]; then
+  echo "[verify-release] latest.json has no OTA platforms" >&2
+  exit 1
+fi
+
+missing_sig=0
+while IFS= read -r key; do
+  [[ -n "$key" ]] || continue
+  if [[ -z "$(jq -r --arg k "$key" '.platforms[$k].signature // empty' <<<"$manifest")" ]]; then
+    echo "[verify-release] missing OTA signature for platform: ${key}" >&2
+    missing_sig=1
+  fi
+done < <(jq -r '.platforms | keys[]' <<<"$manifest")
+if [[ "$missing_sig" -ne 0 ]]; then
+  exit 1
+fi
+
+release_json="$(gh release view "$TAG" --repo "$REPO" --json assets)"
+asset_names="$(jq -r '.assets[].name' <<<"$release_json")"
+
+require_asset() {
+  local name="$1"
+  if ! grep -Fxq "$name" <<<"$asset_names"; then
+    echo "[verify-release] missing release asset: ${name}" >&2
+    return 1
+  fi
+  return 0
+}
+
+checksum_ok=0
+while IFS= read -r asset; do
+  [[ -n "$asset" ]] || continue
+  case "$asset" in
+    *.dmg|*.exe|*.msi|*.AppImage|*.deb)
+      if require_asset "${asset}.sha256"; then
+        checksum_ok=1
+      fi
+      ;;
+  esac
+done <<<"$asset_names"
+
+if [[ "$checksum_ok" -eq 0 ]]; then
+  echo "[verify-release] no installer .sha256 sidecars found on release" >&2
+  exit 1
+fi
+
+echo "[verify-release] OK (version=${VERSION}, ota_platforms=${platform_count})"

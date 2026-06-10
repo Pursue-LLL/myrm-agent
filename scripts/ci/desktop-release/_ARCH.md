@@ -12,6 +12,7 @@
 | `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`） |
 | `download-cloudflared-for-target.sh` | 按 target triple 下载单个 cloudflared 二进制 |
 | `finalize-release.sh` | 下载 Release 资产 → 匹配 updater 包 + `.sig` → 生成 `latest.json`（无平台匹配则 fail）+ `.sha256` → upload |
+| `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + 安装包 `.sha256` sidecar 断言 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `finalize-fixture-test.sh` | 无网络 fixture：平台匹配 + 无 `.sig` 跳过 OTA；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
 | `collect-bundle-assets.sh` | `find` 收集 `target/**/release/bundle/*` 资产供 `gh release upload` |
@@ -24,10 +25,12 @@
 | `prepare-frontend` | `bun run build:tauri` 一次，artifact 供 mac/win/linux 复用 |
 | `build-macos-arm` | 主路径发 Release |
 | `build-macos-x64` | macOS Intel (x86_64) 追加 dmg/tar.gz/.sig |
-| `build-extra-platforms` | Win/Linux 追加资产 |
-| `finalize-release` | `latest.json`（仅含 `.sig` 平台）+ sha256 + 官网 trigger |
+| `build-windows` | Windows 追加资产（finalize 门禁平台） |
+| `build-linux` | Linux 追加资产（不阻塞 finalize） |
+| `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify + 官网 trigger |
+| `refinalize-after-linux` | Linux 上传后重跑 finalize + verify + 官网 redeploy |
 
-`trigger-website-release.sh`：workflow 默认 `REQUIRE_WEBSITE_DEPLOY=false`（官网由 brand `website-v*` GHA 发布）；设 `true` 可恢复 finalize 硬门禁。
+`trigger-website-release.sh`：workflow 默认 `REQUIRE_WEBSITE_DEPLOY=true`；缺 `BRAND_RELEASE_PAT`/`CF_PAGES_DEPLOY_HOOK` 时 finalize 失败。
 
 `collect-bundle-assets.sh`：`find` 收集 bundle 资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
 
