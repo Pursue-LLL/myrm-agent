@@ -1,4 +1,18 @@
-"""KanbanService read/query and dispatcher lifecycle mixins."""
+"""KanbanService read/query and dispatcher lifecycle mixins.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- board_summary (POS: Board summary aggregation.)
+- dispatcher_lifecycle (POS: Dispatcher lifecycle management.)
+- query_ops (POS: Read-only queries.)
+- service_core (POS: KanbanService core state.)
+
+[OUTPUT]
+- KanbanServiceQueryDispatcherMixin: Mixin providing query and dispatcher lifecycle methods.
+
+[POS]
+Query and dispatcher mixin: board/task reads, event/run history, dispatcher start/stop/shutdown.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,17 @@
-"""Kanban task CRUD operations."""
+"""Kanban task CRUD operations.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+- service_types (POS: Kanban service shared types.)
+
+[OUTPUT]
+- add_task, update_task, delete_task, bulk_update_tasks
+
+[POS]
+Task lifecycle operations: add, update, delete, and bulk update with event publishing.
+"""
 
 from __future__ import annotations
 

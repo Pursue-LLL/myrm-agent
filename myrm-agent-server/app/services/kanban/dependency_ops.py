@@ -1,4 +1,17 @@
-"""Kanban dependency edges and manual promote operations."""
+"""Kanban dependency edges and manual promote operations.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+- service_types (POS: Kanban service shared types.)
+
+[OUTPUT]
+- promote_dependents, add_edge, remove_edge, list_board_edges, force_promote_task
+
+[POS]
+Dependency graph operations: edge CRUD, auto-promotion, and force-promote with unmet deps.
+"""
 
 from __future__ import annotations
 

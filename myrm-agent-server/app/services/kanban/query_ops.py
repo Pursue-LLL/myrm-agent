@@ -1,4 +1,15 @@
-"""Kanban read/query operations and user comments."""
+"""Kanban read/query operations and user comments.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+
+[OUTPUT]
+- get_board, list_boards, get_task, list_tasks, list_task_events, list_task_runs, add_comment
+
+[POS]
+Read-only queries and user comment creation for kanban boards and tasks.
+"""
 
 from __future__ import annotations
 

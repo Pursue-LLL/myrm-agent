@@ -1,4 +1,15 @@
-"""Git worktree isolation helpers for KanbanTaskRunner."""
+"""Git worktree isolation helpers for KanbanTaskRunner.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+
+[OUTPUT]
+- resolve_base_dir, setup_worktree, cleanup_worktree
+
+[POS]
+Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees.
+"""
 
 from __future__ import annotations
 

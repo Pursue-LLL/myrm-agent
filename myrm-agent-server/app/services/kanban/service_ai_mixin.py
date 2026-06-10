@@ -1,4 +1,17 @@
-"""KanbanService specify/decompose workflow methods."""
+"""KanbanService specify/decompose workflow methods.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- decompose_orchestrator (POS: Task decomposition orchestration.)
+- specify_orchestrator (POS: Task specification orchestration.)
+- service_core (POS: KanbanService core state.)
+
+[OUTPUT]
+- KanbanServiceAIMixin: Mixin providing specify/decompose workflow methods.
+
+[POS]
+AI-powered mixin: task specification, decomposition, and batch triage processing.
+"""
 
 from __future__ import annotations
 

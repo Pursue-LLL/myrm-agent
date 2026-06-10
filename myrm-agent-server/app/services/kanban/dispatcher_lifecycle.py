@@ -1,4 +1,17 @@
-"""Kanban dispatcher lifecycle and boot recovery."""
+"""Kanban dispatcher lifecycle and boot recovery.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.dispatcher (POS: Kanban dispatcher framework.)
+- myrm_agent_harness.toolkits.kanban.protocols (POS: Kanban protocol interfaces.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+
+[OUTPUT]
+- recover_stale_tasks, start_dispatcher, stop_dispatcher, shutdown_dispatchers
+
+[POS]
+Dispatcher lifecycle: boot recovery, start/stop per-board dispatchers, graceful shutdown.
+"""
 
 from __future__ import annotations
 

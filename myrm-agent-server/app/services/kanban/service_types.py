@@ -1,4 +1,15 @@
-"""Kanban service shared types and status-mapping constants."""
+"""Kanban service shared types and status-mapping constants.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+
+[OUTPUT]
+- BoardSummaryData, PromoteResult, UnmetParentInfo, Sentinel, UNSET,
+  STATUS_TO_EVENT_KIND, SYNTHETIC_RUN_TARGETS
+
+[POS]
+Shared types and constants for kanban service modules: summary data, promote results, mappings.
+"""
 
 from __future__ import annotations
 

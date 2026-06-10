@@ -1,4 +1,14 @@
-"""Stream accumulation and multimodal attachment handling for KanbanTaskRunner."""
+"""Stream accumulation and multimodal attachment handling for KanbanTaskRunner.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+
+[OUTPUT]
+- StreamAccumulator: Accumulates streaming chunks and handles multimodal attachments.
+
+[POS]
+Stream processing: accumulate LLM output chunks, detect and persist image/file attachments.
+"""
 
 from __future__ import annotations
 

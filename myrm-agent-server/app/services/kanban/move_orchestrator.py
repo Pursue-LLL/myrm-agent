@@ -1,4 +1,18 @@
-"""Kanban task move, reclaim, and execution cancel orchestration."""
+"""Kanban task move, reclaim, and execution cancel orchestration.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- dependency_ops (POS: Dependency graph operations.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+- service_types (POS: Kanban service shared types.)
+
+[OUTPUT]
+- move_task, reclaim_task, cancel_running_task
+
+[POS]
+Task state transition orchestration: move, reclaim, cancel with dependency and event handling.
+"""
 
 from __future__ import annotations
 

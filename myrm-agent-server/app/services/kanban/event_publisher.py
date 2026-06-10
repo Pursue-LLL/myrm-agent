@@ -1,4 +1,15 @@
-"""Kanban SSE event publishing helpers."""
+"""Kanban SSE event publishing helpers.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- app.services.event.app_event_bus (POS: Global SSE event bus.)
+
+[OUTPUT]
+- publish_kanban_event, emit_btw_done
+
+[POS]
+SSE event publishing for kanban task updates and BTW terminal events.
+"""
 
 from __future__ import annotations
 

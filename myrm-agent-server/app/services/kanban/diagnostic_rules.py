@@ -1,4 +1,16 @@
-"""Kanban diagnostic rule implementations."""
+"""Kanban diagnostic rule implementations.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.diagnostics (POS: Kanban diagnostic framework.)
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+
+[OUTPUT]
+- DiagnosticThresholds, StrandedReadyRule, StuckBlockedRule, RepeatedFailureRule,
+  StrandedTriageRule, BlockCycleRule, CARD_FAST_RULES
+
+[POS]
+Concrete diagnostic rule implementations for kanban task health checks.
+"""
 
 from __future__ import annotations
 

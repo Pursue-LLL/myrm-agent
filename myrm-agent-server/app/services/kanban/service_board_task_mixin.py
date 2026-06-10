@@ -1,4 +1,19 @@
-"""KanbanService board and task mutation methods."""
+"""KanbanService board and task mutation methods.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
+- board_ops (POS: Board CRUD operations.)
+- task_ops (POS: Task CRUD operations.)
+- move_orchestrator (POS: Task state transition orchestration.)
+- dependency_ops (POS: Dependency graph operations.)
+- service_core (POS: KanbanService core state.)
+
+[OUTPUT]
+- KanbanServiceBoardTaskMixin: Mixin providing board/task mutation methods.
+
+[POS]
+Board and task mutation mixin: create, update, delete, move, reclaim, and dependency ops.
+"""
 
 from __future__ import annotations
 

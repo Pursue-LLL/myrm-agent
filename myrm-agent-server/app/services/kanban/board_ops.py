@@ -1,4 +1,16 @@
-"""Kanban board CRUD operations."""
+"""Kanban board CRUD operations.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- event_publisher (POS: Kanban SSE event publishing helpers.)
+
+[OUTPUT]
+- create_board, delete_board, update_board, update_active_tasks_branch_metadata
+
+[POS]
+Kanban board lifecycle operations: create, delete, update, and branch metadata sync.
+"""
 
 from __future__ import annotations
 

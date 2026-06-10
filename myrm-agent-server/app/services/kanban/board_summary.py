@@ -1,4 +1,16 @@
-"""Board summary aggregation for KanbanService."""
+"""Board summary aggregation for KanbanService.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban.dispatcher (POS: Kanban dispatcher framework.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+- service_types (POS: Kanban service shared types.)
+
+[OUTPUT]
+- gather_summary, build_board_summary
+
+[POS]
+Board-level summary aggregation: status counts, agent distribution, oldest ready age.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,15 @@
-"""KanbanService core state and shared helpers."""
+"""KanbanService core state and shared helpers.
+
+[INPUT]
+- myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
+- core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
+
+[OUTPUT]
+- KanbanServiceCore: Singleton base class with shared state for all mixins.
+
+[POS]
+Core singleton state: store, dispatchers, runner, specifier, decomposer references.
+"""
 
 from __future__ import annotations
 
