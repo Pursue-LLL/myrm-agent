@@ -540,3 +540,35 @@ export async function getDailyJournal(date: string, agentId?: string): Promise<D
   if (agentId) params.set('agent_id', agentId);
   return apiRequest<DailyJournalData>(`/statistics/daily-journal?${params.toString()}`);
 }
+
+// ── Per-Agent Usage ─────────────────────────────────────────────────
+
+export interface AgentSparklinePoint {
+  date: string;
+  tokens: number;
+  usd: number;
+}
+
+export interface AgentUsageItem {
+  agentId: string;
+  name: string;
+  avatar: string | null;
+  totalTokens: number;
+  totalUsd: number;
+  totalCalls: number;
+  sessions: number;
+  percentTokens: number;
+  percentUsd: number;
+  sparkline: AgentSparklinePoint[];
+}
+
+export interface AgentUsageResponse {
+  agents: AgentUsageItem[];
+  total_agents: number;
+  grand_total_tokens: number;
+  grand_total_usd: number;
+}
+
+export async function getAgentUsage(days = 7): Promise<AgentUsageResponse> {
+  return apiRequest<AgentUsageResponse>(`/statistics/usage/by-agent?days=${days}`);
+}
