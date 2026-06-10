@@ -8,6 +8,7 @@ Covers:
 - GET /kanban/pipelines — list available pipeline templates
 - GET /kanban/pipelines/{skill_id} — get template detail
 - POST /kanban/boards/{board_id}/pipeline/instantiate — create task graph
+- repeat_for fan-out: N tasks from multi-select + error paths (empty / exceeds max)
 """
 
 from __future__ import annotations
@@ -326,3 +327,59 @@ class TestInstantiatePipeline:
         assert resp.status_code == 201
         data = resp.json()
         assert len(data["task_ids"]) == 4
+
+    def test_repeat_for_fan_out_creates_correct_tasks(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "multi-topic-research-pipeline",
+                "answers": {
+                    "topics": "AI,Quantum,Bio",
+                    "research_depth": "Standard analysis (3-5 pages)",
+                    "perspective": "Technical / Engineering",
+                    "output_format": "Markdown Report",
+                },
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["task_ids"]) == 4  # 3 research + 1 synthesis
+        assert len(data["edges"]) == 3  # each research → synthesis
+
+        tasks_resp = client.get(f"/api/v1/kanban/boards/{board_id}/tasks")
+        titles = [t["title"] for t in tasks_resp.json()["items"]]
+        assert any("AI" in t for t in titles)
+        assert any("Quantum" in t for t in titles)
+        assert any("Bio" in t for t in titles)
+
+    def test_repeat_for_empty_selection_returns_400(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "multi-topic-research-pipeline",
+                "answers": {"topics": ""},
+            },
+        )
+        assert resp.status_code == 400
+        assert "at least one selection" in resp.json()["detail"]
+
+    def test_repeat_for_exceeds_max_returns_400(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        items = ",".join(f"topic-{i}" for i in range(25))
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "multi-topic-research-pipeline",
+                "answers": {"topics": items},
+            },
+        )
+        assert resp.status_code == 400
+        assert "exceeds limit" in resp.json()["detail"]

@@ -102,6 +102,8 @@ class ChannelKanbanCommandHandler:
         return boards[0].board_id
 
     async def _list(self, msg: InboundMessage, rest: str) -> str:
+        from myrm_agent_harness.toolkits.kanban.types import TaskStatus
+
         from app.services.kanban import KanbanService
 
         svc = KanbanService.get_instance()
@@ -109,9 +111,10 @@ class ChannelKanbanCommandHandler:
         if not board_id:
             return "No kanban boards exist yet. Create a task first with `/kanban create <title>`."
 
-        tasks = await svc.list_tasks(board_id, limit=20)
+        all_tasks = await svc.list_tasks(board_id, limit=50)
+        tasks = [t for t in all_tasks if t.status != TaskStatus.ARCHIVED][:20]
         if not tasks:
-            return "📋 No tasks on this board."
+            return "📋 No active tasks on this board."
 
         lines: list[str] = ["**📋 Kanban Tasks:**\n"]
         for t in tasks:
@@ -255,7 +258,7 @@ class ChannelKanbanCommandHandler:
         result = await svc.move_task(
             task_id,
             TaskStatus.BLOCKED,
-            block_kind=BlockKind.MANUAL,
+            block_kind=BlockKind.HUMAN,
             blocked_reason=reason,
         )
         if not result:
