@@ -345,10 +345,8 @@ class ChannelAgentExecutor:
                 finally:
                     self._backfill_locks.discard(session_key)
 
-            # Session auto-reset awareness: inject context note into query and
-            # emit a user-facing IM notification when the session was silently
-            # reset (DAILY/IDLE mode + cold start).  Safe for brand-new users
-            # too — the note simply states "no prior context".
+            # Prevent LLM hallucination after silent session reset (DAILY/IDLE)
+            # by injecting a context note and notifying the IM user.
             session_was_auto_reset = (
                 is_cold_start
                 and not force_new

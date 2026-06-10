@@ -52,4 +52,49 @@ describe('buildToolApprovalRequest', () => {
 
     expect(request.workspaceRoot).toBe('/workspace/demo');
   });
+
+  it('parses plain_explanation from harness payload', () => {
+    const request = buildToolApprovalRequest({
+      action: {
+        action: 'bash_code_execute_tool',
+        args: { command: 'rm -rf /tmp/foo' },
+        description: 'needs approval',
+        plain_explanation: { en: 'Delete files or directories', zh: '删除文件或目录' },
+      },
+      requestId: 'req-3',
+      messageId: 'msg-3',
+      chatId: 'chat-3',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+
+    expect(request.plainExplanation).toEqual({
+      en: 'Delete files or directories',
+      zh: '删除文件或目录',
+    });
+  });
+
+  it('returns undefined plainExplanation for invalid payload', () => {
+    const request = buildToolApprovalRequest({
+      action: {
+        action: 'bash_code_execute_tool',
+        args: { command: 'ls' },
+        description: 'needs approval',
+        plain_explanation: 'not-an-object',
+      },
+      requestId: 'req-4',
+      messageId: 'msg-4',
+      chatId: 'chat-4',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+
+    expect(request.plainExplanation).toBeUndefined();
+  });
 });
