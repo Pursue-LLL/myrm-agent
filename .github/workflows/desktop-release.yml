@@ -111,7 +111,7 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
-          args: ${{ matrix.platform == 'macos-apple-silicon' && '--target aarch64-apple-darwin' || matrix.platform == 'macos-intel' && '--target x86_64-apple-darwin' || '' }}
+          args: ${{ matrix.platform == 'macos-apple-silicon' && '--target aarch64-apple-darwin --no-sign' || matrix.platform == 'macos-intel' && '--target x86_64-apple-darwin --no-sign' || '' }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
