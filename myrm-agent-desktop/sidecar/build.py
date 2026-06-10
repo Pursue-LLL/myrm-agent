@@ -94,13 +94,13 @@ def ensure_production_harness_wheels() -> None:
         _install_harness_from_source_build()
         return
 
-    print("\nInstalling server + harness from PyPI (uv sync --frozen)...")
+    print("\nInstalling server + harness from PyPI (desktop production venv)...")
     sync_args = [
         "uv",
         "sync",
         "--frozen",
         "--all-extras",
-        "--group",
+        "--no-group",
         "dev",
         "--no-extra",
         "matrix-e2ee",

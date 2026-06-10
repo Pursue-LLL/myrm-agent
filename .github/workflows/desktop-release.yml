@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: desktop-release
+  group: desktop-release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,17 +38,20 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+
       - name: Set TARGET_ARCH for Sidecar Build
         run: echo "TARGET_ARCH=arm64" >> $GITHUB_ENV
 
-      - name: Build Sidecars
+      - name: Sync server venv (desktop production)
         env:
           MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+
+      - name: Build Sidecars
         run: |
-          cd myrm-agent-server
-          uv sync --frozen --all-extras --group dev --no-extra matrix-e2ee
-          uv pip install pyinstaller
-          cd ../myrm-agent-desktop/sidecar
+          cd myrm-agent-desktop/sidecar
           python build.py
 
       - name: Install frontend dependencies
@@ -61,8 +64,8 @@ jobs:
           cd myrm-agent-frontend
           bun run build:tauri
 
-      - name: Download cloudflared sidecar binaries
-        run: bash myrm-agent-desktop/scripts/download-cloudflared.sh
+      - name: Download cloudflared (aarch64)
+        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh aarch64-apple-darwin
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -87,7 +90,7 @@ jobs:
           name: artifacts-macos-apple-silicon
           path: |
             myrm-agent-desktop/src-tauri/target/**/release/bundle/dmg/*.dmg
-            myrm-agent-desktop/src-tauri/target/**/release/bundle/macos/*.app.tar.gz
+            myrm-agent-desktop/src-tauri/target/**/release/bundle/macos/*.tar.gz
             myrm-agent-desktop/src-tauri/target/**/*.sig
           retention-days: 1
 
@@ -127,17 +130,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-intel
-            runner: macos-13
-            target_arch: x86_64
-            tauri_args: --target x86_64-apple-darwin --no-sign
           - platform: windows
             runner: windows-latest
             target_arch: x86_64
+            cloudflared_target: x86_64-pc-windows-msvc
             tauri_args: ''
           - platform: linux
             runner: ubuntu-22.04
             target_arch: x86_64
+            cloudflared_target: x86_64-unknown-linux-gnu
             tauri_args: ''
 
     steps:
@@ -158,8 +159,6 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-intel' && 'x86_64-apple-darwin' || '' }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v2
@@ -169,18 +168,23 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Inject version from tag
+        run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
+        shell: bash
+
       - name: Set TARGET_ARCH for Sidecar Build
         run: echo "TARGET_ARCH=${{ matrix.target_arch }}" >> $GITHUB_ENV
         shell: bash
 
-      - name: Build Sidecars
+      - name: Sync server venv (desktop production)
         env:
           MYRM_HARNESS_INSTALL_MODE: pypi
+        run: bash scripts/ci/desktop-release/sync-server-venv.sh
+        shell: bash
+
+      - name: Build Sidecars
         run: |
-          cd myrm-agent-server
-          uv sync --frozen --all-extras --group dev --no-extra matrix-e2ee
-          uv pip install pyinstaller
-          cd ../myrm-agent-desktop/sidecar
+          cd myrm-agent-desktop/sidecar
           python build.py
         shell: bash
 
@@ -188,6 +192,7 @@ jobs:
         run: |
           cd myrm-agent-frontend
           bun install
+        shell: bash
 
       - name: Build frontend for Tauri
         run: |
@@ -195,8 +200,8 @@ jobs:
           bun run build:tauri
         shell: bash
 
-      - name: Download cloudflared sidecar binaries
-        run: bash myrm-agent-desktop/scripts/download-cloudflared.sh
+      - name: Download cloudflared (${{ matrix.platform }})
+        run: bash scripts/ci/desktop-release/download-cloudflared-for-target.sh "${{ matrix.cloudflared_target }}"
         shell: bash
 
       - name: Build Tauri app
@@ -233,3 +238,22 @@ jobs:
           fi
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
+
+  finalize-release:
+    name: Finalize manifest (latest.json + sha256)
+    needs:
+      - publish-release
+      - build-extra-platforms
+    if: always() && needs.publish-release.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Generate and upload latest.json + checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: bash scripts/ci/desktop-release/finalize-release.sh

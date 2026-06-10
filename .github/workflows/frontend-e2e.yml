@@ -13,10 +13,6 @@ concurrency:
   group: frontend-e2e-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-concurrency:
-  group: frontend-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   playwright-e2e:
     name: Playwright UI E2E

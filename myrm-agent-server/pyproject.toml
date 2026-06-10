@@ -96,6 +96,8 @@ override-dependencies = [
 # OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
 # [tool.uv.sources] myrm-agent-harness editable override in a private overlay (not committed).
 
+# Desktop PyInstaller bundle: uv sync --all-extras --no-group dev --no-extra matrix-e2ee
+# (see scripts/ci/desktop-release/sync-server-venv.sh). Never include dev — pytest/ruff/mypy are not runtime.
 [dependency-groups]
 dev = [
   "pytest>=9.0.3",
