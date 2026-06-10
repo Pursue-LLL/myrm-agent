@@ -6,6 +6,8 @@ Tests cover:
 - String template substitution (_substitute_template)
 - Role-to-agent matching (_match_role_to_agent)
 - PipelineSpec parsing (_parse_pipeline_spec)
+- repeat_for fan-out (_split_repeat_items, TaskSeed.repeat_for parsing)
+- Fan-out pipeline templates (multi-topic-research / content-distribution / competitive-analysis)
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from app.services.kanban.pipeline_instantiator import (
     RoleTemplate,
     _match_role_to_agent,
     _parse_pipeline_spec,
+    _split_repeat_items,
     _substitute_template,
     get_pipeline_skill,
     list_pipeline_skills,
@@ -340,11 +343,126 @@ class TestEdgeCases:
         result = _load_frontmatter(Path("/nonexistent/path/SKILL.md"))
         assert result is None
 
-    def test_all_three_pipelines_valid_dag(self) -> None:
-        """Verify all 3 pipeline DAGs have valid parent indices."""
+    def test_all_pipelines_valid_dag(self) -> None:
+        """Verify all pipeline DAGs have valid parent indices."""
         specs = list_pipeline_skills()
         for spec in specs:
-            len(spec.task_graph_seed)
             for i, seed in enumerate(spec.task_graph_seed):
                 for p in seed.parents:
                     assert 0 <= p < i, f"{spec.skill_id}: task[{i}] references parent[{p}] >= self index"
+
+
+class TestRepeatFor:
+    """repeat_for fan-out: a single seed expands into N parallel tasks."""
+
+    def test_split_repeat_items_basic(self) -> None:
+        assert _split_repeat_items("AI,Quantum,Bio") == ["AI", "Quantum", "Bio"]
+
+    def test_split_repeat_items_with_whitespace(self) -> None:
+        assert _split_repeat_items(" AI , Quantum , Bio ") == ["AI", "Quantum", "Bio"]
+
+    def test_split_repeat_items_empty(self) -> None:
+        assert _split_repeat_items("") == []
+
+    def test_split_repeat_items_trailing_comma(self) -> None:
+        assert _split_repeat_items("AI,Quantum,") == ["AI", "Quantum"]
+
+    def test_split_repeat_items_single(self) -> None:
+        assert _split_repeat_items("AI") == ["AI"]
+
+    def test_parse_repeat_for_field(self) -> None:
+        frontmatter: dict[str, object] = {
+            "name": "fanout-test",
+            "description": "test",
+            "category": "pipeline",
+            "pipeline_spec": {
+                "discovery_questions": [],
+                "role_templates": [],
+                "task_graph_seed": [
+                    {
+                        "title_template": "Research: {_item}",
+                        "description_template": "Investigate {_item}",
+                        "role": "researcher",
+                        "parents": [],
+                        "repeat_for": "topics",
+                    },
+                    {
+                        "title_template": "Synthesize",
+                        "description_template": "Combine all findings",
+                        "role": "synthesizer",
+                        "parents": [0],
+                    },
+                ],
+            },
+        }
+        spec = _parse_pipeline_spec("fanout-test", frontmatter)
+        assert spec is not None
+        assert spec.task_graph_seed[0].repeat_for == "topics"
+        assert spec.task_graph_seed[1].repeat_for is None
+
+    def test_parse_repeat_for_absent(self) -> None:
+        frontmatter: dict[str, object] = {
+            "name": "no-repeat",
+            "description": "test",
+            "category": "pipeline",
+            "pipeline_spec": {
+                "discovery_questions": [],
+                "role_templates": [],
+                "task_graph_seed": [
+                    {"title_template": "T0", "description_template": "D0", "role": "a", "parents": []},
+                ],
+            },
+        }
+        spec = _parse_pipeline_spec("no-repeat", frontmatter)
+        assert spec is not None
+        assert spec.task_graph_seed[0].repeat_for is None
+
+    def test_substitute_item_placeholder(self) -> None:
+        result = _substitute_template("Research: {_item}", {"_item": "Quantum Computing", "depth": "deep"})
+        assert result == "Research: Quantum Computing"
+
+
+class TestFanOutTemplates:
+    """Verify the 3 new fan-out pipeline templates load correctly."""
+
+    def test_multi_topic_research_pipeline(self) -> None:
+        spec = get_pipeline_skill("multi-topic-research-pipeline")
+        assert spec is not None
+        assert spec.category == "pipeline"
+        assert len(spec.task_graph_seed) == 2
+        assert spec.task_graph_seed[0].repeat_for == "topics"
+        assert spec.task_graph_seed[1].repeat_for is None
+        assert spec.task_graph_seed[1].parents == [0]
+
+    def test_content_distribution_pipeline(self) -> None:
+        spec = get_pipeline_skill("content-distribution-pipeline")
+        assert spec is not None
+        assert spec.category == "pipeline"
+        assert len(spec.task_graph_seed) == 2
+        assert spec.task_graph_seed[0].repeat_for == "platforms"
+        assert spec.task_graph_seed[1].repeat_for is None
+        assert spec.task_graph_seed[1].parents == [0]
+
+    def test_competitive_analysis_pipeline(self) -> None:
+        spec = get_pipeline_skill("competitive-analysis-pipeline")
+        assert spec is not None
+        assert spec.category == "pipeline"
+        assert len(spec.task_graph_seed) == 2
+        assert spec.task_graph_seed[0].repeat_for == "competitors"
+        assert spec.task_graph_seed[1].repeat_for is None
+        assert spec.task_graph_seed[1].parents == [0]
+
+    def test_fan_out_templates_in_discovery(self) -> None:
+        specs = list_pipeline_skills()
+        skill_ids = [s.skill_id for s in specs]
+        assert "multi-topic-research-pipeline" in skill_ids
+        assert "content-distribution-pipeline" in skill_ids
+        assert "competitive-analysis-pipeline" in skill_ids
+
+    def test_fan_out_dags_valid(self) -> None:
+        for sid in ("multi-topic-research-pipeline", "content-distribution-pipeline", "competitive-analysis-pipeline"):
+            spec = get_pipeline_skill(sid)
+            assert spec is not None
+            for i, seed in enumerate(spec.task_graph_seed):
+                for p in seed.parents:
+                    assert 0 <= p < i, f"{sid}: task[{i}] references parent[{p}] >= self index"

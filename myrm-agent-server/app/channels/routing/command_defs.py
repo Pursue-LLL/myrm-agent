@@ -42,6 +42,7 @@ class CommandAction(Enum):
     QUEUE = "queue"
     BACKGROUND = "background"
     HANDOFF = "handoff"
+    KANBAN = "kanban"
     STATUS = "status"
     HELP = "help"
 
@@ -204,6 +205,15 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Session",
         parse_args=True,
         args_pattern="<target_channel>",
+    ),
+    CommandDef(
+        name="kanban",
+        description="Manage kanban board tasks without interrupting the agent",
+        action=CommandAction.KANBAN,
+        aliases=("kb",),
+        category="Tasks",
+        parse_args=True,
+        args_pattern="list|show <id>|create <title>|comment <id> <msg>|edit <id> title|desc <text>|complete <id>|block <id> [reason]|unblock <id>|archive <id>|stats",
     ),
     CommandDef(
         name="status",

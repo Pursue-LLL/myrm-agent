@@ -27,6 +27,7 @@ from app.config.deploy_mode import is_local_mode
 from app.core.channel_bridge import channel_gateway
 from app.core.channel_bridge.background_task_handler import ChannelBackgroundTaskHandler
 from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+from app.core.channel_bridge.kanban_command_handler import ChannelKanbanCommandHandler
 from app.core.channel_bridge.channel_factory import create_all_channels
 from app.core.notifications.dispatcher import NotificationDispatcher
 
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 _notification_dispatcher: NotificationDispatcher | None = None
 _btw_notifier: BtwTaskNotifier | None = None
 _background_task_handler: ChannelBackgroundTaskHandler | None = None
+_kanban_command_handler: ChannelKanbanCommandHandler | None = None
 
 
 def get_background_task_handler() -> ChannelBackgroundTaskHandler | None:
@@ -130,6 +132,9 @@ async def _enable_core_router() -> None:
     global _background_task_handler  # noqa: PLW0603
     _background_task_handler = ChannelBackgroundTaskHandler()
 
+    global _kanban_command_handler  # noqa: PLW0603
+    _kanban_command_handler = ChannelKanbanCommandHandler()
+
     channel_gateway.enable_bidirectional(
         pairing_store=SqlPairingStore(),
         agent_executor=ChannelAgentExecutor(),
@@ -146,6 +151,7 @@ async def _enable_core_router() -> None:
         skill_command_handler=ChannelSkillCommandHandler(),
         goal_handler=ChannelGoalCommandHandler(),
         background_handler=_background_task_handler,
+        kanban_handler=_kanban_command_handler,
         status_provider=ChannelStatusProvider(),
         locale_provider=UserConfigLocaleProvider(),
     )

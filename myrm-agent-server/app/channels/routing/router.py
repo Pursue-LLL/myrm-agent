@@ -4,7 +4,7 @@ Consumes InboundMessage from the MessageBus, applies DM/group policy,
 resolves the sender's identity, executes the Agent via AgentExecutor,
 and publishes the result as an OutboundMessage.
 
-Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue)
+Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue, /kanban)
 and voice STT/TTS via voice_handler module.
 
 
@@ -111,6 +111,9 @@ from app.channels.protocols.background_task import (
 from app.channels.protocols.compact import CompactHandler
 from app.channels.protocols.goal_command import (
     GoalCommandHandler,
+)
+from app.channels.protocols.kanban_command import (
+    KanbanCommandHandler,
 )
 from app.channels.protocols.locale import LocaleProvider
 from app.channels.protocols.pairing import (
@@ -238,6 +241,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         skill_command_handler: SkillCommandHandler | None = None,
         goal_handler: GoalCommandHandler | None = None,
         background_handler: BackgroundTaskHandler | None = None,
+        kanban_handler: KanbanCommandHandler | None = None,
         status_provider: StatusProvider | None = None,
         extra_commands: tuple[CommandDef, ...] = (),
         admin_checker: Callable[[InboundMessage], bool] | None = None,
@@ -254,6 +258,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._skill_command_handler = skill_command_handler
         self._goal_handler = goal_handler
         self._background_handler = background_handler
+        self._kanban_handler = kanban_handler
         self._status_provider = status_provider
         self._reaction_policy = reaction_policy or ReactionPolicy()
         self._topic_resolver = topic_resolver
@@ -601,6 +606,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if action == CommandAction.BACKGROUND:
             asyncio.create_task(self._handle_background_command(msg, raw_args))
+            return True
+
+        if action == CommandAction.KANBAN:
+            asyncio.create_task(self._handle_kanban_command(msg, raw_args))
             return True
 
         if action == CommandAction.HANDOFF:

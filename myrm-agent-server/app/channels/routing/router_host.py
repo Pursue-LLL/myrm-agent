@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from app.channels.protocols.background_task import BackgroundTaskHandler
     from app.channels.protocols.compact import CompactHandler
     from app.channels.protocols.goal_command import GoalCommandHandler
+    from app.channels.protocols.kanban_command import KanbanCommandHandler
     from app.channels.protocols.status import StatusProvider
     from app.channels.protocols.topic import TopicManager
     from app.channels.protocols.turn_management import RetryHandler, UndoHandler
@@ -135,6 +136,7 @@ class RouterCommandsHost(Protocol):
     _personality_provider: PersonalityProvider | None
     _goal_handler: GoalCommandHandler | None
     _background_handler: BackgroundTaskHandler | None
+    _kanban_handler: KanbanCommandHandler | None
     _status_provider: StatusProvider | None
 
 

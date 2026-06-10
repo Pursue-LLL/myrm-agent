@@ -239,3 +239,17 @@ handoff_no_pairing = No user pairing found for `{ $target }`. Please send a mess
 handoff_same_channel = Already on this channel — no transfer needed.
 handoff_failed = Handoff failed: { $error }
 help_alias =  (alias: { $aliases })
+kanban_not_available = Kanban task management is not available.
+kanban_usage =
+    📋 **Kanban Commands:**
+    `/kanban list` — list tasks
+    `/kanban show <id>` — task details
+    `/kanban create <title>` — create task
+    `/kanban comment <id> <msg>` — add comment
+    `/kanban edit <id> title|desc <text>` — edit task
+    `/kanban complete <id>` — mark done
+    `/kanban block <id> [reason]` — block
+    `/kanban unblock <id>` — unblock
+    `/kanban archive <id>` — archive
+    `/kanban stats` — board statistics
+kanban_error = ❌ Kanban command failed. Please check the syntax and try again.

@@ -10,7 +10,8 @@
 - instantiate_pipeline(): Create a Kanban task DAG from a template + user answers.
 
 [POS]
-Deterministic pipeline template instantiation service. Zero LLM calls.
+Deterministic pipeline template instantiation service. Supports repeat_for
+fan-out (one seed → N parallel tasks from multi-select answers). Zero LLM calls.
 """
 
 from __future__ import annotations

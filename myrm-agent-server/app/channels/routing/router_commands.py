@@ -872,3 +872,53 @@ class RouterCommandsMixin:
             reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
+
+    async def _handle_kanban_command(
+        self: RouterCommandsHost,
+        msg: InboundMessage,
+        raw_args: str,
+    ) -> None:
+        """Handle /kanban (/kb) command: manage kanban board tasks from IM."""
+        chat_id = msg.chat_id or msg.sender_id
+        handler = self._kanban_handler
+
+        if not handler:
+            reply = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=get_text(msg, "kanban_not_available"),
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            )
+            await self._bus.publish_outbound(reply)
+            return
+
+        args = raw_args.strip()
+        if not args:
+            reply = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=get_text(msg, "kanban_usage"),
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            )
+            await self._bus.publish_outbound(reply)
+            return
+
+        try:
+            content = await handler.handle_kanban(msg, args)
+        except Exception:
+            logger.exception("Kanban command failed: /kanban %s", args)
+            content = get_text(msg, "kanban_error")
+
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=content,
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        )
+        await self._bus.publish_outbound(reply)

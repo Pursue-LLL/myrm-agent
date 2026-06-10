@@ -22,6 +22,7 @@ Channel system protocols — interfaces for business-layer injection.
 | background_task.py | Core | Business-layer handler protocol for /background (/btw /bg) slash commands. Framework delegates background session lifecycle (spawn, list, cancel, steer) via this protocol. | ✅ |
 | status.py | Core | Business-layer handler protocol for /status slash command. Framework provides runtime state (agent running, queue depth, yolo mode) and delegates session metadata retrieval (session_id, title, tokens, model, timestamps) via StatusProvider protocol. | ✅ |
 | turn_management.py | Core | Business-layer handler protocol for /retry and /undo slash commands. | ✅ |
+| kanban_command.py | Core | Business-layer handler protocol for /kanban (/kb) slash commands. Framework delegates kanban board management (list, show, create, comment, edit, complete, block, unblock, archive, stats) via this protocol. | ✅ |
 
 ## Key Dependencies
 
