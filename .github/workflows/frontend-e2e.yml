@@ -8,15 +8,10 @@ on:
       - 'shared/**'
       - 'scripts/ci/run_frontend_e2e.sh'
       - '.github/workflows/frontend-e2e.yml'
-  push:
-    branches:
-      - main
-    paths:
-      - 'myrm-agent-frontend/**'
-      - 'myrm-agent-server/app/**'
-      - 'shared/**'
-      - 'scripts/ci/run_frontend_e2e.sh'
-      - '.github/workflows/frontend-e2e.yml'
+
+concurrency:
+  group: frontend-e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 concurrency:
   group: frontend-e2e-${{ github.event.pull_request.number || github.ref }}

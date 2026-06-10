@@ -26,6 +26,10 @@ on:
       - 'shared/**'
       - '.github/workflows/server-architecture.yml'
 
+concurrency:
+  group: server-architecture-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   architecture:
     name: Harness contract & arch tests

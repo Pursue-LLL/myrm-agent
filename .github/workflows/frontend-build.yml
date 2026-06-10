@@ -6,13 +6,10 @@ on:
       - 'myrm-agent-frontend/**'
       - 'shared/**'
       - '.github/workflows/frontend-build.yml'
-  push:
-    branches:
-      - main
-    paths:
-      - 'myrm-agent-frontend/**'
-      - 'shared/**'
-      - '.github/workflows/frontend-build.yml'
+
+concurrency:
+  group: frontend-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
