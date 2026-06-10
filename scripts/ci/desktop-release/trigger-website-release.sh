@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# After a desktop GitHub Release is finalized, tag myrm-agent-brand and POST CF Pages Deploy Hook.
-# Requires secrets: BRAND_RELEASE_PAT (contents:write on brand repo), CF_PAGES_DEPLOY_HOOK.
+# Tag myrm-agent-brand website-v* on main HEAD and POST CF Pages Deploy Hook after desktop finalize.
+# Secrets: BRAND_RELEASE_PAT, CF_PAGES_DEPLOY_HOOK (both optional; skip when unset).
 set -euo pipefail
 
 DESKTOP_TAG="${DESKTOP_TAG:?Set DESKTOP_TAG (e.g. v0.1.14)}"
@@ -23,9 +23,10 @@ MAIN_SHA="$(gh api "repos/${BRAND_REPO}/commits/main" --jq .sha)"
 echo "[trigger-website-release] brand main @ ${MAIN_SHA:0:7}"
 
 resolve_tag_commit() {
-  local ref_type ref_sha
-  ref_type="$(gh api "repos/${BRAND_REPO}/git/refs/tags/${WEBSITE_TAG}" --jq '.object.type')"
-  ref_sha="$(gh api "repos/${BRAND_REPO}/git/refs/tags/${WEBSITE_TAG}" --jq '.object.sha')"
+  local payload ref_type ref_sha
+  payload="$(gh api "repos/${BRAND_REPO}/git/refs/tags/${WEBSITE_TAG}")"
+  ref_type="$(jq -r '.object.type' <<<"$payload")"
+  ref_sha="$(jq -r '.object.sha' <<<"$payload")"
   if [[ "$ref_type" == "tag" ]]; then
     gh api "repos/${BRAND_REPO}/git/tags/${ref_sha}" --jq .object.sha
   else
@@ -49,10 +50,13 @@ else
   echo "[trigger-website-release] Created tag ${WEBSITE_TAG} on ${MAIN_SHA:0:7}"
 fi
 
-http_code="$(curl -sS -o /tmp/cf-hook-response.txt -w '%{http_code}' -X POST "$CF_PAGES_DEPLOY_HOOK")"
+hook_response="$(mktemp)"
+trap 'rm -f "$hook_response"' EXIT
+
+http_code="$(curl -sS -o "$hook_response" -w '%{http_code}' -X POST "$CF_PAGES_DEPLOY_HOOK")"
 if [[ "$http_code" != "200" && "$http_code" != "201" && "$http_code" != "202" ]]; then
   echo "[trigger-website-release] Deploy hook failed: HTTP ${http_code}" >&2
-  cat /tmp/cf-hook-response.txt >&2 || true
+  cat "$hook_response" >&2 || true
   exit 1
 fi
 

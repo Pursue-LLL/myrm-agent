@@ -23,10 +23,16 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 | `sidecar/` | PyInstaller + agent-runner 编译入口 |
 | `scripts/` | 桌面构建/签名辅助 |
 
+## Windows 打包
+
+- NSIS `installerIcon` 使用 `icons/icon.ico`（NSIS 不接受 PNG）
+- 多语言安装器：English / 简中 / 繁中 / 日 / 韩 / 德
+
 ## 依赖
 
 - 内嵌/伴随 `myrm-agent-server`、`myrm-agent-frontend` 静态资源
 - **不**依赖 PyPI harness 打包进 Tauri（后端 sidecar 已捆绑解释器/runtime）
+- 发版 CI：`scripts/ci/desktop-release/` · [../scripts/ci/desktop-release/_ARCH.md](../scripts/ci/desktop-release/_ARCH.md)
 
 ## 文档
 
