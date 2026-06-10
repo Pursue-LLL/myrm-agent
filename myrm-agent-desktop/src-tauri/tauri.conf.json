@@ -10,6 +10,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "resources": {
       "../../myrm-agent-frontend/.next/standalone/myrm-agent-frontend/": "frontend"
@@ -21,8 +22,7 @@
     ],
     "externalBin": [
       "binaries/myrmagent-backend",
-      "binaries/agent-runner",
-      "binaries/cloudflared"
+      "binaries/agent-runner"
     ],
     "copyright": "Copyright © 2026 MyrmAgent Team",
     "category": "Productivity",

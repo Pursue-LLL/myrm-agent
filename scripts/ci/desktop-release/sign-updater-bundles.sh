@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Sign Tauri updater bundles (.tar.gz / .nsis.zip / …) when build did not emit .sig.
+set -euo pipefail
+
+ROOT="${1:-myrm-agent-desktop/src-tauri/target}"
+DESKTOP_ROOT="${2:-myrm-agent-desktop}"
+
+if [[ ! -d "$ROOT" ]]; then
+  echo "[sign-updater-bundles] Target directory not found: ${ROOT}" >&2
+  exit 1
+fi
+
+if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+  echo "[sign-updater-bundles] ERROR: TAURI_SIGNING_PRIVATE_KEY is unset." >&2
+  exit 1
+fi
+
+bundles=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && bundles+=("$line")
+done < <(
+  find "$ROOT" -type f \( -path '*/release/bundle/macos/*.tar.gz' \
+    -o -path '*/release/bundle/nsis/*.nsis.zip' \
+    -o -path '*/release/bundle/msi/*.msi.zip' \
+    -o -name '*.AppImage.tar.gz' \) | sort -u
+)
+
+if [[ ${#bundles[@]} -eq 0 ]]; then
+  echo "[sign-updater-bundles] ERROR: No updater bundles under ${ROOT}" >&2
+  find "$ROOT" -maxdepth 10 -type f 2>/dev/null | head -30 >&2 || true
+  exit 1
+fi
+
+signed=0
+for bundle in "${bundles[@]}"; do
+  sig="${bundle}.sig"
+  if [[ -f "$sig" ]]; then
+    echo "[sign-updater-bundles] present: $(basename "$sig")"
+    signed=$((signed + 1))
+    continue
+  fi
+  echo "[sign-updater-bundles] signing: $(basename "$bundle")"
+  (
+    cd "$DESKTOP_ROOT"
+    bun x @tauri-apps/cli signer sign "$bundle"
+  )
+  if [[ ! -f "$sig" ]]; then
+    echo "[sign-updater-bundles] ERROR: signer did not create ${sig}" >&2
+    exit 1
+  fi
+  signed=$((signed + 1))
+done
+
+echo "[sign-updater-bundles] OK (${signed} updater signature file(s))"
