@@ -70,9 +70,12 @@ jobs:
         shell: bash
 
       - name: Build Sidecars
+        env:
+          MYRM_HARNESS_INSTALL_MODE: pypi
         run: |
           cd myrm-agent-server
           uv sync --frozen --all-extras --group dev --no-extra matrix-e2ee
+          uv pip install pyinstaller
           cd ../myrm-agent-desktop/sidecar
           python build.py
         shell: bash

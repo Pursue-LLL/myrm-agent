@@ -50,9 +50,10 @@ def check_pyinstaller() -> None:
         )
         print("✅ PyInstaller is installed in server venv")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("❌ PyInstaller not found in server venv, installing...")
+        print("PyInstaller not found in server venv, installing via uv pip...")
         subprocess.run(
-            [str(server_python), "-m", "pip", "install", "pyinstaller"],
+            ["uv", "pip", "install", "pyinstaller"],
+            cwd=SERVER_ROOT,
             check=True,
         )
 
