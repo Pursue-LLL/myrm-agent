@@ -237,6 +237,8 @@ async def move_task(task_id: str, body: TaskMoveRequest) -> TaskResponse:
             block_kind=block_kind,
             blocked_reason=body.blocked_reason,
             scheduled_until=body.scheduled_until,
+            result=body.result,
+            metadata=body.metadata,
         )
     except DependencyUnmetError as exc:
         raise HTTPException(

@@ -1,3 +1,24 @@
+"""ChannelAgentExecutor — bridge between IM channel inbound messages and the SkillAgent runtime.
+
+[INPUT]
+- myrm_agent_harness.agent (POS: Agent execution engine framework)
+- app.channels.types (POS: Session identity, message types, reset policy definitions)
+- app.channels.i18n (POS: i18n text resolution for channel messages)
+- app.core.channel_bridge.config_loader (POS: UserConfig table loader)
+- app.core.channel_bridge.config_parsers (POS: Typed config extraction from frontend dicts)
+- app.core.channel_bridge.executor_helpers (POS: Stream accumulation, history, title generation)
+- app.services.agent.profile_resolver (POS: Agent profile resolution for multi-agent routing)
+
+[OUTPUT]
+- ChannelAgentExecutor: async generator that processes an InboundMessage through
+  config resolution → session management → Agent invocation → streaming response.
+
+[POS]
+Business-layer executor for IM/channel inbound messages. Bridges channel routing
+to the SkillAgent runtime with session-aware context, auto-reset notification,
+and streaming response assembly.
+"""
+
 from __future__ import annotations
 
 import asyncio

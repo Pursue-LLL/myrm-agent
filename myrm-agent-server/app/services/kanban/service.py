@@ -194,6 +194,16 @@ _STATUS_TO_EVENT_KIND: dict[TaskStatus, TaskEventKind] = {
     TaskStatus.FAILED: TaskEventKind.FAILED,
 }
 
+_SYNTHETIC_RUN_TARGETS: frozenset[TaskStatus] = frozenset(
+    {TaskStatus.COMPLETED, TaskStatus.BLOCKED, TaskStatus.FAILED}
+)
+
+_TARGET_TO_RUN_OUTCOME: dict[TaskStatus, TaskRunOutcome] = {
+    TaskStatus.COMPLETED: TaskRunOutcome.COMPLETED,
+    TaskStatus.BLOCKED: TaskRunOutcome.BLOCKED,
+    TaskStatus.FAILED: TaskRunOutcome.CRASHED,
+}
+
 
 class KanbanService:
     """Singleton business orchestration service for kanban.
@@ -467,6 +477,8 @@ class KanbanService:
         block_kind: BlockKind | None = None,
         blocked_reason: str | None = None,
         scheduled_until: datetime | None = None,
+        result: str | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> KanbanTask | None:
         task = await self._store.get_task(task_id)
         if task is None:
@@ -511,12 +523,20 @@ class KanbanService:
                         [d["task_id"] for d in details],
                         unmet_details=details,
                     )
+        if result is not None:
+            task.result = result
+        if metadata is not None:
+            if task.metadata is None:
+                task.metadata = {}
+            task.metadata["handoff"] = metadata
         if target_status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.ARCHIVED):
             task.completed_at = datetime.now(UTC)
         if old_status == TaskStatus.RUNNING and not task.is_terminal:
             task.last_heartbeat_at = None
             task.progress_note = None
         saved = await self._store.save_task(task)
+
+        synthetic_run_id: str | None = None
 
         if old_status == TaskStatus.RUNNING and not saved.is_terminal:
             await self._store.append_event(
@@ -533,6 +553,15 @@ class KanbanService:
                         error="Manual reclaim via move_task",
                     )
                     break
+
+        needs_synthetic = (
+            old_status != TaskStatus.RUNNING
+            and target_status in _SYNTHETIC_RUN_TARGETS
+        )
+        if needs_synthetic:
+            synthetic_run_id = await self._synthesize_run(
+                task_id, target_status, result=result or "", error=blocked_reason or "",
+            )
 
         event_kind = _STATUS_TO_EVENT_KIND.get(saved.status)
         if old_status == TaskStatus.BLOCKED and saved.status == TaskStatus.READY:
@@ -552,6 +581,7 @@ class KanbanService:
                 task_id,
                 event_kind,
                 payload=event_payload,
+                run_id=synthetic_run_id,
             )
         if unsatisfied_deps:
             await self._store.append_event(
@@ -581,6 +611,31 @@ class KanbanService:
             status=saved.status.value,
         )
         return saved
+
+    async def _synthesize_run(
+        self,
+        task_id: str,
+        target_status: TaskStatus,
+        *,
+        result: str = "",
+        error: str = "",
+    ) -> str:
+        """Create a zero-duration synthetic TaskRun for unclaimed tasks.
+
+        When a task is completed/blocked/failed via GUI, API, or IM without ever
+        being claimed by the dispatcher, no TaskRun exists. This method creates
+        one so that context_builder's "Prior attempts" section and the UI run
+        history remain accurate.
+        """
+        run = await self._store.create_run(task_id, worker_id="manual")
+        outcome = _TARGET_TO_RUN_OUTCOME[target_status]
+        await self._store.complete_run(
+            run.run_id,
+            outcome,
+            summary=result,
+            error=error,
+        )
+        return run.run_id
 
     async def cancel_task_execution(self, task_id: str) -> bool:
         """Cancel the asyncio execution of a task without modifying its state.

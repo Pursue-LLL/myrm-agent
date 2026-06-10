@@ -9,6 +9,6 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Business-layer AgentExecutor for channel inbound messages. | ✅ |
-| `executor.py` | 模块 | Executes Agent tasks for inbound channel messages. | ✅ |
+| `executor.py` | 核心 | Executes Agent tasks for inbound channel messages with session-aware auto-reset notification. | ✅ |
 | `helpers.py` | 模块 | Business-layer assembly for IM/channel turns headed to the SkillAgent runtime | ✅ |
 | `session.py` | 模块 | Build a structured session key (base, without epoch). | ✅ |

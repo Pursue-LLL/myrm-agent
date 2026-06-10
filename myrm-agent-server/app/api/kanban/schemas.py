@@ -148,6 +148,15 @@ class TaskMoveRequest(BaseModel):
     block_kind: str | None = Field(None, description="Block sub-type: human / scheduled / external")
     blocked_reason: str | None = Field(None, max_length=1000)
     scheduled_until: datetime | None = Field(None, description="Auto-unblock time (ISO-8601) for scheduled blocks")
+    result: str | None = Field(
+        None,
+        max_length=10000,
+        description="Completion summary / handoff text. Persisted on task.result and on the synthetic run.",
+    )
+    metadata: dict[str, object] | None = Field(
+        None,
+        description="Structured handoff metadata (e.g. changed_files). Stored in task.metadata['handoff'].",
+    )
 
 
 class PromoteRequest(BaseModel):

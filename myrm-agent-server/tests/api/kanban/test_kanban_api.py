@@ -2125,3 +2125,128 @@ class TestTaskAttachments:
         )
         assert resp.status_code == 201
         assert resp.json()["attachment_ids"] == ["f1", "f1", "f2"]
+
+
+# ===========================================================================
+# Synthetic zero-duration run for unclaimed tasks
+# ===========================================================================
+
+
+class TestSyntheticRun:
+    """move_task creates a synthetic TaskRun when an unclaimed task
+    transitions to COMPLETED / BLOCKED / FAILED."""
+
+    def test_complete_unclaimed_creates_synthetic_run(self, client: TestClient) -> None:
+        board = _create_board(client, "SynRun")
+        tid = str(_create_task(client, board["board_id"], "Unclaimed")["task_id"])
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed", "result": "Done by human"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["result"] == "Done by human"
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 1
+        run = runs[0]
+        assert run["worker_id"] == "manual"
+        assert run["outcome"] == "completed"
+        assert run["summary"] == "Done by human"
+        assert run["ended_at"] is not None
+
+    def test_block_unclaimed_creates_synthetic_run(self, client: TestClient) -> None:
+        board = _create_board(client, "SynBlock")
+        tid = str(_create_task(client, board["board_id"], "BlockMe")["task_id"])
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={
+                "status": "blocked",
+                "block_kind": "human",
+                "blocked_reason": "waiting for review",
+            },
+        )
+        assert resp.status_code == 200
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 1
+        assert runs[0]["outcome"] == "blocked"
+        assert runs[0]["error"] == "waiting for review"
+
+    def test_fail_unclaimed_creates_synthetic_run(self, client: TestClient) -> None:
+        board = _create_board(client, "SynFail")
+        tid = str(_create_task(client, board["board_id"], "FailMe")["task_id"])
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "failed"},
+        )
+        assert resp.status_code == 200
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 1
+        assert runs[0]["outcome"] == "crashed"
+        assert runs[0]["worker_id"] == "manual"
+
+    def test_running_to_completed_no_synthetic_run(self, client: TestClient) -> None:
+        """Tasks moved from RUNNING already have a dispatcher-created run;
+        no synthetic run should be added."""
+        board = _create_board(client, "NoSyn")
+        tid = str(_create_task(client, board["board_id"], "Running")["task_id"])
+
+        client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "running"})
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed"},
+        )
+        assert resp.status_code == 200
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 0
+
+    def test_move_with_result_and_metadata(self, client: TestClient) -> None:
+        board = _create_board(client, "Meta")
+        tid = str(_create_task(client, board["board_id"], "WithMeta")["task_id"])
+
+        resp = client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={
+                "status": "completed",
+                "result": "Implemented feature X",
+                "metadata": {"changed_files": ["a.py", "b.py"]},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["result"] == "Implemented feature X"
+        assert data["metadata"]["handoff"] == {"changed_files": ["a.py", "b.py"]}
+
+    def test_move_ready_no_synthetic_run(self, client: TestClient) -> None:
+        """Moving to READY should NOT create a synthetic run."""
+        board = _create_board(client, "NoSynReady")
+        tid = str(_create_task(client, board["board_id"], "ToReady")["task_id"])
+
+        client.post(f"/api/v1/kanban/tasks/{tid}/move", json={"status": "ready"})
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 0
+
+    def test_synthetic_run_event_has_run_id(self, client: TestClient) -> None:
+        """The COMPLETED event should reference the synthetic run_id."""
+        board = _create_board(client, "EvtRunId")
+        tid = str(_create_task(client, board["board_id"], "EvtTask")["task_id"])
+
+        client.post(
+            f"/api/v1/kanban/tasks/{tid}/move",
+            json={"status": "completed", "result": "ok"},
+        )
+
+        runs = client.get(f"/api/v1/kanban/tasks/{tid}/runs").json()["items"]
+        assert len(runs) == 1
+        run_id = runs[0]["run_id"]
+
+        events = client.get(f"/api/v1/kanban/tasks/{tid}/events").json()["items"]
+        completed_events = [e for e in events if e["kind"] == "completed"]
+        assert len(completed_events) == 1
+        assert completed_events[0]["run_id"] == run_id
