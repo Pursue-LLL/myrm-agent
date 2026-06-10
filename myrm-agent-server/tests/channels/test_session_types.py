@@ -108,11 +108,20 @@ class TestSessionPolicy:
         assert policy.mode == SessionResetMode.DAILY
         assert policy.daily_reset_hour == 4
         assert policy.idle_minutes == 120
+        assert policy.notify_on_reset is True
 
     def test_custom(self) -> None:
         policy = SessionPolicy(mode=SessionResetMode.IDLE, idle_minutes=30)
         assert policy.mode == SessionResetMode.IDLE
         assert policy.idle_minutes == 30
+
+    def test_notify_on_reset_disabled(self) -> None:
+        policy = SessionPolicy(notify_on_reset=False)
+        assert policy.notify_on_reset is False
+
+    def test_notify_on_reset_enabled_explicit(self) -> None:
+        policy = SessionPolicy(notify_on_reset=True)
+        assert policy.notify_on_reset is True
 
 
 class TestSessionResetMode:

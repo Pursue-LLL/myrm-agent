@@ -193,6 +193,7 @@ class TestSessionPolicyFromAgentDict:
         assert policy.mode == SessionResetMode.DAILY
         assert policy.daily_reset_hour == 4
         assert policy.idle_minutes == 120
+        assert policy.notify_on_reset is True
 
     def test_persistent_mode(self) -> None:
         raw = {"mode": "persistent"}
@@ -228,6 +229,21 @@ class TestSessionPolicyFromAgentDict:
         policy = session_policy_from_agent_dict(raw)
         assert policy.daily_reset_hour == 23
 
+    def test_notify_on_reset_false(self) -> None:
+        raw = {"mode": "daily", "notify_on_reset": False}
+        policy = session_policy_from_agent_dict(raw)
+        assert policy.notify_on_reset is False
+
+    def test_notify_on_reset_true_explicit(self) -> None:
+        raw = {"mode": "daily", "notify_on_reset": True}
+        policy = session_policy_from_agent_dict(raw)
+        assert policy.notify_on_reset is True
+
+    def test_notify_on_reset_missing_defaults_true(self) -> None:
+        raw = {"mode": "daily"}
+        policy = session_policy_from_agent_dict(raw)
+        assert policy.notify_on_reset is True
+
 
 class TestExtractSessionPolicy:
     def test_none_returns_default(self) -> None:
@@ -248,3 +264,18 @@ class TestExtractSessionPolicy:
         raw = {"sessionPolicy": {"mode": "persistent"}}
         policy = extract_session_policy(raw)
         assert policy.mode == SessionResetMode.PERSISTENT
+
+    def test_notify_on_reset_false(self) -> None:
+        raw = {"sessionPolicy": {"mode": "daily", "notifyOnReset": False}}
+        policy = extract_session_policy(raw)
+        assert policy.notify_on_reset is False
+
+    def test_notify_on_reset_true(self) -> None:
+        raw = {"sessionPolicy": {"mode": "daily", "notifyOnReset": True}}
+        policy = extract_session_policy(raw)
+        assert policy.notify_on_reset is True
+
+    def test_notify_on_reset_missing_defaults_true(self) -> None:
+        raw = {"sessionPolicy": {"mode": "daily"}}
+        policy = extract_session_policy(raw)
+        assert policy.notify_on_reset is True
