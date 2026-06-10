@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+
+from app.services.event.app_event_bus import AppEvent
+
+
+class _FakeEventBus:
+    def subscribe(self) -> asyncio.Queue[AppEvent]:
+        return asyncio.Queue()
+
+    def unsubscribe(self, queue: asyncio.Queue[AppEvent]) -> None:
+        pass
 
 
 class _FakeGateway:
@@ -60,7 +70,7 @@ async def test_start_channel_gateway_enables_core_router_in_cp_mode(monkeypatch:
     monkeypatch.setattr(setup_module, "is_local_mode", lambda: False)
     monkeypatch.setattr(setup_module, "_restore_channel_instances", AsyncMock())
     monkeypatch.setattr(setup_module, "NotificationDispatcher", _FakeNotificationDispatcher)
-    monkeypatch.setattr(event_bus_module, "get_event_bus", lambda: SimpleNamespace())
+    monkeypatch.setattr(event_bus_module, "get_event_bus", lambda: _FakeEventBus())
 
     await setup_module.start_channel_gateway()
 

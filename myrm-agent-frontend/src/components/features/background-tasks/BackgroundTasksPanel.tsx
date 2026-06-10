@@ -162,7 +162,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           </span>
                         </div>
 
-                        {task.result_preview && task.status === 'completed' && (
+                        {task.result_preview && (task.status === 'completed' || task.status === 'failed') && (
                           <p className="mt-1.5 line-clamp-2 rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground/80">
                             {task.result_preview}
                           </p>
