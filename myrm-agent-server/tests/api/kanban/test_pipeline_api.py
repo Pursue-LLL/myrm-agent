@@ -6,9 +6,10 @@ path from HTTP request to task creation.
 
 Covers:
 - GET /kanban/pipelines — list available pipeline templates
-- GET /kanban/pipelines/{skill_id} — get template detail
+- GET /kanban/pipelines/{skill_id} — get template detail + repeat_for field exposure
 - POST /kanban/boards/{board_id}/pipeline/instantiate — create task graph
-- repeat_for fan-out: N tasks from multi-select + error paths (empty / exceeds max)
+- repeat_for fan-out: all 3 templates (multi-topic / content-distribution / competitive-analysis)
+- repeat_for error paths: empty selection (400) / exceeds MAX_REPEAT (400)
 """
 
 from __future__ import annotations
@@ -121,6 +122,13 @@ class TestGetPipelineDetail:
         assert seeds[2]["parents"] == [0]
         assert seeds[3]["parents"] == [1, 2]
         assert seeds[4]["parents"] == [3]
+
+    def test_repeat_for_exposed_in_detail(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/kanban/pipelines/multi-topic-research-pipeline")
+        assert resp.status_code == 200
+        seeds = resp.json()["task_graph_seed"]
+        assert seeds[0]["repeat_for"] == "topics"
+        assert seeds[1]["repeat_for"] is None
 
     def test_not_found(self, client: TestClient) -> None:
         resp = client.get("/api/v1/kanban/pipelines/nonexistent")
@@ -354,6 +362,60 @@ class TestInstantiatePipeline:
         assert any("AI" in t for t in titles)
         assert any("Quantum" in t for t in titles)
         assert any("Bio" in t for t in titles)
+
+    def test_repeat_for_content_distribution(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "content-distribution-pipeline",
+                "answers": {
+                    "source_content": "Product launch blog post",
+                    "content_type": "Blog article",
+                    "platforms": "Twitter,LinkedIn",
+                    "tone": "Professional",
+                },
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["task_ids"]) == 3  # 2 adapt + 1 check
+        assert len(data["edges"]) == 2
+
+        tasks_resp = client.get(f"/api/v1/kanban/boards/{board_id}/tasks")
+        titles = [t["title"] for t in tasks_resp.json()["items"]]
+        assert any("Twitter" in t for t in titles)
+        assert any("LinkedIn" in t for t in titles)
+
+    def test_repeat_for_competitive_analysis(self, client: TestClient) -> None:
+        board = _create_board(client)
+        board_id = board["board_id"]
+
+        resp = client.post(
+            f"/api/v1/kanban/boards/{board_id}/pipeline/instantiate",
+            json={
+                "skill_id": "competitive-analysis-pipeline",
+                "answers": {
+                    "our_product": "MyRM",
+                    "competitors": "CompA,CompB,CompC",
+                    "industry": "AI Agent",
+                    "dimensions": "Feature,Price",
+                    "output_format": "Matrix",
+                },
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert len(data["task_ids"]) == 4  # 3 analyze + 1 synthesize
+        assert len(data["edges"]) == 3
+
+        tasks_resp = client.get(f"/api/v1/kanban/boards/{board_id}/tasks")
+        titles = [t["title"] for t in tasks_resp.json()["items"]]
+        assert any("CompA" in t for t in titles)
+        assert any("CompB" in t for t in titles)
+        assert any("CompC" in t for t in titles)
 
     def test_repeat_for_empty_selection_returns_400(self, client: TestClient) -> None:
         board = _create_board(client)

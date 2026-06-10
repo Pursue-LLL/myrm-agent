@@ -9459,12 +9459,12 @@
       "scopePermissionDesc": "自动允许所有 {permissionType} 类型的工具"
     },
     "spanRiskReasons": {
-      "safe": "已识别的安全只读命令",
-      "empty_segment": "管道片段为空",
-      "redirect": "包含 I/O 重定向，需人工确认",
-      "unknown_command": "命令不在安全白名单中",
-      "unknown_subcommand": "子命令未被识别为安全操作",
-      "invalid_flags": "命令参数不在安全白名单中"
+      "safe": "安全 — 只读命令，已自动放行",
+      "empty_segment": "空片段 — 未检测到命令",
+      "redirect": "会写入文件 — 请确认目标路径",
+      "unknown_command": "未识别的命令 — 需要您确认",
+      "unknown_subcommand": "未识别的子命令 — 需要您确认",
+      "invalid_flags": "未识别的参数 — 需要您确认"
     },
     "permissionTypes": {
       "codeInterpreter": "代码执行",

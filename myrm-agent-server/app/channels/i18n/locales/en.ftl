@@ -253,3 +253,5 @@ kanban_usage =
     `/kanban archive <id>` — archive
     `/kanban stats` — board statistics
 kanban_error = ❌ Kanban command failed. Please check the syntax and try again.
+session_reset_notify_idle = ℹ️ Session auto-reset: no activity for { $minutes } minutes. This is a fresh conversation.
+session_reset_notify_daily = ℹ️ Session auto-reset: daily reset at { $hour }:00 UTC. This is a fresh conversation.

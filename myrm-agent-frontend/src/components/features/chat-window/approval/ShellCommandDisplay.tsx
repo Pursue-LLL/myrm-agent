@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { useTranslations } from 'next-intl';
-import { FolderOpen } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { FolderOpen, Info } from 'lucide-react';
 
 import {
   Tooltip,
@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/primitives/tooltip';
-import type { CommandSpan, SpanRiskLevel, SpanRiskReason } from '@/lib/approval/shellCommandDisplay';
+import type { CommandSpan, PlainExplanation, SpanRiskLevel, SpanRiskReason } from '@/lib/approval/shellCommandDisplay';
 import { zipSpansWithRisks } from '@/lib/approval/shellCommandDisplay';
 
 interface ShellCommandDisplayProps {
@@ -19,6 +19,7 @@ interface ShellCommandDisplayProps {
   commandSpans?: CommandSpan[];
   commandSpanRisks?: SpanRiskLevel[];
   commandSpanReasons?: SpanRiskReason[];
+  plainExplanation?: PlainExplanation;
   workspaceRoot?: string;
   className?: string;
 }
@@ -91,11 +92,15 @@ export default function ShellCommandDisplay({
   commandSpans,
   commandSpanRisks,
   commandSpanReasons,
+  plainExplanation,
   workspaceRoot,
   className = '',
 }: ShellCommandDisplayProps) {
   const t = useTranslations('toolApproval');
+  const currentLocale = useLocale();
   const hasSpans = commandSpans && commandSpans.length > 0;
+  const explanationText = plainExplanation?.[currentLocale.startsWith('zh') ? 'zh' : 'en']
+    ?? plainExplanation?.en;
 
   const reasonLabel = (reason: SpanRiskReason) => t(`spanRiskReasons.${reason}`);
 
@@ -113,6 +118,12 @@ export default function ShellCommandDisplay({
             ? renderWithSpans(command, commandSpans, commandSpanRisks, commandSpanReasons, reasonLabel)
             : command}
         </div>
+        {explanationText && (
+          <div className="px-3 py-1.5 border-t border-border bg-amber-500/5 text-xs text-amber-800 dark:text-amber-200 flex items-center gap-1.5 min-w-0">
+            <Info className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <span className="truncate">{explanationText}</span>
+          </div>
+        )}
         {workspaceRoot && (
           <div className="px-3 py-1.5 border-t border-border bg-muted/30 text-[10px] text-muted-foreground flex items-center gap-1.5 min-w-0">
             <FolderOpen className="h-3 w-3 shrink-0" aria-hidden="true" />

@@ -91,6 +91,7 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
                 description_template=s.description_template,
                 role=s.role,
                 parents=s.parents,
+                repeat_for=s.repeat_for,
             )
             for s in spec.task_graph_seed
         ],
@@ -105,6 +106,7 @@ async def get_pipeline(skill_id: str) -> PipelineTemplateDetailResponse:
                         description_template=s.description_template,
                         role=s.role,
                         parents=s.parents,
+                        repeat_for=s.repeat_for,
                     )
                     for s in v.seeds
                 ],

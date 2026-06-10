@@ -5,6 +5,7 @@ import {
   parseCommandSpanReasons,
   parseCommandSpanRisks,
   parseCommandSpans,
+  parsePlainExplanation,
 } from '@/lib/approval/shellCommandDisplay';
 
 interface ApprovalActionPayload {
@@ -16,6 +17,7 @@ interface ApprovalActionPayload {
   command_spans?: unknown;
   command_span_risks?: unknown;
   command_span_reasons?: unknown;
+  plain_explanation?: unknown;
 }
 
 interface ApprovalExtensionsPayload {
@@ -88,5 +90,6 @@ export function buildToolApprovalRequest({
       ? parseCommandSpanReasons(action.command_span_reasons, commandSpans.length)
       : undefined,
     workspaceRoot: extensions.workspaceRoot,
+    plainExplanation: parsePlainExplanation(action.plain_explanation),
   };
 }

@@ -95,11 +95,15 @@ class SessionPolicy:
     - persistent: one Chat per peer forever (legacy default)
     - daily: new Chat after ``daily_reset_hour`` UTC each day
     - idle: new Chat after ``idle_minutes`` of inactivity
+
+    ``notify_on_reset``: when True, the executor injects a system context note
+    into the LLM query and emits a user-facing IM notification on auto-reset.
     """
 
     mode: SessionResetMode = SessionResetMode.DAILY
     daily_reset_hour: int = 4
     idle_minutes: int = 120
+    notify_on_reset: bool = True
 
 
 def compute_daily_epoch(reset_hour: int) -> str:

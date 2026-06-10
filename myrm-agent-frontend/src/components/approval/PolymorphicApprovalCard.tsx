@@ -22,6 +22,7 @@ import {
   parseCommandSpanReasons,
   parseCommandSpanRisks,
   parseCommandSpans,
+  parsePlainExplanation,
 } from '@/lib/approval/shellCommandDisplay';
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
@@ -413,6 +414,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                         commandSpans.length,
                       )
                     : undefined;
+                  const plainExplanation = parsePlainExplanation(
+                    args.plain_explanation ?? args.plainExplanation,
+                  );
                   return (
                     <ShellCommandDisplay
                       key={idx}
@@ -421,6 +425,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                       commandSpans={commandSpans}
                       commandSpanRisks={commandSpanRisks}
                       commandSpanReasons={commandSpanReasons}
+                      plainExplanation={plainExplanation}
                       workspaceRoot={workspaceRoot}
                     />
                   );

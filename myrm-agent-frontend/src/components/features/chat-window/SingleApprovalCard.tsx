@@ -408,6 +408,7 @@ export default function SingleApprovalCard({
               commandSpans={request.commandSpans}
               commandSpanRisks={request.commandSpanRisks}
               commandSpanReasons={request.commandSpanReasons}
+              plainExplanation={request.plainExplanation}
               workspaceRoot={request.workspaceRoot}
             />
           ) : (

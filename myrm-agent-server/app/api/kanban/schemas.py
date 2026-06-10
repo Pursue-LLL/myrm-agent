@@ -510,6 +510,7 @@ class PipelineTaskSeedResponse(BaseModel):
     description_template: str
     role: str
     parents: list[int] = []
+    repeat_for: str | None = None
 
 
 class PipelineTaskGraphVariantResponse(BaseModel):

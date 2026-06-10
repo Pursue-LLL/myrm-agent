@@ -9463,12 +9463,12 @@
       "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
     },
     "spanRiskReasons": {
-      "safe": "Known safe read-only command",
-      "empty_segment": "Empty pipeline segment",
-      "redirect": "I/O redirection requires manual review",
-      "unknown_command": "Command is not on the safe allowlist",
-      "unknown_subcommand": "Subcommand is not recognized as safe",
-      "invalid_flags": "Command flags are not on the safe allowlist"
+      "safe": "Safe — read-only command, auto-allowed",
+      "empty_segment": "Empty segment — no command detected",
+      "redirect": "Writes to a file — please review the target path",
+      "unknown_command": "Unrecognized command — needs your confirmation",
+      "unknown_subcommand": "Unrecognized subcommand — needs your confirmation",
+      "invalid_flags": "Unrecognized flags — needs your confirmation"
     },
     "permissionTypes": {
       "codeInterpreter": "Code Execution",

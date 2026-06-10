@@ -51,6 +51,8 @@ export interface ToolApprovalRequest {
   )[];
   /** Sandbox workspace root for shell approvals */
   workspaceRoot?: string;
+  /** Bilingual human-readable command explanation for non-developer users */
+  plainExplanation?: { en: string; zh: string };
 }
 export interface ToolCallInfo {
   callId: string;

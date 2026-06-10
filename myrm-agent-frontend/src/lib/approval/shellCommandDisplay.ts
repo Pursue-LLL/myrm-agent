@@ -23,6 +23,11 @@ export type SpanRiskReason =
   | 'unknown_subcommand'
   | 'invalid_flags';
 
+export interface PlainExplanation {
+  en: string;
+  zh: string;
+}
+
 const SHELL_METADATA_KEYS = new Set([
   'command_spans',
   'commandSpans',
@@ -30,6 +35,8 @@ const SHELL_METADATA_KEYS = new Set([
   'commandSpanRisks',
   'command_span_reasons',
   'commandSpanReasons',
+  'plain_explanation',
+  'plainExplanation',
 ]);
 
 const SHELL_EDIT_PREFERRED_KEYS = ['command', 'code', 'script', 'cmd'] as const;
@@ -94,6 +101,17 @@ export function parseCommandSpanReasons(
     typeof item === 'string' && SPAN_RISK_REASONS.has(item),
   );
   return reasons.length === spanCount ? reasons : undefined;
+}
+
+export function parsePlainExplanation(value: unknown): PlainExplanation | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const obj = value as Record<string, unknown>;
+  if (typeof obj.en === 'string' && typeof obj.zh === 'string') {
+    return { en: obj.en, zh: obj.zh };
+  }
+  return undefined;
 }
 
 export function isShellApprovalMetadataKey(key: string): boolean {

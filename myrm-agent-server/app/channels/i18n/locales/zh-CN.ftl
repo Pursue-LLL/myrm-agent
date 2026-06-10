@@ -253,3 +253,5 @@ kanban_usage =
     `/kanban archive <id>` — 归档
     `/kanban stats` — 看板统计
 kanban_error = ❌ 看板命令执行失败，请检查语法后重试。
+session_reset_notify_idle = ℹ️ 会话已自动重置：超过 { $minutes } 分钟无活动。当前为全新对话。
+session_reset_notify_daily = ℹ️ 会话已自动重置：每日 { $hour }:00 UTC 定时重置。当前为全新对话。

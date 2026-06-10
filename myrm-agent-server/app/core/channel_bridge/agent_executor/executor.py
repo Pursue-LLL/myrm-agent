@@ -30,6 +30,7 @@ from app.channels.types import (
     OutboundMessage,
     ProgressUpdate,
     QuickReply,
+    SessionResetMode,
     StreamingText,
     ToolStep,
     TopicContext,
@@ -343,6 +344,34 @@ class ChannelAgentExecutor:
                     )
                 finally:
                     self._backfill_locks.discard(session_key)
+
+            # Session auto-reset awareness: inject context note into query and
+            # emit a user-facing IM notification when the session was silently
+            # reset (DAILY/IDLE mode + cold start).  Safe for brand-new users
+            # too — the note simply states "no prior context".
+            session_was_auto_reset = (
+                is_cold_start
+                and not force_new
+                and session_policy.mode != SessionResetMode.PERSISTENT
+            )
+            if session_was_auto_reset and session_policy.notify_on_reset:
+                context_note = (
+                    "[System note: This is a fresh conversation with no prior context. "
+                    "Do not reference any previous conversation.]"
+                )
+                query = f"{context_note}\n{query}"
+
+                if session_policy.mode == SessionResetMode.IDLE:
+                    reset_label = get_text(
+                        msg, "session_reset_notify_idle",
+                        minutes=session_policy.idle_minutes,
+                    )
+                else:
+                    reset_label = get_text(
+                        msg, "session_reset_notify_daily",
+                        hour=session_policy.daily_reset_hour,
+                    )
+                yield ProgressUpdate(label=reset_label)
 
             if is_resume:
                 chat_id, history_entries = await load_history_without_persist(
@@ -694,6 +723,15 @@ class ChannelAgentExecutor:
                     return int(v) if isinstance(v, (int, float)) else 0
 
                 metadata = {"sources": sorted(acc.sources, key=_sort_key)}
+
+            if session_was_auto_reset:
+                if metadata is None:
+                    metadata = {}
+                metadata["session_auto_reset"] = {
+                    "reason": session_policy.mode.value,
+                    "idle_minutes": session_policy.idle_minutes,
+                    "daily_reset_hour": session_policy.daily_reset_hour,
+                }
 
             reasoning = "".join(acc.reasoning_chunks) or None
             tool_steps = tuple(acc.tool_steps)
