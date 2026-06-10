@@ -19,7 +19,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `decomposer.py` | ✅ 核心 | `PlatformTaskDecomposer` — TaskDecomposer 协议实现，复用 WebUI 配置的 LiteLLM 模型，CJK 自适应中英文系统提示词，roster 上下文注入，assignee 归一化，三层降级容错 | ✅ |
 | `decompose_orchestrator.py` | ✅ 核心 | TRIAGE→子任务图编排逻辑（`run_decompose_task` 预览、`run_apply_decompose` 原子创建子任务+依赖边+DECOMPOSED 事件、`run_apply_no_fanout` fanout=false 降级为 Specify（TRIAGE→READY）、`build_agent_roster` roster 构建、parent_indices→task_id 映射、dispatcher.wake() 即时调度） | ✅ |
 | `pipeline_spec_io.py` | ✅ 核心 | Pipeline SKILL.md 类型与 frontmatter 解析 |
-| `pipeline_instantiator.py` | ✅ 核心 | Pipeline 模板实例化服务 — 发现/加载 pipeline 类型 prebuilt skills、解析 pipeline_spec frontmatter（含 task_graph_variants）、确定性字符串模板替换、role→agent 匹配、批量创建 Kanban 任务图（tasks + edges）。零 LLM 调用，纯确定性。支持严格的 variant_id 校验与空图防御。 | ✅ |
+| `pipeline_instantiator.py` | ✅ 核心 | Pipeline 模板实例化服务 — 发现/加载 pipeline 类型 prebuilt skills、确定性字符串模板替换、role→agent 匹配、批量创建 Kanban 任务图（tasks + edges）。零 LLM 调用，纯确定性。支持 `repeat_for` fan-out（一个 seed 按 multi-select 答案展开为 N 个并行任务，`MAX_REPEAT=20` 安全阀）、variant_id 校验与空图防御。 | ✅ |
 | `gc.py` | ✅ 核心 | `KanbanGCService` — 三层自动垃圾回收（events/runs/workspaces），分批删除避免长锁，harness_dir 路径安全校验防穿越，统计日志。由 `_db_maintenance_job`（每6小时）和启动 warmup 调用。 | ✅ |
 
 ## 依赖关系

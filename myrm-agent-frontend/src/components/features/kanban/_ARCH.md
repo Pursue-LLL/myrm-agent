@@ -15,7 +15,7 @@
 | KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI                                                              | ✅    |
 | KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
 | KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |
-| KanbanPipelineWizard.tsx     | 辅助 | 流水线模板创建向导                                                               | ✅    |
+| KanbanPipelineWizard.tsx     | 辅助 | 流水线模板创建向导（支持 repeat_for fan-out 模板的 multi-select 动态并行任务创建）| ✅    |
 | KanbanDecomposeDialog.tsx    | 辅助 | AI 任务分解对话框                                                                | ✅    |
 | KanbanSpecifyDialog.tsx      | 辅助 | 任务规范化对话框                                                                 | ✅    |
 | KanbanMarkdown.tsx           | 辅助 | 安全 Markdown 渲染（GFM + CodeBlock + XSS 白名单 + 可折叠）                      | ✅    |
