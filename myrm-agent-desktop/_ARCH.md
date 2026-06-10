@@ -28,6 +28,12 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 - NSIS `installerIcon` 使用 `icons/icon.ico`（NSIS 不接受 PNG）
 - 多语言安装器：English / 简中 / 繁中 / 日 / 韩 / 德
 
+## OTA 与发版清单
+
+- `tauri.conf.json#plugins.updater.pubkey`：占位符时 `updater_safety.rs` 禁用生产 OTA；真实公钥 + CI `TAURI_SIGNING_PRIVATE_KEY` 配对后启用
+- `finalize-release.sh` 将各平台 `.sig` 写入 `latest.json#platforms.*.signature`，与 `useAppUpdate.ts` 状态机共用同一 manifest
+- CI 构建前 `check-updater-pubkey.sh`：私钥已配但 pubkey 仍占位 → fail；仅占位 → warning，安装包照常发布
+
 ## 依赖
 
 - 内嵌/伴随 `myrm-agent-server`、`myrm-agent-frontend` 静态资源

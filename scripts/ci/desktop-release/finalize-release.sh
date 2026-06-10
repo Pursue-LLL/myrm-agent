@@ -41,7 +41,7 @@ pick_platform_asset() {
       candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz *.app.tar.gz)
       ;;
     darwin-x86_64)
-      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz *.app.tar.gz)
+      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
       ;;
     windows-x86_64)
       # Prefer Tauri updater bundles (.nsis.zip) over raw installers for OTA.
@@ -70,7 +70,10 @@ read_asset_signature() {
   local asset_name="$1"
   local sig_path="assets/${asset_name}.sig"
   [[ -f "$sig_path" ]] || return 1
-  tr -d '\n' <"$sig_path"
+  # Minisign output is a single base64 line; strip trailing newline only.
+  local raw
+  raw="$(<"$sig_path")"
+  printf '%s' "${raw%$'\n'}"
 }
 
 build_platform_entry() {
@@ -96,6 +99,12 @@ for tauri_key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
   fi
 done
 
+platform_count="$(jq 'keys | length' <<<"$PLATFORMS_JSON")"
+if [[ "$platform_count" -eq 0 ]]; then
+  echo "No platform assets matched for latest.json (tag=$TAG)" >&2
+  exit 1
+fi
+
 jq -n \
   --arg version "$VERSION" \
   --arg notes "$NOTES" \
@@ -104,7 +113,7 @@ jq -n \
   '{version: $version, notes: $notes, pub_date: $pub_date, platforms: $platforms}' \
   >assets/latest.json
 
-echo "Wrote latest.json (version=$VERSION, platforms=$(jq 'keys | length' <<<"$PLATFORMS_JSON"))"
+echo "Wrote latest.json (version=$VERSION, platforms=$platform_count)"
 
 UPLOAD=(assets/latest.json)
 for checksum in assets/*.sha256; do
