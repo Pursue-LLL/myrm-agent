@@ -21,6 +21,7 @@ fi
 for file in "${ASSETS[@]}"; do
   base="$(basename "$file")"
   [[ "$base" == *.sha256 ]] && continue
+  [[ "$base" == *.sig ]] && continue
   [[ "$base" == "latest.json" ]] && continue
   hash="$(sha256sum "$file" | awk '{print $1}')"
   printf '%s  %s\n' "$hash" "$base" >"assets/${base}.sha256"
@@ -43,10 +44,11 @@ pick_platform_asset() {
       candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz *.app.tar.gz)
       ;;
     windows-x86_64)
-      candidates=(*x86_64*.msi *x64*.msi *setup*.exe *x86_64*.exe)
+      # Prefer Tauri updater bundles (.nsis.zip) over raw installers for OTA.
+      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip *x86_64*.msi *x64*.msi *setup*.exe *x86_64*.exe)
       ;;
     linux-x86_64)
-      candidates=(*x86_64*.AppImage *amd64*.AppImage *x86_64*.deb)
+      candidates=(*x86_64*.AppImage.tar.gz *amd64*.AppImage.tar.gz *.AppImage.tar.gz *x86_64*.AppImage *amd64*.AppImage *x86_64*.deb)
       ;;
     *)
       return 1
@@ -64,11 +66,31 @@ pick_platform_asset() {
   return 1
 }
 
+read_asset_signature() {
+  local asset_name="$1"
+  local sig_path="assets/${asset_name}.sig"
+  [[ -f "$sig_path" ]] || return 1
+  tr -d '\n' <"$sig_path"
+}
+
+build_platform_entry() {
+  local url="$1"
+  local asset_name="$2"
+  local signature=""
+  if signature="$(read_asset_signature "$asset_name")"; then
+    echo "latest.json signature: ${asset_name}.sig" >&2
+    jq -n --arg url "$url" --arg signature "$signature" '{url: $url, signature: $signature}'
+  else
+    echo "latest.json warning: no .sig for ${asset_name}; OTA signature omitted" >&2
+    jq -n --arg url "$url" '{url: $url}'
+  fi
+}
+
 PLATFORMS_JSON='{}'
 for tauri_key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
   if asset_name="$(pick_platform_asset "$tauri_key")"; then
     url="https://github.com/${REPO}/releases/download/${TAG}/${asset_name}"
-    entry="$(jq -n --arg url "$url" '{url: $url}')"
+    entry="$(build_platform_entry "$url" "$asset_name")"
     PLATFORMS_JSON="$(jq --arg key "$tauri_key" --argjson entry "$entry" '. + {($key): $entry}' <<<"$PLATFORMS_JSON")"
     echo "latest.json platform: $tauri_key -> $asset_name"
   fi

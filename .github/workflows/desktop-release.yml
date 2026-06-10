@@ -28,6 +28,11 @@ jobs:
       - name: Inject version from tag
         run: bash scripts/ci/desktop-release/inject-version.sh "${{ github.ref_name }}"
 
+      - name: Check updater pubkey vs signing secrets
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: bash scripts/ci/desktop-release/check-updater-pubkey.sh
+
       - name: Install frontend dependencies
         run: |
           cd myrm-agent-frontend
@@ -253,9 +258,13 @@ jobs:
           files=(myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.dmg
                  myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.exe
                  myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.msi
+                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip
+                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.msi.zip
                  myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.AppImage
+                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.AppImage.tar.gz
                  myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.deb
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.tar.gz)
+                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.tar.gz
+                 myrm-agent-desktop/src-tauri/target/**/*.sig)
           if [ ${#files[@]} -eq 0 ]; then
             echo "No release assets found for ${{ matrix.platform }}"
             exit 1

@@ -11,7 +11,8 @@
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
 | `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`） |
 | `download-cloudflared-for-target.sh` | 按 target triple 下载单个 cloudflared 二进制 |
-| `finalize-release.sh` | 下载 Release 资产 → 生成 `latest.json` + 逐文件 `.sha256` → upload |
+| `finalize-release.sh` | 下载 Release 资产 → 生成 `latest.json`（含 `.sig` 签名）+ 逐文件 `.sha256` → upload |
+| `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
 
 ## Workflow jobs
@@ -29,8 +30,9 @@
 
 | Secret | 用途 |
 |--------|------|
-| `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置则跳过官网触发 |
-| `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages `website-release` hook；未配置则跳过 |
+| `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
+| `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages `website-release` hook；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
+| `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 包签名；与 `tauri.conf.json#plugins.updater.pubkey` 成对 |
 
 ## 依赖
 
