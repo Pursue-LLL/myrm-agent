@@ -91,6 +91,10 @@ jobs:
           bun run build:tauri
         shell: bash
 
+      - name: Download cloudflared sidecar binaries
+        run: bash myrm-agent-desktop/scripts/download-cloudflared.sh
+        shell: bash
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         id: tauri

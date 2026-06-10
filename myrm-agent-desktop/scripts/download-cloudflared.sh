@@ -21,4 +21,8 @@ chmod +x cloudflared-x86_64-apple-darwin
 # Windows x86_64
 curl -L -o cloudflared-x86_64-pc-windows-msvc.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
 
+# Linux x86_64
+curl -L -o cloudflared-x86_64-unknown-linux-gnu https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+chmod +x cloudflared-x86_64-unknown-linux-gnu
+
 echo "Done!"

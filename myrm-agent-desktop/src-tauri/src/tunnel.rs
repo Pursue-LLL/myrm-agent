@@ -8,6 +8,8 @@ use tauri::{AppHandle, Manager};
 pub fn resolve_cloudflared_path(app: &AppHandle) -> Result<String, String> {
     let binary_name = if cfg!(target_os = "windows") {
         "binaries/cloudflared-x86_64-pc-windows-msvc.exe"
+    } else if cfg!(target_os = "linux") {
+        "binaries/cloudflared-x86_64-unknown-linux-gnu"
     } else if cfg!(target_arch = "aarch64") {
         "binaries/cloudflared-aarch64-apple-darwin"
     } else {
