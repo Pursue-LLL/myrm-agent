@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "identifier": "com.myrmagent.app",
   "build": {
-    "beforeDevCommand": "bash -c 'S=../scripts/build-frontend.sh; [ -f \"$S\" ] || S=scripts/build-frontend.sh; bash \"$S\" dev'",
-    "beforeBuildCommand": "bash -c 'S=../scripts/build-frontend.sh; [ -f \"$S\" ] || S=scripts/build-frontend.sh; bash \"$S\"'",
+    "beforeDevCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\" dev'",
+    "beforeBuildCommand": "bash -c 'exec bash \"$(git rev-parse --show-toplevel)/myrm-agent-desktop/scripts/build-frontend.sh\"'",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../../myrm-agent-frontend/.next/standalone/.next"
   },
