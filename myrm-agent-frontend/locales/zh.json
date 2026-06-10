@@ -1509,6 +1509,7 @@
       "step1": "在 Chrome 或 Edge 开发者模式下，以「加载已解压的扩展程序」方式加载 myrm-agent-extension 目录",
       "step2": "打开扩展弹窗，输入此服务器的 WebSocket 地址与认证 Token",
       "step3": "点击连接 — 扩展将保持持久连接",
+      "extensionPathLabel": "扩展目录路径（用于「加载已解压的扩展程序」）",
       "authorizedDomains": "授权域名",
       "domainsHint": "仅授权域名上的标签页可被 Agent 控制。这是你的安全边界。",
       "domainPlaceholder": "例如 github.com",
@@ -4238,6 +4239,22 @@
     "sessionPolicyResetHour": "每日重置时间 (UTC)",
     "sessionPolicyIdleMinutes": "空闲超时时间（分钟）",
     "sessionPolicyEnabled": "启用独立会话策略",
+    "browserConfig": "浏览器配置",
+    "browserConfigDesc": "配置该智能体与浏览器的交互方式。",
+    "browserEngine": {
+      "label": "浏览器引擎",
+      "description": "选择执行网页任务时默认使用的浏览器引擎。极速模式适合普通网页，深度隐身模式适合突破高强度反爬（如 Cloudflare）。",
+      "chromium": "极速 Chromium (Patchright)",
+      "chromiumDesc": "默认选项。速度快，资源占用低，适合绝大多数常规网页。",
+      "camoufox": "深度隐身 Camoufox (Firefox)",
+      "camoufoxDesc": "专为突破高强度反爬设计，速度稍慢，资源占用较高。"
+    },
+    "dialogPolicy": {
+      "label": "弹窗处理"
+    },
+    "sessionRecording": {
+      "label": "会话录制"
+    },
     "notifyTargets": "通知渠道",
     "notifyTargetsDesc": "允许该智能体向已连接的渠道发送通知消息。",
     "notifyRecipientPlaceholder": "接收者 ID",
@@ -4515,6 +4532,32 @@
           "launchDesc": "每次启动全新的隔离浏览器实例。"
         },
         "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。"
+      },
+      "dialogPolicy": {
+        "label": "弹窗处理",
+        "description": "选择智能体如何处理浏览器弹窗（提示框、确认框等）。",
+        "options": {
+          "smart": "智能（默认）",
+          "smartDesc": "自动确认提示框/确认框，关闭输入框。",
+          "autoAccept": "自动确认",
+          "autoAcceptDesc": "自动确认所有弹窗。",
+          "autoDismiss": "自动关闭",
+          "autoDismissDesc": "自动关闭所有弹窗。",
+          "waitForAgent": "等待 Agent 处理",
+          "waitForAgentDesc": "暂停并让 AI 决定如何响应弹窗。"
+        }
+      },
+      "sessionRecording": {
+        "label": "会话录制",
+        "description": "将浏览器操作录制为 WebM 视频，用于调试和审计。",
+        "options": {
+          "off": "关闭（默认）",
+          "offDesc": "不录制浏览器会话。",
+          "onFailure": "仅失败时",
+          "onFailureDesc": "仅在任务失败时保留录制。",
+          "always": "始终录制",
+          "alwaysDesc": "录制每一次浏览器会话。"
+        }
       },
       "mcpTools": {
         "toolFilter": "工具筛选",
@@ -7294,6 +7337,11 @@
       "title": "插入到对话",
       "success": "已作为附件插入",
       "alreadyAttached": "已添加到当前消息"
+    },
+    "elementPicker": {
+      "toggle": "指哪改哪",
+      "placeholder": "描述你想对这个元素做的修改...",
+      "queued": "操作已排队，当前任务完成后自动执行"
     },
     "selectionToolbar": {
       "modify": "AI 修改",

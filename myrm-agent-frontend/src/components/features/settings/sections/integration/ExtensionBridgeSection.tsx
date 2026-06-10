@@ -205,13 +205,33 @@ const ExtensionBridgeSection = memo(() => {
       </div>
 
       {!status.connected && (
-        <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
-          <h4 className="text-sm font-medium mb-2">{t('extension.setupGuide')}</h4>
+        <div className="p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 space-y-3">
+          <h4 className="text-sm font-medium">{t('extension.setupGuide')}</h4>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
             <li>{t('extension.step1')}</li>
             <li>{t('extension.step2')}</li>
             <li>{t('extension.step3')}</li>
           </ol>
+          <div className="pt-2 border-t border-primary/10">
+            <p className="text-xs text-muted-foreground mb-1">{t('extension.extensionPathLabel')}</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <code className="text-xs font-mono break-all flex-1 p-2 rounded bg-background border border-border/50">
+                ~/.myrm/myrm-agent/myrm-agent-extension
+              </code>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                onClick={async () => {
+                  const ok = await writeToClipboard('~/.myrm/myrm-agent/myrm-agent-extension', true);
+                  if (ok) toast({ title: t('extension.copied'), variant: 'default' });
+                }}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                {t('extension.copyUrl')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

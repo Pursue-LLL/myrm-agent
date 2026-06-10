@@ -1509,6 +1509,7 @@
       "step1": "Load the myrm-agent-extension folder as an unpacked extension in Chrome or Edge (Developer mode)",
       "step2": "Open the extension popup, enter this server's WebSocket URL and auth token",
       "step3": "Click Connect — the extension maintains a persistent connection",
+      "extensionPathLabel": "Extension folder path (for Load unpacked)",
       "authorizedDomains": "Authorized Domains",
       "domainsHint": "Only tabs on authorized domains can be controlled by the Agent. This is your security boundary.",
       "domainPlaceholder": "e.g. github.com",
@@ -4235,6 +4236,22 @@
     "sessionPolicyResetHour": "Daily Reset Hour (UTC)",
     "sessionPolicyIdleMinutes": "Idle Timeout (minutes)",
     "sessionPolicyEnabled": "Enable per-agent session policy",
+    "browserConfig": "Browser Configuration",
+    "browserConfigDesc": "Configure how this agent interacts with web browsers.",
+    "browserEngine": {
+      "label": "Browser Engine",
+      "description": "Select the default browser engine for web browsing tasks. Fast mode for standard pages, stealth mode for bypassing anti-bot (e.g. Cloudflare).",
+      "chromium": "Chromium (Patchright)",
+      "chromiumDesc": "Default. Fast, low resource usage, suitable for most pages.",
+      "camoufox": "Stealth Camoufox (Firefox)",
+      "camoufoxDesc": "Anti-detection engine for bypassing advanced protections."
+    },
+    "dialogPolicy": {
+      "label": "Dialog Handling"
+    },
+    "sessionRecording": {
+      "label": "Session Recording"
+    },
     "notifyTargets": "Notification Channels",
     "notifyTargetsDesc": "Allow this agent to send notifications to your connected channels.",
     "notifyRecipientPlaceholder": "Recipient ID",
@@ -7320,6 +7337,11 @@
       "title": "Insert into Chat",
       "success": "Inserted as attachment",
       "alreadyAttached": "Already attached to current message"
+    },
+    "elementPicker": {
+      "toggle": "Point & Edit",
+      "placeholder": "Describe what to change on this element...",
+      "queued": "Action queued, will execute when current task completes"
     },
     "selectionToolbar": {
       "modify": "AI Modify",

@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token 配置状态、连接状态、授权域名、可用标签页 |
+| `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token 配置状态、扩展路径复制、Setup Guide、连接状态、授权域名、可用标签页 |
 | `CredentialsSection.tsx` | 凭证管理 |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |
 | `OpenAIApiSection.tsx` | OpenAI 兼容 API 设置 |
