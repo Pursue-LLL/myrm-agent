@@ -14,6 +14,7 @@
 | `finalize-release.sh` | 下载 Release 资产 → 匹配 updater 包 + `.sig` → 生成 `latest.json`（无平台匹配则 fail）+ `.sha256` → upload |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `finalize-fixture-test.sh` | 无网络 fixture：平台匹配 + 无 `.sig` 跳过 OTA；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
+| `collect-bundle-assets.sh` | `find` 收集 `target/**/release/bundle/*` 资产供 `gh release upload` |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
 
 ## Workflow jobs
@@ -26,7 +27,9 @@
 | `build-extra-platforms` | Win/Linux 追加资产 |
 | `finalize-release` | `latest.json`（仅含 `.sig` 平台）+ sha256 + 官网 trigger |
 
-`trigger-website-release.sh`：`REQUIRE_WEBSITE_DEPLOY=true`（CI 默认）时缺 Secret **exit 1**；本地 dry run 设 `REQUIRE_WEBSITE_DEPLOY=false`。
+`trigger-website-release.sh`：workflow 默认 `REQUIRE_WEBSITE_DEPLOY=false`（官网由 brand `website-v*` GHA 发布）；设 `true` 可恢复 finalize 硬门禁。
+
+`collect-bundle-assets.sh`：替代 globstar，修复 cross-target（如 Intel Mac）产物路径匹配失败。
 
 ## Secrets（myrm-agent 仓库）
 

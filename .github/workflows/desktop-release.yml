@@ -228,14 +228,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          shopt -s globstar nullglob
-          files=(myrm-agent-desktop/src-tauri/target/**/release/bundle/dmg/*.dmg
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/macos/*.tar.gz
-                 myrm-agent-desktop/src-tauri/target/**/*.sig)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No macOS Intel release assets found"
-            exit 1
-          fi
+          mapfile -t files < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
@@ -339,21 +332,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          shopt -s globstar nullglob
-          files=(myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.dmg
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.exe
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.msi
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.nsis.zip
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.msi.zip
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.AppImage
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.AppImage.tar.gz
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.deb
-                 myrm-agent-desktop/src-tauri/target/**/release/bundle/**/*.tar.gz
-                 myrm-agent-desktop/src-tauri/target/**/*.sig)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No release assets found for ${{ matrix.platform }}"
-            exit 1
-          fi
+          mapfile -t files < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
@@ -383,5 +362,5 @@ jobs:
           DESKTOP_TAG: ${{ github.ref_name }}
           BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
           CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
-          REQUIRE_WEBSITE_DEPLOY: 'true'
+          REQUIRE_WEBSITE_DEPLOY: 'false'
         run: bash scripts/ci/desktop-release/trigger-website-release.sh
