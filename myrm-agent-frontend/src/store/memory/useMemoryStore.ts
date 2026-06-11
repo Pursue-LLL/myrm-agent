@@ -41,6 +41,7 @@ const initialState = {
   memoriesError: null as string | null,
   memoryPagination: null,
   memoryTypeFilter: null as MemoryType | null,
+  memoryTagFilter: null as string | null,
   memorySearchQuery: '',
   memorySortBy: 'created_at' as MemorySortBy,
   memorySortOrder: 'desc' as MemorySortOrder,
@@ -187,12 +188,13 @@ const useMemoryStore = create<MemoryState>()(
     // ==================== 记忆 CRUD ====================
 
     fetchMemories: async (page = 1) => {
-      const { memoryTypeFilter, memorySearchQuery, memorySortBy, memorySortOrder } = get();
+      const { memoryTypeFilter, memoryTagFilter, memorySearchQuery, memorySortBy, memorySortOrder } = get();
       set({ memoriesLoading: true, memoriesError: null });
       try {
         const response = await getMemories({
           type: memoryTypeFilter ?? undefined,
           search: memorySearchQuery || undefined,
+          tag: memoryTagFilter ?? undefined,
           sortBy: memorySortBy,
           sortOrder: memorySortOrder,
           page,
@@ -215,6 +217,7 @@ const useMemoryStore = create<MemoryState>()(
         memories,
         memoriesLoading,
         memoryTypeFilter,
+        memoryTagFilter,
         memorySearchQuery,
         memorySortBy,
         memorySortOrder,
@@ -225,6 +228,7 @@ const useMemoryStore = create<MemoryState>()(
         const response = await getMemories({
           type: memoryTypeFilter ?? undefined,
           search: memorySearchQuery || undefined,
+          tag: memoryTagFilter ?? undefined,
           sortBy: memorySortBy,
           sortOrder: memorySortOrder,
           page: memoryPagination.page + 1,
@@ -242,6 +246,11 @@ const useMemoryStore = create<MemoryState>()(
 
     setMemoryTypeFilter: (type: MemoryType | null) => {
       set({ memoryTypeFilter: type });
+      get().fetchMemories();
+    },
+
+    setMemoryTagFilter: (tag: string | null) => {
+      set({ memoryTagFilter: tag });
       get().fetchMemories();
     },
 

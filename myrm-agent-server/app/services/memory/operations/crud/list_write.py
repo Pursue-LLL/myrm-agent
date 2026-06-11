@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 async def list_memories_paginated(
     type: str | None = Query(None, description="Filter by memory type"),
     search: str | None = Query(None, description="Search query"),
+    tag: str | None = Query(None, description="Filter by tag (exact match)"),
     sort_by: str = Query("created_at", description="Sort field: created_at, updated_at, importance"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -73,6 +74,11 @@ async def list_memories_paginated(
     if search:
         search_lower = search.lower()
         all_memories = [m for m in all_memories if search_lower in m.content.lower()]
+        total = len(all_memories)
+
+    if tag:
+        tag_lower = tag.lower()
+        all_memories = [m for m in all_memories if any(t.lower() == tag_lower for t in m.tags)]
         total = len(all_memories)
 
     sort_attr = _SORT_KEYS.get(sort_by, "created_at")
@@ -420,3 +426,38 @@ async def update_memory_status(
     )
     mt = MemoryType(getattr(updated, "memory_type", "semantic"))
     return memory_to_item(updated, mt)
+
+
+class TagStatsItem(BaseModel):
+    tag: str
+    count: int
+
+
+class TagStatsResponse(BaseModel):
+    tags: list[TagStatsItem]
+    total_tagged: int
+
+
+async def get_memory_tags(
+    limit: int = Query(20, ge=1, le=100, description="Max tags to return"),
+    manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> TagStatsResponse:
+    """Get tag frequency statistics across all taggable memories."""
+    from collections import Counter
+
+    tag_counter: Counter[str] = Counter()
+    tagged_count = 0
+
+    for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
+        try:
+            memories = await manager.list_memories(mem_type, limit=10000, offset=0)
+            for mem in memories:
+                tags = getattr(mem, "tags", None) or []
+                if tags:
+                    tagged_count += 1
+                    tag_counter.update(tags)
+        except Exception as e:
+            logger.warning(f"Error reading {mem_type} tags: {e}")
+
+    top_tags = [TagStatsItem(tag=t, count=c) for t, c in tag_counter.most_common(limit)]
+    return TagStatsResponse(tags=top_tags, total_tagged=tagged_count)

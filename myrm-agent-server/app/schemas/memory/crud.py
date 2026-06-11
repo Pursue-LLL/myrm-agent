@@ -46,6 +46,7 @@ class MemoryItem(BaseModel):
     related_entities: list[str] = Field(default_factory=list)
     correction_of: str | None = None
     source_error: str | None = None
+    tags: list[str] = Field(default_factory=list)
     access_count: int | None = None
     last_accessed_at: datetime | None = None
 

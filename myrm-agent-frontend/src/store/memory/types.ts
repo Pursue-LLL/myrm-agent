@@ -42,6 +42,7 @@ export interface MemoryState {
   memoriesError: string | null;
   memoryPagination: MemoryPaginationInfo | null;
   memoryTypeFilter: MemoryType | null;
+  memoryTagFilter: string | null;
   memorySearchQuery: string;
   memorySortBy: MemorySortBy;
   memorySortOrder: MemorySortOrder;
@@ -76,6 +77,7 @@ export interface MemoryState {
   fetchMemories: (page?: number) => Promise<void>;
   loadMoreMemories: () => Promise<void>;
   setMemoryTypeFilter: (type: MemoryType | null) => void;
+  setMemoryTagFilter: (tag: string | null) => void;
   setMemorySearchQuery: (query: string) => void;
   setMemorySortBy: (sortBy: MemorySortBy) => void;
   setMemorySortOrder: (order: MemorySortOrder) => void;

@@ -110,9 +110,12 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
         base["related_entities"] = memory.related_entities or []
 
     if isinstance(memory, SemanticMemory):
+        base["tags"] = memory.tags or []
         if memory.correction_of:
             base["correction_of"] = memory.correction_of
         if memory.source_error:
             base["source_error"] = memory.source_error
+    elif isinstance(memory, EpisodicMemory):
+        base["tags"] = getattr(memory, "tags", []) or []
 
     return MemoryItem(**base)

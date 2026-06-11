@@ -23,6 +23,7 @@ from app.schemas.memory.crud import (
     RateMemoryResponse,
     TasteSummaryResponse,
 )
+from app.services.memory.operations.crud.list_write import TagStatsResponse
 from app.services.memory.operations import crud_handlers as handlers
 
 router = APIRouter()
@@ -38,6 +39,7 @@ router.post("/trash/{memory_id}/restore", response_model=MemoryItem)(handlers.re
 router.delete("/trash/{memory_id}/purge")(handlers.purge_trashed_memory)
 router.get("/search", response_model=MemorySearchResponse)(handlers.search_memories)
 router.get("/stats", response_model=MemoryStatsResponse)(handlers.get_memory_stats)
+router.get("/tags", response_model=TagStatsResponse)(handlers.get_memory_tags)
 router.get("/context")(handlers.get_memory_context)
 router.get("/export", response_model=MemoryExportResponse)(handlers.export_memories)
 router.get("/export/markdown")(handlers.export_memories_markdown)

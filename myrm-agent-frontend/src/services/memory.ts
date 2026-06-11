@@ -116,6 +116,16 @@ export interface MemoryStatsResponse {
   by_type: Record<MemoryType, number>;
 }
 
+export interface TagStatsItem {
+  tag: string;
+  count: number;
+}
+
+export interface TagStatsResponse {
+  tags: TagStatsItem[];
+  total_tagged: number;
+}
+
 export interface CreateMemoryRequest {
   memory_type: MemoryType;
   content: string;
@@ -180,6 +190,7 @@ export const getMemories = async (
     page?: number;
     pageSize?: number;
     search?: string;
+    tag?: string;
     sortBy?: MemorySortBy;
     sortOrder?: MemorySortOrder;
   } = {},
@@ -189,6 +200,7 @@ export const getMemories = async (
   if (params.page) searchParams.append('page', params.page.toString());
   if (params.pageSize) searchParams.append('page_size', params.pageSize.toString());
   if (params.search) searchParams.append('search', params.search);
+  if (params.tag) searchParams.append('tag', params.tag);
   if (params.sortBy) searchParams.append('sort_by', params.sortBy);
   if (params.sortOrder) searchParams.append('sort_order', params.sortOrder);
   const qs = searchParams.toString();
@@ -231,6 +243,10 @@ export const searchMemories = async (
 
 export const getMemoryStats = async (): Promise<MemoryStatsResponse> => {
   return apiRequest<MemoryStatsResponse>('/memory/stats');
+};
+
+export const getMemoryTags = async (limit = 20): Promise<TagStatsResponse> => {
+  return apiRequest<TagStatsResponse>(`/memory/tags?limit=${limit}`);
 };
 
 export const getMemoryContext = async (): Promise<Record<string, unknown>> => {
