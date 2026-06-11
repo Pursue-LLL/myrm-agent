@@ -16,13 +16,16 @@ pick_platform_asset() {
   local candidates=()
   case "$tauri_key" in
     darwin-aarch64)
-      candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz)
+      candidates=(MyrmAgent.app.tar.gz '*aarch64*.tar.gz' '*arm64*.tar.gz' '*universal*.tar.gz')
       ;;
     darwin-x86_64)
-      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
+      candidates=('*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
       ;;
     windows-x86_64)
-      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip)
+      candidates=('*x86_64*.nsis.zip' '*x64*.nsis.zip' '*.nsis.zip' '*x86_64*.msi.zip' '*x64*.msi.zip')
+      ;;
+    linux-x86_64)
+      candidates=('*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz')
       ;;
     *)
       return 1
@@ -52,6 +55,8 @@ echo "sig-x64" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip"
 echo "sig-win" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/setup.exe"
+echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz"
+echo "sig-linux" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz.sig"
 
 aarch64_asset="$(pick_platform_asset darwin-aarch64)"
 [[ "$aarch64_asset" == "MyrmAgent.app.tar.gz" ]] || {
@@ -79,6 +84,17 @@ win_asset="$(pick_platform_asset windows-x86_64)"
 win_sig="$(read_asset_signature "$win_asset")"
 [[ "$win_sig" == "sig-win" ]] || {
   echo "unexpected windows signature: ${win_sig}" >&2
+  exit 1
+}
+
+linux_asset="$(pick_platform_asset linux-x86_64)"
+[[ "$linux_asset" == "MyrmAgent_0.1.33_amd64.AppImage.tar.gz" ]] || {
+  echo "expected MyrmAgent_0.1.33_amd64.AppImage.tar.gz, got ${linux_asset}" >&2
+  exit 1
+}
+linux_sig="$(read_asset_signature "$linux_asset")"
+[[ "$linux_sig" == "sig-linux" ]] || {
+  echo "unexpected linux signature: ${linux_sig}" >&2
   exit 1
 }
 

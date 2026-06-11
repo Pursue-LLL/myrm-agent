@@ -48,7 +48,7 @@
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh`（Bun sidecar 致 gtk 插件 `ldd` 失败）+ `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 的 glob 必须加引号（`shopt nullglob` 下未引号 pattern 在 `assets/` 外展开会变空数组）。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh`（Bun sidecar 致 gtk 插件 `ldd` 失败）+ `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖

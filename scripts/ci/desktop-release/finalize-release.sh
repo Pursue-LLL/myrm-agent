@@ -56,17 +56,18 @@ pick_platform_asset() {
   case "$tauri_key" in
     darwin-aarch64)
       # Prefer the canonical Tauri bundle name; avoid generic *.app.tar.gz cross-match.
-      candidates=(MyrmAgent.app.tar.gz *aarch64*.tar.gz *arm64*.tar.gz *universal*.tar.gz)
+      # Quote globs: with nullglob, unquoted patterns expand in WORK_DIR (not assets/) and vanish.
+      candidates=(MyrmAgent.app.tar.gz '*aarch64*.tar.gz' '*arm64*.tar.gz' '*universal*.tar.gz')
       ;;
     darwin-x86_64)
-      candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
+      candidates=('*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
       ;;
     windows-x86_64)
       # OTA only: Tauri updater bundles (.nsis.zip). Installers (.exe/.msi) are manual-download only.
-      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip)
+      candidates=('*x86_64*.nsis.zip' '*x64*.nsis.zip' '*.nsis.zip' '*x86_64*.msi.zip' '*x64*.msi.zip')
       ;;
     linux-x86_64)
-      candidates=(*x86_64*.AppImage.tar.gz *amd64*.AppImage.tar.gz *.AppImage.tar.gz)
+      candidates=('*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz')
       ;;
     *)
       return 1
