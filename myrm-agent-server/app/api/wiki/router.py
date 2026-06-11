@@ -10,14 +10,16 @@ myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: Artifact 存储金
 app.database.models.artifact::Artifact (POS: Artifact 数据库模型，ingest 端点延迟导入)
 
 [OUTPUT]
-router: Wiki API 路由器（完整增删改查、后台队列审核、artifact 内容写入接口）
+router: Wiki API 路由器（完整增删改查、后台队列审核、批量导入、artifact 内容写入接口）
 Wiki概念 CRUD 接口
 Wiki队列与审核状态接口
+批量导入接口（folder/zip）
 Artifact 内容写入接口
 
 [POS]
 业务层 Wiki API 路由。提供全量 REST 端点供前端 Brain Console 调用：
-查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、/ingest (artifact 内容写入)。
+查询/编译/维护/ingest wiki。/concepts (CRUD)、/queue (状态控制)、/pending (人工审核)、
+/import/folder + /import/zip (批量导入)、/ingest (artifact 内容写入)。
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
@@ -661,4 +663,153 @@ def get_wiki_graph(
         return WikiGraphResponse(nodes=graph["nodes"], edges=graph["edges"])
     except Exception as e:
         logger.error(f"Wiki graph retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Batch Import Endpoints ---
+
+
+class ImportFolderRequest(BaseModel):
+    folder_path: str = Field(..., min_length=1, description="Absolute path to local folder")
+    extensions: list[str] = Field(
+        default=[".md", ".txt", ".org"],
+        description="File extensions to include",
+    )
+    auto_compile: bool = Field(default=True, description="Start compilation after import")
+
+
+class ImportResultResponse(BaseModel):
+    success: bool
+    files_scanned: int
+    files_enqueued: int
+    message: str
+
+
+@router.post("/import/folder", response_model=ImportResultResponse)
+async def import_folder(
+    request: ImportFolderRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> ImportResultResponse:
+    """Batch import all text documents from a local folder into the wiki raw/ directory."""
+    try:
+        source_dir = Path(request.folder_path)
+        scanned_files = archiver._structure.scan_folder(source_dir, request.extensions)
+
+        if not scanned_files:
+            return ImportResultResponse(
+                success=True, files_scanned=0, files_enqueued=0, message="No matching files found"
+            )
+
+        enqueued_paths: list[Path] = []
+        for src_file in scanned_files:
+            try:
+                content = src_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                try:
+                    content = src_file.read_text(encoding="latin-1")
+                except Exception:
+                    logger.warning(f"Skipping unreadable file: {src_file}")
+                    continue
+
+            # Preserve relative directory structure from source
+            rel_path = src_file.relative_to(source_dir)
+            raw_dest = archiver._structure.get_raw_file_path(str(rel_path))
+            raw_dest.parent.mkdir(parents=True, exist_ok=True)
+            raw_dest.write_text(content, encoding="utf-8")
+            enqueued_paths.append(raw_dest)
+
+        if enqueued_paths:
+            archiver._queue.add_batch(enqueued_paths)
+            if request.auto_compile:
+                archiver._compiler.start_background_worker()
+
+        return ImportResultResponse(
+            success=True,
+            files_scanned=len(scanned_files),
+            files_enqueued=len(enqueued_paths),
+            message=f"Imported {len(enqueued_paths)} files, compilation {'started' if request.auto_compile else 'queued'}",
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Folder import failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/import/zip", response_model=ImportResultResponse)
+async def import_zip(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    file: UploadFile = File(..., description="ZIP file to import"),
+    extensions: str = Query(".md,.txt,.org", description="Comma-separated extensions"),
+    auto_compile: bool = Query(True, description="Start compilation after import"),
+) -> ImportResultResponse:
+    """Upload and import a ZIP archive of documents into the wiki."""
+    import tempfile
+    import zipfile
+
+    _MAX_ZIP_BYTES = 100 * 1024 * 1024  # 100 MB
+
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+
+    if file.size and file.size > _MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+
+    ext_list = [e.strip() for e in extensions.split(",") if e.strip()]
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            zip_path = tmp_path / "upload.zip"
+
+            content = await file.read()
+            if len(content) > _MAX_ZIP_BYTES:
+                raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+            zip_path.write_bytes(content)
+
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmp_path / "extracted")
+
+            extracted_dir = tmp_path / "extracted"
+            scanned_files = archiver._structure.scan_folder(extracted_dir, ext_list)
+
+            if not scanned_files:
+                return ImportResultResponse(
+                    success=True, files_scanned=0, files_enqueued=0, message="No matching files in ZIP"
+                )
+
+            enqueued_paths: list[Path] = []
+            for src_file in scanned_files:
+                try:
+                    file_content = src_file.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    try:
+                        file_content = src_file.read_text(encoding="latin-1")
+                    except Exception:
+                        logger.warning(f"Skipping unreadable file in ZIP: {src_file}")
+                        continue
+
+                rel_path = src_file.relative_to(extracted_dir)
+                raw_dest = archiver._structure.get_raw_file_path(str(rel_path))
+                raw_dest.parent.mkdir(parents=True, exist_ok=True)
+                raw_dest.write_text(file_content, encoding="utf-8")
+                enqueued_paths.append(raw_dest)
+
+            if enqueued_paths:
+                archiver._queue.add_batch(enqueued_paths)
+                if auto_compile:
+                    archiver._compiler.start_background_worker()
+
+            return ImportResultResponse(
+                success=True,
+                files_scanned=len(scanned_files),
+                files_enqueued=len(enqueued_paths),
+                message=f"Imported {len(enqueued_paths)} files from ZIP, compilation {'started' if auto_compile else 'queued'}",
+            )
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file") from None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ZIP import failed: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e

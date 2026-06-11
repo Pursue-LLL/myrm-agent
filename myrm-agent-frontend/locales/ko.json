@@ -1426,7 +1426,16 @@
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
-        "rejectFailed": "Failed to reject edit"
+        "rejectFailed": "Failed to reject edit",
+        "importFailed": "문서 가져오기 실패"
+      },
+      "import": {
+        "title": "일괄 가져오기",
+        "description": "로컬 폴더 또는 ZIP 아카이브에서 문서를 지식 베이스로 가져오기",
+        "selectFolder": "가져올 폴더 선택",
+        "folder": "폴더 가져오기",
+        "zip": "ZIP 업로드",
+        "importing": "가져오는 중..."
       },
       "tabs": {
         "overview": "Overview",
@@ -4760,6 +4769,7 @@
       "action": "Unpin",
       "error": "Failed to unpin chat"
     },
+    "openInNewWindow": "새 창에서 열기",
     "createAutomation": "Create Automation",
     "handoff": {
       "menuAction": "Transfer to...",

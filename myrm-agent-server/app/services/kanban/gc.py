@@ -121,7 +121,7 @@ class KanbanGCService:
                         "DELETE FROM kanban_task_events WHERE rowid IN ("
                         "  SELECT e.rowid FROM kanban_task_events e"
                         "  JOIN kanban_tasks t ON e.task_id = t.id"
-                        "  WHERE t.status IN ('done', 'archived')"
+                        "  WHERE t.status IN ('completed', 'archived')"
                         "  AND e.created_at < :cutoff"
                         "  LIMIT :batch"
                         ")"

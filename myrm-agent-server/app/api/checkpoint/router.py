@@ -8,7 +8,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
-from myrm_agent_harness.agent.file_snapshot.local_store import LocalFileSnapshotStore
+from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol, create_file_snapshot_store
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,15 @@ router = APIRouter(prefix="/checkpoint", tags=["checkpoint"])
 
 # Global instances
 _checkpoint_storage = SubagentCheckpointStorage()
-_file_snapshot_store = LocalFileSnapshotStore()
+_file_snapshot_store: FileSnapshotProtocol | None = None
+
+
+async def _get_file_snapshot_store() -> FileSnapshotProtocol:
+    """Lazy-initialize the file snapshot store via harness factory."""
+    global _file_snapshot_store
+    if _file_snapshot_store is None:
+        _file_snapshot_store = await create_file_snapshot_store()
+    return _file_snapshot_store
 
 
 class CheckpointInfo(BaseModel):
@@ -260,7 +268,8 @@ async def list_file_snapshots(
 ) -> FileSnapshotListResponse:
     """List file snapshots for a workspace."""
     try:
-        snapshots = await _file_snapshot_store.list_snapshots(working_dir, limit=limit)
+        store = await _get_file_snapshot_store()
+        snapshots = await store.list_snapshots(working_dir, limit=limit)
         items = [
             FileSnapshotInfoResponse(
                 snapshot_id=s.snapshot_id,
@@ -284,7 +293,8 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
     Automatically takes a pre-rollback snapshot before restoring.
     """
     try:
-        result = await _file_snapshot_store.restore(request.snapshot_id, files=request.files)
+        store = await _get_file_snapshot_store()
+        result = await store.restore(request.snapshot_id, files=request.files)
         return FileSnapshotRestoreResponse(
             success=result.success,
             snapshot_id=result.snapshot_id,
@@ -300,7 +310,8 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
 async def get_file_snapshot_diff(snapshot_id: str) -> FileDiffResponse:
     """Compare a file snapshot with current workspace state."""
     try:
-        diff = await _file_snapshot_store.diff(snapshot_id)
+        store = await _get_file_snapshot_store()
+        diff = await store.diff(snapshot_id)
         changes = [
             FileChangeResponse(
                 path=c.path,
@@ -323,7 +334,8 @@ async def get_file_snapshot_diff(snapshot_id: str) -> FileDiffResponse:
 async def delete_file_snapshot(snapshot_id: str) -> dict[str, str]:
     """Delete a specific file snapshot."""
     try:
-        deleted = await _file_snapshot_store.delete_snapshot(snapshot_id)
+        store = await _get_file_snapshot_store()
+        deleted = await store.delete_snapshot(snapshot_id)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"File snapshot not found: {snapshot_id}")
         return {"status": "deleted", "snapshot_id": snapshot_id}
@@ -340,7 +352,8 @@ async def cleanup_file_snapshots(
 ) -> dict[str, object]:
     """Cleanup old file snapshots, keeping the most recent."""
     try:
-        deleted = await _file_snapshot_store.cleanup(working_dir, max_snapshots=max_snapshots)
+        store = await _get_file_snapshot_store()
+        deleted = await store.cleanup(working_dir, max_snapshots=max_snapshots)
         return {
             "status": "success",
             "deleted": deleted,

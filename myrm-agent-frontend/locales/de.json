@@ -1426,7 +1426,16 @@
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
-        "rejectFailed": "Failed to reject edit"
+        "rejectFailed": "Failed to reject edit",
+        "importFailed": "Dokumentenimport fehlgeschlagen"
+      },
+      "import": {
+        "title": "Stapelimport",
+        "description": "Dokumente aus einem lokalen Ordner oder ZIP-Archiv in die Wissensbasis importieren",
+        "selectFolder": "Ordner zum Importieren auswählen",
+        "folder": "Ordner importieren",
+        "zip": "ZIP hochladen",
+        "importing": "Importiere..."
       },
       "tabs": {
         "overview": "Overview",
@@ -4760,6 +4769,7 @@
       "action": "Unpin",
       "error": "Failed to unpin chat"
     },
+    "openInNewWindow": "In neuem Fenster öffnen",
     "createAutomation": "Create Automation",
     "handoff": {
       "menuAction": "Transfer to...",

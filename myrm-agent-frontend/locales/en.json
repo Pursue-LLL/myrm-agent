@@ -1862,7 +1862,16 @@
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
-        "rejectFailed": "Failed to reject edit"
+        "rejectFailed": "Failed to reject edit",
+        "importFailed": "Failed to import documents"
+      },
+      "import": {
+        "title": "Batch Import",
+        "description": "Import documents from a local folder or ZIP archive into the knowledge base",
+        "selectFolder": "Select folder to import",
+        "folder": "Import Folder",
+        "zip": "Upload ZIP",
+        "importing": "Importing..."
       },
       "tabs": {
         "overview": "Overview",

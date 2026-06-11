@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
@@ -10,6 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/primitive
 import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore } from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
 import { apiRequest } from '@/lib/api';
+import { isTauri } from '@/lib/utils/clipboardUtils';
+import { wikiService } from '@/services/wikiService';
 import { WikiConceptsList } from './WikiConceptsList';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
@@ -41,6 +43,58 @@ export function WikiSection() {
   const [purposeDraft, setPurposeDraft] = useState('');
   const [isLoadingPurpose, setIsLoadingPurpose] = useState(false);
   const [isSavingPurpose, setIsSavingPurpose] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const zipInputRef = useRef<HTMLInputElement>(null);
+
+  const isTauriEnv = isTauri();
+
+  const handleImportFolder = async () => {
+    if (!isTauriEnv) return;
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({ directory: true, multiple: false, title: t('import.selectFolder') });
+      if (!selected) return;
+
+      setIsImporting(true);
+      const result = await wikiService.importFolder(selected as string);
+      if (result.success) {
+        toast.success(result.message);
+        setActiveTab('queue');
+        await loadStats();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Folder import failed:', error);
+      toast.error(t('errors.importFailed'));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportZip = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const result = await wikiService.importZip(file);
+      if (result.success) {
+        toast.success(result.message);
+        setActiveTab('queue');
+        await loadStats();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('ZIP import failed:', error);
+      toast.error(t('errors.importFailed'));
+    } finally {
+      setIsImporting(false);
+      if (zipInputRef.current) zipInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     loadPurpose();
@@ -151,7 +205,7 @@ export function WikiSection() {
         <p className="text-muted-foreground">{t('description')}</p>
       </div>
 
-      <Tabs defaultValue="overview" className="flex flex-col flex-1 min-h-0 space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0 space-y-6">
         <TabsList>
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="concepts">{t('tabs.concepts')}</TabsTrigger>
@@ -304,6 +358,41 @@ export function WikiSection() {
                 <IconWrench className="w-4 h-4 mr-2" />
                 {isMaintaining ? t('maintaining') : t('actions.maintain')}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Batch Import */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IconDatabase className="w-5 h-5" />
+                {t('import.title')}
+              </CardTitle>
+              <CardDescription>{t('import.description')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4">
+              {isTauriEnv && (
+                <Button onClick={handleImportFolder} disabled={isImporting} variant="outline" className="flex-1">
+                  <IconExplore className="w-4 h-4 mr-2" />
+                  {isImporting ? t('import.importing') : t('import.folder')}
+                </Button>
+              )}
+              <Button
+                onClick={() => zipInputRef.current?.click()}
+                disabled={isImporting}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconBook className="w-4 h-4 mr-2" />
+                {isImporting ? t('import.importing') : t('import.zip')}
+              </Button>
+              <input
+                ref={zipInputRef}
+                type="file"
+                accept=".zip"
+                onChange={handleImportZip}
+                className="hidden"
+              />
             </CardContent>
           </Card>
         </TabsContent>

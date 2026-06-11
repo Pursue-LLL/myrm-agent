@@ -1426,7 +1426,16 @@
         "loadConceptsFailed": "Failed to load concepts",
         "loadPendingFailed": "Failed to load pending edits",
         "approveFailed": "Failed to approve edit",
-        "rejectFailed": "Failed to reject edit"
+        "rejectFailed": "Failed to reject edit",
+        "importFailed": "ドキュメントのインポートに失敗しました"
+      },
+      "import": {
+        "title": "一括インポート",
+        "description": "ローカルフォルダまたはZIPアーカイブからドキュメントをナレッジベースにインポート",
+        "selectFolder": "インポートするフォルダを選択",
+        "folder": "フォルダをインポート",
+        "zip": "ZIPをアップロード",
+        "importing": "インポート中..."
       },
       "tabs": {
         "overview": "Overview",
@@ -4760,6 +4769,7 @@
       "action": "Unpin",
       "error": "Failed to unpin chat"
     },
+    "openInNewWindow": "新しいウィンドウで開く",
     "createAutomation": "Create Automation",
     "handoff": {
       "menuAction": "Transfer to...",

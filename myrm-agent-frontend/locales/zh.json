@@ -1862,7 +1862,16 @@
         "loadConceptsFailed": "加载词条失败",
         "loadPendingFailed": "加载审核队列失败",
         "approveFailed": "批准草稿失败",
-        "rejectFailed": "拒绝草稿失败"
+        "rejectFailed": "拒绝草稿失败",
+        "importFailed": "文档导入失败"
+      },
+      "import": {
+        "title": "批量导入",
+        "description": "从本地文件夹或 ZIP 压缩包批量导入文档到知识库",
+        "selectFolder": "选择要导入的文件夹",
+        "folder": "导入文件夹",
+        "zip": "上传 ZIP",
+        "importing": "导入中..."
       },
       "tabs": {
         "overview": "总览",
@@ -4857,6 +4866,7 @@
       "partialFail": "{count} 个对话删除失败",
       "error": "批量删除失败"
     },
+    "openInNewWindow": "在新窗口中打开",
     "openInNewWindow": "在新窗口中打开",
     "createAutomation": "创建自动化",
     "handoff": {

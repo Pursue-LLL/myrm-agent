@@ -38,6 +38,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `commands/pet_overlay.rs` | ✅ 核心 | 桌面宠物精灵 overlay（透明置顶窗口 + Canvas 2D 渲染 + emit/listen 事件桥） | ✅ |
 | `commands/power.rs` | ✅ 核心 | 电源管理 IPC 命令（`power_lock_acquire`/`release`/`status`），支持 `prevent_display_sleep` 参数控制显示器保持唤醒 | ✅ |
 | `commands/screen_lock.rs` | ✅ 核心 | 屏幕锁定管理 IPC 命令（`screen_is_locked`/`screen_unlock`/`screen_relock`/`screen_lock_store_password`/`screen_lock_has_password`/`screen_lock_delete_password`/`screen_lock_platform_support`） | ✅ |
+| `commands/session_window.rs` | ✅ 核心 | 会话独立窗口 IPC（`open_session_window`/`close_session_window`）：focused mode 精简 WebviewWindow，无侧边栏，支持重复打开聚焦 | ✅ |
 ---
 
 ## 子模块

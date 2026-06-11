@@ -49,6 +49,13 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+export interface ImportResultResponse {
+  success: boolean;
+  files_scanned: number;
+  files_enqueued: number;
+  message: string;
+}
+
 export const wikiService = {
   // Tree
   getTree: async (): Promise<TreeNode[]> => {
@@ -142,6 +149,38 @@ export const wikiService = {
     return apiRequest<OperationResult>('/wiki/ingest', {
       method: 'POST',
       body: JSON.stringify({ artifact_id: artifactId }),
+    });
+  },
+
+  // Batch Import
+  importFolder: async (
+    folderPath: string,
+    extensions: string[] = ['.md', '.txt', '.org'],
+    autoCompile: boolean = true,
+  ): Promise<ImportResultResponse> => {
+    return apiRequest<ImportResultResponse>('/wiki/import/folder', {
+      method: 'POST',
+      body: JSON.stringify({
+        folder_path: folderPath,
+        extensions,
+        auto_compile: autoCompile,
+      }),
+    });
+  },
+
+  importZip: async (
+    file: File,
+    extensions: string = '.md,.txt,.org',
+    autoCompile: boolean = true,
+  ): Promise<ImportResultResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    params.append('extensions', extensions);
+    params.append('auto_compile', autoCompile.toString());
+    return apiRequest<ImportResultResponse>(`/wiki/import/zip?${params.toString()}`, {
+      method: 'POST',
+      body: formData,
     });
   },
 };

@@ -1,25 +1,26 @@
 """Workspace snapshot interceptor for destructive action protection.
 
 [INPUT]
-myrm_agent_harness.agent.file_snapshot.local_store::LocalFileSnapshotStore (POS: Local filesystem-based file snapshot store.)
+myrm_agent_harness.agent.file_snapshot::create_file_snapshot_store (POS: Factory for snapshot store.)
+myrm_agent_harness.agent.file_snapshot::FileSnapshotProtocol (POS: Protocol for snapshot operations.)
 myrm_agent_harness.agent.file_snapshot.types::SnapshotTrigger (POS: Snapshot trigger enum.)
 myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor (POS: Protocol for intercepting code execution actions.)
 
 [OUTPUT]
-SnapshotInterceptor: Git-first workspace snapshot with file-copy fallback for Git-absent environments.
+SnapshotInterceptor: Server-layer business orchestration for workspace snapshots.
 
 [POS]
-Server-layer snapshot interceptor. Creates per-turn workspace snapshots before destructive
-actions (bash, file write/delete) using Git when available, falling back to
-LocalFileSnapshotStore (file-copy) when Git is absent.
+Server-layer snapshot interceptor. Handles per-turn dedup, SSE events,
+and multi-agent metadata binding. Delegates actual storage to harness-layer
+FileSnapshotProtocol implementations (ShadowGit or LocalFile) via factory.
 """
 
 import asyncio
 import logging
 from collections import defaultdict
-from pathlib import Path
 
-from myrm_agent_harness.agent.file_snapshot.local_store import LocalFileSnapshotStore
+from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
+from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
 
@@ -27,18 +28,30 @@ logger = logging.getLogger(__name__)
 
 _workspace_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
+_TRIGGER_MAP: dict[str, SnapshotTrigger] = {
+    "bash": SnapshotTrigger.EXECUTE_TERMINAL,
+    "file_write": SnapshotTrigger.WRITE_FILE,
+    "file_append": SnapshotTrigger.WRITE_FILE,
+    "file_delete": SnapshotTrigger.DELETE_FILE,
+    "patch_file": SnapshotTrigger.PATCH_FILE,
+}
+
 
 class SnapshotInterceptor(ExecutionInterceptor):
     """Intercepts destructive actions to create workspace snapshots.
 
-    Strategy: Git-first for incremental storage efficiency, with automatic
-    fallback to LocalFileSnapshotStore (file-copy) when Git is unavailable.
+    Business orchestration only — storage is delegated to harness-layer
+    FileSnapshotProtocol implementations via create_file_snapshot_store().
     """
 
     def __init__(self) -> None:
         self._snapshotted_turns: dict[tuple[str, str], bool] = {}
-        self._git_available: bool | None = None
-        self._fallback_store = LocalFileSnapshotStore()
+        self._store: FileSnapshotProtocol | None = None
+
+    async def _get_store(self) -> FileSnapshotProtocol:
+        if self._store is None:
+            self._store = await create_file_snapshot_store()
+        return self._store
 
     async def before_destructive_action(self, workspace_path: str, action_type: str, payload: dict) -> None:
         """Called by Harness before a destructive action is executed."""
@@ -54,33 +67,24 @@ class SnapshotInterceptor(ExecutionInterceptor):
 
         cache_key = (workspace_path, turn_id)
 
-        # Fast path: already snapshotted this turn
         if self._snapshotted_turns.get(cache_key):
             return
 
-        # Create a background task for the snapshot process
-        # We use asyncio.shield to ensure the git operations are not cancelled
-        # even if the outer wait_for times out, preventing .git/index.lock corruption
         snapshot_task = asyncio.create_task(
             self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key)
         )
 
         try:
-            # We still wait for it, but if it takes too long, we let the main execution proceed
-            # while the snapshot finishes safely in the background
             await asyncio.wait_for(asyncio.shield(snapshot_task), timeout=3.0)
         except asyncio.TimeoutError:
-            logger.warning(f"Snapshot creation for {workspace_path} exceeded 3s timeout, continuing in background")
+            logger.warning("Snapshot creation for %s exceeded 3s timeout, continuing in background", workspace_path)
         except Exception as e:
-            logger.warning(f"Snapshot creation error: {e}")
+            logger.warning("Snapshot creation error: %s", e)
 
     async def _safe_snapshot_with_lock(
         self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str, cache_key: tuple[str, str]
     ) -> None:
         """Acquire lock and perform snapshot safely."""
-        if self._git_available is None:
-            self._git_available = await self._detect_git()
-
         lock = _workspace_locks[workspace_path]
         async with lock:
             if self._snapshotted_turns.get(cache_key):
@@ -89,103 +93,19 @@ class SnapshotInterceptor(ExecutionInterceptor):
             try:
                 await self._emit_snapshot_event(chat_id, action_type)
 
-                if self._git_available:
-                    await self._create_snapshot(workspace_path, action_type, chat_id, agent_id, turn_id)
-                else:
-                    await self._create_fallback_snapshot(workspace_path, action_type, turn_id)
+                store = await self._get_store()
+                trigger = _TRIGGER_MAP.get(action_type, SnapshotTrigger.MANUAL)
+                description = f"Before {action_type} (chat:{chat_id[:8]} agent:{agent_id[:8]} turn:{turn_id[:8]})"
+
+                await store.take_snapshot(
+                    working_dir=workspace_path,
+                    trigger=trigger,
+                    description=description,
+                )
 
                 self._snapshotted_turns[cache_key] = True
             except Exception as e:
-                logger.error(f"Failed to create snapshot for {workspace_path}: {e}")
-
-    async def _detect_git(self) -> bool:
-        """One-time probe for system git availability."""
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                "git",
-                "--version",
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
-            )
-            await proc.communicate()
-            available = proc.returncode == 0
-        except FileNotFoundError:
-            available = False
-
-        if not available:
-            logger.warning("Git not found — snapshot interceptor will use file-copy fallback")
-        return available
-
-    async def _create_fallback_snapshot(self, workspace_path: str, action_type: str, turn_id: str) -> None:
-        """File-copy snapshot via LocalFileSnapshotStore when Git is absent."""
-        trigger_map: dict[str, SnapshotTrigger] = {
-            "bash": SnapshotTrigger.EXECUTE_TERMINAL,
-            "file_write": SnapshotTrigger.WRITE_FILE,
-            "file_append": SnapshotTrigger.WRITE_FILE,
-            "file_delete": SnapshotTrigger.DELETE_FILE,
-            "patch_file": SnapshotTrigger.PATCH_FILE,
-        }
-        trigger = trigger_map.get(action_type, SnapshotTrigger.MANUAL)
-        snapshot_id = await self._fallback_store.take_snapshot(
-            working_dir=workspace_path,
-            trigger=trigger,
-            description=f"Auto snapshot before {action_type} (turn: {turn_id})",
-        )
-        logger.info(f"File-copy snapshot {snapshot_id} created for turn {turn_id} in {workspace_path}")
-
-    async def _create_snapshot(self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str) -> None:
-        """Create a Git commit in the shadow repository."""
-        wp = Path(workspace_path)
-        if not wp.exists() or not wp.is_dir():
-            return
-
-        # Ensure .gitignore exists and ignores large files/dirs
-        gitignore_path = wp / ".gitignore"
-        ignore_content = ""
-        if gitignore_path.exists():
-            ignore_content = gitignore_path.read_text(errors="ignore")
-
-        added_rules = False
-        for rule in ["node_modules/", ".venv/", "*.mp4", "*.sqlite", "*.db"]:
-            if rule not in ignore_content:
-                ignore_content += f"\n{rule}"
-                added_rules = True
-
-        if added_rules:
-            gitignore_path.write_text(ignore_content.strip() + "\n")
-
-        # Initialize git if needed
-        git_dir = wp / ".git"
-        if not git_dir.exists():
-            await self._run_async_cmd("git", "init", cwd=str(wp))
-            # Configure local git user
-            await self._run_async_cmd("git", "config", "user.name", "Myrm Agent", cwd=str(wp))
-            await self._run_async_cmd("git", "config", "user.email", "agent@myrm.ai", cwd=str(wp))
-
-        # Add and commit
-        await self._run_async_cmd("git", "add", ".", cwd=str(wp))
-
-        # Check if there are changes to commit
-        status_stdout, _ = await self._run_async_cmd("git", "status", "--porcelain", cwd=str(wp))
-        if not status_stdout.strip():
-            return  # No changes to snapshot
-
-        commit_msg = f"Auto snapshot before {action_type}\n\nChat: {chat_id}\nAgent: {agent_id}\nTurn: {turn_id}"
-        await self._run_async_cmd("git", "commit", "-m", commit_msg, cwd=str(wp))
-        logger.info(f"Created file system snapshot for turn {turn_id} in {workspace_path}")
-
-    async def _run_async_cmd(self, *args: str, cwd: str) -> tuple[str, str]:
-        """Run a shell command asynchronously to avoid blocking the event loop."""
-        process = await asyncio.create_subprocess_exec(
-            *args,
-            cwd=cwd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
-        if process.returncode != 0:
-            raise RuntimeError(f"Command {' '.join(args)} failed: {stderr.decode()}")
-        return stdout.decode(), stderr.decode()
+                logger.error("Failed to create snapshot for %s: %s", workspace_path, e)
 
     async def _emit_snapshot_event(self, chat_id: str, action_type: str) -> None:
         """Emit an SSE event to the frontend to show the Snapshotting UI indicator."""
@@ -207,4 +127,4 @@ class SnapshotInterceptor(ExecutionInterceptor):
                 )
             )
         except Exception as e:
-            logger.debug(f"Failed to emit snapshot event: {e}")
+            logger.debug("Failed to emit snapshot event: %s", e)

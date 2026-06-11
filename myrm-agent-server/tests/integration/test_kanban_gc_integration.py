@@ -127,8 +127,8 @@ class TestGCEventsIntegration:
 
         async with get_session() as s:
             await _insert_board(s, board_id)
-            await _insert_task(s, task_done, board_id, status="done")
-            await _insert_task(s, task_active, board_id, status="in_progress")
+            await _insert_task(s, task_done, board_id, status="completed")
+            await _insert_task(s, task_active, board_id, status="running")
 
             for _ in range(3):
                 await _insert_event(s, task_done, _old_dt(60))
@@ -374,7 +374,7 @@ class TestGCWorkspacesIntegration:
 
     @pytest.mark.asyncio
     async def test_done_task_workspace_not_cleaned(self) -> None:
-        """Only 'archived' tasks have workspaces cleaned, not 'done'."""
+        """Only 'archived' tasks have workspaces cleaned, not 'completed'."""
         with tempfile.TemporaryDirectory() as harness_root:
             board_id = _uid()
             task_id = _uid()
@@ -386,7 +386,7 @@ class TestGCWorkspacesIntegration:
                 await _insert_board(s, board_id)
                 await _insert_task(
                     s, task_id, board_id,
-                    status="done",
+                    status="completed",
                     updated_at=_old_dt(60),
                     workspace_path=str(ws_dir),
                 )
@@ -440,7 +440,7 @@ class TestRunGCFullIntegration:
                     updated_at=_old_dt(60),
                     workspace_path=str(ws_dir),
                 )
-                await _insert_task(s, t_done, board_id, status="done",
+                await _insert_task(s, t_done, board_id, status="completed",
                                    updated_at=_old_dt(60))
 
                 for _ in range(5):

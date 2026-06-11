@@ -186,13 +186,17 @@ class TestKanbanCommandIntegration:
         handler: ChannelKanbanCommandHandler,
         msg: InboundMessage,
     ) -> None:
-        """Create on a fresh service auto-creates 'Default Board'."""
+        """Create on a fresh service ensures a board exists (creates Default Board if none)."""
+        svc = KanbanService.get_instance()
+        boards_before = await svc.list_boards()
+
         result = await handler.handle_kanban(msg, "create First Task Ever")
         assert "Task created" in result
 
-        svc = KanbanService.get_instance()
-        boards = await svc.list_boards()
-        assert any(b.name == "Default Board" for b in boards)
+        boards_after = await svc.list_boards()
+        assert len(boards_after) >= 1
+        if not boards_before:
+            assert any(b.name == "Default Board" for b in boards_after)
 
     @pytest.mark.asyncio
     async def test_show_nonexistent_task(
