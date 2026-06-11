@@ -35,6 +35,9 @@ export interface SystemConfig {
   /** Appshot 截屏快捷键 */
   appshotShortcut: string;
 
+  /** Appshot 截屏隐私黑名单 */
+  appshotExcludedApps: string[];
+
   /** 是否启用 Locked Use（Computer Use 锁屏操作能力） */
   lockedUseEnabled: boolean;
 }
@@ -51,6 +54,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   configVersion: 1,
   globalShortcut: 'Option+Space',
   appshotShortcut: 'CommandOrControl+Shift+A',
+  appshotExcludedApps: ['微信', 'WeChat', '1Password', 'Bitwarden', 'KeePassXC', 'LastPass'],
   lockedUseEnabled: false,
 };
 

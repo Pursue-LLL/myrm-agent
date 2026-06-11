@@ -63,6 +63,10 @@ pub struct SystemConfig {
     /// 是否启用 Locked Use（Computer Use 锁屏操作能力），默认关闭
     #[serde(default)]
     pub locked_use_enabled: bool,
+
+    /// Appshot 截屏隐私黑名单：前台应用名命中时跳过截图，防止敏感应用内容被发往云端 LLM
+    #[serde(default = "default_appshot_excluded_apps")]
+    pub appshot_excluded_apps: Vec<String>,
 }
 
 fn default_close_to_tray() -> bool {
@@ -75,6 +79,17 @@ fn default_global_shortcut() -> String {
 
 fn default_appshot_shortcut() -> String {
     "CommandOrControl+Shift+A".to_string()
+}
+
+fn default_appshot_excluded_apps() -> Vec<String> {
+    vec![
+        "微信".to_string(),
+        "WeChat".to_string(),
+        "1Password".to_string(),
+        "Bitwarden".to_string(),
+        "KeePassXC".to_string(),
+        "LastPass".to_string(),
+    ]
 }
 
 impl Default for SystemConfig {
@@ -91,6 +106,7 @@ impl Default for SystemConfig {
             global_shortcut: "Option+Space".to_string(),
             appshot_shortcut: "CommandOrControl+Shift+A".to_string(),
             locked_use_enabled: false,
+            appshot_excluded_apps: default_appshot_excluded_apps(),
         }
     }
 }

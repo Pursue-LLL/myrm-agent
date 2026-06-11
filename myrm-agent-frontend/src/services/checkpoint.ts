@@ -59,6 +59,8 @@ export interface FileChange {
   changeType: string;
   oldSize: number | null;
   newSize: number | null;
+  linesAdded: number | null;
+  linesDeleted: number | null;
 }
 
 export interface FileDiffResponse {

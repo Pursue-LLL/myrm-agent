@@ -63,6 +63,14 @@ pub async fn get_local_ip() -> Result<String, String> {
     }
 }
 
+/// 绕过隐私黑名单强制截屏（用户点击 "Continue Anyway" 时触发）
+#[tauri::command]
+pub async fn force_appshot_capture(app: tauri::AppHandle) -> Result<(), String> {
+    use crate::runtime::appshot::force_capture;
+    force_capture(&app);
+    Ok(())
+}
+
 /// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot）
 #[tauri::command]
 pub fn update_global_shortcut(

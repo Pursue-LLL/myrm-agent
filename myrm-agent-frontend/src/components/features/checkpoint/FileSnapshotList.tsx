@@ -28,6 +28,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cleaningUp, setCleaningUp] = useState(false);
+  const [showConfirmCleanup, setShowConfirmCleanup] = useState(false);
   const [diffSnapshotId, setDiffSnapshotId] = useState<string | null>(null);
   const [diffChanges, setDiffChanges] = useState<FileChange[]>([]);
   const [loadingDiff, setLoadingDiff] = useState(false);
@@ -104,9 +105,8 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   };
 
   const handleCleanup = async () => {
-    if (!confirm(t('confirmCleanup'))) return;
-
     setCleaningUp(true);
+    setShowConfirmCleanup(false);
     try {
       const response = await cleanupFileSnapshots(workingDir, 20);
       await loadSnapshots();
@@ -122,37 +122,55 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('title')}</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t('title')}</h2>
         <div className="flex items-center gap-2">
           <button
             onClick={loadSnapshots}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-secondary hover:bg-secondary/80 text-secondary-foreground disabled:opacity-50"
           >
             <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
             {t('refresh')}
           </button>
-          <button
-            onClick={handleCleanup}
-            disabled={cleaningUp || loading}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
-          >
-            <Trash className="w-4 h-4" />
-            {cleaningUp ? t('cleaning') : t('cleanup')}
-          </button>
+          {showConfirmCleanup ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleCleanup}
+                disabled={cleaningUp}
+                className="px-3 py-1.5 text-sm rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground disabled:opacity-50"
+              >
+                {cleaningUp ? t('cleaning') : t('confirmYes')}
+              </button>
+              <button
+                onClick={() => setShowConfirmCleanup(false)}
+                className="px-3 py-1.5 text-sm rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              >
+                {t('confirmNo')}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowConfirmCleanup(true)}
+              disabled={cleaningUp || loading}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full transition-colors bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
+            >
+              <Trash className="w-4 h-4" />
+              {t('cleanup')}
+            </button>
+          )}
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-full text-sm">
+        <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
           {error}
         </div>
       )}
 
       {loading && snapshots.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">{t('loading')}</div>
+        <div className="text-center py-8 text-muted-foreground">{t('loading')}</div>
       ) : snapshots.length === 0 ? (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">{t('noSnapshots')}</div>
+        <div className="text-center py-8 text-muted-foreground">{t('noSnapshots')}</div>
       ) : (
         <div className="space-y-3">
           {diffSnapshotId && (
@@ -162,6 +180,10 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
               onClose={() => {
                 setDiffSnapshotId(null);
                 setDiffChanges([]);
+              }}
+              onRestoreSuccess={(id, count) => {
+                onRestoreSuccess?.(id, count);
+                loadSnapshots();
               }}
             />
           )}
@@ -180,7 +202,7 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
         </div>
       )}
 
-      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
+      <div className="mt-4 text-xs text-muted-foreground text-center">
         {t('total', { count: snapshots.length })}
       </div>
     </div>

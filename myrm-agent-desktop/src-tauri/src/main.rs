@@ -323,6 +323,7 @@ fn main() {
             pet_overlay_set_row,
             open_session_window,
             close_session_window,
+            force_appshot_capture,
             tray::set_tray_status
         ])
         .build(tauri::generate_context!())

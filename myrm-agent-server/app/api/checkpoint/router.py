@@ -253,6 +253,8 @@ class FileChangeResponse(BaseModel):
     change_type: str
     old_size: int | None = None
     new_size: int | None = None
+    lines_added: int | None = None
+    lines_deleted: int | None = None
 
 
 class FileDiffResponse(BaseModel):
@@ -326,6 +328,8 @@ async def get_file_snapshot_diff(snapshot_id: str) -> FileDiffResponse:
                 change_type=c.change_type,
                 old_size=c.old_size,
                 new_size=c.new_size,
+                lines_added=c.lines_added,
+                lines_deleted=c.lines_deleted,
             )
             for c in diff.changes
         ]

@@ -82,8 +82,8 @@ class TestRegisteredNames:
         for expected in ("telegram", "discord", "slack", "feishu", "webhook"):
             assert expected in names
 
-    def test_has_25_channels(self) -> None:
-        assert len(registered_names()) == 25
+    def test_has_26_channels(self) -> None:
+        assert len(registered_names()) == 26
 
 
 class TestChannelMeta:

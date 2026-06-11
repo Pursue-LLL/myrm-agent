@@ -1,7 +1,10 @@
-//! Appshot 全局快捷键：截屏 + 前台窗口文本提取
+//! Appshot 全局快捷键：截屏 + 前台窗口文本提取 + 隐私黑名单拦截
 
+use std::collections::HashSet;
 use std::process::Command;
 use tauri::{AppHandle, Emitter, Manager};
+
+use crate::config::ConfigManager;
 
 /// 用于在全局快捷键 handler 中识别 Appshot 绑定
 pub static APPSHOT_SHORTCUT_STR: std::sync::Mutex<String> =
@@ -27,44 +30,115 @@ pub fn handle_toggle_window(app: &AppHandle) {
     }
 }
 
-/// 截屏并提取窗口文本，通过 `appshot-captured` 事件推送到前端，并确保主窗口可见
+/// 截屏入口：检查隐私黑名单后执行截屏
 pub fn handle_appshot_shortcut(app: &AppHandle) {
+    let excluded_apps = load_excluded_apps(app);
+    let app_handle = app.clone();
+
+    std::thread::spawn(move || {
+        let front_app_name = get_frontmost_app_name();
+
+        if is_app_excluded(&front_app_name, &excluded_apps) {
+            let timestamp = current_timestamp_ms();
+            let payload = serde_json::json!({
+                "blockedApp": front_app_name,
+                "timestamp": timestamp,
+            });
+            let _ = app_handle.emit("appshot-blocked", payload);
+            show_main_window(&app_handle);
+            return;
+        }
+
+        do_capture_and_emit(&app_handle);
+    });
+}
+
+/// 绕过黑名单强制截屏（用户点击 "Continue Anyway" 后调用）
+pub fn force_capture(app: &AppHandle) {
     let app_handle = app.clone();
     std::thread::spawn(move || {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis();
-
-        #[cfg(target_os = "macos")]
-        let (screenshot_b64, window_title, extracted_text, needs_permission) = capture_appshot_macos();
-
-        #[cfg(not(target_os = "macos"))]
-        let (screenshot_b64, window_title, extracted_text, needs_permission) =
-            capture_appshot_fallback();
-
-        let payload = serde_json::json!({
-            "screenshot": screenshot_b64,
-            "windowTitle": window_title,
-            "extractedText": extracted_text,
-            "needsPermission": needs_permission,
-            "timestamp": timestamp,
-        });
-
-        if let Err(e) = app_handle.emit("appshot-captured", payload) {
-            eprintln!("Failed to emit appshot event: {}", e);
-        }
-
-        if let Some(window) = app_handle.get_webview_window("main") {
-            #[cfg(target_os = "macos")]
-            {
-                let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Regular);
-            }
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
-        }
+        do_capture_and_emit(&app_handle);
     });
+}
+
+fn do_capture_and_emit(app: &AppHandle) {
+    let timestamp = current_timestamp_ms();
+
+    #[cfg(target_os = "macos")]
+    let (screenshot_b64, window_title, extracted_text, needs_permission) = capture_appshot_macos();
+
+    #[cfg(not(target_os = "macos"))]
+    let (screenshot_b64, window_title, extracted_text, needs_permission) =
+        capture_appshot_fallback();
+
+    let payload = serde_json::json!({
+        "screenshot": screenshot_b64,
+        "windowTitle": window_title,
+        "extractedText": extracted_text,
+        "needsPermission": needs_permission,
+        "timestamp": timestamp,
+    });
+
+    if let Err(e) = app.emit("appshot-captured", payload) {
+        eprintln!("Failed to emit appshot event: {}", e);
+    }
+
+    show_main_window(app);
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+fn current_timestamp_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+}
+
+fn load_excluded_apps(app: &AppHandle) -> HashSet<String> {
+    let config_manager = app.state::<ConfigManager>();
+    let config = config_manager.load();
+    config
+        .appshot_excluded_apps
+        .into_iter()
+        .map(|s| s.to_lowercase())
+        .collect()
+}
+
+fn is_app_excluded(app_name: &str, excluded: &HashSet<String>) -> bool {
+    if app_name.is_empty() || excluded.is_empty() {
+        return false;
+    }
+    excluded.contains(&app_name.to_lowercase())
+}
+
+fn get_frontmost_app_name() -> String {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = Command::new("osascript")
+            .args(["-e", r#"tell application "System Events" to get name of first application process whose frontmost is true"#])
+            .output()
+        {
+            if output.status.success() {
+                return String::from_utf8_lossy(&output.stdout).trim().to_string();
+            }
+        }
+        String::new()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        String::new()
+    }
 }
 
 #[cfg(target_os = "macos")]

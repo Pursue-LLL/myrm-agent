@@ -3,15 +3,18 @@
 /**
  * [INPUT]
  * - Tauri event "appshot-captured" from global shortcut handler
+ * - Tauri event "appshot-blocked" when frontmost app is in privacy blacklist
  * - useFlowPadStore (POS: FlowPad modal state)
  *
  * [OUTPUT]
  * - Listens for Appshot events and opens FlowPad modal for user confirmation
+ * - Shows toast with "Continue Anyway" when capture is blocked by privacy blacklist
  *
  * [POS]
  * Connects Tauri-side Appshot captures to FlowPad modal. Each capture
  * immediately opens/appends to the FlowPad, giving users the choice of
  * which Agent to route to and what instruction to attach.
+ * Also handles privacy blacklist blocking with user override capability.
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -25,6 +28,11 @@ interface AppshotPayload {
   windowTitle: string;
   extractedText: string;
   needsPermission: boolean;
+  timestamp: number;
+}
+
+interface AppshotBlockedPayload {
+  blockedApp: string;
   timestamp: number;
 }
 
@@ -83,18 +91,45 @@ export function useAppshotListener() {
     [addCapture, t],
   );
 
+  const handleBlocked = useCallback(
+    (payload: AppshotBlockedPayload) => {
+      toast.warning(t('privacyBlocked', { app: payload.blockedApp }), {
+        description: t('privacyBlockedDescription'),
+        duration: 8000,
+        dismissible: true,
+        action: {
+          label: t('captureAnyway'),
+          onClick: () => {
+            import('@tauri-apps/api/core')
+              .then((mod) => mod.invoke('force_appshot_capture'))
+              .catch(() => {
+                toast.error(t('captureFailed'), { duration: 3000 });
+              });
+          },
+        },
+      });
+    },
+    [t],
+  );
+
   useEffect(() => {
     if (!isTauriRuntime()) return;
 
-    let unlisten: (() => void) | undefined;
+    let unlistenCapture: (() => void) | undefined;
+    let unlistenBlocked: (() => void) | undefined;
 
     const setup = async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
-        const unlistenFn = await listen<AppshotPayload>('appshot-captured', (event) => {
+        const fn1 = await listen<AppshotPayload>('appshot-captured', (event) => {
           handleCapture(event.payload);
         });
-        unlisten = unlistenFn;
+        unlistenCapture = fn1;
+
+        const fn2 = await listen<AppshotBlockedPayload>('appshot-blocked', (event) => {
+          handleBlocked(event.payload);
+        });
+        unlistenBlocked = fn2;
       } catch (err) {
         console.error('Failed to setup appshot listener:', err);
       }
@@ -103,9 +138,10 @@ export function useAppshotListener() {
     setup();
 
     return () => {
-      unlisten?.();
+      unlistenCapture?.();
+      unlistenBlocked?.();
     };
-  }, [handleCapture]);
+  }, [handleCapture, handleBlocked]);
 
   return { needsPermission: needsPermissionRef.current };
 }

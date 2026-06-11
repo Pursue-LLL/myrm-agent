@@ -25,11 +25,11 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC | ✅ |
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（WebUI 模式） | ✅ |
-| `runtime/appshot.rs` | ✅ 核心 | Appshot 全局快捷键截屏与窗口文本提取 | ✅ |
+| `runtime/appshot.rs` | ✅ 核心 | Appshot 全局快捷键截屏与窗口文本提取，隐私黑名单拦截（`appshot-blocked` 事件）与强制截屏绕过（`force_capture`） | ✅ |
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
 | `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
-| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut` 字段 | ✅ |
+| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
 | `lifecycle.rs` | ✅ 核心 | 优雅停机与生命周期管理 | ✅ |
 | `tray.rs` | ✅ 核心 | 系统托盘初始化（Show/New Chat/Settings/Workspace/Quit 菜单 + 左键显示窗口）与 tooltip 状态管理。前端 `useTrayStatus` hook 还通过 Tauri JS API 控制任务栏进度条（`setProgressBar`）和完成弹跳通知（`requestUserAttention`） | ✅ |
 | `commands/` | ✅ 核心 | Tauri IPC 命令模块（config, agent） | ✅ |

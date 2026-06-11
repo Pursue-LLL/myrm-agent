@@ -2484,6 +2484,10 @@
         "globalShortcutDesc": "Press this shortcut anywhere to quickly show or hide the app",
         "appshotShortcut": "Appshot Shortcut",
         "appshotShortcutDesc": "Capture screen and extract window text to send as context to chat",
+        "appshotPrivacyBlacklist": "Appshot Privacy Blacklist",
+        "appshotPrivacyBlacklistDesc": "Apps in this list will be blocked from screen capture to protect sensitive data",
+        "appshotAddAppPlaceholder": "Enter app name...",
+        "appshotAddApp": "Add",
         "enableRemoteWebDevHint": "Preference saved. Start the frontend with bun run dev:lan and save settings so phones can use the LAN URL.",
         "webuiPort": "WebUI port (Next.js)",
         "webuiPortDesc": "Primary port users open in the browser",
@@ -10312,7 +10316,10 @@
     "permissionDescription": "Grant access in System Settings → Privacy & Security → Accessibility to enable window text extraction.",
     "openSettings": "Open Settings",
     "captured": "Appshot captured ({count})",
-    "captureFailed": "Screen capture failed"
+    "captureFailed": "Screen capture failed",
+    "privacyBlocked": "Capture blocked: {app} is in privacy blacklist",
+    "privacyBlockedDescription": "This app is excluded from screen capture for privacy protection.",
+    "captureAnyway": "Capture Anyway"
   },
   "annotationEditor": {
     "arrow": "Arrow",

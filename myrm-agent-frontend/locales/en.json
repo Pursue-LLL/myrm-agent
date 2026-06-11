@@ -2904,6 +2904,10 @@
         "globalShortcutDesc": "Press this shortcut anywhere to quickly show or hide the app",
         "appshotShortcut": "Appshot Shortcut",
         "appshotShortcutDesc": "Capture screen and extract window text to send as context to chat",
+        "appshotPrivacyBlacklist": "Appshot Privacy Blacklist",
+        "appshotPrivacyBlacklistDesc": "Apps in this list will be blocked from screen capture to protect sensitive data",
+        "appshotAddAppPlaceholder": "Enter app name...",
+        "appshotAddApp": "Add",
         "enableWebUI": "Enable WebUI Mode",
         "enableWebUIDesc": "Access the app via browser on local network",
         "enableRemote": "Enable Remote Access",
@@ -9927,7 +9931,14 @@
     "cleanupSuccess": "Cleaned up {deleted} file snapshots",
     "confirmCleanup": "Are you sure you want to cleanup old file snapshots?",
     "diffTitle": "Changes since snapshot {snapshotId}",
-    "noChanges": "No changes since this snapshot"
+    "noChanges": "No changes since this snapshot",
+    "panelTitle": "File Snapshots",
+    "selectAll": "Select all",
+    "restoreSelected": "Restore {count} selected",
+    "confirmRestore": "Restore {count} file(s) to snapshot state?",
+    "confirmYes": "Confirm",
+    "confirmNo": "Cancel",
+    "restoring": "Restoring..."
   },
   "SkillOptimization": {
     "qualityScore": "Quality Score",
@@ -10636,7 +10647,10 @@
     "openSettings": "Open Settings",
     "captured": "Appshot captured ({count})",
     "captureFailed": "Screen capture failed",
-    "maxCapturesReached": "Maximum number of captures reached"
+    "maxCapturesReached": "Maximum number of captures reached",
+    "privacyBlocked": "Capture blocked: {app} is in privacy blacklist",
+    "privacyBlockedDescription": "This app is excluded from screen capture for privacy protection.",
+    "captureAnyway": "Capture Anyway"
   },
   "flowPad": {
     "title": "Quick Ask",

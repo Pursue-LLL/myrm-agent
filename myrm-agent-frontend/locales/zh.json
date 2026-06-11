@@ -2904,6 +2904,10 @@
         "globalShortcutDesc": "在任何界面按下此快捷键可快速唤醒或隐藏应用",
         "appshotShortcut": "Appshot 截屏快捷键",
         "appshotShortcutDesc": "截取当前屏幕并提取窗口文本作为上下文发送到对话",
+        "appshotPrivacyBlacklist": "截屏隐私黑名单",
+        "appshotPrivacyBlacklistDesc": "黑名单中的应用在前台时，截屏将被阻止以保护敏感数据",
+        "appshotAddAppPlaceholder": "输入应用名称...",
+        "appshotAddApp": "添加",
         "enableWebUI": "启用 WebUI 模式",
         "enableWebUIDesc": "在局域网内通过浏览器访问应用",
         "enableRemote": "启用远程访问",
@@ -9895,7 +9899,14 @@
     "cleanupSuccess": "已清理 {deleted} 个文件快照",
     "confirmCleanup": "确定要清理旧的文件快照吗？",
     "diffTitle": "自快照 {snapshotId} 以来的变更",
-    "noChanges": "自该快照以来无变更"
+    "noChanges": "自该快照以来无变更",
+    "panelTitle": "文件快照",
+    "selectAll": "全选",
+    "restoreSelected": "恢复选中的 {count} 个文件",
+    "confirmRestore": "确定将 {count} 个文件恢复到快照状态吗？",
+    "confirmYes": "确认恢复",
+    "confirmNo": "取消",
+    "restoring": "恢复中..."
   },
   "SkillOptimization": {
     "qualityScore": "质量评分",
@@ -10604,7 +10615,10 @@
     "openSettings": "打开设置",
     "captured": "Appshot 已捕获 ({count})",
     "captureFailed": "屏幕截图失败",
-    "maxCapturesReached": "已达到最大截图数量"
+    "maxCapturesReached": "已达到最大截图数量",
+    "privacyBlocked": "截屏已阻止：{app} 在隐私黑名单中",
+    "privacyBlockedDescription": "该应用已被隐私保护排除在截屏范围外。",
+    "captureAnyway": "仍然截屏"
   },
   "flowPad": {
     "title": "快速交互",

@@ -29,6 +29,7 @@ import SubagentDashboard from './SubagentDashboard';
 import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
 import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
 import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
+import { FileSnapshotPanel } from '@/components/features/checkpoint';
 import { LifeStatusCapsule } from './LifeStatusCapsule';
 import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
@@ -378,6 +379,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         {/* Desktop Inspector */}
         <DesktopInspectorToggle />
         <DesktopLiveView onSendInstruction={handleDesktopInspectorInstruction} />
+
+        {/* File Snapshot Panel */}
+        <FileSnapshotPanel />
 
         {/* Subagent 智能提示按钮 */}
         <SubagentPromptButton />
