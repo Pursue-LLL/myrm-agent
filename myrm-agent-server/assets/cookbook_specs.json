@@ -45,6 +45,7 @@
     "description": "专家级推理模型，需要顶级硬件",
     "req_vram_gb": 22.0,
     "params_b": 32.0,
+    "active_params_b": 7.0,
     "disk_size_gb": 20.0
   },
   {

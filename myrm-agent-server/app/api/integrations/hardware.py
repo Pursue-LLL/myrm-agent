@@ -122,17 +122,29 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
 
 
-def _estimate_tok_per_sec(bandwidth_gbps: float | None, params_b: float, vendor: str) -> int | None:
+def _estimate_tok_per_sec(
+    bandwidth_gbps: float | None,
+    params_b: float,
+    vendor: str,
+    active_params_b: float | None = None,
+) -> int | None:
     """Estimate inference throughput (tokens/s) for a Q4_K_M quantized LLM.
 
-    Formula:  tok/s = (bandwidth_GBps * 1e9) / (params_b * 1e9 * bytes_per_weight)
+    Formula:  tok/s = (bandwidth_GBps * 1e9) / (effective_b * 1e9 * bytes_per_weight)
                        * efficiency * vendor_factor
+
+    For MoE models (e.g. DeepSeek R1 32B which activates ~7B weights per token),
+    pass ``active_params_b`` to use the number of *active* weights instead of the
+    total model size.  VRAM/disk sizing still uses full ``params_b``; only the
+    inference throughput estimate uses active weights.
 
     Returns None when bandwidth is unavailable (GPU not in lookup table).
     """
     if bandwidth_gbps is None or bandwidth_gbps <= 0 or params_b <= 0:
         return None
-    raw = (bandwidth_gbps * 1e9) / (params_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
+    # MoE models: inference cost scales with active parameters, not total
+    effective_b = active_params_b if (active_params_b and active_params_b > 0) else params_b
+    raw = (bandwidth_gbps * 1e9) / (effective_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
     vendor_factor = _VENDOR_FACTOR.get(vendor, _VENDOR_FACTOR["unknown"])
     # Return integer tok/s — sub-1 precision is noise given ~15% estimation error
     return max(1, round(raw * _EFFICIENCY * vendor_factor))
@@ -185,10 +197,14 @@ async def get_hardware_recommendations() -> JSONResponse:
     bandwidth_gbps: float | None = getattr(profile, "memory_bandwidth_gbps", None)
     gpu_vendor: str = getattr(profile, "gpu_vendor", "unknown") or "unknown"
 
+    # fit_level priority map for sorting: higher → better
+    _FIT_PRIORITY = {"perfect": 3, "good": 2, "fair": 1, "poor": 0}
+
     recommendations = []
     for spec in model_specs:
         req_vram = float(spec["req_vram_gb"])
         params_b = float(spec.get("params_b", 0.0))
+        active_params_b: float | None = float(spec["active_params_b"]) if spec.get("active_params_b") else None
         model_id = spec["id"]
 
         ollama_model_name = model_id.split("/")[-1] if "/" in model_id else model_id
@@ -210,7 +226,11 @@ async def get_hardware_recommendations() -> JSONResponse:
             score = int(ratio * 50)
             fit_level = "poor"
 
-        est_tok_per_sec = _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor) if params_b > 0 else None
+        est_tok_per_sec = (
+            _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor, active_params_b)
+            if params_b > 0
+            else None
+        )
 
         recommendations.append(
             {
@@ -218,6 +238,7 @@ async def get_hardware_recommendations() -> JSONResponse:
                 "name": spec["name"],
                 "description": spec["description"],
                 "req_vram_gb": req_vram,
+                "params_b": params_b,
                 "disk_size_gb": spec.get("disk_size_gb"),
                 "fit_score": score,
                 "fit_level": fit_level,
@@ -226,7 +247,17 @@ async def get_hardware_recommendations() -> JSONResponse:
             }
         )
 
-    recommendations.sort(key=lambda x: int(x["fit_score"]), reverse=True)
+    # Three-level sort: fit level (best first) → params_b desc → est_tok_per_sec desc.
+    # Within the same fit level, recommend the most capable (largest) model first,
+    # then break remaining ties by raw throughput speed.
+    recommendations.sort(
+        key=lambda x: (
+            _FIT_PRIORITY.get(str(x["fit_level"]), 0),
+            float(x["params_b"]),
+            float(x["est_tok_per_sec"]) if x["est_tok_per_sec"] is not None else 0.0,
+        ),
+        reverse=True,
+    )
 
     response = HardwareRecommendationResponse(
         hardware_detected=True,
