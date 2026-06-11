@@ -4,13 +4,14 @@
  * [INPUT]
  * - useFlowPadStore (POS: FlowPad 全局状态)
  * - useChatStore (POS: 消息发送)
+ * - useFeatureGateStore (POS: Feature Gate 检查)
  *
  * [OUTPUT]
- * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 指令输入
+ * - FlowPadModal: 全局居中 Dialog，整合截图预览 + 语音/文本输入
  *
  * [POS]
  * Omni-FlowPad 核心 UI 组件。全局居中 Dialog，
- * 同时服务 Appshot 截屏和 deep link Quick Ask 场景。
+ * 同时服务 Appshot 截屏、语音输入和 deep link Quick Ask 场景。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,6 +24,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Send, X, ChevronDown, ChevronUp, Monitor } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
+import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 
 const MAX_TEXT_PER_CAPTURE = 4000;
 const MAX_PREVIEW_TEXT = 200;
@@ -120,6 +123,18 @@ function ImageLightbox({
   alt: string;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEsc, true);
+    return () => document.removeEventListener('keydown', handleEsc, true);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-sm"
@@ -142,6 +157,8 @@ export function FlowPadModal() {
   const t = useTranslations('flowPad');
   const { isOpen, captures, initialText, close, removeCapture } = useFlowPadStore();
   const { agentConfig, sendMessage, setFiles } = useChatStore();
+
+  const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
   const [text, setText] = useState('');
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -216,6 +233,14 @@ export function FlowPadModal() {
       setIsSubmitting(false);
     }
   }, [captures, text, setFiles, sendMessage, close, agentConfig, t, isSubmitting]);
+
+  const handleSpeechTranscript = useCallback(
+    (transcript: string) => {
+      setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      inputRef.current?.focus();
+    },
+    [],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -300,6 +325,12 @@ export function FlowPadModal() {
               <span className="text-[10px] text-muted-foreground/40">
                 Enter {t('toSend')} · Esc {t('toCancel')}
               </span>
+              {isVoiceEnabled && (
+                <SpeechInputButton
+                  onTranscript={handleSpeechTranscript}
+                  disabled={isSubmitting}
+                />
+              )}
               <Button
                 size="icon"
                 className="h-8 w-8 rounded-full"

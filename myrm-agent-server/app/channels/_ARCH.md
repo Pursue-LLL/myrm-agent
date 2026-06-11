@@ -1,7 +1,7 @@
 # channels/
 
 ## Overview
-Multi-platform messaging channel framework. Provides channel abstractions, message bus, gateway, provider implementations (Feishu/Slack/Discord/Telegram/WhatsApp/WeChat/DingTalk/Matrix/QQ/Mattermost/Line etc.), inbound routing, outbound rendering, and reliability infrastructure.
+Multi-platform messaging channel framework. Provides channel abstractions, message bus, gateway, provider implementations (Feishu/Slack/Discord/Telegram/WhatsApp/WeChat/DingTalk/Matrix/QQ/Mattermost/Line/GitHub etc.), inbound routing, outbound rendering, and reliability infrastructure.
 
 Business-layer adaptation (pairing, agent binding, config loading) lives in `app/core/channel_bridge/`.
 

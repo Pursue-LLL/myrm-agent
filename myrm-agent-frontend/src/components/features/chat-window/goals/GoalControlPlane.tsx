@@ -359,7 +359,7 @@ export const GoalControlPlane = () => {
                 {plan.decisions.map((decision, idx) => (
                   <div
                     key={decision.id || idx}
-                    className={`p-2.5 rounded-full border text-xs ${
+                    className={`p-2.5 rounded-lg border text-xs ${
                       decision.status === 'active'
                         ? 'bg-background/80 border-amber-200/50 dark:border-amber-700/30'
                         : 'bg-background/40 border-border/50 opacity-70'

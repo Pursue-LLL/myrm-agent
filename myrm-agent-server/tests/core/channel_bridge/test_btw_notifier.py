@@ -46,7 +46,7 @@ class TestEmitBtwDone:
         bus = _make_event_bus()
         queue = bus.subscribe()
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", _btw_task())
 
         event = queue.get_nowait()
@@ -66,7 +66,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result="", error="timeout")
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_failed", task)
 
         event = queue.get_nowait()
@@ -79,7 +79,7 @@ class TestEmitBtwDone:
         bus = _make_event_bus()
         queue = bus.subscribe()
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_started", _btw_task())
 
         assert queue.empty()
@@ -91,7 +91,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"background_source": "kanban", "channel": "x", "chat_id": "y"})
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -103,7 +103,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"background_source": "btw", "chat_id": "y"})
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -119,7 +119,7 @@ class TestEmitBtwDone:
             "chat_id": "c1",
         })
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -132,7 +132,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(metadata={"background_source": "btw", "channel": "slack"})
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -145,7 +145,7 @@ class TestEmitBtwDone:
         task = _btw_task()
         task.metadata = None
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         assert queue.empty()
@@ -157,7 +157,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result=None, error="crash")
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -170,7 +170,7 @@ class TestEmitBtwDone:
         queue = bus.subscribe()
         task = _btw_task(result=None, error=None)
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -187,7 +187,7 @@ class TestEmitBtwDone:
             "chat_id": "c1",
         })
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()
@@ -204,7 +204,7 @@ class TestEmitBtwDone:
             "chat_id": "c1",
         })
 
-        with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+        with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
             _emit_btw_done("task_completed", task)
 
         event = queue.get_nowait()

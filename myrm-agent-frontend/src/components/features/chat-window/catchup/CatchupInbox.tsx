@@ -22,7 +22,6 @@ export const CatchupInbox: React.FC = () => {
     try {
       setIsLoading(true);
       const res = await getCatchupBriefs();
-      console.log('Catchup briefs fetched:', res);
       setBriefs(res.briefs || []);
     } catch (error) {
       console.error('Failed to fetch catchup briefs:', error);

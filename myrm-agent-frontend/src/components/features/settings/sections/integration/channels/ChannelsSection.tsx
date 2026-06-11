@@ -10,6 +10,7 @@ import { PolicySelector } from './DmPolicySelector';
 import { ChannelPolicyOverride } from './ChannelPolicyOverride';
 import { GroupManager, CHANNELS_WITH_GROUPS } from './GroupManager';
 import ChannelList, { buildChannelEntries } from './ChannelList';
+import { useChannelsState } from './useChannelsState';
 import { installChannelDependencies, type ChannelIssue } from '@/services/channels';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import type { WhatsAppCardProps } from './WhatsAppCard';
@@ -69,6 +70,9 @@ const VoiceConfigCard = dynamic(() => import('./VoiceConfigCard').then((mod) => 
   loading: () => <CardSkeleton />,
 });
 const SMSConfigCard = dynamic(() => import('./SMSConfigCard').then((mod) => mod.SMSConfigCard), {
+  loading: () => <CardSkeleton />,
+});
+const GitHubConfigCard = dynamic(() => import('./GitHubConfigCard').then((mod) => mod.GitHubConfigCard), {
   loading: () => <CardSkeleton />,
 });
 const SignalConfigCard = dynamic(() => import('./SignalConfigCard').then((mod) => mod.SignalConfigCard), {
@@ -295,6 +299,7 @@ const CHANNELS_WITH_GUIDE = new Set([
   'signal',
   'line',
   'mattermost',
+  'github',
 ]);
 
 const DEVELOPER_PORTAL_URLS: Record<string, string> = {
@@ -309,6 +314,7 @@ const DEVELOPER_PORTAL_URLS: Record<string, string> = {
   line: 'https://developers.line.biz/console/',
   qq: 'https://q.qq.com/',
   googlechat: 'https://console.cloud.google.com/',
+  github: 'https://github.com/settings/tokens',
 };
 
 function CredentialGuide({ channel, t }: { channel: string; t: (key: string) => string }) {
@@ -378,6 +384,8 @@ function ChannelConfigPanel({
       return <VoiceConfigCard />;
     case 'sms':
       return <SMSConfigCard />;
+    case 'github':
+      return <GitHubConfigCard />;
     case 'signal':
       return <SignalConfigCard />;
     case 'line':
@@ -547,7 +555,7 @@ export default function ChannelsSection() {
               statuses={state.channelStatuses}
               activities={state.channelActivities}
               issueCountByChannel={Object.fromEntries(
-                Object.entries(state.channelIssues).map(([k, v]) => [k, v.length]),
+                Object.entries(state.channelIssues).map(([k, v]) => [k, (v as ChannelIssue[]).length]),
               )}
               groupCountByChannel={groupCountByChannel}
               renderDetail={renderChannelDetail}

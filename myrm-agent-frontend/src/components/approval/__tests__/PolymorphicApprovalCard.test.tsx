@@ -8,6 +8,7 @@ import type { ApprovalPayload } from '@/store/useApprovalStore';
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) => `${namespace}.${key}`,
+  useLocale: () => 'en',
 }));
 
 function renderCard(approval: ApprovalPayload) {

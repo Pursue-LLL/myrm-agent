@@ -210,7 +210,7 @@ export default function GoalModeToggle() {
                 )}
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {criteriaList.map((c, i) => (
-                    <div key={i} className="flex flex-col gap-1 p-2 border rounded-full bg-muted/10 relative group">
+                    <div key={i} className="flex flex-col gap-1 p-2 border rounded-lg bg-muted/10 relative group">
                       <button
                         onClick={() => removeCriteria(i)}
                         className="absolute right-1 top-1 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"

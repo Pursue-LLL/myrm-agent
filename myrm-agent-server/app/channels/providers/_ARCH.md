@@ -19,6 +19,7 @@
 | `_http_timeout.py` | 模块 | app.channels.providers._http_timeout — Shared HTTP timeout resolution for channel API clients. | ✅ |
 | `_twilio_utils.py` | 模块 | Internal utility module. Shared by Twilio-based channels (SMS, Voice) to avoid duplicating signature verification logic. | ✅ |
 | `email.py` | 模块 | Email channel implementation. Supports IMAP polling for inbox, SMTP sending, attachment parsing, and thread tracking. | ✅ |
+| `github/` | 包 | GitHub webhook channel. Inbound Issue/PR/Push/Review events via X-Hub-Signature-256 verified webhooks; outbound comments via REST API. See `github/_ARCH.md`. | ✅ |
 | `imessage.py` | 模块 | iMessage channel via BlueBubbles API. Text/media send, Tapback reactions, webhook authentication, structured diagnostics. | ✅ |
 | `irc.py` | 模块 | IRC channel implementation. Raw asyncio TCP connection, supports SSL/TLS, NickServ authentication, nick collision auto-recovery, control character filtering, ou | ✅ |
 | `registry.py` | 模块 | Channel provider registry — lazy-loading, thread-safe, zero overhead for unused channels. | ✅ |

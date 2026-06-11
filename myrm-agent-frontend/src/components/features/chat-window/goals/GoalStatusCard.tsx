@@ -542,7 +542,7 @@ export function GoalStatusCard() {
                     {goal.constraints.map((c: string, idx: number) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 text-xs bg-destructive/5 p-1.5 rounded-full border border-destructive/10"
+                        className="flex items-start gap-2 text-xs bg-destructive/5 p-1.5 rounded-lg border border-destructive/10"
                       >
                         <span className="flex-shrink-0 mt-0.5 text-destructive/60">
                           <svg
@@ -575,7 +575,7 @@ export function GoalStatusCard() {
                     {goal.subgoals.map((sg, idx) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2 text-xs bg-background/50 p-2 rounded-full border border-border/50 group"
+                        className="flex items-start gap-2 text-xs bg-background/50 p-2 rounded-lg border border-border/50 group"
                       >
                         <div className="flex-shrink-0 mt-0.5">
                           <CheckCircleIcon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -632,7 +632,7 @@ export function GoalStatusCard() {
 
               {/* Budget Limited Action */}
               {goal.status === 'budget_limited' && (
-                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-full">
+                <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertIcon className="h-4 w-4 text-red-600" />
                     <p className="text-sm text-red-600 font-medium">{t('budgetExhaustedMessage')}</p>
@@ -661,7 +661,7 @@ export function GoalStatusCard() {
               )}
               {/* Needs Human Review Action */}
               {goal.status === 'needs_human_review' && (
-                <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-full">
+                <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertIcon className="h-4 w-4 text-orange-600" />
                     <p className="text-sm text-orange-600 font-medium">{t('reviewFailedMessage')}</p>

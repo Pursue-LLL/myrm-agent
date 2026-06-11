@@ -154,6 +154,7 @@ _BUILTIN_SPECS: dict[str, ChannelSpec] = {
     "zalo": ChannelSpec(".zalo", "ZaloChannel", "Zalo"),
     "voice": ChannelSpec(".voice_channel", "VoiceCallChannel", "Voice/Twilio"),
     "sms": ChannelSpec(".sms", "SMSChannel", "SMS/Twilio"),
+    "github": ChannelSpec(".github", "GitHubChannel", "GitHub"),
 }
 
 _custom_specs: dict[str, ChannelSpec] = {}

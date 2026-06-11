@@ -749,6 +749,23 @@ export async function testSMSConnection(
   return smsService.test({ accountSid, authToken, phoneNumber });
 }
 
+// ==================== GitHub ====================
+
+export interface GitHubCredentials {
+  personalAccessToken: string;
+  webhookSecret: string;
+}
+
+const githubService = createChannelCredentialService<GitHubCredentials>(
+  'githubCredentials',
+  '/channels/manage/github/test',
+);
+export const getGitHubCredentials = githubService.get;
+export const saveGitHubCredentials = githubService.save;
+export async function testGitHubConnection(personalAccessToken: string): Promise<ChannelTestResult> {
+  return githubService.test({ personalAccessToken });
+}
+
 // ==================== Signal ====================
 
 export interface SignalCredentials {

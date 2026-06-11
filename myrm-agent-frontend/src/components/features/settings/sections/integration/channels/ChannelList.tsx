@@ -35,6 +35,7 @@ export function buildChannelEntries(t: (key: string) => string, sandbox = false)
     { id: 'mattermost', label: 'Mattermost' },
     { id: 'voice', label: t('voiceTitle') },
     { id: 'sms', label: t('smsTitle') },
+    { id: 'github', label: 'GitHub' },
     { id: 'signal', label: 'Signal' },
     { id: 'line', label: 'LINE' },
     { id: 'imessage', label: 'iMessage' },
