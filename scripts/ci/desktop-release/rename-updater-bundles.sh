@@ -25,24 +25,33 @@ rename_pair() {
   echo "[rename-updater-bundles] $(basename "$src") -> $(basename "$dst")"
 }
 
+renamed=0
+
 case "$PLATFORM" in
   macos-intel)
     for dir in "$ROOT"/*/release/bundle/macos "$ROOT/release/bundle/macos"; do
       [[ -d "$dir" ]] || continue
-      rename_pair "$dir/MyrmAgent.app.tar.gz" "$dir/MyrmAgent_x64.app.tar.gz"
+      if [[ -f "$dir/MyrmAgent.app.tar.gz" ]]; then
+        rename_pair "$dir/MyrmAgent.app.tar.gz" "$dir/MyrmAgent_x64.app.tar.gz"
+        renamed=1
+      fi
     done
     ;;
   windows)
-    for dir in "$ROOT"/*/release/bundle/nsis "$ROOT/release/bundle/nsis"; do
-      [[ -d "$dir" ]] || continue
-      for src in "$dir"/*-setup.nsis.zip; do
-        [[ -f "$src" ]] || continue
-        rename_pair "$src" "$dir/MyrmAgent_x64.nsis.zip"
-      done
-    done
+    while IFS= read -r src; do
+      [[ -n "$src" ]] || continue
+      rename_pair "$src" "$(dirname "$src")/MyrmAgent_x64.nsis.zip"
+      renamed=1
+    done < <(find "$ROOT" -type f -name '*-setup.nsis.zip' 2>/dev/null || true)
     ;;
   *)
     echo "[rename-updater-bundles] unknown platform: ${PLATFORM}" >&2
     exit 1
     ;;
 esac
+
+if [[ "$renamed" -eq 0 ]]; then
+  echo "[rename-updater-bundles] ERROR: no ${PLATFORM} updater bundle renamed under ${ROOT}" >&2
+  find "$ROOT" -maxdepth 10 -type f -name '*.nsis.zip' -o -name '*.tar.gz' 2>/dev/null | head -20 >&2 || true
+  exit 1
+fi
