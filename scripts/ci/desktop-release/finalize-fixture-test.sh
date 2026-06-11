@@ -2,6 +2,10 @@
 # Regression fixtures for finalize-release.sh platform/signature matching (no gh/network).
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=pick-platform-asset.sh
+source "${SCRIPT_DIR}/pick-platform-asset.sh"
+
 read_asset_signature() {
   local asset_name="$1"
   local sig_path="${FIXTURE_ASSETS}/${asset_name}.sig"
@@ -9,38 +13,6 @@ read_asset_signature() {
   local raw
   raw="$(<"$sig_path")"
   printf '%s' "${raw%$'\n'}"
-}
-
-pick_platform_asset() {
-  local tauri_key="$1"
-  local candidates=()
-  case "$tauri_key" in
-    darwin-aarch64)
-      candidates=(MyrmAgent.app.tar.gz '*aarch64*.tar.gz' '*arm64*.tar.gz' '*universal*.tar.gz')
-      ;;
-    darwin-x86_64)
-      candidates=('*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
-      ;;
-    windows-x86_64)
-      candidates=('*x86_64*.nsis.zip' '*x64*.nsis.zip' '*.nsis.zip' '*x86_64*.msi.zip' '*x64*.msi.zip')
-      ;;
-    linux-x86_64)
-      candidates=('*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz')
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-  local pattern file base
-  for pattern in "${candidates[@]}"; do
-    for file in "${FIXTURE_ASSETS}"/${pattern}; do
-      [[ -f "$file" ]] || continue
-      base="$(basename "$file")"
-      printf '%s' "$base"
-      return 0
-    done
-  done
-  return 1
 }
 
 WORK_DIR="$(mktemp -d)"
@@ -58,13 +30,13 @@ echo "placeholder" >"$FIXTURE_ASSETS/setup.exe"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz"
 echo "sig-linux" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz.sig"
 
-aarch64_asset="$(pick_platform_asset darwin-aarch64)"
+aarch64_asset="$(pick_platform_asset darwin-aarch64 "$FIXTURE_ASSETS")"
 [[ "$aarch64_asset" == "MyrmAgent.app.tar.gz" ]] || {
   echo "expected MyrmAgent.app.tar.gz, got ${aarch64_asset}" >&2
   exit 1
 }
 
-x64_asset="$(pick_platform_asset darwin-x86_64)"
+x64_asset="$(pick_platform_asset darwin-x86_64 "$FIXTURE_ASSETS")"
 [[ "$x64_asset" == "MyrmAgent_x64.app.tar.gz" ]] || {
   echo "expected MyrmAgent_x64.app.tar.gz, got ${x64_asset}" >&2
   exit 1
@@ -76,7 +48,7 @@ sig="$(read_asset_signature "$aarch64_asset")"
   exit 1
 }
 
-win_asset="$(pick_platform_asset windows-x86_64)"
+win_asset="$(pick_platform_asset windows-x86_64 "$FIXTURE_ASSETS")"
 [[ "$win_asset" == "MyrmAgent_x64.nsis.zip" ]] || {
   echo "expected MyrmAgent_x64.nsis.zip, got ${win_asset}" >&2
   exit 1
@@ -87,7 +59,7 @@ win_sig="$(read_asset_signature "$win_asset")"
   exit 1
 }
 
-linux_asset="$(pick_platform_asset linux-x86_64)"
+linux_asset="$(pick_platform_asset linux-x86_64 "$FIXTURE_ASSETS")"
 [[ "$linux_asset" == "MyrmAgent_0.1.33_amd64.AppImage.tar.gz" ]] || {
   echo "expected MyrmAgent_0.1.33_amd64.AppImage.tar.gz, got ${linux_asset}" >&2
   exit 1

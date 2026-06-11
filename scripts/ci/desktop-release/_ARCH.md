@@ -11,11 +11,14 @@
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
 | `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）；GHA+`MYRM_HARNESS_INSTALL_MODE=pypi` 时走 PyPI.org（规避 lock 内清华镜像 403） |
 | `finalize-release.sh` | 下载 Release 资产（与 API 计数对齐重试）→ 匹配 updater 包 + `.sig` → `latest.json` + `.sha256` → upload |
+| `pick-platform-asset.sh` | OTA 平台资产匹配（`finalize-release.sh` / fixture 共用；glob 加引号 + nullglob） |
+| `bundle-paths.sh` | `is_release_bundle_path` / `is_updater_bundle_path`（Windows 反斜路径兼容） |
+| `rename-updater-bundles.sh` | Intel：`MyrmAgent_x64.app.tar.gz`；Win：`MyrmAgent_x64.nsis.zip`（避免 ARM/Win 命名冲突） |
 | `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + 安装包 `.sha256` sidecar 断言 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
-| `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；Win/Linux 无 updater zip 时 skip |
-| `finalize-fixture-test.sh` | 无网络 fixture：平台匹配 + 无 `.sig` 跳过 OTA；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
-| `collect-bundle-assets.sh` | `find` 收集 `target/**/release/bundle/*` 资产供 `gh release upload` |
+| `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
+| `finalize-fixture-test.sh` | 无网络 fixture：四平台匹配 + `.sig`；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
+| `collect-bundle-assets.sh` | `find` + `bundle-paths` 收集 release/bundle 资产供 `gh release upload` |
 | `prune-frontend-linuxmusl.sh` | Linux AppImage 前剔除 standalone 内 `@img/sharp-linuxmusl-*` 等，避免 linuxdeploy 缺 `libc.musl-x86_64.so.1` |
 | `linux-appimage-sidecar-workaround.sh` | dummy-swap（tauri#11898）：bundling 用 gcc stub，打包后换回 Bun/PyInstaller 真 sidecar 并 repack |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
@@ -48,7 +51,7 @@
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 的 glob 必须加引号（`shopt nullglob` 下未引号 pattern 在 `assets/` 外展开会变空数组）。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh`（Bun sidecar 致 gtk 插件 `ldd` 失败）+ `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。ARM 保留 `MyrmAgent.app.tar.gz`；Intel 上传前重命名为 `MyrmAgent_x64.app.tar.gz`；Windows 上传前重命名为 `MyrmAgent_x64.nsis.zip`（避免 Intel `--clobber` 覆盖 ARM OTA 包、Win `find -path` 漏收集）。`pick-platform-asset.sh` 的 glob 必须加引号。不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖

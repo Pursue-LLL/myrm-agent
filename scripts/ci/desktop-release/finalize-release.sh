@@ -50,40 +50,9 @@ VERSION="${TAG#v}"
 PUB_DATE="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.published_at // empty')"
 NOTES="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.body // ""')"
 
-pick_platform_asset() {
-  local tauri_key="$1"
-  local candidates=()
-  case "$tauri_key" in
-    darwin-aarch64)
-      # Prefer the canonical Tauri bundle name; avoid generic *.app.tar.gz cross-match.
-      # Quote globs: with nullglob, unquoted patterns expand in WORK_DIR (not assets/) and vanish.
-      candidates=(MyrmAgent.app.tar.gz '*aarch64*.tar.gz' '*arm64*.tar.gz' '*universal*.tar.gz')
-      ;;
-    darwin-x86_64)
-      candidates=('*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
-      ;;
-    windows-x86_64)
-      # OTA only: Tauri updater bundles (.nsis.zip). Installers (.exe/.msi) are manual-download only.
-      candidates=('*x86_64*.nsis.zip' '*x64*.nsis.zip' '*.nsis.zip' '*x86_64*.msi.zip' '*x64*.msi.zip')
-      ;;
-    linux-x86_64)
-      candidates=('*x86_64*.AppImage.tar.gz' '*amd64*.AppImage.tar.gz' '*.AppImage.tar.gz')
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-  local pattern file base
-  for pattern in "${candidates[@]}"; do
-    for file in assets/${pattern}; do
-      [[ -f "$file" ]] || continue
-      base="$(basename "$file")"
-      printf '%s' "$base"
-      return 0
-    done
-  done
-  return 1
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=pick-platform-asset.sh
+source "${SCRIPT_DIR}/pick-platform-asset.sh"
 
 read_asset_signature() {
   local asset_name="$1"

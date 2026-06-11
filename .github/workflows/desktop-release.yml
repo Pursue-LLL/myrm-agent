@@ -214,6 +214,9 @@ jobs:
           projectPath: myrm-agent-desktop
           args: --target x86_64-apple-darwin
 
+      - name: Rename Intel updater bundle (avoid ARM tar.gz collision)
+        run: bash scripts/ci/desktop-release/rename-updater-bundles.sh macos-intel
+
       - name: Ensure updater bundle signatures
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -292,6 +295,10 @@ jobs:
         with:
           projectPath: myrm-agent-desktop
           args: ''
+
+      - name: Rename Windows updater bundle (stable OTA asset name)
+        run: bash scripts/ci/desktop-release/rename-updater-bundles.sh windows
+        shell: bash
 
       - name: Ensure updater bundle signatures
         env:

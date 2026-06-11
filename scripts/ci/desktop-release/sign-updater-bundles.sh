@@ -4,6 +4,9 @@ set -euo pipefail
 
 ROOT="${1:-myrm-agent-desktop/src-tauri/target}"
 DESKTOP_ROOT="${2:-myrm-agent-desktop}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=bundle-paths.sh
+source "${SCRIPT_DIR}/bundle-paths.sh"
 
 if [[ ! -d "$ROOT" ]]; then
   echo "[sign-updater-bundles] Target directory not found: ${ROOT}" >&2
@@ -17,12 +20,13 @@ fi
 
 bundles=()
 while IFS= read -r line; do
-  [[ -n "$line" ]] && bundles+=("$line")
+  [[ -n "$line" ]] || continue
+  is_updater_bundle_path "$line" || continue
+  bundles+=("$line")
 done < <(
-  find "$ROOT" -type f \( -path '*/release/bundle/macos/*.tar.gz' \
-    -o -path '*/release/bundle/*/*.nsis.zip' \
-    -o -path '*/release/bundle/*/*.msi.zip' \
-    -o -name '*.AppImage.tar.gz' \) | sort -u
+  find "$ROOT" -type f \( \
+    -name '*.tar.gz' -o -name '*.nsis.zip' -o -name '*.msi.zip' -o -name '*.AppImage.tar.gz' \
+  \) | sort -u
 )
 
 if [[ ${#bundles[@]} -eq 0 ]]; then
