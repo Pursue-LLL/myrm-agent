@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sign Tauri updater bundles (.tar.gz / .nsis.zip / …) when build did not emit .sig.
+# Sign Tauri updater bundles when build did not emit .sig (macOS tar.gz, Windows setup.exe, AppImage, …).
 set -euo pipefail
 
 ROOT="${1:-myrm-agent-desktop/src-tauri/target}"
@@ -25,10 +25,7 @@ while IFS= read -r line; do
   is_updater_bundle_path "$line" || continue
   bundles+=("$line")
 done < <(
-  bash "${SCRIPT_DIR}/bundle-find.sh" "$ROOT" -type f \( \
-    -name '*.tar.gz' -o -name '*.nsis.zip' -o -name '*.msi.zip' -o -name '*.AppImage.tar.gz' \
-    -o -path '*/nsis/*-setup.exe' \
-  \) | sort -u
+  bash "${SCRIPT_DIR}/bundle-find.sh" "$ROOT" -type f | sort -u
 )
 
 if [[ ${#bundles[@]} -eq 0 ]]; then

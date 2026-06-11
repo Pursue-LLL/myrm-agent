@@ -33,7 +33,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 - `tauri.conf.json#plugins.updater.pubkey`：占位符时 `updater_safety.rs` 禁用生产 OTA；真实公钥 + CI `TAURI_SIGNING_PRIVATE_KEY` 配对后启用
 - `finalize-release.sh` 将各平台 `.sig` 写入 `latest.json#platforms.*.signature`，与 `useAppUpdate.ts` 状态机共用同一 manifest
 - `verify-release.sh`：finalize 后断言 `latest.json` 版本/OTA signature 与安装包 `.sha256` sidecar
-- CI：`build-windows` 完成后即 `finalize-release`；`build-linux` 完成后 `refinalize-after-linux`（不阻塞主路径）
+- CI：`build-windows` 上传 `MyrmAgent_x64-setup.exe` + `.sig`（Tauri v2 Windows OTA 资产；`*.nsis.zip` 为 bundling 临时文件）；完成后 `finalize-release`；`build-linux` 完成后 `refinalize-after-linux`（不阻塞主路径）
 - CI 构建前 `check-updater-pubkey.sh`：私钥已配但 pubkey 仍占位 → fail；仅占位 → warning，安装包照常发布
 
 ## 依赖

@@ -4,10 +4,7 @@ set -euo pipefail
 
 PLATFORM="${1:?Usage: rename-updater-bundles.sh macos-intel}"
 ROOT="${2:-myrm-agent-desktop/src-tauri/target}"
-# GHA Windows: GITHUB_WORKSPACE is D:\...\repo with mixed separators; globs need forward slashes.
 ROOT="${ROOT//\\//}"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 shopt -s nullglob
 
@@ -49,7 +46,7 @@ esac
 
 if [[ "$renamed" -eq 0 ]]; then
   echo "[rename-updater-bundles] ERROR: no ${PLATFORM} updater bundle renamed under ${ROOT}" >&2
-  ls -la "$ROOT/release/bundle/nsis" 2>/dev/null >&2 || true
-  ls -la "$ROOT"/*/release/bundle/nsis 2>/dev/null >&2 || true
+  ls -la "$ROOT"/*/release/bundle/macos 2>/dev/null >&2 || true
+  ls -la "$ROOT/release/bundle/macos" 2>/dev/null >&2 || true
   exit 1
 fi
