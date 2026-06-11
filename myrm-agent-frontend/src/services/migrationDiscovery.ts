@@ -72,6 +72,8 @@ export function getCompetitorDisplayName(competitor: string): string {
     openclaw: 'OpenClaw',
     cursor: 'Cursor',
     codex: 'Codex',
+    windsurf: 'Windsurf',
+    trae: 'Trae',
   };
   return names[competitor] ?? competitor;
 }

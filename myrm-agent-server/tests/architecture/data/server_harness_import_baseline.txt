@@ -32,6 +32,7 @@ myrm_agent_harness.agent.event_log.trace_builder
 myrm_agent_harness.agent.event_log.types
 myrm_agent_harness.agent.extensions.protocols
 myrm_agent_harness.agent.file_snapshot
+myrm_agent_harness.agent.file_snapshot.external_effect_detector
 myrm_agent_harness.agent.file_snapshot.local_store
 myrm_agent_harness.agent.file_snapshot.protocols
 myrm_agent_harness.agent.file_snapshot.restore_inbox

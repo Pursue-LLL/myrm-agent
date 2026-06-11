@@ -253,7 +253,7 @@ const DailyChart = memo<{ data: DailyUsage[]; t: ReturnType<typeof useTranslatio
                   stroke="rgb(16 185 129)"
                   strokeWidth="1.5"
                   vectorEffect="non-scaling-stroke"
-                  className="drop-"
+                  className="drop-shadow-sm"
                 />
                 {data.map((d, idx) => {
                   const cacheRate = d.inputTokens > 0 ? d.cachedTokens / d.inputTokens : 0;
