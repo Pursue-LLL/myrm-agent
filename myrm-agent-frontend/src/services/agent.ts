@@ -456,9 +456,9 @@ export async function deleteAgent(agentId: string): Promise<void> {
 }
 
 /**
- * 导出智能体配置
+ * 导出智能体配置（单体返回 AgentCreate 结构，团队返回 {_export_version, leader, members} 结构）
  */
-export async function exportAgent(agentId: string): Promise<AgentCreate> {
+export async function exportAgent(agentId: string): Promise<Record<string, unknown>> {
   const response = await fetch(`${getBackendUrl()}/api/v1/user-agents/${agentId}/export`, {
     method: 'GET',
     headers: {
@@ -476,9 +476,9 @@ export async function exportAgent(agentId: string): Promise<AgentCreate> {
 }
 
 /**
- * 导入智能体配置
+ * 导入智能体配置（支持单体和团队两种导出格式）
  */
-export async function importAgent(agentData: AgentCreate): Promise<Agent> {
+export async function importAgent(agentData: AgentCreate | Record<string, unknown>): Promise<Agent> {
   const response = await fetch(`${getBackendUrl()}/api/v1/user-agents/import`, {
     method: 'POST',
     headers: {

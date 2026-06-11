@@ -7,17 +7,19 @@ database.dto::AgentCreate, AgentUpdate, AgentResponse (POS: Agent API 契约)
 
 [OUTPUT]
 Agent CRUD、配置快照（GET /snapshots）、撤销（POST /rollback、POST /rollback/{id}）、
+导出（GET /export，含凭据剔除与团队递归导出）、导入（POST /import，支持单体与团队原子导入）、
 PUT 响应含 snapshot_count 与 snapshot_saved
 
 [POS]
 用户自定义智能体 HTTP 入口。GUI-first 配置 SSOT 的 API 层。
 """
 
+import logging
 import os
 from datetime import datetime
 from math import ceil
 from pathlib import Path
-from typing import TypeGuard, get_args
+from typing import Any, TypeGuard, get_args
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -55,6 +57,8 @@ from app.database.dto import (
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.agent.agent_service import HIDDEN_SYSTEM_PROMPT, AgentService
 from app.services.agent.backends import DatabaseSecretBackend
+
+logger = logging.getLogger(__name__)
 
 
 def _is_valid_personality(value: object) -> TypeGuard[PersonalityStyleLiteral]:
@@ -426,22 +430,65 @@ async def delete_agent(
         raise internal_error(operation="Delete agent", exception=e) from e
 
 
+_SENSITIVE_AUTH_FIELDS = frozenset({"api_key", "bearer_token", "client_secret", "password", "username"})
+
+
+def _strip_sensitive_auth(export_data: dict[str, Any]) -> None:
+    """Remove credential values from exported agent config in-place.
+
+    Strips openapi_services[].auth sensitive fields and
+    tool_gateway_config.auth_token to prevent credential leaks.
+    """
+    for svc in export_data.get("openapi_services") or []:
+        if not isinstance(svc, dict):
+            continue
+        auth = svc.get("auth")
+        if not isinstance(auth, dict):
+            continue
+        for key in _SENSITIVE_AUTH_FIELDS:
+            auth.pop(key, None)
+
+    gw = export_data.get("tool_gateway_config")
+    if isinstance(gw, dict):
+        gw.pop("auth_token", None)
+
+
+async def _export_single_agent(agent_id: str) -> dict[str, Any]:
+    """Build a sanitised export dict for one agent (strips secrets)."""
+    agent = await AgentService.get_agent_by_id(agent_id)
+    if not agent:
+        raise not_found_error("Agent")
+    agent_resp = _to_agent_response(agent, show_system_prompt=True)
+    data = agent_resp.model_dump(exclude={"id", "user_id", "created_at", "updated_at"})
+    _strip_sensitive_auth(data)
+    return data
+
+
 @router.get("/{agent_id}/export", response_model=StandardSuccessResponse)
 async def export_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """导出智能体配置为 JSON"""
+    """导出智能体配置为 JSON（自动剔除凭据、递归导出团队成员）"""
     try:
-        agent = await AgentService.get_agent_by_id(agent_id)
-        if not agent:
-            raise not_found_error("Agent")
+        leader_data = await _export_single_agent(agent_id)
 
-        # 导出时必须包含 system_prompt
-        agent_resp = _to_agent_response(agent, show_system_prompt=True)
-        export_data = agent_resp.model_dump(exclude={"id", "user_id", "created_at", "updated_at"})
+        if leader_data.get("agent_type") == "team":
+            member_ids: list[str] = leader_data.get("subagent_ids") or []  # type: ignore[assignment]
+            members: list[dict[str, Any]] = []
+            for mid in member_ids:
+                try:
+                    members.append(await _export_single_agent(mid))
+                except HTTPException:
+                    logger.warning("Skipping missing subagent %s during team export", mid)
+            return success_response(data={
+                "_export_version": 1,
+                "agent_type": "team",
+                "leader": leader_data,
+                "members": members,
+            })
 
-        return success_response(data=export_data)
+        return success_response(data=leader_data)
     except HTTPException:
         raise
     except Exception as e:
@@ -554,20 +601,64 @@ async def rollback_agent_to_snapshot(
 
 @router.post("/import", response_model=StandardSuccessResponse)
 async def import_agent(
-    agent_data: AgentCreate,
+    body: dict[str, Any],
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
-    """导入智能体配置"""
-    if not agent_data.name or not agent_data.name.strip():
-        raise validation_error("Agent name cannot be empty")
-
+    """导入智能体配置（支持单体和团队两种格式）"""
     try:
-        # 导入的 Agent 默认为非内置
-        agent_data.is_built_in = False
-        agent = await AgentService.create_agent(agent_data)
-        return success_response(data=_to_agent_response(agent).model_dump())
+        if body.get("_export_version") and body.get("agent_type") == "team":
+            return await _import_team_agent(body)
+        return await _import_single_agent(body)
+    except HTTPException:
+        raise
     except Exception as e:
         raise internal_error(operation="Import agent", exception=e) from e
+
+
+async def _import_single_agent(data: dict[str, Any]) -> JSONResponse:
+    """Import a single (non-team) agent from export dict."""
+    agent_data = AgentCreate.model_validate(data)
+    if not agent_data.name or not agent_data.name.strip():
+        raise validation_error("Agent name cannot be empty")
+    agent_data.is_built_in = False
+    agent = await AgentService.create_agent(agent_data)
+    return success_response(data=_to_agent_response(agent).model_dump())
+
+
+async def _import_team_agent(data: dict[str, Any]) -> JSONResponse:
+    """Import a team agent with all members atomically."""
+    leader_raw = data.get("leader")
+    members_raw = data.get("members")
+    if not isinstance(leader_raw, dict) or not isinstance(members_raw, list):
+        raise validation_error("Invalid team export format: missing leader or members")
+
+    leader_data = AgentCreate.model_validate(leader_raw)
+    if not leader_data.name or not leader_data.name.strip():
+        raise validation_error("Team leader name cannot be empty")
+    leader_data.is_built_in = False
+
+    created_member_ids: list[str] = []
+    try:
+        for member_raw in members_raw:
+            if not isinstance(member_raw, dict):
+                continue
+            m_data = AgentCreate.model_validate(member_raw)
+            m_data.is_built_in = False
+            m_data.agent_type = "individual"
+            m_agent = await AgentService.create_agent(m_data)
+            created_member_ids.append(m_agent.id)
+
+        leader_data.subagent_ids = created_member_ids
+        leader_data.agent_type = "team"
+        leader = await AgentService.create_agent(leader_data)
+        return success_response(data=_to_agent_response(leader).model_dump())
+    except Exception:
+        for mid in created_member_ids:
+            try:
+                await AgentService.delete_agent(mid)
+            except Exception:
+                logger.warning("Rollback: failed to delete member %s", mid)
+        raise
 
 
 @router.post("/{agent_id}/avatar", response_model=StandardSuccessResponse)

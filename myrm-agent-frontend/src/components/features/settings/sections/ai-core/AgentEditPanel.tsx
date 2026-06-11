@@ -89,7 +89,9 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${data.name || 'agent'}.agent.json`;
+      const leader = data.leader as Record<string, unknown> | undefined;
+      const exportName = (data.name as string) || (leader?.name as string) || 'agent';
+      a.download = `${exportName}.agent.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
