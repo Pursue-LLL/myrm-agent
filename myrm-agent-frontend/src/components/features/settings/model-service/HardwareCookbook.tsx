@@ -16,11 +16,12 @@ interface HardwareRecommendation {
   name: string;
   description: string;
   req_vram_gb: number;
+  params_b: number;
   disk_size_gb?: number;
   fit_score: number;
   fit_level: 'perfect' | 'good' | 'fair' | 'poor';
   is_installed?: boolean;
-  est_tok_per_sec?: number | null; // integer tok/s estimate; null when GPU bandwidth unknown
+  est_tok_per_sec?: number | null;
 }
 
 interface HardwareProfile {
