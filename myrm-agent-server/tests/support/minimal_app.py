@@ -197,7 +197,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "skill_quality",
     ),
     "migrations_api": ("migrations", "migration_discovery", "skills", "memory"),
-    "review_inbox": ("approvals", "skills", "evolution"),
+    "review_inbox": ("approvals", "skills", "evolution", "reviews", "migrations"),
     "webui_only": (),
 }
 
