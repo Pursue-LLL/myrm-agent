@@ -12,7 +12,7 @@ Media download system with streaming, validation, retry, cache, sticker visual u
 | config.py | Config | Media download configuration. | ✅ |
 | downloader.py | Core | Core media downloader with streaming, retry, cache, and metrics. | ✅ |
 | exceptions.py | Core | Media download exceptions. | ✅ |
-| image_enrichment.py | Core | Image attachment download, compression, base64 encoding for multimodal LLM vision input. Stores data URLs in `metadata["image_data_list"]` for downstream multimodal query construction. | ✅ |
+| image_enrichment.py | Core | Image attachment download, compression, and local file caching for multimodal LLM vision input. Stores file path references in `metadata["image_data_list"]` (as `file://` URLs) for downstream multimodal query construction. The harness `MediaResolverProcessor` lazily resolves these to base64 before LLM calls. | ✅ |
 | document_enrichment.py | Core | PDF/Office download and text extraction for IM; stores `metadata["document_text_blocks"]` (honors `extractDocumentText`). | ✅ |
 | progress.py | Core | Progress callback protocol for media downloads. | ✅ |
 | retry.py | Core | Retry policy for media downloads. | ✅ |

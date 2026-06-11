@@ -13,22 +13,18 @@ export type VisionContentPart = VisionTextPart | VisionImagePart | VisionVideoPa
 
 /**
  * Resolve an image file to a URL for the message payload.
- * Tauri mode: reads from disk as base64 data URL (no StorageProvider).
- * Sandbox mode: passes the StorageProvider HTTP URL directly — the harness
- * pipeline resolves it to base64 right before the LLM call, avoiding
- * redundant encoding in checkpoints and message history.
+ * Both Tauri and Sandbox modes pass lightweight URL references — the harness
+ * MediaResolverProcessor resolves them to base64 right before the LLM call,
+ * keeping checkpoints and message history lean.
+ *
+ * - Tauri: file:// local path (harness reads from disk)
+ * - Sandbox: StorageProvider HTTP URL (harness fetches via HTTP)
  */
 const resolveImageUrl = async (file: File): Promise<string | null> => {
-  try {
-    if (isTauriRuntime()) {
-      const { tauriFileService } = await import('@/services/file-service/tauri');
-      return await tauriFileService.readFileAsDataURL(fromStoreFile(file));
-    }
-    return file.fileUrl || null;
-  } catch (err) {
-    console.error(`Failed to resolve image URL: ${file.fileName}`, err);
-    return null;
+  if (isTauriRuntime()) {
+    return file.localPath ? `file://${file.localPath}` : null;
   }
+  return file.fileUrl || null;
 };
 
 const buildExtractParams = (file: File): { fileId: string } | { filePath: string } => {
@@ -201,7 +197,7 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
  * VisionFallbackEngine handles routing to a vision model when needed.
  *
  * - Camera frames: injected as image_url parts.
- * - Images: converted to base64 data URLs as image_url parts.
+ * - Images: passed as URL references (file:// or HTTP) for lazy resolution.
  * - Videos: passed as video_url parts for server-side analysis.
  * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
  * - Documents (.docx/.xlsx/.xls): extracted to Markdown text via backend.

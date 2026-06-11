@@ -29,6 +29,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import dataclasses
+import hashlib
 import io
 import logging
 from collections.abc import Callable
@@ -63,10 +64,11 @@ async def enrich_image_inbound(
     msg: InboundMessage,
     get_channel_fn: GetChannelFn | None,
 ) -> InboundMessage:
-    """Enrich an InboundMessage with base64-encoded image data.
+    """Enrich an InboundMessage with image data.
 
-    Downloads image attachments, compresses them, converts to base64
-    data URLs, and stores in ``msg.metadata["image_data_list"]``.
+    Downloads image attachments, compresses them, caches as local files,
+    and stores file path references in ``msg.metadata["image_data_list"]``.
+    Falls back to inline base64 when caching fails.
 
     Returns the original message unchanged if no image attachments or
     all downloads fail (graceful degradation).
@@ -126,8 +128,8 @@ async def _download_and_cache(
     """Download a single image attachment and cache it as a local file.
 
     Returns ``{"data_url": "file:///path/to/cached/image.jpg", "mime_type": "image/jpeg"}``
-    or None on failure.  The ``data_url`` key is kept for backward compatibility
-    with ``build_channel_inbound_query``; the harness MediaResolverProcessor
+    or None on failure.  The ``data_url`` key name matches the expected
+    schema in ``build_channel_inbound_query``; the harness MediaResolverProcessor
     detects non-base64 URLs and lazily resolves them.
     """
     raw_bytes = await _download_image_bytes(att, msg, get_channel_fn)
@@ -160,8 +162,6 @@ def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | No
     Cache location: ``{DATA_DIR}/cache/channel_images/``
     Files are named with a content hash to enable deduplication.
     """
-    import hashlib
-
     try:
         from app.config.settings import settings as _settings
 
@@ -254,9 +254,7 @@ async def _download_via_http(url: str) -> bytes | None:
 def _read_local_file(path: str) -> bytes | None:
     """Read image from a local file path."""
     try:
-        from pathlib import Path as _Path
-
-        p = _Path(path)
+        p = Path(path)
         if not p.is_file():
             return None
         data = p.read_bytes()

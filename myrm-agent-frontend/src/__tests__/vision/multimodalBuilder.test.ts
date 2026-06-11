@@ -4,7 +4,7 @@ vi.mock('@/lib/deploy-mode', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
   return {
     ...actual,
-    isTauriRuntime: () => false,
+    isTauriRuntime: vi.fn(() => false),
   };
 });
 
@@ -100,6 +100,70 @@ describe('buildMultimodalQuery - vision-agnostic behavior', () => {
   });
 });
 
+describe('buildMultimodalQuery - image URL referencing (Sandbox mode)', () => {
+  it('passes fileUrl directly instead of converting to base64', async () => {
+    const imageFile = {
+      id: 'img1',
+      fileName: 'photo.jpg',
+      fileExtension: 'jpg',
+      fileUrl: '/api/media/files/img1/content',
+    };
+    const result = await buildMultimodalQuery('describe this', [imageFile] as any);
+
+    expect(typeof result).not.toBe('string');
+    const parts = result as VisionContentPart[];
+    const imageParts = parts.filter((p) => p.type === 'image_url');
+    expect(imageParts).toHaveLength(1);
+    expect(imageParts[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: '/api/media/files/img1/content', detail: 'auto' },
+    });
+  });
+
+  it('skips images with no fileUrl', async () => {
+    const imageFile = { id: 'img2', fileName: 'broken.png', fileExtension: 'png', fileUrl: '' };
+    const result = await buildMultimodalQuery('test', [imageFile] as any);
+    expect(result).toBe('test');
+  });
+});
+
+describe('buildMultimodalQuery - Tauri mode uses file:// path', () => {
+  it('returns file:// URL for images with localPath in Tauri mode', async () => {
+    const { isTauriRuntime } = await import('@/lib/deploy-mode');
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
+
+    const imageFile = {
+      id: 'img-tauri',
+      fileName: 'local-photo.jpg',
+      fileExtension: 'jpg',
+      localPath: '/Users/test/Pictures/local-photo.jpg',
+    };
+    const result = await buildMultimodalQuery('describe this', [imageFile] as any);
+
+    expect(typeof result).not.toBe('string');
+    const parts = result as VisionContentPart[];
+    const imageParts = parts.filter((p) => p.type === 'image_url');
+    expect(imageParts).toHaveLength(1);
+    expect(imageParts[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'file:///Users/test/Pictures/local-photo.jpg', detail: 'auto' },
+    });
+
+    vi.mocked(isTauriRuntime).mockReturnValue(false);
+  });
+
+  it('returns null for Tauri images without localPath', async () => {
+    const { isTauriRuntime } = await import('@/lib/deploy-mode');
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
+
+    const imageFile = { id: 'img-no-path', fileName: 'broken.png', fileExtension: 'png' };
+    const result = await buildMultimodalQuery('test', [imageFile] as any);
+    expect(result).toBe('test');
+
+    vi.mocked(isTauriRuntime).mockReturnValue(false);
+  });
+});
+
 describe('buildMultimodalQuery - PDF images always included', () => {
   it('includes PDF images regardless of primary model vision capability', async () => {
     const { extractPdfContent } = await import('@/services/file');
@@ -119,6 +183,27 @@ describe('buildMultimodalQuery - PDF images always included', () => {
     expect(imageParts[0]).toEqual({
       type: 'image_url',
       image_url: { url: 'data:image/png;base64,base64chart', detail: 'auto' },
+    });
+  });
+
+  it('prefers fileUrl from PDF extraction when available', async () => {
+    const { extractPdfContent } = await import('@/services/file');
+    const mockExtract = vi.mocked(extractPdfContent);
+    mockExtract.mockResolvedValue({
+      text: '',
+      images: [{ mimeType: 'image/png', data: '', fileUrl: '/api/media/files/pdf-img-1/content' }],
+      imageTrace: { keptCount: 1, droppedCount: 0 },
+    });
+
+    const pdfFile = { id: 'f2', fileName: 'charts.pdf', fileExtension: 'pdf', fileUrl: '/files/f2' };
+    const result = await buildMultimodalQuery('analyze', [pdfFile] as any);
+
+    const parts = result as VisionContentPart[];
+    const imageParts = parts.filter((p) => p.type === 'image_url');
+    expect(imageParts).toHaveLength(1);
+    expect(imageParts[0]).toEqual({
+      type: 'image_url',
+      image_url: { url: '/api/media/files/pdf-img-1/content', detail: 'auto' },
     });
   });
 });

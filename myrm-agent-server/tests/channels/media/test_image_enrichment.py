@@ -12,10 +12,11 @@ import pytest
 from app.channels.media.image_enrichment import (
     MAX_IMAGE_BYTES,
     _compress_image,
-    _download_and_encode,
+    _download_and_cache,
     _download_via_channel_api,
     _download_via_http,
     _read_local_file,
+    _save_to_cache,
     _sniff_mime,
     enrich_image_inbound,
     has_image_attachment,
@@ -108,10 +109,13 @@ class TestEnrichImageInbound:
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/photo.jpg")
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg_header,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg_header,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/photo.jpg"),
         ):
             result = await enrich_image_inbound(msg, None)
 
@@ -120,7 +124,7 @@ class TestEnrichImageInbound:
         assert isinstance(image_data_list, list)
         assert len(image_data_list) == 1
         assert image_data_list[0]["mime_type"] == "image/jpeg"
-        assert image_data_list[0]["data_url"].startswith("data:image/jpeg;base64,")
+        assert image_data_list[0]["data_url"] == "file:///tmp/cache/photo.jpg"
 
     @pytest.mark.asyncio
     async def test_image_download_failure_returns_original(self) -> None:
@@ -142,10 +146,13 @@ class TestEnrichImageInbound:
         atts = tuple(MediaAttachment(media_type=MediaType.IMAGE, url=f"https://example.com/img{i}.jpg") for i in range(6))
         msg = _make_msg(media=atts)
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg_header,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg_header,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.jpg"),
         ):
             result = await enrich_image_inbound(msg, None)
 
@@ -154,19 +161,48 @@ class TestEnrichImageInbound:
         assert len(image_data_list) == 4  # MAX_IMAGES_PER_MESSAGE
 
 
-class TestDownloadAndEncode:
+class TestDownloadAndCache:
     @pytest.mark.asyncio
-    async def test_url_download_produces_data_url(self) -> None:
+    async def test_url_download_produces_file_url(self) -> None:
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=raw,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=raw,
+            ),
+            patch(
+                "app.channels.media.image_enrichment._save_to_cache",
+                return_value="/tmp/cache/abcdef.jpg",
+            ),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
+
+        assert result is not None
+        assert result["data_url"] == "file:///tmp/cache/abcdef.jpg"
+        assert result["mime_type"] == "image/jpeg"
+
+    @pytest.mark.asyncio
+    async def test_cache_failure_falls_back_to_base64(self) -> None:
+        raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
+        att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
+        msg = _make_msg(media=(att,))
+
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=raw,
+            ),
+            patch(
+                "app.channels.media.image_enrichment._save_to_cache",
+                return_value=None,
+            ),
+        ):
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
         assert result["data_url"].startswith("data:image/jpeg;base64,")
@@ -189,7 +225,8 @@ class TestDownloadAndEncode:
         def get_channel_fn(name: str) -> object:
             return mock_channel
 
-        result = await _download_and_encode(att, msg, get_channel_fn)
+        with patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.png"):
+            result = await _download_and_cache(att, msg, get_channel_fn)
 
         assert result is not None
         assert result["mime_type"] == "image/png"
@@ -208,16 +245,18 @@ class TestDownloadAndEncode:
         )
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=png_bytes,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=png_bytes,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.png"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
         assert result["mime_type"] == "image/png", "Sniffed MIME (image/png) should override platform-declared image/webp"
-        assert result["data_url"].startswith("data:image/png;base64,")
 
     @pytest.mark.asyncio
     async def test_compression_used_when_smaller(self) -> None:
@@ -237,12 +276,12 @@ class TestDownloadAndEncode:
                 "app.channels.media.image_enrichment._compress_image",
                 return_value=smaller_compressed,
             ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.jpg"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
-        decoded = base64.b64decode(result["data_url"].split(",", 1)[1])
-        assert decoded == smaller_compressed
+        assert result["data_url"] == "file:///tmp/cache/img.jpg"
 
     @pytest.mark.asyncio
     async def test_compression_not_used_when_larger(self) -> None:
@@ -262,12 +301,12 @@ class TestDownloadAndEncode:
                 "app.channels.media.image_enrichment._compress_image",
                 return_value=larger_compressed,
             ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/orig.jpg"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
-        decoded = base64.b64decode(result["data_url"].split(",", 1)[1])
-        assert decoded == raw
+        assert result["data_url"] == "file:///tmp/cache/orig.jpg"
 
     @pytest.mark.asyncio
     async def test_too_large_after_compression_returns_none(self) -> None:
@@ -287,25 +326,28 @@ class TestDownloadAndEncode:
                 return_value=None,
             ),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_local_file_path_download(self) -> None:
-        """Image downloaded from local path produces valid data URL."""
+        """Image downloaded from local path produces cached file URL."""
         jpeg_header = b"\xff\xd8\xff\xe0" + b"\x00" * 100
         att = MediaAttachment(media_type=MediaType.IMAGE, path="/tmp/test_photo.jpg")
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._read_local_file",
-            return_value=jpeg_header,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._read_local_file",
+                return_value=jpeg_header,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/local.jpg"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
-        assert result["data_url"].startswith("data:image/jpeg;base64,")
+        assert result["data_url"] == "file:///tmp/cache/local.jpg"
 
     @pytest.mark.asyncio
     async def test_non_image_mime_fallback_to_jpeg(self) -> None:
@@ -314,12 +356,15 @@ class TestDownloadAndEncode:
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/file", mime_type="application/octet-stream")
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=unknown_bytes,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=unknown_bytes,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/unknown.jpg"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
         assert result["mime_type"] == "image/jpeg"
@@ -523,10 +568,13 @@ class TestPartialSuccessEnrichment:
                 return None
             return jpeg
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            side_effect=_mock_http,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                side_effect=_mock_http,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/ok.jpg"),
         ):
             result = await enrich_image_inbound(msg, None)
 
@@ -542,10 +590,13 @@ class TestPartialSuccessEnrichment:
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.jpg"),
         ):
             result = await enrich_image_inbound(msg, None)
 
@@ -568,15 +619,18 @@ class TestChannelApiFallbackToUrl:
         def get_ch(name: str) -> object:
             return mock_channel
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/fb.jpg"),
         ):
-            result = await _download_and_encode(att, msg, get_ch)
+            result = await _download_and_cache(att, msg, get_ch)
 
         assert result is not None
-        assert result["data_url"].startswith("data:image/jpeg;base64,")
+        assert result["data_url"] == "file:///tmp/cache/fb.jpg"
 
     @pytest.mark.asyncio
     async def test_channel_not_found_falls_back_to_url(self) -> None:
@@ -588,12 +642,15 @@ class TestChannelApiFallbackToUrl:
         def get_ch(name: str) -> None:
             return None
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/ch.jpg"),
         ):
-            result = await _download_and_encode(att, msg, get_ch)
+            result = await _download_and_cache(att, msg, get_ch)
 
         assert result is not None
         assert result["mime_type"] == "image/jpeg"
@@ -602,7 +659,7 @@ class TestChannelApiFallbackToUrl:
 class TestCompressionNoneKeepsOriginal:
     @pytest.mark.asyncio
     async def test_compress_returns_none_uses_original(self) -> None:
-        """When _compress_image returns None (failure), original bytes are used."""
+        """When _compress_image returns None (failure), original bytes are cached."""
         raw = b"\xff\xd8\xff\xe0" + b"\x00" * 50
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,))
@@ -617,12 +674,12 @@ class TestCompressionNoneKeepsOriginal:
                 "app.channels.media.image_enrichment._compress_image",
                 return_value=None,
             ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/orig.jpg"),
         ):
-            result = await _download_and_encode(att, msg, None)
+            result = await _download_and_cache(att, msg, None)
 
         assert result is not None
-        decoded = base64.b64decode(result["data_url"].split(",", 1)[1])
-        assert decoded == raw
+        assert result["data_url"] == "file:///tmp/cache/orig.jpg"
 
 
 class TestNoUrlNoPathNoFileId:
@@ -632,7 +689,7 @@ class TestNoUrlNoPathNoFileId:
         att = MediaAttachment(media_type=MediaType.IMAGE)
         msg = _make_msg(media=(att,))
 
-        result = await _download_and_encode(att, msg, None)
+        result = await _download_and_cache(att, msg, None)
         assert result is None
 
     @pytest.mark.asyncio
@@ -659,10 +716,13 @@ class TestImmutability:
         att = MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.jpg")
         msg = _make_msg(media=(att,), metadata=original_meta)
 
-        with patch(
-            "app.channels.media.image_enrichment._download_via_http",
-            new_callable=AsyncMock,
-            return_value=jpeg,
+        with (
+            patch(
+                "app.channels.media.image_enrichment._download_via_http",
+                new_callable=AsyncMock,
+                return_value=jpeg,
+            ),
+            patch("app.channels.media.image_enrichment._save_to_cache", return_value="/tmp/cache/img.jpg"),
         ):
             result = await enrich_image_inbound(msg, None)
 
