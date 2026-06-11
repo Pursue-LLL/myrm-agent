@@ -18,6 +18,7 @@ from pathlib import Path
 
 from .competitor_discovery import (
     CompetitorSource,
+    ConfidenceLevel,
     DiscoveredFile,
     _count_md_bullets,
     _detect_api_keys_in_env,
@@ -265,7 +266,7 @@ def _find_first_dir(candidates: list[Path]) -> Path | None:
     return None
 
 
-def _hermes_confidence(source: CompetitorSource) -> str:
+def _hermes_confidence(source: CompetitorSource) -> ConfidenceLevel:
     has_memory = any(f.kind in ("memory", "user") for f in source.files)
     has_config = any(f.kind == "config" for f in source.files)
     has_soul = any(f.kind == "soul" for f in source.files)
@@ -276,7 +277,7 @@ def _hermes_confidence(source: CompetitorSource) -> str:
     return "low"
 
 
-def _claude_confidence(source: CompetitorSource) -> str:
+def _claude_confidence(source: CompetitorSource) -> ConfidenceLevel:
     has_memory = any(f.kind == "memory" for f in source.files)
     has_settings = any(f.kind == "settings" for f in source.files)
     if has_memory and has_settings:

@@ -11,7 +11,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `competitor_discovery.py` | 核心 | 扫描各系统原生AppData目录及环境变量指定的路径，返回置信度、文件列表、记忆/技能估算 | ✅ |
+| `competitor_discovery.py` | 核心 | 数据类定义、工具函数、discover_competitors 编排入口 | ✅ |
+| `competitor_probes.py` | 核心 | 7 个 per-competitor probe 实现（Hermes/Claude/OpenClaw/Cursor/Codex/Windsurf/Trae） | ✅ |
 | `competitor_payload_loader.py` | 核心 | 将 discovery stub 读盘并组装 adapter-ready payload；解析MCP配置文件；生成 coverage 矩阵与 pending skills | ✅ |
 | `competitor_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key；无 provider 槽位时创建最小 stub | ✅ |
 | `competitor_migration_types.py` | 核心 | 四车道迁移 DTO（instruction / memory / skill / credential） | ✅ |

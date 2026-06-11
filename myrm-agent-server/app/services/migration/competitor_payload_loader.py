@@ -509,23 +509,33 @@ def _load_windsurf(root: Path, file_paths: list[str]) -> dict[str, object]:
 
     result: dict[str, object] = {}
     rules: list[dict[str, object]] = []
+    seen_paths: set[str] = set()
 
     for raw in file_paths:
         path = Path(raw)
         if path.suffix == ".md" and path.is_file():
-            rules.append(_windsurf_rule_from_file(path))
+            resolved = str(path.resolve())
+            if resolved not in seen_paths:
+                seen_paths.add(resolved)
+                rules.append(_windsurf_rule_from_file(path))
 
     memories_dir = root / "memories"
     if memories_dir.is_dir():
         global_rules = memories_dir / "global_rules.md"
         if global_rules.is_file():
-            rules.append(_windsurf_rule_from_file(global_rules))
+            resolved = str(global_rules.resolve())
+            if resolved not in seen_paths:
+                seen_paths.add(resolved)
+                rules.append(_windsurf_rule_from_file(global_rules))
 
     rules_dir = root / "rules"
     if rules_dir.is_dir():
         for path in rules_dir.iterdir():
             if path.suffix == ".md" and path.is_file():
-                rules.append(_windsurf_rule_from_file(path))
+                resolved = str(path.resolve())
+                if resolved not in seen_paths:
+                    seen_paths.add(resolved)
+                    rules.append(_windsurf_rule_from_file(path))
 
     if rules:
         result["cursor_rules"] = rules
@@ -538,17 +548,24 @@ def _load_trae(root: Path, file_paths: list[str]) -> dict[str, object]:
 
     result: dict[str, object] = {}
     rules: list[dict[str, object]] = []
+    seen_paths: set[str] = set()
 
     for raw in file_paths:
         path = Path(raw)
         if path.suffix == ".md" and path.is_file():
-            rules.append(_trae_rule_from_file(path))
+            resolved = str(path.resolve())
+            if resolved not in seen_paths:
+                seen_paths.add(resolved)
+                rules.append(_trae_rule_from_file(path))
 
     rules_dir = root / "rules"
     if rules_dir.is_dir():
         for path in rules_dir.iterdir():
             if path.suffix == ".md" and path.is_file():
-                rules.append(_trae_rule_from_file(path))
+                resolved = str(path.resolve())
+                if resolved not in seen_paths:
+                    seen_paths.add(resolved)
+                    rules.append(_trae_rule_from_file(path))
 
     if rules:
         result["cursor_rules"] = rules
@@ -568,7 +585,6 @@ def _windsurf_rule_from_file(path: Path) -> dict[str, object]:
         "content": _read_text(path),
         "globs": "*.md",
         "path": str(path),
-        "source": "windsurf",
     }
 
 
@@ -578,5 +594,4 @@ def _trae_rule_from_file(path: Path) -> dict[str, object]:
         "content": _read_text(path),
         "globs": "*.md",
         "path": str(path),
-        "source": "trae",
     }
