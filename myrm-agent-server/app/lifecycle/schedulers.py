@@ -216,6 +216,66 @@ async def stop_approval_ttl_scheduler() -> None:
         _approval_ttl_scheduler_task = None
 
 
+async def _cancellation_token_cleanup_job() -> None:
+    """Periodic CancellationToken TTL cleanup (removes leaked tokens older than 1 hour)."""
+    try:
+        from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry
+
+        removed = CancellationRegistry.cleanup_expired(ttl_seconds=3600)
+        if removed > 0:
+            logger.info("CancellationToken cleanup: %d expired tokens removed", removed)
+    except Exception as exc:
+        logger.warning("CancellationToken cleanup failed: %s", exc)
+
+
+_cancellation_cleanup_scheduler_task: asyncio.Task[None] | None = None
+
+
+async def start_cancellation_cleanup_scheduler() -> None:
+    """Start CancellationToken TTL cleanup scheduler (every 10 minutes)."""
+    global _cancellation_cleanup_scheduler_task
+
+    try:
+        from apscheduler import AsyncScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+
+        async def run_scheduler() -> None:
+            """Run scheduler in context manager."""
+            async with AsyncScheduler() as scheduler:
+                await scheduler.add_schedule(
+                    _cancellation_token_cleanup_job,
+                    IntervalTrigger(minutes=10),
+                    id="cancellation_token_cleanup",
+                )
+                logger.info("CancellationToken cleanup scheduler started (every 10 min)")
+                await asyncio.Event().wait()
+
+        _cancellation_cleanup_scheduler_task = asyncio.create_task(run_scheduler())
+
+    except Exception as exc:
+        logger.error("Failed to start CancellationToken cleanup scheduler: %s", exc)
+
+
+async def stop_cancellation_cleanup_scheduler() -> None:
+    """Stop the CancellationToken cleanup scheduler."""
+    global _cancellation_cleanup_scheduler_task
+
+    if _cancellation_cleanup_scheduler_task is None:
+        return
+
+    try:
+        _cancellation_cleanup_scheduler_task.cancel()
+        try:
+            await _cancellation_cleanup_scheduler_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("[Shutdown] CancellationToken cleanup scheduler stopped")
+    except Exception as exc:
+        logger.error("[Shutdown] CancellationToken cleanup scheduler stop failed: %s", exc)
+    finally:
+        _cancellation_cleanup_scheduler_task = None
+
+
 async def _login_session_cleanup_job() -> None:
     """Periodic login session cleanup (removes expired sessions)."""
     from app.api.channels.login import session_store
