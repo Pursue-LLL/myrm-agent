@@ -6,13 +6,6 @@ on:
       - 'myrm-agent-server/**'
       - 'shared/**'
       - '.github/workflows/server-unit-tests.yml'
-  push:
-    branches:
-      - main
-    paths:
-      - 'myrm-agent-server/**'
-      - 'shared/**'
-      - '.github/workflows/server-unit-tests.yml'
 
 concurrency:
   group: server-unit-tests-${{ github.event.pull_request.number || github.ref }}
