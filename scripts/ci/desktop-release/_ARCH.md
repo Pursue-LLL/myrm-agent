@@ -26,7 +26,7 @@
 | `build-macos-arm` | 主路径发 Release |
 | `build-macos-x64` | macOS Intel (x86_64) 追加 dmg/tar.gz/.sig |
 | `build-windows` | Windows 追加资产（finalize 门禁平台） |
-| `build-linux` | Linux 追加资产（不阻塞 finalize） |
+| `build-linux` | Linux 仅 `--bundles appimage`（官网分发所需；不阻塞 finalize） |
 | `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify |
 | `deploy-website` | secrets 已配时：brand `website-v*` tag + CF hook（不阻塞 OTA） |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |

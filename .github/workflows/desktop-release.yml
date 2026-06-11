@@ -372,7 +372,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: myrm-agent-desktop
-          args: ''
+          # Website distributes AppImage only; skip deb/rpm to cut Linux CI time ~40%.
+          args: --bundles appimage
 
       - name: Ensure updater bundle signatures
         env:
