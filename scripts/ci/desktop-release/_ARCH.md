@@ -10,7 +10,7 @@
 |------|------|
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
 | `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`） |
-| `finalize-release.sh` | 下载 Release 资产 → 匹配 updater 包 + `.sig` → 生成 `latest.json`（无平台匹配则 fail）+ `.sha256` → upload |
+| `finalize-release.sh` | 下载 Release 资产（与 API 计数对齐重试）→ 匹配 updater 包 + `.sig` → `latest.json` + `.sha256` → upload |
 | `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + 安装包 `.sha256` sidecar 断言 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；Win/Linux 无 updater zip 时 skip |
@@ -40,9 +40,13 @@
 
 | Secret | 用途 |
 |--------|------|
-| `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
-| `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages `website-release` hook；未配置且 `REQUIRE_WEBSITE_DEPLOY=true` 时 finalize **失败** |
+| `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置时 `deploy-website` skip |
+| `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages hook；未配置时 `deploy-website` skip（改在 brand 仓打 `website-v*`） |
 | `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 包签名；与 `tauri.conf.json#plugins.updater.pubkey` 成对 |
+
+## OTA manifest 匹配规则
+
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz` 等）且存在配对 `.sig` 的平台。安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。Linux job 设 `NO_STRIP=true` + `libfuse2` 以稳定 AppImage 打包。
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖

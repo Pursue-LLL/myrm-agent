@@ -9,12 +9,30 @@ WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 cd "$WORK_DIR"
-gh release download "$TAG" --repo "$REPO" --dir assets
-
+mkdir -p assets
+expected_count="$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets | length')"
+local_count=0
+max_attempts=6
 shopt -s nullglob
+for attempt in $(seq 1 "$max_attempts"); do
+  rm -rf assets/*
+  gh release download "$TAG" --repo "$REPO" --dir assets
+  shopt -s nullglob
+  local_count=0
+  for f in assets/*; do
+    [[ -f "$f" ]] && local_count=$((local_count + 1))
+  done
+  if [[ "$local_count" -ge "$expected_count" ]]; then
+    echo "[finalize-release] downloaded ${local_count}/${expected_count} assets"
+    break
+  fi
+  echo "[finalize-release] assets ${local_count}/${expected_count} (attempt ${attempt}/${max_attempts}), retrying..." >&2
+  sleep 10
+done
+
 ASSETS=(assets/*)
-if [[ ${#ASSETS[@]} -eq 0 ]]; then
-  echo "No release assets found for $TAG" >&2
+if [[ ${#ASSETS[@]} -eq 0 || "$local_count" -lt "$expected_count" ]]; then
+  echo "[finalize-release] incomplete release download for ${TAG} (${local_count}/${expected_count})" >&2
   exit 1
 fi
 
