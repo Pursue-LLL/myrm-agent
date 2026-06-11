@@ -78,9 +78,24 @@ build_platform_entry() {
 }
 
 PLATFORMS_JSON='{}'
+required_ota_keys="${REQUIRED_OTA_PLATFORM_KEYS:-}"
+
+is_required_ota_key() {
+  local key="$1"
+  [[ -z "$required_ota_keys" ]] && return 1
+  case " ${required_ota_keys} " in
+    *" ${key} "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 for tauri_key in darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64; do
   if asset_name="$(pick_platform_asset "$tauri_key")"; then
     if ! read_asset_signature "$asset_name" >/dev/null 2>&1; then
+      if is_required_ota_key "$tauri_key"; then
+        echo "[finalize-release] required OTA platform ${tauri_key} missing .sig for ${asset_name}" >&2
+        exit 1
+      fi
       echo "latest.json skip: $tauri_key -> ${asset_name} (no .sig; OTA omitted, manual install still available)" >&2
       continue
     fi
@@ -95,6 +110,20 @@ platform_count="$(jq 'keys | length' <<<"$PLATFORMS_JSON")"
 if [[ "$platform_count" -eq 0 ]]; then
   echo "No platform assets matched for latest.json (tag=$TAG)" >&2
   exit 1
+fi
+
+if [[ -n "$required_ota_keys" ]]; then
+  missing_required=0
+  for key in ${required_ota_keys}; do
+    [[ -n "$key" ]] || continue
+    if ! jq -e --arg k "$key" '.[$k]' <<<"$PLATFORMS_JSON" >/dev/null; then
+      echo "[finalize-release] missing required OTA platform in latest.json: ${key}" >&2
+      missing_required=1
+    fi
+  done
+  if [[ "$missing_required" -ne 0 ]]; then
+    exit 1
+  fi
 fi
 
 jq -n \

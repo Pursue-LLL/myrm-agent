@@ -28,6 +28,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
         run: bash scripts/ci/desktop-release/finalize-release.sh
 
       - name: Verify release manifest and checksums
@@ -36,4 +37,6 @@ jobs:
           TAG: ${{ inputs.tag }}
           REQUIRE_MIN_OTA_PLATFORMS: '4'
           REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
+          REQUIRED_INSTALLER_GLOBS: '*aarch64*.dmg *x64*.dmg *.msi'
+          REQUIRE_BARE_LINUX_APPIMAGE: '1'
         run: bash scripts/ci/desktop-release/verify-release.sh

@@ -78,6 +78,61 @@ require_asset() {
   return 0
 }
 
+ota_asset_missing=0
+while IFS= read -r key; do
+  [[ -n "$key" ]] || continue
+  url="$(jq -r --arg k "$key" '.platforms[$k].url // empty' <<<"$manifest")"
+  ota_file="${url##*/}"
+  ota_file="${ota_file%%\?*}"
+  if ! grep -Fxq "$ota_file" <<<"$asset_names"; then
+    echo "[verify-release] OTA artifact missing on release: ${ota_file} (platform ${key})" >&2
+    ota_asset_missing=1
+  fi
+  if ! grep -Fxq "${ota_file}.sig" <<<"$asset_names"; then
+    echo "[verify-release] OTA signature missing on release: ${ota_file}.sig (platform ${key})" >&2
+    ota_asset_missing=1
+  fi
+done < <(jq -r '.platforms | keys[]' <<<"$manifest")
+if [[ "$ota_asset_missing" -ne 0 ]]; then
+  exit 1
+fi
+
+if [[ -n "${REQUIRED_INSTALLER_GLOBS:-}" ]]; then
+  missing_installer=0
+  for pattern in ${REQUIRED_INSTALLER_GLOBS}; do
+    [[ -n "$pattern" ]] || continue
+    matched=0
+    while IFS= read -r asset; do
+      [[ -n "$asset" ]] || continue
+      case "$asset" in
+        $pattern) matched=1; break ;;
+      esac
+    done <<<"$asset_names"
+    if [[ "$matched" -eq 0 ]]; then
+      echo "[verify-release] missing user installer matching pattern: ${pattern}" >&2
+      missing_installer=1
+    fi
+  done
+  if [[ "$missing_installer" -ne 0 ]]; then
+    exit 1
+  fi
+fi
+
+if [[ "${REQUIRE_BARE_LINUX_APPIMAGE:-}" == "1" ]]; then
+  bare_appimage=0
+  while IFS= read -r asset; do
+    [[ -n "$asset" ]] || continue
+    [[ "$asset" == *.AppImage ]] || continue
+    [[ "$asset" == *.AppImage.tar.gz ]] && continue
+    bare_appimage=1
+    break
+  done <<<"$asset_names"
+  if [[ "$bare_appimage" -eq 0 ]]; then
+    echo "[verify-release] missing bare Linux .AppImage installer on release" >&2
+    exit 1
+  fi
+fi
+
 checksum_ok=0
 while IFS= read -r asset; do
   [[ -n "$asset" ]] || continue
