@@ -14,6 +14,7 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 
 import { companionEvents } from "./companionEvents";
 import { rateLimitEvents } from "./rateLimitEvents";
+import { riskEvents } from "./riskEvents";
 import { agentControlEvents } from "./agentControlEvents";
 import { toolsProgressEvents } from "./toolsProgressEvents";
 import { statusStreamEvents } from "./statusStreamEvents";
@@ -30,6 +31,7 @@ import { completionEvents } from "./completionEvents";
 
 export const STREAM_EVENT_HANDLERS: Array<(ctx: StreamCtx) => Promise<StreamTurn | null>> = [
   companionEvents,
+  riskEvents,
   rateLimitEvents,
   agentControlEvents,
   toolsProgressEvents,

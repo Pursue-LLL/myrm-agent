@@ -82,6 +82,7 @@ export const AgentEventType = {
   BROWSER_TAKEOVER_REQUESTED: 'browser_takeover_requested',
   BROWSER_TAKEOVER_COMPLETED: 'browser_takeover_completed',
   SESSION_RECORDING: 'session_recording',
+  RISK_BLOCKED: 'risk_blocked',
 } as const;
 
 export interface BaseAgentEvent {
