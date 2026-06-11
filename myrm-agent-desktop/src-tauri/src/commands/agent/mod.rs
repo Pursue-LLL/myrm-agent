@@ -14,7 +14,7 @@ pub use session::*;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::cli_agent_types::{adapter_display_name, AdapterInfo, PermissionMode};
+use crate::cli_agent_types::{adapter_display_name, AdapterInfo};
 use crate::permissions::PermissionManager;
 use crate::sessions::SessionManager;
 use crate::sidecar::SidecarManager;
