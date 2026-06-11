@@ -5,9 +5,11 @@ from __future__ import annotations
 from app.channels.providers.telegram import TelegramChannel
 from app.channels.providers.telegram.models import TgEntity, TgMessage, TgUser
 
+from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
+
 
 def _channel() -> TelegramChannel:
-    ch = TelegramChannel(bot_token="000000000:AAAAAAAAAA_test_token_for_unit_test")
+    ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     ch._bot_username = "testbot"
     ch._tg_bot_id = 123456789
     return ch

@@ -24,11 +24,11 @@ from app.channels.types import (
     OutboundMessage,
 )
 
-from .channel_test_base import ChannelTestBase
+from .channel_test_base import FAKE_TELEGRAM_BOT_TOKEN, ChannelTestBase
 
 
 def _make_channel() -> TelegramChannel:
-    ch = TelegramChannel(bot_token="000000000:AAAAAAAAAA_test_token_for_unit_test")
+    ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     ch._bot_username = "testbot"
     ch._tg_bot_id = 123456789
     return ch
@@ -36,7 +36,7 @@ def _make_channel() -> TelegramChannel:
 
 class TestTelegramChannel(ChannelTestBase):
     def create_channel(self) -> BaseChannel:
-        return TelegramChannel(bot_token="000000000:AAAAAAAAAA_test_token_for_unit_test")
+        return TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
 
 
 class TestTgModels:
@@ -964,7 +964,7 @@ class TestTelegramApiError:
 
 class TestTelegramClient:
     def _make_client(self, api_base: str | None = None) -> TelegramClient:
-        return TelegramClient("000000000:AAAA_test_token", api_base=api_base)
+        return TelegramClient(FAKE_TELEGRAM_BOT_TOKEN, api_base=api_base)
 
     def test_custom_api_base(self) -> None:
         client = self._make_client(api_base="https://custom.api.org")
@@ -976,7 +976,7 @@ class TestTelegramClient:
 
     def test_token_property(self) -> None:
         client = self._make_client()
-        assert client.token == "000000000:AAAA_test_token"
+        assert client.token == FAKE_TELEGRAM_BOT_TOKEN
 
     @pytest.mark.asyncio
     async def test_call_success(self) -> None:
@@ -1280,7 +1280,7 @@ class TestTelegramClient:
 class TestTelegramChannelLifecycle:
     @pytest.mark.asyncio
     async def test_start_success_webhook(self) -> None:
-        ch = TelegramChannel(bot_token="000000000:AAAA_test", webhook_url="https://example.com/wh")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, webhook_url="https://example.com/wh")
         ch._client = MagicMock()
         ch._client.get_me = AsyncMock(return_value={"id": 123, "username": "testbot"})
         ch._client.set_webhook = AsyncMock()
@@ -1546,7 +1546,7 @@ class TestTelegramChannelOutbound:
 class TestTelegramStartPolling:
     @pytest.mark.asyncio
     async def test_start_polling_mode(self) -> None:
-        ch = TelegramChannel(bot_token="000000000:AAAA_test")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
         ch._client = MagicMock()
         ch._client.get_me = AsyncMock(return_value={"id": 123, "username": "testbot"})
         ch._client.delete_my_commands = AsyncMock()
@@ -1564,7 +1564,7 @@ class TestTelegramStartPolling:
 
     @pytest.mark.asyncio
     async def test_start_webhook_setup_fails_degrades(self) -> None:
-        ch = TelegramChannel(bot_token="000000000:AAAA_test", webhook_url="https://example.com/wh")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, webhook_url="https://example.com/wh")
         ch._client = MagicMock()
         ch._client.get_me = AsyncMock(return_value={"id": 123, "username": "testbot"})
         ch._client.delete_my_commands = AsyncMock()
@@ -1627,7 +1627,7 @@ class TestTelegramStopFull:
 
     @pytest.mark.asyncio
     async def test_stop_webhook_mode_cleanup(self) -> None:
-        ch = TelegramChannel(bot_token="000000000:AAAA_test", webhook_url="https://example.com/wh")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, webhook_url="https://example.com/wh")
         ch._status = ChannelStatus.RUNNING
         ch._client = MagicMock()
         ch._client.close = AsyncMock()
@@ -1903,7 +1903,7 @@ class TestTelegramRegisterCommands:
 class TestTelegramWebhookSetup:
     @pytest.mark.asyncio
     async def test_setup_webhook(self) -> None:
-        ch = TelegramChannel(bot_token="000000000:AAAA_test", webhook_url="https://example.com/wh")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, webhook_url="https://example.com/wh")
         ch._client = MagicMock()
         ch._client.set_webhook = AsyncMock()
 
@@ -1914,7 +1914,7 @@ class TestTelegramWebhookSetup:
     async def test_webhook_includes_message_reaction_in_allowed_updates(self) -> None:
         from app.channels.providers.telegram.inbound import _ALLOWED_UPDATES
 
-        ch = TelegramChannel(bot_token="000000000:AAAA_test", webhook_url="https://example.com/wh")
+        ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN, webhook_url="https://example.com/wh")
         ch._client = MagicMock()
         ch._client.set_webhook = AsyncMock()
 
@@ -2278,7 +2278,7 @@ class TestSendMediaAttachment:
 
 def _make_topic_channel(*, auto_topic: bool = False) -> TelegramChannel:
     ch = TelegramChannel(
-        bot_token="000000000:AAAAAAAAAA_test_token_for_unit_test",
+        bot_token=FAKE_TELEGRAM_BOT_TOKEN,
         auto_topic=auto_topic,
     )
     ch._bot_username = "testbot"

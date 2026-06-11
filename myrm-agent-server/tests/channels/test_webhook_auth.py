@@ -7,13 +7,15 @@ import hmac as hmac_mod
 
 from app.channels.providers.telegram import TelegramChannel
 
+from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
+
 
 class TestTelegramWebhookSecret:
     """Tests for TelegramChannel.webhook_secret property."""
 
     def test_deterministic(self) -> None:
         """Same bot_token always produces the same secret."""
-        ch = TelegramChannel("123456:ABC-DEF")
+        ch = TelegramChannel(FAKE_TELEGRAM_BOT_TOKEN)
         assert ch.webhook_secret == ch.webhook_secret
 
     def test_different_tokens_different_secrets(self) -> None:
@@ -22,11 +24,11 @@ class TestTelegramWebhookSecret:
         assert ch1.webhook_secret != ch2.webhook_secret
 
     def test_length(self) -> None:
-        ch = TelegramChannel("123456:ABC-DEF")
+        ch = TelegramChannel(FAKE_TELEGRAM_BOT_TOKEN)
         assert len(ch.webhook_secret) == 32
 
     def test_matches_sha256_derivation(self) -> None:
-        token = "123456:ABC-DEF"
+        token = FAKE_TELEGRAM_BOT_TOKEN
         ch = TelegramChannel(token)
         expected = hashlib.sha256(token.encode()).hexdigest()[:32]
         assert ch.webhook_secret == expected

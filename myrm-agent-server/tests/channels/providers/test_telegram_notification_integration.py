@@ -18,10 +18,11 @@ from app.channels.types.notification import (
     ChannelNotificationMode,
     with_final_notify,
 )
+from tests.channels.channel_test_base import FAKE_TELEGRAM_BOT_TOKEN
 
 
 def _channel(*, mode: ChannelNotificationMode = ChannelNotificationMode.IMPORTANT) -> TelegramChannel:
-    ch = TelegramChannel(bot_token="000000000:AAAAAAAAAA_test_token_for_unit_test")
+    ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     ch._notifications_mode = mode
     return ch
 

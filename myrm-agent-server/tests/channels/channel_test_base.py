@@ -32,6 +32,9 @@ from app.channels.types import (
     RenderStyle,
 )
 
+# Non-production placeholder; must not match Telegram bot token format (GitHub secret scanning).
+FAKE_TELEGRAM_BOT_TOKEN = "unit-test-not-a-real-telegram-bot-credential"
+
 
 @dataclass
 class SentMessage:
