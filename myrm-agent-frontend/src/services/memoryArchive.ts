@@ -196,7 +196,9 @@ export type MemoryImportSource =
   | 'openclaw'
   | 'cursor_rules'
   | 'codex'
-  | 'claude';
+  | 'claude'
+  | 'windsurf'
+  | 'trae';
 
 export interface MemoryImportMappingItem {
   source_bucket: string;

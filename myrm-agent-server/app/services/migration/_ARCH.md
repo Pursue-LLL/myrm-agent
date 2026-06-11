@@ -5,6 +5,8 @@
 
 竞品数据迁移服务层（**仅 Local WebUI / Tauri**；SaaS 沙箱不提供发现与导入）。四车道编排：指令（Agent system_prompt / 全局设置 / `.myrm/rules`）、全局记忆、技能审核、凭证 opt-in。Wizard dry-run 必须使用竞品 id 映射的 memory adapter source（禁止裸 `auto` 误路由）。OpenClaw workspace Markdown 合并进 `openclaw_memory`；多 workspace 同文件名合并。MCP/渠道在覆盖矩阵标 manual。dry-run 返回 `instruction_total_chars`、`providers_configured` 与车道 warning/critical 状态。
 
+支持的竞品工具：Hermes、Claude Code、OpenClaw、Cursor、Codex、Windsurf、Trae（共 7 种）。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

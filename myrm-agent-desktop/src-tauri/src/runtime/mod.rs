@@ -21,7 +21,7 @@ mod python_backend;
 mod setup_token;
 
 pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};
-pub use appshot::{handle_appshot_shortcut, handle_toggle_window, APPSHOT_SHORTCUT_STR};
+pub use appshot::{force_capture, handle_appshot_shortcut, handle_toggle_window, APPSHOT_SHORTCUT_STR};
 pub use nextjs_frontend::{start_frontend, NextJSFrontend, stop_frontend};
 pub use python_backend::{
     check_backend_health, get_backend_status, start_backend, start_backend_with_config,

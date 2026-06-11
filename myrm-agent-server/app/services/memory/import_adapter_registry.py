@@ -30,6 +30,8 @@ _SUPPORTED_SOURCES: tuple[str, ...] = (
     "openclaw",
     "cursor",
     "codex",
+    "windsurf",
+    "trae",
 )
 _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "native-json": "ready",
@@ -42,6 +44,8 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "openclaw": "ready",
     "cursor": "ready",
     "codex": "ready",
+    "windsurf": "ready",
+    "trae": "ready",
 }
 _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "native_json": "native-json",
@@ -54,6 +58,8 @@ _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "openclaw": "openclaw",
     "cursor_rules": "cursor",
     "codex": "codex",
+    "windsurf": "windsurf",
+    "trae": "trae",
     "unknown": "unknown",
 }
 

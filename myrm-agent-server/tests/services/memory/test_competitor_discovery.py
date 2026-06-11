@@ -266,6 +266,122 @@ class TestCodexDiscovery:
         assert cdx == []
 
 
+class TestWindsurfDiscovery:
+    """Windsurf ~/.codeium/windsurf detection."""
+
+    def _setup_windsurf(
+        self,
+        home: Path,
+        *,
+        with_global_rules: bool = True,
+        with_rules_dir: int = 0,
+    ) -> Path:
+        root = home / ".codeium" / "windsurf"
+        root.mkdir(parents=True)
+        if with_global_rules:
+            mem_dir = root / "memories"
+            mem_dir.mkdir()
+            (mem_dir / "global_rules.md").write_text(
+                "- Always use TypeScript\n- Prefer functional components\n- Use Tailwind CSS"
+            )
+        if with_rules_dir > 0:
+            rules_dir = root / "rules"
+            rules_dir.mkdir()
+            for i in range(with_rules_dir):
+                (rules_dir / f"rule_{i}.md").write_text(f"# Rule {i}\nContent here")
+        return root
+
+    def test_windsurf_high_confidence_global_rules(self, fake_home: Path) -> None:
+        self._setup_windsurf(fake_home)
+        result = discover_competitors(str(fake_home))
+        ws = [s for s in result.sources if s.competitor == "windsurf"]
+        assert len(ws) == 1
+        assert ws[0].confidence == "high"
+        assert ws[0].memory_count_estimate == 3
+
+    def test_windsurf_high_confidence_multiple_rules(self, fake_home: Path) -> None:
+        self._setup_windsurf(fake_home, with_global_rules=False, with_rules_dir=3)
+        result = discover_competitors(str(fake_home))
+        ws = [s for s in result.sources if s.competitor == "windsurf"]
+        assert len(ws) == 1
+        assert ws[0].confidence == "high"
+        assert ws[0].skill_count == 3
+
+    def test_windsurf_medium_confidence_single_rule(self, fake_home: Path) -> None:
+        self._setup_windsurf(fake_home, with_global_rules=False, with_rules_dir=1)
+        result = discover_competitors(str(fake_home))
+        ws = [s for s in result.sources if s.competitor == "windsurf"]
+        assert len(ws) == 1
+        assert ws[0].confidence == "medium"
+
+    def test_windsurf_low_confidence_excluded(self, fake_home: Path) -> None:
+        root = fake_home / ".codeium" / "windsurf"
+        root.mkdir(parents=True)
+        result = discover_competitors(str(fake_home))
+        ws = [s for s in result.sources if s.competitor == "windsurf"]
+        assert ws == []
+
+
+class TestTraeDiscovery:
+    """Trae ~/.trae and ~/.trae-cn detection."""
+
+    def _setup_trae(
+        self,
+        home: Path,
+        *,
+        edition: str = ".trae",
+        rule_count: int = 2,
+        skill_count: int = 0,
+    ) -> Path:
+        root = home / edition
+        root.mkdir()
+        if rule_count > 0:
+            rules_dir = root / "rules"
+            rules_dir.mkdir()
+            for i in range(rule_count):
+                (rules_dir / f"rule_{i}.md").write_text(f"# Rule {i}\nAlways follow this")
+        if skill_count > 0:
+            skills_dir = root / "skills"
+            skills_dir.mkdir()
+            for i in range(skill_count):
+                (skills_dir / f"skill_{i}").mkdir()
+        return root
+
+    def test_trae_high_confidence_multiple_rules(self, fake_home: Path) -> None:
+        self._setup_trae(fake_home, rule_count=3)
+        result = discover_competitors(str(fake_home))
+        tr = [s for s in result.sources if s.competitor == "trae"]
+        assert len(tr) == 1
+        assert tr[0].confidence == "high"
+        assert tr[0].skill_count >= 3
+
+    def test_trae_cn_edition_detection(self, fake_home: Path) -> None:
+        self._setup_trae(fake_home, edition=".trae-cn", rule_count=2)
+        result = discover_competitors(str(fake_home))
+        tr = [s for s in result.sources if s.competitor == "trae"]
+        assert len(tr) == 1
+        assert tr[0].confidence == "high"
+
+    def test_trae_medium_confidence_single_rule(self, fake_home: Path) -> None:
+        self._setup_trae(fake_home, rule_count=1)
+        result = discover_competitors(str(fake_home))
+        tr = [s for s in result.sources if s.competitor == "trae"]
+        assert len(tr) == 1
+        assert tr[0].confidence == "medium"
+
+    def test_trae_skills_counted(self, fake_home: Path) -> None:
+        self._setup_trae(fake_home, rule_count=1, skill_count=3)
+        result = discover_competitors(str(fake_home))
+        tr = [s for s in result.sources if s.competitor == "trae"]
+        assert tr[0].skill_count == 4  # 1 rule + 3 skill dirs
+
+    def test_trae_low_confidence_excluded(self, fake_home: Path) -> None:
+        (fake_home / ".trae").mkdir()
+        result = discover_competitors(str(fake_home))
+        tr = [s for s in result.sources if s.competitor == "trae"]
+        assert tr == []
+
+
 class TestMultipleCompetitors:
     """Multiple competitor installations co-exist."""
 
@@ -276,9 +392,11 @@ class TestMultipleCompetitors:
             (".openclaw", {"memory.json": "[]", "sessions.json": "[]"}),
             (".cursor", {"rules/a.md": "r", "rules/b.md": "r", "rules/c.md": "r"}),
             (".codex", {"instructions.md": "# I", "config.json": "{}"}),
+            (".codeium/windsurf/memories", {"global_rules.md": "- use typescript"}),
+            (".trae", {"rules/code-style.md": "# Style", "rules/api.md": "# API"}),
         ]:
             root = fake_home / name
-            root.mkdir(exist_ok=True)
+            root.mkdir(exist_ok=True, parents=True)
             for relpath, content in files.items():
                 f = root / relpath
                 f.parent.mkdir(parents=True, exist_ok=True)
@@ -291,6 +409,8 @@ class TestMultipleCompetitors:
         assert "openclaw" in competitors
         assert "cursor" in competitors
         assert "codex" in competitors
+        assert "windsurf" in competitors
+        assert "trae" in competitors
 
 
 class TestEdgeCases:

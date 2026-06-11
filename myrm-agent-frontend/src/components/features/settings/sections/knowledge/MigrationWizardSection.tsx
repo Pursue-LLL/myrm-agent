@@ -47,6 +47,8 @@ const COMPETITOR_IMPORT_SOURCE_BY_ID: Record<string, MemoryImportSource> = {
   cursor: 'cursor_rules',
   codex: 'codex',
   claude: 'claude',
+  windsurf: 'windsurf',
+  trae: 'trae',
 };
 
 function resolveCompetitorImportSource(competitor: string): MemoryImportSource {

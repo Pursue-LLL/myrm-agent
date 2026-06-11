@@ -68,6 +68,8 @@ def load_competitor_payload(payload: dict[str, object]) -> dict[str, object]:
         "cursor": _load_cursor,
         "codex": _load_codex,
         "claude": _load_claude,
+        "windsurf": _load_windsurf,
+        "trae": _load_trae,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -500,3 +502,81 @@ def _discover_openclaw_skill_dirs(root: Path) -> list[Path]:
         if skills_dir.is_dir():
             dirs.append(skills_dir)
     return dirs
+
+
+def _load_windsurf(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load Windsurf global_rules.md and workspace rules as cursor-compatible rules."""
+
+    result: dict[str, object] = {}
+    rules: list[dict[str, object]] = []
+
+    for raw in file_paths:
+        path = Path(raw)
+        if path.suffix == ".md" and path.is_file():
+            rules.append(_windsurf_rule_from_file(path))
+
+    memories_dir = root / "memories"
+    if memories_dir.is_dir():
+        global_rules = memories_dir / "global_rules.md"
+        if global_rules.is_file():
+            rules.append(_windsurf_rule_from_file(global_rules))
+
+    rules_dir = root / "rules"
+    if rules_dir.is_dir():
+        for path in rules_dir.iterdir():
+            if path.suffix == ".md" and path.is_file():
+                rules.append(_windsurf_rule_from_file(path))
+
+    if rules:
+        result["cursor_rules"] = rules
+
+    return result
+
+
+def _load_trae(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load Trae rules and skills as cursor-compatible rules."""
+
+    result: dict[str, object] = {}
+    rules: list[dict[str, object]] = []
+
+    for raw in file_paths:
+        path = Path(raw)
+        if path.suffix == ".md" and path.is_file():
+            rules.append(_trae_rule_from_file(path))
+
+    rules_dir = root / "rules"
+    if rules_dir.is_dir():
+        for path in rules_dir.iterdir():
+            if path.suffix == ".md" and path.is_file():
+                rules.append(_trae_rule_from_file(path))
+
+    if rules:
+        result["cursor_rules"] = rules
+
+    skills_dir = root / "skills"
+    if skills_dir.is_dir():
+        skills = _load_skill_directories(skills_dir, source="trae")
+        if skills:
+            result["skills"] = skills
+
+    return result
+
+
+def _windsurf_rule_from_file(path: Path) -> dict[str, object]:
+    return {
+        "name": path.stem,
+        "content": _read_text(path),
+        "globs": "*.md",
+        "path": str(path),
+        "source": "windsurf",
+    }
+
+
+def _trae_rule_from_file(path: Path) -> dict[str, object]:
+    return {
+        "name": path.stem,
+        "content": _read_text(path),
+        "globs": "*.md",
+        "path": str(path),
+        "source": "trae",
+    }
