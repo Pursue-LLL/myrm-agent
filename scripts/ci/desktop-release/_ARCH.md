@@ -46,7 +46,7 @@
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job 设 `NO_STRIP=true` + `libfuse2` 以稳定 AppImage 打包。
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job 设 `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true`（GHA 无 FUSE）+ `--bundles appimage` 以稳定 AppImage 打包。
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖
