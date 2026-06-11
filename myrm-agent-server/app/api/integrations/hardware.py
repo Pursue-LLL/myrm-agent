@@ -253,8 +253,8 @@ async def get_hardware_recommendations() -> JSONResponse:
     recommendations.sort(
         key=lambda x: (
             _FIT_PRIORITY.get(str(x["fit_level"]), 0),
-            float(x["params_b"]),
-            float(x["est_tok_per_sec"]) if x["est_tok_per_sec"] is not None else 0.0,
+            x["params_b"],
+            x["est_tok_per_sec"] or 0,
         ),
         reverse=True,
     )
