@@ -297,30 +297,25 @@ jobs:
           args: ''
 
       - name: Rename Windows updater bundle (stable OTA asset name)
-        run: |
-          ROOT="${GITHUB_WORKSPACE//\\//}/myrm-agent-desktop/src-tauri/target"
-          bash scripts/ci/desktop-release/rename-updater-bundles.sh windows "$ROOT"
-        shell: bash
+        shell: pwsh
+        run: ./scripts/ci/desktop-release/rename-windows-updater-bundle.ps1
 
       - name: Ensure updater bundle signatures
         env:
           REQUIRE_UPDATER_BUNDLES: '1'
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          ROOT="${GITHUB_WORKSPACE//\\//}/myrm-agent-desktop/src-tauri/target"
-          bash scripts/ci/desktop-release/sign-updater-bundles.sh "$ROOT"
+        run: bash scripts/ci/desktop-release/sign-updater-bundles.sh
         shell: bash
 
       - name: Upload assets to existing GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ROOT="${GITHUB_WORKSPACE//\\//}/myrm-agent-desktop/src-tauri/target"
           files=()
           while IFS= read -r f; do
             [[ -n "$f" ]] && files+=("$f")
-          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh "$ROOT")
+          done < <(bash scripts/ci/desktop-release/collect-bundle-assets.sh)
           gh release upload "${{ github.ref_name }}" "${files[@]}" --clobber
         shell: bash
 
