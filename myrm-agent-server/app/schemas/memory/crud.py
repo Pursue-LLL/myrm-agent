@@ -154,6 +154,7 @@ class UpdateMemoryRequest(BaseModel):
     reasoning: str | None = Field(None, max_length=2000, description="New reasoning (Why)")
     application: str | None = Field(None, max_length=2000, description="New application (How)")
     importance: float | None = Field(None, ge=0.0, le=1.0, description="New importance score")
+    tags: list[str] | None = Field(None, description="New tags (semantic/episodic only)")
 
 
 class UpdateMemoryStatusRequest(BaseModel):

@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   Dialog,
@@ -32,6 +32,7 @@ interface FormState {
   value: string;
   trigger: string;
   action: string;
+  tags: string[];
 }
 
 const INITIAL_FORM: FormState = {
@@ -42,6 +43,7 @@ const INITIAL_FORM: FormState = {
   value: '',
   trigger: '',
   action: '',
+  tags: [],
 };
 
 const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }) => {
@@ -51,10 +53,35 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
 
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tagInput, setTagInput] = useState('');
 
   useEffect(() => {
-    if (open) setForm(INITIAL_FORM);
+    if (open) {
+      setForm(INITIAL_FORM);
+      setTagInput('');
+    }
   }, [open]);
+
+  const addTag = useCallback((raw: string) => {
+    const tag = raw.trim().toLowerCase();
+    if (tag && !form.tags.includes(tag)) {
+      updateField('tags', [...form.tags, tag]);
+    }
+  }, [form.tags, updateField]);
+
+  const removeTag = useCallback((tag: string) => {
+    updateField('tags', form.tags.filter((t) => t !== tag));
+  }, [form.tags, updateField]);
+
+  const handleTagKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+      e.preventDefault();
+      addTag(tagInput);
+      setTagInput('');
+    } else if (e.key === 'Backspace' && !tagInput && form.tags.length > 0) {
+      removeTag(form.tags[form.tags.length - 1]);
+    }
+  }, [tagInput, form.tags, addTag, removeTag]);
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -91,6 +118,7 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
         body.action = form.action.trim();
       } else {
         body.content = form.content.trim();
+        if (form.tags.length > 0) body.tags = form.tags;
       }
 
       await createMemory(body);
@@ -204,19 +232,56 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
           )}
 
           {(form.memory_type === 'semantic' || form.memory_type === 'episodic') && (
-            <textarea
-              value={form.content}
-              onChange={(e) => updateField('content', e.target.value)}
-              placeholder={t('createDialog.contentPlaceholder')}
-              maxLength={2000}
-              rows={4}
-              className={cn(
-                'w-full px-3 py-2.5 rounded-lg text-sm resize-none',
-                'bg-accent/30 border border-border/50',
-                'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50',
-                'transition-all',
-              )}
-            />
+            <>
+              <textarea
+                value={form.content}
+                onChange={(e) => updateField('content', e.target.value)}
+                placeholder={t('createDialog.contentPlaceholder')}
+                maxLength={2000}
+                rows={4}
+                className={cn(
+                  'w-full px-3 py-2.5 rounded-lg text-sm resize-none',
+                  'bg-accent/30 border border-border/50',
+                  'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50',
+                  'transition-all',
+                )}
+              />
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">{t('tags')}</label>
+                <div
+                  className={cn(
+                    'flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg min-h-[38px]',
+                    'bg-accent/30 border border-border/50',
+                    'focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50',
+                    'transition-all',
+                  )}
+                >
+                  {form.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-xs font-medium text-primary"
+                    >
+                      {tag}
+                      <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    onBlur={() => {
+                      if (tagInput.trim()) { addTag(tagInput); setTagInput(''); }
+                    }}
+                    placeholder={form.tags.length === 0 ? t('createDialog.tagsPlaceholder') : ''}
+                    className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {/* Importance slider */}

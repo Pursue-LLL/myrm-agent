@@ -6029,10 +6029,12 @@
     "preCompactBudget": "Recall token budget",
     "comingSoonTitle": "Coming Soon",
     "comingSoonDesc": "",
+    "tags": "Tags",
     "stats": {
       "title": "Memory Overview",
       "total": "Total Memories",
-      "byType": "By Type"
+      "byType": "By Type",
+      "topTags": "Top tags"
     },
     "commandCenter": {
       "title": "Personal Brain Command Center",
@@ -6587,6 +6589,7 @@
       "triggerPlaceholder": "Trigger condition (e.g. when writing code)",
       "actionPlaceholder": "Action to take (e.g. use TypeScript)",
       "contentPlaceholder": "Enter memory content...",
+      "tagsPlaceholder": "Add tags (press Enter or comma)",
       "submit": "Add Memory",
       "success": "Memory added",
       "successDesc": "New memory has been added successfully",

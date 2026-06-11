@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   Dialog,
@@ -33,6 +33,8 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
   const [reasoning, setReasoning] = useState('');
   const [application, setApplication] = useState('');
   const [importance, setImportance] = useState('0.5');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -41,17 +43,43 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
       setReasoning(memory.reasoning ?? '');
       setApplication(memory.application ?? '');
       setImportance((memory.importance ?? 0.5).toString());
+      setTags(memory.tags ?? []);
+      setTagInput('');
     }
   }, [memory]);
 
+  const supportsTag = memory && (memory.memory_type === 'semantic' || memory.memory_type === 'episodic');
+
+  const addTag = useCallback((raw: string) => {
+    const tag = raw.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) setTags((prev) => [...prev, tag]);
+  }, [tags]);
+
+  const removeTag = useCallback((tag: string) => {
+    setTags((prev) => prev.filter((t) => t !== tag));
+  }, []);
+
+  const handleTagKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+      e.preventDefault();
+      addTag(tagInput);
+      setTagInput('');
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      removeTag(tags[tags.length - 1]);
+    }
+  }, [tagInput, tags, addTag, removeTag]);
+
   const canEdit = memory && EDITABLE_TYPES.includes(memory.memory_type);
+
+  const tagsChanged = memory && JSON.stringify(tags) !== JSON.stringify(memory.tags ?? []);
 
   const isChanged =
     memory && (
       content.trim() !== memory.content || 
       reasoning.trim() !== (memory.reasoning ?? '') ||
       application.trim() !== (memory.application ?? '') ||
-      parseFloat(importance) !== (memory.importance ?? 0.5)
+      parseFloat(importance) !== (memory.importance ?? 0.5) ||
+      tagsChanged
     );
 
   const handleSave = useCallback(async () => {
@@ -63,6 +91,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
         reasoning: memory.memory_type === 'procedural' && reasoning.trim() !== (memory.reasoning ?? '') ? reasoning.trim() : undefined,
         application: memory.memory_type === 'procedural' && application.trim() !== (memory.application ?? '') ? application.trim() : undefined,
         importance: parseFloat(importance) !== (memory.importance ?? 0.5) ? parseFloat(importance) : undefined,
+        tags: tagsChanged ? tags : undefined,
       });
       toast({ title: t('editDialog.success'), description: t('editDialog.successDesc') });
       onOpenChange(false);
@@ -75,7 +104,7 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
     } finally {
       setIsSubmitting(false);
     }
-  }, [memory, canEdit, isChanged, content, reasoning, application, importance, updateMemory, onOpenChange, t]);
+  }, [memory, canEdit, isChanged, content, reasoning, application, importance, tags, tagsChanged, updateMemory, onOpenChange, t]);
 
   if (!memory) return null;
 
@@ -110,6 +139,48 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
                 !canEdit && 'opacity-60 cursor-not-allowed',
               )}
             />
+
+            {supportsTag && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">{t('tags')}</label>
+                <div
+                  className={cn(
+                    'flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg min-h-[38px]',
+                    'bg-accent/30 border border-border/50',
+                    'focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50',
+                    'transition-all duration-200',
+                    !canEdit && 'opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-xs font-medium text-primary"
+                    >
+                      {tag}
+                      {canEdit && (
+                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-destructive">
+                          <X size={10} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {canEdit && (
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={handleTagKeyDown}
+                      onBlur={() => {
+                        if (tagInput.trim()) { addTag(tagInput); setTagInput(''); }
+                      }}
+                      placeholder={tags.length === 0 ? t('createDialog.tagsPlaceholder') : ''}
+                      className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
 
             {memory.memory_type === 'procedural' && (
               <div className="space-y-3">

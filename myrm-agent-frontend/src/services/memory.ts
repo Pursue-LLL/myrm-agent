@@ -102,6 +102,7 @@ export interface UpdateMemoryRequest {
   reasoning?: string;
   application?: string;
   importance?: number;
+  tags?: string[];
 }
 
 export interface MemorySearchResponse {

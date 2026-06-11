@@ -6033,10 +6033,12 @@
     "preCompactBudget": "召回 token 预算",
     "comingSoonTitle": "敬请期待，马上就来",
     "comingSoonDesc": "",
+    "tags": "标签",
     "stats": {
       "title": "记忆概览",
       "total": "总记忆数",
-      "byType": "按类型"
+      "byType": "按类型",
+      "topTags": "热门标签"
     },
     "commandCenter": {
       "title": "个人大脑指挥中心",
@@ -6591,6 +6593,7 @@
       "triggerPlaceholder": "触发条件（如 写代码时）",
       "actionPlaceholder": "执行动作（如 使用 TypeScript）",
       "contentPlaceholder": "输入记忆内容...",
+      "tagsPlaceholder": "添加标签（按回车或逗号）",
       "submit": "添加记忆",
       "success": "记忆已添加",
       "successDesc": "新记忆已成功添加",

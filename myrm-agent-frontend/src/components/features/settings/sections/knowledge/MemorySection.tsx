@@ -46,7 +46,7 @@ import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/useToast';
-import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus } from '@/services/memory';
+import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 
@@ -98,6 +98,8 @@ const MemorySection = memo(() => {
     setMemorySearchQuery,
     deleteMemory,
     deleteAllMemories,
+    memoryTagFilter,
+    setMemoryTagFilter,
     memorySortBy,
     setMemorySortBy,
     memorySortOrder,
@@ -134,6 +136,7 @@ const MemorySection = memo(() => {
   const [importExpiresAt, setImportExpiresAt] = useState<string | null>(null);
   const [showImportReview, setShowImportReview] = useState(false);
   const [showMemoryGuide, setShowMemoryGuide] = useState(false);
+  const [availableTags, setAvailableTags] = useState<TagStatsItem[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -141,7 +144,10 @@ const MemorySection = memo(() => {
   }, [isLoggedIn, authInitialized, fetchPendingMemories]);
 
   useEffect(() => {
-    if (activeMemoryTab === 'all' && isLoggedIn && authInitialized) fetchMemories();
+    if (activeMemoryTab === 'all' && isLoggedIn && authInitialized) {
+      fetchMemories();
+      getMemoryTags(20).then((res) => setAvailableTags(res.tags)).catch(() => {});
+    }
     if (activeMemoryTab === 'trash' && isLoggedIn && authInitialized) fetchArchivedMemories();
   }, [activeMemoryTab, isLoggedIn, authInitialized, fetchMemories, fetchArchivedMemories]);
 
@@ -681,6 +687,39 @@ const MemorySection = memo(() => {
                   )}
                 </button>
               </div>
+
+              {/* Tag filter */}
+              {availableTags.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-muted-foreground mr-1">{t('tags')}:</span>
+                  <button
+                    onClick={() => setMemoryTagFilter(null)}
+                    className={cn(
+                      'px-2 py-1 rounded-full text-[11px] font-medium transition-all',
+                      !memoryTagFilter
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'bg-accent/50 text-muted-foreground border border-transparent hover:bg-accent',
+                    )}
+                  >
+                    {t('filterAll')}
+                  </button>
+                  {availableTags.slice(0, 10).map(({ tag, count }) => (
+                    <button
+                      key={tag}
+                      onClick={() => setMemoryTagFilter(memoryTagFilter === tag ? null : tag)}
+                      className={cn(
+                        'px-2 py-1 rounded-full text-[11px] font-medium transition-all',
+                        memoryTagFilter === tag
+                          ? 'bg-primary/10 text-primary border border-primary/20'
+                          : 'bg-accent/50 text-muted-foreground border border-transparent hover:bg-accent',
+                      )}
+                    >
+                      {tag}
+                      <span className="ml-1 opacity-60">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Memory list */}
               {memoriesLoading && memories.length === 0 ? (

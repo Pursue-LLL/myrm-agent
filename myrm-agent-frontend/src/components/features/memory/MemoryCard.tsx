@@ -18,6 +18,7 @@ import {
   BookOpen,
   Clock,
 } from 'lucide-react';
+import { Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
@@ -288,6 +289,23 @@ const MemoryCard = memo<MemoryCardProps>(
                   <Clock size={12} />
                   <span>Last: {formatDate(confirmed.last_accessed_at)}</span>
                 </div>
+              )}
+            </div>
+          )}
+
+          {confirmed?.tags && confirmed.tags.length > 0 && (
+            <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
+              <Tag size={11} className="text-muted-foreground/60 shrink-0" />
+              {confirmed.tags.slice(0, 5).map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/60 text-[10px] font-medium text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+              {confirmed.tags.length > 5 && (
+                <span className="text-[10px] text-muted-foreground/50">+{confirmed.tags.length - 5}</span>
               )}
             </div>
           )}
