@@ -2,6 +2,10 @@
 # Generate per-asset .sha256 checksums and Tauri updater latest.json for a GitHub Release.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=pick-platform-asset.sh
+source "${SCRIPT_DIR}/pick-platform-asset.sh"
+
 TAG="${TAG:?Set TAG to the release tag (e.g. v0.1.13)}"
 REPO="${GITHUB_REPOSITORY:?Set GITHUB_REPOSITORY}"
 
@@ -49,10 +53,6 @@ done
 VERSION="${TAG#v}"
 PUB_DATE="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.published_at // empty')"
 NOTES="$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.body // ""')"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=pick-platform-asset.sh
-source "${SCRIPT_DIR}/pick-platform-asset.sh"
 
 read_asset_signature() {
   local asset_name="$1"
