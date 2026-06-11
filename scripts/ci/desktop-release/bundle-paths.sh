@@ -19,6 +19,7 @@ is_updater_bundle_path() {
   case "$path" in
     *.AppImage.tar.gz | *.nsis.zip | *.msi.zip) return 0 ;;
     */macos/*.tar.gz) return 0 ;;
+    */nsis/*-setup.exe) return 0 ;;
     *) return 1 ;;
   esac
 }

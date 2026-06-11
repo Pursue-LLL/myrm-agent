@@ -14,13 +14,14 @@ pick_platform_asset() {
       candidates=(MyrmAgent_x64.app.tar.gz '*x86_64*.tar.gz' '*x64*.tar.gz' '*intel*.tar.gz')
       ;;
     windows-x86_64)
+      # Tauri v2 Windows OTA uses NSIS setup.exe (+ .sig); nsis.zip is ephemeral during bundling.
       candidates=(
+        MyrmAgent_x64-setup.exe
+        '*x64-setup.exe'
+        '*x86_64-setup.exe'
         MyrmAgent_x64.nsis.zip
-        '*x86_64*.nsis.zip'
         '*x64*.nsis.zip'
-        '*.nsis.zip'
         '*x86_64*.msi.zip'
-        '*x64*.msi.zip'
       )
       ;;
     linux-x86_64)

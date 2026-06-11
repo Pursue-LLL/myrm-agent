@@ -1,4 +1,4 @@
-# Rename Tauri nsis updater zip to stable OTA name (GHA Windows; Git Bash cannot glob D:/ paths).
+# Rename Tauri NSIS setup.exe to stable OTA name (GHA Windows; nsis.zip is ephemeral in Tauri v2).
 $ErrorActionPreference = 'Stop'
 
 $Root = if ($args.Count -ge 1 -and $args[0]) { $args[0] } else { 'myrm-agent-desktop/src-tauri/target' }
@@ -8,14 +8,15 @@ if (-not (Test-Path -LiteralPath $NsisDir)) {
     Write-Error "[rename-windows-updater-bundle] Directory not found: $NsisDir"
 }
 
-$Src = Get-ChildItem -Path $NsisDir -Filter '*-setup.nsis.zip' -File -ErrorAction SilentlyContinue |
+$Src = Get-ChildItem -Path $NsisDir -Filter '*-setup.exe' -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne 'MyrmAgent_x64-setup.exe' } |
     Select-Object -First 1
 
 if (-not $Src) {
-    Write-Error "[rename-windows-updater-bundle] No *-setup.nsis.zip under $NsisDir"
+    Write-Error "[rename-windows-updater-bundle] No *-setup.exe under $NsisDir"
 }
 
-$Dst = Join-Path $NsisDir 'MyrmAgent_x64.nsis.zip'
+$Dst = Join-Path $NsisDir 'MyrmAgent_x64-setup.exe'
 if (Test-Path -LiteralPath $Dst) {
     Write-Error "[rename-windows-updater-bundle] Destination already exists: $Dst"
 }
@@ -28,4 +29,4 @@ if (Test-Path -LiteralPath $SigSrc) {
     Move-Item -LiteralPath $SigSrc -Destination $SigDst
 }
 
-Write-Host "[rename-windows-updater-bundle] $($Src.Name) -> MyrmAgent_x64.nsis.zip"
+Write-Host "[rename-windows-updater-bundle] $($Src.Name) -> MyrmAgent_x64-setup.exe"

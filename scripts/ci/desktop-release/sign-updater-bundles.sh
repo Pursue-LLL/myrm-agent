@@ -27,6 +27,7 @@ while IFS= read -r line; do
 done < <(
   bash "${SCRIPT_DIR}/bundle-find.sh" "$ROOT" -type f \( \
     -name '*.tar.gz' -o -name '*.nsis.zip' -o -name '*.msi.zip' -o -name '*.AppImage.tar.gz' \
+    -o -path '*/nsis/*-setup.exe' \
   \) | sort -u
 )
 

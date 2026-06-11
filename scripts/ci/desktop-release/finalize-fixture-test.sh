@@ -24,9 +24,8 @@ echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz"
 echo "sig-aarch64" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz"
 echo "sig-x64" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz.sig"
-echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip"
-echo "sig-win" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip.sig"
-echo "placeholder" >"$FIXTURE_ASSETS/setup.exe"
+echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64-setup.exe"
+echo "sig-win" >"$FIXTURE_ASSETS/MyrmAgent_x64-setup.exe.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz"
 echo "sig-linux" >"$FIXTURE_ASSETS/MyrmAgent_0.1.33_amd64.AppImage.tar.gz.sig"
 
@@ -49,8 +48,8 @@ sig="$(read_asset_signature "$aarch64_asset")"
 }
 
 win_asset="$(pick_platform_asset windows-x86_64 "$FIXTURE_ASSETS")"
-[[ "$win_asset" == "MyrmAgent_x64.nsis.zip" ]] || {
-  echo "expected MyrmAgent_x64.nsis.zip, got ${win_asset}" >&2
+[[ "$win_asset" == "MyrmAgent_x64-setup.exe" ]] || {
+  echo "expected MyrmAgent_x64-setup.exe, got ${win_asset}" >&2
   exit 1
 }
 win_sig="$(read_asset_signature "$win_asset")"
