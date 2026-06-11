@@ -52,8 +52,9 @@ const MemoryEditDialog = memo<MemoryEditDialogProps>(({ memory, open, onOpenChan
 
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) setTags((prev) => [...prev, tag]);
-  }, [tags]);
+    if (!tag) return;
+    setTags((prev) => prev.includes(tag) ? prev : [...prev, tag]);
+  }, []);
 
   const removeTag = useCallback((tag: string) => {
     setTags((prev) => prev.filter((t) => t !== tag));

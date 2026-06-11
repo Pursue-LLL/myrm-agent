@@ -8,7 +8,7 @@ app.schemas.memory.crud::TasteSummaryResponse (POS: 记忆 API 通用 Schema 层
 app.schemas.memory.archive::*Import* / *Archive* (POS: 记忆归档与导入 API Schema 层)
 
 [OUTPUT]
-memory CRUD handler functions、状态变更、偏好摘要、偏好管理、服务端绑定导入、Memory Archive、导入后诊断和回滚预演端点
+memory CRUD handler functions、状态变更、偏好摘要、偏好管理、标签统计、服务端绑定导入、Memory Archive、导入后诊断和回滚预演端点
 
 [POS]
 记忆 API 操作层。提供标准记忆增删改查、偏好稳定性管理、单用户 archive 导出/校验，

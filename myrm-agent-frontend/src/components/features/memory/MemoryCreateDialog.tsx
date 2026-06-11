@@ -62,16 +62,22 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
     }
   }, [open]);
 
+  const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   const addTag = useCallback((raw: string) => {
     const tag = raw.trim().toLowerCase();
-    if (tag && !form.tags.includes(tag)) {
-      updateField('tags', [...form.tags, tag]);
-    }
-  }, [form.tags, updateField]);
+    if (!tag) return;
+    setForm((prev) => {
+      if (prev.tags.includes(tag)) return prev;
+      return { ...prev, tags: [...prev.tags, tag] };
+    });
+  }, []);
 
   const removeTag = useCallback((tag: string) => {
-    updateField('tags', form.tags.filter((t) => t !== tag));
-  }, [form.tags, updateField]);
+    setForm((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
+  }, []);
 
   const handleTagKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
@@ -82,10 +88,6 @@ const MemoryCreateDialog = memo<MemoryCreateDialogProps>(({ open, onOpenChange }
       removeTag(form.tags[form.tags.length - 1]);
     }
   }, [tagInput, form.tags, addTag, removeTag]);
-
-  const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }, []);
 
   const isValid = (() => {
     switch (form.memory_type) {

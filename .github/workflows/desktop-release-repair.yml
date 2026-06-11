@@ -35,22 +35,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: bash scripts/ci/desktop-release/verify-release.sh
-
-  redeploy-website:
-    name: Redeploy marketing site (website-v* tag)
-    needs: refinalize
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Trigger brand tag and Cloudflare deploy
-        env:
-          DESKTOP_TAG: ${{ inputs.tag }}
-          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
-          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
-        run: |
-          if [[ -z "${BRAND_RELEASE_PAT:-}" || -z "${CF_PAGES_DEPLOY_HOOK:-}" ]]; then
-            echo "[repair] BRAND_RELEASE_PAT/CF_PAGES_DEPLOY_HOOK not set; push website-v* on brand manually."
-            exit 0
-          fi
-          REQUIRE_WEBSITE_DEPLOY=true bash scripts/ci/desktop-release/trigger-website-release.sh

@@ -21,8 +21,8 @@
 | `collect-bundle-assets.sh` | `find` + `bundle-paths` 收集 release/bundle 资产供 `gh release upload` |
 | `prune-frontend-linuxmusl.sh` | Linux AppImage 前剔除 standalone 内 `@img/sharp-linuxmusl-*` 等，避免 linuxdeploy 缺 `libc.musl-x86_64.so.1` |
 | `linux-appimage-sidecar-workaround.sh` | dummy-swap（tauri#11898）：bundling 用 gcc stub，打包后换回 Bun/PyInstaller 真 sidecar 并 repack |
-| `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
-| `.github/workflows/desktop-release-repair.yml` | `workflow_dispatch`：对已有 tag 重跑 finalize + verify + website（无需全平台 rebuild） |
+| `bundle-find.sh` | GHA Windows 强制 `/usr/bin/find`（规避 System32/find.exe） |
+| `.github/workflows/desktop-release-repair.yml` | `workflow_dispatch`：对已有 tag 重跑 finalize + verify（无需全平台 rebuild） |
 
 ## Workflow jobs
 
@@ -34,25 +34,22 @@
 | `build-windows` | Windows 追加资产（finalize 门禁平台） |
 | `build-linux` | Linux 仅 `--bundles appimage`（官网分发所需；不阻塞 finalize） |
 | `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify |
-| `deploy-website` | secrets 已配时：brand `website-v*` tag + CF hook（不阻塞 OTA） |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
-| `redeploy-website-after-linux` | secrets 已配时：Linux 资产上线后 redeploy |
 
-`trigger-website-release.sh`：`deploy-website` job 内 `REQUIRE_WEBSITE_DEPLOY=true`。agent 仓未配 `BRAND_RELEASE_PAT`/`CF_PAGES_DEPLOY_HOOK` 时跳过该 job；改在 brand 仓打 `website-v*` tag（`website-release.yml` 含 `CF_PAGES_DEPLOY_HOOK`）。
+**官网部署（brand 仓，非 agent CI）**：desktop `v*` Release 完成后，在 `myrm-agent-brand` 打 `website-v{semver}` tag → `website-release.yml` preflight bake + POST `CF_PAGES_DEPLOY_HOOK`；或本地 `bun run release:website -- website-v*`。
 
-`collect-bundle-assets.sh`：`find` 收集 bundle 资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
+`collect-bundle-assets.sh`：`bundle-find.sh` + `bundle-paths` 收集资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
 
 ## Secrets（myrm-agent 仓库）
 
 | Secret | 用途 |
 |--------|------|
-| `BRAND_RELEASE_PAT` | 对 `Pursue-LLL/myrm-agent-brand` contents:write；未配置时 `deploy-website` skip |
-| `CF_PAGES_DEPLOY_HOOK` | Cloudflare Pages hook；未配置时 `deploy-website` skip（改在 brand 仓打 `website-v*`） |
 | `TAURI_SIGNING_PRIVATE_KEY` | Tauri updater 包签名；与 `tauri.conf.json#plugins.updater.pubkey` 成对 |
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。ARM 保留 `MyrmAgent.app.tar.gz`；Intel 上传前重命名为 `MyrmAgent_x64.app.tar.gz`；Windows 上传前重命名为 `MyrmAgent_x64.nsis.zip`（避免 Intel `--clobber` 覆盖 ARM OTA 包、Win `find -path` 漏收集）。`pick-platform-asset.sh` 的 glob 必须加引号。不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。ARM 保留 `MyrmAgent.app.tar.gz`；Intel 上传前重命名为 `MyrmAgent_x64.app.tar.gz`；Windows 上传前重命名为 `MyrmAgent_x64.nsis.zip`（避免 Intel `--clobber` 覆盖 ARM OTA 包、Win `find.exe` 漏收集）。`pick-platform-asset.sh` 的 glob 必须加引号。不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh` + `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
+
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖

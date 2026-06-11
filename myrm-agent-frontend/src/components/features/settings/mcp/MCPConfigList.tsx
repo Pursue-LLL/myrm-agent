@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   IconLoader,
   IconPencil,
@@ -73,6 +73,13 @@ export function MCPConfigList({
   const { toast } = useToast();
   const [oauthStatus, setOauthStatus] = useState<MCPOAuthStatusMap>({});
   const [oauthLoading, setOauthLoading] = useState<string | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const hasOAuthConfigs = configs.some((c) => c.oauth?.clientId);
@@ -87,7 +94,8 @@ export function MCPConfigList({
       if (!config.oauth?.clientId) return;
       setOauthLoading(config.name);
       try {
-        const backendCallbackUrl = `${BACKEND_BASE_URL}/api/v1/integrations/mcp/oauth/callback`;
+        const callbackBase = BACKEND_BASE_URL || window.location.origin;
+        const backendCallbackUrl = `${callbackBase}/api/v1/integrations/mcp/oauth/callback`;
         const resp = await startMCPOAuth({
           server_name: config.name,
           authorization_endpoint: config.oauth.authorizationEndpoint,
@@ -109,9 +117,11 @@ export function MCPConfigList({
         const POLL_TIMEOUT_MS = 5 * 60 * 1000;
         const startTime = Date.now();
 
-        const pollTimer = setInterval(async () => {
+        if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+        pollTimerRef.current = setInterval(async () => {
           if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            clearInterval(pollTimer);
+            clearInterval(pollTimerRef.current!);
+            pollTimerRef.current = null;
             setOauthLoading(null);
             toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             return;
@@ -119,7 +129,8 @@ export function MCPConfigList({
           try {
             const statusRes = await checkMCPOAuthStateStatus(resp.state);
             if (statusRes.status === 'success') {
-              clearInterval(pollTimer);
+              clearInterval(pollTimerRef.current!);
+              pollTimerRef.current = null;
               setOauthStatus((prev) => ({
                 ...prev,
                 [config.name]: { connected: true, expired: false, scope: config.oauth?.scope || null },
@@ -127,12 +138,13 @@ export function MCPConfigList({
               setOauthLoading(null);
               toast({ title: t('mcpOAuthSuccess') || 'OAuth Connected' });
             } else if (statusRes.status === 'expired_or_invalid') {
-              clearInterval(pollTimer);
+              clearInterval(pollTimerRef.current!);
+              pollTimerRef.current = null;
               setOauthLoading(null);
               toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             }
           } catch {
-            // polling errors are transient, continue
+            // transient polling errors, continue
           }
         }, POLL_INTERVAL_MS);
       } catch {

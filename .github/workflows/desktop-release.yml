@@ -453,30 +453,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: bash scripts/ci/desktop-release/verify-release.sh
 
-  deploy-website:
-    name: Deploy marketing site (website-v* tag + CF hook)
-    needs: finalize-release
-    if: >-
-      needs.finalize-release.result == 'success' &&
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Trigger brand tag and Cloudflare deploy
-        env:
-          DESKTOP_TAG: ${{ github.ref_name }}
-          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
-          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
-        run: |
-          if [[ -z "${BRAND_RELEASE_PAT:-}" || -z "${CF_PAGES_DEPLOY_HOOK:-}" ]]; then
-            echo "[deploy-website] BRAND_RELEASE_PAT/CF_PAGES_DEPLOY_HOOK not set on myrm-agent; skipping."
-            echo "[deploy-website] Push website-v* tag on myrm-agent-brand to deploy (see scripts/ci/desktop-release/_ARCH.md)."
-            exit 0
-          fi
-          REQUIRE_WEBSITE_DEPLOY=true bash scripts/ci/desktop-release/trigger-website-release.sh
-
   refinalize-after-linux:
     name: Refinalize manifest after Linux upload
     needs:
@@ -504,26 +480,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: bash scripts/ci/desktop-release/verify-release.sh
-
-  redeploy-website-after-linux:
-    name: Redeploy marketing site after Linux
-    needs: refinalize-after-linux
-    if: >-
-      needs.refinalize-after-linux.result == 'success' &&
-      github.event_name == 'push' &&
-      startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Trigger brand tag and Cloudflare deploy
-        env:
-          DESKTOP_TAG: ${{ github.ref_name }}
-          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
-          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
-        run: |
-          if [[ -z "${BRAND_RELEASE_PAT:-}" || -z "${CF_PAGES_DEPLOY_HOOK:-}" ]]; then
-            echo "[redeploy-website-after-linux] Secrets not set; skipping (push website-v* on brand manually)."
-            exit 0
-          fi
-          REQUIRE_WEBSITE_DEPLOY=true bash scripts/ci/desktop-release/trigger-website-release.sh

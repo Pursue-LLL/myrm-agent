@@ -143,7 +143,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
               client_id: oauthCfg.client_id,
               client_secret: oauthCfg.client_secret,
               scope: oauthCfg.scope,
-              redirect_uri: `${BACKEND_BASE_URL}/api/v1/integrations/mcp/oauth/callback`,
+              redirect_uri: `${BACKEND_BASE_URL || window.location.origin}/api/v1/integrations/mcp/oauth/callback`,
             }),
           });
 
