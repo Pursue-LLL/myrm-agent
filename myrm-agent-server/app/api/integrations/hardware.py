@@ -36,6 +36,9 @@ _VENDOR_FACTOR: dict[str, float] = {
     "unknown": 0.60,
 }
 
+# Numeric priority for each fit level used in multi-key recommendation sort.
+_FIT_PRIORITY: dict[str, int] = {"perfect": 3, "good": 2, "fair": 1, "poor": 0}
+
 
 async def _get_cached_hardware_profile() -> object | None:
     """获取硬件探针结果（带内存缓存，避免阻塞事件循环）"""
@@ -196,9 +199,6 @@ async def get_hardware_recommendations() -> JSONResponse:
 
     bandwidth_gbps: float | None = getattr(profile, "memory_bandwidth_gbps", None)
     gpu_vendor: str = getattr(profile, "gpu_vendor", "unknown") or "unknown"
-
-    # fit_level priority map for sorting: higher → better
-    _FIT_PRIORITY = {"perfect": 3, "good": 2, "fair": 1, "poor": 0}
 
     recommendations = []
     for spec in model_specs:
