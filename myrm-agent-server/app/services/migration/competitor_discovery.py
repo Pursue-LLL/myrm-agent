@@ -8,8 +8,8 @@ DiscoveryResult: list of detected competitor data sources with confidence scorin
 
 [POS]
 Local/Tauri-only service that scans the user's home directory for competitor
-AI assistant data (Hermes, Claude Code, OpenClaw, Cursor, Codex). SaaS mode
-cannot access user filesystems, so this service only runs in local deployments.
+AI assistant data (Hermes, Claude Code, OpenClaw, Cursor, Codex, Windsurf, Trae).
+SaaS mode cannot access user filesystems, so this service only runs in local deployments.
 """
 
 from __future__ import annotations
@@ -148,6 +148,14 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
     codex = _discover_codex(home)
     if codex:
         result.sources.append(codex)
+
+    windsurf = _discover_windsurf(home)
+    if windsurf:
+        result.sources.append(windsurf)
+
+    trae = _discover_trae(home)
+    if trae:
+        result.sources.append(trae)
 
     return result
 
@@ -396,3 +404,74 @@ def _discover_openclaw_workspace_dirs(root: Path) -> list[Path]:
     except OSError:
         return dirs
     return dirs
+
+
+def _discover_windsurf(explicit_home: Path | None) -> CompetitorSource | None:
+    """Detect Windsurf global rules at ~/.codeium/windsurf/memories/."""
+
+    candidates = _get_search_paths("WINDSURF_HOME", "Windsurf", ".codeium", explicit_home)
+    root = None
+    for candidate in candidates:
+        windsurf_dir = candidate / "windsurf" if candidate.name != "windsurf" else candidate
+        if windsurf_dir.is_dir():
+            root = windsurf_dir
+            break
+    if not root:
+        return None
+
+    source = CompetitorSource(competitor="windsurf", root=str(root))
+
+    memories_dir = root / "memories"
+    if memories_dir.is_dir():
+        global_rules = memories_dir / "global_rules.md"
+        if global_rules.is_file():
+            source.files.append(
+                DiscoveredFile(path=str(global_rules), kind="global_rule", size_bytes=global_rules.stat().st_size)
+            )
+            source.memory_count_estimate = _count_md_bullets(global_rules)
+
+    rules_dir = root / "rules"
+    if rules_dir.is_dir():
+        rule_files = [f for f in rules_dir.iterdir() if f.suffix == ".md" and f.is_file()]
+        for f in rule_files:
+            source.files.append(DiscoveredFile(path=str(f), kind="rule", size_bytes=f.stat().st_size))
+        source.skill_count += len(rule_files)
+
+    source.confidence = "high" if source.skill_count >= 2 or source.memory_count_estimate > 0 else "medium" if source.files else "low"
+    return source if source.confidence != "low" else None
+
+
+def _discover_trae(explicit_home: Path | None) -> CompetitorSource | None:
+    """Detect Trae global rules at ~/.trae/rules/ and ~/.trae-cn/rules/."""
+
+    trae_editions = [
+        ("TRAE_HOME", "Trae", ".trae"),
+        ("TRAE_CN_HOME", "Trae", ".trae-cn"),
+    ]
+    root = None
+    for env_var, app_name, dot_dir in trae_editions:
+        candidates = _get_search_paths(env_var, app_name, dot_dir, explicit_home)
+        for candidate in candidates:
+            if candidate.is_dir():
+                root = candidate
+                break
+        if root:
+            break
+    if not root:
+        return None
+
+    source = CompetitorSource(competitor="trae", root=str(root))
+
+    rules_dir = root / "rules"
+    if rules_dir.is_dir():
+        rule_files = [f for f in rules_dir.iterdir() if f.suffix == ".md" and f.is_file()]
+        for f in rule_files:
+            source.files.append(DiscoveredFile(path=str(f), kind="rule", size_bytes=f.stat().st_size))
+        source.skill_count += len(rule_files)
+
+    skills_dir = root / "skills"
+    if skills_dir.is_dir():
+        source.skill_count += sum(1 for entry in skills_dir.iterdir() if entry.is_dir())
+
+    source.confidence = "high" if source.skill_count >= 2 else "medium" if source.files or source.skill_count > 0 else "low"
+    return source if source.confidence != "low" else None
