@@ -38,11 +38,13 @@ case "$PLATFORM" in
     done
     ;;
   windows)
-    while IFS= read -r src; do
-      [[ -n "$src" ]] || continue
+    for src in \
+      "$ROOT"/release/bundle/nsis/*-setup.nsis.zip \
+      "$ROOT"/*/release/bundle/nsis/*-setup.nsis.zip; do
+      [[ -f "$src" ]] || continue
       rename_pair "$src" "$(dirname "$src")/MyrmAgent_x64.nsis.zip"
       renamed=1
-    done < <(find "$ROOT" -type f -name '*-setup.nsis.zip' 2>/dev/null || true)
+    done
     ;;
   *)
     echo "[rename-updater-bundles] unknown platform: ${PLATFORM}" >&2
@@ -52,6 +54,7 @@ esac
 
 if [[ "$renamed" -eq 0 ]]; then
   echo "[rename-updater-bundles] ERROR: no ${PLATFORM} updater bundle renamed under ${ROOT}" >&2
-  find "$ROOT" -maxdepth 10 -type f -name '*.nsis.zip' -o -name '*.tar.gz' 2>/dev/null | head -20 >&2 || true
+  ls -la "$ROOT/release/bundle/nsis" 2>/dev/null >&2 || true
+  ls -la "$ROOT"/*/release/bundle/nsis 2>/dev/null >&2 || true
   exit 1
 fi

@@ -19,7 +19,7 @@ while IFS= read -r line; do
   is_release_bundle_path "$line" || continue
   files+=("$line")
 done < <(
-  find "$ROOT" -type f \( \
+  bash "${SCRIPT_DIR}/bundle-find.sh" "$ROOT" -type f \( \
     -name '*.dmg' -o -name '*.exe' -o -name '*.msi' \
     -o -name '*.nsis.zip' -o -name '*.msi.zip' \
     -o -name '*.AppImage' -o -name '*.AppImage.tar.gz' \

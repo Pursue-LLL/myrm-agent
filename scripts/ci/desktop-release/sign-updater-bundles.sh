@@ -24,7 +24,7 @@ while IFS= read -r line; do
   is_updater_bundle_path "$line" || continue
   bundles+=("$line")
 done < <(
-  find "$ROOT" -type f \( \
+  bash "${SCRIPT_DIR}/bundle-find.sh" "$ROOT" -type f \( \
     -name '*.tar.gz' -o -name '*.nsis.zip' -o -name '*.msi.zip' -o -name '*.AppImage.tar.gz' \
   \) | sort -u
 )
