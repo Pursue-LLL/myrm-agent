@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Cpu, HardDrive, Monitor, AlertTriangle, Download, Loader2, X, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
@@ -19,6 +20,7 @@ interface HardwareRecommendation {
   fit_score: number;
   fit_level: 'perfect' | 'good' | 'fair' | 'poor';
   is_installed?: boolean;
+  est_tok_per_sec?: number | null; // integer tok/s estimate; null when GPU bandwidth unknown
 }
 
 interface HardwareProfile {
@@ -186,7 +188,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       await fetchHardwareProfile();
     } catch (err) {
       console.error('Delete failed:', err);
-      alert(t('deleteFailed'));
+      toast.error(t('deleteFailed'));
     } finally {
       setDeletingModel(null);
     }
@@ -340,6 +342,15 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                         <HardDrive className="w-3 h-3" />
                         {t('reqVram')}: {rec.req_vram_gb} GB
                       </span>
+                      {rec.est_tok_per_sec != null && (
+                        <span className={`font-medium tabular-nums ${
+                          rec.est_tok_per_sec >= 20 ? 'text-green-600 dark:text-green-400' :
+                          rec.est_tok_per_sec >= 8 ? 'text-yellow-600 dark:text-yellow-400' :
+                          'text-red-600 dark:text-red-400'
+                        }`}>
+                          ~{rec.est_tok_per_sec} tok/s
+                        </span>
+                      )}
                     </div>
                   </div>
 

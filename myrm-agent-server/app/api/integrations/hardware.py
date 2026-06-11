@@ -17,6 +17,25 @@ logger = logging.getLogger(__name__)
 _HARDWARE_PROFILE_CACHE: tuple[float, object] | None = None
 _HARDWARE_PROFILE_LOCK = asyncio.Lock()
 
+# Bytes per weight for Q4_K_M quantization (dominant Ollama default format).
+# GGUF spec: 4-bit quant ≈ 0.5 B/W + K-quant overhead → 0.5625 B/W.
+_Q4_K_M_BYTES_PER_WEIGHT: float = 0.5625
+
+# Empirical efficiency: real-world throughput vs. theoretical peak bandwidth.
+# Accounts for KV cache I/O, CPU-GPU sync, tokenizer, and framework overhead.
+_EFFICIENCY: float = 0.55
+
+# Vendor-specific calibration from community benchmark data.
+# Apple's tight memory controller yields ~82% of theoretical; AMD ROCm and
+# Intel Arc carry higher driver overhead than NVIDIA CUDA.
+_VENDOR_FACTOR: dict[str, float] = {
+    "apple": 0.82,
+    "nvidia": 1.00,
+    "amd": 0.78,
+    "intel": 0.65,
+    "unknown": 0.60,
+}
+
 
 async def _get_cached_hardware_profile() -> object | None:
     """获取硬件探针结果（带内存缓存，避免阻塞事件循环）"""
@@ -103,6 +122,22 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     return StreamingResponse(_stream_pull(), media_type="application/x-ndjson")
 
 
+def _estimate_tok_per_sec(bandwidth_gbps: float | None, params_b: float, vendor: str) -> int | None:
+    """Estimate inference throughput (tokens/s) for a Q4_K_M quantized LLM.
+
+    Formula:  tok/s = (bandwidth_GBps * 1e9) / (params_b * 1e9 * bytes_per_weight)
+                       * efficiency * vendor_factor
+
+    Returns None when bandwidth is unavailable (GPU not in lookup table).
+    """
+    if bandwidth_gbps is None or bandwidth_gbps <= 0 or params_b <= 0:
+        return None
+    raw = (bandwidth_gbps * 1e9) / (params_b * 1e9 * _Q4_K_M_BYTES_PER_WEIGHT)
+    vendor_factor = _VENDOR_FACTOR.get(vendor, _VENDOR_FACTOR["unknown"])
+    # Return integer tok/s — sub-1 precision is noise given ~15% estimation error
+    return max(1, round(raw * _EFFICIENCY * vendor_factor))
+
+
 class HardwareRecommendationResponse(BaseModel):
     """硬件推荐响应"""
 
@@ -147,9 +182,13 @@ async def get_hardware_recommendations() -> JSONResponse:
     else:
         available_vram = getattr(profile, "total_ram_gb", 0.0) * 0.5
 
+    bandwidth_gbps: float | None = getattr(profile, "memory_bandwidth_gbps", None)
+    gpu_vendor: str = getattr(profile, "gpu_vendor", "unknown") or "unknown"
+
     recommendations = []
     for spec in model_specs:
         req_vram = float(spec["req_vram_gb"])
+        params_b = float(spec.get("params_b", 0.0))
         model_id = spec["id"]
 
         ollama_model_name = model_id.split("/")[-1] if "/" in model_id else model_id
@@ -171,6 +210,8 @@ async def get_hardware_recommendations() -> JSONResponse:
             score = int(ratio * 50)
             fit_level = "poor"
 
+        est_tok_per_sec = _estimate_tok_per_sec(bandwidth_gbps, params_b, gpu_vendor) if params_b > 0 else None
+
         recommendations.append(
             {
                 "model_id": model_id,
@@ -181,6 +222,7 @@ async def get_hardware_recommendations() -> JSONResponse:
                 "fit_score": score,
                 "fit_level": fit_level,
                 "is_installed": is_installed,
+                "est_tok_per_sec": est_tok_per_sec,
             }
         )
 

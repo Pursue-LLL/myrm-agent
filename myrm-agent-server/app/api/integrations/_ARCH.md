@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | External integrations API module | ✅ |
 | `catalog.py` | 模块 | Integration Catalog API endpoints. | ✅ |
-| `hardware.py` | 模块 | 获取硬件探针结果（带内存缓存，避免阻塞事件循环） | ✅ |
+| `hardware.py` | 模块 | 硬件推荐 API：检测本地硬件、估算 Tokens/s 并生成 Ollama 模型适配度推荐，含 Ollama pull/delete 代理端点。 | ✅ |
 | `im_contacts.py` | 模块 | Lightweight search users API for IM group management. | ✅ |
 | `integration_memory.py` | 模块 | REST API layer for Integration Memory. | ✅ |
 | `llms.py` | 模块 | LLM验证请求模型 | ✅ |
