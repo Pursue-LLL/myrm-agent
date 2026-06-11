@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="${1:-myrm-agent-desktop/src-tauri/target}"
+ROOT="${ROOT//\\//}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=bundle-paths.sh
 source "${SCRIPT_DIR}/bundle-paths.sh"
