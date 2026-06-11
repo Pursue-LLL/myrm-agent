@@ -99,6 +99,21 @@ def test_estimate_tok_per_sec_active_params_ignored_when_zero_or_none():
     assert result_zero == result_baseline
 
 
+def test_estimate_tok_per_sec_negative_active_params_falls_back():
+    """Negative active_params_b should fall back to params_b, not produce negative TPS."""
+    result = _estimate_tok_per_sec(200.0, 8.0, "apple", active_params_b=-5.0)
+    baseline = _estimate_tok_per_sec(200.0, 8.0, "apple")
+    assert result == baseline
+
+
+def test_estimate_tok_per_sec_negative_bandwidth_returns_none():
+    assert _estimate_tok_per_sec(-100.0, 8.0, "nvidia") is None
+
+
+def test_estimate_tok_per_sec_negative_params_returns_none():
+    assert _estimate_tok_per_sec(200.0, -3.0, "nvidia") is None
+
+
 # --- API integration tests ---
 
 @pytest.mark.asyncio
