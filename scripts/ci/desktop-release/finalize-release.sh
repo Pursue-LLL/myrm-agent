@@ -62,11 +62,11 @@ pick_platform_asset() {
       candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
       ;;
     windows-x86_64)
-      # Prefer Tauri updater bundles (.nsis.zip) over raw installers for OTA.
-      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip *x86_64*.msi *x64*.msi *setup*.exe *x86_64*.exe)
+      # OTA only: Tauri updater bundles (.nsis.zip). Installers (.exe/.msi) are manual-download only.
+      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip)
       ;;
     linux-x86_64)
-      candidates=(*x86_64*.AppImage.tar.gz *amd64*.AppImage.tar.gz *.AppImage.tar.gz *x86_64*.AppImage *amd64*.AppImage *x86_64*.deb)
+      candidates=(*x86_64*.AppImage.tar.gz *amd64*.AppImage.tar.gz *.AppImage.tar.gz)
       ;;
     *)
       return 1

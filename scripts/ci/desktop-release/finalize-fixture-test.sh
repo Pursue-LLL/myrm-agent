@@ -22,7 +22,7 @@ pick_platform_asset() {
       candidates=(*x86_64*.tar.gz *x64*.tar.gz *intel*.tar.gz)
       ;;
     windows-x86_64)
-      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip *x86_64*.msi *x64*.msi *setup*.exe *x86_64*.exe)
+      candidates=(*x86_64*.nsis.zip *x64*.nsis.zip *.nsis.zip *x86_64*.msi.zip *x64*.msi.zip)
       ;;
     *)
       return 1
@@ -49,6 +49,8 @@ echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz"
 echo "sig-aarch64" >"$FIXTURE_ASSETS/MyrmAgent.app.tar.gz.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz"
 echo "sig-x64" >"$FIXTURE_ASSETS/MyrmAgent_x64.app.tar.gz.sig"
+echo "placeholder" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip"
+echo "sig-win" >"$FIXTURE_ASSETS/MyrmAgent_x64.nsis.zip.sig"
 echo "placeholder" >"$FIXTURE_ASSETS/setup.exe"
 
 aarch64_asset="$(pick_platform_asset darwin-aarch64)"
@@ -69,12 +71,15 @@ sig="$(read_asset_signature "$aarch64_asset")"
   exit 1
 }
 
-# Win exe without .sig must be skipped by OTA policy (no signature file present).
 win_asset="$(pick_platform_asset windows-x86_64)"
-[[ "$win_asset" == "setup.exe" ]]
-if read_asset_signature "$win_asset" >/dev/null 2>&1; then
-  echo "setup.exe should not have a signature fixture" >&2
+[[ "$win_asset" == "MyrmAgent_x64.nsis.zip" ]] || {
+  echo "expected MyrmAgent_x64.nsis.zip, got ${win_asset}" >&2
   exit 1
-fi
+}
+win_sig="$(read_asset_signature "$win_asset")"
+[[ "$win_sig" == "sig-win" ]] || {
+  echo "unexpected windows signature: ${win_sig}" >&2
+  exit 1
+}
 
 echo "[finalize-fixture-test] OK"

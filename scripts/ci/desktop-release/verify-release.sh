@@ -35,6 +35,22 @@ if [[ "$missing_sig" -ne 0 ]]; then
   exit 1
 fi
 
+invalid_ota_url=0
+while IFS= read -r key; do
+  [[ -n "$key" ]] || continue
+  url="$(jq -r --arg k "$key" '.platforms[$k].url // empty' <<<"$manifest")"
+  case "$url" in
+    *.tar.gz|*.nsis.zip|*.AppImage.tar.gz) ;;
+    *)
+      echo "[verify-release] invalid OTA artifact URL for ${key}: ${url}" >&2
+      invalid_ota_url=1
+      ;;
+  esac
+done < <(jq -r '.platforms | keys[]' <<<"$manifest")
+if [[ "$invalid_ota_url" -ne 0 ]]; then
+  exit 1
+fi
+
 release_json="$(gh release view "$TAG" --repo "$REPO" --json assets)"
 asset_names="$(jq -r '.assets[].name' <<<"$release_json")"
 
