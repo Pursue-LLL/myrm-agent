@@ -20,6 +20,7 @@ import logging
 from collections import defaultdict
 
 from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
+from myrm_agent_harness.agent.file_snapshot.external_effect_detector import detect_external_effects
 from myrm_agent_harness.agent.file_snapshot.protocols import FileSnapshotProtocol
 from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
@@ -70,8 +71,15 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if self._snapshotted_turns.get(cache_key):
             return
 
+        metadata: dict[str, object] | None = None
+        if action_type == "bash":
+            command = payload.get("command", "")
+            effects = detect_external_effects(command)
+            if effects:
+                metadata = {"external_effects": effects}
+
         snapshot_task = asyncio.create_task(
-            self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key)
+            self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key, metadata)
         )
 
         try:
@@ -82,7 +90,14 @@ class SnapshotInterceptor(ExecutionInterceptor):
             logger.warning("Snapshot creation error: %s", e)
 
     async def _safe_snapshot_with_lock(
-        self, workspace_path: str, action_type: str, chat_id: str, agent_id: str, turn_id: str, cache_key: tuple[str, str]
+        self,
+        workspace_path: str,
+        action_type: str,
+        chat_id: str,
+        agent_id: str,
+        turn_id: str,
+        cache_key: tuple[str, str],
+        metadata: dict[str, object] | None = None,
     ) -> None:
         """Acquire lock and perform snapshot safely."""
         lock = _workspace_locks[workspace_path]
@@ -101,6 +116,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
                     working_dir=workspace_path,
                     trigger=trigger,
                     description=description,
+                    metadata=metadata,
                 )
 
                 self._snapshotted_turns[cache_key] = True

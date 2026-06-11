@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { RotateCcw, Eye, Trash } from 'lucide-react';
+import { RotateCcw, Eye, Trash, AlertTriangle } from 'lucide-react';
 import { FileSnapshotInfo } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -44,6 +44,15 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
               {triggerLabel}
             </span>
+            {snapshot.externalEffects?.length > 0 && (
+              <span
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                title={t('externalEffectsTooltip', { effects: snapshot.externalEffects.join(', ') })}
+              >
+                <AlertTriangle className="w-3 h-3" />
+                {t('externalEffects')}
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">
               {t('filesCount', { count: snapshot.fileCount })}
             </span>
@@ -58,27 +67,34 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
 
       <div className="flex items-center gap-2">
         {showConfirmRestore ? (
-          <>
-            <button
-              onClick={() => {
-                onRestore(snapshot.snapshotId);
-                setShowConfirmRestore(false);
-              }}
-              disabled={isLoading}
-              className={cn(
-                'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
-                'bg-green-500 hover:bg-green-600 text-white disabled:opacity-50',
-              )}
-            >
-              {t('confirmYes')}
-            </button>
-            <button
-              onClick={() => setShowConfirmRestore(false)}
-              className="px-2.5 py-1 text-xs rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
-            >
-              {t('confirmNo')}
-            </button>
-          </>
+          <div className="flex flex-col gap-1.5">
+            {snapshot.externalEffects?.length > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {t('restoreExternalWarning', { effects: snapshot.externalEffects.join(', ') })}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onRestore(snapshot.snapshotId);
+                  setShowConfirmRestore(false);
+                }}
+                disabled={isLoading}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
+                  'bg-green-500 hover:bg-green-600 text-white disabled:opacity-50',
+                )}
+              >
+                {t('confirmYes')}
+              </button>
+              <button
+                onClick={() => setShowConfirmRestore(false)}
+                className="px-2.5 py-1 text-xs rounded-full bg-secondary hover:bg-secondary/80 text-secondary-foreground"
+              >
+                {t('confirmNo')}
+              </button>
+            </div>
+          </div>
         ) : (
           <button
             onClick={() => setShowConfirmRestore(true)}

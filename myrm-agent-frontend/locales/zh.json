@@ -9906,7 +9906,10 @@
     "confirmRestore": "确定将 {count} 个文件恢复到快照状态吗？",
     "confirmYes": "确认恢复",
     "confirmNo": "取消",
-    "restoring": "恢复中..."
+    "restoring": "恢复中...",
+    "externalEffects": "外部操作",
+    "externalEffectsTooltip": "此快照包含外部操作（{effects}），文件回滚无法撤销这些操作",
+    "restoreExternalWarning": "⚠️ 此快照涉及外部操作（{effects}），文件恢复无法撤销这些变更"
   },
   "SkillOptimization": {
     "qualityScore": "质量评分",

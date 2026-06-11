@@ -29,6 +29,28 @@ async def _get_file_snapshot_store() -> FileSnapshotProtocol:
     return _file_snapshot_store
 
 
+async def _get_snapshot_external_effects(
+    store: FileSnapshotProtocol, snapshot_id: str
+) -> tuple[str, ...] | None:
+    """Retrieve external_effects from snapshot metadata via git log (best-effort).
+
+    Uses the store's internal git log parsing to find metadata for a specific commit.
+    Falls back gracefully if the store implementation doesn't support metadata.
+    """
+    try:
+        from myrm_agent_harness.agent.file_snapshot.shadow_git_store import ShadowGitSnapshotStore
+
+        if isinstance(store, ShadowGitSnapshotStore):
+            snap_info = await store.get_snapshot_info(snapshot_id)
+            if snap_info and snap_info.metadata:
+                effects = snap_info.metadata.get("external_effects", [])
+                if effects:
+                    return tuple(effects)
+    except Exception:
+        pass
+    return None
+
+
 class CheckpointInfo(BaseModel):
     """Checkpoint information response model."""
 
@@ -220,6 +242,7 @@ class FileSnapshotInfoResponse(BaseModel):
     created_at: float
     file_count: int
     description: str = ""
+    external_effects: list[str] = Field(default_factory=list)
 
 
 class FileSnapshotListResponse(BaseModel):
@@ -282,6 +305,7 @@ async def list_file_snapshots(
                 created_at=s.created_at,
                 file_count=s.file_count,
                 description=s.description,
+                external_effects=s.metadata.get("external_effects", []) if s.metadata else [],
             )
             for s in snapshots
         ]
@@ -302,8 +326,9 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
         result = await store.restore(request.snapshot_id, files=request.files)
 
         if result.success:
-            _notify_agent_of_restore(result.snapshot_id, result.files_restored, request.files)
-            _emit_restore_event(result.snapshot_id, result.files_restored)
+            external_effects = await _get_snapshot_external_effects(store, request.snapshot_id)
+            notify_agent_of_restore(result.snapshot_id, result.files_restored, request.files, external_effects)
+            emit_restore_event(result.snapshot_id, result.files_restored)
 
         return FileSnapshotRestoreResponse(
             success=result.success,

@@ -39,6 +39,7 @@ export interface FileSnapshotInfo {
   createdAt: number;
   fileCount: number;
   description: string;
+  externalEffects: string[];
 }
 
 export interface FileSnapshotListResponse {

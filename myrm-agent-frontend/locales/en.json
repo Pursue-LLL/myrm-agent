@@ -9938,7 +9938,10 @@
     "confirmRestore": "Restore {count} file(s) to snapshot state?",
     "confirmYes": "Confirm",
     "confirmNo": "Cancel",
-    "restoring": "Restoring..."
+    "restoring": "Restoring...",
+    "externalEffects": "External",
+    "externalEffectsTooltip": "This snapshot contains external operations ({effects}) that cannot be undone by file rollback",
+    "restoreExternalWarning": "⚠️ External operations ({effects}) were performed and cannot be undone by this restore"
   },
   "SkillOptimization": {
     "qualityScore": "Quality Score",

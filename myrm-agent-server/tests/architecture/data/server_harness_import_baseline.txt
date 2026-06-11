@@ -36,6 +36,7 @@ myrm_agent_harness.agent.file_snapshot.external_effect_detector
 myrm_agent_harness.agent.file_snapshot.local_store
 myrm_agent_harness.agent.file_snapshot.protocols
 myrm_agent_harness.agent.file_snapshot.restore_inbox
+myrm_agent_harness.agent.file_snapshot.shadow_git_store
 myrm_agent_harness.agent.file_snapshot.types
 myrm_agent_harness.agent.goals.manager
 myrm_agent_harness.agent.goals.protocols
