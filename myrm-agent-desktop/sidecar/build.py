@@ -240,9 +240,17 @@ def build_agent_runner():
     output_path = OUTPUT_DIR / binary_name
 
     target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
-    bun_target = "bun-darwin-arm64" if target_arch in ("arm64", "aarch64") else "bun-darwin-x64"
-    if SYSTEM != "darwin":
-        bun_target = f"bun-{SYSTEM}-x64" # Default for linux/windows
+    if SYSTEM == "darwin":
+        bun_target = (
+            "bun-darwin-arm64" if target_arch in ("arm64", "aarch64") else "bun-darwin-x64"
+        )
+    elif SYSTEM == "linux":
+        # glibc target; musl breaks linuxdeploy AppImage (libc.musl-x86_64.so.1 missing on Ubuntu).
+        bun_target = "bun-linux-x64"
+    elif SYSTEM == "windows":
+        bun_target = "bun-windows-x64"
+    else:
+        raise RuntimeError(f"Unsupported platform for agent-runner: {SYSTEM}")
 
     cmd = [
         "bun", "build",
