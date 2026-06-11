@@ -12,6 +12,8 @@ from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol, create_
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 from pydantic import BaseModel, Field
 
+from ._snapshot_notify import emit_restore_event, notify_agent_of_restore
+
 router = APIRouter(prefix="/checkpoint", tags=["checkpoint"])
 
 # Global instances
@@ -291,10 +293,16 @@ async def restore_file_snapshot(request: FileSnapshotRestoreRequest) -> FileSnap
     """Restore workspace to a file snapshot state.
 
     Automatically takes a pre-rollback snapshot before restoring.
+    Notifies the Agent of the rollback so it won't operate on stale context.
     """
     try:
         store = await _get_file_snapshot_store()
         result = await store.restore(request.snapshot_id, files=request.files)
+
+        if result.success:
+            _notify_agent_of_restore(result.snapshot_id, result.files_restored, request.files)
+            _emit_restore_event(result.snapshot_id, result.files_restored)
+
         return FileSnapshotRestoreResponse(
             success=result.success,
             snapshot_id=result.snapshot_id,
