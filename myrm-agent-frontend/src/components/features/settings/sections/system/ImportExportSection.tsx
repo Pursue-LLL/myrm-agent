@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import ConfigImportExport from '../../ConfigImportExport';
 import SettingsSection from '../SettingsSection';
+import DatasetExportCard from './DatasetExportCard';
 
 const ImportExportSection = memo(() => {
   const t = useTranslations('settings');
@@ -13,6 +14,7 @@ const ImportExportSection = memo(() => {
       <SettingsSection title={t('configImportExport')}>
         <ConfigImportExport />
       </SettingsSection>
+      <DatasetExportCard />
     </div>
   );
 });

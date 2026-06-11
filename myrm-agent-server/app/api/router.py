@@ -142,6 +142,11 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(eval_router, tags=["eval"])
 
+# Dataset export
+from app.api.datasets import router as datasets_router
+
+api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
+
 # Channels - webhook routes are dynamically registered via init_channel_routes() in main.py
 
 if is_local_mode():
