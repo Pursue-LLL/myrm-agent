@@ -4857,6 +4857,7 @@
       "partialFail": "{count} 个对话删除失败",
       "error": "批量删除失败"
     },
+    "openInNewWindow": "在新窗口中打开",
     "createAutomation": "创建自动化",
     "handoff": {
       "menuAction": "转移到...",

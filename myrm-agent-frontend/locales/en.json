@@ -4857,6 +4857,7 @@
       "partialFail": "{count} conversations failed to delete",
       "error": "Batch delete failed"
     },
+    "openInNewWindow": "Open in New Window",
     "createAutomation": "Create Automation",
     "handoff": {
       "menuAction": "Transfer to...",

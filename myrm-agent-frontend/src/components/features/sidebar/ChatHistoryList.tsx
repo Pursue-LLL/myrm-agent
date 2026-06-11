@@ -29,6 +29,7 @@ import ProjectBar from './ProjectBar';
 import { useBatchMode } from './useBatchMode';
 import { useChatActions } from './useChatActions';
 import { useProjectStore } from '@/store/useProjectStore';
+import { isTauriRuntime } from '@/lib/deploy-mode';
 
 interface ChatHistoryListProps {
   isExpanded: boolean;
@@ -58,6 +59,15 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
   const { activeFilter: projectFilter } = useProjectStore();
   const actions = useChatActions(chatHistoryItems, t);
   const batch = useBatchMode(chatHistoryItems, t);
+
+  const handleOpenInNewWindow = useCallback(async (chatId: string) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_session_window', { sessionId: chatId });
+    } catch (err) {
+      console.error('Failed to open session in new window:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -178,6 +188,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     onUnpin: actions.handleUnpin,
     onCreateAutomation: actions.handleCreateAutomation,
     onHandoff: actions.handleHandoff,
+    onOpenInNewWindow: isTauriRuntime() ? handleOpenInNewWindow : undefined,
     t,
   });
 

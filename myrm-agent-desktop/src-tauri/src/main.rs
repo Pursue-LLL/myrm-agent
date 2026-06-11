@@ -321,6 +321,8 @@ fn main() {
             show_pet_overlay,
             hide_pet_overlay,
             pet_overlay_set_row,
+            open_session_window,
+            close_session_window,
             tray::set_tray_status
         ])
         .build(tauri::generate_context!())

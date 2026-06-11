@@ -6,12 +6,17 @@ import useChatStore from '@/store/useChatStore';
 import { isTauri } from '@/lib/utils/clipboardUtils';
 
 /**
- * Register global Cmd/Ctrl+1~9 shortcuts to jump to pinned chats.
+ * Register global keyboard shortcuts for the application.
  *
- * - Tauri desktop: Cmd/Ctrl + 1~9  (browser tabs don't compete)
- * - Web browser:   Cmd/Ctrl + Shift + 1~9  (avoids conflicting with browser tab shortcuts)
+ * Platform-aware modifier handling:
+ * - Tauri desktop: Cmd/Ctrl + key  (no browser tab conflicts)
+ * - Web browser:   Cmd/Ctrl + Shift + key  (avoids browser-native shortcuts)
+ *
+ * Shortcuts:
+ * - Cmd/Ctrl + N:   Create new chat
+ * - Cmd/Ctrl + 1~9: Jump to pinned chat by position
  */
-export function usePinnedShortcuts() {
+export function useGlobalShortcuts() {
   const router = useRouter();
 
   useEffect(() => {
@@ -24,6 +29,14 @@ export function usePinnedShortcuts() {
       const needsShift = !isTauriEnv;
       if (needsShift && !e.shiftKey) return;
       if (!needsShift && e.shiftKey) return;
+
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        e.stopPropagation();
+        useChatStore.getState().initializeChat(undefined);
+        router.push('/');
+        return;
+      }
 
       // Use e.code (locale-independent) instead of e.key which changes with Shift on Mac (e.g. Shift+1 = '!')
       const match = e.code.match(/^Digit([1-9])$/);

@@ -22,7 +22,7 @@ import { ConfigState, SearchServiceConfig, SearchServiceConfigItem, MCPServiceCo
 import * as mcpManager from './config/mcp';
 import * as searchServiceManager from './config/searchService';
 import { invalidateLocalCapabilitiesProbeCache } from '@/services/localCapabilitiesProbe';
-import { normalizePublicIngressBaseUrl } from '@/lib/utils/urlUtils';
+import { isValidPublicIngressBaseUrl, normalizePublicIngressBaseUrl } from '@/lib/utils/urlUtils';
 import * as importExportManager from './config/importExport';
 import * as validation from './config/validation';
 import { migratePersonalSettingsMedia } from './config/providerIdentityMigration';
@@ -277,9 +277,11 @@ const useConfigStore = create<ConfigState>()(
       setPublicIngressBaseUrl: (url) => {
         const normalized = normalizePublicIngressBaseUrl(url ?? '');
         set({ publicIngressBaseUrl: normalized });
-        syncPersonalSettings({ publicIngressBaseUrl: normalized });
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('ingress-requirement-changed'));
+        if (!normalized || isValidPublicIngressBaseUrl(normalized)) {
+          syncPersonalSettings({ publicIngressBaseUrl: normalized });
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('ingress-requirement-changed'));
+          }
         }
       },
 

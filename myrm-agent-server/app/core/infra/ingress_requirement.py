@@ -96,7 +96,7 @@ async def _evaluate_ingress_requirement() -> IngressRequirementSnapshot:
             if mode == "inbound" and not has_ingress:
                 reasons.append(f"channel:{channel_name}")
 
-    from app.config.deploy_mode import get_deployment_capabilities
+    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
     from app.services.channels.cp_egress_client import SAAS_CP_CHANNELS
 
     if get_deployment_capabilities().is_sandbox_instance and not has_ingress:

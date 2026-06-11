@@ -12,7 +12,7 @@ import ContentSidebar from './ContentSidebar';
 import { PanelLeftOpen } from 'lucide-react';
 import { useTrayStatus } from '@/hooks/useTrayStatus';
 import { usePowerLock } from '@/hooks/usePowerLock';
-import { usePinnedShortcuts } from '@/hooks/usePinnedShortcuts';
+import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts';
 import { useResizableSidebar } from '@/hooks/useResizableSidebar';
 import { consumeMigrationChatAgent } from '@/lib/migrationChatHandoff';
 
@@ -80,7 +80,7 @@ function AppLayout({ children }: AppLayoutProps) {
   usePowerLock();
   useVisibilityThrottling();
   useTrayEvents();
-  usePinnedShortcuts();
+  useGlobalShortcuts();
 
   const handleSidebarCollapse = useCallback(() => {
     setIsSidebarCollapsed(true);

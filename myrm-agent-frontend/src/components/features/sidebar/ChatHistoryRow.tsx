@@ -21,6 +21,7 @@ import {
   ArrowRightLeft,
   FolderInput,
   FolderX,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -82,6 +83,7 @@ export interface ChatHistoryRowProps {
   onUnpin: (id: string) => void;
   onCreateAutomation?: (chatId: string, chatTitle: string) => void;
   onHandoff?: (chatId: string, chatTitle: string, source?: string) => void;
+  onOpenInNewWindow?: (chatId: string) => void;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -110,6 +112,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onUnpin,
     onCreateAutomation,
     onHandoff,
+    onOpenInNewWindow,
     t,
   }) => (
     <div className="relative flex items-start">
@@ -278,6 +281,15 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   >
                     <Pin size={isMobile ? 16 : 14} className="mr-2" />
                     {t('chat.pin.action')}
+                  </DropdownMenuItem>
+                )}
+                {onOpenInNewWindow && (
+                  <DropdownMenuItem
+                    onClick={() => onOpenInNewWindow(chat.id)}
+                    className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                  >
+                    <ExternalLink size={isMobile ? 16 : 14} className="mr-2" />
+                    {t('chat.openInNewWindow')}
                   </DropdownMenuItem>
                 )}
                 {onCreateAutomation && (

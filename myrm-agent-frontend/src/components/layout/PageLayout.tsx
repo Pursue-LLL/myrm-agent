@@ -6,6 +6,7 @@ import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
 import { getReadinessStatus } from '@/services/onboarding';
 import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
+import { useFocusedMode } from '@/hooks/useFocusedMode';
 
 const BootScreen = lazy(() => import('../features/app-shell/boot-screen'));
 const OnboardingWizard = lazy(() => import('../features/onboarding/OnboardingWizard'));
@@ -27,6 +28,7 @@ interface PageLayoutProps {
 const PageLayout = memo<PageLayoutProps>(({ children }) => {
   const pathname = usePathname();
   const isStandaloneRoute = isStandalonePath(pathname);
+  const isFocusedMode = useFocusedMode();
   const [mounted, setMounted] = useState(false);
   const [checkingReadiness, setCheckingReadiness] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -35,7 +37,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
   useEffect(() => {
     setMounted(true);
 
-    if (isStandaloneRoute) {
+    if (isStandaloneRoute || isFocusedMode) {
       setCheckingReadiness(false);
       return;
     }
@@ -56,7 +58,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
       .finally(() => {
         setCheckingReadiness(false);
       });
-  }, [isStandaloneRoute]);
+  }, [isStandaloneRoute, isFocusedMode]);
 
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);
@@ -66,7 +68,7 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
     setShowNormalBoot(false);
   }, []);
 
-  if (isStandaloneRoute) {
+  if (isStandaloneRoute || isFocusedMode) {
     return <>{children}</>;
   }
 
