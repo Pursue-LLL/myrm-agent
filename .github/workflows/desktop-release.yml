@@ -377,6 +377,9 @@ jobs:
           cd myrm-agent-desktop/sidecar
           python build.py
 
+      - name: Install dummy sidecars for AppImage bundling
+        run: bash scripts/ci/desktop-release/linux-appimage-sidecar-workaround.sh pre-bundle
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -387,6 +390,9 @@ jobs:
           projectPath: myrm-agent-desktop
           # Website distributes AppImage only; skip deb/rpm to cut Linux CI time ~40%.
           args: --bundles appimage --verbose
+
+      - name: Repack AppImage with real sidecars
+        run: bash scripts/ci/desktop-release/linux-appimage-sidecar-workaround.sh post-bundle
 
       - name: Ensure updater bundle signatures
         env:

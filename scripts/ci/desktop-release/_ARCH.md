@@ -17,6 +17,7 @@
 | `finalize-fixture-test.sh` | 无网络 fixture：平台匹配 + 无 `.sig` 跳过 OTA；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |
 | `collect-bundle-assets.sh` | `find` 收集 `target/**/release/bundle/*` 资产供 `gh release upload` |
 | `prune-frontend-linuxmusl.sh` | Linux AppImage 前剔除 standalone 内 `@img/sharp-linuxmusl-*` 等，避免 linuxdeploy 缺 `libc.musl-x86_64.so.1` |
+| `linux-appimage-sidecar-workaround.sh` | dummy-swap（tauri#11898）：bundling 用 gcc stub，打包后换回 Bun/PyInstaller 真 sidecar 并 repack |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
 
 ## Workflow jobs
@@ -47,7 +48,7 @@
 
 ## OTA manifest 匹配规则
 
-`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job：`prune-frontend-linuxmusl.sh`（根因：Next/sharp 的 `@img/sharp-linuxmusl-x64`）+ `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true`（GHA 无 FUSE）+ `--bundles appimage`；glibc 版 `sharp-linux-x64` 保留供运行时。
+`latest.json` 仅纳入 **updater 包**（`.app.tar.gz` / `.nsis.zip` / `.AppImage.tar.gz`）且存在配对 `.sig` 的平台。`pick_platform_asset` 不含 `.exe` / `.msi` / `.deb` / 裸 `.AppImage` 候选；安装包 `.exe.sig` / `.msi.sig` 不计入 OTA。`verify-release.sh` 断言 OTA URL 后缀。Linux job：`prune-frontend-linuxmusl.sh` + `linux-appimage-sidecar-workaround.sh`（Bun sidecar 致 gtk 插件 `ldd` 失败）+ `NO_STRIP=true` + `libfuse2` + `APPIMAGE_EXTRACT_AND_RUN=true` + `--bundles appimage`。
 | `APPLE_*` / `KEYCHAIN_PASSWORD` | 可选；未配置时 Mac job 不传 env，避免空证书触发 codesign 失败；OTA 仍靠 minisign |
 
 ## 依赖
