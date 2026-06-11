@@ -15,7 +15,7 @@
 | `batch_import.py` | 模块 | 批量导入 (GUI-First 技能迁移) 接口 | ✅ |
 | `config.py` | 模块 | Get user skill configuration (enabled prebuilt skills and local skill paths). | ✅ |
 | `config_version.py` | 模块 | Re-export from app.core.skills.config_version（单一来源）。 | ✅ |
-| `core.py` | 模块 | List skills filtered by type, sorted by the given field. | ✅ |
+| `core.py` | 模块 | 核心技能获取与本地物理路径操作 (如 reveal)。 | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
 | `discovery.py` | 模块 | Skill discovery API endpoints | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed | ✅ |

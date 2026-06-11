@@ -407,7 +407,9 @@
       "noRulesHint": "在项目根目录放置 AGENTS.md、CLAUDE.md、.cursorrules 或 .myrm/rules/*.md 文件",
       "loadedCount": "已加载 {count} 个规则文件",
       "totalChars": "共 {count} 字符",
-      "truncated": "已截断"
+      "truncated": "已截断",
+      "emptyRule": "（空）",
+      "truncatedHint": "文件超过最大大小限制，内容已被截断。"
     },
     "developer": {
       "title": "开发者",
@@ -10582,6 +10584,7 @@
     "running": "运行中",
     "completed": "已完成",
     "failed": "失败",
+    "timed_out": "已超时",
     "cancelled": "已取消",
     "cancel": "取消",
     "steer": "调整方向",

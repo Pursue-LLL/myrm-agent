@@ -74,3 +74,30 @@ async def get_skill(skill_id: str) -> SkillResponse:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
     return skill_to_response(skill)
+
+
+@router.post("/{skill_id}/reveal")
+async def reveal_skill(skill_id: str) -> dict[str, str]:
+    """Reveal a local skill directory in the system file manager (Finder/Explorer).
+
+    Local mode only. Opens the directory where the skill is stored.
+    """
+    from pathlib import Path
+
+    from app.api.files.local_actions import _reveal_in_file_manager, _validate_local_mode
+
+    _validate_local_mode()
+
+    skill = await skills_service.get_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
+
+    if not skill.storage_path:
+        raise HTTPException(status_code=400, detail="Skill has no local storage path")
+
+    path = Path(skill.storage_path).resolve()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Skill directory does not exist on disk")
+
+    _reveal_in_file_manager(path)
+    return {"status": "ok", "path": str(path)}

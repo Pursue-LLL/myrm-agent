@@ -28,7 +28,7 @@ class BackgroundTaskInfo:
 
     task_id: str
     prompt: str
-    status: str  # "running" | "completed" | "failed" | "cancelled"
+    status: str  # "running" | "completed" | "failed" | "timed_out" | "cancelled"
     created_at: float
     completed_at: float | None = None
     result_preview: str | None = None

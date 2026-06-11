@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import {
   IconSettings,
   IconWifi,
-  IconLock,
   IconStop,
   IconRefresh,
 } from '@/components/features/icons/PremiumIcons';

@@ -3,7 +3,7 @@ import { apiRequest } from '@/lib/api';
 export interface BackgroundTask {
   task_id: string;
   prompt: string;
-  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled';
   created_at: number;
   completed_at: number | null;
   result_preview: string | null;

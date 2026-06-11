@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Code } from 'lucide-react';
+import { Code, ChevronDown, ChevronRight } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 
 interface WorkspaceRuleItem {
@@ -11,6 +11,7 @@ interface WorkspaceRuleItem {
   source: string;
   char_count: number;
   truncated: boolean;
+  content: string;
 }
 
 interface WorkspaceRulesData {
@@ -24,6 +25,7 @@ function WorkspaceRulesSection() {
   const [data, setData] = useState<WorkspaceRulesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchRules = async () => {
@@ -46,6 +48,10 @@ function WorkspaceRulesSection() {
     if (source === 'AGENTS.md') return 'bg-primary/10 text-primary border-primary/20';
     if (source === 'CLAUDE.md') return 'bg-accent-warm/10 text-accent-warm border-accent-warm/20';
     return 'bg-muted text-muted-foreground border-border';
+  };
+
+  const toggleExpand = (idx: number) => {
+    setExpandedIdx((prev) => (prev === idx ? null : idx));
   };
 
   return (
@@ -102,27 +108,48 @@ function WorkspaceRulesSection() {
 
               <div className="space-y-2">
                 {data.rules.map((rule, idx) => (
-                  <div
-                    key={idx}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border shrink-0',
-                          getSourceBadgeColor(rule.source),
+                  <div key={idx} className="rounded-lg border bg-card overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(idx)}
+                      className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 hover:bg-muted/30 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <span className="shrink-0 text-muted-foreground">
+                          {expandedIdx === idx ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border shrink-0',
+                            getSourceBadgeColor(rule.source),
+                          )}
+                        >
+                          {rule.source}
+                        </span>
+                        <span className="text-sm text-foreground truncate" title={rule.path}>
+                          {rule.path.split('/').pop()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 sm:ml-2">
+                        <span className="text-xs text-muted-foreground">{rule.char_count.toLocaleString()} chars</span>
+                        {rule.truncated && <span className="text-xs text-amber-500 font-medium">{t('truncated')}</span>}
+                      </div>
+                    </button>
+
+                    {expandedIdx === idx && (
+                      <div className="border-t bg-muted/20 p-3">
+                        <pre className="text-xs text-foreground/80 whitespace-pre-wrap break-words font-mono max-h-96 overflow-y-auto leading-relaxed">
+                          {rule.content || t('emptyRule')}
+                        </pre>
+                        {rule.truncated && (
+                          <p className="text-xs text-amber-500 mt-2">{t('truncatedHint')}</p>
                         )}
-                      >
-                        {rule.source}
-                      </span>
-                      <span className="text-sm text-foreground truncate" title={rule.path}>
-                        {rule.path.split('/').pop()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 sm:ml-2">
-                      <span className="text-xs text-muted-foreground">{rule.char_count.toLocaleString()} chars</span>
-                      {rule.truncated && <span className="text-xs text-amber-500 font-medium">{t('truncated')}</span>}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

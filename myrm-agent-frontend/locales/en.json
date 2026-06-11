@@ -407,7 +407,9 @@
       "noRulesHint": "Place AGENTS.md, CLAUDE.md, .cursorrules, or .myrm/rules/*.md in your project root",
       "loadedCount": "{count} rule file(s) loaded",
       "totalChars": "{count} total characters",
-      "truncated": "truncated"
+      "truncated": "truncated",
+      "emptyRule": "(empty)",
+      "truncatedHint": "Content was truncated because the file exceeds the maximum size limit."
     },
     "developer": {
       "title": "Developer",
@@ -10614,6 +10616,7 @@
     "running": "Running",
     "completed": "Completed",
     "failed": "Failed",
+    "timed_out": "Timed Out",
     "cancelled": "Cancelled",
     "cancel": "Cancel",
     "steer": "Steer",

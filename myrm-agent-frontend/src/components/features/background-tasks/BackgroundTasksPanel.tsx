@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconLoader, IconCheckCircle, IconXCircle, IconBan, IconStop } from '@/components/features/icons/PremiumIcons';
+import { IconLoader, IconCheckCircle, IconXCircle, IconBan, IconStop, IconClock } from '@/components/features/icons/PremiumIcons';
 import { Navigation } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Button } from '@/components/primitives/button';
@@ -40,6 +40,11 @@ const STATUS_CONFIG = {
     icon: IconXCircle,
     className: 'text-destructive',
     dotColor: 'bg-destructive',
+  },
+  timed_out: {
+    icon: IconClock,
+    className: 'text-amber-500 dark:text-amber-400',
+    dotColor: 'bg-amber-500 dark:bg-amber-400',
   },
   cancelled: {
     icon: IconBan,
@@ -162,7 +167,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           </span>
                         </div>
 
-                        {task.result_preview && (task.status === 'completed' || task.status === 'failed') && (
+                        {task.result_preview && (task.status === 'completed' || task.status === 'failed' || task.status === 'timed_out') && (
                           <p className="mt-1.5 line-clamp-2 rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground/80">
                             {task.result_preview}
                           </p>

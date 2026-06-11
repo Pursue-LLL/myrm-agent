@@ -29,6 +29,9 @@ import {
   ArrowUpCircle,
   Undo2,
   Download,
+  FolderOpen,
+  Copy,
+  FolderX,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/primitives/sheet';
@@ -53,7 +56,9 @@ import {
   trustSkill,
   untrustSkill,
   toggleEvolutionLock,
+  revealSkill,
 } from '@/services/skill';
+import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import CodeBlock from '@/components/features/markdown-render-tools/CodeBlock';
@@ -113,6 +118,8 @@ const SkillDetailSheet = memo(
     const [isEvolutionLocked, setIsEvolutionLocked] = useState(false);
     const [isTogglingLock, setIsTogglingLock] = useState(false);
     const [showExportDialog, setShowExportDialog] = useState(false);
+    const [isPathInvalid, setIsPathInvalid] = useState(false);
+    const [isRevealing, setIsRevealing] = useState(false);
 
     const [envVars, setEnvVars] = useState<Record<string, string>>({});
     const [envVarsDirty, setEnvVarsDirty] = useState(false);
@@ -250,6 +257,24 @@ const SkillDetailSheet = memo(
         .then(setSkillContent)
         .catch(() => setSkillContent(''));
     }, [skill]);
+
+    const handleReveal = useCallback(async () => {
+      if (!skill) return;
+      setIsRevealing(true);
+      try {
+        await revealSkill(skill.id);
+        setIsPathInvalid(false);
+      } catch (error: any) {
+        if (error?.status === 404 || error?.message?.includes('404')) {
+          setIsPathInvalid(true);
+          toast({ title: t('detail.pathInvalid', 'Path is invalid or deleted'), variant: 'destructive' });
+        } else {
+          toast({ title: t('detail.revealFailed', 'Failed to reveal path'), variant: 'destructive' });
+        }
+      } finally {
+        setIsRevealing(false);
+      }
+    }, [skill, t]);
 
     const handleToggleEvolutionLock = useCallback(async () => {
       if (!skill) return;
@@ -425,6 +450,66 @@ const SkillDetailSheet = memo(
 
                 {/* Security scan summary */}
                 {skill.security && <SecurityScanSection security={skill.security} t={t} />}
+
+                {/* Local Storage Path */}
+                {skill.type === 'local' && (isLocalMode() || isTauriRuntime()) && skill.storage_path && (
+                  <div className={cn("flex items-center justify-between p-3 rounded-lg border", isPathInvalid ? "bg-red-500/10 border-red-500/50" : "bg-muted/30")}>
+                    <div className="flex items-center gap-2 overflow-hidden flex-1 mr-4">
+                      {isPathInvalid ? (
+                        <FolderX size={14} className="text-red-500 flex-shrink-0" />
+                      ) : (
+                        <FolderOpen size={14} className="text-muted-foreground flex-shrink-0" />
+                      )}
+                      <div className="overflow-hidden">
+                        <span className={cn("text-sm font-medium", isPathInvalid && "text-red-500")}>
+                          {isPathInvalid ? t('detail.pathInvalid', 'Path Invalid') : t('detail.storagePath', 'Storage Path')}
+                        </span>
+                        <p 
+                          className={cn("text-xs truncate", isPathInvalid ? "text-red-400" : "text-muted-foreground")}
+                          title={skill.storage_path}
+                        >
+                          {skill.storage_path}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => {
+                          navigator.clipboard.writeText(skill.storage_path!);
+                          toast({ title: t('detail.pathCopied', 'Path copied') });
+                        }}
+                        title={t('detail.copyPath', 'Copy path')}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                      {!isPathInvalid ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={handleReveal}
+                          disabled={isRevealing}
+                        >
+                          {isRevealing ? <Loader2 className="animate-spin mr-1" size={12} /> : <FolderOpen className="mr-1" size={12} />}
+                          {t('detail.revealInManager', 'Reveal')}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setShowDeleteConfirm(true)}
+                        >
+                          <Trash2 className="mr-1" size={12} />
+                          {t('detail.cleanupInvalid', 'Cleanup')}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Evolution lock toggle */}
                 {skill.type === 'local' && (

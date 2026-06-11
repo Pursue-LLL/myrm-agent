@@ -56,6 +56,16 @@ export async function getSkill(skillId: string): Promise<Skill> {
 }
 
 /**
+ * 在系统文件管理器中打开本地技能目录
+ * @param skillId 技能 ID
+ */
+export async function revealSkill(skillId: string): Promise<{ status: string; path: string }> {
+  return apiRequest<{ status: string; path: string }>(`${SKILLS_API_PREFIX}/${skillId}/reveal`, {
+    method: 'POST',
+  });
+}
+
+/**
  * 获取技能文件内容（如 SKILL.md）
  * @param skillId 技能 ID
  * @param filename 文件名
