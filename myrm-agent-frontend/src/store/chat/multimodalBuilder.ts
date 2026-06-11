@@ -1,5 +1,5 @@
 import { File } from '@/store/chat/types';
-import { partitionFilesByType, fetchFileAsBase64DataURL, getMimeType } from '@/lib/utils/fileUtils';
+import { partitionFilesByType, getMimeType } from '@/lib/utils/fileUtils';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { fromStoreFile } from '@/services/file-service/types';
 import { extractPdfContent, extractDocumentContent } from '@/services/file';
@@ -12,20 +12,21 @@ type VisionVideoPart = { type: 'video_url'; video_url: { url: string; mime_type:
 export type VisionContentPart = VisionTextPart | VisionImagePart | VisionVideoPart;
 
 /**
- * Convert an image file to a base64 data URL.
- * Tauri mode uses native file reading; Sandbox mode uses fetch.
+ * Resolve an image file to a URL for the message payload.
+ * Tauri mode: reads from disk as base64 data URL (no StorageProvider).
+ * Sandbox mode: passes the StorageProvider HTTP URL directly — the harness
+ * pipeline resolves it to base64 right before the LLM call, avoiding
+ * redundant encoding in checkpoints and message history.
  */
-const imageFileToDataURL = async (file: File): Promise<string | null> => {
+const resolveImageUrl = async (file: File): Promise<string | null> => {
   try {
     if (isTauriRuntime()) {
       const { tauriFileService } = await import('@/services/file-service/tauri');
       return await tauriFileService.readFileAsDataURL(fromStoreFile(file));
     }
-    const url = file.fileUrl || '';
-    if (!url) return null;
-    return await fetchFileAsBase64DataURL(url, getMimeType(file.fileExtension));
+    return file.fileUrl || null;
   } catch (err) {
-    console.error(`Failed to convert image to base64: ${file.fileName}`, err);
+    console.error(`Failed to resolve image URL: ${file.fileName}`, err);
     return null;
   }
 };
@@ -73,8 +74,8 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
 
     if (result.images && result.images.length > 0) {
       for (const img of result.images) {
-        const dataUrl = `data:${img.mimeType};base64,${img.data}`;
-        parts.push({ type: 'image_url', image_url: { url: dataUrl, detail: 'auto' } });
+        const url = img.fileUrl || `data:${img.mimeType};base64,${img.data}`;
+        parts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
       }
 
       if (result.imageTrace && result.imageTrace.droppedCount > 0) {
@@ -232,8 +233,8 @@ export const buildMultimodalQuery = async (
   }
 
   if (imageFiles.length > 0) {
-    const dataUrls = await Promise.all(imageFiles.map(imageFileToDataURL));
-    for (const url of dataUrls) {
+    const imageUrls = await Promise.all(imageFiles.map(resolveImageUrl));
+    for (const url of imageUrls) {
       if (url) {
         contentParts.push({ type: 'image_url', image_url: { url, detail: 'auto' } });
       }

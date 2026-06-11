@@ -197,19 +197,19 @@ const DatasetExportCard = memo(() => {
               {files.map((f) => (
                 <div
                   key={f.name}
-                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/30 border border-border/30 text-sm"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-3 px-3 py-2 rounded-lg bg-secondary/30 border border-border/30 text-sm"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-muted-foreground">{f.format.toUpperCase()}</span>
-                    <span className="text-foreground">{f.name}</span>
-                    <span className="text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono text-xs text-muted-foreground shrink-0">{f.format.toUpperCase()}</span>
+                    <span className="text-foreground truncate">{f.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
                       {formatBytes(f.size_bytes)} · {f.line_count} {t('datasetExport.samples')}
                     </span>
                   </div>
                   <a
                     href={getApiUrl(getExportFileDownloadUrl(f.name))}
                     download={f.name}
-                    className="text-primary hover:underline text-xs"
+                    className="text-primary hover:underline text-xs shrink-0"
                   >
                     {t('datasetExport.download')}
                   </a>

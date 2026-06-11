@@ -25,7 +25,6 @@ vi.mock('@/lib/utils/fileUtils', () => ({
     textFiles: [],
     otherFiles: [],
   }),
-  fetchFileAsBase64DataURL: vi.fn(),
   getMimeType: (ext: string) => `image/${ext}`,
 }));
 

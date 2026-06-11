@@ -32,8 +32,9 @@ router = APIRouter()
 
 
 class PDFImageItem(BaseModel):
-    data: str = Field(..., description="Base64-encoded PNG data")
+    data: str = Field(default="", description="Base64-encoded PNG data (empty when file_url is provided)")
     mime_type: str = Field(default="image/png", description="MIME type")
+    file_url: str | None = Field(default=None, description="StorageProvider URL (preferred over inline base64)")
 
 
 class PDFTableItem(BaseModel):
@@ -78,6 +79,45 @@ class PDFExtractRequest(BaseModel):
     class Config:
         alias_generator = to_camel
         populate_by_name = True
+
+
+async def _persist_pdf_images(
+    images: list,
+    body: PDFExtractRequest,
+) -> list[PDFImageItem]:
+    """Save extracted PDF images to StorageProvider and return URL references.
+
+    In sandbox mode, images are persisted to StorageProvider so the frontend
+    can reference them by URL instead of embedding raw base64.
+    In local mode, returns inline base64 (Tauri reads from disk anyway).
+    """
+    if not images:
+        return []
+
+    if is_local_mode():
+        return [PDFImageItem(data=img.data, mime_type=img.mime_type) for img in images]
+
+    import base64
+
+    items: list[PDFImageItem] = []
+    for idx, img in enumerate(images):
+        try:
+            content = base64.b64decode(img.data)
+            ext = "png" if "png" in img.mime_type else "jpeg"
+            source_id = body.file_id or "local"
+            file = await files_service.save_generated_file(
+                filename=f"pdf-page-{idx + 1}.{ext}",
+                content=content,
+                content_type=img.mime_type,
+                source_chat_id=f"pdf-extract-{source_id}",
+            )
+            url = f"/api/media/files/{file.id}/content"
+            items.append(PDFImageItem(mime_type=img.mime_type, file_url=url))
+        except Exception:
+            logger.warning("Failed to persist PDF image %d, falling back to inline", idx)
+            items.append(PDFImageItem(data=img.data, mime_type=img.mime_type))
+
+    return items
 
 
 async def _resolve_pdf_path(body: PDFExtractRequest) -> Path:
@@ -137,9 +177,11 @@ async def extract_pdf(
         if body.file_id and file_path.exists():
             file_path.unlink(missing_ok=True)
 
+    image_items = await _persist_pdf_images(result.images, body)
+
     response_data = PDFExtractResponse(
         text=result.text,
-        images=[PDFImageItem(data=img.data, mime_type=img.mime_type) for img in result.images],
+        images=image_items,
         page_count=result.page_count,
         strategy=result.strategy,
         tables=[

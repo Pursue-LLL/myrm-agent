@@ -18,6 +18,7 @@ export interface UploadProgress {
 export interface PDFImageItem {
   data: string;
   mimeType: string;
+  fileUrl?: string;
 }
 
 export interface PDFTableItem {

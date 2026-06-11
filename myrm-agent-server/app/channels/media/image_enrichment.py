@@ -1,27 +1,26 @@
 """Image attachment enrichment for channel inbound messages.
 
 Detects image attachments in InboundMessage, downloads and compresses them,
-converts to base64 data URLs, and stores results in message metadata so
-the business layer can build native multimodal queries.
+saves to a local cache directory, and stores file path references in message
+metadata so the business layer can build native multimodal queries.
+
+The harness MediaResolverProcessor lazily resolves these file paths to base64
+right before sending to the LLM, keeping checkpoints and message history lean.
 
 Follows the same enrichment pattern as ``sticker_vision.describe_sticker_inbound``
 and ``video_enrichment.enrich_video_inbound``: a pure async function that
 enriches an InboundMessage, called from Router._handle_merged.
-
-Unlike sticker enrichment (which converts images to text descriptions), this
-module preserves the original image data as base64 for native LLM vision input,
-achieving zero information loss.
 
 [INPUT]
 - channels.types::InboundMessage, MediaType, MediaAttachment (POS: inbound message types)
 
 [OUTPUT]
 - has_image_attachment(): check for image media
-- enrich_image_inbound(): download, compress, base64-encode images into metadata
+- enrich_image_inbound(): download, compress, cache images as files into metadata
 
 [POS]
 Image attachment data preparation for channel router.
-Stores base64 data URLs in ``msg.metadata["image_data_list"]`` for
+Stores file path references in ``msg.metadata["image_data_list"]`` for
 downstream multimodal query construction in the business layer.
 """
 
@@ -33,6 +32,7 @@ import dataclasses
 import io
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
@@ -85,7 +85,7 @@ async def enrich_image_inbound(
             msg.sender_id,
         )
 
-    tasks = [_download_and_encode(att, msg, get_channel_fn) for att in selected]
+    tasks = [_download_and_cache(att, msg, get_channel_fn) for att in selected]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     image_data_list: list[dict[str, str]] = []
@@ -118,15 +118,17 @@ async def enrich_image_inbound(
     return dataclasses.replace(msg, metadata=new_metadata)
 
 
-async def _download_and_encode(
+async def _download_and_cache(
     att: MediaAttachment,
     msg: InboundMessage,
     get_channel_fn: GetChannelFn | None,
 ) -> dict[str, str] | None:
-    """Download a single image attachment and return a base64 data URL dict.
+    """Download a single image attachment and cache it as a local file.
 
-    Returns ``{"data_url": "data:image/jpeg;base64,...", "mime_type": "image/jpeg"}``
-    or None on failure.
+    Returns ``{"data_url": "file:///path/to/cached/image.jpg", "mime_type": "image/jpeg"}``
+    or None on failure.  The ``data_url`` key is kept for backward compatibility
+    with ``build_channel_inbound_query``; the harness MediaResolverProcessor
+    detects non-base64 URLs and lazily resolves them.
     """
     raw_bytes = await _download_image_bytes(att, msg, get_channel_fn)
     if raw_bytes is None:
@@ -140,18 +142,48 @@ async def _download_and_encode(
         logger.warning("Image still too large after compression (%d bytes), skipping", len(raw_bytes))
         return None
 
-    # Magic bytes sniff takes priority over platform-declared mime_type.
-    # Discord can report image/webp for files that are actually PNG, which
-    # causes Anthropic API to reject with HTTP 400 on MIME mismatch.
     mime = _sniff_mime(raw_bytes) or att.mime_type or "image/jpeg"
-
     if not mime.startswith("image/"):
         mime = "image/jpeg"
 
-    b64 = base64.b64encode(raw_bytes).decode("ascii")
-    data_url = f"data:{mime};base64,{b64}"
+    cached_path = _save_to_cache(raw_bytes, mime, msg)
+    if cached_path is None:
+        b64 = base64.b64encode(raw_bytes).decode("ascii")
+        return {"data_url": f"data:{mime};base64,{b64}", "mime_type": mime}
 
-    return {"data_url": data_url, "mime_type": mime}
+    return {"data_url": f"file://{cached_path}", "mime_type": mime}
+
+
+def _save_to_cache(raw_bytes: bytes, mime: str, msg: InboundMessage) -> str | None:
+    """Save image bytes to a local cache directory and return the absolute path.
+
+    Cache location: ``{DATA_DIR}/cache/channel_images/``
+    Files are named with a content hash to enable deduplication.
+    """
+    import hashlib
+
+    try:
+        from app.config.settings import settings as _settings
+
+        cache_dir = Path(_settings.data_dir) / "cache" / "channel_images"
+    except Exception:
+        cache_dir = Path.home() / ".myrm" / "cache" / "channel_images"
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        content_hash = hashlib.sha256(raw_bytes).hexdigest()[:16]
+        ext = mime.split("/")[-1].replace("jpeg", "jpg")
+        filename = f"{content_hash}.{ext}"
+        file_path = cache_dir / filename
+
+        if not file_path.exists():
+            file_path.write_bytes(raw_bytes)
+            logger.debug("Cached channel image: %s (%d bytes)", file_path, len(raw_bytes))
+
+        return str(file_path)
+    except Exception as exc:
+        logger.warning("Failed to cache channel image: %s", exc)
+        return None
 
 
 async def _download_image_bytes(
