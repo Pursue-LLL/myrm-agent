@@ -1,0 +1,56 @@
+name: Repair Desktop Release Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Desktop release tag (e.g. v0.1.36)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  refinalize:
+    name: Regenerate latest.json + checksums
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Regenerate latest.json + checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: bash scripts/ci/desktop-release/finalize-release.sh
+
+      - name: Verify release manifest and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: bash scripts/ci/desktop-release/verify-release.sh
+
+  redeploy-website:
+    name: Redeploy marketing site (website-v* tag)
+    needs: refinalize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trigger brand tag and Cloudflare deploy
+        env:
+          DESKTOP_TAG: ${{ inputs.tag }}
+          BRAND_RELEASE_PAT: ${{ secrets.BRAND_RELEASE_PAT }}
+          CF_PAGES_DEPLOY_HOOK: ${{ secrets.CF_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [[ -z "${BRAND_RELEASE_PAT:-}" || -z "${CF_PAGES_DEPLOY_HOOK:-}" ]]; then
+            echo "[repair] BRAND_RELEASE_PAT/CF_PAGES_DEPLOY_HOOK not set; push website-v* on brand manually."
+            exit 0
+          fi
+          REQUIRE_WEBSITE_DEPLOY=true bash scripts/ci/desktop-release/trigger-website-release.sh

@@ -22,6 +22,7 @@
 | `prune-frontend-linuxmusl.sh` | Linux AppImage 前剔除 standalone 内 `@img/sharp-linuxmusl-*` 等，避免 linuxdeploy 缺 `libc.musl-x86_64.so.1` |
 | `linux-appimage-sidecar-workaround.sh` | dummy-swap（tauri#11898）：bundling 用 gcc stub，打包后换回 Bun/PyInstaller 真 sidecar 并 repack |
 | `trigger-website-release.sh` | brand `main` 打 `website-v{semver}` tag + POST CF Pages Deploy Hook |
+| `.github/workflows/desktop-release-repair.yml` | `workflow_dispatch`：对已有 tag 重跑 finalize + verify + website（无需全平台 rebuild） |
 
 ## Workflow jobs
 
