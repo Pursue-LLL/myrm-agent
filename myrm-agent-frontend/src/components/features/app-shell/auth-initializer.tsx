@@ -25,7 +25,6 @@ const AUTH_PATHS = [
   '/auth/login',
   '/auth/setup',
   '/auth/oauth/callback',
-  '/auth/mcp-callback',
 ];
 
 function isAuthPage(): boolean {
@@ -94,10 +93,7 @@ async function handleTauriRemoteSetup(): Promise<void> {
 
 function isDedicatedAuthRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return (
-    pathname.startsWith('/auth/oauth/callback')
-    || pathname.startsWith('/auth/mcp-callback')
-  );
+  return pathname.startsWith('/auth/oauth/callback');
 }
 
 export default function AuthInitializer() {

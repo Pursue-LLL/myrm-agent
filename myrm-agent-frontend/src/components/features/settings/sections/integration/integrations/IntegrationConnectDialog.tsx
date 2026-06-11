@@ -16,7 +16,7 @@ import {
 } from '@/components/primitives/dialog';
 import { toast } from '@/hooks/useToast';
 import useConfigStore from '@/store/useConfigStore';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, BACKEND_BASE_URL } from '@/lib/api';
 import { buildLastScanSummary, gateMcpEnable } from '@/hooks/useMcpSecurityGate';
 import { formatMcpGateBlockedMessage } from '@/lib/utils/mcpScanFindingText';
 import { MCPScanAckDialog } from '@/components/features/settings/mcp/MCPScanAckDialog';
@@ -143,7 +143,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
               client_id: oauthCfg.client_id,
               client_secret: oauthCfg.client_secret,
               scope: oauthCfg.scope,
-              redirect_uri: `${window.location.origin}/oauth/callback`,
+              redirect_uri: `${BACKEND_BASE_URL}/api/v1/integrations/mcp/oauth/callback`,
             }),
           });
 

@@ -4,7 +4,6 @@ export const STANDALONE_PATHS = [
   '/auth/login',
   '/auth/setup',
   '/auth/oauth/callback',
-  '/auth/mcp-callback',
   '/payment/success',
   '/payment/cancel',
 ] as const;
@@ -19,7 +18,6 @@ export const SAAS_PUBLIC_PATHS = [
   '/auth/login',
   '/auth/setup',
   '/auth/oauth/callback',
-  '/auth/mcp-callback',
   '/payment/success',
   '/payment/cancel',
 ] as const;

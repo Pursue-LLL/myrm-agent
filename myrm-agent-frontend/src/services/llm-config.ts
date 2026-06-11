@@ -453,12 +453,6 @@ export interface MCPOAuthStartResponse {
   state: string;
 }
 
-export interface MCPOAuthCallbackResponse {
-  server_name: string;
-  connected: boolean;
-  scope?: string;
-}
-
 export type MCPOAuthStatusMap = Record<string, { connected: boolean; expired: boolean; scope: string | null }>;
 
 export const startMCPOAuth = async (params: {
@@ -470,32 +464,26 @@ export const startMCPOAuth = async (params: {
   scope?: string;
   redirect_uri: string;
 }): Promise<MCPOAuthStartResponse> => {
-  return apiRequest<MCPOAuthStartResponse>('/mcp/oauth/start', {
+  return apiRequest<MCPOAuthStartResponse>('/integrations/mcp/oauth/start', {
     method: 'POST',
     body: JSON.stringify(params),
   });
 };
 
-export const handleMCPOAuthCallback = async (params: {
-  server_name: string;
-  code: string;
-  state: string;
-  redirect_uri: string;
-}): Promise<MCPOAuthCallbackResponse> => {
-  return apiRequest<MCPOAuthCallbackResponse>('/mcp/oauth/callback', {
-    method: 'POST',
-    body: JSON.stringify(params),
+export const checkMCPOAuthStateStatus = async (state: string): Promise<{ status: string }> => {
+  return apiRequest<{ status: string }>(`/integrations/mcp/oauth/status/${encodeURIComponent(state)}`, {
+    silent: true,
   });
 };
 
 export const getMCPOAuthStatus = async (): Promise<MCPOAuthStatusMap> => {
-  return apiRequest<MCPOAuthStatusMap>('/mcp/oauth/status', {
+  return apiRequest<MCPOAuthStatusMap>('/integrations/mcp/oauth/status', {
     method: 'GET',
   });
 };
 
 export const disconnectMCPOAuth = async (serverName: string): Promise<void> => {
-  await apiRequest(`/mcp/oauth/${encodeURIComponent(serverName)}`, {
+  await apiRequest(`/integrations/mcp/oauth/${encodeURIComponent(serverName)}`, {
     method: 'DELETE',
   });
 };

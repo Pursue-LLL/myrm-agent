@@ -62,7 +62,6 @@ function AuthCallbackContent() {
       pathname.startsWith('/auth/setup')
       || pathname.startsWith('/auth/login')
       || pathname.startsWith('/auth/oauth/callback')
-      || pathname.startsWith('/auth/mcp-callback')
     ) {
       return;
     }

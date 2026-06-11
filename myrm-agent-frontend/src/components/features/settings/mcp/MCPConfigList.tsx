@@ -12,11 +12,13 @@ import { Switch } from '@/components/primitives/switch';
 import { MCPServiceConfig } from '@/store/useConfigStore';
 import {
   startMCPOAuth,
-  handleMCPOAuthCallback,
+  checkMCPOAuthStateStatus,
   getMCPOAuthStatus,
   disconnectMCPOAuth,
   MCPOAuthStatusMap,
 } from '@/services/llm-config';
+import { BACKEND_BASE_URL } from '@/lib/api';
+import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -85,7 +87,7 @@ export function MCPConfigList({
       if (!config.oauth?.clientId) return;
       setOauthLoading(config.name);
       try {
-        const redirectUri = `${window.location.origin}/auth/mcp-callback`;
+        const backendCallbackUrl = `${BACKEND_BASE_URL}/api/v1/integrations/mcp/oauth/callback`;
         const resp = await startMCPOAuth({
           server_name: config.name,
           authorization_endpoint: config.oauth.authorizationEndpoint,
@@ -93,52 +95,48 @@ export function MCPConfigList({
           client_id: config.oauth.clientId,
           client_secret: config.oauth.clientSecret,
           scope: config.oauth.scope,
-          redirect_uri: redirectUri,
+          redirect_uri: backendCallbackUrl,
         });
 
-        const popup = window.open(resp.authorization_url, '_blank', 'width=600,height=700');
+        if (isTauriRuntime()) {
+          const { open } = await import('@tauri-apps/plugin-shell');
+          await open(resp.authorization_url);
+        } else {
+          window.open(resp.authorization_url, '_blank', 'width=600,height=700');
+        }
 
-        const handleMessage = async (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          if (event.data?.type !== 'mcp-oauth-callback') return;
-          window.removeEventListener('message', handleMessage);
+        const POLL_INTERVAL_MS = 2000;
+        const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+        const startTime = Date.now();
 
-          const { code, state: returnedState } = event.data;
-          if (!code || returnedState !== resp.state) {
+        const pollTimer = setInterval(async () => {
+          if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+            clearInterval(pollTimer);
+            setOauthLoading(null);
             toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             return;
           }
-
           try {
-            await handleMCPOAuthCallback({
-              server_name: config.name,
-              code,
-              state: returnedState,
-              redirect_uri: redirectUri,
-            });
-            setOauthStatus((prev) => ({
-              ...prev,
-              [config.name]: { connected: true, expired: false, scope: config.oauth?.scope || null },
-            }));
-            toast({ title: t('mcpOAuthSuccess') || 'OAuth Connected' });
-          } catch {
-            toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
-          }
-        };
-
-        window.addEventListener('message', handleMessage);
-
-        if (popup) {
-          const pollTimer = setInterval(() => {
-            if (popup.closed) {
+            const statusRes = await checkMCPOAuthStateStatus(resp.state);
+            if (statusRes.status === 'success') {
               clearInterval(pollTimer);
-              window.removeEventListener('message', handleMessage);
+              setOauthStatus((prev) => ({
+                ...prev,
+                [config.name]: { connected: true, expired: false, scope: config.oauth?.scope || null },
+              }));
+              setOauthLoading(null);
+              toast({ title: t('mcpOAuthSuccess') || 'OAuth Connected' });
+            } else if (statusRes.status === 'expired_or_invalid') {
+              clearInterval(pollTimer);
+              setOauthLoading(null);
+              toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
             }
-          }, 500);
-        }
+          } catch {
+            // polling errors are transient, continue
+          }
+        }, POLL_INTERVAL_MS);
       } catch {
         toast({ title: t('mcpOAuthFailed') || 'OAuth Failed', variant: 'destructive' });
-      } finally {
         setOauthLoading(null);
       }
     },

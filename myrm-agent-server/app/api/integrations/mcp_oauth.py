@@ -1,10 +1,11 @@
 """MCP OAuth authorization API endpoints.
 
 Handles the OAuth 2.0 + PKCE authorization flow for remote MCP servers:
-1. POST /start   — Generate auth URL, persist PKCE state
-2. POST /callback — Exchange auth code for tokens
-3. GET  /status   — Check OAuth status for all MCP servers
-4. DELETE /{name} — Disconnect (revoke) OAuth for a server
+1. POST /start          — Generate auth URL, persist PKCE state
+2. GET  /callback       — OAuth provider redirect target; exchanges code for tokens
+3. GET  /status/{state} — Check single OAuth flow completion status (polling)
+4. GET  /status         — Check OAuth status for all MCP servers
+5. DELETE /{name}       — Disconnect (revoke) OAuth for a server
 
 [INPUT]
 - app.services.agent.backends.mcp_oauth_store (POS: token persistence)
@@ -14,9 +15,10 @@ Handles the OAuth 2.0 + PKCE authorization flow for remote MCP servers:
 MCP OAuth authorization API endpoints under /integrations/mcp/oauth
 
 [POS]
-MCP OAuth 2.0 + PKCE authorization flow API. Frontend-driven flow:
+MCP OAuth 2.0 + PKCE authorization flow API. Backend-driven callback flow:
 user triggers auth → backend generates URL → user authorizes in browser →
-frontend receives callback → backend exchanges code for token.
+OAuth provider redirects to backend GET /callback → backend exchanges code
+for token → frontend polls GET /status/{state} to detect completion.
 """
 
 from __future__ import annotations
