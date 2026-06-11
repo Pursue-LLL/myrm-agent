@@ -15,7 +15,7 @@
 | `bundle-paths.sh` | `is_release_bundle_path` / `is_updater_bundle_path`（Windows 反斜路径兼容） |
 | `rename-updater-bundles.sh` | Intel：`MyrmAgent_x64.app.tar.gz`（macOS bash） |
 | `rename-windows-updater-bundle.ps1` | Win：`MyrmAgent_x64-setup.exe`（GHA pwsh；Tauri v2 OTA 用 setup.exe，nsis.zip 为临时文件） |
-| `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + 安装包 `.sha256` sidecar 断言 |
+| `verify-release.sh` | finalize 后 smoke：`latest.json` 版本/OTA signature + 安装包 `.sha256`；`REQUIRE_MIN_OTA_PLATFORMS` + `REQUIRED_OTA_PLATFORM_KEYS` 分阶段门禁 |
 | `check-updater-pubkey.sh` | 构建前校验 pubkey 与 `TAURI_SIGNING_PRIVATE_KEY` 一致性；占位符仅 warning |
 | `sign-updater-bundles.sh` | 构建后补签 updater 包；Mac ARM 设 `REQUIRE_UPDATER_BUNDLES=1`；用 `bundle-paths` 过滤 |
 | `finalize-fixture-test.sh` | 无网络 fixture：四平台匹配 + `.sig`；`tests/architecture/test_desktop_finalize_fixture.py` 门禁 |

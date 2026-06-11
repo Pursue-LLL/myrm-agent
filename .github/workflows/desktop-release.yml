@@ -446,6 +446,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          REQUIRE_MIN_OTA_PLATFORMS: '3'
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64
         run: bash scripts/ci/desktop-release/verify-release.sh
 
   refinalize-after-linux:
@@ -474,4 +476,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          REQUIRE_MIN_OTA_PLATFORMS: '4'
+          REQUIRED_OTA_PLATFORM_KEYS: darwin-aarch64 darwin-x86_64 windows-x86_64 linux-x86_64
         run: bash scripts/ci/desktop-release/verify-release.sh

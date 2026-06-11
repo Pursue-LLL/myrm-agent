@@ -18,9 +18,24 @@ if [[ "$manifest_version" != "$VERSION" ]]; then
 fi
 
 platform_count="$(jq '.platforms | keys | length' <<<"$manifest")"
-if [[ "$platform_count" -lt 1 ]]; then
-  echo "[verify-release] latest.json has no OTA platforms" >&2
+require_min="${REQUIRE_MIN_OTA_PLATFORMS:-1}"
+if [[ "$platform_count" -lt "$require_min" ]]; then
+  echo "[verify-release] latest.json has ${platform_count} OTA platform(s), require >= ${require_min}" >&2
   exit 1
+fi
+
+if [[ -n "${REQUIRED_OTA_PLATFORM_KEYS:-}" ]]; then
+  missing_keys=0
+  for key in ${REQUIRED_OTA_PLATFORM_KEYS}; do
+    [[ -n "$key" ]] || continue
+    if ! jq -e --arg k "$key" '.platforms[$k]' <<<"$manifest" >/dev/null; then
+      echo "[verify-release] missing required OTA platform key: ${key}" >&2
+      missing_keys=1
+    fi
+  done
+  if [[ "$missing_keys" -ne 0 ]]; then
+    exit 1
+  fi
 fi
 
 missing_sig=0
