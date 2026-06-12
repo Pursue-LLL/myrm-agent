@@ -60,6 +60,28 @@ _MEDIA_GROUP_DEADLINE = 3.0
 _ALLOWED_UPDATES = ["message", "edited_message", "callback_query", "message_reaction"]
 
 
+def _parse_telegram_vcard(contact: object) -> dict[str, str | list[str]]:
+    """Parse a Telegram contact object (with optional vCard) into a dict."""
+    from app.channels.media.contact_enrichment import _parse_vcard
+
+    vcard_str = getattr(contact, "vcard", None)
+    if vcard_str and isinstance(vcard_str, str):
+        parsed = _parse_vcard(vcard_str)
+        if parsed:
+            return parsed
+
+    result: dict[str, str | list[str]] = {}
+    first = getattr(contact, "first_name", "") or ""
+    last = getattr(contact, "last_name", "") or ""
+    name = f"{first} {last}".strip()
+    if name:
+        result["name"] = name
+    phone = getattr(contact, "phone_number", "") or ""
+    if phone:
+        result["phones"] = [phone]
+    return result
+
+
 class TelegramInboundMixin:
     """Mixin providing Telegram inbound message parsing and media-group aggregation.
 
@@ -274,7 +296,23 @@ class TelegramInboundMixin:
                 has_text = True
 
         if not has_text:
-            if msg.venue:
+            if msg.contact:
+                contact_parts = []
+                name_parts = [p for p in [msg.contact.first_name, msg.contact.last_name] if p]
+                if name_parts:
+                    contact_parts.append(f"Name: {' '.join(name_parts)}")
+                if msg.contact.phone_number:
+                    contact_parts.append(f"Phone: {msg.contact.phone_number}")
+                if msg.contact.vcard:
+                    metadata["contact_cards"] = [_parse_telegram_vcard(msg.contact)]
+                elif contact_parts:
+                    metadata["contact_cards"] = [{
+                        "name": " ".join(name_parts),
+                        **({"phones": [msg.contact.phone_number]} if msg.contact.phone_number else {}),
+                    }]
+                text = "[Shared Contact] " + " | ".join(contact_parts) if contact_parts else "[Shared Contact]"
+                has_text = True
+            elif msg.venue:
                 loc = msg.venue.location
                 parts = [f'[Venue: "{msg.venue.title}"']
                 if msg.venue.address:

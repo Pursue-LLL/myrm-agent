@@ -151,6 +151,15 @@ def build_channel_inbound_query(msg: InboundMessage) -> str | list[dict[str, obj
             if doc_parts:
                 text = f"{text}\n\n" + "\n\n".join(doc_parts)
 
+        contact_cards = msg.metadata.get("contact_cards")
+        if isinstance(contact_cards, list) and contact_cards:
+            from app.channels.media.contact_enrichment import format_contact_text
+
+            card_lines = [format_contact_text(c) for c in contact_cards if isinstance(c, dict)]
+            if card_lines:
+                header = "[Shared Contact]" if len(card_lines) == 1 else "[Shared Contacts]"
+                text = f"{text}\n\n{header}\n" + "\n".join(card_lines)
+
     image_data_list = msg.metadata.get("image_data_list") if isinstance(msg.metadata, dict) else None
     if not image_data_list or not isinstance(image_data_list, list):
         return text

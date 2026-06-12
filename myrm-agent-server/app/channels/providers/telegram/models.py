@@ -122,6 +122,17 @@ class TgVenue(BaseModel):
     foursquare_id: str | None = None
 
 
+class TgContact(BaseModel):
+    """Telegram Contact object (shared phone contact)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    phone_number: str = ""
+    first_name: str = ""
+    last_name: str | None = None
+    vcard: str | None = None
+
+
 class TgMessage(BaseModel):
     """Telegram Message object (subset of fields used by the channel)."""
 
@@ -140,6 +151,7 @@ class TgMessage(BaseModel):
     sticker: TgSticker | None = None
     location: TgLocation | None = None
     venue: TgVenue | None = None
+    contact: TgContact | None = None
     entities: list[TgEntity] | None = None
     caption_entities: list[TgEntity] | None = None
     reply_to_message: TgMessage | None = None

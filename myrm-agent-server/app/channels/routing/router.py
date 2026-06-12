@@ -84,6 +84,10 @@ from app.channels.core.bus import (
     set_correlation_context,
 )
 from app.channels.i18n import get_text, resolve_message_locale
+from app.channels.media.contact_enrichment import (
+    enrich_contact_inbound,
+    has_contact_attachment,
+)
 from app.channels.media.document_enrichment import (
     enrich_document_inbound,
     has_document_attachment,
@@ -772,6 +776,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if not is_resume and has_image_attachment_fn(msg):
             msg = await enrich_image_inbound(msg, self._bus.get_channel)
+            exec_for_error = msg
+
+        if not is_resume and has_contact_attachment(msg):
+            msg = await enrich_contact_inbound(msg, self._bus.get_channel)
             exec_for_error = msg
 
         if not is_resume and has_document_attachment(msg):

@@ -46,6 +46,7 @@ class MediaType(StrEnum):
     DOCUMENT = "document"
     AUDIO = "audio"
     VIDEO = "video"
+    CONTACT = "contact"
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +69,7 @@ class MediaAttachment:
 _IMAGE_EXTS = frozenset((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico"))
 _AUDIO_EXTS = frozenset((".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma"))
 _VIDEO_EXTS = frozenset((".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv"))
+_VCARD_MIMES = frozenset(("text/vcard", "text/x-vcard", "text/directory", "application/vcard", "application/x-vcard"))
 
 
 def guess_media_type(filename: str, content_type: str | None = None) -> MediaType:
@@ -77,6 +79,8 @@ def guess_media_type(filename: str, content_type: str | None = None) -> MediaTyp
     MIME type takes precedence; falls back to extension matching.
     """
     ct = (content_type or "").lower()
+    if ct in _VCARD_MIMES:
+        return MediaType.CONTACT
     if ct.startswith("image/"):
         return MediaType.IMAGE
     if ct.startswith("audio/"):
@@ -85,6 +89,8 @@ def guess_media_type(filename: str, content_type: str | None = None) -> MediaTyp
         return MediaType.VIDEO
 
     lower = filename.lower()
+    if lower.endswith(".vcf"):
+        return MediaType.CONTACT
     for ext in _IMAGE_EXTS:
         if lower.endswith(ext):
             return MediaType.IMAGE

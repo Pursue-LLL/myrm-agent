@@ -518,11 +518,14 @@ def _quote_guid(guid: str) -> str:
 
 
 def _mime_to_media_type(mime: str) -> MediaType:
-    if mime.startswith("image/"):
+    lower = mime.lower()
+    if lower in ("text/vcard", "text/x-vcard", "text/directory", "application/vcard", "application/x-vcard"):
+        return MediaType.CONTACT
+    if lower.startswith("image/"):
         return MediaType.IMAGE
-    if mime.startswith("audio/"):
+    if lower.startswith("audio/"):
         return MediaType.AUDIO
-    if mime.startswith("video/"):
+    if lower.startswith("video/"):
         return MediaType.VIDEO
     return MediaType.DOCUMENT
 
