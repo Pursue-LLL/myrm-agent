@@ -149,7 +149,15 @@ async function executeAction(action, payload) {
       return await getAuthorizedTabs();
 
     case "attach_debugger": {
-      const { domain } = payload;
+      const { domain, tabId } = payload;
+      if (tabId) {
+        const tabs = await chrome.tabs.query({});
+        const target = tabs.find((t) => t.id === tabId && isTabAuthorized(t));
+        if (!target) {
+          throw new Error(`Tab ${tabId} not found or not authorized`);
+        }
+        return await attachDebugger(tabId);
+      }
       const tab = await findTabForDomain(domain);
       if (!tab) {
         throw new Error(`No tab found for domain: ${domain || "(any authorized)"}`);
@@ -193,7 +201,8 @@ async function findTabForDomain(domain) {
   const authorized = tabs.filter((tab) => isTabAuthorized(tab));
 
   if (domain) {
-    return authorized.find((tab) => extractDomain(tab.url || "") === domain) || null;
+    const matching = authorized.filter((tab) => extractDomain(tab.url || "") === domain);
+    return matching.find((tab) => tab.active) || matching[0] || null;
   }
 
   return authorized.find((tab) => tab.active) || authorized[0] || null;

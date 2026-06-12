@@ -4561,9 +4561,15 @@
           "extension": "Browser Extension",
           "extensionDesc": "Uses your real browser via the extension bridge. Preserves login sessions.",
           "launch": "Launch New Browser",
-          "launchDesc": "Launches a fresh isolated browser instance every time."
+          "launchDesc": "Launches a fresh isolated browser instance every time.",
+          "connect": "Connect Existing Browser",
+          "connectDesc": "Connects via CDP to your running Chrome/Brave/Edge. Uses existing login sessions.",
+          "remote": "Cloud Browser",
+          "remoteDesc": "Connects to Browserbase or other cloud browser services (configure in Settings first)."
         },
-        "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser."
+        "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser.",
+        "connectInfo": "Requires Chrome launched with --remote-debugging-port=9222. The agent will connect to your running browser.",
+        "remoteWarning": "Requires cloud browser credentials configured in Settings. The agent will use a remote browser instance."
       },
       "mcpTools": {
         "toolFilter": "Tool filter",

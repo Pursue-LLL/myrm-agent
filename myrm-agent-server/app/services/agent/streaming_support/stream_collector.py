@@ -57,6 +57,7 @@ class StreamContentCollector:
         self._token_economics: dict[str, object] | None = None
         self._usage_alert: dict[str, object] | None = None
         self._session_recording: dict[str, object] | None = None
+        self._ui_artifacts: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
@@ -114,6 +115,7 @@ class StreamContentCollector:
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
+            "ui_artifacts": self._ui_artifacts,
         }
 
     def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
@@ -218,6 +220,20 @@ class StreamContentCollector:
                 self._privacy_route = route
         elif event_type == "session_recording" and isinstance(data, dict):
             self._session_recording = _string_keyed_dict(data)
+        elif event_type == "ui_update":
+            subtype = event.get("subtype")
+            if subtype == "ui_artifact" and isinstance(data, list):
+                self._ui_artifacts.extend(_string_keyed_dicts(data))
+            elif subtype == "data_update" and isinstance(data, dict):
+                surface_id = data.get("surface_id")
+                updates = data.get("updates")
+                if isinstance(surface_id, str) and isinstance(updates, dict):
+                    for artifact in self._ui_artifacts:
+                        if artifact.get("surface_id") == surface_id:
+                            existing_data = artifact.get("data")
+                            if isinstance(existing_data, dict):
+                                existing_data.update(updates)
+                            break
         elif event_type == "status":
             step_key = event.get("step_key")
             if step_key == "cache_break" and isinstance(data, dict):
@@ -297,6 +313,8 @@ class StreamContentCollector:
             result["memoryRetrievalTraces"] = self._memory_retrieval_traces
         if self._session_recording:
             result["sessionRecording"] = self._session_recording
+        if self._ui_artifacts:
+            result["uiArtifacts"] = self._ui_artifacts
         if self.reasoning:
             result["reasoning"] = self.reasoning
         return result or None

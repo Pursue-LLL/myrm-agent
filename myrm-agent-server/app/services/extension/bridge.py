@@ -320,10 +320,23 @@ class ExtensionBridgeService:
             self._pending_requests.pop(req_id, None)
             raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out")
 
-    async def _request_cdp_target(self, domain: str | None = None, *, timeout: float = 10.0) -> str:
-        """Request the extension to attach debugger and return CDP WebSocket URL."""
+    async def _request_cdp_target(
+        self,
+        domain: str | None = None,
+        tab_id: int | None = None,
+        *,
+        timeout: float = 10.0,
+    ) -> str:
+        """Request the extension to attach debugger and return CDP WebSocket URL.
+
+        When *tab_id* is provided the extension attaches directly to that tab,
+        bypassing domain-based tab selection.  This enables precise tab targeting
+        when the caller already knows which tab to control.
+        """
         payload: dict[str, object] = {}
-        if domain:
+        if tab_id is not None:
+            payload["tabId"] = tab_id
+        elif domain:
             payload["domain"] = domain
 
         result = await self._send_request("attach_debugger", payload, timeout=timeout)

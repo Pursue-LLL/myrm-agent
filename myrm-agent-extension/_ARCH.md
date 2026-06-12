@@ -9,7 +9,7 @@ Chrome/Edge MV3 浏览器扩展。通过 WebSocket 连接本机 `myrm-agent-serv
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `manifest.json` | 核心 | MV3 清单：权限（debugger/tabs/storage/alarms）、Service Worker、popup | — |
-| `src/background.js` | 核心 | Service Worker：WebSocket 连接、心跳保活、CDP 请求分发、标签页生命周期 | ✅ |
+| `src/background.js` | 核心 | Service Worker：WebSocket 连接、心跳保活、CDP 请求分发、标签页生命周期、智能 Tab 选择（同 domain 多 tab 优先 active + tabId 直传） | ✅ |
 | `src/popup.html` | 辅助 | Popup 页面结构（服务器 URL、Token、域名列表） | — |
 | `src/popup.js` | 辅助 | Popup 控制器：读写 `chrome.storage.local`、连接/断开、状态展示 | ✅ |
 | `icons/icon{16,32,48,128}.png` | 辅助 | 扩展图标（16/32/48/128） | — |

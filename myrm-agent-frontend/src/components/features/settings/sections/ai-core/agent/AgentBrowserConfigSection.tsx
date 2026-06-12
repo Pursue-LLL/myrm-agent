@@ -124,8 +124,39 @@ export function AgentBrowserConfigSection({
                   </span>
                 </div>
               </SelectItem>
+              <SelectItem value="connect">
+                <div className="flex flex-col py-0.5">
+                  <span className="font-medium text-xs">{tEditor('browserSource.options.connect')}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {tEditor('browserSource.options.connectDesc')}
+                  </span>
+                </div>
+              </SelectItem>
+              <SelectItem value="remote">
+                <div className="flex flex-col py-0.5">
+                  <span className="font-medium text-xs">{tEditor('browserSource.options.remote')}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {tEditor('browserSource.options.remoteDesc')}
+                  </span>
+                </div>
+              </SelectItem>
             </SelectContent>
           </Select>
+          {browserSource === 'extension' && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+              {tEditor('browserSource.extensionWarning')}
+            </p>
+          )}
+          {browserSource === 'connect' && (
+            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-1">
+              {tEditor('browserSource.connectInfo')}
+            </p>
+          )}
+          {browserSource === 'remote' && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+              {tEditor('browserSource.remoteWarning')}
+            </p>
+          )}
         </div>
 
         {/* Dialog Policy */}

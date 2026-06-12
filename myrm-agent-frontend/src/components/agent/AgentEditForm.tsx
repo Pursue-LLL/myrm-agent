@@ -440,12 +440,40 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                           </span>
                         </div>
                       </SelectItem>
+                      <SelectItem value="connect">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.browserSourceConnect', { fallback: 'Connect Existing Browser' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.browserSourceConnectDesc', { fallback: 'Connect via CDP to your running Chrome/Brave/Edge.' })}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="remote">
+                        <div className="flex flex-col py-0.5">
+                          <span>{t('form.browserSourceRemote', { fallback: 'Cloud Browser' })}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('form.browserSourceRemoteDesc', { fallback: 'Connect to cloud browser services (configure in Settings).' })}
+                          </span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {browserSource === 'extension' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
                       {t('form.browserSourceExtensionWarning', { fallback: 'Requires Browser Extension to be connected. The agent will operate in your real browser.' })}
+                    </p>
+                  )}
+                  {browserSource === 'connect' && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('form.browserSourceConnectInfo', { fallback: 'Requires Chrome launched with --remote-debugging-port=9222.' })}
+                    </p>
+                  )}
+                  {browserSource === 'remote' && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('form.browserSourceRemoteWarning', { fallback: 'Requires cloud browser credentials configured in Settings.' })}
                     </p>
                   )}
                 </div>

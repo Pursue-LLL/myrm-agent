@@ -516,6 +516,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     )
                 )
 
+            from app.services.extension.bridge import get_extension_bridge
+
+            ext_bridge = get_extension_bridge() if not is_local_mode() else None
+
             browser_session = BrowserSession(
                 pool,
                 ContextType.AGENT,
@@ -525,9 +529,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 domain_allowlist=domain_allowlist,
                 captcha_solver=ManualSolver(),
                 content_vault=ArtifactVault(os.getcwd()),
+                vision_llm=vision_llm,
+                extension_bridge=ext_bridge,
                 allow_private_networks=is_local_mode(),
                 auto_restore_domains=getattr(self, "auto_restore_domains", []),
-                vision_llm=vision_llm,
                 engine_preference=getattr(self, "browser_engine", None),
                 launch_mode_preference=getattr(self, "browser_source", None),
                 dialog_policy=getattr(self, "dialog_policy", None),

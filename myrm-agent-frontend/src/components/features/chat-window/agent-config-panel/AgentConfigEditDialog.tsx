@@ -1284,12 +1284,40 @@ const AgentConfigEditDialog = ({
                           </span>
                         </div>
                       </SelectItem>
+                      <SelectItem value="connect">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('browserSource.options.connect')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('browserSource.options.connectDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="remote">
+                        <div className="flex flex-col py-1">
+                          <span className="font-medium">{t('browserSource.options.remote')}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {t('browserSource.options.remoteDesc')}
+                          </span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {localBrowserSource === 'extension' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
                       {t('browserSource.extensionWarning')}
+                    </p>
+                  )}
+                  {localBrowserSource === 'connect' && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('browserSource.connectInfo')}
+                    </p>
+                  )}
+                  {localBrowserSource === 'remote' && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      {t('browserSource.remoteWarning')}
                     </p>
                   )}
                 </div>
