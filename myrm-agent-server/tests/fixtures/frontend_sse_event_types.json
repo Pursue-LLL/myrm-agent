@@ -20,6 +20,7 @@
   "client_action",
   "cognitive_consolidation",
   "context_overflow_reset",
+  "correction_learned",
   "context_reference_warning",
   "context_snapshot",
   "dag_state_update",
