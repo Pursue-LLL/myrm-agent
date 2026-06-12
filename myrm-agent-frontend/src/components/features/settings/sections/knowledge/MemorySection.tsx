@@ -17,6 +17,7 @@ import {
   IconTrash,
   IconUpload,
   IconBook,
+  IconShieldCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import useConfigStore from '@/store/useConfigStore';
@@ -46,9 +47,10 @@ import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/useToast';
-import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
+import { exportMemories, exportMemoriesMarkdown, exportRulesSafe, previewRulesSafe, updateMemoryStatus, getMemoryTags, type TagStatsItem, type SafeRulePreviewItem } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
+import ShareRulesDialog from '@/components/features/memory/ShareRulesDialog';
 
 const MEMORY_TYPES: (MemoryType | null)[] = [
   null,
@@ -136,6 +138,7 @@ const MemorySection = memo(() => {
   const [importExpiresAt, setImportExpiresAt] = useState<string | null>(null);
   const [showImportReview, setShowImportReview] = useState(false);
   const [showMemoryGuide, setShowMemoryGuide] = useState(false);
+  const [showShareRules, setShowShareRules] = useState(false);
   const [availableTags, setAvailableTags] = useState<TagStatsItem[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -496,6 +499,21 @@ const MemorySection = memo(() => {
               </TooltipTrigger>
               <TooltipContent>{t('exportMarkdown') || 'Export as Markdown (Obsidian-compatible)'}</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowShareRules(true)}
+                  title="Share Rules (Privacy-safe)"
+                  className={cn(
+                    'p-2 rounded-lg transition-colors',
+                    'hover:bg-accent',
+                  )}
+                >
+                  <IconShieldCheck className="w-[18px] h-[18px] text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Share rules with privacy protection</TooltipContent>
+            </Tooltip>
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
@@ -813,6 +831,8 @@ const MemorySection = memo(() => {
       />
 
       <MemoryGuide open={showMemoryGuide} onOpenChange={setShowMemoryGuide} />
+
+      <ShareRulesDialog open={showShareRules} onOpenChange={setShowShareRules} />
     </div>
   );
 });

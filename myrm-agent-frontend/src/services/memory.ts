@@ -286,6 +286,49 @@ export const exportMemoriesMarkdown = async (agentId?: string): Promise<void> =>
   URL.revokeObjectURL(url);
 };
 
+export interface SafeRulePreviewItem {
+  id: string;
+  content: string;
+  rendered: string;
+}
+
+export const previewRulesSafe = async (params: {
+  agentId?: string;
+  ruleIds?: string[];
+  format?: 'markdown' | 'json';
+}): Promise<SafeRulePreviewItem[]> => {
+  const qs = new URLSearchParams();
+  if (params.agentId) qs.append('agent_id', params.agentId);
+  if (params.ruleIds?.length) qs.append('rule_ids', params.ruleIds.join(','));
+  if (params.format) qs.append('output_format', params.format);
+  return apiRequest<SafeRulePreviewItem[]>(`/memory/export/rules-safe/preview?${qs.toString()}`);
+};
+
+export const exportRulesSafe = async (params: {
+  agentId?: string;
+  ruleIds?: string[];
+  format?: 'markdown' | 'json';
+}): Promise<void> => {
+  const qs = new URLSearchParams();
+  if (params.agentId) qs.append('agent_id', params.agentId);
+  if (params.ruleIds?.length) qs.append('rule_ids', params.ruleIds.join(','));
+  if (params.format) qs.append('output_format', params.format ?? 'markdown');
+  const response = await fetch(`/api/v1/memory/export/rules-safe?${qs.toString()}`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Export rules failed');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const disposition = response.headers.get('Content-Disposition');
+  a.download = disposition?.match(/filename="(.+)"/)?.[1] ?? 'rules_safe.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export interface RateMemoryResponse {
   success: boolean;
   memory_id: string;

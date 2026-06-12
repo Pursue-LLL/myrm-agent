@@ -8,7 +8,9 @@ from app.services.memory.operations.crud.import_archive import (
     export_memories,
     export_memories_markdown,
     export_memory_archive,
+    export_rules_safe,
     import_memories,
+    preview_rules_safe,
     rollback_import_memories,
 )
 from app.services.memory.operations.crud.list_write import (
@@ -60,6 +62,8 @@ __all__ = [
     "export_memories",
     "export_memories_markdown",
     "export_memory_archive",
+    "export_rules_safe",
+    "preview_rules_safe",
     "dry_run_memory_archive",
     "import_memories",
     "dry_run_import_memories",
