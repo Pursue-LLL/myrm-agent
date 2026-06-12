@@ -23,8 +23,8 @@ from app.schemas.memory.crud import (
     RateMemoryResponse,
     TasteSummaryResponse,
 )
-from app.services.memory.operations.crud.list_write import TagStatsResponse
 from app.services.memory.operations import crud_handlers as handlers
+from app.services.memory.operations.crud.list_write import TagStatsResponse
 
 router = APIRouter()
 

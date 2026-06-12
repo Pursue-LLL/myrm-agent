@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { Loader2, Copy, Download, Eye, Check } from 'lucide-react';
 
 import {
@@ -28,6 +28,8 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
   const [format, setFormat] = useState<'markdown' | 'json'>('markdown');
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const formatRef = useRef(format);
+  formatRef.current = format;
 
   useEffect(() => {
     if (!open) {
@@ -36,21 +38,20 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
       setPreviewContent(null);
       return;
     }
-    loadPreviews();
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        const items = await previewRulesSafe({ format: formatRef.current });
+        setPreviews(items);
+        setSelectedIds(new Set(items.map((i) => i.id)));
+      } catch {
+        toast({ title: 'Failed to load rules', variant: 'destructive' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
   }, [open]);
-
-  const loadPreviews = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const items = await previewRulesSafe({ format });
-      setPreviews(items);
-      setSelectedIds(new Set(items.map((i) => i.id)));
-    } catch {
-      toast({ title: 'Failed to load rules', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [format]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -62,16 +63,15 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
   }, []);
 
   const toggleAll = useCallback(() => {
-    if (selectedIds.size === previews.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(previews.map((i) => i.id)));
-    }
-  }, [selectedIds.size, previews]);
+    setSelectedIds((prev) => {
+      if (prev.size === previews.length) return new Set();
+      return new Set(previews.map((i) => i.id));
+    });
+  }, [previews]);
 
   const handlePreview = useCallback((item: SafeRulePreviewItem) => {
-    setPreviewContent(previewContent === item.rendered ? null : item.rendered);
-  }, [previewContent]);
+    setPreviewContent((prev) => prev === item.rendered ? null : item.rendered);
+  }, []);
 
   const handleExport = useCallback(async () => {
     if (selectedIds.size === 0) {
@@ -100,7 +100,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span>Share Rules Safely</span>
