@@ -87,6 +87,7 @@ class IMessageChannel(BaseChannel):
         text=True,
         media=True,
         reactions=True,
+        typing_keepalive_interval=55.0,
         max_text_length=_MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(
@@ -100,6 +101,7 @@ class IMessageChannel(BaseChannel):
         self._api_url = api_url.rstrip("/")
         self._password = password
         self._http = httpx.AsyncClient()
+        self._private_api_available = False
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
@@ -120,9 +122,10 @@ class IMessageChannel(BaseChannel):
                     timeout=5.0,
                 )
                 if resp.status_code == 200:
+                    self._detect_private_api(resp)
                     self._status = ChannelStatus.RUNNING
                     self._set_connected(True)
-                    logger.info("IMessageChannel: started successfully")
+                    logger.info("IMessageChannel: started successfully (private_api=%s)", self._private_api_available)
                     return
                 else:
                     logger.warning(
@@ -145,8 +148,9 @@ class IMessageChannel(BaseChannel):
         self._status = ChannelStatus.DEGRADED
         self._set_connected(False)
         logger.error(
-            " [iMessage startfailure] cannotconnectto BlueBubbles , checkitswhetheralreadyinbackgroundline (URL: %s)",
+            "IMessageChannel: cannot connect to BlueBubbles bridge at %s after %d attempts",
             self._api_url,
+            max_retries,
         )
         raise ChannelConnectionError(
             f"Failed to connect to BlueBubbles bridge at {self._api_url} after {max_retries} attempts",
@@ -177,6 +181,43 @@ class IMessageChannel(BaseChannel):
         except Exception as exc:
             self.health.record_failure(str(exc))
             return False
+
+    def _detect_private_api(self, resp: httpx.Response) -> None:
+        """Extract private_api availability from BlueBubbles server/info response."""
+        try:
+            body = resp.json()
+            data = body.get("data", {})
+            if isinstance(data, dict):
+                self._private_api_available = bool(data.get("private_api"))
+        except Exception:
+            pass
+
+    # ── Typing Indicator ──────────────────────────────────────────────
+
+    async def start_typing(self, chat_id: str) -> None:
+        if not self._private_api_available:
+            return
+        try:
+            await self._http.post(
+                f"{self._api_url}/api/v1/chat/{_quote_guid(chat_id)}/typing",
+                params={"password": self._password},
+                timeout=5.0,
+            )
+        except Exception as exc:
+            logger.debug("iMessage start_typing failed for %s: %s", chat_id[:20], exc)
+
+    async def stop_typing(self, chat_id: str) -> None:
+        if not self._private_api_available:
+            return
+        try:
+            await self._http.request(
+                "DELETE",
+                f"{self._api_url}/api/v1/chat/{_quote_guid(chat_id)}/typing",
+                params={"password": self._password},
+                timeout=5.0,
+            )
+        except Exception as exc:
+            logger.debug("iMessage stop_typing failed for %s: %s", chat_id[:20], exc)
 
     # ── Inbound ───────────────────────────────────────────────────────
 
@@ -465,6 +506,17 @@ class IMessageChannel(BaseChannel):
 
 
 # ── Module-level helpers ──────────────────────────────────────────────
+
+
+def _quote_guid(guid: str) -> str:
+    """URL-encode a BlueBubbles chat GUID for use in path segments.
+
+    Chat GUIDs contain `;` and `+` (e.g. `iMessage;-;+15551234567`)
+    which must be percent-encoded when embedded in a URL path.
+    """
+    from urllib.parse import quote
+
+    return quote(guid, safe="")
 
 
 def _mime_to_media_type(mime: str) -> MediaType:
