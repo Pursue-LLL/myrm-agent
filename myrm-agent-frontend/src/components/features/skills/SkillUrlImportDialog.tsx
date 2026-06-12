@@ -181,7 +181,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
           )}
 
           {analyzedUrls.length > 1 && (
-            <div className="border rounded-full p-3 space-y-3 bg-muted/30">
+            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
               <p className="text-sm font-medium">{t('selectSkillsToImport')}</p>
               <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
                 {analyzedUrls.map((uInfo) => {
@@ -192,7 +192,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
                   return (
                     <div
                       key={u}
-                      className={`flex items-start space-x-2 p-2 rounded-full transition-colors ${isInstalled ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50'}`}
+                      className={`flex items-start space-x-2 p-2 rounded-lg transition-colors ${isInstalled ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50'}`}
                     >
                       <Checkbox
                         id={`url-${u}`}
