@@ -70,7 +70,8 @@ export type ConfigKey =
   | 'budget_policy'
   | 'backupSync'
   | 'proxySettings'
-  | 'securityDashboardSettings';
+  | 'securityDashboardSettings'
+  | 'browserCloudProvider';
 
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
@@ -101,6 +102,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'backupSync',
   'proxySettings',
   'securityDashboardSettings',
+  'browserCloudProvider',
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
@@ -422,6 +424,15 @@ export interface SecurityDashboardSettingsConfigValue {
   monitoredGithubRepos: string[];
 }
 
+export type BrowserCloudProviderType = 'browserbase' | 'browserless' | 'notte' | 'custom';
+
+export interface BrowserCloudProviderConfigValue {
+  enabled: boolean;
+  provider: BrowserCloudProviderType;
+  credential: string;
+  custom_ws_url: string;
+}
+
 /**
  * 配置键到值类型的映射
  */
@@ -453,6 +464,7 @@ export interface ConfigValueMap {
   backupSync: BackupSyncConfigValue;
   proxySettings: ProxySettingsConfigValue;
   securityDashboardSettings: SecurityDashboardSettingsConfigValue;
+  browserCloudProvider: BrowserCloudProviderConfigValue;
 }
 
 /**
@@ -476,6 +488,7 @@ export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
   'telegramCredentials',
   'googlechatCredentials',
   'backupSync',
+  'browserCloudProvider',
 ];
 
 /**

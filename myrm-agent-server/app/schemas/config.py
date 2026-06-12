@@ -47,6 +47,7 @@ ConfigKey = Literal[
     "backupSync",
     "proxySettings",
     "securityDashboardSettings",
+    "browserCloudProvider",
 ]
 
 # ============================================================================
@@ -198,11 +199,41 @@ class SecurityDashboardSettingsConfigValue(BaseModel):
     )
 
 
+BrowserCloudProviderType = Literal["browserbase", "browserless", "notte", "custom"]
+
+_PROVIDER_WS_TEMPLATES: dict[str, str] = {
+    "browserbase": "wss://connect.browserbase.com?apiKey={credential}",
+    "browserless": "wss://production-sfo.browserless.io?token={credential}",
+    "notte": "wss://us-prod.notte.cc/sessions/connect?token={credential}",
+}
+
+
+class BrowserCloudProviderConfigValue(BaseModel):
+    """Cloud browser provider configuration for remote browsing via Browserbase/Browserless/Notte."""
+
+    enabled: bool = Field(default=False, description="Whether cloud browser is enabled")
+    provider: BrowserCloudProviderType = Field(default="browserbase", description="Cloud browser provider")
+    credential: str = Field(default="", description="API key or token for the provider")
+    custom_ws_url: str = Field(default="", description="Custom WebSocket CDP URL (only used when provider='custom')")
+
+    def resolve_ws_endpoint(self) -> str | None:
+        """Resolve the WebSocket endpoint URL from provider type and credential."""
+        if not self.enabled or not self.credential:
+            return None
+        if self.provider == "custom":
+            return self.custom_ws_url or None
+        template = _PROVIDER_WS_TEMPLATES.get(self.provider)
+        if template:
+            return template.format(credential=self.credential)
+        return None
+
+
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
     "proxySettings": ProxySettingsConfigValue,
     "securityDashboardSettings": SecurityDashboardSettingsConfigValue,
+    "browserCloudProvider": BrowserCloudProviderConfigValue,
 }
 
 # ============================================================================

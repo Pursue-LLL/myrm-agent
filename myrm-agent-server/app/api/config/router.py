@@ -322,6 +322,8 @@ async def set_config(
             await refresh_reaction_policy()
         if config_key.endswith("Credentials"):
             await _try_hot_register_channel(config_key)
+        if config_key == "browserCloudProvider":
+            await _hot_reload_cloud_browser(request.value)
         return record
     except VersionConflictError as e:
         raise HTTPException(
@@ -474,6 +476,10 @@ async def sync_configs(
 
                 SqlChannelPolicyProvider._invalidate_cache()
                 await refresh_reaction_policy()
+            if "browserCloudProvider" in result.new_versions:
+                browser_change = next((c for c in changes if c.key == "browserCloudProvider"), None)
+                if browser_change:
+                    await _hot_reload_cloud_browser(browser_change.value)
         return result
     except HTTPException:
         raise
@@ -596,3 +602,18 @@ async def _try_hot_register_channel(config_key: str) -> None:
         logger.info("Channel '%s' hot-registered after credential save", channel_name)
     except Exception:
         logger.debug("Hot-register channel '%s' failed (non-critical)", channel_name, exc_info=True)
+
+
+async def _hot_reload_cloud_browser(value: dict[str, object]) -> None:
+    """Hot-reload the browser pool's remote endpoint after cloud browser config changes."""
+    try:
+        from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
+
+        from app.schemas.config import BrowserCloudProviderConfigValue
+
+        config = BrowserCloudProviderConfigValue.model_validate(value)
+        endpoint = config.resolve_ws_endpoint()
+        pool = get_global_browser_pool()
+        await pool.update_remote_endpoint(endpoint)
+    except Exception:
+        logger.debug("Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True)

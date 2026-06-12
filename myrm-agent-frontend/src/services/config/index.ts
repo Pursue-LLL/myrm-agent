@@ -40,6 +40,8 @@ export type {
   BackupSyncConfigValue,
   ProxySettingsConfigValue,
   ProxyAuthMode,
+  BrowserCloudProviderConfigValue,
+  BrowserCloudProviderType,
 } from './types';
 
 // 工具函数导出

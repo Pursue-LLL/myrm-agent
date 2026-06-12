@@ -13,15 +13,15 @@ async def warmup_global_browser_pool() -> None:
     from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
     from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
 
-    from app.config.browser import get_browser_launch_options, get_browser_pool_config
+    from app.config.browser import get_browser_launch_options, get_browser_pool_config, resolve_cloud_browser_endpoint
     from app.config.settings import settings
     from app.core.security.browser_vault import get_global_session_vault
     from app.services.extension.bridge import get_extension_bridge
 
-    # Inject global SessionVault into web_fetch_tools
     web_fetch_tools.set_session_vault(get_global_session_vault())
 
-    config = get_browser_pool_config()
+    cloud_endpoint = await resolve_cloud_browser_endpoint()
+    config = get_browser_pool_config(remote_ws_endpoint=cloud_endpoint)
     launch_options = get_browser_launch_options()
     pool = get_global_browser_pool(
         max_browsers=settings.browser_pool.max_browsers,

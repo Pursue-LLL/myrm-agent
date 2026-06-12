@@ -3033,6 +3033,15 @@
         "pagesInUse": "Pages in use"
       }
     },
+    "cloudBrowser": {
+      "title": "Cloud Browser",
+      "provider": "Provider",
+      "credential": "API Key / Token",
+      "credentialPlaceholder": "Enter your provider API key",
+      "customWsUrl": "WebSocket CDP Endpoint",
+      "testConnection": "Test Connection",
+      "saveFailed": "Failed to save cloud browser settings"
+    },
     "mcpServiceStatusAvailable": "Latency: {latency}ms",
     "mcpServiceStatusChecking": "Checking...",
     "mcpExtraParams": "Extra Parameters",

@@ -11,7 +11,7 @@
 | `SystemSection.tsx` | WebUI 开关、端口、系统诊断等主面板 |
 | `AccessCard.tsx` | 访问地址（LAN 优先）、公网 Ingress 粘贴 + 文档链接 + 探活 |
 | `SystemCenterSection.tsx` | 系统 Tab 容器 |
-| `BrowserPoolCard.tsx` / `LockedUseCard.tsx` / `WebuiAccessSecurityPanel.tsx` | 子功能卡片 |
+| `BrowserPoolCard.tsx` / `CloudBrowserCard.tsx` / `LockedUseCard.tsx` / `WebuiAccessSecurityPanel.tsx` | 子功能卡片 |
 | `DeveloperSection.tsx` / `DeveloperCenterSection.tsx` | 开发者工具 |
 | `SecurityPolicySection.tsx` / `HeartbeatSection.tsx` | 安全与心跳 |
 

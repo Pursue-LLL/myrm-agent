@@ -13,6 +13,7 @@
 - GET /api/v1/health/browser/doctor - 完整浏览器诊断
 - GET /api/v1/health/browser/orphans - 列出孤儿自动化进程
 - DELETE /api/v1/health/browser/orphans - 清理孤儿进程（需要 confirm 参数）
+- POST /api/v1/health/browser/test-cloud-connection - 测试云浏览器连接
 """
 
 import logging
@@ -366,6 +367,70 @@ async def cleanup_browser_orphans(
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to process orphans: {exc}") from exc
+
+
+@router.post("/browser/test-cloud-connection")
+async def test_cloud_browser_connection() -> dict[str, object]:
+    """Test connectivity to the configured cloud browser provider.
+
+    Reads the current browserCloudProvider config, resolves the WS endpoint,
+    and attempts a WebSocket handshake to verify connectivity.
+
+    Returns:
+        Connection test result with status, latency, and provider info
+    """
+    import asyncio
+    import time as _time
+
+    from app.schemas.config import BrowserCloudProviderConfigValue
+    from app.services.config.service import config_service
+
+    record = await config_service.get("browserCloudProvider")
+    if not record:
+        return {"status": "not_configured", "message": "No cloud browser provider configured"}
+
+    config = BrowserCloudProviderConfigValue.model_validate(record.value)
+    if not config.enabled:
+        return {"status": "disabled", "message": "Cloud browser provider is disabled"}
+
+    endpoint = config.resolve_ws_endpoint()
+    if not endpoint:
+        return {"status": "invalid", "message": "Cannot resolve WebSocket endpoint (missing credential?)"}
+
+    try:
+        import websockets
+
+        start = _time.perf_counter()
+        async with asyncio.timeout(10):
+            async with websockets.connect(endpoint, open_timeout=8):
+                latency_ms = round((_time.perf_counter() - start) * 1000)
+                return {
+                    "status": "connected",
+                    "provider": config.provider,
+                    "latency_ms": latency_ms,
+                    "message": f"Successfully connected to {config.provider} ({latency_ms}ms)",
+                }
+    except ImportError:
+        try:
+            import aiohttp
+
+            start = _time.perf_counter()
+            async with asyncio.timeout(10):
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(endpoint, timeout=8):
+                        latency_ms = round((_time.perf_counter() - start) * 1000)
+                        return {
+                            "status": "connected",
+                            "provider": config.provider,
+                            "latency_ms": latency_ms,
+                            "message": f"Successfully connected to {config.provider} ({latency_ms}ms)",
+                        }
+        except ImportError:
+            return {"status": "error", "message": "No WebSocket library available (install websockets or aiohttp)"}
+        except Exception as exc:
+            return {"status": "failed", "provider": config.provider, "error": str(exc)}
+    except Exception as exc:
+        return {"status": "failed", "provider": config.provider, "error": str(exc)}
 
 
 @router.get("/doctor")

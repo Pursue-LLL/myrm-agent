@@ -3033,6 +3033,15 @@
         "pagesInUse": "使用中页面"
       }
     },
+    "cloudBrowser": {
+      "title": "云浏览器",
+      "provider": "服务商",
+      "credential": "API 密钥 / Token",
+      "credentialPlaceholder": "输入服务商 API 密钥",
+      "customWsUrl": "WebSocket CDP 端点",
+      "testConnection": "测试连接",
+      "saveFailed": "保存云浏览器设置失败"
+    },
     "mcpServiceStatusAvailable": "延迟: {latency}ms",
     "mcpServiceStatusChecking": "检查中...",
     "mcpExtraParams": "额外参数",
