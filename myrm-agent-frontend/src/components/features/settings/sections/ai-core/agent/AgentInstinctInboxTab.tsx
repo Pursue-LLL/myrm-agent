@@ -53,7 +53,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
     if (processingId) return;
     try {
       setProcessingId(draft.id);
-      await approveSkillDraft(draft.id, draft.name || undefined);
+      await approveSkillDraft(draft.id, draft.name || undefined, draft.agent_id || agentId || undefined);
       toast({ title: t('approveSuccess') });
       await fetchDrafts();
     } catch (e) {

@@ -8,6 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.connection import get_session
@@ -328,11 +329,11 @@ async def approve_skill_draft(
     return materialized
 
 
-async def _bind_skill_to_agent(skill_id: str, agent_id: str) -> None:
+async def _bind_skill_to_agent(skill_id: str, agent_id: str | None) -> None:
     """Add a materialized skill to the originating Agent's skill_ids."""
+    if not agent_id:
+        return
     try:
-        from sqlalchemy.orm.attributes import flag_modified
-
         async with get_session() as db:
             agent = await db.get(Agent, agent_id)
             if agent is None:

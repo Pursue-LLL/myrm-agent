@@ -529,10 +529,14 @@ export interface ApproveDraftResult {
   error?: string;
 }
 
-export async function approveSkillDraft(draftId: string, skillName?: string): Promise<ApproveDraftResult> {
+export async function approveSkillDraft(
+  draftId: string,
+  skillName?: string,
+  scopeAgentId?: string,
+): Promise<ApproveDraftResult> {
   return apiRequest<ApproveDraftResult>(`${SKILLS_API_PREFIX}/drafts/${draftId}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ skill_name: skillName }),
+    body: JSON.stringify({ skill_name: skillName, scope_agent_id: scopeAgentId }),
   });
 }
 
