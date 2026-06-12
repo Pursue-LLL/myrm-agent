@@ -23,7 +23,8 @@ export type BuiltinToolId =
   | 'tts'
   | 'kanban'
   | 'llm_map'
-  | 'answer_tool';
+  | 'answer_tool'
+  | 'render_ui';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -39,6 +40,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'kanban',
   'llm_map',
   'answer_tool',
+  'render_ui',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = ['web_search', 'memory'];

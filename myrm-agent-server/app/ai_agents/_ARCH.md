@@ -24,7 +24,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | 文件/目录 | 地位 | 职责| I/O/P |
 |----------|------|------|-------|
 | `__init__.py` | ✅ 核心 | PEP 562 延迟加载入口 | ✅ |
-| `agents.py` | ✅ 核心 | AgentFactory 统一创建入口（Agent 类延迟导入），含 ImageGenerationParams / VideoGenerationParams（支持 api_key 传递）、GeneralAgentParams（含 `auto_restore_domains`、`enable_browser`、`max_iterations`、`quote`、`engine_params`、`search_depth`、`prompt_mode`） |
+| `agents.py` | ✅ 核心 | AgentFactory 统一创建入口（Agent 类延迟导入），含 ImageGenerationParams / VideoGenerationParams（支持 api_key 传递）、GeneralAgentParams（含 `auto_restore_domains`、`enable_browser`、`enable_render_ui`、`max_iterations`、`quote`、`engine_params`、`search_depth`、`prompt_mode`） |
 | `personality_templates.py` | ✅ 辅助 | Personality 风格模板定义（16 种预置风格：8 实用型 + 8 趣味型，含中英双语描述、emoji、system prompt suffix）。导出 `DEFAULT_PERSONALITY_STYLE` 常量供全局引用 |
 | `team_protocol.py` | ✅ 核心 | 团队型 Agent Leader Operating Protocol — 当 `agent_type='team'` 时，`build_leader_protocol_prompt()` 解析 `subagent_ids` 为成员名册（名称+描述），`dynamic_discovery=True` 时通过 `_resolve_roster()` 异步扫描用户全部 Agent（排除 leader 自身、无描述者、allow_discovery=False者，上限15），渲染 Leader 调度协议模板，在 Web/Channel/Cron/Kanban 四入口自动注入 `user_instructions` |
 | `subagent_catalog.py` | ✅ 核心 | DatabaseSubagentCatalog — SubagentCatalog Protocol 实现，解析 YAML 预设（注入 `_LLMModelResolver` 作为 ModelResolver）+ DB 自定义智能体（注入 CustomAgentFactory + display_name）。DB 自定义智能体会继承业务层保存的 `workspace_policy`，并统一映射为运行时 `SubagentConfig.workspace_policy`；同时强制 `LEAF` 控制范围和 `READ_ONLY_GLOBAL` 记忆隔离。`_LLMModelResolver` 通过 `resolve_model_config()` 从用户 provider 配置获取完整模型配置 |
@@ -48,7 +48,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `agent_middlewares/citation_rules_middleware.py` | 核心 | 引用规则中间件 | — |
 | `agent_middlewares/tool_selection_middleware.py` | 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 | — |
 | `tools/answer_user_tool.py` | 核心 | 回答用户工具 | — |
-| `tools/render_ui_tool.py` | 核心 | UI 渲染工具 | — |
+| harness `agent/meta_tools/interaction/render_ui_tool.py` | 核心 | UI 渲染工具（A2UI）；`enabled_builtin_tools` 含 `render_ui` 时加载 | — |
 
 ### prompts/fast_search_agent_prompt.py
 
@@ -67,7 +67,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 
 ## GeneralAgentParams 装配点
 
-- 新增任何 `app/**/*.py` 内对 `GeneralAgentParams(` 或 `GeneralAgentParams.model_validate` 的调用前，必须核对 Web / Channel / Cron / Eval 与 `ResolvedAgentProfile` 字段一致性（含 `auto_restore_domains`、`enable_browser` 等）。
+- 新增任何 `app/**/*.py` 内对 `GeneralAgentParams(` 或 `GeneralAgentParams.model_validate` 的调用前，必须核对 Web / Channel / Cron / Eval 与 `ResolvedAgentProfile` 字段一致性（含 `auto_restore_domains`、`enable_browser`、`enable_render_ui` 等）。
 - 仓库守卫单测：`tests/core/agents/test_general_agent_params_callsites_guard.py`（改点后须同步更新 allowlist）。
 - 离线续跑：`app/api/agents/general_agent/streaming.py` 使用 `params.model_dump(mode="json")` 写入 `OfflineDurableTask.serialized_params`；`app/lifecycle/system.py` 用 `model_validate` 恢复，故新增到 `GeneralAgentParams` 的**运行时关键字段**应默认可被 Pydantic 序列化/反序列化；往返约束见 `tests/core/agents/test_general_agent_params_serialization_roundtrip.py`。
 

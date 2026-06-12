@@ -40,6 +40,8 @@
 
 ## agent-config-panel/
 
+详见 [agent-config-panel/_ARCH.md](agent-config-panel/_ARCH.md)。内置工具 ID 与 server `resolve_builtin_tool_flags()` 必须同步（含 `render_ui`）。
+
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `AgentConfigPanel.tsx` | 核心 | Agent 配置面板入口 | ✅ |

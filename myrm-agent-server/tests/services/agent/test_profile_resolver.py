@@ -633,9 +633,20 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_file_ops"] is False
         assert flags["enable_code_execute"] is False
         assert flags["enable_wiki"] is False
+        assert flags["enable_render_ui"] is False
 
     def test_all_tools_enabled(self):
-        tools = ("browser", "computer_use", "file_ops", "code_execute", "wiki", "kanban", "llm_map", "answer_tool")
+        tools = (
+            "browser",
+            "computer_use",
+            "file_ops",
+            "code_execute",
+            "wiki",
+            "kanban",
+            "llm_map",
+            "answer_tool",
+            "render_ui",
+        )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
 
@@ -655,6 +666,11 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_browser"] is True
         assert flags["enable_wiki"] is False
 
+    def test_render_ui_maps_to_enable_render_ui(self):
+        flags = resolve_builtin_tool_flags(["render_ui"])
+        assert flags["enable_render_ui"] is True
+        assert flags["enable_browser"] is False
+
     def test_returns_all_flag_keys(self):
         flags = resolve_builtin_tool_flags([])
         assert set(flags.keys()) == {
@@ -666,4 +682,5 @@ class TestResolveBuiltinToolFlags:
             "enable_kanban",
             "enable_llm_map",
             "enable_answer_tool",
+            "enable_render_ui",
         }

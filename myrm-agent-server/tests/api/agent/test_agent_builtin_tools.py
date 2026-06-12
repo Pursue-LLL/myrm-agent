@@ -211,13 +211,22 @@ class TestGeneralAgentParamsEnableWiki:
 
     def test_all_builtin_tool_flags(self) -> None:
         """Verify all builtin tool flags produce correct boolean values from a tool list."""
-        tools = ["web_search", "browser", "computer_use", "file_ops", "code_execute", "wiki"]
+        tools = [
+            "web_search",
+            "browser",
+            "computer_use",
+            "file_ops",
+            "code_execute",
+            "wiki",
+            "render_ui",
+        ]
 
         assert ("browser" in tools) is True
         assert ("computer_use" in tools) is True
         assert ("file_ops" in tools) is True
         assert ("code_execute" in tools) is True
         assert ("wiki" in tools) is True
+        assert ("render_ui" in tools) is True
 
     def test_empty_builtin_tools_disables_all(self) -> None:
         """Empty enabled_builtin_tools disables all optional tool flags."""
@@ -228,10 +237,22 @@ class TestGeneralAgentParamsEnableWiki:
         assert ("file_ops" in tools) is False
         assert ("code_execute" in tools) is False
         assert ("wiki" in tools) is False
+        assert ("render_ui" in tools) is False
 
 
-class TestGeneralAgentWikiAttribute:
-    """Verify GeneralAgent instance correctly stores enable_wiki flag."""
+class TestResolveBuiltinToolFlagsRenderUi:
+    """Verify render_ui in enabled_builtin_tools maps to enable_render_ui."""
+
+    def test_resolve_builtin_tool_flags_render_ui(self) -> None:
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["web_search", "render_ui"])
+        assert flags["enable_render_ui"] is True
+        assert flags["enable_browser"] is False
+
+
+class TestGeneralAgentOptionalToolFlags:
+    """Verify GeneralAgent stores optional builtin tool flags from GeneralAgentParams."""
 
     def test_general_agent_enable_wiki_false(self) -> None:
         """GeneralAgent with enable_wiki=False."""
@@ -276,3 +297,24 @@ class TestGeneralAgentWikiAttribute:
         )
         agent2 = AgentFactory.create_general_agent(params_no_wiki)
         assert agent2.enable_wiki is False
+
+    def test_factory_passes_enable_render_ui_to_agent(self) -> None:
+        """AgentFactory.create_general_agent passes enable_render_ui to GeneralAgent."""
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+
+        params_with_render_ui = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            enable_render_ui=True,
+        )
+        agent = AgentFactory.create_general_agent(params_with_render_ui)
+        assert agent.enable_render_ui is True
+
+        params_no_render_ui = GeneralAgentParams(
+            query="test",
+            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+            enable_render_ui=False,
+        )
+        agent2 = AgentFactory.create_general_agent(params_no_render_ui)
+        assert agent2.enable_render_ui is False

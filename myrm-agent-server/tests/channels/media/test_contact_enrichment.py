@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import dataclasses
-from unittest.mock import AsyncMock
-
 import pytest
 
 from app.channels.media.contact_enrichment import (
+    MAX_CONTACTS_PER_MESSAGE,
     _parse_vcard,
     enrich_contact_inbound,
     format_contact_text,
     has_contact_attachment,
 )
 from app.channels.types import InboundMessage, MediaType
-from app.channels.types.messages import MediaAttachment
+from app.channels.types.messages import MediaAttachment, guess_media_type
 
 
 def _make_msg(
@@ -115,6 +113,88 @@ class TestParseVcard:
         assert result["name"] == "CRLF Test"
         assert result["phones"] == ["999"]
 
+    def test_apple_item_prefix(self) -> None:
+        """Apple vCards use item1.TEL, item2.EMAIL style prefixes."""
+        vcard = (
+            "BEGIN:VCARD\n"
+            "FN:Apple User\n"
+            "item1.TEL:+1-555-0100\n"
+            "item2.EMAIL:apple@icloud.com\n"
+            "item1.X-ABLabel:mobile\n"
+            "END:VCARD\n"
+        )
+        result = _parse_vcard(vcard)
+        assert result["name"] == "Apple User"
+        assert "+1-555-0100" in result["phones"]
+        assert "apple@icloud.com" in result["emails"]
+
+    def test_escaped_characters(self) -> None:
+        """vCard escape sequences: \\n \\, \\;"""
+        vcard = "BEGIN:VCARD\nFN:Escape Test\nNOTE:Line1\\nLine2\\, with comma\\; semi\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert "Line1 Line2, with comma; semi" == result["note"]
+
+    def test_vcard_21_without_fn(self) -> None:
+        """vCard 2.1 may only have N field, no FN."""
+        vcard = "BEGIN:VCARD\nVERSION:2.1\nN:Doe;John;Q;Mr;Jr\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert "John" in result["name"]
+        assert "Doe" in result["name"]
+
+    def test_org_with_semicolons(self) -> None:
+        """ORG may contain department hierarchy separated by semicolons."""
+        vcard = "BEGIN:VCARD\nFN:Org Test\nORG:Acme Corp;Engineering;AI Team\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert "Acme Corp" in result["org"]
+        assert "Engineering" in result["org"]
+        assert "AI Team" in result["org"]
+
+    def test_mixed_line_endings(self) -> None:
+        """File with mixed \\r\\n and \\n endings."""
+        vcard = "BEGIN:VCARD\r\nFN:Mixed\nTEL:123\r\nEMAIL:m@x.com\nEND:VCARD\r\n"
+        result = _parse_vcard(vcard)
+        assert result["name"] == "Mixed"
+        assert result["phones"] == ["123"]
+        assert result["emails"] == ["m@x.com"]
+
+    def test_tab_line_folding(self) -> None:
+        """RFC allows TAB as line folding continuation marker."""
+        vcard = "BEGIN:VCARD\r\nFN:Tab\r\n\tFolded\r\nEND:VCARD\r\n"
+        result = _parse_vcard(vcard)
+        assert result["name"] == "TabFolded"
+
+    def test_garbage_text_returns_empty(self) -> None:
+        result = _parse_vcard("this is not a vcard at all")
+        assert result == {}
+
+
+class TestGuessMediaTypeVcard:
+    """Test guess_media_type for vCard MIME types and extensions."""
+
+    def test_text_vcard_mime(self) -> None:
+        assert guess_media_type("file.txt", "text/vcard") == MediaType.CONTACT
+
+    def test_text_x_vcard_mime(self) -> None:
+        assert guess_media_type("file.txt", "text/x-vcard") == MediaType.CONTACT
+
+    def test_text_directory_mime(self) -> None:
+        assert guess_media_type("file.txt", "text/directory") == MediaType.CONTACT
+
+    def test_application_vcard_mime(self) -> None:
+        assert guess_media_type("file.txt", "application/vcard") == MediaType.CONTACT
+
+    def test_application_x_vcard_mime(self) -> None:
+        assert guess_media_type("file.txt", "application/x-vcard") == MediaType.CONTACT
+
+    def test_vcf_extension_no_mime(self) -> None:
+        assert guess_media_type("contact.vcf") == MediaType.CONTACT
+
+    def test_vcf_extension_uppercase(self) -> None:
+        assert guess_media_type("CONTACT.VCF") == MediaType.CONTACT
+
+    def test_non_vcard_remains_document(self) -> None:
+        assert guess_media_type("file.pdf", "application/pdf") == MediaType.DOCUMENT
+
 
 class TestHasContactAttachment:
     def test_no_media(self) -> None:
@@ -127,6 +207,13 @@ class TestHasContactAttachment:
 
     def test_contact_present(self) -> None:
         msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path="/tmp/a.vcf")])
+        assert has_contact_attachment(msg) is True
+
+    def test_mixed_media_detects_contact(self) -> None:
+        msg = _make_msg(media=[
+            MediaAttachment(media_type=MediaType.IMAGE, url="http://x.com/a.png"),
+            MediaAttachment(media_type=MediaType.CONTACT, path="/tmp/a.vcf"),
+        ])
         assert has_contact_attachment(msg) is True
 
 
@@ -145,6 +232,25 @@ class TestFormatContactText:
 
     def test_name_only(self) -> None:
         assert format_contact_text({"name": "Bob"}) == "Name: Bob"
+
+    def test_all_fields(self) -> None:
+        card = {
+            "name": "Full",
+            "phones": ["+1", "+2"],
+            "emails": ["a@b.com"],
+            "org": "Org",
+            "title": "CEO",
+            "note": "VIP",
+            "address": "123 St",
+            "url": "https://x.com",
+            "birthday": "2000-01-01",
+        }
+        text = format_contact_text(card)
+        assert "Phone: +1, +2" in text
+        assert "Address: 123 St" in text
+        assert "URL: https://x.com" in text
+        assert "Birthday: 2000-01-01" in text
+        assert "Note: VIP" in text
 
 
 class TestEnrichContactInbound:
@@ -171,3 +277,51 @@ class TestEnrichContactInbound:
         msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path="/nonexistent/x.vcf")])
         result = await enrich_contact_inbound(msg)
         assert result.metadata.get("contact_cards") is None
+
+    @pytest.mark.asyncio
+    async def test_immutability(self, tmp_path) -> None:
+        """Original message must not be mutated."""
+        vcf = tmp_path / "immutable.vcf"
+        vcf.write_text("BEGIN:VCARD\nFN:Immutable\nTEL:111\nEND:VCARD\n")
+        msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf))])
+        original_metadata = dict(msg.metadata)
+        result = await enrich_contact_inbound(msg)
+        assert result is not msg
+        assert msg.metadata == original_metadata
+
+    @pytest.mark.asyncio
+    async def test_max_contacts_limit(self, tmp_path) -> None:
+        """Only MAX_CONTACTS_PER_MESSAGE contacts are processed."""
+        attachments = []
+        for i in range(MAX_CONTACTS_PER_MESSAGE + 3):
+            vcf = tmp_path / f"contact_{i}.vcf"
+            vcf.write_text(f"BEGIN:VCARD\nFN:Person {i}\nTEL:{i}\nEND:VCARD\n")
+            attachments.append(MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf)))
+        msg = _make_msg(media=attachments)
+        result = await enrich_contact_inbound(msg)
+        cards = result.metadata["contact_cards"]
+        assert len(cards) == MAX_CONTACTS_PER_MESSAGE
+
+    @pytest.mark.asyncio
+    async def test_oversized_file_skipped(self, tmp_path) -> None:
+        """Files exceeding MAX_VCARD_BYTES are silently skipped."""
+        from app.channels.media.contact_enrichment import MAX_VCARD_BYTES
+
+        vcf = tmp_path / "huge.vcf"
+        vcf.write_text("BEGIN:VCARD\nFN:Huge\nNOTE:" + "x" * (MAX_VCARD_BYTES + 100) + "\nEND:VCARD\n")
+        msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf))])
+        result = await enrich_contact_inbound(msg)
+        assert result.metadata.get("contact_cards") is None
+
+    @pytest.mark.asyncio
+    async def test_preserves_existing_metadata(self, tmp_path) -> None:
+        """Existing metadata keys are preserved after enrichment."""
+        vcf = tmp_path / "preserve.vcf"
+        vcf.write_text("BEGIN:VCARD\nFN:Keep Meta\nEND:VCARD\n")
+        msg = _make_msg(
+            media=[MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf))],
+            metadata={"existing_key": "keep_me"},
+        )
+        result = await enrich_contact_inbound(msg)
+        assert result.metadata["existing_key"] == "keep_me"
+        assert "contact_cards" in result.metadata

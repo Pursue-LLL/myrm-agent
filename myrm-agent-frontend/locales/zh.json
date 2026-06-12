@@ -4433,7 +4433,8 @@
         "tts": "语音生成",
         "kanban": "任务看板",
         "llm_map": "批量 LLM 映射",
-        "answer_tool": "回答质量自审"
+        "answer_tool": "回答质量自审",
+        "render_ui": "交互式 UI"
       },
       "builtinToolDescs": {
         "web_search": "搜索互联网获取实时信息",
@@ -4448,7 +4449,8 @@
         "tts": "使用 TTS 模型将文本转换为语音",
         "kanban": "管理看板任务 — 报告进度、阻塞任务、标记完成",
         "llm_map": "对一批条目并行施加同一指令 — 一步完成整列的总结、分类或翻译",
-        "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性"
+        "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
+        "render_ui": "在对话中渲染表格、图表和表单 — 用于结构化数据展示与交互"
       },
       "cuPermission": {
         "checking": "正在检查桌面权限…",

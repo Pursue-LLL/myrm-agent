@@ -7,7 +7,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、网关全局 PAT 降级与工具配置注入、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools` 统一映射为布尔 flag；`action_mode='fast'` 时动态限制工具集、设置 `prompt_mode="search"` 并按 `search_depth` 配置迭代限制。 | — |
+| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、网关全局 PAT 降级与工具配置注入、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools`（含 `render_ui`→`enable_render_ui`）统一映射为布尔 flag；`action_mode='fast'` 时动态限制工具集、设置 `prompt_mode="search"` 并按 `search_depth` 配置迭代限制。 | — |
 | `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, MentionReferenceRequest, ArchiveRestoreActionRequest, AgentConfigRequest 等），声明前端记忆开关、`search_depth`、GUI @ 结构化引用、typed archive restore action 契约以及 `tool_gateway_config`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
 | `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |

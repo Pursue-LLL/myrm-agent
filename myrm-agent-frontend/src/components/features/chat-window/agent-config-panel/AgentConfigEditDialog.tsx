@@ -37,6 +37,8 @@ import {
   KanbanSquare,
   Layers,
   Volume2,
+  LayoutTemplate,
+  MessageSquareCheck,
   Bot,
   Link2,
   RefreshCw,
@@ -1150,6 +1152,8 @@ const AgentConfigEditDialog = ({
           tts: <Volume2 size={14} />,
           kanban: <KanbanSquare size={14} />,
           llm_map: <Layers size={14} />,
+          answer_tool: <MessageSquareCheck size={14} />,
+          render_ui: <LayoutTemplate size={14} />,
         };
         const toggleBuiltinTool = (id: BuiltinToolId) => {
           setLocalBuiltinTools((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

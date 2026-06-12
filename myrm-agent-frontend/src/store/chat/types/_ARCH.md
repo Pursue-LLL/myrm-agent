@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `index.ts` | 核心 | 子模块 barrel | ✅ |
-| `builtinTools.ts` | 核心 | 内置工具 ID | ✅ |
+| `builtinTools.ts` | 核心 | 内置工具 ID（含 `render_ui` → server `enable_render_ui`） | ✅ |
 | `sources.ts` | 核心 | 引用来源 / citation | ✅ |
 | `sessionConfig.ts` | 核心 | Agent 与会话模式 | ✅ |
 | `archiveRestore.ts` | 辅助 | 归档恢复 payload | ✅ |
