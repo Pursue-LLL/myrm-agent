@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { Loader2, Copy, Download, Eye, Check } from 'lucide-react';
 
 import {
@@ -28,8 +28,6 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
   const [format, setFormat] = useState<'markdown' | 'json'>('markdown');
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const formatRef = useRef(format);
-  formatRef.current = format;
 
   useEffect(() => {
     if (!open) {
@@ -41,7 +39,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
     const load = async () => {
       setIsLoading(true);
       try {
-        const items = await previewRulesSafe({ format: formatRef.current });
+        const items = await previewRulesSafe({ format });
         setPreviews(items);
         setSelectedIds(new Set(items.map((i) => i.id)));
       } catch {
@@ -51,7 +49,7 @@ const ShareRulesDialog = memo(function ShareRulesDialog({ open, onOpenChange }: 
       }
     };
     load();
-  }, [open]);
+  }, [open, format]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {

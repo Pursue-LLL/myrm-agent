@@ -175,7 +175,11 @@ async def test_real_world_cache_across_calls():
         {
             "agent_type": "search",
             "objective": task_desc,
-            "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
+            "context": {
+                "session_id": "test_session",
+                "workspace_path": "/tmp/test",
+                "workspaces_storage_root": "/tmp/test_workspaces",
+            },
             "wait": True,
         }
     )
@@ -186,7 +190,11 @@ async def test_real_world_cache_across_calls():
         {
             "agent_type": "search",
             "objective": task_desc,
-            "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
+            "context": {
+                "session_id": "test_session",
+                "workspace_path": "/tmp/test",
+                "workspaces_storage_root": "/tmp/test_workspaces",
+            },
             "wait": True,
         }
     )
@@ -237,7 +245,11 @@ async def test_real_world_error_recovery():
         {
             "agent_type": "search",
             "objective": "会失败然后重试的任务",
-            "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
+            "context": {
+                "session_id": "test_session",
+                "workspace_path": "/tmp/test",
+                "workspaces_storage_root": "/tmp/test_workspaces",
+            },
             "wait": True,
         }
     )
@@ -311,6 +323,7 @@ async def test_real_world_context_sharing():
     shared_context = {
         "session_id": "test_session",
         "workspace_path": "/tmp/test",
+        "workspaces_storage_root": "/tmp/test_workspaces",
         "session_data": {"key": "value"},
     }
 
@@ -365,7 +378,11 @@ async def test_real_world_timeout_config():
         {
             "agent_type": "search",
             "objective": "会超时的任务",
-            "context": {"session_id": "test_session", "workspace_path": "/tmp/test"},
+            "context": {
+                "session_id": "test_session",
+                "workspace_path": "/tmp/test",
+                "workspaces_storage_root": "/tmp/test_workspaces",
+            },
             "wait": True,
         }
     )
