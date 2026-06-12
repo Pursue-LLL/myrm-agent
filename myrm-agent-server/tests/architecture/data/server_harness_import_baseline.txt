@@ -27,6 +27,8 @@ myrm_agent_harness.agent.dynamic_workflow
 myrm_agent_harness.agent.event_log
 myrm_agent_harness.agent.event_log.analytics_queries
 myrm_agent_harness.agent.event_log.backends.file_backend
+myrm_agent_harness.agent.event_log.dataset_export
+myrm_agent_harness.agent.event_log.dataset_export.protocols
 myrm_agent_harness.agent.event_log.protocols
 myrm_agent_harness.agent.event_log.trace_builder
 myrm_agent_harness.agent.event_log.types
@@ -36,6 +38,7 @@ myrm_agent_harness.agent.file_snapshot.external_effect_detector
 myrm_agent_harness.agent.file_snapshot.local_store
 myrm_agent_harness.agent.file_snapshot.protocols
 myrm_agent_harness.agent.file_snapshot.restore_inbox
+myrm_agent_harness.agent.file_snapshot.shadow_git_store
 myrm_agent_harness.agent.file_snapshot.shadow_git_store
 myrm_agent_harness.agent.file_snapshot.types
 myrm_agent_harness.agent.goals.manager
@@ -48,6 +51,7 @@ myrm_agent_harness.agent.meta_tools.bash._background_registry
 myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools
+myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
 myrm_agent_harness.agent.meta_tools.spawn_subagent
 myrm_agent_harness.agent.middlewares
@@ -159,6 +163,7 @@ myrm_agent_harness.backends.skills.types
 myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
 myrm_agent_harness.core.artifacts.constants
+myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.config.llm
 myrm_agent_harness.core.events
@@ -390,6 +395,3 @@ myrm_agent_harness.utils.token_economics.tracker
 myrm_agent_harness.utils.token_estimation
 myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
-myrm_agent_harness.agent.file_snapshot.shadow_git_store
-myrm_agent_harness.agent.event_log.dataset_export
-myrm_agent_harness.agent.event_log.dataset_export.protocols
