@@ -15,7 +15,7 @@ Compaction drain 编排层。提供 compaction summary 字段更新、后台 dra
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.database.repositories.uow import UnitOfWork
 
@@ -63,12 +63,12 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 if not chat:
                     return
 
-                age_seconds = (datetime.utcnow() - latest_msg.created_at).total_seconds()
+                age_seconds = (datetime.now(UTC) - latest_msg.created_at).total_seconds()
                 if age_seconds < 290:
-                    logger.info(f"❄️ [Drain] Cache still hot for {chat_id}, deferring drain.")
+                    logger.info("❄️ [Drain] Cache still hot for %s, deferring drain.", chat_id)
                     return
 
-            logger.info(f"❄️ [Drain] Cache is cold for {chat_id}, starting offline summarization for snapshot {snapshot_id}.")
+            logger.info("❄️ [Drain] Cache is cold for %s, starting offline summarization for snapshot %s.", chat_id, snapshot_id)
 
             async with UnitOfWork() as uow:
                 all_msgs = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
@@ -145,9 +145,9 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 )
 
                 if success:
-                    logger.info(f"✅ [Drain] Optimistic MVCC update successful for chat {chat_id}, new snapshot: {snapshot_id}")
+                    logger.info("✅ [Drain] Optimistic MVCC update successful for chat %s, new snapshot: %s", chat_id, snapshot_id)
                 else:
-                    logger.info(f"⚠️ [Drain] MVCC update failed for chat {chat_id} (concurrent modification), discarding summary.")
+                    logger.info("⚠️ [Drain] MVCC update failed for chat %s (concurrent modification), discarding summary.", chat_id)
 
-        except Exception as e:
-            logger.error(f"❌ [Drain] Background drain failed for {chat_id}: {e}")
+        except Exception:
+            logger.exception("❌ [Drain] Background drain failed for %s", chat_id)
