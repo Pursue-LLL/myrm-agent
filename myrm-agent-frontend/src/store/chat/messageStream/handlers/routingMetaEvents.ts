@@ -12,7 +12,8 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
   if (data.type === H.AgentEventType.ROUTING_DECISION) {
     const routingData = data.data;
     const tier = routingData?.tier as 'simple' | 'standard' | 'reasoning' | 'complex' | undefined;
-    if (tier) {
+    const modelTier = routingData?.model_tier as 'weak' | 'medium' | undefined;
+    if (tier || modelTier) {
       if (!added) {
         actions.setMessages((state) => {
           state.messages.push({
@@ -21,6 +22,7 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
             chatId: state.messages[0]?.chatId || '',
             role: 'assistant',
             routingTier: tier,
+            modelTier,
             createdAt: new Date(),
             metadata: data.metadata,
           });
@@ -30,7 +32,12 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
         actions.setMessages((state) => {
           const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
           if (messageIndex !== -1) {
-            state.messages[messageIndex].routingTier = tier;
+            if (tier) {
+              state.messages[messageIndex].routingTier = tier;
+            }
+            if (modelTier) {
+              state.messages[messageIndex].modelTier = modelTier;
+            }
           }
         });
       }

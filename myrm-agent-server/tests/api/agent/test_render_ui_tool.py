@@ -6,7 +6,7 @@
 
 from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
 from myrm_agent_harness.agent.artifacts.ui_registry import get_ui_registry
-from myrm_agent_harness.toolkits.interaction.render_ui_tool import render_ui
+from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import render_ui
 
 
 class TestRenderUITool:

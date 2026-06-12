@@ -38,3 +38,4 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 - 单租户：路由与依赖**无** `user_id` 多租户语义（`tests/architecture/test_no_user_id.py`）。
 - SaaS sandbox：认证经 `middleware/auth.py` HMAC；部分端点拉 Control Plane internal API（见 `services/security/`）。
 - 渠道 Webhook 动态注册见 `main.py` `init_channel_routes()`，非全部列于 `router.py`。
+- **`api/` 与 `services/` 非 1:1 目录镜像**：贡献者域名词对照见根目录 [CONTRIBUTING.md § API ↔ Services domain vocabulary](../../../CONTRIBUTING.md#api--services-domain-vocabulary)；CI 锁见 [tests/architecture/test_api_services_vocabulary.py](../../../tests/architecture/test_api_services_vocabulary.py)。

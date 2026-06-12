@@ -57,6 +57,7 @@ export type Message = {
   };
   modelName?: string; // 最后使用的模型名称
   routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
+  modelTier?: 'weak' | 'medium';
   privacyLevel?: SensitivityLevel;
   privacyAction?: string;
   privacyRoute?: string;

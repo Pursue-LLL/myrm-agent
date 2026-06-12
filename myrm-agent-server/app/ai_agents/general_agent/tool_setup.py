@@ -145,7 +145,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
         if self.enable_render_ui:
-            from myrm_agent_harness.toolkits.interaction.render_ui_tool import (
+            from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
                 render_ui_tool,
             )
 

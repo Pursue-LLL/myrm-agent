@@ -67,8 +67,17 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
     token_ctx = user_credentials_ctx.set(tuple(credentials_list))
     approval = ApprovalTimeoutHolder()
 
+    from myrm_agent_harness.core.config import ModelTier, infer_model_tier
+
+    _custom_def = getattr(session.params.model_cfg, "custom_model_def", None)
+    _max_ctx = getattr(session.params.model_cfg, "max_context_tokens", None)
+    _model_tier = infer_model_tier(session.params.model_cfg.model, _custom_def, _max_ctx)
+
     if session.routing_tier:
         routing_data: dict[str, object] = {"tier": session.routing_tier}
+        if _model_tier != ModelTier.STRONG:
+            routing_data["model_tier"] = _model_tier.value
+
         routing_event_data: dict[str, object] = {
             "type": "routing_decision",
             "messageId": session.params.message_id or "",
@@ -76,6 +85,14 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
         }
         session.collector.feed_event(routing_event_data)
         yield SSEEnvelope.from_any(routing_event_data).to_sse_chunk()
+    elif _model_tier != ModelTier.STRONG:
+        model_tier_event: dict[str, object] = {
+            "type": "routing_decision",
+            "messageId": session.params.message_id or "",
+            "data": cast(dict[str, object], {"model_tier": _model_tier.value}),
+        }
+        session.collector.feed_event(model_tier_event)
+        yield SSEEnvelope.from_any(model_tier_event).to_sse_chunk()
 
     if session.context_warnings:
         for warning_msg in session.context_warnings:

@@ -72,3 +72,7 @@
 ### 被依赖方
 - `app/api/`：HTTP 接口层调用 services 层
 - `app/main.py`：生命周期管理（cleanup 启停）
+
+### 与 `api/` 的目录对应
+
+`services/` 子目录名常与 `api/` 不同（如 `agent/` ↔ `agents/`）。完整对照表见根目录 [CONTRIBUTING.md § API ↔ Services domain vocabulary](../../../CONTRIBUTING.md#api--services-domain-vocabulary)；CI 锁见 [tests/architecture/test_api_services_vocabulary.py](../../../tests/architecture/test_api_services_vocabulary.py)。

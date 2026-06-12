@@ -9,7 +9,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 | 文件 | 职责 |
 |------|------|
 | `LICENSE` | MIT 许可（全仓） |
-| `CONTRIBUTING.md` | OSS 贡献指南 |
+| `CONTRIBUTING.md` | OSS 贡献指南（30 分钟阅读路径、任务路径 A/B/C、`api/`↔`services/` 域名词对照） |
 | `SECURITY.md` | 漏洞报告策略 |
 | `ARCHITECTURE.md` | 五仓边界、三部署模式、文档索引 |
 | `_ARCH.md` | 本文件：子目录职责表 |

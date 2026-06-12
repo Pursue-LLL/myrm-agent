@@ -402,6 +402,9 @@ async def build_general_agent(
     checkpointer = get_checkpointer()
     logger.info(f"使用 checkpointer: {type(checkpointer).__name__}")
 
+    # 7.5 Auto-tune for small models (zero-config compatibility mode)
+    _apply_small_model_tuning(agent_wrapper)
+
     # 8. System prompt (core + CLI tool awareness)
     system_prompt = get_core_system_prompt(
         mode=agent_wrapper.prompt_mode,
@@ -899,3 +902,55 @@ def _build_session_cleanup_callback(
         )
 
     return _composite
+
+
+def _apply_small_model_tuning(agent_wrapper: "GeneralAgent") -> None:
+    """Auto-tune agent parameters when a small/weak model is detected.
+
+    Only applies when prompt_mode is still at default ("full") and user
+    has not explicitly configured engine_params overrides.
+    Preserves all user-explicit settings — auto-tuning is purely additive.
+    """
+    if agent_wrapper.prompt_mode != "full":
+        return
+
+    from myrm_agent_harness.core.config import ModelTier, infer_model_tier
+
+    custom_def = getattr(agent_wrapper.model_cfg, "custom_model_def", None)
+    max_ctx = getattr(agent_wrapper.model_cfg, "max_context_tokens", None)
+
+    tier = infer_model_tier(
+        model_name=agent_wrapper.model_cfg.model,
+        custom_model_def=custom_def,
+        max_context_tokens=max_ctx,
+    )
+
+    if tier == ModelTier.STRONG:
+        return
+
+    engine = agent_wrapper.engine_params or {}
+
+    if tier == ModelTier.WEAK:
+        agent_wrapper.prompt_mode = "lean"
+        if engine.get("enable_parallel_tool_calls") is None:
+            engine["enable_parallel_tool_calls"] = False
+        if engine.get("compress_start_ratio") is None:
+            engine["compress_start_ratio"] = 0.30
+        if engine.get("max_tool_calls") is None:
+            engine["max_tool_calls"] = 10
+        logger.info(
+            "Small model compatibility: tier=%s, model=%s → prompt_mode=lean, parallel=False, compress_ratio=0.30",
+            tier,
+            agent_wrapper.model_cfg.model,
+        )
+    elif tier == ModelTier.MEDIUM:
+        agent_wrapper.prompt_mode = "lean"
+        if engine.get("compress_start_ratio") is None:
+            engine["compress_start_ratio"] = 0.50
+        logger.info(
+            "Medium model tuning: tier=%s, model=%s → prompt_mode=lean, compress_ratio=0.50",
+            tier,
+            agent_wrapper.model_cfg.model,
+        )
+
+    agent_wrapper.engine_params = engine
