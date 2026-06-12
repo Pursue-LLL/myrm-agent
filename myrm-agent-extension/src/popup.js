@@ -48,6 +48,12 @@ function refreshStatus() {
 
     if (connected && response.attachedTabs && response.attachedTabs.length > 0) {
       tabsSection.style.display = "block";
+      tabsList.innerHTML = response.attachedTabs
+        .map((id) => `<div class="tab-item"><span class="domain">Tab #${id}</span></div>`)
+        .join("");
+    } else {
+      tabsSection.style.display = "none";
+      tabsList.innerHTML = "";
     }
   });
 }

@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from app.core.skills.config_version import bump_skill_config_version
 from app.database.connection import get_session
-from app.database.models import ApprovalRecord
+from app.database.models import Agent, ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 from app.services.skills.evolution_events import publish_skill_evolved_event
@@ -48,6 +48,7 @@ class SkillDraftListResponse(BaseModel):
 
 class ApproveDraftRequest(BaseModel):
     skill_name: str | None = None
+    scope_agent_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -318,8 +319,34 @@ async def approve_skill_draft(
                 description=approved_draft.description or approved_draft.name,
             )
 
+        skill_id = mat_result.get("skill_id")
+        if skill_id:
+            target_agent_id = request.scope_agent_id or approved_draft.agent_id
+            await _bind_skill_to_agent(str(skill_id), target_agent_id)
+
     materialized.update(mat_result)
     return materialized
+
+
+async def _bind_skill_to_agent(skill_id: str, agent_id: str) -> None:
+    """Add a materialized skill to the originating Agent's skill_ids."""
+    try:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        async with get_session() as db:
+            agent = await db.get(Agent, agent_id)
+            if agent is None:
+                logger.warning("Agent %s not found for skill binding, skipping", agent_id)
+                return
+            current_ids: list[str] = list(agent.skill_ids) if agent.skill_ids else []
+            if skill_id not in current_ids:
+                current_ids.append(skill_id)
+                agent.skill_ids = current_ids
+                flag_modified(agent, "skill_ids")
+                await db.commit()
+                logger.info("Bound skill %s to agent %s", skill_id, agent_id)
+    except Exception as exc:
+        logger.error("Failed to bind skill %s to agent %s: %s", skill_id, agent_id, exc)
 
 
 async def _rollback_draft_status(draft_id: str) -> None:
