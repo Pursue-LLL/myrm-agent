@@ -326,15 +326,101 @@ export function stripScriptsForStreaming(html: string): string {
 }
 
 /**
+ * Build the localStorage polyfill script for sandboxed iframes.
+ * Overrides window.localStorage with a postMessage-based bridge that
+ * communicates with the host to persist data in server-side SQLite.
+ *
+ * @param initialData - Pre-hydrated key-value pairs to avoid async loading race
+ */
+export function buildWidgetStorageScript(initialData: Record<string, string> = {}): string {
+  const serializedData = JSON.stringify(initialData);
+  return `<script>
+(function(){
+  var _cache = ${serializedData};
+  var _pendingWrites = {};
+  var _debounceTimer = null;
+  var DEBOUNCE_MS = 300;
+
+  function _flush(){
+    var entries = _pendingWrites;
+    _pendingWrites = {};
+    _debounceTimer = null;
+    var keys = Object.keys(entries);
+    if(!keys.length) return;
+    var batch = keys.map(function(k){ return {key:k, value:entries[k]} });
+    window.parent.postMessage({type:'widget-storage-batch', entries:batch},'*');
+  }
+
+  function _scheduleBatch(key, value){
+    _pendingWrites[key] = value;
+    if(_debounceTimer) clearTimeout(_debounceTimer);
+    _debounceTimer = setTimeout(_flush, DEBOUNCE_MS);
+  }
+
+  var storage = {
+    getItem: function(key){
+      var v = _cache[key];
+      return v === undefined ? null : v;
+    },
+    setItem: function(key, value){
+      value = String(value);
+      _cache[key] = value;
+      _scheduleBatch(key, value);
+    },
+    removeItem: function(key){
+      delete _cache[key];
+      window.parent.postMessage({type:'widget-storage-remove', key:key},'*');
+    },
+    clear: function(){
+      _cache = {};
+      window.parent.postMessage({type:'widget-storage-clear'},'*');
+    },
+    key: function(n){
+      return Object.keys(_cache)[n] || null;
+    },
+    get length(){
+      return Object.keys(_cache).length;
+    }
+  };
+
+  try{
+    Object.defineProperty(window, 'localStorage', {
+      value: storage, writable: false, configurable: true
+    });
+  }catch(e){}
+
+  window.addEventListener('beforeunload', function(){
+    if(_debounceTimer){ clearTimeout(_debounceTimer); _flush(); }
+  });
+
+  window.addEventListener('message', function(e){
+    if(!e.data || typeof e.data !== 'object') return;
+    if(e.data.type === 'widget-storage-quota-error'){
+      var err = new DOMException('QuotaExceededError','QuotaExceededError');
+      console.error('Widget storage quota exceeded:', e.data.key, err);
+    }
+  });
+})();
+</script>`;
+}
+
+/**
  * Build complete srcdoc HTML for the widget iframe.
  *
  * @param widgetHtml - The raw HTML content to render
  * @param themeVars - Resolved CSS variables from the host
  * @param isStreaming - If true, strips scripts for safe visual preview
+ * @param storageData - Pre-hydrated KV data for localStorage polyfill
  */
-export function buildWidgetSrcdoc(widgetHtml: string, themeVars: Record<string, string>, isStreaming: boolean): string {
+export function buildWidgetSrcdoc(
+  widgetHtml: string,
+  themeVars: Record<string, string>,
+  isStreaming: boolean,
+  storageData?: Record<string, string>,
+): string {
   const safeHtml = isStreaming ? stripScriptsForStreaming(widgetHtml) : widgetHtml;
   const isDark = themeVars['--is-dark'] === '1';
+  const storageScript = !isStreaming && storageData ? buildWidgetStorageScript(storageData) : '';
 
   return `<!DOCTYPE html>
 <html${isDark ? ' class="dark"' : ''}>
@@ -342,6 +428,7 @@ export function buildWidgetSrcdoc(widgetHtml: string, themeVars: Record<string, 
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 ${buildWidgetCSP()}
+${storageScript}
 ${buildWidgetStyleBlock(themeVars)}
 </head>
 <body>

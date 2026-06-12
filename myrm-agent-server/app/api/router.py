@@ -79,6 +79,7 @@ from app.api.tts.router import router as tts_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
 from app.api.wiki import router as wiki_router
+from app.api.widget_storage import router as widget_storage_router
 from app.api.workspace.router import router as workspace_router
 from app.config.deploy_mode import is_local_mode
 
@@ -132,6 +133,7 @@ api_router.include_router(credentials_router, prefix="/credentials", tags=["cred
 api_router.include_router(memory_router, prefix="/memory", tags=["memory"])
 api_router.include_router(context_bundle_router, tags=["context-bundle"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
+api_router.include_router(widget_storage_router, tags=["widget-storage"])
 api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
 api_router.include_router(calendar_router)
 api_router.include_router(commitment_router)

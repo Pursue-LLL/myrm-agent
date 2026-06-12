@@ -64,6 +64,7 @@ from .skill_optimization import (
     SkillVersionModel,
 )
 from .vault_credential import VaultCredential
+from .widget_kv import WidgetKVEntry
 
 __all__ = [
     "Base",
@@ -157,4 +158,6 @@ __all__ = [
     "ArtifactAuditLog",
     # Fission
     "FissionTaskRecord",
+    # Widget KV Storage
+    "WidgetKVEntry",
 ]

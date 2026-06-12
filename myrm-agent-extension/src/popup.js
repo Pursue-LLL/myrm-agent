@@ -12,6 +12,7 @@ const btnConnect = document.getElementById("btn-connect");
 const btnDisconnect = document.getElementById("btn-disconnect");
 const statusBadge = document.getElementById("status-badge");
 const statusText = document.getElementById("status-text");
+const errorHint = document.getElementById("error-hint");
 const tabsSection = document.getElementById("tabs-section");
 const tabsList = document.getElementById("tabs-list");
 
@@ -27,11 +28,23 @@ function refreshStatus() {
   chrome.runtime.sendMessage({ type: "get_status" }, (response) => {
     if (!response) return;
 
-    const connected = response.connected;
-    statusBadge.className = `status-badge ${connected ? "connected" : "disconnected"}`;
-    statusText.textContent = connected ? "Connected" : "Disconnected";
-    btnConnect.style.display = connected ? "none" : "block";
+    const { connected, connecting, lastError } = response;
+    let state = "disconnected";
+    let label = "Disconnected";
+    if (connected) { state = "connected"; label = "Connected"; }
+    else if (connecting) { state = "connecting"; label = "Connecting…"; }
+
+    statusBadge.className = `status-badge ${state}`;
+    statusText.textContent = label;
+    btnConnect.style.display = connected || connecting ? "none" : "block";
     btnDisconnect.style.display = connected ? "block" : "none";
+
+    if (lastError && !connected && !connecting) {
+      errorHint.textContent = lastError;
+      errorHint.style.display = "block";
+    } else {
+      errorHint.style.display = "none";
+    }
 
     if (connected && response.attachedTabs && response.attachedTabs.length > 0) {
       tabsSection.style.display = "block";

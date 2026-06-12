@@ -259,6 +259,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             if chat:
                 sandbox_base_dir = chat.sandbox_base_dir
             await ConversationRecallIndexService.delete_chat(sess, chat_id)
+            await _delete_widget_kv_for_chat(sess, chat_id)
             ok = await repo.permanently_delete_chat(chat_id)
 
         if ok:
@@ -475,3 +476,13 @@ class _ChatCrudMixin(_ChatServiceBase):
             raise ValueError(f"Cannot reorder more than {_ChatCrudMixin.MAX_PINNED} items")
         async with UnitOfWork() as uow:
             await _ChatServiceBase._cr(uow).reorder_pinned_chats(items)
+
+
+async def _delete_widget_kv_for_chat(session: "AsyncSession", chat_id: str) -> None:
+    """Remove all widget KV entries associated with a chat."""
+    from sqlalchemy import delete
+
+    from app.database.models.widget_kv import WidgetKVEntry
+
+    stmt = delete(WidgetKVEntry).where(WidgetKVEntry.chat_id == chat_id)
+    await session.execute(stmt)

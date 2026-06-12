@@ -20,6 +20,7 @@ let serverUrl = "";
 let authToken = "";
 let reconnectDelay = RECONNECT_DELAY_MS;
 let isConnecting = false;
+let lastError = "";
 let authorizedDomains = [];
 let attachedTabs = new Map(); // tabId -> debugger target
 
@@ -50,18 +51,21 @@ function connect() {
   if (!serverUrl) return;
 
   isConnecting = true;
+  updateBadge("connecting");
   const url = `${serverUrl}${authToken ? `?token=${encodeURIComponent(authToken)}` : ""}`;
 
   try {
     ws = new WebSocket(url);
   } catch (e) {
     isConnecting = false;
-    scheduleReconnect();
+    lastError = "Invalid WebSocket URL";
+    updateBadge("error");
     return;
   }
 
   ws.onopen = () => {
     isConnecting = false;
+    lastError = "";
     reconnectDelay = RECONNECT_DELAY_MS;
     updateBadge("connected");
 
@@ -84,9 +88,10 @@ function connect() {
     }
   };
 
-  ws.onclose = () => {
+  ws.onclose = (event) => {
     ws = null;
     isConnecting = false;
+    if (!lastError) lastError = event.reason || "Connection closed";
     updateBadge("disconnected");
     detachAllDebuggers();
     scheduleReconnect();
@@ -95,6 +100,7 @@ function connect() {
   ws.onerror = () => {
     ws = null;
     isConnecting = false;
+    lastError = "Connection refused — server not running?";
     updateBadge("error");
   };
 }
@@ -104,6 +110,7 @@ function disconnect() {
     ws.close();
     ws = null;
   }
+  lastError = "";
   updateBadge("disconnected");
   detachAllDebuggers();
 }
@@ -324,11 +331,13 @@ function send(msg) {
 function updateBadge(status) {
   const colors = {
     connected: "#4CAF50",
+    connecting: "#F59E0B",
     disconnected: "#9E9E9E",
     error: "#F44336",
   };
   const texts = {
     connected: "ON",
+    connecting: "…",
     disconnected: "",
     error: "!",
   };
@@ -342,6 +351,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "get_status") {
     sendResponse({
       connected: ws && ws.readyState === WebSocket.OPEN,
+      connecting: isConnecting,
+      lastError,
       serverUrl,
       authorizedDomains,
       attachedTabs: Array.from(attachedTabs.keys()),

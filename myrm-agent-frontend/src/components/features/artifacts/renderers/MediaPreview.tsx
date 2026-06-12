@@ -5,6 +5,7 @@ import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
+import { useWidgetStorage } from '@/hooks/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 
 /** Picked element data from iframe postMessage */
@@ -32,6 +33,10 @@ interface HtmlPreviewProps {
   pickerMode?: boolean;
   /** Callback when an element is picked */
   onElementPick?: (element: PickedElement) => void;
+  /** Storage namespace for KV persistence (enables localStorage polyfill) */
+  storageNamespace?: string;
+  /** Chat ID for storage association */
+  chatId?: string;
 }
 
 const SANDBOX_POLICY = 'allow-scripts';
@@ -40,11 +45,17 @@ const MAX_IFRAME_HEIGHT = 2000;
 
 /** HTML Preview — sandboxed iframe with theme bridge, height sync, link interception, and element picker */
 export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
-  ({ url, content, isStreaming = false, injectTheme = true, autoHeight = false, artifactId: _artifactId, pickerMode = false, onElementPick }) => {
+  ({ url, content, isStreaming = false, injectTheme = true, autoHeight = false, artifactId: _artifactId, pickerMode = false, onElementPick, storageNamespace, chatId }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const themeVarsRef = useRef<Record<string, string>>({});
+
+    const { storageData, handleStorageMessage } = useWidgetStorage({
+      namespace: storageNamespace,
+      chatId,
+      enabled: !isStreaming && !!storageNamespace,
+    });
 
     // Resolve theme variables once on mount and when theme changes
     useEffect(() => {
@@ -73,8 +84,8 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
         return safeContent;
       }
-      return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming);
-    }, [url, content, isStreaming, injectTheme]);
+      return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming, storageData);
+    }, [url, content, isStreaming, injectTheme, storageData]);
 
     // Send picker mode toggle to iframe when pickerMode changes
     useEffect(() => {
@@ -104,8 +115,12 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
             outerHTML: e.data.outerHTML,
           });
         }
+
+        if (e.data.type?.startsWith('widget-storage-')) {
+          handleStorageMessage(e.data as Record<string, unknown>);
+        }
       },
-      [autoHeight, onElementPick],
+      [autoHeight, onElementPick, handleStorageMessage],
     );
 
     useEffect(() => {

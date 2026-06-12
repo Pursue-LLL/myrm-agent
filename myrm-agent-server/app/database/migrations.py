@@ -703,6 +703,15 @@ INDEX_STATEMENTS = [
     "ALTER TABLE agents ADD COLUMN browser_source VARCHAR(20)",
     "ALTER TABLE agents ADD COLUMN dialog_policy VARCHAR(20)",
     "ALTER TABLE agents ADD COLUMN session_recording VARCHAR(20)",
+    """CREATE TABLE IF NOT EXISTS widget_kv (
+        namespace VARCHAR(128) NOT NULL,
+        key VARCHAR(256) NOT NULL,
+        value TEXT NOT NULL,
+        chat_id VARCHAR(36) NOT NULL,
+        updated_at TIMESTAMP NOT NULL,
+        PRIMARY KEY (namespace, key)
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_widget_kv_chat_id ON widget_kv(chat_id)",
 ]
 
 

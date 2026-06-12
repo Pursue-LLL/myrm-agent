@@ -31,6 +31,7 @@
       margin-bottom: 12px;
     }
     .status-badge.connected { background: rgba(76, 175, 80, 0.15); color: #4CAF50; }
+    .status-badge.connecting { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
     .status-badge.disconnected { background: rgba(158, 158, 158, 0.15); color: #9E9E9E; }
     .status-dot {
       width: 8px;
@@ -104,6 +105,7 @@
       <span class="status-dot"></span>
       <span id="status-text">Disconnected</span>
     </div>
+    <div id="error-hint" style="display:none; font-size:11px; color:#ef4444; margin-top:4px;"></div>
   </div>
 
   <div class="section">
