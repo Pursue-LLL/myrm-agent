@@ -76,6 +76,50 @@ class TestExtensionBridgeService:
         assert bridge._tabs == []
 
 
+class TestSSEBroadcast:
+    """Test _broadcast_extension_status SSE integration."""
+
+    @pytest.mark.asyncio
+    async def test_disconnect_broadcasts_false(self) -> None:
+        bridge = ExtensionBridgeService()
+        bridge._connected = True
+        bridge._ws = MagicMock()
+        bridge._ws.client_state = WebSocketState.DISCONNECTED
+        bridge._tabs = []
+
+        with patch("app.services.extension.bridge._broadcast_extension_status") as mock_broadcast:
+            await bridge.disconnect()
+            mock_broadcast.assert_called_once_with(False)
+
+    @pytest.mark.asyncio
+    async def test_broadcast_publishes_correct_event(self) -> None:
+        from app.services.extension.bridge import _broadcast_extension_status
+
+        with patch("app.services.extension.bridge.get_event_bus") as mock_bus:
+            mock_publisher = MagicMock()
+            mock_bus.return_value = mock_publisher
+
+            _broadcast_extension_status(True)
+
+            mock_publisher.publish.assert_called_once()
+            event = mock_publisher.publish.call_args[0][0]
+            assert event.event_type.value == "extension_status_changed"
+            assert event.data == {"connected": True}
+
+    @pytest.mark.asyncio
+    async def test_broadcast_false_event(self) -> None:
+        from app.services.extension.bridge import _broadcast_extension_status
+
+        with patch("app.services.extension.bridge.get_event_bus") as mock_bus:
+            mock_publisher = MagicMock()
+            mock_bus.return_value = mock_publisher
+
+            _broadcast_extension_status(False)
+
+            event = mock_publisher.publish.call_args[0][0]
+            assert event.data == {"connected": False}
+
+
 class TestDomainMatching:
     """Test _match_domain wildcard matching logic."""
 
