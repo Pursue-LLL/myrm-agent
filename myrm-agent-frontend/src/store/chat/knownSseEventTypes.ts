@@ -71,6 +71,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'browser_takeover_completed',
   'session_recording',
   'risk_blocked',
+  'correction_learned',
 ] as const;
 
 /** Harness name → frontend handler type (same payload shape). */

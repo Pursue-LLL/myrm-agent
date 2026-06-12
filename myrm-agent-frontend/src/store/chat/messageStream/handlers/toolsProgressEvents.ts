@@ -288,6 +288,26 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.CORRECTION_LEARNED) {
+    const payload = data as { summaries?: string[]; data?: { summaries?: string[] } };
+    const summaries = payload.summaries ?? payload.data?.summaries;
+    if (summaries && summaries.length > 0) {
+      import('@/lib/utils/toast').then(({ toast }) => {
+        toast.success(summaries.join('; '), {
+          duration: 6_000,
+          dismissible: true,
+        });
+      });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('pet-status-event', {
+            detail: { step_key: 'correction_learned', message: summaries.join('; ') },
+          }),
+        );
+      }
+    }
+    return done(ctx);
+  }
 
   return null;
 }
