@@ -20,16 +20,12 @@ from __future__ import annotations
 import dataclasses
 import logging
 import re
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from app.channels.types import InboundMessage, MediaType
 
 if TYPE_CHECKING:
-    from app.channels.core.base import BaseChannel
     from app.channels.types import MediaAttachment
-
-type GetChannelFn = Callable[[str], BaseChannel | None]
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +134,7 @@ def format_contact_text(card: dict[str, str | list[str]]) -> str:
 
 async def enrich_contact_inbound(
     msg: InboundMessage,
-    get_channel_fn: GetChannelFn | None,
+    get_channel_fn: object = None,
 ) -> InboundMessage:
     """Enrich inbound message with structured contact card data."""
     contact_attachments = [a for a in msg.media if a.media_type == MediaType.CONTACT]
@@ -149,7 +145,7 @@ async def enrich_contact_inbound(
     cards: list[dict[str, str | list[str]]] = []
 
     for att in selected:
-        vcard_text = await _download_vcard(att, get_channel_fn, msg.channel)
+        vcard_text = await _download_vcard(att)
         if not vcard_text:
             continue
         parsed = _parse_vcard(vcard_text)
@@ -164,11 +160,7 @@ async def enrich_contact_inbound(
     return dataclasses.replace(msg, metadata=metadata)
 
 
-async def _download_vcard(
-    att: MediaAttachment,
-    get_channel_fn: GetChannelFn | None,
-    channel_name: str,
-) -> str | None:
+async def _download_vcard(att: MediaAttachment) -> str | None:
     """Download or read vCard attachment content as text."""
     from pathlib import Path
 

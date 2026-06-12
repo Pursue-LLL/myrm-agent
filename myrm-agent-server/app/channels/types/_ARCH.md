@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 类型包导出 | — |
-| `messages.py` | 核心 | 跨渠道消息数据结构 | ✅ |
+| `messages.py` | 核心 | 跨渠道消息数据结构（MediaType: IMAGE/DOCUMENT/AUDIO/VIDEO/CONTACT, MediaAttachment, guess_media_type, RenderStyle 等） | ✅ |
 | `components.py` | 核心 | 跨渠道交互组件（按钮、快捷回复等）类型 | ✅ |
 | `session.py` | 核心 | 会话标识与隔离策略 | ✅ |
 | `notification.py` | 核心 | 通知模式枚举与显式 @ 元数据 | ✅ |
