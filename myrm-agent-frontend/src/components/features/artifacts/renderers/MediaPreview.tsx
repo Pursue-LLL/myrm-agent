@@ -50,12 +50,19 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
     const [iframeHeight, setIframeHeight] = useState<number | undefined>(undefined);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const themeVarsRef = useRef<Record<string, string>>({});
+    const initialStorageRef = useRef<Record<string, string> | undefined>(undefined);
 
     const { storageData, handleStorageMessage } = useWidgetStorage({
       namespace: storageNamespace,
       chatId,
       enabled: !isStreaming && !!storageNamespace,
     });
+
+    if (storageData !== undefined && initialStorageRef.current === undefined) {
+      initialStorageRef.current = storageData;
+    }
+
+    const storageReady = storageData !== undefined;
 
     // Resolve theme variables once on mount and when theme changes
     useEffect(() => {
@@ -84,8 +91,8 @@ export const HtmlPreview: React.FC<HtmlPreviewProps> = memo(
         const safeContent = isStreaming ? content.replace(/<script[\s\S]*?<\/script>/gi, '') : content;
         return safeContent;
       }
-      return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming, storageData);
-    }, [url, content, isStreaming, injectTheme, storageData]);
+      return buildWidgetSrcdoc(content, themeVarsRef.current, isStreaming, initialStorageRef.current);
+    }, [url, content, isStreaming, injectTheme, storageReady]);
 
     // Send picker mode toggle to iframe when pickerMode changes
     useEffect(() => {

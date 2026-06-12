@@ -20,6 +20,7 @@ interface NavBadges {
   pendingApprovals: number;
   unreadNotifications: number;
   total: number;
+  extensionConnected: boolean;
 }
 
 const EMPTY_BADGES: NavBadges = {
@@ -27,6 +28,7 @@ const EMPTY_BADGES: NavBadges = {
   pendingApprovals: 0,
   unreadNotifications: 0,
   total: 0,
+  extensionConnected: false,
 };
 
 export function useNavBadges(): NavBadges {
@@ -62,6 +64,7 @@ export function useNavBadges(): NavBadges {
       'skill-draft-created',
       'skill-growth-updated',
       'cron_updated',
+      'extension-status-changed',
     ];
     for (const evt of events) {
       window.addEventListener(evt, refresh);

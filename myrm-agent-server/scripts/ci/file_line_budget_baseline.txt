@@ -106,6 +106,7 @@ app/services/chat/chat_crud.py
 app/services/chat/chat_message.py
 app/services/chat/compact_service.py
 app/services/chat/conversation_search_service.py
+app/services/extension/bridge.py
 app/services/memory/archive_restore.py
 app/services/memory/archive_restore_executor.py
 app/services/memory/backup_remote.py

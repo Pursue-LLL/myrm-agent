@@ -24,6 +24,7 @@ import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
 import AgentInfoBanner from './AgentInfoBanner';
 import YoloModeBanner from './YoloModeBanner';
 import EStopBanner from './EStopBanner';
+import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
 import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
@@ -294,6 +295,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             avatarUrl: agent.avatar_url,
             suggestionPrompts: agent.suggestion_prompts || undefined,
             memoryDecayProfile: agent.memory_decay_profile || 'normal',
+            browserSource: agent.browser_source || undefined,
           };
           setAgentConfig(config);
 
@@ -358,6 +360,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             <YoloModeBanner />
             <EStopBanner />
+            <ExtensionDisconnectedBanner />
 
             {/* 聊天内容 */}
             <div className="flex-1 min-h-0">
@@ -408,6 +411,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <ToolApprovalExpiryWatcher />
       <YoloModeBanner />
       <EStopBanner />
+      <ExtensionDisconnectedBanner />
       <EmptyChat />
       <SubagentDashboard />
       <LifeStatusCapsule currentSessionId={id || null} />

@@ -477,6 +477,10 @@ export function useGlobalEvents(): void {
             useGoalStore.getState().fetchQueue(dqSessionId);
           });
         }
+      } else if (payload.type === 'extension_status_changed') {
+        window.dispatchEvent(
+          new CustomEvent('extension-status-changed', { detail: payload.data }),
+        );
       } else if (payload.type === 'agent_config_updated') {
         const agentId = String(payload.data.agent_id ?? '');
         const action = String(payload.data.action ?? 'updated');

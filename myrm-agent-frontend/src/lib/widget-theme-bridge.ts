@@ -333,7 +333,7 @@ export function stripScriptsForStreaming(html: string): string {
  * @param initialData - Pre-hydrated key-value pairs to avoid async loading race
  */
 export function buildWidgetStorageScript(initialData: Record<string, string> = {}): string {
-  const serializedData = JSON.stringify(initialData);
+  const serializedData = JSON.stringify(initialData).replace(/<\//g, '<\\/');
   return `<script>
 (function(){
   var _cache = ${serializedData};

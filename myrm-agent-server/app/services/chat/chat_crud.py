@@ -17,12 +17,16 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from app.database.dto import ChatCreate, ChatDTO, MessageCreate, MessageDTO
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 from .conversation_recall_index_service import ConversationRecallIndexService
 
 logger = logging.getLogger(__name__)
@@ -478,7 +482,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatServiceBase._cr(uow).reorder_pinned_chats(items)
 
 
-async def _delete_widget_kv_for_chat(session: "AsyncSession", chat_id: str) -> None:
+async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> None:
     """Remove all widget KV entries associated with a chat."""
     from sqlalchemy import delete
 

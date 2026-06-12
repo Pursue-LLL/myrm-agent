@@ -56,10 +56,22 @@ except ImportError:
 if TYPE_CHECKING:
     from patchright.async_api import Browser, Playwright
 
+from app.services.event import AppEvent, AppEventType, get_event_bus
+
 logger = logging.getLogger(__name__)
 
 _HEARTBEAT_INTERVAL = 15.0
 _HEARTBEAT_TIMEOUT = 30.0
+
+
+def _broadcast_extension_status(connected: bool) -> None:
+    """Publish extension connection status change via SSE event bus."""
+    get_event_bus().publish(
+        AppEvent(
+            event_type=AppEventType.EXTENSION_STATUS_CHANGED,
+            data={"connected": connected},
+        )
+    )
 
 
 class ExtensionBridgeService:
@@ -190,6 +202,7 @@ class ExtensionBridgeService:
         self._ws = None
         self._tabs = []
         logger.info("Extension bridge disconnected")
+        _broadcast_extension_status(False)
 
     # --- WebSocket Session Management ---
 
@@ -205,6 +218,7 @@ class ExtensionBridgeService:
             self._last_heartbeat = time.monotonic()
 
         logger.info("Extension bridge connected")
+        _broadcast_extension_status(True)
 
         self._receive_task = asyncio.create_task(self._receive_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
@@ -221,6 +235,7 @@ class ExtensionBridgeService:
                     fut.set_exception(ExtensionBridgeNotAvailable("Connection lost"))
             self._pending_requests.clear()
             logger.info("Extension bridge WebSocket closed")
+            _broadcast_extension_status(False)
 
     async def _receive_loop(self) -> None:
         """Main receive loop for extension WebSocket messages."""

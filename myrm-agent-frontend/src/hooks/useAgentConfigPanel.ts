@@ -440,6 +440,7 @@ export const useAgentConfigPanel = () => {
                 }
               : null,
           memoryDecayProfile: agentDetail.memory_decay_profile || 'normal',
+          browserSource: agentDetail.browser_source || undefined,
         };
         setAgentConfig(newConfig);
 

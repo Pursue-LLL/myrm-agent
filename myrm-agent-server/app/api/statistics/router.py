@@ -452,6 +452,8 @@ async def get_nav_badges() -> JSONResponse:
             return result or 0
 
     try:
+        from app.services.extension.bridge import get_extension_bridge
+
         cron_failures, pending_approvals, unread_notifications = await asyncio.gather(
             count_cron_failures(),
             count_pending_approvals(),
@@ -463,6 +465,7 @@ async def get_nav_badges() -> JSONResponse:
                 "pendingApprovals": pending_approvals,
                 "unreadNotifications": unread_notifications,
                 "total": cron_failures + pending_approvals + unread_notifications,
+                "extensionConnected": get_extension_bridge().is_connected(),
             }
         )
     except Exception as e:

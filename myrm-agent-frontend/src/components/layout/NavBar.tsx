@@ -433,6 +433,36 @@ function NavBarInner({
           </Tooltip>
         )}
 
+        {/* Extension Bridge Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/settings/browser"
+              onClick={closeMobileSidebar}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl transition-transform hover:scale-105"
+              aria-label={
+                badges.extensionConnected
+                  ? t('nav.extensionConnected')
+                  : t('nav.extensionDisconnected')
+              }
+            >
+              <span
+                className={cn(
+                  'h-2.5 w-2.5 rounded-full transition-colors',
+                  badges.extensionConnected
+                    ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.14)]'
+                    : 'bg-gray-300 shadow-[0_0_0_3px_rgba(156,163,175,0.12)]',
+                )}
+              />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {badges.extensionConnected
+              ? t('nav.extensionConnected')
+              : t('nav.extensionDisconnected')}
+          </TooltipContent>
+        </Tooltip>
+
         {/* Settings */}
         <Tooltip>
           <TooltipTrigger asChild>

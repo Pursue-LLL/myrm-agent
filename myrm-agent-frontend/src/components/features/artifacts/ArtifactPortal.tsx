@@ -16,6 +16,7 @@ import { DragDropVerticalIcon } from 'hugeicons-react';
 import { Info } from 'lucide-react';
 import type { PickedElement } from './renderers/MediaPreview';
 import useArtifactPortalStore, {
+  ArtifactDisplayMode,
   ArtifactErrorType,
   parseErrorFromResponse,
   parseNetworkError,
@@ -36,6 +37,7 @@ import useArtifactPortalStore, {
 import ArtifactRenderer from './ArtifactRenderer';
 import { formatBytes, getDownloadFilename } from './artifactUtils';
 import { getStorageUrl } from '@/lib/api';
+import useChatStore from '@/store/useChatStore';
 import { MOBILE_BREAKPOINT, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
 
 // 拆分的子组件
@@ -80,6 +82,7 @@ const ArtifactPortal: React.FC = () => {
   const { tabs: openTabs, activeIndex: activeTabIndex } = useOpenTabs();
   const viewingVersionIndex = useViewingVersionIndex();
   const activeTab = useActiveTab();
+  const chatId = useChatStore((s) => s.chatId);
 
   // 使用从聊天历史中解析的版本列表
   const historyVersions = useArtifactVersionsFromHistory(currentArtifact?.id);
@@ -507,6 +510,7 @@ const ArtifactPortal: React.FC = () => {
                 onDownload={handleDownload}
                 pickerMode={pickerMode}
                 onElementPick={handleElementPick}
+                chatId={chatId}
               />
 
               {/* 行号滚动逻辑 */}

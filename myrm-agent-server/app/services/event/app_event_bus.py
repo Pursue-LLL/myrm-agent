@@ -61,6 +61,7 @@ class AppEventType(StrEnum):
     LOCATOR_HEALED = "locator_healed"
     GOAL_TERMINAL = "goal_terminal"
     GOAL_DEQUEUED = "goal_dequeued"
+    EXTENSION_STATUS_CHANGED = "extension_status_changed"
 
 
 @dataclass(frozen=True, slots=True)

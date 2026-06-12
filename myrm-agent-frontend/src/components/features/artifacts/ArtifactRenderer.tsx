@@ -55,10 +55,11 @@ interface ArtifactRendererProps {
   onDownload: () => void;
   pickerMode?: boolean;
   onElementPick?: (element: PickedElement) => void;
+  chatId?: string;
 }
 
 /** 内部渲染器 */
-const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick }) => {
+const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, displayMode, loading, onDownload, pickerMode, onElementPick, chatId }) => {
   const t = useTranslations('artifacts');
 
   if (loading) {
@@ -161,7 +162,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
       return <CodePreview content={content} language="html" artifactId={artifact.id} />;
     }
     const htmlUrl = preview_url ? getStorageUrl(preview_url) : undefined;
-    return <HtmlPreview url={htmlUrl} content={content} artifactId={artifact.id} pickerMode={pickerMode} onElementPick={onElementPick} />;
+    return <HtmlPreview url={htmlUrl} content={content} artifactId={artifact.id} pickerMode={pickerMode} onElementPick={onElementPick} storageNamespace={artifact.id} chatId={chatId} />;
   }
 
   // 视频类型

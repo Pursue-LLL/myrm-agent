@@ -16,8 +16,10 @@
 - **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。
 - **域名授权**：`_match_domain()` 支持 `*.example.com`；`connect_to_domain()` 与 `list_tabs()` 均经此过滤。
 - **认证**：WS 端点校验 `settings.extension_auth_token`（SecretStr）。
+- **SSE 状态广播**：连接/断开时通过 `AppEventBus` 发布 `EXTENSION_STATUS_CHANGED` 事件，前端 NavBar 实时显示连接状态。
 
 ## 依赖
 
 - PyPI `myrm-agent-harness` — `ExtensionBridge` Protocol、`BrowserInstance`
 - `patchright.async_api`、`starlette.websockets`
+- `app.services.event` — `AppEvent`、`AppEventType`、`get_event_bus`

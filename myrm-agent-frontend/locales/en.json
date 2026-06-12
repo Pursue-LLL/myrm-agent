@@ -3965,7 +3965,9 @@
     "history": "History",
     "evalLab": "Eval Lab",
     "health": "System Doctor",
-    "securityCenter": "Security Center"
+    "securityCenter": "Security Center",
+    "extensionConnected": "Browser Extension Connected",
+    "extensionDisconnected": "Browser Extension Disconnected"
   },
   "health": {
     "title": "System Doctor",
@@ -9441,6 +9443,11 @@
     "hint": "All agents and scheduled tasks are paused. Type /freeze resume to continue.",
     "resume": "Resume Now",
     "resuming": "Resuming…"
+  },
+  "extensionBanner": {
+    "message": "Browser extension is disconnected. This agent requires extension to perform web tasks.",
+    "connect": "Connect now →",
+    "dismiss": "Dismiss"
   },
   "toolApproval": {
     "title": "Tool Execution Approval",

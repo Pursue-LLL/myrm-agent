@@ -26,11 +26,10 @@ class WidgetKVEntry(Base):
     __tablename__ = "widget_kv"
     __table_args__ = (
         Index("ix_widget_kv_chat_id", "chat_id"),
-        Index("ix_widget_kv_namespace_key", "namespace", "key", unique=True),
     )
 
     namespace = Column(String(128), primary_key=True, nullable=False)
     key = Column(String(256), primary_key=True, nullable=False)
     value = Column(Text, nullable=False)
-    chat_id = Column(String(36), nullable=False, index=True)
+    chat_id = Column(String(36), nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

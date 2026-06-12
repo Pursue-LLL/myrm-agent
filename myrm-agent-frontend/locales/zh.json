@@ -3965,7 +3965,9 @@
     "history": "历史",
     "evalLab": "评测实验室",
     "health": "系统诊断",
-    "securityCenter": "安全中心"
+    "securityCenter": "安全中心",
+    "extensionConnected": "浏览器扩展已连接",
+    "extensionDisconnected": "浏览器扩展未连接"
   },
   "health": {
     "title": "系统诊断",
@@ -9438,6 +9440,11 @@
     "hint": "所有智能体与定时任务已暂停。输入 /freeze resume 可恢复。",
     "resume": "立即解除",
     "resuming": "解除中…"
+  },
+  "extensionBanner": {
+    "message": "浏览器扩展未连接。当前智能体需要扩展才能执行网页任务。",
+    "connect": "立即连接 →",
+    "dismiss": "关闭"
   },
   "toolApproval": {
     "title": "工具执行审批",

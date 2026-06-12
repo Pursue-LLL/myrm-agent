@@ -35,6 +35,7 @@
 | `ScrollToBottomButton.tsx` | 组件/模块 | 滚动到底部浮动按钮（双态：↓ 箭头 / 新消息药丸） | ✅ |
 | `YoloModeBanner.tsx` | 组件/模块 | YOLO 模式全局警告横幅（读取 ConfigSyncManager 安全策略配置） | — |
 | `EStopBanner.tsx` | 组件/模块 | E-Stop 全局冻结横幅（GET /security/estop，解除冻结 POST resume） | ✅ |
+| `ExtensionDisconnectedBanner.tsx` | 组件/模块 | Extension 断开警告横幅（条件性：仅 browserSource=extension 且未连接时显示，可 dismiss，SSE 驱动） | ✅ |
 | `SessionTrashPanel.tsx` | 组件/模块 | — | — |
 | `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
 

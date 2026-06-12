@@ -119,6 +119,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "api_keys": _RouterMount("app.api.api_keys", attr="router"),
     "media": _RouterMount("app.api.media", attr="media_router", prefix="/media", tags=("media",)),
     "budget": _RouterMount("app.api.budget", attr="budget_router", prefix="/budget", tags=("budget",)),
+    "widget_storage": _RouterMount("app.api.widget_storage", tags=("widget-storage",)),
 }
 
 PRESETS: dict[str, tuple[str, ...]] = {

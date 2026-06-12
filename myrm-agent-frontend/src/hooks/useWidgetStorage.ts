@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { apiRequest } from '@/lib/api';
+import { apiRequest, getApiUrl } from '@/lib/api';
 
 interface StorageBatchEntry {
   key: string;
@@ -72,7 +72,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
     };
   }, [enabled, namespace]);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((keepalive = false) => {
     const ns = namespaceRef.current;
     const cId = chatIdRef.current;
     if (!ns || !cId) return;
@@ -86,18 +86,27 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
 
     if (!entries.length) return;
 
-    apiRequest(`/widget-storage/${ns}/batch`, {
-      method: 'PUT',
-      body: JSON.stringify({ chat_id: cId, entries }),
-    }).catch((err: unknown) => {
-      console.warn('[WidgetStorage] batch write failed:', err);
-    });
+    if (keepalive) {
+      fetch(getApiUrl(`/widget-storage/${ns}/batch`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: cId, entries }),
+        keepalive: true,
+      }).catch(() => {});
+    } else {
+      apiRequest(`/widget-storage/${ns}/batch`, {
+        method: 'PUT',
+        body: JSON.stringify({ chat_id: cId, entries }),
+      }).catch((err: unknown) => {
+        console.warn('[WidgetStorage] batch write failed:', err);
+      });
+    }
   }, []);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (pendingWritesRef.current.size > 0) {
-        flush();
+        flush(true);
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
