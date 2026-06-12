@@ -154,7 +154,7 @@ async def test_emit_btw_done_callback_publishes_to_bus() -> None:
 
     from unittest.mock import patch
 
-    with patch("app.services.kanban.service.get_event_bus", return_value=bus):
+    with patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus):
         _emit_btw_done("task_completed", task)
 
     event = queue.get_nowait()
@@ -269,7 +269,7 @@ async def test_full_chain_emit_callback_to_notifier() -> None:
     from unittest.mock import patch
 
     with (
-        patch("app.services.kanban.service.get_event_bus", return_value=bus),
+        patch("app.services.kanban.event_publisher.get_event_bus", return_value=bus),
         patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
     ):
