@@ -68,6 +68,7 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "internal",
         "mcp",
         "media",
+        "mem0_compat",
         "notifications",
         "openai_compat",
         "statistics",

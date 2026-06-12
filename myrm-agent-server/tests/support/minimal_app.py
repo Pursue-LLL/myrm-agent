@@ -221,6 +221,7 @@ def build_minimal_app(
     *router_keys: str,
     preset: str | None = None,
     openai_compat: bool = False,
+    mem0_compat: bool = False,
     webui: bool = False,
     include_health_check: bool = False,
     register_handlers: bool = True,
@@ -241,6 +242,11 @@ def build_minimal_app(
         from app.api.openai_compat.router import openai_compat_router
 
         app.include_router(openai_compat_router)
+
+    if mem0_compat:
+        from app.api.mem0_compat.router import mem0_compat_router
+
+        app.include_router(mem0_compat_router)
 
     if webui:
         from app.api.webui.router import router as webui_router

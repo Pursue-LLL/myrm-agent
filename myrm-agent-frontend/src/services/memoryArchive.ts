@@ -198,7 +198,8 @@ export type MemoryImportSource =
   | 'codex'
   | 'claude'
   | 'windsurf'
-  | 'trae';
+  | 'trae'
+  | 'mem0';
 
 export interface MemoryImportMappingItem {
   source_bucket: string;

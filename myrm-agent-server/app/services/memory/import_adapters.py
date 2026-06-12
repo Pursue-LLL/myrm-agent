@@ -33,6 +33,7 @@ from app.services.memory.import_claude_code import dry_run_claude_code_jsonl, is
 from app.services.memory.import_codex import dry_run_codex
 from app.services.memory.import_cursor import dry_run_cursor
 from app.services.memory.import_hermes import dry_run_hermes
+from app.services.memory.import_mem0 import dry_run_mem0, is_mem0_payload
 from app.services.memory.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
 from app.services.memory.import_native_json import dry_run_native_json
 from app.services.memory.import_openclaw import dry_run_openclaw
@@ -54,6 +55,7 @@ RequestedImportSource = Literal[
     "cursor_rules",
     "codex",
     "claude",
+    "mem0",
 ]
 
 _COMPETITOR_TO_SOURCE: dict[str, RequestedImportSource] = {
@@ -62,6 +64,7 @@ _COMPETITOR_TO_SOURCE: dict[str, RequestedImportSource] = {
     "cursor": "cursor_rules",
     "codex": "codex",
     "claude": "claude",
+    "mem0": "mem0",
 }
 
 _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
@@ -71,6 +74,7 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "cursor_rules": "cursor_rules",
     "codex": "codex",
     "claude": "claude",
+    "mem0": "mem0",
 }
 
 
@@ -119,6 +123,8 @@ def build_memory_import_dry_run(
         return dry_run_cursor(resolved_payload)
     if detected == "codex":
         return dry_run_codex(resolved_payload)
+    if detected == "mem0":
+        return dry_run_mem0(resolved_payload)
     return unsupported_result(to_memory_import_source(detected), WARNING_UNSUPPORTED_SOURCE)
 
 
@@ -141,6 +147,8 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
         return "cursor_rules"
     if _is_codex_payload(payload):
         return "codex"
+    if is_mem0_payload(payload):
+        return "mem0"
     data = payload.get("data")
     if isinstance(data, dict):
         return "native_json"

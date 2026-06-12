@@ -32,6 +32,7 @@ _SUPPORTED_SOURCES: tuple[str, ...] = (
     "codex",
     "windsurf",
     "trae",
+    "mem0",
 )
 _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "native-json": "ready",
@@ -46,6 +47,7 @@ _ADAPTER_STATUS: dict[str, MemoryImportAdapterStatus] = {
     "codex": "ready",
     "windsurf": "ready",
     "trae": "ready",
+    "mem0": "ready",
 }
 _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "native_json": "native-json",
@@ -60,6 +62,7 @@ _SOURCE_LABELS: dict[MemoryImportSource, str] = {
     "codex": "codex",
     "windsurf": "windsurf",
     "trae": "trae",
+    "mem0": "mem0",
     "unknown": "unknown",
 }
 
