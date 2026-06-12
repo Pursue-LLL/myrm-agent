@@ -14,7 +14,6 @@ These types mirror Mem0's v1/v3 API contract.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +26,7 @@ class Mem0AddRequest(BaseModel):
     agent_id: str | None = None
     app_id: str | None = None
     run_id: str | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, object] | None = None
     filters: dict[str, str] | None = None
 
 
@@ -58,7 +57,7 @@ class Mem0UpdateRequest(BaseModel):
     """PUT /v1/memories/{memory_id}/ request body."""
 
     text: str | None = None
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, object] | None = None
     timestamp: str | None = None
 
 
@@ -68,7 +67,7 @@ class Mem0MemoryItem(BaseModel):
     id: str
     memory: str
     hash: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
     created_at: str
     updated_at: str
     user_id: str | None = None
@@ -80,7 +79,7 @@ class Mem0AddResponse(BaseModel):
     """Response for POST /v3/memories/add/."""
 
     results: list[Mem0MemoryItem]
-    relations: list[dict[str, Any]] = Field(default_factory=list)
+    relations: list[dict[str, object]] = Field(default_factory=list)
 
 
 class Mem0SearchResultItem(BaseModel):
@@ -89,7 +88,7 @@ class Mem0SearchResultItem(BaseModel):
     id: str
     memory: str
     hash: str | None = None
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
     score: float
     created_at: str
     updated_at: str
