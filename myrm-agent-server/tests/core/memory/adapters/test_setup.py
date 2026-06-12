@@ -5,7 +5,14 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy, MemoryS
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
-from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding, _memory_manager_cache
+
+
+@pytest.fixture(autouse=True)
+def _clear_manager_cache():
+    _memory_manager_cache.clear()
+    yield
+    _memory_manager_cache.clear()
 
 
 def _patch_memory_path(path: str):
