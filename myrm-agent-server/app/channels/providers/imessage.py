@@ -22,7 +22,7 @@ import logging
 import mimetypes
 import uuid
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -514,8 +514,6 @@ def _quote_guid(guid: str) -> str:
     Chat GUIDs contain `;` and `+` (e.g. `iMessage;-;+15551234567`)
     which must be percent-encoded when embedded in a URL path.
     """
-    from urllib.parse import quote
-
     return quote(guid, safe="")
 
 
