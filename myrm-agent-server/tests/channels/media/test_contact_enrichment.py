@@ -94,6 +94,27 @@ class TestParseVcard:
         result = _parse_vcard(vcard)
         assert result["phones"] == ["+44123456"]
 
+    def test_adr_field(self) -> None:
+        vcard = "BEGIN:VCARD\nFN:Addr Test\nADR;TYPE=WORK:;;123 Main St;Springfield;IL;62701;US\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert result["address"] == "123 Main St, Springfield, IL, 62701, US"
+
+    def test_url_field(self) -> None:
+        vcard = "BEGIN:VCARD\nFN:URL Test\nURL:https://example.com\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert result["url"] == "https://example.com"
+
+    def test_bday_field(self) -> None:
+        vcard = "BEGIN:VCARD\nFN:Bday Test\nBDAY:1990-05-15\nEND:VCARD\n"
+        result = _parse_vcard(vcard)
+        assert result["birthday"] == "1990-05-15"
+
+    def test_crlf_no_double_newlines(self) -> None:
+        vcard = "BEGIN:VCARD\r\nFN:CRLF Test\r\nTEL:999\r\nEND:VCARD\r\n"
+        result = _parse_vcard(vcard)
+        assert result["name"] == "CRLF Test"
+        assert result["phones"] == ["999"]
+
 
 class TestHasContactAttachment:
     def test_no_media(self) -> None:
@@ -130,7 +151,7 @@ class TestEnrichContactInbound:
     @pytest.mark.asyncio
     async def test_no_contact_returns_unchanged(self) -> None:
         msg = _make_msg(media=[MediaAttachment(media_type=MediaType.IMAGE, url="http://x.com/a.png")])
-        result = await enrich_contact_inbound(msg, None)
+        result = await enrich_contact_inbound(msg)
         assert result is msg
 
     @pytest.mark.asyncio
@@ -138,7 +159,7 @@ class TestEnrichContactInbound:
         vcf = tmp_path / "test.vcf"
         vcf.write_text("BEGIN:VCARD\nFN:Local Test\nTEL:999\nEND:VCARD\n")
         msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path=str(vcf))])
-        result = await enrich_contact_inbound(msg, None)
+        result = await enrich_contact_inbound(msg)
         assert "contact_cards" in result.metadata
         cards = result.metadata["contact_cards"]
         assert len(cards) == 1
@@ -148,5 +169,5 @@ class TestEnrichContactInbound:
     @pytest.mark.asyncio
     async def test_skips_missing_file(self) -> None:
         msg = _make_msg(media=[MediaAttachment(media_type=MediaType.CONTACT, path="/nonexistent/x.vcf")])
-        result = await enrich_contact_inbound(msg, None)
+        result = await enrich_contact_inbound(msg)
         assert result.metadata.get("contact_cards") is None

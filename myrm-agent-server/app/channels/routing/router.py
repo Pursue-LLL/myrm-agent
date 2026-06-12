@@ -779,7 +779,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         if not is_resume and has_contact_attachment(msg):
-            msg = await enrich_contact_inbound(msg, self._bus.get_channel)
+            msg = await enrich_contact_inbound(msg)
             exec_for_error = msg
 
         if not is_resume and has_document_attachment(msg):

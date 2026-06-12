@@ -43,11 +43,11 @@ def _parse_vcard(text: str) -> dict[str, str | list[str]]:
     """Parse a vCard text into structured fields.
 
     Handles vCard 2.1/3.0/4.0 with BOM removal and line ending normalization.
-    Returns a dict with keys: name, phones, emails, org, title, note.
+    Returns a dict with keys: name, phones, emails, org, title, note, address, url, birthday.
     """
     cleaned = text.lstrip("\ufeff")
     cleaned = re.sub(r"\r\n[ \t]", "", cleaned)
-    cleaned = re.sub(r"\r|\r\n", "\n", cleaned)
+    cleaned = re.sub(r"\r\n|\r", "\n", cleaned)
 
     name = ""
     phones: list[str] = []
@@ -55,6 +55,9 @@ def _parse_vcard(text: str) -> dict[str, str | list[str]]:
     org = ""
     title = ""
     note = ""
+    address = ""
+    url = ""
+    birthday = ""
 
     for raw_line in cleaned.split("\n"):
         line = raw_line.strip()
@@ -91,6 +94,13 @@ def _parse_vcard(text: str) -> dict[str, str | list[str]]:
             title = value
         elif base_key == "NOTE" and not note:
             note = value
+        elif base_key == "ADR" and not address:
+            parts = [p.strip() for p in value.split(";") if p.strip()]
+            address = ", ".join(parts)
+        elif base_key == "URL" and not url:
+            url = value
+        elif base_key == "BDAY" and not birthday:
+            birthday = value
 
     result: dict[str, str | list[str]] = {}
     if name:
@@ -105,6 +115,12 @@ def _parse_vcard(text: str) -> dict[str, str | list[str]]:
         result["title"] = title
     if note:
         result["note"] = note
+    if address:
+        result["address"] = address
+    if url:
+        result["url"] = url
+    if birthday:
+        result["birthday"] = birthday
     return result
 
 
@@ -129,13 +145,19 @@ def format_contact_text(card: dict[str, str | list[str]]) -> str:
     note_val = card.get("note", "")
     if note_val:
         parts.append(f"Note: {note_val}")
+    addr_val = card.get("address", "")
+    if addr_val:
+        parts.append(f"Address: {addr_val}")
+    url_val = card.get("url", "")
+    if url_val:
+        parts.append(f"URL: {url_val}")
+    bday_val = card.get("birthday", "")
+    if bday_val:
+        parts.append(f"Birthday: {bday_val}")
     return " | ".join(parts) if parts else "<contact>"
 
 
-async def enrich_contact_inbound(
-    msg: InboundMessage,
-    get_channel_fn: object = None,
-) -> InboundMessage:
+async def enrich_contact_inbound(msg: InboundMessage) -> InboundMessage:
     """Enrich inbound message with structured contact card data."""
     contact_attachments = [a for a in msg.media if a.media_type == MediaType.CONTACT]
     if not contact_attachments:
