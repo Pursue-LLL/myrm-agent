@@ -111,6 +111,69 @@ deleted file mode 100644
     expect(result.additions).toBe(2);
     expect(result.deletions).toBe(2);
   });
+
+  it('handles additions-only diff (no deletions)', () => {
+    const diff = `diff --git a/f.ts b/f.ts
+--- a/f.ts
++++ b/f.ts
+@@ -1,2 +1,4 @@
+ line1
++inserted1
++inserted2
+ line2`;
+
+    const result = parseUnifiedDiff(diff);
+    expect(result.additions).toBe(2);
+    expect(result.deletions).toBe(0);
+  });
+
+  it('handles deletions-only diff (no additions)', () => {
+    const diff = `diff --git a/f.ts b/f.ts
+--- a/f.ts
++++ b/f.ts
+@@ -1,4 +1,2 @@
+ line1
+-removed1
+-removed2
+ line2`;
+
+    const result = parseUnifiedDiff(diff);
+    expect(result.additions).toBe(0);
+    expect(result.deletions).toBe(2);
+  });
+
+  it('extracts file path from +++ line when diff --git is absent', () => {
+    const diff = `--- a/old.py
++++ b/new.py
+@@ -1,1 +1,1 @@
+-old
++new`;
+
+    const result = parseUnifiedDiff(diff);
+    expect(result.filePath).toBe('new.py');
+    expect(result.oldFilePath).toBe('old.py');
+    expect(result.newFilePath).toBe('new.py');
+  });
+
+  it('correctly counts line numbers across multiple context lines', () => {
+    const diff = `diff --git a/f.ts b/f.ts
+--- a/f.ts
++++ b/f.ts
+@@ -5,5 +5,5 @@
+ ctx1
+ ctx2
+-old
++new
+ ctx3
+ ctx4`;
+
+    const result = parseUnifiedDiff(diff);
+    const lines = result.hunks[0].lines;
+    const deletion = lines.find(l => l.type === 'deletion');
+    const addition = lines.find(l => l.type === 'addition');
+    expect(deletion?.oldLineNumber).toBe(7);
+    expect(addition?.newLineNumber).toBe(7);
+  });
 });
 
 describe('buildSplitPairs', () => {
@@ -160,6 +223,39 @@ describe('buildSplitPairs', () => {
     const pairs = buildSplitPairs([header, ctx]);
     expect(pairs).toHaveLength(1);
     expect(pairs[0].left).toBe(ctx);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(buildSplitPairs([])).toHaveLength(0);
+  });
+
+  it('handles more additions than deletions', () => {
+    const del: DiffLine = { type: 'deletion', content: 'a', oldLineNumber: 1, newLineNumber: null };
+    const add1: DiffLine = { type: 'addition', content: 'x', oldLineNumber: null, newLineNumber: 1 };
+    const add2: DiffLine = { type: 'addition', content: 'y', oldLineNumber: null, newLineNumber: 2 };
+
+    const pairs = buildSplitPairs([del, add1, add2]);
+    expect(pairs).toHaveLength(2);
+    expect(pairs[0].left).toBe(del);
+    expect(pairs[0].right).toBe(add1);
+    expect(pairs[1].left).toBeNull();
+    expect(pairs[1].right).toBe(add2);
+  });
+
+  it('handles mixed context and modifications', () => {
+    const ctx1: DiffLine = { type: 'context', content: 'a', oldLineNumber: 1, newLineNumber: 1 };
+    const del: DiffLine = { type: 'deletion', content: 'b', oldLineNumber: 2, newLineNumber: null };
+    const add: DiffLine = { type: 'addition', content: 'B', oldLineNumber: null, newLineNumber: 2 };
+    const ctx2: DiffLine = { type: 'context', content: 'c', oldLineNumber: 3, newLineNumber: 3 };
+
+    const pairs = buildSplitPairs([ctx1, del, add, ctx2]);
+    expect(pairs).toHaveLength(3);
+    expect(pairs[0].left).toBe(ctx1);
+    expect(pairs[0].right).toBe(ctx1);
+    expect(pairs[1].left).toBe(del);
+    expect(pairs[1].right).toBe(add);
+    expect(pairs[2].left).toBe(ctx2);
+    expect(pairs[2].right).toBe(ctx2);
   });
 });
 
