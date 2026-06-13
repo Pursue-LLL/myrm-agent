@@ -164,6 +164,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       reason: data.data.reason,
       screenshot_base64: data.data.screenshot_base64,
       url: data.data.url,
+      messageId: data.messageId,
     });
     return done(ctx);
   }

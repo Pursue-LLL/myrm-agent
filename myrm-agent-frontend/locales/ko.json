@@ -10394,7 +10394,8 @@
       "disconnected": "Disconnected",
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
-      "takeoverDone": "완료"
+      "takeoverDone": "완료",
+      "takeoverResumeFailed": "에이전트 재개 실패, 다시 시도해주세요"
     },
     "pricing": {
       "title": "Pricing",

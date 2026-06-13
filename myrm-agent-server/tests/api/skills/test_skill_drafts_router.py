@@ -198,3 +198,100 @@ async def test_approve_and_reject_skill_drafts_update_status_and_ledger(
         await db.delete(approved_record)
         await db.delete(rejected_record)
         await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_approve_binds_skill_to_agent(mock_local_skills_dir: Path) -> None:
+    """Verify that approving a skill draft adds skill_id to Agent.skill_ids."""
+    from app.database.models import Agent
+
+    agent_id = f"test-agent-{uuid4().hex[:8]}"
+    skill_name = "agent-bound-skill"
+
+    async with get_session() as db:
+        agent = Agent(id=agent_id, name="Test Agent", skill_ids=[], model_config={})
+        db.add(agent)
+        await db.commit()
+
+    try:
+        draft = await notify_skill_draft_created(
+            {
+                "has_value": True,
+                "user_id": "test-user",
+                "agent_id": agent_id,
+                "type": "skill_draft",
+                "skill_name": skill_name,
+                "skill_description": "Test binding",
+                "content": "---\nname: agent-bound-skill\ndescription: test\n---\n\n## Steps\n1. Do",
+            }
+        )
+
+        result = await approve_skill_draft(
+            draft.id,
+            ApproveDraftRequest(skill_name=skill_name, scope_agent_id=agent_id),
+        )
+
+        assert result["status"] == "APPROVED"
+        assert result["materialized"] is True
+        assert result.get("skill_id") is not None
+
+        async with get_session() as db:
+            agent = await db.get(Agent, agent_id)
+            assert agent is not None
+            assert result["skill_id"] in agent.skill_ids
+    finally:
+        async with get_session() as db:
+            from sqlalchemy import delete as sa_delete
+
+            await db.execute(sa_delete(ExperienceLedgerEvent))
+            await db.execute(sa_delete(ApprovalRecord))
+            agent = await db.get(Agent, agent_id)
+            if agent:
+                await db.delete(agent)
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_approve_binding_idempotent(mock_local_skills_dir: Path) -> None:
+    """Verify that repeated approve does not duplicate skill_id in Agent.skill_ids."""
+    from app.api.skills.drafts import _bind_skill_to_agent
+    from app.database.models import Agent
+
+    agent_id = f"test-agent-idempotent-{uuid4().hex[:8]}"
+
+    async with get_session() as db:
+        agent = Agent(id=agent_id, name="Idempotent Agent", skill_ids=["existing-skill"], model_config={})
+        db.add(agent)
+        await db.commit()
+
+    try:
+        await _bind_skill_to_agent("new-skill", agent_id)
+        await _bind_skill_to_agent("new-skill", agent_id)
+
+        async with get_session() as db:
+            agent = await db.get(Agent, agent_id)
+            assert agent is not None
+            assert agent.skill_ids.count("new-skill") == 1
+            assert "existing-skill" in agent.skill_ids
+    finally:
+        async with get_session() as db:
+            agent = await db.get(Agent, agent_id)
+            if agent:
+                await db.delete(agent)
+            await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_bind_skill_to_nonexistent_agent() -> None:
+    """Verify that binding to a non-existent agent does not raise."""
+    from app.api.skills.drafts import _bind_skill_to_agent
+
+    await _bind_skill_to_agent("some-skill", "nonexistent-agent-id")
+
+
+@pytest.mark.asyncio
+async def test_bind_skill_with_none_agent_id() -> None:
+    """Verify that binding with None agent_id is a no-op."""
+    from app.api.skills.drafts import _bind_skill_to_agent
+
+    await _bind_skill_to_agent("some-skill", None)

@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { MonitorPlay, X, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { VisualDesktop } from './VisualDesktop';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
+import useChatStore from '@/store/useChatStore';
 
 export const VisualDesktopToggle = () => {
   const t = useTranslations('billing.vnc');
@@ -17,7 +19,25 @@ export const VisualDesktopToggle = () => {
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const { canUseVnc, isLoading: entitlementsLoading } = useFeatureEntitlements();
   const sandboxMode = isSandbox();
-  const { pending: takeoverPending, reason: takeoverReason, completeTakeover } = useBrowserTakeoverStore();
+  const { pending: takeoverPending, reason: takeoverReason, messageId: takeoverMessageId, completeTakeover } = useBrowserTakeoverStore();
+
+  const handleTakeoverComplete = useCallback(async () => {
+    const storedMessageId = takeoverMessageId;
+    const prevReason = useBrowserTakeoverStore.getState().reason;
+    completeTakeover();
+    if (storedMessageId) {
+      try {
+        await useChatStore.getState().sendMessage('', storedMessageId, undefined, { action: 'completed', message: '' });
+      } catch (error) {
+        console.error('[TAKEOVER] Resume failed:', error);
+        useBrowserTakeoverStore.getState().requestTakeover({
+          reason: prevReason,
+          messageId: storedMessageId,
+        });
+        toast.error(t('takeoverResumeFailed'));
+      }
+    }
+  }, [takeoverMessageId, completeTakeover, t]);
 
   useEffect(() => {
     if (takeoverPending && !isOpen) {
@@ -119,7 +139,7 @@ export const VisualDesktopToggle = () => {
                 {takeoverReason}
               </p>
               <button
-                onClick={completeTakeover}
+                onClick={handleTakeoverComplete}
                 className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
               >
                 <CheckCircle2 size={14} />

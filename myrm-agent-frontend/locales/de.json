@@ -10394,7 +10394,8 @@
       "disconnected": "Disconnected",
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
-      "takeoverDone": "Fertig"
+      "takeoverDone": "Fertig",
+      "takeoverResumeFailed": "Agent konnte nicht fortgesetzt werden, bitte erneut versuchen"
     },
     "pricing": {
       "title": "Pricing",

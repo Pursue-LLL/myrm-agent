@@ -10736,7 +10736,8 @@
       "disconnected": "连接已断开",
       "disconnectedHint": "Agent 沙箱可能处于休眠或不可用状态。",
       "reconnect": "重新连接",
-      "takeoverDone": "完成"
+      "takeoverDone": "完成",
+      "takeoverResumeFailed": "恢复 Agent 失败，请重试"
     },
     "pricing": {
       "title": "定价",

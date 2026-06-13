@@ -775,7 +775,7 @@ export const sendMessage = async (
 
     const persistFiles = state.files.length > 0 ? state.files.map(({ contentHash: _, ...rest }) => rest) : undefined;
 
-    if (!isRegenerate) {
+    if (!isRegenerate && !resumeValue) {
       smartActions.setMessages((innerState) => {
         innerState.messages.push({
           content: input,
