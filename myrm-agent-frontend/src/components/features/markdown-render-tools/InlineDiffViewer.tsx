@@ -1,15 +1,15 @@
 /**
- * InlineDiffViewer - Markdown 内联 Diff 预览薄包装
+ * InlineDiffViewer - Markdown 内联 Diff 预览
  *
  * [INPUT]
- * - diff: unified diff 格式字符串
- * - filePath / onClose / defaultViewMode / className: 透传至 DiffViewer
+ * - lib/diff/DiffViewer::DiffViewer (POS: 共享 Diff 可视化组件)
  *
  * [OUTPUT]
- * - InlineDiffViewer: 带消息气泡外边距样式的 Diff 预览
+ * - InlineDiffViewer: 带 Markdown 消息气泡外边距的 Diff 预览
+ * - InlineDiffViewerProps: 组件 Props 类型（等同 DiffViewerProps）
  *
  * [POS]
- * Markdown 渲染层的 Diff 预览入口。核心逻辑委托 lib/diff/DiffViewer。
+ * Markdown 渲染层的 Diff 预览入口。添加 `my-6` 外边距后透传 DiffViewer。
  */
 
 'use client';

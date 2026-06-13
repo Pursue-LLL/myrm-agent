@@ -1,13 +1,17 @@
 /**
  * [INPUT]
  * - unified diff 格式字符串
+ * - 文件路径（用于语言推断）
  *
  * [OUTPUT]
  * - parseUnifiedDiff: 解析为结构化 ParsedDiff
- * - DiffLine / DiffHunk / ParsedDiff 类型
+ * - buildSplitPairs: 将 DiffLine[] 转为 Split 视图配对数组
+ * - inferLanguage: 从文件路径推断 Prism 语言标识符
+ * - DiffLine / DiffHunk / ParsedDiff / SplitPair 类型
  *
  * [POS]
- * 跨 feature 共用的 unified diff 纯函数解析器（cli-visualization、markdown-render-tools）。
+ * 跨 feature 共用的 unified diff 纯函数解析器与工具集。
+ * 消费方：useDiffParser hook、DiffViewer 组件。
  */
 
 /** Diff 行类型 */
@@ -175,4 +179,82 @@ export function parseUnifiedDiff(diff: string): ParsedDiff {
   }
 
   return result;
+}
+
+// --------------- Split 视图配对 ---------------
+
+/** Split 视图的配对行 */
+export interface SplitPair {
+  left: DiffLine | null;
+  right: DiffLine | null;
+}
+
+/**
+ * 将 hunk 行列表转为 Split 配对数组。
+ * 连续 deletion 与紧随其后的 addition 按位置对齐，context 行左右同时显示。
+ */
+export function buildSplitPairs(lines: DiffLine[]): SplitPair[] {
+  const pairs: SplitPair[] = [];
+  let i = 0;
+  const filtered = lines.filter((l) => l.type !== 'header');
+
+  while (i < filtered.length) {
+    const line = filtered[i];
+
+    if (line.type === 'context') {
+      pairs.push({ left: line, right: line });
+      i++;
+      continue;
+    }
+
+    if (line.type === 'deletion') {
+      const deletions: DiffLine[] = [];
+      while (i < filtered.length && filtered[i].type === 'deletion') {
+        deletions.push(filtered[i]);
+        i++;
+      }
+      const additions: DiffLine[] = [];
+      while (i < filtered.length && filtered[i].type === 'addition') {
+        additions.push(filtered[i]);
+        i++;
+      }
+
+      const maxLen = Math.max(deletions.length, additions.length);
+      for (let j = 0; j < maxLen; j++) {
+        pairs.push({
+          left: j < deletions.length ? deletions[j] : null,
+          right: j < additions.length ? additions[j] : null,
+        });
+      }
+      continue;
+    }
+
+    if (line.type === 'addition') {
+      pairs.push({ left: null, right: line });
+      i++;
+      continue;
+    }
+
+    i++;
+  }
+
+  return pairs;
+}
+
+// --------------- 语言推断 ---------------
+
+const EXT_TO_LANGUAGE: Record<string, string> = {
+  ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
+  py: 'python', rs: 'rust', go: 'go', java: 'java', kt: 'kotlin',
+  rb: 'ruby', css: 'css', scss: 'scss', html: 'markup', xml: 'markup',
+  json: 'json', yaml: 'yaml', yml: 'yaml', md: 'markdown', sql: 'sql',
+  sh: 'bash', bash: 'bash', zsh: 'bash', c: 'c', cpp: 'cpp',
+  h: 'c', hpp: 'cpp', cs: 'csharp', swift: 'swift', toml: 'toml',
+  lua: 'lua', r: 'r', php: 'php', dart: 'dart',
+};
+
+/** 从文件路径推断 Prism 支持的语言标识符 */
+export function inferLanguage(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  return EXT_TO_LANGUAGE[ext] ?? 'text';
 }

@@ -2,21 +2,22 @@
  * DiffViewer - 统一 Diff 可视化组件
  *
  * [INPUT]
- * - diff: unified diff 格式字符串
- * - filePath: 文件路径（可选，用于显示和语法高亮语言推断）
- * - onClose: 关闭回调
- * - defaultViewMode: 初始视图模式 (unified | split)
- * - className: 自定义类名
+ * - hooks/useDiffParser::useDiffParser (POS: diff 解析 Hook)
+ * - lib/diff/parseUnifiedDiff::buildSplitPairs (POS: Split 视图配对算法)
+ * - lib/diff/parseUnifiedDiff::inferLanguage (POS: 文件路径语言推断)
+ * - prism-react-renderer::Highlight (POS: 语法高亮引擎)
+ * - cli-visualization/CLIFileIcon (POS: 文件图标组件)
  *
  * [OUTPUT]
  * - DiffViewer: 通用 Diff 对比预览组件
- *   - 支持 Unified / Split 视图模式（真正的左右配对）
- *   - Prism 语法高亮
- *   - 新增/删除行数统计
+ *   - 支持 Unified / Split 视图模式（左右配对对齐）
+ *   - Prism 语法高亮（根据文件扩展名推断语言）
+ *   - 新增/删除行数统计、复制、视图切换
+ * - DiffViewerProps: 组件 Props 类型
  *
  * [POS]
- * lib/diff 层的共享 Diff 可视化组件。消除 InlineDiffViewer 与 CLIDiffViewer 的代码重复，
- * 由两者作为薄包装层引用。
+ * lib/diff 层的共享 Diff 可视化组件。提供 Unified 和 Split 两种视图模式，
+ * 由 InlineDiffViewer 与 CLIDiffViewer 作为薄包装层引用。
  */
 
 'use client';
@@ -25,10 +26,11 @@ import React, { memo, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes, Prism } from 'prism-react-renderer';
+import { Highlight, themes } from 'prism-react-renderer';
 import { useTheme } from 'next-themes';
 import { useDiffParser } from '@/hooks/useDiffParser';
-import type { DiffLine, DiffHunk } from '@/lib/diff/parseUnifiedDiff';
+import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
+import { buildSplitPairs, inferLanguage } from '@/lib/diff/parseUnifiedDiff';
 import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
@@ -41,106 +43,6 @@ export interface DiffViewerProps {
 }
 
 type ViewMode = 'unified' | 'split';
-
-/** Split 视图的配对行 */
-interface SplitPair {
-  left: DiffLine | null;
-  right: DiffLine | null;
-}
-
-const EXT_TO_LANGUAGE: Record<string, string> = {
-  ts: 'typescript',
-  tsx: 'tsx',
-  js: 'javascript',
-  jsx: 'jsx',
-  py: 'python',
-  rs: 'rust',
-  go: 'go',
-  java: 'java',
-  kt: 'kotlin',
-  rb: 'ruby',
-  css: 'css',
-  scss: 'scss',
-  html: 'markup',
-  xml: 'markup',
-  json: 'json',
-  yaml: 'yaml',
-  yml: 'yaml',
-  md: 'markdown',
-  sql: 'sql',
-  sh: 'bash',
-  bash: 'bash',
-  zsh: 'bash',
-  c: 'c',
-  cpp: 'cpp',
-  h: 'c',
-  hpp: 'cpp',
-  cs: 'csharp',
-  swift: 'swift',
-  toml: 'toml',
-  lua: 'lua',
-  r: 'r',
-  php: 'php',
-  dart: 'dart',
-};
-
-function inferLanguage(filePath: string): string {
-  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
-  const lang = EXT_TO_LANGUAGE[ext] ?? 'text';
-  return Prism.languages[lang] ? lang : 'text';
-}
-
-/**
- * 将 hunk 的行列表转为 Split 配对数组。
- * 核心算法：连续的 deletion 与紧随其后的 addition 配对对齐，context 行左右同时显示。
- */
-function buildSplitPairs(lines: DiffLine[]): SplitPair[] {
-  const pairs: SplitPair[] = [];
-  let i = 0;
-  const filtered = lines.filter((l) => l.type !== 'header');
-
-  while (i < filtered.length) {
-    const line = filtered[i];
-
-    if (line.type === 'context') {
-      pairs.push({ left: line, right: line });
-      i++;
-      continue;
-    }
-
-    if (line.type === 'deletion') {
-      const deletions: DiffLine[] = [];
-      while (i < filtered.length && filtered[i].type === 'deletion') {
-        deletions.push(filtered[i]);
-        i++;
-      }
-      const additions: DiffLine[] = [];
-      while (i < filtered.length && filtered[i].type === 'addition') {
-        additions.push(filtered[i]);
-        i++;
-      }
-
-      const maxLen = Math.max(deletions.length, additions.length);
-      for (let j = 0; j < maxLen; j++) {
-        pairs.push({
-          left: j < deletions.length ? deletions[j] : null,
-          right: j < additions.length ? additions[j] : null,
-        });
-      }
-      continue;
-    }
-
-    if (line.type === 'addition') {
-      pairs.push({ left: null, right: line });
-      i++;
-      continue;
-    }
-
-    i++;
-  }
-
-  return pairs;
-}
 
 // --------------- 行渲染子组件 ---------------
 
@@ -348,29 +250,30 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
         className={cn('bg-background border border-border rounded-lg overflow-hidden', className)}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border">
-          <div className="flex items-center gap-2">
-            <FileEdit className="h-4 w-4 text-orange-500" />
-            <CLIFileIcon filename={displayPath} className="h-4 w-4" />
-            <span className="text-sm font-medium truncate max-w-[300px]" title={displayPath}>
+        <div className="flex items-center justify-between px-2 sm:px-4 py-2 bg-muted/50 border-b border-border">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <FileEdit className="h-4 w-4 text-orange-500 shrink-0" />
+            <CLIFileIcon filename={displayPath} className="h-4 w-4 shrink-0 hidden sm:block" />
+            <span className="text-sm font-medium truncate max-w-[120px] sm:max-w-[300px]" title={displayPath}>
               {displayPath.split('/').pop()}
             </span>
-            <div className="flex items-center gap-2 ml-2 text-xs">
-              <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+            <div className="flex items-center gap-1.5 sm:gap-2 ml-1 sm:ml-2 text-xs shrink-0">
+              <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400">
                 <Plus className="h-3 w-3" />
                 {parsed.additions}
               </span>
-              <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+              <span className="flex items-center gap-0.5 text-red-600 dark:text-red-400">
                 <Minus className="h-3 w-3" />
                 {parsed.deletions}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+            {/* Split 视图在移动端空间不足，隐藏切换按钮 */}
             <button
               onClick={toggleViewMode}
-              className="p-1.5 rounded hover:bg-muted transition-colors"
+              className="p-1.5 rounded hover:bg-muted transition-colors hidden sm:block"
               title={viewMode === 'unified' ? 'Split view' : 'Unified view'}
             >
               {viewMode === 'unified' ? (

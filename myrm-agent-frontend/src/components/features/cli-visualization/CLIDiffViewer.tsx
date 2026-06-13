@@ -1,16 +1,15 @@
 /**
- * CLIDiffViewer - CLI Agent Diff 预览薄包装
+ * CLIDiffViewer - CLI Agent Diff 预览
  *
  * [INPUT]
- * - diff: unified diff 格式字符串
- * - filePath / onClose / defaultViewMode / className: 透传至 DiffViewer
+ * - lib/diff/DiffViewer::DiffViewer (POS: 共享 Diff 可视化组件)
  *
  * [OUTPUT]
- * - CLIDiffViewer: 带 shadow 样式的 Diff 预览（Tauri 桌面端使用）
+ * - CLIDiffViewer: 带阴影样式的 Diff 预览（Tauri 桌面端使用）
+ * - CLIDiffViewerProps: 组件 Props 类型（等同 DiffViewerProps）
  *
  * [POS]
- * CLI 可视化的 Diff 预览入口。核心逻辑委托 lib/diff/DiffViewer。
- * 仅在 Tauri 桌面环境使用。
+ * CLI 可视化的 Diff 预览入口。添加 `shadow-lg` 阴影后透传 DiffViewer。仅 Tauri 桌面环境使用。
  */
 
 'use client';
