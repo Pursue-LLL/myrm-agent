@@ -28,6 +28,7 @@ use tauri::{AppHandle, Manager};
 #[serde(rename_all = "camelCase")]
 pub struct SystemConfig {
     /// 是否启用 WebUI 模式
+    #[serde(rename = "enableWebUIMode")]
     pub enable_webui_mode: bool,
     
     /// 是否允许远程访问
@@ -43,6 +44,7 @@ pub struct SystemConfig {
     pub require_password: bool,
     
     /// 启动时自动开启 WebUI 服务
+    #[serde(rename = "autoStartWebUI")]
     pub auto_start_webui: bool,
     
     /// 关闭窗口时隐藏到托盘（而不是直接退出）
@@ -272,19 +274,20 @@ mod tests {
 
         assert!(json.contains("autoLaunchAtLogin"));
         assert!(json.contains("closeToTray"));
-        assert!(json.contains("enableWebuiMode"));
+        assert!(json.contains("enableWebUIMode"));
+        assert!(json.contains("autoStartWebUI"));
         assert!(!json.contains("auto_launch_at_login"));
     }
 
     #[test]
     fn deserialize_legacy_config_without_auto_launch() {
         let legacy_json = r#"{
-            "enableWebuiMode": false,
+            "enableWebUIMode": false,
             "enableRemoteAccess": false,
             "webuiPort": 3000,
             "apiPort": 25808,
             "requirePassword": true,
-            "autoStartWebui": true,
+            "autoStartWebUI": true,
             "closeToTray": true,
             "configVersion": 1,
             "globalShortcut": "Option+Space",
