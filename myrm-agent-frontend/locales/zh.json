@@ -2925,6 +2925,8 @@
         "title": "系统配置",
         "closeToTray": "关闭时隐藏到托盘",
         "closeToTrayDesc": "关闭主窗口时应用将在后台继续运行",
+        "autoLaunchAtLogin": "开机自动启动",
+        "autoLaunchAtLoginDesc": "登录系统时自动在后台启动，仅显示托盘图标——IM 渠道和定时任务开机即就绪",
         "globalShortcut": "全局唤醒快捷键",
         "globalShortcutDesc": "在任何界面按下此快捷键可快速唤醒或隐藏应用",
         "appshotShortcut": "Appshot 截屏快捷键",

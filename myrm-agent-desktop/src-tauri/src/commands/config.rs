@@ -16,20 +16,47 @@ pub async fn load_system_config(
 /// 保存系统配置
 #[tauri::command]
 pub async fn save_system_config(
+    app: tauri::AppHandle,
     config: SystemConfig,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let should_enable = config.auto_launch_at_login;
     config_manager.save(&config)?;
+
+    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
+        if should_enable && !currently_enabled {
+            let _ = app.autolaunch().enable();
+            println!("✅ Auto-launch enabled");
+        } else if !should_enable && currently_enabled {
+            let _ = app.autolaunch().disable();
+            println!("✅ Auto-launch disabled");
+        }
+    }
+
     Ok(())
 }
 
-/// 重置为默认配置
+/// 重置为默认配置（同步 OS 级别 autolaunch 状态）
 #[tauri::command]
 pub async fn reset_system_config(
+    app: tauri::AppHandle,
     config_manager: State<'_, ConfigManager>,
 ) -> Result<SystemConfig, String> {
     config_manager.reset()?;
-    Ok(config_manager.load())
+    let config = config_manager.load();
+
+    use tauri_plugin_autostart::ManagerExt;
+    if let Ok(currently_enabled) = app.autolaunch().is_enabled() {
+        if config.auto_launch_at_login && !currently_enabled {
+            let _ = app.autolaunch().enable();
+        } else if !config.auto_launch_at_login && currently_enabled {
+            let _ = app.autolaunch().disable();
+        }
+    }
+
+    Ok(config)
 }
 
 /// 获取当前运行模式

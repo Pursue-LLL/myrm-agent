@@ -88,38 +88,36 @@ pub async fn graceful_shutdown(app: AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     #[test]
     fn shutdown_initiated_prevents_reentry() {
-        SHUTDOWN_INITIATED.store(false, Ordering::SeqCst);
+        let flag = AtomicBool::new(false);
 
-        let first = SHUTDOWN_INITIATED.swap(true, Ordering::SeqCst);
+        let first = flag.swap(true, Ordering::SeqCst);
         assert!(!first, "first call should proceed");
 
-        let second = SHUTDOWN_INITIATED.swap(true, Ordering::SeqCst);
+        let second = flag.swap(true, Ordering::SeqCst);
         assert!(second, "second call should be blocked");
 
-        let third = SHUTDOWN_INITIATED.swap(true, Ordering::SeqCst);
+        let third = flag.swap(true, Ordering::SeqCst);
         assert!(third, "third call should also be blocked");
-
-        SHUTDOWN_INITIATED.store(false, Ordering::SeqCst);
     }
 
     #[test]
     fn concurrent_shutdown_only_one_proceeds() {
-        SHUTDOWN_INITIATED.store(false, Ordering::SeqCst);
+        let flag = Arc::new(AtomicBool::new(false));
 
         let handles: Vec<_> = (0..10)
             .map(|_| {
-                std::thread::spawn(|| SHUTDOWN_INITIATED.swap(true, Ordering::SeqCst))
+                let f = Arc::clone(&flag);
+                std::thread::spawn(move || f.swap(true, Ordering::SeqCst))
             })
             .collect();
 
         let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
         let proceeded_count = results.iter().filter(|&&v| !v).count();
         assert_eq!(proceeded_count, 1, "exactly one thread should proceed");
-
-        SHUTDOWN_INITIATED.store(false, Ordering::SeqCst);
     }
 }

@@ -411,6 +411,30 @@ const SystemSection = memo(() => {
 
           <div className="h-px bg-white/5" />
 
+          {/* 开机自动启动 */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-foreground">{t('config.autoLaunchAtLogin')}</label>
+              <p className="text-xs text-muted-foreground">{t('config.autoLaunchAtLoginDesc')}</p>
+            </div>
+            <button
+              onClick={() => handleChange('autoLaunchAtLogin', !localConfig.autoLaunchAtLogin)}
+              className={cn(
+                'relative w-12 h-6 rounded-full transition-colors',
+                localConfig.autoLaunchAtLogin ? 'bg-indigo-500' : 'bg-white/10',
+              )}
+            >
+              <div
+                className={cn(
+                  'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform',
+                  localConfig.autoLaunchAtLogin && 'translate-x-6',
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="h-px bg-white/5" />
+
           {/* 全局唤醒快捷键 */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">

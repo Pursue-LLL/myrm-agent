@@ -11,6 +11,9 @@
     "core:window:allow-request-user-attention",
     "clipboard-manager:default",
     "dialog:default",
-    "shell:default"
+    "shell:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

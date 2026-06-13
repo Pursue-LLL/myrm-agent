@@ -26,6 +26,9 @@ export interface SystemConfig {
   /** 关闭窗口时隐藏到托盘（而不是直接退出） */
   closeToTray: boolean;
 
+  /** 开机自动启动（登录后后台运行，仅显示托盘图标） */
+  autoLaunchAtLogin: boolean;
+
   /** 配置文件版本（用于未来迁移） */
   configVersion: number;
 
@@ -51,6 +54,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   requirePassword: true,
   autoStartWebUI: true,
   closeToTray: true,
+  autoLaunchAtLogin: true,
   configVersion: 1,
   globalShortcut: 'Option+Space',
   appshotShortcut: 'CommandOrControl+Shift+A',

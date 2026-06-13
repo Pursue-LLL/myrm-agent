@@ -21,8 +21,9 @@
 //!
 //! [POS]
 //! Tauri 桌面应用的入口点。负责初始化 Tauri 应用、注册插件
-//! （shell、dialog）、注册 IPC 命令、管理 Python/Agent Sidecar
-//! 进程生命周期。支持 CLI 可视化工具和 WebUI 远程访问模式。
+//! （shell、dialog、autostart、global-shortcut 等）、注册 IPC 命令、
+//! 管理 Python/Agent Sidecar 进程生命周期。支持 CLI 可视化工具、
+//! WebUI 远程访问模式和开机自启（tray-only daemon）。
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -67,6 +68,11 @@ fn main() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args(["--auto-launched"])
+                .build(),
+        )
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -175,6 +181,21 @@ fn main() {
                 println!("🖥️  Running in Desktop mode");
             }
 
+            let is_auto_launched = std::env::args().any(|a| a == "--auto-launched");
+            if is_auto_launched {
+                println!("🔄 Auto-launched at login, running in background (tray only)");
+            }
+
+            if system_config.auto_launch_at_login {
+                use tauri_plugin_autostart::ManagerExt;
+                if let Ok(autostart) = app.autolaunch().is_enabled() {
+                    if !autostart {
+                        let _ = app.autolaunch().enable();
+                        println!("✅ Auto-launch enabled at login");
+                    }
+                }
+            }
+
             app.manage(config_manager);
 
             app.manage(SetupTokenState {
@@ -247,6 +268,20 @@ fn main() {
                     }
                 }
             });
+
+            if let Some(window) = app.get_webview_window("main") {
+                if is_auto_launched {
+                    #[cfg(target_os = "macos")]
+                    {
+                        let _ = app
+                            .handle()
+                            .set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    }
+                } else {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
 
             Ok(())
         })

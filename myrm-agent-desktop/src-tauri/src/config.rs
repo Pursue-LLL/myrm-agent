@@ -10,7 +10,7 @@
 //! - 磁盘上的 config.json 文件（持久化配置）
 //!
 //! [OUTPUT]
-//! - SystemConfig（WebUI 模式、端口配置）
+//! - SystemConfig（WebUI 模式、端口、托盘行为、开机自启、快捷键等）
 //! - BackendConfig（Python FastAPI 启动参数）
 //! - FrontendConfig（Next.js Server 启动参数）
 //!
@@ -48,6 +48,10 @@ pub struct SystemConfig {
     /// 关闭窗口时隐藏到托盘（而不是直接退出）
     #[serde(default = "default_close_to_tray")]
     pub close_to_tray: bool,
+
+    /// 开机自动启动（登录后后台运行，仅显示托盘图标）
+    #[serde(default = "default_auto_launch_at_login")]
+    pub auto_launch_at_login: bool,
     
     /// 配置文件版本（用于未来迁移）
     pub config_version: u8,
@@ -70,6 +74,10 @@ pub struct SystemConfig {
 }
 
 fn default_close_to_tray() -> bool {
+    true
+}
+
+fn default_auto_launch_at_login() -> bool {
     true
 }
 
@@ -102,6 +110,7 @@ impl Default for SystemConfig {
             require_password: true,
             auto_start_webui: true,
             close_to_tray: true,
+            auto_launch_at_login: true,
             config_version: 1,
             global_shortcut: "Option+Space".to_string(),
             appshot_shortcut: "CommandOrControl+Shift+A".to_string(),
@@ -230,5 +239,88 @@ impl ConfigManager {
         self.save(&default_config)?;
         println!("✅ Config reset to default");
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_has_auto_launch_enabled() {
+        let config = SystemConfig::default();
+        assert!(config.auto_launch_at_login);
+        assert!(config.close_to_tray);
+    }
+
+    #[test]
+    fn serde_round_trip_preserves_all_fields() {
+        let config = SystemConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: SystemConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.auto_launch_at_login, deserialized.auto_launch_at_login);
+        assert_eq!(config.close_to_tray, deserialized.close_to_tray);
+        assert_eq!(config.enable_webui_mode, deserialized.enable_webui_mode);
+        assert_eq!(config.global_shortcut, deserialized.global_shortcut);
+    }
+
+    #[test]
+    fn serde_camel_case_field_names() {
+        let config = SystemConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+
+        assert!(json.contains("autoLaunchAtLogin"));
+        assert!(json.contains("closeToTray"));
+        assert!(json.contains("enableWebuiMode"));
+        assert!(!json.contains("auto_launch_at_login"));
+    }
+
+    #[test]
+    fn deserialize_legacy_config_without_auto_launch() {
+        let legacy_json = r#"{
+            "enableWebuiMode": false,
+            "enableRemoteAccess": false,
+            "webuiPort": 3000,
+            "apiPort": 25808,
+            "requirePassword": true,
+            "autoStartWebui": true,
+            "closeToTray": true,
+            "configVersion": 1,
+            "globalShortcut": "Option+Space",
+            "appshotShortcut": "CommandOrControl+Shift+A",
+            "appshotExcludedApps": [],
+            "lockedUseEnabled": false
+        }"#;
+
+        let config: SystemConfig = serde_json::from_str(legacy_json).unwrap();
+        assert!(config.auto_launch_at_login, "should default to true for legacy configs");
+    }
+
+    #[test]
+    fn backend_config_from_system_config() {
+        let mut sys = SystemConfig::default();
+        sys.enable_webui_mode = true;
+        sys.enable_remote_access = true;
+        sys.api_port = 9999;
+
+        let backend = BackendConfig::from_system_config(&sys);
+        assert_eq!(backend.port, 9999);
+        assert_eq!(backend.host, "0.0.0.0");
+        assert!(backend.webui_mode);
+        assert!(backend.remote_mode);
+    }
+
+    #[test]
+    fn frontend_config_from_system_config() {
+        let mut sys = SystemConfig::default();
+        sys.webui_port = 4000;
+        sys.api_port = 8888;
+        sys.enable_remote_access = false;
+
+        let frontend = FrontendConfig::from_system_config(&sys);
+        assert_eq!(frontend.port, 4000);
+        assert_eq!(frontend.host, "127.0.0.1");
+        assert_eq!(frontend.api_port, 8888);
     }
 }
