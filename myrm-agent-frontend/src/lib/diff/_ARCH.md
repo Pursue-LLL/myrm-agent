@@ -10,7 +10,6 @@ unified diff 解析与可视化。纯函数解析器无 React 依赖，DiffViewe
 |------|------|------|-------|
 | `parseUnifiedDiff.ts` | 核心 | unified diff 解析、Split 配对算法、语言推断（纯函数，无 React 依赖） | ✅ |
 | `DiffViewer.tsx` | 核心 | 共享 Diff 可视化组件（Unified/Split 视图、Prism 语法高亮） | ✅ |
-| `__tests__/parseUnifiedDiff.test.ts` | 测试 | 空结果隔离、hunk/CRLF/binary/deleted-file | — |
 
 ## 消费方
 
