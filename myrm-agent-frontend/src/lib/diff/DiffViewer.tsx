@@ -5,7 +5,7 @@
  * - hooks/useDiffParser::useDiffParser (POS: diff 解析 Hook)
  * - lib/diff/parseUnifiedDiff::buildSplitPairs (POS: Split 视图配对算法)
  * - lib/diff/parseUnifiedDiff::inferLanguage (POS: 文件路径语言推断)
- * - prism-react-renderer::Highlight (POS: 语法高亮引擎)
+ * - prism-react-renderer::Highlight, Prism (POS: 语法高亮引擎与运行时语言校验)
  * - cli-visualization/CLIFileIcon (POS: 文件图标组件)
  *
  * [OUTPUT]
@@ -26,7 +26,7 @@ import React, { memo, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Copy, Check, SplitSquareHorizontal, AlignJustify, FileEdit, Plus, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Highlight, themes, Prism } from 'prism-react-renderer';
 import { useTheme } from 'next-themes';
 import { useDiffParser } from '@/hooks/useDiffParser';
 import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
@@ -222,7 +222,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
 
     const parsed = useDiffParser(diff);
     const displayPath = filePath || parsed.filePath || 'Unknown file';
-    const language = useMemo(() => inferLanguage(displayPath), [displayPath]);
+    const rawLanguage = useMemo(() => inferLanguage(displayPath), [displayPath]);
+    const language = Prism.languages[rawLanguage] ? rawLanguage : 'text';
 
     const prismTheme = useMemo(() => {
       return theme === 'dark' ? themes.oneDark : themes.oneLight;
