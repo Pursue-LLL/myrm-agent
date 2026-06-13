@@ -23,6 +23,6 @@ Markdown 渲染扩展与工具块展示。
 
 ## 依赖
 
-- `@/hooks/useDiffParser`、`@/lib/diff/parseUnifiedDiff`（InlineDiffViewer diff 解析）
+- `@/lib/diff/DiffViewer`（共享 Diff 可视化组件，InlineDiffViewer 为薄包装层）
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

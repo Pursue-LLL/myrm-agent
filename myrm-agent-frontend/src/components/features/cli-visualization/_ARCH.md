@@ -18,6 +18,7 @@ CLI 输出可视化与终端样式渲染。
 
 ## 依赖
 
-- `@/hooks/useDiffParser`、`@/lib/diff/parseUnifiedDiff`（diff 解析，与 markdown-render-tools 共用）
+- `@/lib/diff/DiffViewer`（共享 Diff 可视化组件，CLIDiffViewer 为薄包装层）
+- `@/hooks/useDiffParser`、`@/lib/diff/parseUnifiedDiff`（diff 解析）
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)
