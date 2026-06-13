@@ -47,7 +47,7 @@ import MemoryTrashPanel from '@/components/features/memory/MemoryTrashPanel';
 import { MemoryImportReviewDialog } from '@/components/features/memory/MemoryImportReviewDialog';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { toast } from '@/hooks/useToast';
-import { exportMemories, exportMemoriesMarkdown, exportRulesSafe, previewRulesSafe, updateMemoryStatus, getMemoryTags, type TagStatsItem, type SafeRulePreviewItem } from '@/services/memory';
+import { exportMemories, exportMemoriesMarkdown, exportRulesSafe, updateMemoryStatus, getMemoryTags, type TagStatsItem } from '@/services/memory';
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import ShareRulesDialog from '@/components/features/memory/ShareRulesDialog';

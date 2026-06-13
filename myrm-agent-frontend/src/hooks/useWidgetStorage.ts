@@ -136,7 +136,7 @@ export function useWidgetStorage({ namespace, chatId, enabled = true }: WidgetSt
         timerRef.current = setTimeout(flush, DEBOUNCE_MS);
 
         setStorageData((prev) => {
-          const next = { ...(prev ?? {}) };
+          const next = { ...prev };
           for (const { key, value } of entries) {
             next[key] = value;
           }
