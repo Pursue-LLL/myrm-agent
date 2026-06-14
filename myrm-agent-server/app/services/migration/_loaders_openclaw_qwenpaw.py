@@ -8,7 +8,6 @@ Adapter-ready dict with sessions, memory, MCP servers, skills for openclaw/qwenp
 
 [POS]
 Complex loaders handling multi-directory traversal (workspaces, agent.json parsing).
-Extracted from competitor_payload_loaders_impl.py for line budget compliance.
 """
 
 from __future__ import annotations
