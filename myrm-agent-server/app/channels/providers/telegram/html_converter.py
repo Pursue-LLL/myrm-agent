@@ -31,7 +31,7 @@ _BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC_RE = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$")
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$")
 
 # Exact whitelist of Telegram supported HTML tags
 _TELEGRAM_TAGS_RE = re.compile(
@@ -100,6 +100,7 @@ def _convert_tables(text: str) -> tuple[str, list[str]]:
         if (
             "|" in line
             and i + 1 < len(lines)
+            and "|" in lines[i + 1]
             and _TABLE_SEPARATOR_RE.match(lines[i + 1])
         ):
             header = line
