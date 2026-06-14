@@ -45,6 +45,7 @@ from app.services.skills.experience_ledger import (
 logger = logging.getLogger(__name__)
 
 EVOLUTION_ACTION_TYPE = "evolution"
+MAX_SKILL_CONTENT_CHARS = 65_536
 
 
 class EvolutionGrowthStatus(StrEnum):
@@ -229,6 +230,11 @@ async def create_evolution_review_record(
     growth_status: EvolutionGrowthStatus = EvolutionGrowthStatus.PENDING_REVIEW,
     approval_status: str = "PENDING",
 ) -> EvolutionReviewRecord:
+    if evolved_content and len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
+        raise EvolutionApplyError(
+            f"Evolved content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS})."
+        )
+
     payload = EvolutionApprovalPayload(
         skill_id=proposal_skill_id,
         skill_name=skill_name,
@@ -904,6 +910,11 @@ async def revise_evolution_review_record(
 
     if not evolved_content or not evolved_content.strip():
         raise EvolutionApplyError("Revised content cannot be empty.")
+
+    if len(evolved_content) > MAX_SKILL_CONTENT_CHARS:
+        raise EvolutionApplyError(
+            f"Revised content too large ({len(evolved_content)} chars, max {MAX_SKILL_CONTENT_CHARS})."
+        )
 
     # Re-run security scan on the revised content
     scan_passed = True

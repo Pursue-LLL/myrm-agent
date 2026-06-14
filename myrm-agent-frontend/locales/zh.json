@@ -4206,6 +4206,15 @@
     "editAgent": "编辑智能体",
     "viewAgent": "查看智能体",
     "editDescription": "自定义智能体的名称、描述与能力配置",
+    "aiBuilder": {
+      "placeholder": "描述你想创建的智能体，例如「帮我每天总结工作写日报的助手」",
+      "generating": "AI 正在生成配置...",
+      "title": "AI 快速创建",
+      "subtitle": "描述你的需求，AI 将自动生成完整配置",
+      "apply": "应用",
+      "retry": "重试",
+      "error": "生成失败，请重试"
+    },
     "viewDescription": "查看内置智能体的配置信息",
     "builtInReadonly": "内置智能体（只读）",
     "view": "查看",

@@ -78,8 +78,6 @@ async def resume_durable_offline_tasks() -> None:
         async with session_factory() as db:
             result = await db.execute(select(OfflineDurableTask))
             tasks = result.scalars().all()
-            print(f"DEBUG: Found {len(tasks)} tasks in DB")
-            logger.info(f"DEBUG: Found {len(tasks)} tasks in DB")
 
             if not tasks:
                 return

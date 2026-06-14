@@ -4220,6 +4220,15 @@
     "editAgent": "Edit Agent",
     "viewAgent": "View Agent",
     "editDescription": "Customize the agent's name, description, and capabilities",
+    "aiBuilder": {
+      "placeholder": "Describe the agent you want to create, e.g. 'A daily report writing assistant'",
+      "generating": "AI is generating configuration...",
+      "title": "Quick Create with AI",
+      "subtitle": "Describe what you need, AI will generate the complete configuration",
+      "apply": "Apply",
+      "retry": "Retry",
+      "error": "Generation failed, please try again"
+    },
     "viewDescription": "View the configuration of this built-in agent",
     "builtInReadonly": "Built-in (Read-only)",
     "view": "View",

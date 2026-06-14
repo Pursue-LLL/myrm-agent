@@ -17,6 +17,9 @@ from app.services.skills.experience_ledger import record_skill_growth_event
 
 logger = logging.getLogger(__name__)
 
+MAX_SKILL_CONTENT_CHARS = 65_536
+MAX_PENDING_PROPOSALS = 50
+
 
 def _resolve_growth_status(record_status: str, payload: dict[str, object]) -> str:
     payload_status = payload.get("growth_status")
@@ -121,10 +124,15 @@ async def persist_skill_draft_record(
     draft_name = str(result.get("skill_name") or str(raw_content)[:80] or "")
     final_description = description if description is not None else str(result.get("skill_description") or "")
 
-    # For deduplication, we can check existing pending approvals of the same name and type
-    # But ApprovalRegistry list_pending already exists. We can just list pending and see.
+    if isinstance(raw_content, str) and len(raw_content) > MAX_SKILL_CONTENT_CHARS:
+        logger.warning(
+            "Skill draft content too large (%d chars, max %d): %s",
+            len(raw_content), MAX_SKILL_CONTENT_CHARS, draft_name,
+        )
+        return None
+
     if draft_name and status in dedupe_statuses:
-        pending_records = await ApprovalRegistry.list_pending()
+        pending_records = await ApprovalRegistry.list_pending(limit=MAX_PENDING_PROPOSALS + 1)
         is_dup = False
         for rec in pending_records:
             existing_status = _resolve_growth_status(rec.status, rec.payload)
@@ -142,10 +150,16 @@ async def persist_skill_draft_record(
                 draft_type,
                 status,
             )
-            # Find the duplicate record and return it so tests pass "is not None"
             for rec in pending_records:
                 if rec.action_type == draft_type and rec.payload.get("skill_name") == draft_name:
                     return rec
+            return None
+
+        if len(pending_records) >= MAX_PENDING_PROPOSALS:
+            logger.warning(
+                "Pending proposal limit reached (%d/%d). Rejecting new draft: %s",
+                len(pending_records), MAX_PENDING_PROPOSALS, draft_name,
+            )
             return None
 
     # Determine severity based on status

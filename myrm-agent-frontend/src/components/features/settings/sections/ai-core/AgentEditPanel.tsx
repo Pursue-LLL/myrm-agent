@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { X, Sparkles } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { X, Sparkles, Loader2, Wand2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   IconArrowRight,
@@ -35,6 +35,9 @@ import { Switch } from '@/components/primitives/switch';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
 import { exportAgent } from '@/services/agent';
 import { toast } from '@/hooks/useToast';
+import { getApiUrl } from '@/lib/api';
+import type { BuiltinToolId } from '@/store/chat/types';
+import { Textarea } from '@/components/primitives/textarea';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'inbox';
 
@@ -52,6 +55,92 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
+
+  const [aiIntent, setAiIntent] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  const handleAiBuild = useCallback(
+    async (intent: string) => {
+      if (!intent.trim() || aiGenerating) return;
+      setAiGenerating(true);
+      let fullJson = '';
+      try {
+        const response = await fetch(getApiUrl('/user-agents/ai-build'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intent, locale: navigator.language || 'en-US' }),
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => null);
+          throw new Error(err?.detail || `HTTP ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const evt = JSON.parse(line.slice(6));
+              if (evt.type === 'content' && typeof evt.data === 'string') {
+                fullJson += evt.data;
+              }
+            } catch {
+              /* skip malformed SSE chunks */
+            }
+          }
+        }
+        let cleaned = fullJson.trim();
+        cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?\s*```\s*$/i, '');
+        const jsonStart = cleaned.indexOf('{');
+        const jsonEnd = cleaned.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd > jsonStart) cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+        const config = JSON.parse(cleaned);
+
+        if (config.name) editor.setName(config.name);
+        if (config.description) editor.setDescription(config.description);
+
+        const validSkillIds = new Set(editor.enabledSkills.map((s) => s.id));
+        const validMcpNames = new Set(editor.enabledMcps.map((m) => m.name));
+        const validToolIds = new Set(['browser', 'shell_exec', 'code_exec', 'file_ops', 'search', 'image_gen']);
+
+        editor.handleConfigChange({
+          ...(config.system_prompt ? { systemPrompt: config.system_prompt } : {}),
+          ...(Array.isArray(config.skill_ids)
+            ? { selectedSkillIds: (config.skill_ids as string[]).filter((id) => validSkillIds.has(id)) }
+            : {}),
+          ...(Array.isArray(config.mcp_ids)
+            ? { selectedMcpNames: (config.mcp_ids as string[]).filter((id) => validMcpNames.has(id)) }
+            : {}),
+          ...(Array.isArray(config.builtin_tools)
+            ? {
+                enabledBuiltinTools: (config.builtin_tools as string[]).filter((id) =>
+                  validToolIds.has(id),
+                ) as BuiltinToolId[],
+              }
+            : {}),
+        });
+        setAiIntent('');
+        toast({ title: t('agent.aiBuilder.apply') });
+      } catch (e) {
+        console.error('AI Build failed:', e);
+        toast({
+          title: t('agent.aiBuilder.error'),
+          description: e instanceof Error ? e.message : undefined,
+          variant: 'destructive',
+        });
+      } finally {
+        setAiGenerating(false);
+      }
+    },
+    [aiGenerating, editor, t],
+  );
 
   const handleRollback = async () => {
     if (!agentId) return;
@@ -212,6 +301,49 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           {editor.isReadonly ? t('agent.viewDescription') : t('agent.editDescription')}
         </p>
       </div>
+
+      {isNew && !editor.hasChanges && (
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 to-violet-500/5 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Wand2 className="w-5 h-5 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">{t('agent.aiBuilder.title')}</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">{t('agent.aiBuilder.subtitle')}</p>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Textarea
+              value={aiIntent}
+              onChange={(e) => setAiIntent(e.target.value)}
+              placeholder={t('agent.aiBuilder.placeholder')}
+              className="min-h-[60px] max-h-[100px] resize-none text-sm flex-1"
+              disabled={aiGenerating}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  void handleAiBuild(aiIntent);
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              className="shrink-0 self-end gap-1.5 sm:self-end"
+              onClick={() => void handleAiBuild(aiIntent)}
+              disabled={!aiIntent.trim() || aiGenerating}
+            >
+              {aiGenerating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {t('agent.aiBuilder.generating')}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {t('agent.aiBuilder.apply')}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 order-2 lg:order-1">

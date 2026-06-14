@@ -58,6 +58,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "agents_subagents": _RouterMount("app.api.agents.subagents", prefix="/chats", tags=("subagents",)),
     "user_agents": _RouterMount("app.api.agents.agent", prefix="/user-agents", tags=("user-agents",)),
     "generate_prompt": _RouterMount("app.api.agents.generate_prompt", prefix="/user-agents", tags=("user-agents",)),
+    "ai_build": _RouterMount("app.api.agents.ai_build", prefix="/user-agents", tags=("user-agents",)),
     "agent_history": _RouterMount("app.api.agents.agent_history", prefix="/user-agents", tags=("user-agents",)),
     "openapi_services": _RouterMount("app.api.agents.openapi_services", attr="router", prefix="/agents", tags=("agents",)),
     "goals": _RouterMount("app.api.goals.router"),
