@@ -300,6 +300,7 @@ const SystemSection = memo(() => {
           await invoke('update_global_shortcut', {
             shortcut: localConfig.globalShortcut,
             appshotShortcut: localConfig.appshotShortcut,
+            voicePttShortcut: localConfig.voicePttShortcut ?? '',
           });
         } catch (e) {
           console.error('Failed to update shortcuts:', e);
@@ -458,6 +459,20 @@ const SystemSection = memo(() => {
             <ShortcutRecorder
               value={localConfig.appshotShortcut}
               onChange={(value) => handleChange('appshotShortcut', value)}
+            />
+          </div>
+
+          <div className="h-px bg-white/5" />
+
+          {/* Voice PTT 快捷键 */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-foreground">{t('config.voicePttShortcut')}</label>
+              <p className="text-xs text-muted-foreground">{t('config.voicePttShortcutDesc')}</p>
+            </div>
+            <ShortcutRecorder
+              value={localConfig.voicePttShortcut ?? ''}
+              onChange={(value) => handleChange('voicePttShortcut', value)}
             />
           </div>
 

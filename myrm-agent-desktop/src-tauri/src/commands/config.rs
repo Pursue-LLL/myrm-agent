@@ -98,12 +98,13 @@ pub async fn force_appshot_capture(app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
-/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot）
+/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT）
 #[tauri::command]
 pub fn update_global_shortcut(
     app: tauri::AppHandle,
     shortcut: String,
     appshot_shortcut: Option<String>,
+    voice_ptt_shortcut: Option<String>,
 ) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use std::str::FromStr;
@@ -133,6 +134,21 @@ pub fn update_global_shortcut(
                 }
             } else {
                 return Err(format!("Invalid appshot shortcut format: {}", appshot));
+            }
+        }
+    }
+
+    if let Some(ref voice_ptt) = voice_ptt_shortcut {
+        if !voice_ptt.is_empty() {
+            if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(voice_ptt) {
+                if let Ok(mut guard) = crate::runtime::VOICE_PTT_SHORTCUT_STR.lock() {
+                    *guard = format!("{s}");
+                }
+                if let Err(e) = app.global_shortcut().register(s) {
+                    return Err(format!("Failed to register voice PTT shortcut: {}", e));
+                }
+            } else {
+                return Err(format!("Invalid voice PTT shortcut format: {}", voice_ptt));
             }
         }
     }

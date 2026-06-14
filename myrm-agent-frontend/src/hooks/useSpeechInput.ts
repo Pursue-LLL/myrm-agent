@@ -506,6 +506,29 @@ export function useSpeechInput({
     }
   }, [mode, stopRecording]);
 
+  // ── Global PTT shortcut bridge (Tauri desktop) ──
+  useEffect(() => {
+    const handlePttStart = (e: Event) => {
+      if (stateRef.current === 'idle' && !(e as CustomEvent).defaultPrevented) {
+        e.preventDefault();
+        startRecording();
+      }
+    };
+    const handlePttStop = (e: Event) => {
+      if (stateRef.current === 'recording' && !(e as CustomEvent).defaultPrevented) {
+        e.preventDefault();
+        stopRecording();
+      }
+    };
+
+    window.addEventListener('voice-ptt-start', handlePttStart);
+    window.addEventListener('voice-ptt-stop', handlePttStop);
+    return () => {
+      window.removeEventListener('voice-ptt-start', handlePttStart);
+      window.removeEventListener('voice-ptt-stop', handlePttStop);
+    };
+  }, [startRecording, stopRecording]);
+
   const isSupported = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const hasMediaRecorder = !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined';

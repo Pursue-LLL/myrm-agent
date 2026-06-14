@@ -50,10 +50,12 @@ use config::{BackendConfig, ConfigManager, FrontendConfig};
 
 pub use runtime::{
     check_backend_health, get_backend_status, get_setup_token, start_backend,
-    start_backend_with_config, stop_backend, stop_frontend, APPSHOT_SHORTCUT_STR, NextJSFrontend,
-    PythonBackend, SetupTokenState,
+    start_backend_with_config, stop_backend, stop_frontend, APPSHOT_SHORTCUT_STR,
+    NextJSFrontend, PythonBackend, SetupTokenState, VOICE_PTT_SHORTCUT_STR,
 };
-pub use runtime::{handle_appshot_shortcut, handle_toggle_window};
+pub use runtime::{
+    handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start, handle_voice_ptt_stop,
+};
 
 #[tauri::command]
 async fn fix_quarantine_with_auth() -> Result<bool, String> {
@@ -76,11 +78,26 @@ fn main() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
-                    if event.state != tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+
+                    let shortcut_str = format!("{shortcut}");
+
+                    let is_voice_ptt = VOICE_PTT_SHORTCUT_STR
+                        .lock()
+                        .map_or(false, |saved| !saved.is_empty() && *saved == shortcut_str);
+
+                    if is_voice_ptt {
+                        match event.state {
+                            ShortcutState::Pressed => handle_voice_ptt_start(app),
+                            ShortcutState::Released => handle_voice_ptt_stop(app),
+                        }
                         return;
                     }
 
-                    let shortcut_str = format!("{shortcut}");
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+
                     let is_appshot = APPSHOT_SHORTCUT_STR
                         .lock()
                         .map_or(false, |saved| *saved == shortcut_str);
@@ -167,6 +184,30 @@ fn main() {
                     println!(
                         "Invalid appshot shortcut format: {}",
                         system_config.appshot_shortcut
+                    );
+                }
+            }
+
+            if !system_config.voice_ptt_shortcut.is_empty() {
+                use std::str::FromStr;
+                if let Ok(shortcut) =
+                    tauri_plugin_global_shortcut::Shortcut::from_str(&system_config.voice_ptt_shortcut)
+                {
+                    if let Ok(mut guard) = VOICE_PTT_SHORTCUT_STR.lock() {
+                        *guard = format!("{shortcut}");
+                    }
+                    if let Err(e) = app.global_shortcut().register(shortcut) {
+                        println!("⚠️ Failed to register voice PTT shortcut: {}", e);
+                    } else {
+                        println!(
+                            "🎤 Voice PTT shortcut registered: {}",
+                            system_config.voice_ptt_shortcut
+                        );
+                    }
+                } else {
+                    println!(
+                        "⚠️ Invalid voice PTT shortcut format: {}",
+                        system_config.voice_ptt_shortcut
                     );
                 }
             }

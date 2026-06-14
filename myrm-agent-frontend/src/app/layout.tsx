@@ -23,6 +23,7 @@ import { FlowPadModal } from '@/components/features/app-shell/flow-pad-modal';
 import { PWAUpdater } from '@/components/features/app-shell/pwa-updater';
 import { AppUpdatePrompt } from '@/components/features/app-shell/app-update-prompt';
 import AppshotInitializer from '@/components/features/app-shell/appshot-initializer';
+import VoicePttInitializer from '@/components/features/app-shell/voice-ptt-initializer';
 import { WebVitals } from './web-vitals';
 import { getLocale, getMessages } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
@@ -94,6 +95,7 @@ export default async function LocaleLayout({ children }: { children: React.React
                 <PWAUpdater />
                 <AppUpdatePrompt />
                 <AppshotInitializer />
+                <VoicePttInitializer />
                 <PageLayout>{children}</PageLayout>
                 <Toaster position="top-right" expand={true} richColors />
               </NextIntlClientProvider>

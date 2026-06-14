@@ -11,7 +11,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 3. **Agent Sidecar** 进程管理（Bun 编译的独立二进制，CLI 工具集成）
 4. **配置管理**（`SystemConfig`，包括 WebUI 模式、全局快捷键、最小化托盘配置等）
 5. **系统 API 封装**（后台托盘动态状态、任务栏进度条、完成弹跳通知、系统级原生通知、文件对话框等）
-6. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键）
+6. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键、Voice PTT 语音对讲快捷键）
 7. **端口冲突检测**（启动前检查端口占用，防止冲突）
 8. **自动更新**（`tauri-plugin-updater`，前端通过 `@tauri-apps/plugin-updater` JS API 驱动）+ 启动期 Updater pubkey 占位符强校验（`utils/updater_safety.rs`，防止生产构建在未配置真实 pubkey 时启用 OTA，规避供应链攻击风险）
 
@@ -25,11 +25,11 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC | ✅ |
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（WebUI 模式） | ✅ |
-| `runtime/appshot.rs` | ✅ 核心 | Appshot 全局快捷键截屏与窗口文本提取，隐私黑名单拦截（`appshot-blocked` 事件）与强制截屏绕过（`force_capture`） | ✅ |
+| `runtime/appshot.rs` | ✅ 核心 | 全局快捷键处理中心：Appshot 截屏（含隐私黑名单拦截与强制绕过）、Voice PTT（Pressed/Released 事件 emit）、窗口 toggle | ✅ |
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
 | `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
-| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
+| `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
 | `lifecycle.rs` | ✅ 核心 | 优雅停机与生命周期管理 | ✅ |
 | `tray.rs` | ✅ 核心 | 系统托盘初始化（Show/New Chat/Settings/Workspace/Quit 菜单 + 左键显示窗口）与 tooltip 状态管理。前端 `useTrayStatus` hook 还通过 Tauri JS API 控制任务栏进度条（`setProgressBar`）和完成弹跳通知（`requestUserAttention`） | ✅ |
 | `commands/` | ✅ 核心 | Tauri IPC 命令模块（config, agent） | ✅ |

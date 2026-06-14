@@ -43,6 +43,9 @@ export interface SystemConfig {
 
   /** 是否启用 Locked Use（Computer Use 锁屏操作能力） */
   lockedUseEnabled: boolean;
+
+  /** 语音 Push-to-Talk 全局快捷键 */
+  voicePttShortcut: string;
 }
 
 /** 默认系统配置 */
@@ -60,6 +63,7 @@ export const DEFAULT_SYSTEM_CONFIG: SystemConfig = {
   appshotShortcut: 'CommandOrControl+Shift+A',
   appshotExcludedApps: ['微信', 'WeChat', '1Password', 'Bitwarden', 'KeePassXC', 'LastPass'],
   lockedUseEnabled: false,
+  voicePttShortcut: 'CommandOrControl+Shift+V',
 };
 
 /** 当前运行模式 */

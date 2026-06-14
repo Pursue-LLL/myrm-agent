@@ -18,6 +18,7 @@
 | `VisualDesktopToggle.tsx` | 组件/模块 | — | — |
 | `app-update-prompt.tsx` | 组件/模块 | — | — |
 | `appshot-initializer.tsx` | 组件/模块 | — | — |
+| `voice-ptt-initializer.tsx` | 组件/模块 | — | — |
 | `auth-callback.tsx` | 组件/模块 | — | — |
 | `auth-initializer.tsx` | 组件/模块 | — | — |
 | `boot-screen.tsx` | 组件/模块 | — | — |

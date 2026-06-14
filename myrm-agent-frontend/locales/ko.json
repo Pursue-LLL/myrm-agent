@@ -2513,6 +2513,8 @@
         "globalShortcutDesc": "Press this shortcut anywhere to quickly show or hide the app",
         "appshotShortcut": "Appshot Shortcut",
         "appshotShortcutDesc": "Capture screen and extract window text to send as context to chat",
+        "voicePttShortcut": "Voice Push-to-Talk",
+        "voicePttShortcutDesc": "Hold this shortcut anywhere to speak to the agent, release to send",
         "appshotPrivacyBlacklist": "Appshot Privacy Blacklist",
         "appshotPrivacyBlacklistDesc": "Apps in this list will be blocked from screen capture to protect sensitive data",
         "appshotAddAppPlaceholder": "Enter app name...",

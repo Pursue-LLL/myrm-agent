@@ -53,6 +53,7 @@ app/channels/providers/signal/channel.py
 app/channels/providers/slack/channel.py
 app/channels/providers/telegram/api.py
 app/channels/providers/telegram/channel.py
+app/channels/providers/telegram/html_converter.py
 app/channels/providers/telegram/inbound.py
 app/channels/providers/wechat/ilink_channel.py
 app/channels/providers/wecom/aibot_channel.py

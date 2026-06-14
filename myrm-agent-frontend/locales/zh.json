@@ -2935,6 +2935,8 @@
         "globalShortcutDesc": "在任何界面按下此快捷键可快速唤醒或隐藏应用",
         "appshotShortcut": "Appshot 截屏快捷键",
         "appshotShortcutDesc": "截取当前屏幕并提取窗口文本作为上下文发送到对话",
+        "voicePttShortcut": "语音对讲快捷键",
+        "voicePttShortcutDesc": "在任意应用中按住此快捷键说话，松开即发送给 Agent",
         "appshotPrivacyBlacklist": "截屏隐私黑名单",
         "appshotPrivacyBlacklistDesc": "黑名单中的应用在前台时，截屏将被阻止以保护敏感数据",
         "appshotAddAppPlaceholder": "输入应用名称...",

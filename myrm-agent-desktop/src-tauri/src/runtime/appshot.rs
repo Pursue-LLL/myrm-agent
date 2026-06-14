@@ -1,4 +1,4 @@
-//! Appshot 全局快捷键：截屏 + 前台窗口文本提取 + 隐私黑名单拦截
+//! 全局快捷键处理中心：Appshot 截屏 + Voice PTT + 窗口切换
 
 use std::collections::HashSet;
 use std::process::Command;
@@ -9,6 +9,20 @@ use crate::config::ConfigManager;
 /// 用于在全局快捷键 handler 中识别 Appshot 绑定
 pub static APPSHOT_SHORTCUT_STR: std::sync::Mutex<String> =
     std::sync::Mutex::new(String::new());
+
+/// 用于在全局快捷键 handler 中识别 Voice PTT 绑定
+pub static VOICE_PTT_SHORTCUT_STR: std::sync::Mutex<String> =
+    std::sync::Mutex::new(String::new());
+
+/// Voice PTT 快捷键按下：通知前端开始录音
+pub fn handle_voice_ptt_start(app: &AppHandle) {
+    let _ = app.emit("voice-ptt-start", ());
+}
+
+/// Voice PTT 快捷键松开：通知前端停止录音并发送
+pub fn handle_voice_ptt_stop(app: &AppHandle) {
+    let _ = app.emit("voice-ptt-stop", ());
+}
 
 /// 切换主窗口显示/隐藏
 pub fn handle_toggle_window(app: &AppHandle) {

@@ -73,6 +73,10 @@ pub struct SystemConfig {
     /// Appshot 截屏隐私黑名单：前台应用名命中时跳过截图，防止敏感应用内容被发往云端 LLM
     #[serde(default = "default_appshot_excluded_apps")]
     pub appshot_excluded_apps: Vec<String>,
+
+    /// 语音 Push-to-Talk 全局快捷键：按住录音，松开发送给 Agent
+    #[serde(default = "default_voice_ptt_shortcut")]
+    pub voice_ptt_shortcut: String,
 }
 
 fn default_close_to_tray() -> bool {
@@ -102,6 +106,10 @@ fn default_appshot_excluded_apps() -> Vec<String> {
     ]
 }
 
+fn default_voice_ptt_shortcut() -> String {
+    "CommandOrControl+Shift+V".to_string()
+}
+
 impl Default for SystemConfig {
     fn default() -> Self {
         Self {
@@ -118,6 +126,7 @@ impl Default for SystemConfig {
             appshot_shortcut: "CommandOrControl+Shift+A".to_string(),
             locked_use_enabled: false,
             appshot_excluded_apps: default_appshot_excluded_apps(),
+            voice_ptt_shortcut: default_voice_ptt_shortcut(),
         }
     }
 }
@@ -265,6 +274,7 @@ mod tests {
         assert_eq!(config.close_to_tray, deserialized.close_to_tray);
         assert_eq!(config.enable_webui_mode, deserialized.enable_webui_mode);
         assert_eq!(config.global_shortcut, deserialized.global_shortcut);
+        assert_eq!(config.voice_ptt_shortcut, deserialized.voice_ptt_shortcut);
     }
 
     #[test]
