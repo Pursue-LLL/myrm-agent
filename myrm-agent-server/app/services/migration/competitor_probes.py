@@ -256,6 +256,64 @@ def discover_trae(explicit_home: Path | None) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
+def discover_qwenpaw(explicit_home: Path | None) -> CompetitorSource | None:
+    """Detect QwenPaw/CoPaw data at ~/.qwenpaw or legacy ~/.copaw."""
+
+    candidates: list[Path] = []
+    if explicit_home is not None:
+        candidates.append(explicit_home / ".qwenpaw")
+        candidates.append(explicit_home / ".copaw")
+    else:
+        candidates.append(Path.home() / ".qwenpaw")
+        candidates.append(Path.home() / ".copaw")
+
+    root = _find_first_dir(candidates)
+    if not root:
+        return None
+
+    source = CompetitorSource(competitor="qwenpaw", root=str(root))
+
+    memory_dir = root / "memory"
+    if memory_dir.is_dir():
+        for entry in memory_dir.iterdir():
+            if entry.is_file() and entry.suffix in (".json", ".md", ".txt"):
+                source.files.append(
+                    DiscoveredFile(path=str(entry), kind="memory", size_bytes=entry.stat().st_size)
+                )
+                source.memory_count_estimate += 1
+
+    secret_dir = root / ".secret"
+    if not secret_dir.is_dir():
+        secret_dir = Path(str(root) + ".secret")
+    if secret_dir.is_dir():
+        env_file = secret_dir / ".env"
+        if env_file.is_file():
+            source.files.append(
+                DiscoveredFile(path=str(env_file), kind="env", size_bytes=env_file.stat().st_size)
+            )
+            source.has_api_keys = _detect_api_keys_in_env(env_file)
+
+    plugins_dir = root / "plugins"
+    if plugins_dir.is_dir():
+        source.skill_count += sum(1 for entry in plugins_dir.iterdir() if entry.is_dir())
+
+    for workspace_dir in _qwenpaw_workspace_dirs(root):
+        agent_json = workspace_dir / "agent.json"
+        if agent_json.is_file():
+            source.files.append(
+                DiscoveredFile(path=str(agent_json), kind="agent_config", size_bytes=agent_json.stat().st_size)
+            )
+        for prompt_file in ("AGENTS.md", "SOUL.md", "PROFILE.md"):
+            prompt_path = workspace_dir / prompt_file
+            if prompt_path.is_file():
+                source.files.append(
+                    DiscoveredFile(path=str(prompt_path), kind="prompt", size_bytes=prompt_path.stat().st_size)
+                )
+
+    source.confidence = _qwenpaw_confidence(source)
+    return source if source.confidence != "low" else None
+
+
 # --- Private helpers ---
 
 
@@ -299,4 +357,28 @@ def _openclaw_workspace_dirs(root: Path) -> list[Path]:
                 dirs.append(entry)
     except OSError:
         return dirs
+    return dirs
+
+
+def _qwenpaw_confidence(source: CompetitorSource) -> ConfidenceLevel:
+    has_agent_config = any(f.kind == "agent_config" for f in source.files)
+    has_memory = any(f.kind == "memory" for f in source.files)
+    has_prompt = any(f.kind == "prompt" for f in source.files)
+    if has_agent_config and (has_memory or has_prompt):
+        return "high"
+    if has_agent_config or has_memory or has_prompt or source.skill_count > 0:
+        return "medium"
+    return "low"
+
+
+def _qwenpaw_workspace_dirs(root: Path) -> list[Path]:
+    """Discover QwenPaw workspace directories containing agent.json."""
+
+    dirs: list[Path] = []
+    try:
+        for entry in root.iterdir():
+            if entry.is_dir() and (entry / "agent.json").is_file():
+                dirs.append(entry)
+    except OSError:
+        pass
     return dirs

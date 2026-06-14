@@ -70,6 +70,7 @@ def load_competitor_payload(payload: dict[str, object]) -> dict[str, object]:
         "claude": _load_claude,
         "windsurf": _load_windsurf,
         "trae": _load_trae,
+        "qwenpaw": _load_qwenpaw,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -577,6 +578,98 @@ def _load_trae(root: Path, file_paths: list[str]) -> dict[str, object]:
             result["skills"] = skills
 
     return result
+
+
+def _load_qwenpaw(root: Path, file_paths: list[str]) -> dict[str, object]:
+    """Load QwenPaw/CoPaw agent configs, prompts, memory, and plugins."""
+
+    result: dict[str, object] = {}
+    agents: list[dict[str, object]] = []
+
+    for workspace_dir in _discover_qwenpaw_workspace_dirs(root):
+        agent_json = workspace_dir / "agent.json"
+        if not agent_json.is_file():
+            continue
+        agent_data = _read_json(agent_json)
+        if not isinstance(agent_data, dict):
+            continue
+
+        agent_entry: dict[str, object] = {
+            "name": agent_data.get("name", workspace_dir.name),
+            "id": agent_data.get("id", workspace_dir.name),
+        }
+
+        prompt_parts: list[str] = []
+        prompt_files = agent_data.get("system_prompt_files")
+        if isinstance(prompt_files, list):
+            for filename in prompt_files:
+                if isinstance(filename, str):
+                    prompt_path = workspace_dir / filename
+                    if prompt_path.is_file():
+                        prompt_parts.append(_read_text(prompt_path))
+
+        if prompt_parts:
+            agent_entry["system_prompt"] = "\n\n---\n\n".join(prompt_parts)
+
+        agents.append(agent_entry)
+
+    if agents:
+        result["qwenpaw_agents"] = agents
+        combined_prompts = [
+            a["system_prompt"] for a in agents if isinstance(a.get("system_prompt"), str)
+        ]
+        if combined_prompts:
+            result["soul_md"] = "\n\n---\n\n".join(combined_prompts)
+
+    memory_dir = root / "memory"
+    if memory_dir.is_dir():
+        memory_entries: list[dict[str, object]] = []
+        for entry in sorted(memory_dir.iterdir()):
+            if not entry.is_file():
+                continue
+            if entry.suffix == ".json":
+                data = _read_json(entry)
+                if isinstance(data, list):
+                    memory_entries.extend(item for item in data if isinstance(item, dict))
+                elif isinstance(data, dict):
+                    memory_entries.append(data)
+            elif entry.suffix in (".md", ".txt"):
+                text = _read_text(entry).strip()
+                if text:
+                    memory_entries.extend(
+                        _markdown_bullets_to_openclaw_memory(text, category="memory")
+                    )
+        if memory_entries:
+            result["openclaw_memory"] = memory_entries
+
+    secret_dir = root / ".secret"
+    if not secret_dir.is_dir():
+        secret_dir = Path(str(root) + ".secret")
+    if secret_dir.is_dir():
+        env_file = secret_dir / ".env"
+        if env_file.is_file():
+            result["env_keys"] = _extract_env_key_names(env_file)
+
+    plugins_dir = root / "plugins"
+    if plugins_dir.is_dir():
+        skills = _load_skill_directories(plugins_dir, source="qwenpaw")
+        if skills:
+            result["skills"] = skills
+
+    return result
+
+
+def _discover_qwenpaw_workspace_dirs(root: Path) -> list[Path]:
+    """Find QwenPaw workspace directories containing agent.json."""
+
+    dirs: list[Path] = []
+    try:
+        for entry in root.iterdir():
+            if entry.is_dir() and (entry / "agent.json").is_file():
+                dirs.append(entry)
+    except OSError:
+        pass
+    return dirs
 
 
 def _windsurf_rule_from_file(path: Path) -> dict[str, object]:

@@ -8,7 +8,7 @@ DiscoveryResult: list of detected competitor data sources with confidence scorin
 
 [POS]
 Local/Tauri-only service that scans the user's home directory for competitor
-AI assistant data (Hermes, Claude Code, OpenClaw, Cursor, Codex, Windsurf, Trae).
+AI assistant data (Hermes, Claude Code, OpenClaw, Cursor, Codex, Windsurf, Trae, QwenPaw).
 SaaS mode cannot access user filesystems, so this service only runs in local deployments.
 
 Individual per-competitor probe logic lives in competitor_probes.py.
@@ -136,6 +136,7 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
         discover_cursor,
         discover_hermes,
         discover_openclaw,
+        discover_qwenpaw,
         discover_trae,
         discover_windsurf,
     )
@@ -152,6 +153,7 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
         discover_codex,
         discover_windsurf,
         discover_trae,
+        discover_qwenpaw,
     ]
 
     for probe in probes:

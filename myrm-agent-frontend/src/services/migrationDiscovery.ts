@@ -74,6 +74,7 @@ export function getCompetitorDisplayName(competitor: string): string {
     codex: 'Codex',
     windsurf: 'Windsurf',
     trae: 'Trae',
+    qwenpaw: 'QwenPaw',
   };
   return names[competitor] ?? competitor;
 }
