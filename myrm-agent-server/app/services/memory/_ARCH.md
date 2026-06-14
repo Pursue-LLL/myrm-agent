@@ -51,3 +51,5 @@
 | `shared_context_history.py` | 核心 | Shared Context 历史证据服务。复用会话历史搜索并构建历史消息提升提案的来源元数据 | ✅ |
 | `shared_context_materializer.py` | 核心 | Shared Context 写入物化服务。批准 proposal 后幂等写入目标 shared namespace，并附加审计元数据 | ✅ |
 | `integration_memory.py` | 核心 | Integration Memory 业务服务。封装框架层 IntegrationFetcher/TreeManager/Summariser，提供 sync/browse/status/remove facade 和类型安全 DTO（IntegrationStatusSnapshot/IntegrationTreeNodeDTO）供 API 层消费 | ✅ |
+| `mcp_bridge_provider.py` | 核心 | MCPBridgeProvider — 将任意 MCP Server 桥接为 IntegrationProvider。通过 DI 注入 MCPConnection，自动探测 fetch 工具并将结果转换为 IntegrationLeaf | ✅ |
+| `integration_sync_daemon.py` | 核心 | Integration Sync Daemon — 基于 APScheduler 的后台定时同步守护进程。定期调用 IntegrationMemoryService.sync_all() 保持知识源新鲜 | ✅ |
