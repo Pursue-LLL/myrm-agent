@@ -54,6 +54,7 @@ class PendingEvolutionResponse(BaseModel):
     reason_code: str | None = None
     remediation: str | None = None
     trajectory: str | None = None
+    chat_id: str | None = None
     created_at: str
 
 
@@ -87,6 +88,7 @@ def _response_from_record(record: EvolutionReviewRecord) -> PendingEvolutionResp
         reason_code=record.reason_code,
         remediation=record.remediation,
         trajectory=record.trajectory,
+        chat_id=record.chat_id,
         created_at=record.created_at.isoformat(),
     )
 

@@ -48,6 +48,7 @@ interface SkillGrowthCaseApiItem {
   remediation: string | null;
   runtime_failure: RuntimeFailureEvidence | null;
   trajectory: string | null;
+  chat_id: string | null;
   form_metadata: { schedule_hint?: string; form_reasoning?: string } | null;
   created_at: string;
 }
@@ -121,6 +122,7 @@ export interface SkillGrowthCase {
   remediation: string | null;
   runtimeFailure: RuntimeFailureEvidence | null;
   trajectory: string | null;
+  chatId: string | null;
   formMetadata: { scheduleHint?: string; formReasoning?: string } | null;
   createdAt: string;
 }
@@ -200,6 +202,7 @@ function mapCase(item: SkillGrowthCaseApiItem): SkillGrowthCase {
     remediation: item.remediation,
     runtimeFailure: item.runtime_failure,
     trajectory: item.trajectory,
+    chatId: item.chat_id,
     formMetadata: item.form_metadata
       ? { scheduleHint: item.form_metadata.schedule_hint, formReasoning: item.form_metadata.form_reasoning }
       : null,

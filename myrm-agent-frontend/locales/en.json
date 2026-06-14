@@ -2323,6 +2323,7 @@
         },
         "viewChanges": "View changes",
         "hideChanges": "Hide changes",
+        "viewSourceChat": "View source chat",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",

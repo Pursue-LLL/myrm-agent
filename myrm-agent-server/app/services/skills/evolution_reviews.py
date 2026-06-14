@@ -121,6 +121,8 @@ class EvolutionReviewRecord:
     remediation: str | None
     runtime_failure: RuntimeFailureEvidence | None
     trajectory: str | None
+    chat_id: str | None
+    task_context: str | None
     created_at: datetime
     resolved_at: datetime | None
 
@@ -186,6 +188,8 @@ def approval_to_evolution_review_record(
         remediation=payload.remediation,
         runtime_failure=payload.runtime_failure,
         trajectory=payload.trajectory,
+        chat_id=record.chat_id,
+        task_context=payload.task_context,
         created_at=record.created_at,
         resolved_at=record.resolved_at,
     )

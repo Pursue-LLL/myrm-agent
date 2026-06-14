@@ -42,6 +42,7 @@ class SkillGrowthCaseResponse(BaseModel):
     remediation: str | None = None
     runtime_failure: dict[str, object] | None = None
     trajectory: str | None = None
+    chat_id: str | None = None
     created_at: str
 
 
@@ -115,6 +116,7 @@ def _case_response(item: SkillGrowthCaseRead) -> SkillGrowthCaseResponse:
         remediation=item.remediation,
         runtime_failure=(item.runtime_failure.model_dump(mode="json") if item.runtime_failure is not None else None),
         trajectory=item.trajectory,
+        chat_id=item.chat_id,
         created_at=item.created_at.isoformat(),
     )
 

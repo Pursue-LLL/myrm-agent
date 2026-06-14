@@ -2091,6 +2091,7 @@
         },
         "viewChanges": "변경 사항 보기",
         "hideChanges": "변경 사항 숨기기",
+        "viewSourceChat": "소스 대화 보기",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",

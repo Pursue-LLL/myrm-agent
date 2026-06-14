@@ -2323,6 +2323,7 @@
         },
         "viewChanges": "查看变更",
         "hideChanges": "收起变更",
+        "viewSourceChat": "查看来源对话",
         "loadFailed": "加载技能成长案例失败",
         "authRequired": "请先登录后再查看技能成长案例。",
         "approveSuccess": "已成功通过「{name}」",

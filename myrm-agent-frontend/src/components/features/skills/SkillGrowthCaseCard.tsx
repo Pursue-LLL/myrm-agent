@@ -7,7 +7,8 @@
 
 import { useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ShieldAlert, X } from 'lucide-react';
+import Link from 'next/link';
+import { CalendarClock, Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, ShieldAlert, X } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
@@ -151,6 +152,15 @@ export default function SkillGrowthCaseCard({
               <Clock3 className="h-3.5 w-3.5" />
               {createdAt}
             </span>
+            {item.chatId && (
+              <Link
+                href={`/${item.chatId}`}
+                className="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                {t('viewSourceChat')}
+              </Link>
+            )}
             {item.confidence !== null && (
               <span className={cn('inline-flex items-center gap-1', isSimple && (
                 item.confidence >= 0.8 ? 'text-emerald-600 dark:text-emerald-400' :

@@ -2091,6 +2091,7 @@
         },
         "viewChanges": "変更を表示",
         "hideChanges": "変更を非表示",
+        "viewSourceChat": "ソースチャットを表示",
         "loadFailed": "Failed to load skill growth cases",
         "authRequired": "Sign in to review skill growth cases.",
         "approveSuccess": "\"{name}\" approved successfully",

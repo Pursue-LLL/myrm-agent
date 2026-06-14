@@ -73,6 +73,7 @@ class SkillGrowthCaseRead:
     remediation: str | None
     runtime_failure: RuntimeFailureEvidence | None
     trajectory: str | None
+    chat_id: str | None
     created_at: datetime
 
 
@@ -202,6 +203,7 @@ def _approval_case(record: ApprovalRecord) -> SkillGrowthCaseRead:
         remediation=_text(payload.get("remediation")),
         runtime_failure=None,
         trajectory=None,
+        chat_id=record.chat_id,
         created_at=record.created_at,
     )
 
@@ -229,6 +231,7 @@ def _evolution_case(record: EvolutionReviewRecord) -> SkillGrowthCaseRead:
         remediation=record.remediation,
         runtime_failure=record.runtime_failure,
         trajectory=record.trajectory,
+        chat_id=record.chat_id,
         created_at=record.created_at,
     )
 
