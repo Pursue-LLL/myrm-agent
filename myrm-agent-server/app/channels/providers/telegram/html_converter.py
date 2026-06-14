@@ -1,4 +1,4 @@
-"""Markdown → Telegram HTML conversion.
+"""Markdown → Telegram HTML conversion and message splitting.
 
 Telegram HTML supports: <b>, <i>, <s>, <code>, <pre>, <a href>.
 Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
@@ -7,12 +7,14 @@ Only &, <, > need escaping in non-tag text — much simpler than MarkdownV2.
 
 [OUTPUT]
 - md_to_telegram_html(): Telegram-safe HTML string
-- split_message(): HTML-Aware UTF-16 safe splitting algorithm
+- split_message(): HTML-Aware UTF-16 safe splitting algorithm (4096 UTF-16)
+- split_markdown_rich(): Markdown-aware UTF-8 safe splitting (32768 UTF-8, Bot API 10.1)
 
 [POS]
 Markdown to Telegram HTML converter. Handles bold/italic/strikethrough/code/link,
 supports 4096-char message splitting with state-machine-based HTML tag auto-closing
-and UTF-16 surrogate pair protection.
+and UTF-16 surrogate pair protection. Also provides Rich Message splitting for
+Bot API 10.1's native Markdown rendering path.
 """
 
 from __future__ import annotations
@@ -265,8 +267,72 @@ def split_message(text: str, limit: int = _MAX_MSG_LENGTH) -> list[str]:
                     current_chunk_utf16_len = _utf16_len(current_chunk)
 
     if current_chunk:
-        # Close any remaining tags
         close_tags_str = "".join(t[2] for t in reversed(active_tags))
         chunks.append(current_chunk + close_tags_str)
 
     return chunks
+
+
+# ------------------------------------------------------------------
+# Rich Message splitting (Bot API 10.1 — 32768 UTF-8 characters)
+# ------------------------------------------------------------------
+
+_RICH_MAX_LENGTH = 32000  # practical limit below 32768 for headroom
+
+_CODE_FENCE_RE = re.compile(r"^```", re.MULTILINE)
+
+
+def split_markdown_rich(text: str, limit: int = _RICH_MAX_LENGTH) -> list[str]:
+    """Split raw Markdown for sendRichMessage (32768 UTF-8 character limit).
+
+    Unlike ``split_message`` which tracks HTML tags, this function splits
+    plain Markdown text at semantic boundaries while preserving code fences.
+    """
+    if len(text.encode("utf-8")) <= limit:
+        return [text]
+
+    chunks: list[str] = []
+    remaining = text
+
+    while remaining:
+        byte_len = len(remaining.encode("utf-8"))
+        if byte_len <= limit:
+            chunks.append(remaining)
+            break
+
+        cut = _find_utf8_cut(remaining, limit)
+        chunk = remaining[:cut]
+
+        fence_count = len(_CODE_FENCE_RE.findall(chunk))
+        if fence_count % 2 != 0:
+            last_fence = chunk.rfind("```")
+            if last_fence > 0:
+                chunk = remaining[:last_fence]
+                cut = last_fence
+
+        chunks.append(chunk)
+        remaining = remaining[cut:].lstrip("\n")
+
+    return chunks
+
+
+def _find_utf8_cut(text: str, byte_limit: int) -> int:
+    """Find the best character index to cut at, respecting UTF-8 byte limit and semantic boundaries."""
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if len(text[:mid].encode("utf-8")) <= byte_limit:
+            lo = mid
+        else:
+            hi = mid - 1
+    max_chars = lo
+
+    search_start = max(0, max_chars - 2000)
+    window = text[search_start:max_chars]
+
+    for sep in ["\n\n", "\n", ". ", "。", "! ", "? ", " "]:
+        idx = window.rfind(sep)
+        if idx >= 0:
+            return search_start + idx + len(sep)
+
+    return max_chars

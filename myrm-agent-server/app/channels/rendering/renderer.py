@@ -176,6 +176,9 @@ def _build_reasoning_block(reasoning: str | None, style: RenderStyle) -> str:
 
     if style.reasoning_display == ReasoningDisplay.COLLAPSED:
         emoji = "\U0001f9e0 " if style.use_emoji else ""
+        if style.supports_latex:
+            quoted = "\n".join(f"> {line}" for line in trimmed.split("\n"))
+            return f"> {emoji}**Thinking**\n>\n{quoted}\n\n"
         return f"<blockquote expandable>{emoji}Thinking\n\n{trimmed}\n</blockquote>\n\n"
 
     emoji = "\U0001f4ad " if style.use_emoji else ""

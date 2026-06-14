@@ -76,6 +76,7 @@ from .inbound import _ALLOWED_UPDATES, TelegramInboundMixin
 logger = logging.getLogger(__name__)
 
 _MIN_DRAFT_CHARS = 20
+_RICH_MAX_TEXT_LENGTH = 32000  # practical limit below 32768 to leave headroom
 
 
 class TelegramChannel(TelegramInboundMixin, BaseChannel):
@@ -120,6 +121,14 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
     render_style = RenderStyle(
         format="markdown",
         max_text_length=MAX_TEXT_LENGTH,
+        reasoning_display=ReasoningDisplay.COLLAPSED,
+        tool_summary_display=ToolSummaryDisplay.COMPACT,
+    )
+    _rich_render_style = RenderStyle(
+        format="markdown",
+        max_text_length=_RICH_MAX_TEXT_LENGTH,
+        supports_latex=True,
+        supports_tables=True,
         reasoning_display=ReasoningDisplay.COLLAPSED,
         tool_summary_display=ToolSummaryDisplay.COMPACT,
     )
@@ -170,6 +179,8 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         self._draft_counter = 0
         self._draft_available: bool | None = None
         self._active_drafts: dict[str, int] = {}
+        self._rich_send_available: bool | None = None
+        self._rich_draft_available: bool | None = None
         self._auto_topic = auto_topic
         self._notifications_mode = ChannelNotificationMode.IMPORTANT
         self._topic_locks: dict[str, asyncio.Lock] = {}
@@ -333,7 +344,12 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
     # ------------------------------------------------------------------
 
     async def send(self, msg: OutboundMessage) -> str | None:
-        """Send media attachments then text chunks via Telegram Bot API."""
+        """Send media attachments then text chunks via Telegram Bot API.
+
+        When Bot API 10.1 Rich Messages are available, sends raw Markdown via
+        ``sendRichMessage`` for native tables/math/headings rendering. Falls back
+        transparently to the HTML path on capability or parse errors.
+        """
         chat_id = msg.recipient_id
         if not chat_id:
             return None
@@ -350,11 +366,16 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
             )
 
         if msg.content:
-            chunks = render(msg, self.render_style)
             reply_markup = build_inline_keyboard(msg)
             reply_to = int(msg.reply_to_id) if msg.reply_to_id else None
             thread_id = int(msg.thread_id) if msg.thread_id else None
 
+            if self._rich_send_available is not False:
+                mid = await self._try_send_rich(msg, chat_id, reply_to, thread_id, reply_markup, notify_kwargs)
+                if mid is not None:
+                    return mid
+
+            chunks = render(msg, self.render_style)
             for i, chunk in enumerate(chunks):
                 html_text = md_to_telegram_html(chunk)
                 for part in split_message(html_text):
@@ -392,6 +413,69 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
 
         return last_message_id
 
+    async def _try_send_rich(
+        self,
+        msg: OutboundMessage,
+        chat_id: str,
+        reply_to: int | None,
+        thread_id: int | None,
+        reply_markup: dict[str, object] | None,
+        notify_kwargs: dict[str, bool],
+    ) -> str | None:
+        """Attempt to send via ``sendRichMessage``. Returns message_id or None to fall back."""
+        from .html_converter import split_markdown_rich
+
+        chunks = render(msg, self._rich_render_style)
+        parts = split_markdown_rich(chunks[0]) if chunks else []
+        if not parts:
+            return None
+
+        last_mid: str | None = None
+        for i, part in enumerate(parts):
+            markup = reply_markup if (i == len(parts) - 1 and reply_markup) else None
+            try:
+                result = await self._client.send_rich_message(
+                    chat_id,
+                    part,
+                    reply_to_message_id=reply_to,
+                    message_thread_id=thread_id,
+                    reply_markup=markup,
+                    **notify_kwargs,
+                )
+                self._rich_send_available = True
+                mid = result.get("message_id")
+                if mid is not None:
+                    last_mid = str(mid)
+                reply_to = None
+            except TelegramApiError as exc:
+                if exc.is_method_not_found:
+                    self._rich_send_available = False
+                    if last_mid is not None:
+                        return last_mid
+                    logger.info("TelegramChannel: sendRichMessage unavailable, using HTML mode")
+                    return None
+                if exc.error_code == 400:
+                    if last_mid is not None:
+                        logger.warning("TelegramChannel: Rich partial send stopped (%s)", exc.description)
+                        return last_mid
+                    logger.warning("TelegramChannel: sendRichMessage rejected (%s), falling back to HTML", exc.description)
+                    return None
+                raise
+
+        for remaining_chunk in chunks[1:]:
+            for part in split_markdown_rich(remaining_chunk):
+                try:
+                    result = await self._client.send_rich_message(
+                        chat_id, part, message_thread_id=thread_id, **notify_kwargs,
+                    )
+                    mid = result.get("message_id")
+                    if mid is not None:
+                        last_mid = str(mid)
+                except TelegramApiError:
+                    break
+
+        return last_mid
+
     def _allocate_draft_id(self) -> int:
         self._draft_counter = (self._draft_counter % 2_147_483_647) + 1
         return self._draft_counter
@@ -400,12 +484,35 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         return f"{chat_id}:{message_id}"
 
     async def _try_send_draft(self, chat_id: str, text: str, *, thread_id: str | None = None) -> int | None:
-        """Attempt to send a draft preview. Returns draft_id on success, None if unavailable."""
-        if self._draft_available is False:
-            return None
-        draft_id = self._allocate_draft_id()
+        """Attempt to send a draft preview. Returns draft_id on success, None if unavailable.
+
+        Tries Rich Message draft first (Bot API 10.1) for native formatting, then
+        falls back to HTML sendMessageDraft, then returns None for edit-based streaming.
+        """
         tid = int(thread_id) if thread_id else None
         silent = self._silent_notification_kwargs()
+        draft_id = self._allocate_draft_id()
+
+        if self._rich_draft_available is not False:
+            try:
+                await self._client.send_rich_message_draft(
+                    chat_id, draft_id, text, message_thread_id=tid,
+                )
+                self._rich_draft_available = True
+                return draft_id
+            except TelegramApiError as exc:
+                if exc.is_method_not_found:
+                    self._rich_draft_available = False
+                    logger.info("TelegramChannel: sendRichMessageDraft unavailable")
+                elif "can't be used" in exc.description.lower() or "can be used only" in exc.description.lower():
+                    pass
+                elif exc.error_code >= 500:
+                    raise
+                else:
+                    self._rich_draft_available = False
+
+        if self._draft_available is False:
+            return None
         try:
             await self._client.send_message_draft(
                 chat_id,
@@ -471,13 +578,21 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
 
         Draft updates are suppressed until text exceeds ``_MIN_DRAFT_CHARS``
         to avoid rapid visual flicker during the first few streaming tokens.
+        Rich Message draft path is used when ``_rich_draft_available`` is True.
         """
         draft_key = self._draft_key(chat_id, message_id)
         draft_id = self._active_drafts.get(draft_key)
         silent = self._silent_notification_kwargs()
+
         if draft_id is not None:
             if len(text) < _MIN_DRAFT_CHARS:
                 return
+            if self._rich_draft_available is True:
+                try:
+                    await self._client.send_rich_message_draft(chat_id, draft_id, text)
+                    return
+                except TelegramApiError:
+                    pass
             try:
                 await self._client.send_message_draft(
                     chat_id,
@@ -491,6 +606,22 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
 
         if self._is_draft_id(message_id):
             return
+
+        if self._rich_send_available is True:
+            try:
+                await self._client.edit_message_text(
+                    chat_id,
+                    int(message_id),
+                    text,
+                    rich_message={"markdown": text},
+                    **silent,
+                )
+                return
+            except TelegramApiError as exc:
+                if exc.is_not_modified:
+                    return
+                if exc.error_code != 400:
+                    logger.warning("TelegramChannel: rich edit failed: %s", exc)
 
         try:
             await self._client.edit_message_text(
@@ -523,12 +654,14 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         message_id: str,
         msg: OutboundMessage,
     ) -> None:
-        """Finalize a placeholder: materialize draft into a permanent message, or edit in-place."""
-        chunks = render(msg, self.render_style)
-        reply_markup = build_inline_keyboard(msg)
-        html_text = md_to_telegram_html(chunks[0]) if chunks else ""
+        """Finalize a placeholder: materialize draft into a permanent message, or edit in-place.
+
+        When Rich Messages are available, the final message is sent/edited with
+        native formatting; falls back to HTML then plain text on any failure.
+        """
         notify_kwargs = self._outbound_notification_kwargs(msg)
         silent = self._silent_notification_kwargs()
+        reply_markup = build_inline_keyboard(msg)
 
         draft_key = self._draft_key(chat_id, message_id)
         draft_id = self._active_drafts.pop(draft_key, None)
@@ -539,6 +672,28 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
                 pass
 
             thread_id = int(msg.thread_id) if msg.thread_id else None
+
+            if self._rich_send_available is not False:
+                rich_chunks = render(msg, self._rich_render_style)
+                if rich_chunks:
+                    try:
+                        await self._client.send_rich_message(
+                            chat_id,
+                            rich_chunks[0],
+                            message_thread_id=thread_id,
+                            reply_markup=reply_markup,
+                            **notify_kwargs,
+                        )
+                        self._rich_send_available = True
+                        return
+                    except TelegramApiError as exc:
+                        if exc.is_method_not_found:
+                            self._rich_send_available = False
+                        elif exc.error_code >= 500:
+                            raise
+
+            chunks = render(msg, self.render_style)
+            html_text = md_to_telegram_html(chunks[0]) if chunks else ""
             try:
                 await self._client.send_message(
                     chat_id,
@@ -561,6 +716,27 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
                     logger.warning("TelegramChannel: draft materialize failed: %s", exc)
             return
 
+        if self._rich_send_available is True:
+            rich_chunks = render(msg, self._rich_render_style)
+            if rich_chunks:
+                try:
+                    await self._client.edit_message_text(
+                        chat_id,
+                        int(message_id),
+                        rich_chunks[0],
+                        rich_message={"markdown": rich_chunks[0]},
+                        reply_markup=reply_markup,
+                        **notify_kwargs,
+                    )
+                    return
+                except TelegramApiError as exc:
+                    if exc.is_not_modified:
+                        return
+                    if exc.error_code >= 500:
+                        raise
+
+        chunks = render(msg, self.render_style)
+        html_text = md_to_telegram_html(chunks[0]) if chunks else ""
         try:
             await self._client.edit_message_text(
                 chat_id,

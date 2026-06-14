@@ -59,6 +59,15 @@ class TelegramApiError(Exception):
     def is_not_modified(self) -> bool:
         return self.error_code == 400 and "message is not modified" in self.description.lower()
 
+    @property
+    def is_method_not_found(self) -> bool:
+        desc = self.description.lower()
+        return self.error_code == 404 or (
+            self.error_code == 400
+            and ("method" in desc or "endpoint" in desc)
+            and ("not found" in desc or "does not exist" in desc)
+        )
+
 
 class TelegramClient:
     """Async client for Telegram Bot API.
@@ -270,17 +279,25 @@ class TelegramClient:
         text: str,
         *,
         parse_mode: str = "HTML",
+        rich_message: dict[str, object] | None = None,
         reply_markup: dict[str, object] | None = None,
         disable_notification: bool | None = None,
     ) -> dict[str, object]:
-        """``editMessageText`` — edit an existing message."""
+        """``editMessageText`` — edit an existing message.
+
+        When ``rich_message`` is provided (Bot API 10.1+), the message is edited
+        as a Rich Message and ``text``/``parse_mode`` are ignored.
+        """
         params: dict[str, object] = {
             "chat_id": chat_id,
             "message_id": message_id,
-            "text": text,
-            "parse_mode": parse_mode,
             "disable_web_page_preview": True,
         }
+        if rich_message is not None:
+            params["rich_message"] = rich_message
+        else:
+            params["text"] = text
+            params["parse_mode"] = parse_mode
         if disable_notification is not None:
             params["disable_notification"] = disable_notification
         if reply_markup is not None:
@@ -678,6 +695,62 @@ class TelegramClient:
         if disable_notification is not None:
             params["disable_notification"] = disable_notification
         return await self._call("sendMessageDraft", json_data=params)
+
+    # ------------------------------------------------------------------
+    # Outbound — Rich Messages (Bot API 10.1)
+    # ------------------------------------------------------------------
+
+    async def send_rich_message(
+        self,
+        chat_id: int | str,
+        markdown: str,
+        *,
+        reply_to_message_id: int | None = None,
+        message_thread_id: int | None = None,
+        reply_markup: dict[str, object] | None = None,
+        disable_notification: bool | None = None,
+    ) -> dict[str, object]:
+        """``sendRichMessage`` — send a message with native rich formatting (Bot API 10.1).
+
+        Passes raw Markdown directly to Telegram for native rendering of tables,
+        math expressions, headings, collapsible blocks, and other rich constructs.
+        Limit: 32768 UTF-8 characters, 500 blocks, 16 nesting levels.
+        """
+        params: dict[str, object] = {
+            "chat_id": chat_id,
+            "rich_message": {"markdown": markdown},
+        }
+        if disable_notification is not None:
+            params["disable_notification"] = disable_notification
+        if reply_to_message_id is not None:
+            params["reply_parameters"] = {"message_id": reply_to_message_id}
+        if message_thread_id is not None:
+            params["message_thread_id"] = message_thread_id
+        if reply_markup is not None:
+            params["reply_markup"] = reply_markup
+        return await self._call("sendRichMessage", json_data=params)
+
+    async def send_rich_message_draft(
+        self,
+        chat_id: int | str,
+        draft_id: int,
+        markdown: str,
+        *,
+        message_thread_id: int | None = None,
+    ) -> dict[str, object]:
+        """``sendRichMessageDraft`` — stream a partial rich message (Bot API 10.1).
+
+        Ephemeral 30-second preview for AI streaming. The final message must be
+        persisted with ``send_rich_message``. Only available in private chats.
+        """
+        params: dict[str, object] = {
+            "chat_id": chat_id,
+            "draft_id": draft_id,
+            "rich_message": {"markdown": markdown},
+        }
+        if message_thread_id is not None:
+            params["message_thread_id"] = message_thread_id
+        return await self._call("sendRichMessageDraft", json_data=params)
 
     async def send_chat_action(self, chat_id: int | str, action: str = "typing") -> None:
         """``sendChatAction`` — show typing indicator."""
