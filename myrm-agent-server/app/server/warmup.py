@@ -61,7 +61,6 @@ async def _init_integration_memory() -> None:
             get_embedding_service,
         )
 
-        from app.config.settings import settings
         from app.core.retriever.vector.defaults import create_default_vector_store
         from app.services.memory.integration_memory import (
             IntegrationMemoryService,

@@ -264,6 +264,166 @@ class TestLoadQwenpawPlugins:
         assert skills[0]["source"] == "qwenpaw"
 
 
+class TestLoadQwenpawEdgeCases:
+    """Edge cases and boundary conditions."""
+
+    def test_agent_json_not_dict_skipped(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        (ws / "agent.json").write_text("[1, 2, 3]", encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert result == {}
+
+    def test_agent_json_invalid_json_skipped(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        (ws / "agent.json").write_text("{invalid json!!!", encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert result == {}
+
+    def test_mcp_field_not_dict_ignored(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        data = {"name": "Agent", "id": "a1", "mcp": "not a dict"}
+        (ws / "agent.json").write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert "mcp_servers" not in result
+        assert len(result["qwenpaw_agents"]) == 1
+
+    def test_mcp_clients_not_dict_ignored(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        data = {"name": "Agent", "id": "a1", "mcp": {"clients": ["not", "a", "dict"]}}
+        (ws / "agent.json").write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert "mcp_servers" not in result
+
+    def test_system_prompt_files_not_list_ignored(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        data = {"name": "Agent", "id": "a1", "system_prompt_files": "not_a_list.md"}
+        (ws / "agent.json").write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert "system_prompt" not in result["qwenpaw_agents"][0]
+
+    def test_memory_json_single_dict_loaded(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        _make_agent_json(ws)
+        mem_dir = root / "memory"
+        mem_dir.mkdir()
+        (mem_dir / "single.json").write_text(
+            json.dumps({"content": "Single dict entry"}),
+            encoding="utf-8",
+        )
+
+        result = load_qwenpaw(root, [])
+        memory = result.get("openclaw_memory")
+        assert isinstance(memory, list)
+        assert len(memory) == 1
+        assert memory[0]["content"] == "Single dict entry"
+
+    def test_empty_env_file_no_keys(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        _make_agent_json(ws)
+        secret = root / ".secret"
+        secret.mkdir()
+        (secret / ".env").write_text("", encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        assert result.get("env_keys") is None or result.get("env_keys") == []
+
+    def test_plugins_dir_without_skill_md_empty(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "ws1"
+        ws.mkdir()
+        _make_agent_json(ws)
+        (root / "plugins" / "empty-plugin").mkdir(parents=True)
+
+        result = load_qwenpaw(root, [])
+        assert "skills" not in result
+
+    def test_nonexistent_root_empty_result(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw_nonexistent"
+        result = load_qwenpaw(root, [])
+        assert result == {}
+
+    def test_name_defaults_to_workspace_dirname(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "my-project"
+        ws.mkdir()
+        data = {"id": "some-id"}
+        (ws / "agent.json").write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        agents = result["qwenpaw_agents"]
+        assert agents[0]["name"] == "my-project"
+
+    def test_id_defaults_to_workspace_dirname(self, tmp_path: Path) -> None:
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "default-workspace"
+        ws.mkdir()
+        data = {"name": "My Agent"}
+        (ws / "agent.json").write_text(json.dumps(data), encoding="utf-8")
+
+        result = load_qwenpaw(root, [])
+        agents = result["qwenpaw_agents"]
+        assert agents[0]["id"] == "default-workspace"
+
+
+class TestLoadCompetitorPayloadAPI:
+    """Public API edge cases for load_competitor_payload."""
+
+    def test_non_local_mode_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.competitor_payload_loader.is_local_mode",
+            lambda: False,
+        )
+        with pytest.raises(ValueError, match="local or Tauri"):
+            load_competitor_payload({"competitor": "qwenpaw", "root": "/tmp", "files": []})
+
+    def test_unsupported_competitor_returns_error(self, _local: None) -> None:
+        result = load_competitor_payload({"competitor": "unknown_tool", "root": "/tmp", "files": []})
+        assert result.get("_load_error")
+        assert "Unsupported" in str(result["_load_error"])
+
+    def test_build_coverage_items_with_load_error(self, _local: None) -> None:
+        result = load_competitor_payload({"competitor": "fake", "root": "/tmp", "files": []})
+        items = build_coverage_items(result)
+        error_row = next((r for r in items if r["key"] == "load_error"), None)
+        assert error_row is not None
+        assert error_row["status"] == "missing"
+
+    def test_build_coverage_items_empty_payload(self) -> None:
+        items = build_coverage_items({})
+        mcp_row = next((r for r in items if r["key"] == "mcp"), None)
+        assert mcp_row is not None
+        assert mcp_row["status"] == "manual"
+
+
 class TestQwenpawEndToEndDiscovery:
     """Integration test through the public load_competitor_payload API."""
 

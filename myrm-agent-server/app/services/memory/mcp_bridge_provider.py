@@ -45,6 +45,16 @@ _FETCH_TOOL_PATTERNS = (
     "find",
 )
 
+_CONSUMED_LEAF_KEYS = frozenset({
+    "title", "name", "content", "text", "body",
+    "description", "snippet", "id", "type", "object", "kind",
+})
+
+_SINCE_PARAM_NAMES = (
+    "since", "after", "updated_since", "modified_after",
+    "from_date", "start_date", "cursor",
+)
+
 
 class MCPBridgeProvider(IntegrationProvider):
     """Bridges an MCP Server as an IntegrationProvider for knowledge sync.
@@ -98,6 +108,9 @@ class MCPBridgeProvider(IntegrationProvider):
         if max_items and "limit" not in params:
             params["limit"] = max_items
 
+        if since_cursor:
+            self._inject_since_cursor(params, since_cursor)
+
         try:
             raw_result = await self._conn.call(self._server_name, tool_name, params)
         except Exception as exc:
@@ -116,6 +129,34 @@ class MCPBridgeProvider(IntegrationProvider):
         return await self._conn.health_check()
 
     # ── Internal ─────────────────────────────────────────────────────
+
+    def _inject_since_cursor(self, params: dict[str, object], since_cursor: str) -> None:
+        """Inject since_cursor into params if the tool schema accepts a time filter.
+
+        Inspects the detected tool's input schema for common incremental-fetch
+        parameter names (since, after, updated_since, etc.) and injects the
+        cursor value when found.  Falls back to full-fetch if no such parameter
+        exists — correctness is guaranteed by IntegrationFetcher's dedup layer.
+        """
+        try:
+            server_tools = self._conn.tools_by_server.get(self._server_name, [])
+            for tool in server_tools:
+                if tool.name != self._fetch_tool_name:
+                    continue
+                schema = getattr(tool, "args_schema", None)
+                if schema is None:
+                    break
+                schema_fields = set(schema.model_fields) if hasattr(schema, "model_fields") else set()
+                if not schema_fields:
+                    schema_props = getattr(schema, "schema", lambda: {})()
+                    schema_fields = set(schema_props.get("properties", {}))
+                for param_name in _SINCE_PARAM_NAMES:
+                    if param_name in schema_fields:
+                        params[param_name] = since_cursor
+                        return
+                break
+        except Exception:
+            pass
 
     def _detect_fetch_tool(self) -> str:
         """Introspect MCP server tools and pick the best fetch tool."""
@@ -192,7 +233,7 @@ class MCPBridgeProvider(IntegrationProvider):
 
         safe_metadata: dict[str, str | int | float | bool] = {}
         for k, v in item.items():
-            if k in ("title", "name", "content", "text", "body", "id", "type"):
+            if k in _CONSUMED_LEAF_KEYS:
                 continue
             if isinstance(v, (str, int, float, bool)):
                 safe_metadata[k] = v

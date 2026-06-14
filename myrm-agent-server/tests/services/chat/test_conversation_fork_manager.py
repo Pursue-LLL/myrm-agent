@@ -61,9 +61,19 @@ async def test_fork_conversation_boundary_check(db_session, test_user):
 
 
 @pytest.mark.asyncio
-async def test_fork_conversation_from_any_message(db_session, test_user):
+async def test_fork_conversation_from_any_message(db_session, test_user, monkeypatch):
     """Test that fork works from any valid message index."""
-    # Create test chat with 5 messages
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
     chat_id = str(uuid4())
     chat = Chat(
         id=chat_id,
@@ -85,7 +95,6 @@ async def test_fork_conversation_from_any_message(db_session, test_user):
 
     await db_session.commit()
 
-    # Test: Fork from message #2 (not latest) — now supported
     result = await ConversationForkManager.fork_conversation(
         db=db_session,
         parent_chat_id=chat_id,

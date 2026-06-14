@@ -57,7 +57,6 @@ from app.lifecycle import (
     stop_remote_backup_scheduler,
 )
 from app.services.memory.integration_sync_daemon import (
-    start_integration_sync_daemon,
     stop_integration_sync_daemon,
 )
 from app.server.shutdown import (
