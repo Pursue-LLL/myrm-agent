@@ -228,3 +228,114 @@ class TestApiResponseModels:
             created_at="2025-06-01T12:00:00Z",
         )
         assert resp.chat_id is None
+
+    def test_growth_response_null_chat_id_serializes_to_none(self) -> None:
+        from app.api.skills.growth import SkillGrowthCaseResponse
+
+        resp = SkillGrowthCaseResponse(
+            id="test",
+            source="draft",
+            status="PENDING_REVIEW",
+            skill_name="test-skill",
+            growth_type="skill_draft",
+            title="test",
+            summary="test",
+            chat_id=None,
+            created_at="2025-06-01T12:00:00Z",
+        )
+        data = resp.model_dump()
+        assert data["chat_id"] is None
+        json_data = resp.model_dump(mode="json")
+        assert json_data["chat_id"] is None
+
+    def test_growth_response_empty_string_chat_id(self) -> None:
+        from app.api.skills.growth import SkillGrowthCaseResponse
+
+        resp = SkillGrowthCaseResponse(
+            id="test",
+            source="draft",
+            status="PENDING_REVIEW",
+            skill_name="test-skill",
+            growth_type="skill_draft",
+            title="test",
+            summary="test",
+            chat_id="",
+            created_at="2025-06-01T12:00:00Z",
+        )
+        assert resp.chat_id == ""
+
+    def test_pending_response_model_dump_json_serialization(self) -> None:
+        from app.api.skills.evolution.pending import PendingEvolutionResponse
+
+        resp = PendingEvolutionResponse(
+            id="test",
+            skill_id="sk-001",
+            skill_name="test-skill",
+            evolution_type="captured",
+            reason="test",
+            original_content="old",
+            evolved_content="new",
+            confidence=0.9,
+            test_passed=True,
+            status="PENDING_REVIEW",
+            approval_status="PENDING",
+            apply_status="NOT_APPLIED",
+            chat_id="json-chat-001",
+            created_at="2025-06-01T12:00:00Z",
+        )
+        json_data = resp.model_dump(mode="json")
+        assert json_data["chat_id"] == "json-chat-001"
+
+
+class TestFullPipelineRoundtrip:
+    """End-to-end data flow from mock approval → growth case read → API response."""
+
+    def test_approval_to_growth_case_to_api_response(self) -> None:
+        from app.api.skills.growth import SkillGrowthCaseResponse
+
+        record = _make_approval_record(chat_id="e2e-chat-999")
+        evo_review = approval_to_evolution_review_record(record)
+        assert evo_review is not None
+        assert evo_review.chat_id == "e2e-chat-999"
+
+        growth_case = _evolution_case(evo_review)
+        assert growth_case.chat_id == "e2e-chat-999"
+
+        api_resp = SkillGrowthCaseResponse(
+            id=growth_case.id,
+            source=growth_case.source.value,
+            status=growth_case.status,
+            skill_name=growth_case.skill_name,
+            growth_type=growth_case.growth_type,
+            title=growth_case.title,
+            summary=growth_case.summary,
+            chat_id=growth_case.chat_id,
+            created_at=str(growth_case.created_at),
+        )
+        assert api_resp.chat_id == "e2e-chat-999"
+        assert api_resp.model_dump()["chat_id"] == "e2e-chat-999"
+
+    def test_null_chat_id_roundtrip(self) -> None:
+        from app.api.skills.growth import SkillGrowthCaseResponse
+
+        record = _make_approval_record(chat_id=None)
+        evo_review = approval_to_evolution_review_record(record)
+        assert evo_review is not None
+        assert evo_review.chat_id is None
+
+        growth_case = _evolution_case(evo_review)
+        assert growth_case.chat_id is None
+
+        api_resp = SkillGrowthCaseResponse(
+            id=growth_case.id,
+            source=growth_case.source.value,
+            status=growth_case.status,
+            skill_name=growth_case.skill_name,
+            growth_type=growth_case.growth_type,
+            title=growth_case.title,
+            summary=growth_case.summary,
+            chat_id=growth_case.chat_id,
+            created_at=str(growth_case.created_at),
+        )
+        assert api_resp.chat_id is None
+        assert api_resp.model_dump()["chat_id"] is None
