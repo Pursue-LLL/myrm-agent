@@ -20,7 +20,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/primitives/hover-card';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
 import { toast } from '@/hooks/useToast';
@@ -258,68 +257,40 @@ const SourceItem: React.FC<{ source: Source }> = ({ source }) => {
     );
   }
 
-  // MCP 类型来源 - 使用 HoverCard 展示调用详情
   if (isMcp) {
-    const mcpContent = (
-      <div
-        className={cn(
-          'flex items-start gap-3 p-3 rounded-lg',
-          'bg-accent hover:bg-muted transition-colors',
-          source.calls && source.calls.length > 0 && 'cursor-pointer',
-        )}
-      >
-        <div className="flex-shrink-0">
-          <Plug className="w-4 h-4 text-black/60 dark:text-white/60" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
-            <span className="text-sm font-medium truncate">{source.skill_name || 'MCP Skill'}</span>
+    return (
+      <div className={cn('p-3 rounded-lg', 'bg-accent hover:bg-muted transition-colors')}>
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <Plug className="w-4 h-4 text-black/60 dark:text-white/60" />
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {t('mcp_source')}
-            {source.calls && source.calls.length > 0 && ` · ${source.calls.length} ${t('calls')}`}
-          </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">[{source.index}]</span>
+              <span className="text-sm font-medium truncate">{source.skill_name || 'MCP Skill'}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t('mcp_source')}
+              {source.calls && source.calls.length > 0 && ` · ${source.calls.length} ${t('calls')}`}
+            </p>
+            {source.calls && source.calls.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {source.calls.map((call, callIndex) => (
+                  <div key={callIndex} className="bg-muted rounded-lg p-2 text-xs">
+                    <div className="font-medium text-primary font-mono mb-1">{call.tool_name}</div>
+                    {call.result_preview && (
+                      <pre className="text-muted-foreground whitespace-pre-wrap break-all text-xs font-mono leading-relaxed line-clamp-6">
+                        {call.result_preview}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
-
-    // 如果有调用详情，使用 HoverCard 展示
-    if (source.calls && source.calls.length > 0) {
-      return (
-        <HoverCard>
-          <HoverCardTrigger asChild>{mcpContent}</HoverCardTrigger>
-          <HoverCardContent className="w-[420px] p-4 border bg-background shadow-lg" side="left">
-            <div className="flex items-center gap-2 mb-2">
-              <Plug size={16} className="text-black/60 dark:text-white/60" />
-              <span className="font-medium text-sm">{source.skill_name}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">{t('mcp_calls_count', { count: source.calls.length })}</p>
-            <div className="border-t pt-2">
-              <div
-                className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent"
-                onWheel={(e) => e.stopPropagation()}
-              >
-                <div className="space-y-2 pr-2">
-                  {source.calls.map((call, callIndex) => (
-                    <div key={callIndex} className="bg-muted rounded-full p-2 text-xs">
-                      <div className="font-medium text-primary font-mono mb-1">{call.tool_name}</div>
-                      {call.result_preview && (
-                        <pre className="text-muted-foreground whitespace-pre-wrap break-all text-xs font-mono leading-relaxed">
-                          {call.result_preview}
-                        </pre>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </HoverCardContent>
-        </HoverCard>
-      );
-    }
-
-    return mcpContent;
   }
 
   // Web 类型来源

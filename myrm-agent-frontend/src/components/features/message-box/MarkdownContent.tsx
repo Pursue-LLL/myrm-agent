@@ -8,14 +8,8 @@
  * - 使用 ReactMarkdown + remark/rehype 插件解析和渲染 Markdown
  * - 将 isStreaming 状态传递给 CodeBlock 组件以启用流式优化
  * - 处理自定义标签 (vault://, think/thinking/thought/antthinking/reasoning, mermaid, diff 等)
- * - 平滑流式渲染：通过 useSmoothStream 实现逐字符打字机效果
- *
- * [优化] (2026-05-06)
- * 传递 isStreaming prop 给 CodeBlock，支持流式输出时的 debounce 优化。
- *
- * [优化] (2026-05-18)
- * 集成 useSmoothStream Hook，实现平滑流式渲染。当 smoothStreamEnabled=true 且 isStreaming=true 时，
- * 内容通过 Intl.Segmenter 分割为 grapheme cluster 队列，requestAnimationFrame 渲染循环逐字显示。
+ * - 平滑流式渲染：通过 useSmoothStream + Intl.Segmenter 实现逐字符打字机效果
+ * - citation 渲染：支持 web/mcp/kb/conversation 四种来源类型的 LinkPopover 预览
  */
 import React, { useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -193,28 +187,38 @@ const MarkdownContent = React.memo(
 
           const source = sources[sourceIndex];
 
-          // MCP 类型来源 - 使用技能名作为 title，调用信息作为 description
           if (source?.type === 'mcp') {
             const mcpTitle = source.skill_name || 'MCP Skill';
-            // 构建调用信息摘要
-            let mcpDescription = 'MCP 技能调用';
-            if (source.calls && source.calls.length > 0) {
-              mcpDescription = source.calls
-                .map((call: { tool_name: string; result_preview?: string }) => {
-                  const preview = call.result_preview || '';
-                  return `${call.tool_name}: ${preview}`;
-                })
-                .join('\n\n');
-            }
-
+            const mcpDescription =
+              source.calls?.length > 0
+                ? source.calls
+                    .map((call: { tool_name: string; result_preview?: string }) => `${call.tool_name}: ${call.result_preview || ''}`)
+                    .join('\n\n')
+                : '';
             return <LinkPopover url="#" title={mcpTitle} description={mcpDescription} label={num} />;
+          }
+
+          if (source?.kb_name) {
+            const kbTitle = source.filename
+              ? `${source.filename}${source.section ? ` § ${source.section}` : ''}`
+              : source.kb_name;
+            return <LinkPopover url="#" title={kbTitle} description={source.snippet || source.summary || ''} label={num} />;
+          }
+
+          if (source?.type === 'conversation_history') {
+            return (
+              <LinkPopover
+                url="#"
+                title={source.title || 'Conversation'}
+                description={source.snippet || source.summary || ''}
+                label={num}
+              />
+            );
           }
 
           // 默认渲染网页引用 (web_search, web_fetch)
           const title = source?.title;
           const description = source?.snippet;
-
-          // 如果没有URL或URL为空，仍然使用LinkPopover但传入#作为占位符
           const linkUrl = url && url !== '' ? url : '#';
 
           return <LinkPopover url={linkUrl} title={title} description={description} label={num} />;

@@ -80,6 +80,8 @@ const useConfigStore = create<ConfigState>()(
       timezone: DEFAULT_PERSONAL_SETTINGS.timezone,
       enableWebNotifications: DEFAULT_PERSONAL_SETTINGS.enableWebNotifications,
       enableCompletionSound: DEFAULT_PERSONAL_SETTINGS.enableCompletionSound,
+      enableIdleApprovalNotification: DEFAULT_PERSONAL_SETTINGS.enableIdleApprovalNotification,
+      approvalNotificationSound: DEFAULT_PERSONAL_SETTINGS.approvalNotificationSound,
       privacyEnabled: false,
       privacyS2Action: 'warn' as const,
       privacyS3Action: 'redact' as const,
@@ -202,6 +204,16 @@ const useConfigStore = create<ConfigState>()(
       setEnableCompletionSound: (enable) => {
         set({ enableCompletionSound: enable });
         syncPersonalSettings({ enableCompletionSound: enable });
+      },
+
+      setEnableIdleApprovalNotification: (enable) => {
+        set({ enableIdleApprovalNotification: enable });
+        syncPersonalSettings({ enableIdleApprovalNotification: enable });
+      },
+
+      setApprovalNotificationSound: (enable) => {
+        set({ approvalNotificationSound: enable });
+        syncPersonalSettings({ approvalNotificationSound: enable });
       },
 
       setPrivacyEnabled: (enable) => {

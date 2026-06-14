@@ -13,13 +13,13 @@
 | `ContextUsageIndicator.tsx` | 组件/模块 | — | — |
 | `CronJobSystemCard.tsx` | 组件/模块 | — | — |
 | `FileMutationWarning.tsx` | 组件/模块 | — | — |
-| `MarkdownContent.tsx` | 组件/模块 | — | — |
+| `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
 | `MemoryCitationsButton.tsx` | 组件/模块 | — | — |
 | `MemoryInsightPanel.tsx` | 组件/模块 | — | — |
 | `MessageActionBar.tsx` | 组件/模块 | — | — |
 | `MessageBox.tsx` | 组件/模块 | — | — |
 | `MessageBoxLoading.tsx` | 组件/模块 | — | — |
-| `MessageSources.tsx` | 组件/模块 | — | — |
+| `MessageSources.tsx` | 组件/模块 | 消息引用来源卡片网格（web/mcp/kb/conversation 四种类型差异化图标和 hover 预览） | ✅ |
 | `MessageToc.tsx` | 组件/模块 | — | — |
 | `QuoteToolbar.tsx` | 组件/模块 | — | — |
 | `Suggestions.tsx` | 组件/模块 | — | — |

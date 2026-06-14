@@ -143,6 +143,10 @@ export interface ConfigState {
   // 任务完成提示音
   enableCompletionSound: boolean;
 
+  // 空闲审批通知（窗口不活跃时系统级通知）
+  enableIdleApprovalNotification: boolean;
+  approvalNotificationSound: boolean;
+
   // PII 隐私保护
   privacyEnabled: boolean;
   privacyS2Action: import('@/services/config/types').PIIAction;
@@ -203,6 +207,8 @@ export interface ConfigState {
   setTimezone: (tz: string) => void;
   setEnableWebNotifications: (enable: boolean) => void;
   setEnableCompletionSound: (enable: boolean) => void;
+  setEnableIdleApprovalNotification: (enable: boolean) => void;
+  setApprovalNotificationSound: (enable: boolean) => void;
   setPrivacyEnabled: (enable: boolean) => void;
   setPrivacyS2Action: (action: import('@/services/config/types').PIIAction) => void;
   setPrivacyS3Action: (action: import('@/services/config/types').PIIAction) => void;

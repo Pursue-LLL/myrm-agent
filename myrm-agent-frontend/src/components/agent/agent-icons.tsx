@@ -335,10 +335,18 @@ export function AgentIcon({ iconId, size = 'md', className }: AgentIconProps) {
   );
 }
 
-export function LucideAgentIcon({ iconName, size = 'md', className }: { iconName: string, size?: 'sm' | 'md' | 'lg', className?: string }) {
+/**
+ * Resolve a kebab-case lucide icon name to its React component.
+ * Returns the matched icon or LucideIcons.Bot as fallback.
+ */
+export function resolveLucideIcon(iconName: string): React.ComponentType<{ size?: number; className?: string }> {
   const componentName = iconName.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
-  const IconComponent = (LucideIcons as any)[componentName] || LucideIcons.Bot;
-  
+  return (LucideIcons as Record<string, React.ComponentType<{ size?: number; className?: string }>>)[componentName] || LucideIcons.Bot;
+}
+
+export function LucideAgentIcon({ iconName, size = 'md', className }: { iconName: string, size?: 'sm' | 'md' | 'lg', className?: string }) {
+  const IconComponent = resolveLucideIcon(iconName);
+
   const sizeMap = {
     sm: 16,
     md: 20,

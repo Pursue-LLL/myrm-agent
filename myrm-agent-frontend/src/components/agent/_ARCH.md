@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AgentAvatar.tsx` | 核心 | 智能体头像（icon/emoji/image/首字母） | ✅ |
+| `AgentAvatar.tsx` | 核心 | 智能体头像（icon/lucide/emoji/image/首字母） | ✅ |
 | `agent-icons.tsx` | 核心 | 内置智能体 SVG 图标注册表与 `AgentIcon` | ✅ |
 | `builtin-agent-i18n.ts` | 核心 | 内置智能体多语言名称/描述 | ✅ |
 | `AgentPicker.tsx` | 辅助 | 智能体下拉选择器 | — |

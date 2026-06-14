@@ -8,7 +8,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
-from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol, create_file_snapshot_store
+from myrm_agent_harness.agent.file_snapshot import FileSnapshotProtocol
 from myrm_agent_harness.agent.sub_agents.checkpoint.saver import SubagentCheckpointStorage
 from pydantic import BaseModel, Field
 
@@ -22,10 +22,12 @@ _file_snapshot_store: FileSnapshotProtocol | None = None
 
 
 async def _get_file_snapshot_store() -> FileSnapshotProtocol:
-    """Lazy-initialize the file snapshot store via harness factory."""
+    """Lazy-initialize the file snapshot store via harness local store."""
     global _file_snapshot_store
     if _file_snapshot_store is None:
-        _file_snapshot_store = await create_file_snapshot_store()
+        from myrm_agent_harness.agent.file_snapshot.local_store import LocalFileSnapshotStore
+
+        _file_snapshot_store = LocalFileSnapshotStore()
     return _file_snapshot_store
 
 
@@ -38,14 +40,11 @@ async def _get_snapshot_external_effects(
     Falls back gracefully if the store implementation doesn't support metadata.
     """
     try:
-        from myrm_agent_harness.agent.file_snapshot.shadow_git_store import ShadowGitSnapshotStore
-
-        if isinstance(store, ShadowGitSnapshotStore):
-            snap_info = await store.get_snapshot_info(snapshot_id)
-            if snap_info and snap_info.metadata:
-                effects = snap_info.metadata.get("external_effects", [])
-                if effects:
-                    return tuple(effects)
+        snap_info = await store.get_snapshot_info(snapshot_id)
+        if snap_info and snap_info.metadata:
+            effects = snap_info.metadata.get("external_effects", [])
+            if effects:
+                return tuple(effects)
     except Exception:
         pass
     return None

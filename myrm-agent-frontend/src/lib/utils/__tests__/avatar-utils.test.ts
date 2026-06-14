@@ -63,6 +63,12 @@ describe('avatar-utils', () => {
       expect(parseAvatarUrl('gradient:abc')).toBeNull();
     });
 
+    it('parses lucide: format', () => {
+      expect(parseAvatarUrl('lucide:database')).toEqual({ type: 'lucide', iconName: 'database' });
+      expect(parseAvatarUrl('lucide:file-spreadsheet')).toEqual({ type: 'lucide', iconName: 'file-spreadsheet' });
+      expect(parseAvatarUrl('lucide:layout')).toEqual({ type: 'lucide', iconName: 'layout' });
+    });
+
     it('returns null for unrecognized formats', () => {
       expect(parseAvatarUrl('random-string')).toBeNull();
       expect(parseAvatarUrl('ftp://something')).toBeNull();

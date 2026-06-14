@@ -203,6 +203,8 @@ export interface PersonalSettingsConfigValue {
   customPrimaryColor?: string;
   enableWebNotifications: boolean;
   enableCompletionSound: boolean;
+  enableIdleApprovalNotification: boolean;
+  approvalNotificationSound: boolean;
   notificationDeliveries?: NotificationDelivery[];
   privacyEnabled?: boolean;
   privacyS2Action?: PIIAction;
@@ -721,6 +723,8 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   timezone: '',
   enableWebNotifications: true,
   enableCompletionSound: true,
+  enableIdleApprovalNotification: true,
+  approvalNotificationSound: true,
   codeExecutionAllowNetwork: true,
   enableEvalLab: false,
   smoothStreamEnabled: true,

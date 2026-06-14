@@ -6,6 +6,7 @@
 import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import { buildToolApprovalRequest } from "@/lib/approval/buildToolApprovalRequest";
+import { notifyIdleApproval, clearAllNotifications } from "@/lib/approval/approvalAlertService";
 import * as H from "./handlerDeps";
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -269,6 +270,11 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       });
       H.useToolApprovalStore.getState().addRequest(approvalRequest);
     }
+
+    // Idle approval notification: alert user if window is not active
+    const allRequests = H.useToolApprovalStore.getState().queue;
+    notifyIdleApproval(allRequests.slice(-actionRequests.length));
+
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } }));
     }
@@ -277,6 +283,8 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
   if (data.type === H.AgentEventType.APPROVAL_PROCESSED) {
     H.useToolApprovalStore.getState().removeRequestsByMessageId(data.messageId);
+    const remaining = H.useToolApprovalStore.getState().queue;
+    if (remaining.length === 0) clearAllNotifications();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_released' } }));
     }

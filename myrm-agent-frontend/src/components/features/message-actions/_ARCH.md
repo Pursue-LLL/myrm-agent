@@ -17,7 +17,7 @@
 | `SaveEvalCase.tsx` | 组件/模块 | — | — |
 | `SaveToWikiButton.tsx` | 组件/模块 | — | — |
 | `SiblingNav.tsx` | 组件/模块 | — | — |
-| `SourcesButton.tsx` | 组件/模块 | — | — |
+| `SourcesButton.tsx` | 组件/模块 | 消息来源 Sheet 面板（web/mcp/conversation 三种类型差异化展示与操作） | ✅ |
 | `Undo.tsx` | 组件/模块 | — | — |
 
 ## 依赖

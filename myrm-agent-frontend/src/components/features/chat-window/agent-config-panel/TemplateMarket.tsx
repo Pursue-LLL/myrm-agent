@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Bot, Plus, Loader2, Users } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { resolveLucideIcon } from '@/components/agent/agent-icons';
 
 interface TemplateMarketProps {
   className?: string;
@@ -16,13 +16,9 @@ interface TemplateMarketProps {
 
 const renderAvatar = (avatarUrl: string | null | undefined, isTeam: boolean) => {
   if (avatarUrl?.startsWith('lucide:')) {
-    const iconName = avatarUrl.split(':')[1];
-    if (iconName) {
-      const componentName = iconName.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
-      const IconComponent = (LucideIcons as any)[componentName];
-      if (IconComponent) {
-        return <IconComponent size={16} />;
-      }
+    const IconComponent = resolveLucideIcon(avatarUrl.slice(7));
+    if (IconComponent) {
+      return <IconComponent size={16} />;
     }
   }
   return isTeam ? <Users size={16} /> : <Bot size={16} />;

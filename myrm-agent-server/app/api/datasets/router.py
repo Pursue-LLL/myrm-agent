@@ -24,14 +24,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse, JSONResponse
-from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
-from myrm_agent_harness.agent.event_log.dataset_export import (
-    DatasetExporter,
-    ExportConfig,
-    ExportFormat,
-    ExportReport,
-)
-from myrm_agent_harness.agent.event_log.dataset_export.protocols import QualityThresholds
 from pydantic import BaseModel, Field
 
 from app.config.settings import settings
@@ -72,13 +64,15 @@ class ExportRequest(BaseModel):
 @router.get("/formats")
 async def list_export_formats() -> JSONResponse:
     """List available dataset export formats."""
+    from myrm_agent_harness.agent.event_log.dataset_export import ExportFormat
+
     return success_response(
         data={
             "formats": [
                 {
                     "id": fmt.value,
-                    "name": _FORMAT_DISPLAY_NAMES[fmt],
-                    "description": _FORMAT_DESCRIPTIONS[fmt],
+                    "name": _FORMAT_DISPLAY_NAMES.get(fmt.value, fmt.value),
+                    "description": _FORMAT_DESCRIPTIONS.get(fmt.value, ""),
                 }
                 for fmt in ExportFormat
             ]
@@ -96,6 +90,15 @@ async def trigger_export(body: ExportRequest) -> JSONResponse:
     event_log_dir = Path(settings.database.event_log_dir)
     if not event_log_dir.exists():
         raise validation_error("Event log directory does not exist. No data to export.")
+
+    from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+    from myrm_agent_harness.agent.event_log.dataset_export import (
+        DatasetExporter,
+        ExportConfig,
+        ExportFormat,
+        ExportReport,
+    )
+    from myrm_agent_harness.agent.event_log.dataset_export.protocols import QualityThresholds
 
     parsed_formats: list[ExportFormat] = []
     for fmt_str in body.formats:
@@ -182,17 +185,17 @@ async def download_export_file(filename: str) -> FileResponse:
 
 
 # ---------------------------------------------------------------------------
-# Display metadata
+# Display metadata (populated lazily to avoid top-level import of dataset_export)
 # ---------------------------------------------------------------------------
 
-_FORMAT_DISPLAY_NAMES: dict[ExportFormat, str] = {
-    ExportFormat.SHAREGPT: "ShareGPT",
-    ExportFormat.ALPACA: "Alpaca",
-    ExportFormat.OPENAI: "OpenAI Chat",
+_FORMAT_DISPLAY_NAMES: dict[str, str] = {
+    "sharegpt": "ShareGPT",
+    "alpaca": "Alpaca",
+    "openai": "OpenAI Chat",
 }
 
-_FORMAT_DESCRIPTIONS: dict[ExportFormat, str] = {
-    ExportFormat.SHAREGPT: "Multi-turn conversation format with human/gpt/tool roles. Compatible with LLaMA-Factory.",
-    ExportFormat.ALPACA: "Instruction-following format (instruction/input/output). Compatible with Alpaca-LoRA.",
-    ExportFormat.OPENAI: "OpenAI chat completions format with system/user/assistant/tool messages. Compatible with OpenAI fine-tuning API.",
+_FORMAT_DESCRIPTIONS: dict[str, str] = {
+    "sharegpt": "Multi-turn conversation format with human/gpt/tool roles. Compatible with LLaMA-Factory.",
+    "alpaca": "Instruction-following format (instruction/input/output). Compatible with Alpaca-LoRA.",
+    "openai": "OpenAI chat completions format with system/user/assistant/tool messages. Compatible with OpenAI fine-tuning API.",
 }

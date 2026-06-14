@@ -9,7 +9,7 @@
  *
  * [POS]
  * 智能体头像解析工具层。提供 avatar URL 的统一解析逻辑，
- * 支持 icon:/emoji:/home:///http(s):///gradient: 五种格式，
+ * 支持 icon:/lucide:/emoji:/home:///http(s):///gradient: 六种格式，
  * 消除各组件重复的解析实现。
  */
 
