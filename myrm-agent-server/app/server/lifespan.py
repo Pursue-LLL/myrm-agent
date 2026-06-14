@@ -56,6 +56,10 @@ from app.lifecycle import (
     stop_memory_pressure_monitor,
     stop_remote_backup_scheduler,
 )
+from app.services.memory.integration_sync_daemon import (
+    start_integration_sync_daemon,
+    stop_integration_sync_daemon,
+)
 from app.server.shutdown import (
     safe_close_checkpointer,
     safe_shutdown_observability,
@@ -543,6 +547,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         safe_shutdown_observability(),
         shutdown_skill_optimization_listeners(),
         shutdown_evolution_monitor_service(),
+        stop_integration_sync_daemon(),
         harness_bridge_task,
         _shutdown_mcp(),
         return_exceptions=True,

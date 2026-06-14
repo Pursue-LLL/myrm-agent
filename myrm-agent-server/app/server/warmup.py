@@ -51,6 +51,53 @@ from app.services.agent.wakeup_handler import ServerWakeupHandler
 logger = logging.getLogger(__name__)
 
 
+async def _init_integration_memory() -> None:
+    """Initialize IntegrationMemoryService and start the sync daemon."""
+    try:
+        from myrm_agent_harness.toolkits.context import ContextBundleFacade
+        from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
+        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
+            EmbeddingConfig,
+            get_embedding_service,
+        )
+
+        from app.config.settings import settings
+        from app.core.retriever.vector.defaults import create_default_vector_store
+        from app.services.memory.integration_memory import (
+            IntegrationMemoryService,
+            set_integration_memory_service,
+        )
+        from app.services.memory.integration_sync_daemon import (
+            start_integration_sync_daemon,
+        )
+
+        vector_store = await create_default_vector_store()
+        if vector_store is None:
+            logger.info("[Startup] No vector store, skipping IntegrationMemoryService init")
+            return
+
+        facade = ContextBundleFacade.from_state_dir(settings.database.state_dir, ensure_layout=False)
+        memory_path = facade.memory_path()
+
+        graph_db_path = memory_path / "integration_graph.db"
+        graph_store = SQLiteGraphStore(db_path=str(graph_db_path))
+
+        emb_config = EmbeddingConfig()
+        embedding = get_embedding_service(emb_config)
+
+        svc = IntegrationMemoryService(
+            vector_store=vector_store,
+            embedding=embedding,
+            graph_store=graph_store,
+        )
+        set_integration_memory_service(svc)
+        logger.info("[Startup] IntegrationMemoryService initialized")
+
+        await start_integration_sync_daemon()
+    except Exception as exc:
+        logger.warning("[Startup] IntegrationMemoryService init failed (non-critical): %s", exc)
+
+
 async def _start_rate_limiter_cleanup() -> None:
     try:
         from app.core.infra.limiter import limiter
@@ -309,6 +356,7 @@ async def run_async_warmup() -> None:
             logger.warning("[Startup] Kanban GC warmup failed: %s", exc)
 
     warmup_tasks.append(_kanban_gc_warmup())
+    warmup_tasks.append(_init_integration_memory())
 
     results = await asyncio.gather(*warmup_tasks, return_exceptions=True)
 
