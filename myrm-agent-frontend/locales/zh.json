@@ -2148,6 +2148,7 @@
         "idleWarning": "近30天未被任何智能体调用，建议冻结或归档",
         "usageStats": "已调用 {count} 次",
         "neverUsed": "从未调用",
+        "tokenCostTooltip": "上下文开销：每次对话约 {count} tokens",
         "needsSetup": "待配置 — 缺少依赖或配置项",
         "ready": "就绪",
         "securityScore": "安全评分: {score}/100",
@@ -2311,7 +2312,8 @@
         "evolutionLockedDesc": "已保护「{name}」不被自动进化修改",
         "evolutionUnlocked": "进化已解锁",
         "evolutionUnlockedDesc": "已允许 Agent 自动进化「{name}」",
-        "evolutionLockFailed": "更新锁定状态失败"
+        "evolutionLockFailed": "更新锁定状态失败",
+        "tokenCost": "上下文开销：每次对话约 {count} tokens"
       },
       "growth": {
         "title": "技能成长",
@@ -2458,7 +2460,8 @@
       },
       "sort": {
         "name": "按名称",
-        "created_at": "按创建时间"
+        "created_at": "按创建时间",
+        "token_cost": "按 Token 开销"
       },
       "batch": {
         "selected": "已选择 {count} 个",

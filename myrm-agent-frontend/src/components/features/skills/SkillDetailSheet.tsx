@@ -446,6 +446,14 @@ const SkillDetailSheet = memo(
                     <Calendar size={14} />
                     <span>{new Date(skill.created_at).toLocaleDateString()}</span>
                   </div>
+                  {skill.token_cost != null && skill.token_cost > 0 && (
+                    <div className="flex items-center gap-2 col-span-2">
+                      <Zap size={14} className="text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {t('detail.tokenCost', { count: skill.token_cost.toLocaleString() })}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Security scan summary */}

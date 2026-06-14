@@ -414,6 +414,26 @@ const SkillCard = memo(
           </div>
 
           <div className="flex items-center gap-2">
+            {skill.token_cost != null && skill.token_cost > 0 && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'text-xs tabular-nums',
+                      skill.token_cost < 500
+                        ? 'border-green-300 text-green-600 dark:border-green-700 dark:text-green-400'
+                        : skill.token_cost < 2000
+                          ? 'border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400'
+                          : 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400',
+                    )}
+                  >
+                    {skill.token_cost.toLocaleString()} tok
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{t('card.tokenCostTooltip', { count: skill.token_cost })}</TooltipContent>
+              </Tooltip>
+            )}
             {skill.type === 'prebuilt' && (
               <Badge
                 variant="outline"

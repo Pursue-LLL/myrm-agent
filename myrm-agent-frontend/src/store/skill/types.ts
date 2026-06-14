@@ -150,7 +150,7 @@ export interface UpdateUserSkillConfigRequest {
   evolution_strategy?: string;
 }
 
-export type SkillSortBy = 'name' | 'created_at' | 'updated_at';
+export type SkillSortBy = 'name' | 'created_at' | 'updated_at' | 'token_cost';
 export type SkillSortOrder = 'asc' | 'desc';
 
 export interface SkillFilters {

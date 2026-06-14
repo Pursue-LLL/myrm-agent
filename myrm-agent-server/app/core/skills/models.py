@@ -142,6 +142,7 @@ class Skill:
             category=category,
             tags=[],
             is_active=True,
+            token_cost=meta.token_cost,
             requires=meta.requires or SkillRequires(),
             available=meta.available,
             unavailable_reason=meta.unavailable_reason,

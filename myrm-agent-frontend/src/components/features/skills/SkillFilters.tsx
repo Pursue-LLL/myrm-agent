@@ -15,6 +15,7 @@ import { SKILL_CATEGORIES } from './skillCategories';
 const SORT_OPTIONS: { value: string; sortBy: SkillSortBy; order: SkillSortOrder }[] = [
   { value: 'name', sortBy: 'name', order: 'asc' },
   { value: 'created_at', sortBy: 'created_at', order: 'desc' },
+  { value: 'token_cost', sortBy: 'token_cost', order: 'desc' },
 ];
 
 interface SkillFiltersProps {

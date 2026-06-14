@@ -2148,6 +2148,7 @@
         "idleWarning": "Unused for 30+ days, consider freezing or archiving",
         "usageStats": "Called {count} times",
         "neverUsed": "Never used",
+        "tokenCostTooltip": "Context cost: ~{count} tokens per conversation",
         "needsSetup": "Needs setup — missing dependencies or configuration",
         "ready": "Ready",
         "securityScore": "Security score: {score}/100",
@@ -2311,7 +2312,8 @@
         "evolutionLockedDesc": "\"{name}\" is now protected from auto-evolution",
         "evolutionUnlocked": "Evolution Unlocked",
         "evolutionUnlockedDesc": "\"{name}\" can now be auto-evolved by the Agent",
-        "evolutionLockFailed": "Failed to update evolution lock"
+        "evolutionLockFailed": "Failed to update evolution lock",
+        "tokenCost": "Context cost: ~{count} tokens per conversation"
       },
       "growth": {
         "title": "Skill Growth",
@@ -2458,7 +2460,8 @@
       },
       "sort": {
         "name": "By Name",
-        "created_at": "By Created Time"
+        "created_at": "By Created Time",
+        "token_cost": "By Token Cost"
       },
       "batch": {
         "selected": "{count} selected",

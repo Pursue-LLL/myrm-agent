@@ -31,7 +31,7 @@ async def list_skills(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid skill type: {type}") from e
 
-    valid_sort_fields = {"name", "created_at", "updated_at"}
+    valid_sort_fields = {"name", "created_at", "updated_at", "token_cost"}
     if sort_by not in valid_sort_fields:
         sort_by = "name"
     if order not in {"asc", "desc"}:

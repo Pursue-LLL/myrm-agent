@@ -94,6 +94,8 @@ def sort_skills(skills: list[Skill], sort_by: str, order: str) -> list[Skill]:
         skills.sort(key=lambda s: _ensure_aware(s.created_at), reverse=reverse)
     elif sort_by == "updated_at":
         skills.sort(key=lambda s: _ensure_aware(s.updated_at), reverse=reverse)
+    elif sort_by == "token_cost":
+        skills.sort(key=lambda s: s.token_cost or 0, reverse=reverse)
     else:
         skills.sort(key=lambda s: s.name.lower(), reverse=reverse)
     return skills
