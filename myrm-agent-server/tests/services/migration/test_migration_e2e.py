@@ -136,3 +136,47 @@ class TestMigrationE2E:
         buckets = {mapping.source_bucket for mapping in dry_run.mappings}
         assert "openclaw_sessions" in buckets
 
+    def test_qwenpaw_discover_to_dry_run(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.competitor_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        root = tmp_path / ".qwenpaw"
+        root.mkdir()
+        ws = root / "project-main"
+        ws.mkdir()
+        (ws / "system.md").write_text("You are a research assistant.", encoding="utf-8")
+        agent_cfg = {
+            "name": "Research",
+            "id": "research-001",
+            "system_prompt_files": ["system.md"],
+            "mcp": {"clients": {"arxiv": {"command": "arxiv-mcp"}}},
+        }
+        (ws / "agent.json").write_text(json.dumps(agent_cfg), encoding="utf-8")
+        mem_dir = root / "memory"
+        mem_dir.mkdir()
+        (mem_dir / "facts.md").write_text("- User works in NLP\n- Prefers Python", encoding="utf-8")
+        plugin_dir = root / "plugins" / "search"
+        plugin_dir.mkdir(parents=True)
+        (plugin_dir / "SKILL.md").write_text("Web search plugin", encoding="utf-8")
+        secret_dir = root / ".secret"
+        secret_dir.mkdir()
+        (secret_dir / ".env").write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
+
+        discovery = {"competitor": "qwenpaw", "root": str(root), "files": []}
+        loaded = load_competitor_payload(discovery)
+        skills = extract_pending_skills(loaded)
+        plan = build_instruction_plan(loaded)
+        memory_payload = extract_memory_payload(loaded, include_episodic=False)
+        dry_run = build_memory_import_dry_run(memory_payload, "auto")
+
+        assert "research assistant" in plan.agent_persona
+        assert loaded.get("mcp_servers") == {"arxiv": {"command": "arxiv-mcp"}}
+        assert len(skills) == 1
+        assert loaded.get("env_keys")
+        assert dry_run.summary.mapped_items > 0
+
