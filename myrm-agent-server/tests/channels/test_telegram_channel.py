@@ -31,6 +31,8 @@ def _make_channel() -> TelegramChannel:
     ch = TelegramChannel(bot_token=FAKE_TELEGRAM_BOT_TOKEN)
     ch._bot_username = "testbot"
     ch._tg_bot_id = 123456789
+    ch._rich_send_available = False
+    ch._rich_draft_available = False
     return ch
 
 
