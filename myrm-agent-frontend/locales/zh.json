@@ -210,7 +210,7 @@
     },
     "memoryCenter": {
       "tabDescriptions": {
-        "migration": "扫描本地其他 AI 助手数据、预览导入记忆；技能提交审核；MCP 与渠道需手动补配"
+        "migration": "扫描 Hermes、OpenClaw、Claude Code、Codex — 预览导入；技能需审核；MCP 与渠道需手动配置"
       },
       "migrationUnavailable": {
         "title": "助手导入仅支持本地与桌面版",

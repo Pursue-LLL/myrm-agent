@@ -340,6 +340,7 @@ class ExtensionBridgeService:
         domain: str | None = None,
         tab_id: int | None = None,
         *,
+        background: bool = True,
         timeout: float = 10.0,
     ) -> str:
         """Request the extension to attach debugger and return CDP WebSocket URL.
@@ -347,12 +348,17 @@ class ExtensionBridgeService:
         When *tab_id* is provided the extension attaches directly to that tab,
         bypassing domain-based tab selection.  This enables precise tab targeting
         when the caller already knows which tab to control.
+
+        When *background* is True (default), the extension creates an isolated
+        non-focused window for automation, preventing user disruption.
         """
         payload: dict[str, object] = {}
         if tab_id is not None:
             payload["tabId"] = tab_id
         elif domain:
             payload["domain"] = domain
+
+        payload["background"] = background
 
         result = await self._send_request("attach_debugger", payload, timeout=timeout)
         cdp_ws_url = result.get("cdp_ws_url") if isinstance(result, dict) else None

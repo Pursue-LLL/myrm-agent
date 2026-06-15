@@ -210,7 +210,7 @@
     },
     "memoryCenter": {
       "tabDescriptions": {
-        "migration": "Scan local assistant data, preview memory import; skills require review; MCP and channels need manual setup"
+        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
       },
       "migrationUnavailable": {
         "title": "Assistant import requires Local or Desktop",
@@ -10501,7 +10501,7 @@
   },
   "skills": {
     "migration": {
-      "title": "Import from Hermes/OpenClaw",
+      "title": "Import from Hermes / OpenClaw / Claude Code / Codex",
       "description": "Seamlessly migrate your custom skills and configurations from other platforms.",
       "button": "One-Click Import",
       "migrating": "Importing...",

@@ -19,6 +19,8 @@
 
 新增 probe/loader 须修改本 `_ARCH.md` 并获产品确认；默认拒绝。
 
+**Architecture 守门**：`tests/architecture/test_migration_source_closure.py` 强制 probe 模块、`supported_competitor_ids()`、loader 注册三处同步。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

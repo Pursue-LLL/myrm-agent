@@ -26,7 +26,7 @@
 | `diagnostic_static_checks.py` | 辅助 | Memory Doctor 静态检查构建器。生成 relational store、memory path、vector index、knowledge graph、embedding provider、event ledger、health snapshot、deployment boundary 快照检查 | ✅ |
 | `diagnostics.py` | 核心 | Memory Diagnostics 服务。生成 Memory Doctor 静态检查并执行 relational store、memory path、vector index、knowledge graph、embedding provider、embedding live、retrieval pipeline、sparse CJK recall、golden recall benchmark、memory quality governance、event ledger、migration integrity、health snapshot、deployment boundary 探针，写入不含业务内容的诊断审计事件并返回审计写入状态与诊断 SLO | ✅ |
 | `import_adapter_registry.py` | 核心 | 记忆导入 adapter 目录。为导入 dry-run 和个人大脑指挥中心提供一致的来源支持状态，标记 native-json/myrm-archive/agentmemory/claude-code/hermes/openclaw/cursor/codex ready 与其他来源计划或缺失状态 | ✅ |
-| `import_adapters.py` | 核心 | 记忆导入 dry-run dispatcher。竞品 `_source` 标签优先于 Markdown 启发式；`resolve_competitor_import_source` 供 `import_archive` 绑定 adapter；按 source 或 payload 分发到独立解析器 | ✅ |
+| `import_adapters.py` | 核心 | 记忆导入 dry-run dispatcher。Wizard 四源 `_COMPETITOR_TO_SOURCE`；Memory Center 手动导入仍支持 cursor_rules/mem0 等；`_source` 标签优先于 Markdown 启发式 | ✅ |
 | `import_adapter_utils.py` | 辅助 | 导入适配器共享工具。集中 `build_result`、`unsupported_result`、`object_dict`、`text` 和 warning code 常量 | ✅ |
 | `import_native_json.py` | 辅助 | Native JSON 导入解析器。处理原生 JSON 格式导入映射 | ✅ |
 | `import_agentmemory.py` | 辅助 | AgentMemory 导入解析器。处理 agentmemory export 格式解析 | ✅ |

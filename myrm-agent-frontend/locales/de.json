@@ -9840,7 +9840,7 @@
       }
     },
     "migration": {
-      "title": "Import from Hermes/OpenClaw",
+      "title": "Import from Hermes / OpenClaw / Claude Code / Codex",
       "description": "Seamlessly migrate your custom skills and configurations from other platforms.",
       "button": "One-Click Import",
       "migrating": "Importing...",

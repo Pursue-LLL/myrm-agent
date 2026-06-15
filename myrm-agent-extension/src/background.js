@@ -23,18 +23,26 @@ let isConnecting = false;
 let lastError = "";
 let authorizedDomains = [];
 let attachedTabs = new Map(); // tabId -> debugger target
+let backgroundWindowId = null; // Isolated background window for non-disruptive automation
 
 // --- Lifecycle ---
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 0.4 });
-  chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains"], (data) => {
+function restoreState() {
+  chrome.storage.local.get(["serverUrl", "authToken", "authorizedDomains", "backgroundWindowId"], (data) => {
     serverUrl = data.serverUrl || "";
     authToken = data.authToken || "";
     authorizedDomains = data.authorizedDomains || [];
+    backgroundWindowId = data.backgroundWindowId || null;
     if (serverUrl) connect();
   });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 0.4 });
+  restoreState();
 });
+
+chrome.runtime.onStartup.addListener(restoreState);
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) {
@@ -156,7 +164,9 @@ async function executeAction(action, payload) {
       return await getAuthorizedTabs();
 
     case "attach_debugger": {
-      const { domain, tabId } = payload;
+      const { domain, tabId, background = true } = payload;
+
+      // Explicit tab targeting bypasses background isolation
       if (tabId) {
         const tabs = await chrome.tabs.query({});
         const target = tabs.find((t) => t.id === tabId && isTabAuthorized(t));
@@ -165,6 +175,15 @@ async function executeAction(action, payload) {
         }
         return await attachDebugger(tabId);
       }
+
+      // Background mode: create/reuse isolated window to avoid disrupting user
+      if (background && domain) {
+        const url = `https://${domain}`;
+        const bgTabId = await getOrCreateBackgroundTab(url);
+        return await attachDebugger(bgTabId);
+      }
+
+      // Foreground fallback: operate on existing user tab
       const tab = await findTabForDomain(domain);
       if (!tab) {
         throw new Error(`No tab found for domain: ${domain || "(any authorized)"}`);
@@ -260,6 +279,54 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   sendTabsUpdate();
 });
 
+// --- Background Window Isolation ---
+
+async function ensureBackgroundWindow() {
+  if (backgroundWindowId !== null) {
+    try {
+      await chrome.windows.get(backgroundWindowId);
+      return backgroundWindowId;
+    } catch {
+      backgroundWindowId = null;
+    }
+  }
+
+  const win = await chrome.windows.create({
+    focused: false,
+    width: 1280,
+    height: 900,
+    type: "normal",
+    url: "about:blank",
+  });
+  backgroundWindowId = win.id;
+  chrome.storage.local.set({ backgroundWindowId });
+  return backgroundWindowId;
+}
+
+async function getOrCreateBackgroundTab(url) {
+  const windowId = await ensureBackgroundWindow();
+  const tabs = await chrome.tabs.query({ windowId });
+
+  // Reuse existing blank tab if available
+  const blankTab = tabs.find((t) => !t.url || t.url === "about:blank" || t.url === "chrome://newtab/");
+  if (blankTab) {
+    if (url && url !== "about:blank") {
+      await chrome.tabs.update(blankTab.id, { url });
+    }
+    return blankTab.id;
+  }
+
+  const newTab = await chrome.tabs.create({ windowId, url: url || "about:blank", active: false });
+  return newTab.id;
+}
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === backgroundWindowId) {
+    backgroundWindowId = null;
+    chrome.storage.local.remove("backgroundWindowId");
+  }
+});
+
 // --- Debugger Management ---
 
 async function attachDebugger(tabId) {
@@ -279,10 +346,22 @@ async function detachDebugger(tabId) {
   if (attachedTabs.has(tabId)) {
     try {
       await chrome.debugger.detach({ tabId });
-    } catch (e) {
+    } catch {
       // Tab may already be closed
     }
     attachedTabs.delete(tabId);
+
+    // Close tab in background window to prevent accumulation
+    if (backgroundWindowId !== null) {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.windowId === backgroundWindowId) {
+          await chrome.tabs.remove(tabId);
+        }
+      } catch {
+        // Tab already closed
+      }
+    }
   }
 }
 

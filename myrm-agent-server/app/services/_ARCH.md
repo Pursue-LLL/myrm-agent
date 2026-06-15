@@ -55,7 +55,7 @@
 | `power/` | ✅ 辅助 | 电源与系统状态管理（智能防休眠锁、电量感知） | [_ARCH.md](power/_ARCH.md) |
 | `background/` | ✅ 辅助 | 后台守护任务 | [_ARCH.md](background/_ARCH.md) |
 | `wiki/` | ✅ 辅助 | Wiki 服务（记忆转 Wiki） | [_ARCH.md](wiki/_ARCH.md) |
-| `migration/` | ✅ 辅助 | 竞品数据迁移服务（本地 AI 助手数据自动发现） | [_ARCH.md](migration/_ARCH.md) |
+| `migration/` | ✅ 辅助 | 外部助手数据迁移（Wizard 封闭 4 源：Hermes/OpenClaw/Claude Code/Codex） | [_ARCH.md](migration/_ARCH.md) |
 | `deploy/` | ✅ 核心 | 产物一键部署（Vercel API 客户端、SPA 路由注入、网络重试） | [_ARCH.md](deploy/_ARCH.md) |
 | `files/` | ✅ 辅助 | 非 HTTP 文件内容提取（PDF/Office bytes→text） | [_ARCH.md](files/_ARCH.md) |
 | `extension/` | ✅ 辅助 | 浏览器扩展桥 WebSocket 生命周期与 CDP 代理 | [_ARCH.md](extension/_ARCH.md) |

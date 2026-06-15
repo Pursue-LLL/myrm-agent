@@ -7,8 +7,9 @@ HTTP GET request to scan for competitor data installations.
 JSON response with discovered competitor sources and confidence levels.
 
 [POS]
-Local/Tauri-only endpoint for competitor data auto-discovery. Returns detected
-competitor AI assistant data directories with confidence scores and file metadata.
+Local/Tauri-only endpoint for external assistant data auto-discovery (Hermes,
+OpenClaw, Claude Code, Codex). Returns detected data directories with confidence
+scores and file metadata.
 """
 
 from __future__ import annotations

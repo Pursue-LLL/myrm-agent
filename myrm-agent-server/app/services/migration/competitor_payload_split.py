@@ -123,11 +123,6 @@ def extract_memory_payload(
     if str(loaded.get("_source", "")).strip().lower() == "claude":
         memory.pop("semantic", None)
 
-    if str(loaded.get("_source", "")).strip().lower() == "cursor":
-        memory.clear()
-        memory["_source"] = loaded.get("_source", "cursor")
-        memory["_discovery_root"] = loaded.get("_discovery_root", "")
-
     if str(loaded.get("_source", "")).strip().lower() == "codex":
         memory.pop("codex_settings", None)
 

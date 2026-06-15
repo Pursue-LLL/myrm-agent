@@ -52,6 +52,7 @@
 | `integration/channels/` | [integration/channels/_ARCH.md](integration/channels/_ARCH.md) |
 | `system/` | [system/_ARCH.md](system/_ARCH.md) |
 | `knowledge/wiki/` | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md) |
+| `knowledge/` | [knowledge/_ARCH.md](knowledge/_ARCH.md) |
 
 ## 依赖
 

@@ -2,7 +2,8 @@
 
 [INPUT]
 External memory export payloads from various sources (native JSON, Myrm archives,
-AgentMemory, Claude Code JSONL, Hermes, OpenClaw, Cursor, Codex).
+AgentMemory, Claude Code JSONL, Hermes, OpenClaw, Codex; Memory Center also
+supports cursor_rules and mem0 outside the Wizard discover set).
 
 [OUTPUT]
 Content-safe dry-run mapping result and normalized memory import data.
@@ -61,7 +62,6 @@ RequestedImportSource = Literal[
 _COMPETITOR_TO_SOURCE: dict[str, RequestedImportSource] = {
     "hermes": "hermes",
     "openclaw": "openclaw",
-    "cursor": "cursor_rules",
     "codex": "codex",
     "claude": "claude",
     "mem0": "mem0",

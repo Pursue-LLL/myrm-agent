@@ -107,6 +107,7 @@ export function ScanStep({
   t: TranslationFn;
 }) {
   const sources = discovery?.sources ?? [];
+  const hasOpenClawSource = sources.some((source) => source.competitor === 'openclaw');
 
   return (
     <div className="space-y-5">
@@ -154,15 +155,17 @@ export function ScanStep({
             ))}
           </select>
           <p className="text-[11px] text-muted-foreground/70">{t('targetAgentHint')}</p>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeEpisodic}
-              onChange={(e) => onIncludeEpisodicChange(e.target.checked)}
-              className="rounded border-border"
-            />
-            {t('scanIncludeEpisodic')}
-          </label>
+          {hasOpenClawSource && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeEpisodic}
+                onChange={(e) => onIncludeEpisodicChange(e.target.checked)}
+                className="rounded border-border"
+              />
+              {t('scanIncludeEpisodic')}
+            </label>
+          )}
         </div>
       )}
 
