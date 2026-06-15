@@ -277,7 +277,7 @@ class TelegramInboundMixin:
             media_list.append(MediaAttachment(media_type=MediaType.VIDEO))
             metadata["video_file_id"] = msg.video.file_id
 
-        if hasattr(msg, "video_note") and msg.video_note:
+        if msg.video_note:
             media_list.append(MediaAttachment(media_type=MediaType.VIDEO))
             metadata["video_file_id"] = msg.video_note.file_id
             metadata["video_is_video_note"] = True
@@ -517,6 +517,7 @@ class TelegramInboundMixin:
                 "callback_query_id": cbq.id,
                 "callback_prefix": prefix,
                 "username": cbq.from_user.username,
+                "origin_message_id": cbq.message.message_id if cbq.message else None,
             },
         )
 

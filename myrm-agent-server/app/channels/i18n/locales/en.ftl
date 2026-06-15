@@ -255,3 +255,6 @@ kanban_usage =
 kanban_error = ❌ Kanban command failed. Please check the syntax and try again.
 session_reset_notify_idle = ℹ️ Session auto-reset: no activity for { $minutes } minutes. This is a fresh conversation.
 session_reset_notify_daily = ℹ️ Session auto-reset: daily reset at { $hour }:00 UTC. This is a fresh conversation.
+agent_picker_no_agents = No agents configured.
+agent_picker_select = Select an agent:
+agent_picker_switched = Switched to: { $name }

@@ -12,7 +12,8 @@ All fields are optional with defaults to handle partial payloads gracefully.
 - TgChat: Telegram Chat object.
 - TgPhotoSize: Telegram PhotoSize (largest element of the photo array).
 - TgDocument: Shared model for voice and audio objects.
-- TgVideo: class — Tg Video
+- TgVideo: Telegram Video object.
+- TgVideoNote: Telegram VideoNote object (circular video messages).
 - TgLocation: Telegram Location object (latitude/longitude).
 - TgVenue: Telegram Venue object (named place with location).
 
@@ -66,6 +67,15 @@ class TgVideo(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     file_id: str = ""
+
+
+class TgVideoNote(BaseModel):
+    """Telegram VideoNote object (circular video messages)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    file_id: str = ""
+    duration: int = 0
 
 
 class TgVoiceAudio(BaseModel):
@@ -146,6 +156,7 @@ class TgMessage(BaseModel):
     photo: list[TgPhotoSize] | None = None
     document: TgDocument | None = None
     video: TgVideo | None = None
+    video_note: TgVideoNote | None = None
     voice: TgVoiceAudio | None = None
     audio: TgVoiceAudio | None = None
     sticker: TgSticker | None = None

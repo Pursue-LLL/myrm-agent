@@ -807,17 +807,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 msg = dataclasses.replace(msg, content=agent_route_resolved.raw_args)
                 msg.metadata["route_agent_id"] = agent_id
             else:
-                chat_id = msg.chat_id or msg.sender_id
-                reply = OutboundMessage(
-                    channel=msg.channel,
-                    recipient_id=chat_id,
-                    content=get_text(msg, "agent_route_switched", agent_id=agent_id),
-                    user_id=msg.user_id or "",
-                    thread_id=msg.thread_id,
-                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
-                )
-                await self._bus.publish_outbound(reply)
-                set_correlation_context(None)  # Reset context
+                topic_cmd = parse_topic_args("bind", agent_id)
+                asyncio.create_task(self._handle_topic_command(msg, topic_cmd))
+                set_correlation_context(None)
                 return
 
         try:

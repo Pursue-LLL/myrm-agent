@@ -67,6 +67,7 @@ from app.channels.types.notification import (
 )
 
 from .api import TelegramApiError, TelegramClient
+from app.channels.i18n import get_text
 from .helpers import (
     MAX_TEXT_LENGTH,
     BotCommand,
@@ -1007,6 +1008,7 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
 
     async def _send_agent_picker(self, msg: InboundMessage) -> None:
         """Query available agents and send an inline keyboard picker."""
+        from app.core.channel_bridge.topic_config import SqlTopicManager
         from app.services.agent.agent_service import AgentService
 
         agents, _ = await AgentService.get_agent_list(page=1, page_size=50)
@@ -1017,29 +1019,61 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         if not agents:
             await self._client.send_message(
                 chat_id,
-                "No agents configured.",
+                get_text(msg, "agent_picker_no_agents"),
                 message_thread_id=int(msg.thread_id) if msg.thread_id else None,
             )
             return
 
+        topic_mgr = SqlTopicManager()
+        bound_agent_id: str | None = None
+        if msg.thread_id:
+            ctx = await topic_mgr.resolve_topic(msg.channel, chat_id, msg.thread_id)
+            if ctx and ctx.agent_id:
+                bound_agent_id = ctx.agent_id
+        if not bound_agent_id:
+            ctx = await topic_mgr.resolve_topic(msg.channel, chat_id, None)
+            if ctx and ctx.agent_id:
+                bound_agent_id = ctx.agent_id
+
         keyboard_rows: list[list[dict[str, str]]] = []
         for agent in agents:
             label = agent.display_name or agent.id
+            if agent.id == bound_agent_id:
+                label = f"✅ {label}"
             keyboard_rows.append([{"text": label, "callback_data": f"ag:{agent.id}"}])
 
         reply_markup = {"inline_keyboard": keyboard_rows}
         await self._client.send_message(
             chat_id,
-            "Select an agent:",
+            get_text(msg, "agent_picker_select"),
             message_thread_id=int(msg.thread_id) if msg.thread_id else None,
             reply_markup=reply_markup,
         )
 
     async def _handle_agent_callback(self, msg: InboundMessage) -> InboundMessage | None:
-        """Convert ag: callback into a /bind command for the router layer."""
+        """Update picker message with confirmation, then convert to /bind."""
         agent_id = (msg.content or "").strip()
         if not agent_id:
             return msg
+
+        origin_msg_id = msg.metadata.get("origin_message_id")
+        chat_id = msg.chat_id or msg.sender_id
+        if origin_msg_id and chat_id:
+            try:
+                from app.services.agent.agent_service import AgentService
+
+                agent = await AgentService.get_agent_by_id(agent_id)
+                name = agent.display_name if agent else agent_id
+                switched_text = get_text(msg, "agent_picker_switched", name=name)
+                await self._client.edit_message_text(
+                    chat_id,
+                    int(origin_msg_id),
+                    f"<b>{switched_text}</b>",
+                    reply_markup={"inline_keyboard": []},
+                )
+            except Exception as exc:
+                logger.debug("TelegramChannel: edit picker failed: %s", exc)
+
         return dataclasses.replace(msg, content=f"/bind {agent_id}")
 
     async def _apply_auto_topic(self, msg: InboundMessage) -> InboundMessage:

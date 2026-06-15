@@ -16,5 +16,5 @@ Telegram 渠道 Provider 实现（入站/出站、凭证、路由）。上级文
 | `helpers.py` | 模块 | Telegram module-level utility functions, constants, and data structures. | ✅ |
 | `html_converter.py` | 模块 | Markdown to Telegram HTML converter. Handles bold/italic/strikethrough/code/link/GFM table degradation (monospace ASCII), supports 4096-char message splitting with state-machine-based HTML tag auto-closing and Rich Message splitting (32768 UTF-8). | ✅ |
 | `inbound.py` | 模块 | Telegram inbound message parsing, polling loop, and media group aggregation mixin. Supports message/edited_message/callback_query (qr/act/sel/ag)/sticker/location/venue/contact/video_note. Sets metadata for downstream enrichment. | ✅ |
-| `models.py` | 模块 | Pydantic models for Telegram Bot API webhook payloads (TgUser, TgChat, TgMessage, TgContact, etc.). | ✅ |
+| `models.py` | 模块 | Pydantic models for Telegram Bot API webhook payloads (TgUser, TgChat, TgMessage, TgVideoNote, TgContact, etc.). | ✅ |
 | `notification.py` | 模块 | Telegram disable_notification helpers (Hermes-compatible important/all modes). | ✅ |

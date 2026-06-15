@@ -255,3 +255,6 @@ kanban_usage =
 kanban_error = ❌ 看板命令执行失败，请检查语法后重试。
 session_reset_notify_idle = ℹ️ 会话已自动重置：超过 { $minutes } 分钟无活动。当前为全新对话。
 session_reset_notify_daily = ℹ️ 会话已自动重置：每日 { $hour }:00 UTC 定时重置。当前为全新对话。
+agent_picker_no_agents = 未配置任何智能体。
+agent_picker_select = 选择一个智能体：
+agent_picker_switched = 已切换至：{ $name }
