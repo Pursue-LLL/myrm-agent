@@ -3,7 +3,7 @@
 [INPUT]
 Cursor data payload with rules and settings extracted from .cursor/ directories.
 
-Expected payload keys (populated by competitor_discovery or frontend upload):
+Expected payload keys (populated by source_discovery or frontend upload):
   - ``cursor_rules``: list[dict] — rule definitions from .cursor/rules/
   - ``cursor_settings``: dict — settings.json content
   - ``_source``: "cursor_rules" — source identifier

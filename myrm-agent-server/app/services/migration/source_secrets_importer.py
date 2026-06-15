@@ -1,13 +1,13 @@
 """Import competitor API keys into user provider config (opt-in, local only).
 
 [INPUT]
-competitor_payload_loader env key names; app.services.config.service (POS: 配置核心业务逻辑)
+source_payload_loader env key names; app.services.config.service (POS: 配置核心业务逻辑)
 
 [OUTPUT]
-import_competitor_secrets(): merge detected .env keys into providers config; seed minimal provider stubs when none exist
+import_external_source_secrets(): merge detected .env keys into providers config; seed minimal provider stubs when none exist
 
 [POS]
-Server business layer — explicit user-consented secret migration from competitor installs.
+Server business layer — explicit user-consented secret migration from external assistant installs.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ def _minimal_provider_stub(provider_id: str, secret_value: str) -> dict[str, obj
             {
                 "id": str(uuid.uuid4()),
                 "key": secret_value,
-                "remark": "Imported from competitor migration",
+                "remark": "Imported from external source migration",
                 "isActive": True,
             }
         ],
@@ -96,7 +96,7 @@ def _seed_provider_stubs(
     return typed
 
 
-async def competitor_providers_configured() -> bool:
+async def external_source_providers_configured() -> bool:
     """Return True when at least one model provider slot exists for secret import."""
 
     record = await config_service.get("providers")
@@ -114,7 +114,7 @@ async def competitor_providers_configured() -> bool:
     return False
 
 
-async def import_competitor_secrets(root: Path) -> dict[str, object]:
+async def import_external_source_secrets(root: Path) -> dict[str, object]:
     """Read competitor .env and merge allowed API keys into providers config."""
 
     if not is_local_mode():
@@ -171,7 +171,7 @@ async def import_competitor_secrets(root: Path) -> dict[str, object]:
                     {
                         "id": str(uuid.uuid4()),
                         "key": secret_value,
-                        "remark": "Imported from competitor migration",
+                        "remark": "Imported from external source migration",
                         "isActive": True,
                     }
                 ]

@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from app.services.memory.import_adapters import build_memory_import_dry_run
-from app.services.migration.competitor_payload_loader import (
-    is_competitor_discovery_payload,
-    load_competitor_payload,
+from app.services.migration.source_payload_loader import (
+    is_source_discovery_payload,
+    load_source_payload,
 )
 
 
@@ -51,15 +51,15 @@ def openclaw_fixture(tmp_path: Path) -> Path:
 
 class TestCompetitorPayloadLoader:
     def test_is_discovery_payload(self) -> None:
-        assert is_competitor_discovery_payload({"competitor": "hermes", "root": "/tmp"})
-        assert not is_competitor_discovery_payload({"soul_md": "hello"})
+        assert is_source_discovery_payload({"competitor": "hermes", "root": "/tmp"})
+        assert not is_source_discovery_payload({"soul_md": "hello"})
 
     def test_load_hermes(self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
         )
         assert "soul_md" in loaded
@@ -69,10 +69,10 @@ class TestCompetitorPayloadLoader:
 
     def test_load_openclaw(self, openclaw_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "openclaw", "root": str(openclaw_fixture), "files": []},
         )
         assert isinstance(loaded.get("openclaw_sessions"), list)
@@ -89,10 +89,10 @@ class TestCompetitorPayloadLoader:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "openclaw", "root": str(openclaw_fixture), "files": []},
         )
         memory_entries = loaded.get("openclaw_memory")
@@ -115,10 +115,10 @@ class TestCompetitorPayloadLoader:
         (skill_dir / "SKILL.md").write_text("---\nname: review\n---\nReview code", encoding="utf-8")
 
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "claude", "root": str(root), "files": []},
         )
         assert isinstance(loaded.get("semantic"), list)
@@ -133,7 +133,7 @@ class TestCompetitorPayloadLoader:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery_payload = {
@@ -141,7 +141,7 @@ class TestCompetitorPayloadLoader:
             "root": str(hermes_fixture),
             "files": [],
         }
-        loaded = load_competitor_payload(discovery_payload)
+        loaded = load_source_payload(discovery_payload)
         result = build_memory_import_dry_run(loaded, "hermes")
         assert result.summary.source == "hermes"
         assert result.summary.mapped_items > 0

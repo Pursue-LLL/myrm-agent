@@ -5,7 +5,7 @@
  * @/services/skillMigration (POS: migration pending review client)
  *
  * [OUTPUT]
- * MigrationPendingReviewSection: list and approve/reject staged competitor migrations
+ * MigrationPendingReviewSection: list and approve/reject staged external source migrations
  *
  * [POS]
  * Memory Center migration tab — closes the skills review loop after wizard submit.
@@ -26,7 +26,7 @@ import {
 } from '@/services/skillMigration';
 import useSkillStore from '@/store/skill/useSkillStore';
 import useAgentStore from '@/store/useAgentStore';
-import { getCompetitorDisplayName } from '@/services/migrationDiscovery';
+import { getMigrationSourceDisplayName } from '@/services/migrationDiscovery';
 
 interface MigrationPendingReviewSectionProps {
   refreshToken?: number;
@@ -146,7 +146,7 @@ const MigrationPendingReviewSection = memo(({ refreshToken = 0 }: MigrationPendi
             >
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">{getCompetitorDisplayName(item.source)}</span>
+                  <span className="text-sm font-medium">{getMigrationSourceDisplayName(item.source)}</span>
                   <Badge variant="secondary" className="text-[10px]">
                     {item.migration_type}
                   </Badge>

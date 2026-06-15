@@ -1,5 +1,5 @@
 /**
- * Competitor skill migration staging and review client.
+ * External assistant skill migration staging and review client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
  * [OUTPUT] submit/list/approve/reject skill migration bundles

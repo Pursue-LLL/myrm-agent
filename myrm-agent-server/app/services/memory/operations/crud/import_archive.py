@@ -6,7 +6,7 @@ app.schemas.memory.crud::MemoryItem (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.crud::UpdateMemoryStatusRequest (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.crud::TasteSummaryResponse (POS: 记忆 API 通用 Schema 层)
 app.schemas.memory.archive::*Import* / *Archive* (POS: 记忆归档与导入 API Schema 层)
-app.services.migration.competitor_payload_split (POS: 竞品 payload 指令/记忆车道拆分)
+app.services.migration.source_payload_split (POS: 竞品 payload 指令/记忆车道拆分)
 app.services.migration.instruction_writer (POS: 竞品指令车道写入 Agent 与全局设置)
 app.services.migration.memory_import_binding (POS: 迁移事实记忆的全局 namespace 绑定)
 
@@ -197,24 +197,24 @@ async def import_memories(
 async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImportDryRunResponse:
     """Preview memory import mapping and bind the review result server-side."""
 
-    from app.services.memory.import_adapters import resolve_competitor_import_source
-    from app.services.migration.competitor_migration_types import (
-        CompetitorMigrationOptions,
+    from app.services.memory.import_adapters import resolve_migration_source
+    from app.services.migration.source_migration_types import (
+        MigrationWizardOptions,
         build_lane_previews,
         instruction_char_total,
     )
-    from app.services.migration.competitor_payload_loader import (
+    from app.services.migration.source_payload_loader import (
         build_coverage_items,
         extract_pending_skills,
-        is_competitor_discovery_payload,
-        load_competitor_payload,
+        is_source_discovery_payload,
+        load_source_payload,
     )
-    from app.services.migration.competitor_payload_split import (
+    from app.services.migration.source_payload_split import (
         build_instruction_plan,
         extract_memory_payload,
         has_api_keys,
     )
-    from app.services.migration.competitor_secrets_importer import competitor_providers_configured
+    from app.services.migration.source_secrets_importer import external_source_providers_configured
 
     pending_skills: list[dict[str, object]] = []
     coverage_items: list[dict[str, str]] = []
@@ -223,24 +223,24 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
     session_metadata: dict[str, object] = {}
     resolved_source = body.source
     lane_previews = []
-    is_competitor = is_competitor_discovery_payload(body.payload)
+    is_competitor = is_source_discovery_payload(body.payload)
     instruction_total_chars = 0
     providers_configured = True
 
     if is_competitor:
-        loaded_payload = load_competitor_payload(body.payload)
+        loaded_payload = load_source_payload(body.payload)
         pending_skills = extract_pending_skills(loaded_payload)
         coverage_items = build_coverage_items(loaded_payload)
 
         migration_opts = (
-            CompetitorMigrationOptions(
+            MigrationWizardOptions(
                 target_agent_id=body.migration.target_agent_id,
                 clone_from_agent_id=body.migration.clone_from_agent_id,
                 include_episodic=body.migration.include_episodic,
                 apply_global_instructions=body.migration.apply_global_instructions,
             )
             if body.migration is not None
-            else CompetitorMigrationOptions()
+            else MigrationWizardOptions()
         )
         instruction_plan = build_instruction_plan(loaded_payload)
         import_payload = extract_memory_payload(
@@ -248,7 +248,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             include_episodic=migration_opts.include_episodic,
         )
         competitor = str(loaded_payload.get("_source", "")).strip().lower()
-        resolved_source = resolve_competitor_import_source(competitor)
+        resolved_source = resolve_migration_source(competitor)
         session_metadata = {
             "migration_options": {
                 "target_agent_id": migration_opts.target_agent_id,
@@ -266,7 +266,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
             },
         }
         instruction_total_chars = instruction_char_total(instruction_plan)
-        providers_configured = await competitor_providers_configured()
+        providers_configured = await external_source_providers_configured()
         lane_previews = build_lane_previews(
             instruction=instruction_plan,
             memory_mapped=0,
@@ -337,9 +337,9 @@ async def confirm_import_memories(
     """Confirm a memory import from a server-bound dry-run session."""
 
     from app.services.memory.import_ledger import MemoryImportLedgerService
-    from app.services.migration.competitor_migration_types import (
-        CompetitorInstructionPlan,
-        CompetitorMigrationOptions,
+    from app.services.migration.source_migration_types import (
+        SourceInstructionPlan,
+        MigrationWizardOptions,
         WorkspaceRuleWrite,
     )
     from app.services.migration.instruction_writer import (
@@ -365,7 +365,7 @@ async def confirm_import_memories(
             if body.apply_instructions and isinstance(metadata.get("instruction_plan"), dict):
                 raw_plan = metadata["instruction_plan"]
                 raw_opts = metadata.get("migration_options")
-                opts = CompetitorMigrationOptions(
+                opts = MigrationWizardOptions(
                     target_agent_id=(
                         str(raw_opts["target_agent_id"])
                         if isinstance(raw_opts, dict) and raw_opts.get("target_agent_id")
@@ -392,7 +392,7 @@ async def confirm_import_memories(
                                 workspace_rules.append(
                                     WorkspaceRuleWrite(filename=filename, content=content),
                                 )
-                plan = CompetitorInstructionPlan(
+                plan = SourceInstructionPlan(
                     competitor=str(raw_plan.get("competitor", "unknown")),
                     agent_persona=str(raw_plan.get("agent_persona", "")),
                     global_supplement=str(raw_plan.get("global_supplement", "")),

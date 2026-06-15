@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from app.services.migration.competitor_migration_types import (
+from app.services.migration.source_migration_types import (
     INSTRUCTION_CHAR_WARN_THRESHOLD,
-    CompetitorInstructionPlan,
+    SourceInstructionPlan,
     build_lane_previews,
     instruction_char_total,
 )
 
 
 def test_instruction_char_total_sums_persona_rules_and_global() -> None:
-    plan = CompetitorInstructionPlan(
+    plan = SourceInstructionPlan(
         competitor="hermes",
         agent_persona="x" * 100,
         global_supplement="y" * 50,
@@ -21,7 +21,7 @@ def test_instruction_char_total_sums_persona_rules_and_global() -> None:
 
 
 def test_build_lane_previews_marks_large_instruction_as_warning() -> None:
-    plan = CompetitorInstructionPlan(
+    plan = SourceInstructionPlan(
         competitor="openclaw",
         agent_persona="z" * (INSTRUCTION_CHAR_WARN_THRESHOLD + 1),
     )
@@ -40,7 +40,7 @@ def test_build_lane_previews_marks_large_instruction_as_warning() -> None:
 
 
 def test_build_lane_previews_marks_credentials_critical_without_providers() -> None:
-    plan = CompetitorInstructionPlan(competitor="hermes", agent_persona="hi")
+    plan = SourceInstructionPlan(competitor="hermes", agent_persona="hi")
     lanes = build_lane_previews(
         instruction=plan,
         memory_mapped=1,

@@ -22,7 +22,7 @@ import { exportMemoryArchive } from '@/services/memoryArchive';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { cn } from '@/lib/utils/classnameUtils';
-import { getCompetitorDisplayName, type CompetitorSource, type DiscoveryResponse } from '@/services/migrationDiscovery';
+import { getMigrationSourceDisplayName, type ExternalSource, type DiscoveryResponse } from '@/services/migrationDiscovery';
 import type { AgentListItem } from '@/services/agent';
 import type {
   MemoryImportConfirmResponse,
@@ -96,14 +96,14 @@ export function ScanStep({
   discovery: DiscoveryResponse | null;
   scanning: boolean;
   previewing: boolean;
-  previewingSource: CompetitorSource | null;
+  previewingSource: ExternalSource | null;
   includeEpisodic: boolean;
   onIncludeEpisodicChange: (value: boolean) => void;
   agents: AgentListItem[];
   targetAgentId: string | null;
   onTargetAgentIdChange: (value: string | null) => void;
   onScan: () => void;
-  onPreview: (source: CompetitorSource) => void;
+  onPreview: (source: ExternalSource) => void;
   t: TranslationFn;
 }) {
   const sources = discovery?.sources ?? [];
@@ -195,7 +195,7 @@ function SourceCard({
   onPreview,
   t,
 }: {
-  source: CompetitorSource;
+  source: ExternalSource;
   previewing: boolean;
   disabled: boolean;
   onPreview: () => void;
@@ -218,7 +218,7 @@ function SourceCard({
             <Folder className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <span className="text-sm font-semibold">{getCompetitorDisplayName(source.competitor)}</span>
+            <span className="text-sm font-semibold">{getMigrationSourceDisplayName(source.competitor)}</span>
             <Badge variant={confidenceVariant} className="ml-2 text-[10px]">
               {confidenceLabel}
             </Badge>
@@ -306,7 +306,7 @@ export function PreviewStep({
   onBack,
   t,
 }: {
-  source: CompetitorSource;
+  source: ExternalSource;
   dryRun: MemoryImportDryRunResponse;
   importing: boolean;
   importSecrets: boolean;
@@ -333,7 +333,7 @@ export function PreviewStep({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="text-lg font-semibold">
-          {t('preview.title', { source: getCompetitorDisplayName(source.competitor) })}
+          {t('preview.title', { source: getMigrationSourceDisplayName(source.competitor) })}
         </h2>
       </div>
 

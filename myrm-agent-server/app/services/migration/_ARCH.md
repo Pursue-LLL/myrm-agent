@@ -19,22 +19,22 @@
 
 新增 probe/loader 须修改本 `_ARCH.md` 并获产品确认；默认拒绝。
 
-**Architecture 守门**：`tests/architecture/test_migration_source_closure.py` 强制 probe 模块、`supported_competitor_ids()`、loader 注册三处同步。
+**Architecture 守门**：`tests/architecture/test_migration_source_closure.py` 强制 probe 模块、`supported_source_ids()`、loader 注册三处同步。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `competitor_discovery.py` | 核心 | 数据类定义、工具函数、discover_competitors 编排入口 | ✅ |
-| `competitor_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
-| `competitor_payload_loader.py` | 核心 | 公共 API：load_competitor_payload / build_coverage_items / extract_pending_skills / supported_competitor_ids | ✅ |
-| `competitor_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude）+ re-export openclaw | ✅ |
+| `source_discovery.py` | 核心 | 数据类定义、工具函数、discover_external_sources 编排入口 | ✅ |
+| `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
+| `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude）+ re-export openclaw | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数 | ✅ |
-| `competitor_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
-| `competitor_model_migrator.py` | 辅助 | Hermes auxiliary model → Myrm 模型槽（与 Wizard 数据迁移正交） | ✅ |
-| `competitor_migration_types.py` | 核心 | 四车道迁移 DTO | ✅ |
-| `competitor_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路 | ✅ |
+| `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
+| `source_model_migrator.py` | 辅助 | Hermes auxiliary model → Myrm 模型槽（与 Wizard 数据迁移正交） | ✅ |
+| `source_migration_types.py` | 核心 | 四车道迁移 DTO | ✅ |
+| `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路 | ✅ |
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |

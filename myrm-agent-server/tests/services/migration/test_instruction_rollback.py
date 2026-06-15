@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.migration.competitor_migration_types import InstructionApplyResult
+from app.services.migration.source_migration_types import InstructionApplyResult
 from app.services.migration.instruction_writer import (
     instruction_rollback_record_from_apply,
     instruction_rollback_record_from_metadata,

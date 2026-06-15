@@ -2,13 +2,13 @@
 
 /**
  * [INPUT]
- * @/services/migrationDiscovery::discoverCompetitors (POS: Competitor data auto-discovery client)
+ * @/services/migrationDiscovery::discoverMigrationSources (POS: External assistant data auto-discovery client)
  *
  * [OUTPUT]
- * CompetitorMigrationBanner: one-click import prompt for detected competitor AI assistant data.
+ * MigrationDiscoveryBanner: one-click import prompt for detected competitor AI assistant data.
  *
  * [POS]
- * Local/Tauri-only banner shown in EmptyChat when competitor data is detected.
+ * Local/Tauri-only banner shown in EmptyChat when external assistant data is detected.
  * Routes user to migration wizard in settings for full preview and confirm flow.
  */
 
@@ -18,21 +18,23 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
 import { isLocalMode } from '@/lib/deploy-mode';
-import { discoverCompetitors, getCompetitorDisplayName, type CompetitorSource } from '@/services/migrationDiscovery';
+import { discoverMigrationSources, getMigrationSourceDisplayName, type ExternalSource } from '@/services/migrationDiscovery';
 import { IconArrowRight, IconDownload, IconLoader } from '@/components/features/icons/PremiumIcons';
 
 type BannerState = 'idle' | 'scanning' | 'found' | 'dismissed';
 
-export default function CompetitorMigrationBanner() {
-  const t = useTranslations('chat.competitorMigration');
+export default function MigrationDiscoveryBanner() {
+  const t = useTranslations('chat.migrationDiscovery');
   const router = useRouter();
   const [state, setState] = useState<BannerState>('idle');
-  const [sources, setSources] = useState<CompetitorSource[]>([]);
+  const [sources, setSources] = useState<ExternalSource[]>([]);
 
   useEffect(() => {
     if (!isLocalMode()) return;
 
-    const dismissed = sessionStorage.getItem('competitor_migration_dismissed');
+    const dismissed =
+      sessionStorage.getItem('migration_discovery_dismissed') ??
+      sessionStorage.getItem('competitor_migration_dismissed');
     if (dismissed === 'true') {
       setState('dismissed');
       return;
@@ -42,7 +44,7 @@ export default function CompetitorMigrationBanner() {
     const scan = async () => {
       setState('scanning');
       try {
-        const result = await discoverCompetitors();
+        const result = await discoverMigrationSources();
         if (cancelled) return;
         if (result.sources.length > 0) {
           setSources(result.sources);
@@ -63,7 +65,7 @@ export default function CompetitorMigrationBanner() {
 
   const handleDismiss = useCallback(() => {
     setState('dismissed');
-    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
   }, []);
 
   const handleNavigate = useCallback(() => {
@@ -89,7 +91,7 @@ export default function CompetitorMigrationBanner() {
   const totalMemories = sources.reduce((sum, s) => sum + s.memory_count_estimate, 0);
   const totalSkills = sources.reduce((sum, s) => sum + s.skill_count, 0);
   const hasApiKeys = sources.some((s) => s.has_api_keys);
-  const competitorNames = sources.map((s) => getCompetitorDisplayName(s.competitor)).join(', ');
+  const competitorNames = sources.map((s) => getMigrationSourceDisplayName(s.competitor)).join(', ');
 
   const description =
     totalSkills > 0

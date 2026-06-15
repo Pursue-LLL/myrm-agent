@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { cn } from '@/lib/utils/classnameUtils';
-import { discoverCompetitors, type DiscoveryResponse } from '@/services/migrationDiscovery';
+import { discoverMigrationSources, type DiscoveryResponse } from '@/services/migrationDiscovery';
 import { probeLocalCapabilities, type ProbeLocalResponse } from '@/services/localCapabilitiesProbe';
 import { completeOnboarding } from '@/services/onboarding';
 import { isLocalMode } from '@/lib/deploy-mode';
@@ -49,7 +49,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     const runProbes = async () => {
       try {
         const [discRes, probeRes] = await Promise.all([
-          isLocalMode() ? discoverCompetitors(false).catch(() => null) : Promise.resolve(null),
+          isLocalMode() ? discoverMigrationSources(false).catch(() => null) : Promise.resolve(null),
           isLocalMode() ? probeLocalCapabilities(false).catch(() => null) : Promise.resolve(null),
         ]);
 

@@ -10,7 +10,7 @@ DiscoveryResult: list of detected data sources with confidence scoring.
 Local/Tauri-only service that scans the user's home directory for external
 AI assistant data (Hermes, Claude Code, OpenClaw, Codex — four sources only).
 SaaS sandboxes cannot access user filesystems.
-Per-source probe logic lives in competitor_probes.py.
+Per-source probe logic lives in source_probes.py.
 New migration sources are intentionally out of scope; see _ARCH.md policy.
 """
 
@@ -36,7 +36,7 @@ class DiscoveredFile:
 
 
 @dataclass
-class CompetitorSource:
+class ExternalSource:
     """A detected competitor data installation."""
 
     competitor: str
@@ -52,7 +52,7 @@ class CompetitorSource:
 class DiscoveryResult:
     """Aggregated result of scanning for all competitor data."""
 
-    sources: list[CompetitorSource] = field(default_factory=list)
+    sources: list[ExternalSource] = field(default_factory=list)
     scan_path: str = ""
 
 
@@ -127,10 +127,10 @@ def _detect_api_keys_in_env(path: Path) -> bool:
         return False
 
 
-def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
+def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:
     """Scan the filesystem for known competitor data directories."""
 
-    from .competitor_probes import (
+    from .source_probes import (
         discover_claude,
         discover_codex,
         discover_hermes,

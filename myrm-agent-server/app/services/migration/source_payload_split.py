@@ -1,10 +1,10 @@
-"""Split competitor payloads into instruction vs memory lanes.
+"""Split external source payloads into instruction vs memory lanes.
 
 [INPUT]
-Adapter-ready dict from competitor_payload_loader.
+Adapter-ready dict from source_payload_loader.
 
 [OUTPUT]
-CompetitorInstructionPlan and memory-only payload for import adapters.
+SourceInstructionPlan and memory-only payload for import adapters.
 
 [POS]
 Prevents project instructions (rules, SOUL, AGENTS.md) from being stored as procedural memory.
@@ -14,19 +14,19 @@ from __future__ import annotations
 
 import re
 
-from app.services.migration.competitor_migration_types import (
-    CompetitorInstructionPlan,
+from app.services.migration.source_migration_types import (
+    SourceInstructionPlan,
     WorkspaceRuleWrite,
 )
 
 _SECTION_BREAK = "\n\n---\n\n"
 
 
-def build_instruction_plan(loaded: dict[str, object]) -> CompetitorInstructionPlan:
+def build_instruction_plan(loaded: dict[str, object]) -> SourceInstructionPlan:
     """Extract instruction-layer content from a loaded competitor payload."""
 
     competitor = str(loaded.get("_source", "unknown")).strip().lower() or "unknown"
-    plan = CompetitorInstructionPlan(competitor=competitor)
+    plan = SourceInstructionPlan(competitor=competitor)
 
     soul = _text(loaded, "soul_md")
     agents = _text(loaded, "agents_md")

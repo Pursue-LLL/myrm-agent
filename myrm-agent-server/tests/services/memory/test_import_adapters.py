@@ -245,8 +245,8 @@ class TestAgentMemoryDryRun:
         assert semantic["metadata"]["external_id"] == "mem-1"
 
 
-class TestCompetitorSourceDetection:
-    """Auto-detection routes competitor payloads to the correct adapter."""
+class TestExternalSourceDetection:
+    """Auto-detection routes external source payloads to the correct adapter."""
 
     def test_detect_hermes_via_source_tag(self) -> None:
         payload = {"_source": "hermes", "memory_md": "- fact"}
@@ -344,7 +344,7 @@ class TestAdapterRegistryConsistency:
         ready_sources = [s for s, st in statuses.items() if st == "ready"]
         assert len(ready_sources) >= 4, "Should have at least 4 ready adapters"
 
-    def test_competitor_adapters_are_ready(self) -> None:
+    def test_source_adapters_are_ready(self) -> None:
         from app.services.memory.import_adapter_registry import memory_import_adapter_status
 
         statuses = memory_import_adapter_status()

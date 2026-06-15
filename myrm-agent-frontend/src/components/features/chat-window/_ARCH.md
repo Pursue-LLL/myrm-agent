@@ -14,7 +14,7 @@
 | `Chat.tsx` | 组件/模块 | — | — |
 | `ChatWindow.tsx` | 组件/模块 | — | — |
 | `CompactedSummaryView.tsx` | 组件/模块 | — | — |
-| `CompetitorMigrationBanner.tsx` | 组件/模块 | — | — |
+| `MigrationDiscoveryBanner.tsx` | 组件/模块 | — | — |
 | `ConversationJumpBar.tsx` | 组件/模块 | — | — |
 | `DeleteChat.tsx` | 组件/模块 | — | — |
 | `EmptyChat.tsx` | 组件/模块 | — | — |

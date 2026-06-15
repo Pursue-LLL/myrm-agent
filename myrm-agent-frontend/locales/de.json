@@ -2961,7 +2961,7 @@
     },
     "memoryCenter": {
       "migrationUnavailable": {
-        "title": "Competitor migration requires Local or Desktop",
+        "title": "External source migration requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
         "downloadCta": "Go to download page"
       }
@@ -4908,7 +4908,7 @@
       "searchEnableFailed": "Failed to enable search",
       "modelActivateFailed": "Failed to activate local model"
     },
-    "competitorMigration": {
+    "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",
       "title": "Detected {competitor} data",
       "description": "Found {memoryCount} memories and {skillCount} skills — preview before import",
@@ -6461,7 +6461,7 @@
       }
     },
     "migrationWizard": {
-      "title": "Competitor Data Migration",
+      "title": "Import from Other AI Assistants",
       "description": "Scan Hermes, OpenClaw, Claude Code, or Codex — persona goes to a new agent, facts to global memory, rules to workspace",
       "scanIncludeEpisodic": "Include OpenClaw session summaries (episodic memory)",
       "targetAgentLabel": "Target agent",
@@ -6529,12 +6529,12 @@
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
-        "providersMissingHint": "Competitor API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
+        "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
         "exportBackup": "Export backup",
         "exportingBackup": "Exporting...",
-        "importSecretsLabel": "Also import API keys from competitor .env (opt-in, writes to provider settings)",
+        "importSecretsLabel": "Also import API keys from external assistant .env (opt-in, writes to provider settings)",
         "dryRunId": "Review ID",
         "expiresAt": "Expires at",
         "mappings": "Mapping Details",
@@ -6581,7 +6581,7 @@
     },
     "pendingReview": {
       "title": "Pending migrations",
-      "description": "Competitor skills awaiting your approval before they are applied",
+      "description": "Imported skills awaiting your approval before they are applied",
       "loading": "Loading pending items...",
       "loadFailed": "Failed to load pending migrations",
       "refresh": "Refresh",

@@ -1,10 +1,10 @@
-"""Competitor migration lane types.
+"""External source migration lane types.
 
 [INPUT]
-Loaded competitor payloads from competitor_payload_loader.
+Loaded external source payloads from source_payload_loader.
 
 [OUTPUT]
-CompetitorInstructionPlan, CompetitorMigrationOptions, lane preview DTOs.
+SourceInstructionPlan, MigrationWizardOptions, lane preview DTOs.
 
 [POS]
 Typed contracts for the four-lane migration orchestrator (instruction / memory / skill / credential).
@@ -24,8 +24,8 @@ class WorkspaceRuleWrite:
 
 
 @dataclass
-class CompetitorInstructionPlan:
-    """Instruction-layer content extracted from a competitor install."""
+class SourceInstructionPlan:
+    """Instruction-layer content extracted from a external assistant install."""
 
     competitor: str
     agent_persona: str = ""
@@ -35,7 +35,7 @@ class CompetitorInstructionPlan:
 
 
 @dataclass(frozen=True)
-class CompetitorMigrationOptions:
+class MigrationWizardOptions:
     """User-selected migration binding (persisted on dry-run session metadata)."""
 
     target_agent_id: str | None = None
@@ -84,7 +84,7 @@ class MigrationLanePreview:
 INSTRUCTION_CHAR_WARN_THRESHOLD = 8000
 
 
-def instruction_char_total(instruction: CompetitorInstructionPlan) -> int:
+def instruction_char_total(instruction: SourceInstructionPlan) -> int:
     """Total instruction-lane character count (persona + global supplement + rules)."""
 
     total = len(instruction.agent_persona.strip()) + len(instruction.global_supplement.strip())
@@ -95,7 +95,7 @@ def instruction_char_total(instruction: CompetitorInstructionPlan) -> int:
 
 def build_lane_previews(
     *,
-    instruction: CompetitorInstructionPlan,
+    instruction: SourceInstructionPlan,
     memory_mapped: int,
     memory_status: str,
     skill_count: int,

@@ -5313,7 +5313,7 @@
       "agent_3": "帮我制定一份本周的工作计划",
       "agent_4": "搜索最新的 AI Agent 技术进展并总结",
       "agent_5": "帮我写一份项目技术方案文档大纲",
-      "agent_6": "分析竞品的产品功能并给出差异化建议",
+      "agent_6": "分析外部助手的产品功能并给出差异化建议",
       "agent_7": "帮我整理一份面试准备清单",
       "agent_8": "调研主流向量数据库的性能对比",
       "agent_9": "帮我写一段产品介绍文案",
@@ -5370,7 +5370,7 @@
       "searchEnableFailed": "启用搜索失败",
       "modelActivateFailed": "启用本地模型失败"
     },
-    "competitorMigration": {
+    "migrationDiscovery": {
       "detecting": "正在扫描本地 AI 助手数据...",
       "title": "检测到 {competitor} 数据",
       "description": "发现 {memoryCount} 条记忆和 {skillCount} 个技能，可预览后导入",
@@ -6853,12 +6853,12 @@
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
-        "providersMissingHint": "检测到竞品 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
+        "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
         "configureProvidersLink": "打开模型服务商设置",
         "backupHint": "建议在导入前导出当前记忆备份（可回滚恢复）",
         "exportBackup": "导出备份",
         "exportingBackup": "正在导出...",
-        "importSecretsLabel": "同时从竞品 .env 导入 API Key（opt-in，写入模型服务商配置）",
+        "importSecretsLabel": "同时从外部助手 .env 导入 API Key（opt-in，写入模型服务商配置）",
         "dryRunId": "审查 ID",
         "expiresAt": "有效期至",
         "mappings": "映射详情",
@@ -6905,7 +6905,7 @@
     },
     "pendingReview": {
       "title": "待审核迁移",
-      "description": "竞品技能已提交，批准后将写入技能库",
+      "description": "外部助手技能已提交，批准后将写入技能库",
       "loading": "加载待审核项...",
       "loadFailed": "加载待审核迁移失败",
       "refresh": "刷新",
@@ -7676,7 +7676,7 @@
     "quickTask": {
       "writeDocument": {
         "name": "撰写文档",
-        "guide": "帮我为智能家居行业起草一个竞品对比框架"
+        "guide": "帮我为智能家居行业起草一个外部助手对比框架"
       },
       "chatWithWebpage": {
         "name": "与网页链接聊天",

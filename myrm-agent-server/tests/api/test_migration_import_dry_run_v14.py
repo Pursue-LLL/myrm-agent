@@ -76,7 +76,7 @@ class TestCompetitorImportDryRunApi:
     def _local_mode(self) -> None:
         with (
             patch("app.api.migration.discovery.is_local_mode", return_value=True),
-            patch("app.services.migration.competitor_payload_loader.is_local_mode", return_value=True),
+            patch("app.services.migration.source_payload_loader.is_local_mode", return_value=True),
         ):
             yield  # type: ignore[misc]
 

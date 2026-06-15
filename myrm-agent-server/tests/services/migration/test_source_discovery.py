@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration.competitor_discovery import (
+from app.services.migration.source_discovery import (
     DiscoveryResult,
-    discover_competitors,
+    discover_external_sources,
 )
 
 
@@ -26,7 +26,7 @@ class TestDiscoverCompetitorsEmpty:
     """No competitor data present on disk."""
 
     def test_empty_home_returns_no_sources(self, fake_home: Path) -> None:
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert isinstance(result, DiscoveryResult)
         assert result.sources == []
         assert result.scan_path == str(fake_home)
@@ -69,7 +69,7 @@ class TestHermesDiscovery:
 
     def test_hermes_high_confidence_with_memory_and_config(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert len(result.sources) == 1
         src = result.sources[0]
         assert src.competitor == "hermes"
@@ -78,37 +78,37 @@ class TestHermesDiscovery:
 
     def test_hermes_medium_confidence_config_only(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home, with_memory=False, with_config=True)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert len(result.sources) == 1
         assert result.sources[0].confidence == "medium"
 
     def test_hermes_medium_confidence_soul_only(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home, with_memory=False, with_config=False, with_soul=True)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert len(result.sources) == 1
         assert result.sources[0].confidence == "medium"
 
     def test_hermes_skill_counting(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home, with_skills=3)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         src = result.sources[0]
         assert src.skill_count == 3
 
     def test_hermes_api_key_detection(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home, with_env_keys=True)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         src = result.sources[0]
         assert src.has_api_keys is True
 
     def test_hermes_no_api_keys(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert result.sources[0].has_api_keys is False
 
     def test_hermes_low_confidence_excluded(self, fake_home: Path) -> None:
         """An empty .hermes dir with no recognizable files is filtered out."""
         (fake_home / ".hermes").mkdir()
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         hermes = [s for s in result.sources if s.competitor == "hermes"]
         assert hermes == []
 
@@ -132,7 +132,7 @@ class TestClaudeDiscovery:
 
     def test_claude_high_confidence(self, fake_home: Path) -> None:
         self._setup_claude(fake_home)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         claude = [s for s in result.sources if s.competitor == "claude"]
         assert len(claude) == 1
         assert claude[0].confidence == "high"
@@ -140,14 +140,14 @@ class TestClaudeDiscovery:
 
     def test_claude_medium_confidence_settings_only(self, fake_home: Path) -> None:
         self._setup_claude(fake_home, with_memory=False)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         claude = [s for s in result.sources if s.competitor == "claude"]
         assert len(claude) == 1
         assert claude[0].confidence == "medium"
 
     def test_claude_skill_counting_via_skills_dir(self, fake_home: Path) -> None:
         self._setup_claude(fake_home, skill_count=2)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         claude = [s for s in result.sources if s.competitor == "claude"]
         assert claude[0].skill_count == 2
 
@@ -159,7 +159,7 @@ class TestClaudeDiscovery:
         commands_dir.mkdir()
         (commands_dir / "deploy.md").write_text("deploy script")
         (commands_dir / "test.md").write_text("test script")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         claude = [s for s in result.sources if s.competitor == "claude"]
         assert claude[0].skill_count == 2
 
@@ -172,7 +172,7 @@ class TestOpenClawDiscovery:
         root.mkdir()
         (root / "memory.json").write_text("[]")
         (root / "sessions.json").write_text("[]")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         oc = [s for s in result.sources if s.competitor == "openclaw"]
         assert len(oc) == 1
         assert oc[0].confidence == "high"
@@ -181,14 +181,14 @@ class TestOpenClawDiscovery:
         root = fake_home / ".openclaw"
         root.mkdir()
         (root / "config.json").write_text("{}")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         oc = [s for s in result.sources if s.competitor == "openclaw"]
         assert len(oc) == 1
         assert oc[0].confidence == "medium"
 
     def test_openclaw_low_confidence_excluded(self, fake_home: Path) -> None:
         (fake_home / ".openclaw").mkdir()
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         oc = [s for s in result.sources if s.competitor == "openclaw"]
         assert oc == []
 
@@ -201,7 +201,7 @@ class TestOpenClawDiscovery:
         skills_dir.mkdir()
         (skills_dir / "skill_a.json").write_text("{}")
         (skills_dir / "skill_b.json").write_text("{}")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         assert result.sources[0].skill_count == 2
 
 
@@ -213,7 +213,7 @@ class TestCodexDiscovery:
         root.mkdir()
         (root / "instructions.md").write_text("# Instructions")
         (root / "config.json").write_text("{}")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         cdx = [s for s in result.sources if s.competitor == "codex"]
         assert len(cdx) == 1
         assert cdx[0].confidence == "high"
@@ -222,20 +222,20 @@ class TestCodexDiscovery:
         root = fake_home / ".codex"
         root.mkdir()
         (root / "instructions.md").write_text("use python")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         cdx = [s for s in result.sources if s.competitor == "codex"]
         assert len(cdx) == 1
         assert cdx[0].confidence == "medium"
 
     def test_codex_low_confidence_excluded(self, fake_home: Path) -> None:
         (fake_home / ".codex").mkdir()
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         cdx = [s for s in result.sources if s.competitor == "codex"]
         assert cdx == []
 
 
 class TestMultipleCompetitors:
-    """Multiple competitor installations co-exist."""
+    """Multiple external assistant installations co-exist."""
 
     def test_discover_all_competitors(self, fake_home: Path) -> None:
         for name, files in [
@@ -251,7 +251,7 @@ class TestMultipleCompetitors:
                 f.parent.mkdir(parents=True, exist_ok=True)
                 f.write_text(content)
 
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         competitors = {s.competitor for s in result.sources}
         assert "hermes" in competitors
         assert "claude" in competitors
@@ -265,7 +265,7 @@ class TestEdgeCases:
 
     def test_nonexistent_home_dir(self, tmp_path: Path) -> None:
         fake = tmp_path / "nonexistent"
-        result = discover_competitors(str(fake))
+        result = discover_external_sources(str(fake))
         assert result.sources == []
 
     def test_memory_bullet_counting_complex_markdown(self, fake_home: Path) -> None:
@@ -276,7 +276,7 @@ class TestEdgeCases:
         mem_dir.mkdir()
         md = "# Section A\n- fact 1\n- fact 2\n\n# Section B\n* fact 3\n\nParagraph text (not a bullet)\n- fact 4"
         (mem_dir / "MEMORY.md").write_text(md)
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         src = result.sources[0]
         assert src.memory_count_estimate == 4
 
@@ -288,7 +288,7 @@ class TestEdgeCases:
         mem_dir = root / "memories"
         mem_dir.mkdir()
         (mem_dir / "MEMORY.md").write_text("- fact")
-        result = discover_competitors(str(fake_home))
+        result = discover_external_sources(str(fake_home))
         src = result.sources[0]
         config_file = next(f for f in src.files if f.kind == "config")
         assert config_file.size_bytes > 0

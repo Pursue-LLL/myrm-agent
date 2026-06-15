@@ -3,7 +3,7 @@
 [INPUT]
 OpenClaw data payload with session-based memories and structured memory entries.
 
-Expected payload keys (populated by competitor_discovery or frontend upload):
+Expected payload keys (populated by source_discovery or frontend upload):
   - ``openclaw_sessions``: list[dict] — conversation sessions with messages
   - ``openclaw_memory``: list[dict] — structured memory entries (incl. workspace MEMORY/USER.md via loader)
   - ``openclaw_skills``: list[dict] — skill definitions (routed to skill migration)

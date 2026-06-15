@@ -1,14 +1,14 @@
 """Apply competitor instruction plans to Agent profile and global user instructions.
 
 [INPUT]
-CompetitorInstructionPlan, CompetitorMigrationOptions.
+SourceInstructionPlan, MigrationWizardOptions.
 app.services.agent.profile_snapshot_service::ProfileSnapshotService (POS: Agent 配置快照与回滚)
 
 [OUTPUT]
 InstructionApplyResult with target_agent_id and rollback metadata.
 
 [POS]
-Instruction lane writer for competitor migration. Does not use memory import adapters.
+Instruction lane writer for external source migration. Does not use memory import adapters.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ from app.database.repositories.uow import UnitOfWork
 from app.services.agent.agent_service import AgentService
 from app.services.agent.profile_snapshot_service import ProfileSnapshotService
 from app.services.config.service import config_service
-from app.services.migration.competitor_migration_types import (
-    CompetitorInstructionPlan,
-    CompetitorMigrationOptions,
+from app.services.migration.source_migration_types import (
+    SourceInstructionPlan,
+    MigrationWizardOptions,
     InstructionApplyResult,
     InstructionRollbackRecord,
     WorkspaceRuleWrite,
@@ -68,7 +68,7 @@ def merge_migration_block(existing: str, competitor: str, content: str) -> str:
 
 
 async def resolve_target_agent_id(
-    options: CompetitorMigrationOptions,
+    options: MigrationWizardOptions,
     *,
     competitor: str,
 ) -> tuple[str, bool]:
@@ -90,7 +90,7 @@ async def resolve_target_agent_id(
     created = await AgentService.create_agent(
         AgentCreate(
             name=display_name,
-            description=f"Migrated from {competitor} competitor data.",
+            description=f"Migrated from {competitor} external assistant data.",
             system_prompt=source.system_prompt or "",
             skill_ids=[],
             enabled_builtin_tools=source.tools_allowed,
@@ -105,8 +105,8 @@ async def resolve_target_agent_id(
 
 
 async def apply_instruction_plan(
-    plan: CompetitorInstructionPlan,
-    options: CompetitorMigrationOptions,
+    plan: SourceInstructionPlan,
+    options: MigrationWizardOptions,
     *,
     workspace_root: str | None,
 ) -> InstructionApplyResult:

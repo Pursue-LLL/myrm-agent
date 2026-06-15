@@ -38,9 +38,9 @@ from app.services.memory.import_mem0 import dry_run_mem0, is_mem0_payload
 from app.services.memory.import_myrm_archive import dry_run_myrm_archive, is_myrm_archive
 from app.services.memory.import_native_json import dry_run_native_json
 from app.services.memory.import_openclaw import dry_run_openclaw
-from app.services.migration.competitor_payload_loader import (
-    is_competitor_discovery_payload,
-    load_competitor_payload,
+from app.services.migration.source_payload_loader import (
+    is_source_discovery_payload,
+    load_source_payload,
 )
 
 RequestedImportSource = Literal[
@@ -59,7 +59,7 @@ RequestedImportSource = Literal[
     "mem0",
 ]
 
-_COMPETITOR_TO_SOURCE: dict[str, RequestedImportSource] = {
+_MIGRATION_SOURCE_TO_ADAPTER: dict[str, RequestedImportSource] = {
     "hermes": "hermes",
     "openclaw": "openclaw",
     "codex": "codex",
@@ -78,10 +78,10 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
 }
 
 
-def resolve_competitor_import_source(competitor: str) -> RequestedImportSource:
-    """Map a competitor discovery id to the memory import adapter source."""
+def resolve_migration_source(competitor: str) -> RequestedImportSource:
+    """Map a source discovery id to the memory import adapter source."""
 
-    return _COMPETITOR_TO_SOURCE.get(competitor.strip().lower(), "auto")
+    return _MIGRATION_SOURCE_TO_ADAPTER.get(competitor.strip().lower(), "auto")
 
 
 def build_memory_import_dry_run(
@@ -92,16 +92,16 @@ def build_memory_import_dry_run(
 
     resolved_payload = payload
     resolved_source: RequestedImportSource = source
-    if is_competitor_discovery_payload(payload):
-        resolved_payload = load_competitor_payload(payload)
+    if is_source_discovery_payload(payload):
+        resolved_payload = load_source_payload(payload)
         competitor = str(payload.get("competitor", "")).strip().lower()
         if source in {"auto", "claude_code_jsonl"}:
-            resolved_source = _COMPETITOR_TO_SOURCE.get(competitor, "auto")
+            resolved_source = _MIGRATION_SOURCE_TO_ADAPTER.get(competitor, "auto")
     elif isinstance(payload.get("_discovery_root"), str):
         resolved_payload = payload
 
-    if _is_instruction_only_competitor_payload(resolved_payload):
-        return _instruction_only_competitor_dry_run(resolved_payload)
+    if _is_instruction_only_source_payload(resolved_payload):
+        return _instruction_only_source_dry_run(resolved_payload)
 
     if resolved_source == "claude":
         return dry_run_native_json(resolved_payload)
@@ -159,26 +159,26 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
     return "unknown"
 
 
-_INSTRUCTION_ONLY_COMPETITORS = frozenset({"claude", "cursor", "codex"})
+_INSTRUCTION_ONLY_SOURCES = frozenset({"claude", "cursor", "codex"})
 
 
-def _is_instruction_only_competitor_payload(payload: dict[str, object]) -> bool:
-    """True when competitor content lives only in the instruction lane (memory payload empty)."""
+def _is_instruction_only_source_payload(payload: dict[str, object]) -> bool:
+    """True when external source content lives only in the instruction lane (memory payload empty)."""
 
     competitor = str(payload.get("_source", "")).strip().lower()
-    if competitor not in _INSTRUCTION_ONLY_COMPETITORS:
+    if competitor not in _INSTRUCTION_ONLY_SOURCES:
         return False
     metadata_keys = {"_source", "_discovery_root", "_load_error"}
     return not set(payload.keys()) - metadata_keys
 
 
-def _instruction_only_competitor_dry_run(payload: dict[str, object]) -> MemoryImportDryRunResult:
+def _instruction_only_source_dry_run(payload: dict[str, object]) -> MemoryImportDryRunResult:
     """Return a ready dry-run when memory lane is intentionally empty after split."""
 
     from myrm_agent_harness.toolkits.memory import MemoryImportDryRunSummary
 
     competitor = str(payload.get("_source", "")).strip().lower()
-    adapter_source = resolve_competitor_import_source(competitor)
+    adapter_source = resolve_migration_source(competitor)
     harness_source = to_memory_import_source(
         adapter_source if adapter_source not in {"auto"} else competitor,
     )
@@ -198,7 +198,7 @@ def _instruction_only_competitor_dry_run(payload: dict[str, object]) -> MemoryIm
 
 
 def _detect_source_from_payload_tag(payload: dict[str, object]) -> MemoryImportSource | None:
-    """Prefer explicit ``_source`` from competitor loader over structural heuristics."""
+    """Prefer explicit ``_source`` from source loader over structural heuristics."""
 
     raw = payload.get("_source")
     if not isinstance(raw, str):

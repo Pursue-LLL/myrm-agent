@@ -19,11 +19,11 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
-from app.services.migration.competitor_discovery import (
-    CompetitorSource,
-    discover_competitors,
+from app.services.migration.source_discovery import (
+    ExternalSource,
+    discover_external_sources,
 )
-from app.services.migration.competitor_secrets_importer import import_competitor_secrets
+from app.services.migration.source_secrets_importer import import_external_source_secrets
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 
@@ -34,7 +34,7 @@ class DiscoveredFileResponse(BaseModel):
     size_bytes: int = 0
 
 
-class CompetitorSourceResponse(BaseModel):
+class ExternalSourceResponse(BaseModel):
     competitor: str
     root: str
     confidence: str
@@ -45,13 +45,13 @@ class CompetitorSourceResponse(BaseModel):
 
 
 class DiscoveryResponse(BaseModel):
-    sources: list[CompetitorSourceResponse] = Field(default_factory=list)
+    sources: list[ExternalSourceResponse] = Field(default_factory=list)
     scan_path: str = ""
     available: bool = True
 
 
-def _to_response(source: CompetitorSource) -> CompetitorSourceResponse:
-    return CompetitorSourceResponse(
+def _to_response(source: ExternalSource) -> ExternalSourceResponse:
+    return ExternalSourceResponse(
         competitor=source.competitor,
         root=source.root,
         confidence=source.confidence,
@@ -63,8 +63,8 @@ def _to_response(source: CompetitorSource) -> CompetitorSourceResponse:
 
 
 class SecretsImportRequest(BaseModel):
-    root: str = Field(..., min_length=1, description="Competitor data root directory")
-    competitor: str = Field(..., min_length=1, description="Competitor identifier")
+    root: str = Field(..., min_length=1, description="External data root directory")
+    competitor: str = Field(..., min_length=1, description="Source identifier")
 
 
 class SecretsImportResponse(BaseModel):
@@ -74,14 +74,14 @@ class SecretsImportResponse(BaseModel):
 
 
 @router.post("/secrets/import", response_model=SecretsImportResponse)
-async def import_competitor_secrets_endpoint(body: SecretsImportRequest) -> SecretsImportResponse:
+async def import_external_source_secrets_endpoint(body: SecretsImportRequest) -> SecretsImportResponse:
     """Opt-in import of competitor .env API keys into provider config (local/Tauri only)."""
 
     if not is_local_mode():
         raise HTTPException(status_code=403, detail="Secret import is only available in local or Tauri mode")
 
     try:
-        result = await import_competitor_secrets(Path(body.root))
+        result = await import_external_source_secrets(Path(body.root))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -93,7 +93,7 @@ async def import_competitor_secrets_endpoint(body: SecretsImportRequest) -> Secr
 
 
 @router.get("/discover", response_model=DiscoveryResponse)
-async def discover_competitor_data() -> DiscoveryResponse:
+async def discover_external_source_data() -> DiscoveryResponse:
     """Scan local filesystem for competitor AI assistant data.
 
     Only available in local/Tauri deployment modes. Returns empty in SaaS mode.
@@ -102,7 +102,7 @@ async def discover_competitor_data() -> DiscoveryResponse:
     if not is_local_mode():
         return DiscoveryResponse(sources=[], available=False)
 
-    result = discover_competitors()
+    result = discover_external_sources()
     return DiscoveryResponse(
         sources=[_to_response(s) for s in result.sources],
         scan_path=result.scan_path,

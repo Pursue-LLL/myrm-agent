@@ -3,7 +3,7 @@
 [INPUT]
 Codex data payload with instructions and settings.
 
-Expected payload keys (populated by competitor_discovery or frontend upload):
+Expected payload keys (populated by source_discovery or frontend upload):
   - ``codex_instructions``: str — AGENTS.md / instructions content
   - ``codex_settings``: dict — Codex configuration
   - ``codex_memory``: list[dict] — memory entries if available

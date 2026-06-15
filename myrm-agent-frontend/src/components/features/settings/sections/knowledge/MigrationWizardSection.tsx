@@ -18,10 +18,10 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import {
-  discoverCompetitors,
-  importCompetitorSecrets,
+  discoverMigrationSources,
+  importMigrationSecrets,
   invalidateDiscoveryCache,
-  type CompetitorSource,
+  type ExternalSource,
   type DiscoveryResponse,
 } from '@/services/migrationDiscovery';
 import {
@@ -41,15 +41,15 @@ import { ScanStep, PreviewStep, ResultStep } from './MigrationWizardSteps';
 
 type WizardStep = 'scan' | 'preview' | 'result';
 
-const COMPETITOR_IMPORT_SOURCE_BY_ID: Record<string, MemoryImportSource> = {
+const MIGRATION_SOURCE_IMPORT_BY_ID: Record<string, MemoryImportSource> = {
   hermes: 'hermes',
   openclaw: 'openclaw',
   codex: 'codex',
   claude: 'claude',
 };
 
-function resolveCompetitorImportSource(competitor: string): MemoryImportSource {
-  return COMPETITOR_IMPORT_SOURCE_BY_ID[competitor.trim().toLowerCase()] ?? 'auto';
+function resolveMigrationImportSource(competitor: string): MemoryImportSource {
+  return MIGRATION_SOURCE_IMPORT_BY_ID[competitor.trim().toLowerCase()] ?? 'auto';
 }
 
 interface MigrationWizardSectionProps {
@@ -63,7 +63,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   const [scanning, setScanning] = useState(false);
   const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
 
-  const [selectedSource, setSelectedSource] = useState<CompetitorSource | null>(null);
+  const [selectedSource, setSelectedSource] = useState<ExternalSource | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<MemoryImportDryRunResponse | null>(null);
   const [importSecrets, setImportSecrets] = useState(false);
@@ -86,7 +86,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       setScanning(true);
       try {
         if (force) invalidateDiscoveryCache();
-        const result = await discoverCompetitors(force);
+        const result = await discoverMigrationSources(force);
         setDiscovery(result);
       } catch {
         toast.error(t('scanFailed'));
@@ -103,7 +103,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   }, [handleScan, fetchAgents]);
 
   const handlePreview = useCallback(
-    async (source: CompetitorSource) => {
+    async (source: ExternalSource) => {
       setSelectedSource(source);
       setPreviewing(true);
       setImportSecrets(false);
@@ -115,7 +115,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         };
         const result = await dryRunImportMemories(
           payload,
-          resolveCompetitorImportSource(source.competitor),
+          resolveMigrationImportSource(source.competitor),
           {
           target_agent_id: targetAgentId,
           clone_from_agent_id: 'builtin-general',
@@ -175,7 +175,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
 
       if (importSecrets && selectedSource.has_api_keys) {
         try {
-          const secretsResult = await importCompetitorSecrets(selectedSource.competitor, selectedSource.root);
+          const secretsResult = await importMigrationSecrets(selectedSource.competitor, selectedSource.root);
           setSecretsImportMessage(secretsResult.message);
           if (secretsResult.imported_keys.length > 0) {
             toast.success(t('secretsImportSuccess', { count: secretsResult.imported_keys.length }));

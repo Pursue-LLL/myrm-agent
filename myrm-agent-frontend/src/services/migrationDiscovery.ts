@@ -2,7 +2,7 @@
  * Migration assistant discovery client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
- * [OUTPUT] discoverCompetitors, DiscoveryResponse
+ * [OUTPUT] discoverMigrationSources, DiscoveryResponse
  * [POS] Frontend service for local/Tauri assistant data auto-discovery.
  */
 
@@ -14,7 +14,7 @@ export interface DiscoveredFile {
   size_bytes: number;
 }
 
-export interface CompetitorSource {
+export interface ExternalSource {
   competitor: string;
   root: string;
   confidence: 'low' | 'medium' | 'high';
@@ -25,7 +25,7 @@ export interface CompetitorSource {
 }
 
 export interface DiscoveryResponse {
-  sources: CompetitorSource[];
+  sources: ExternalSource[];
   scan_path: string;
   available: boolean;
 }
@@ -35,7 +35,7 @@ const DISCOVERY_CACHE_TTL_MS = 60_000;
 let discoveryCache: DiscoveryResponse | null = null;
 let discoveryCachedAt = 0;
 
-export async function discoverCompetitors(force = false): Promise<DiscoveryResponse> {
+export async function discoverMigrationSources(force = false): Promise<DiscoveryResponse> {
   const now = Date.now();
   if (!force && discoveryCache && now - discoveryCachedAt < DISCOVERY_CACHE_TTL_MS) {
     return discoveryCache;
@@ -58,14 +58,14 @@ export interface SecretsImportResponse {
   message: string;
 }
 
-export async function importCompetitorSecrets(competitor: string, root: string): Promise<SecretsImportResponse> {
+export async function importMigrationSecrets(competitor: string, root: string): Promise<SecretsImportResponse> {
   return apiRequest<SecretsImportResponse>('/migration/secrets/import', {
     method: 'POST',
     body: JSON.stringify({ competitor, root }),
   });
 }
 
-export function getCompetitorDisplayName(competitor: string): string {
+export function getMigrationSourceDisplayName(competitor: string): string {
   const names: Record<string, string> = {
     hermes: 'Hermes',
     claude: 'Claude Code',

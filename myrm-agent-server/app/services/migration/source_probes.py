@@ -1,10 +1,10 @@
-"""Per-competitor filesystem probe implementations.
+"""Per-source filesystem probe implementations.
 
 [INPUT]
-competitor_discovery::_get_search_paths (POS: 外部助手数据目录路径解析)
+source_discovery::_get_search_paths (POS: 外部助手数据目录路径解析)
 
 [OUTPUT]
-CompetitorSource | None for hermes, claude, openclaw, codex.
+ExternalSource | None for hermes, claude, openclaw, codex.
 
 [POS]
 Local/Tauri filesystem probes for the four supported migration sources only.
@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .competitor_discovery import (
-    CompetitorSource,
+from .source_discovery import (
+    ExternalSource,
     ConfidenceLevel,
     DiscoveredFile,
     _count_md_bullets,
@@ -41,13 +41,13 @@ _CLAUDE_HOME_FILES = {
 }
 
 
-def discover_hermes(explicit_home: Path | None) -> CompetitorSource | None:
+def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
     candidates = _get_search_paths("HERMES_HOME", "hermes", ".hermes", explicit_home)
     root = _find_first_dir(candidates)
     if not root:
         return None
 
-    source = CompetitorSource(competitor="hermes", root=str(root))
+    source = ExternalSource(competitor="hermes", root=str(root))
 
     for filename, kind in _HERMES_FILES.items():
         path = root / filename
@@ -77,13 +77,13 @@ def discover_hermes(explicit_home: Path | None) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def discover_claude(explicit_home: Path | None) -> CompetitorSource | None:
+def discover_claude(explicit_home: Path | None) -> ExternalSource | None:
     candidates = _get_search_paths("CLAUDE_HOME", "Claude", ".claude", explicit_home)
     root = _find_first_dir(candidates)
     if not root:
         return None
 
-    source = CompetitorSource(competitor="claude", root=str(root))
+    source = ExternalSource(competitor="claude", root=str(root))
 
     for filename, kind in _CLAUDE_HOME_FILES.items():
         path = root / filename
@@ -106,13 +106,13 @@ def discover_claude(explicit_home: Path | None) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def discover_openclaw(explicit_home: Path | None) -> CompetitorSource | None:
+def discover_openclaw(explicit_home: Path | None) -> ExternalSource | None:
     candidates = _get_search_paths("OPENCLAW_HOME", "openclaw", ".openclaw", explicit_home)
     root = _find_first_dir(candidates)
     if not root:
         return None
 
-    source = CompetitorSource(competitor="openclaw", root=str(root))
+    source = ExternalSource(competitor="openclaw", root=str(root))
 
     for candidate in ("memory.json", "sessions.json", "config.json"):
         path = root / candidate
@@ -139,13 +139,13 @@ def discover_openclaw(explicit_home: Path | None) -> CompetitorSource | None:
     return source if source.confidence != "low" else None
 
 
-def discover_codex(explicit_home: Path | None) -> CompetitorSource | None:
+def discover_codex(explicit_home: Path | None) -> ExternalSource | None:
     candidates = _get_search_paths("CODEX_HOME", "codex", ".codex", explicit_home)
     root = _find_first_dir(candidates)
     if not root:
         return None
 
-    source = CompetitorSource(competitor="codex", root=str(root))
+    source = ExternalSource(competitor="codex", root=str(root))
 
     for candidate in ("instructions.md", "config.json", "settings.json"):
         path = root / candidate
@@ -165,7 +165,7 @@ def _find_first_dir(candidates: list[Path]) -> Path | None:
     return None
 
 
-def _hermes_confidence(source: CompetitorSource) -> ConfidenceLevel:
+def _hermes_confidence(source: ExternalSource) -> ConfidenceLevel:
     has_memory = any(f.kind in ("memory", "user") for f in source.files)
     has_config = any(f.kind == "config" for f in source.files)
     has_soul = any(f.kind == "soul" for f in source.files)
@@ -176,7 +176,7 @@ def _hermes_confidence(source: CompetitorSource) -> ConfidenceLevel:
     return "low"
 
 
-def _claude_confidence(source: CompetitorSource) -> ConfidenceLevel:
+def _claude_confidence(source: ExternalSource) -> ConfidenceLevel:
     has_memory = any(f.kind == "memory" for f in source.files)
     has_settings = any(f.kind == "settings" for f in source.files)
     if has_memory and has_settings:

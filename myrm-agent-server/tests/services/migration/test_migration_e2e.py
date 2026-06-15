@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 
 from app.services.memory.import_adapters import build_memory_import_dry_run
-from app.services.migration.competitor_payload_loader import (
+from app.services.migration.source_payload_loader import (
     extract_pending_skills,
-    load_competitor_payload,
+    load_source_payload,
 )
-from app.services.migration.competitor_payload_split import (
+from app.services.migration.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
@@ -60,11 +60,11 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {"competitor": "hermes", "root": str(hermes_e2e_root), "files": []}
-        loaded = load_competitor_payload(discovery)
+        loaded = load_source_payload(discovery)
         dry_run = build_memory_import_dry_run(loaded, "hermes")
         skills = extract_pending_skills(loaded)
 
@@ -80,10 +80,10 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "hermes", "root": str(hermes_e2e_root), "files": []},
         )
         plan = build_instruction_plan(loaded)
@@ -101,11 +101,11 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
         discovery = {"competitor": "openclaw", "root": str(openclaw_e2e_root), "files": []}
-        loaded = load_competitor_payload(discovery)
+        loaded = load_source_payload(discovery)
         dry_run = build_memory_import_dry_run(loaded, "openclaw")
 
         assert dry_run.summary.source == "openclaw"
@@ -122,10 +122,10 @@ class TestMigrationE2E:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "app.services.migration.competitor_payload_loader.is_local_mode",
+            "app.services.migration.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "openclaw", "root": str(openclaw_e2e_root), "files": []},
         )
         memory_payload = extract_memory_payload(loaded, include_episodic=True)

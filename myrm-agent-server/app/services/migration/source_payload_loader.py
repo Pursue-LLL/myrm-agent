@@ -1,4 +1,4 @@
-"""Load competitor discovery metadata into adapter-ready payloads.
+"""Load source discovery metadata into adapter-ready payloads.
 
 [INPUT]
 Wizard/discovery payload: ``{competitor, root, files}``.
@@ -8,8 +8,8 @@ Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, etc.).
 
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
-Public API: load_competitor_payload, build_coverage_items, extract_pending_skills.
-Loaders: hermes/claude/codex in competitor_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
+Public API: load_source_payload, build_coverage_items, extract_pending_skills.
+Loaders: hermes/claude/codex in source_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
 """
 
 from __future__ import annotations
@@ -19,34 +19,34 @@ from typing import TypedDict
 
 from app.config.deploy_mode import is_local_mode
 
-from .competitor_payload_loaders_impl import (
+from .source_payload_loaders_impl import (
     load_claude,
     load_codex,
     load_hermes,
     load_openclaw,
 )
 
-_SUPPORTED_COMPETITORS = frozenset({"hermes", "openclaw", "claude", "codex"})
+_SUPPORTED_SOURCES = frozenset({"hermes", "openclaw", "claude", "codex"})
 
 
-class CompetitorDiscoveryPayload(TypedDict, total=False):
+class SourceDiscoveryPayload(TypedDict, total=False):
     competitor: str
     root: str
     files: list[str]
 
 
-def is_competitor_discovery_payload(payload: dict[str, object]) -> bool:
+def is_source_discovery_payload(payload: dict[str, object]) -> bool:
     """Return True when payload is a discovery stub rather than parsed export data."""
 
     competitor = payload.get("competitor")
     return isinstance(competitor, str) and bool(competitor.strip())
 
 
-def load_competitor_payload(payload: dict[str, object]) -> dict[str, object]:
+def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
     """Read competitor files from disk and return an adapter-ready payload."""
 
     if not is_local_mode():
-        msg = "Competitor payload loading requires local or Tauri deployment mode"
+        msg = "External source payload loading requires local or Tauri deployment mode"
         raise ValueError(msg)
 
     competitor = str(payload.get("competitor", "")).strip().lower()
@@ -126,7 +126,7 @@ def extract_pending_skills(payload: dict[str, object]) -> list[dict[str, object]
     return []
 
 
-def supported_competitor_ids() -> frozenset[str]:
+def supported_source_ids() -> frozenset[str]:
     """Return the closed set of wizard-discoverable migration source ids."""
 
-    return _SUPPORTED_COMPETITORS
+    return _SUPPORTED_SOURCES

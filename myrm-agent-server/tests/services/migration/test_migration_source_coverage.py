@@ -1,4 +1,4 @@
-"""Gap-fill tests for four-source competitor migration (v1.4 routing + lanes)."""
+"""Gap-fill tests for four-source external source migration (v1.4 routing + lanes)."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import pytest
 
 from app.services.memory.import_adapters import (
     build_memory_import_dry_run,
-    resolve_competitor_import_source,
+    resolve_migration_source,
 )
-from app.services.migration.competitor_payload_loader import load_competitor_payload
-from app.services.migration.competitor_payload_split import (
+from app.services.migration.source_payload_loader import load_source_payload
+from app.services.migration.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
 )
@@ -21,7 +21,7 @@ from app.services.migration.competitor_payload_split import (
 @pytest.fixture()
 def _local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "app.services.migration.competitor_payload_loader.is_local_mode",
+        "app.services.migration.source_payload_loader.is_local_mode",
         lambda: True,
     )
 
@@ -38,14 +38,14 @@ class TestResolveCompetitorImportSource:
         ],
     )
     def test_maps_discovery_ids(self, competitor: str, expected: str) -> None:
-        assert resolve_competitor_import_source(competitor) == expected
+        assert resolve_migration_source(competitor) == expected
 
 
 class TestSupportedCompetitorIds:
     def test_closed_set_matches_wizard(self) -> None:
-        from app.services.migration.competitor_payload_loader import supported_competitor_ids
+        from app.services.migration.source_payload_loader import supported_source_ids
 
-        assert supported_competitor_ids() == frozenset({"hermes", "openclaw", "claude", "codex"})
+        assert supported_source_ids() == frozenset({"hermes", "openclaw", "claude", "codex"})
 
 
 class TestAutoRoutingRegression:
@@ -65,7 +65,7 @@ class TestAutoRoutingRegression:
         (workspace / "MEMORY.md").write_text("- Shared markdown fact", encoding="utf-8")
 
         discovery = {"competitor": "openclaw", "root": str(root), "files": []}
-        loaded = load_competitor_payload(discovery)
+        loaded = load_source_payload(discovery)
         result = build_memory_import_dry_run(loaded, "auto")
 
         assert result.summary.source == "openclaw"
@@ -83,7 +83,7 @@ class TestAutoRoutingRegression:
         skill.mkdir(parents=True)
         (skill / "SKILL.md").write_text("---\nname: lint\n---\nLint", encoding="utf-8")
 
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "claude", "root": str(root), "files": []},
         )
         memory_lane = extract_memory_payload(loaded, include_episodic=False)
@@ -112,7 +112,7 @@ class TestOpenClawMultiWorkspace:
         alt.mkdir()
         (alt / "MEMORY.md").write_text("- Side project fact", encoding="utf-8")
 
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "openclaw", "root": str(root), "files": []},
         )
         entries = loaded.get("openclaw_memory")
@@ -134,7 +134,7 @@ class TestOpenClawMultiWorkspace:
         )
         (root / "workspace-main").mkdir()
 
-        loaded = load_competitor_payload(
+        loaded = load_source_payload(
             {"competitor": "openclaw", "root": str(root), "files": []},
         )
         sessions = loaded.get("openclaw_sessions")

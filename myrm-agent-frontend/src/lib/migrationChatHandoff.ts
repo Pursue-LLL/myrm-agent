@@ -1,4 +1,4 @@
-/** Session handoff from competitor migration wizard to the main chat surface. */
+/** Session handoff from external source migration wizard to the main chat surface. */
 
 export const MIGRATION_CHAT_AGENT_STORAGE_KEY = 'myrm:migration-chat-agent-id';
 

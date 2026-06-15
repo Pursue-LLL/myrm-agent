@@ -114,7 +114,7 @@ class MigrationLanePreviewItem(BaseModel):
 
 
 class MemoryImportMigrationOptions(BaseModel):
-    """Competitor migration binding options (Local/Tauri wizard)."""
+    """External assistant migration binding options (Local/Tauri wizard)."""
 
     target_agent_id: str | None = Field(
         None,
@@ -155,7 +155,7 @@ class MemoryImportDryRunRequest(BaseModel):
     skip_duplicates: bool = Field(True, description="Preview duplicate-safe import behavior")
     migration: MemoryImportMigrationOptions | None = Field(
         None,
-        description="Competitor migration binding (instruction/memory lanes)",
+        description="External assistant migration binding (instruction/memory lanes)",
     )
 
 
@@ -171,7 +171,7 @@ class MemoryImportDryRunResponse(BaseModel):
     migration_lanes: list[MigrationLanePreviewItem] = Field(default_factory=list)
     instruction_preview_persona: str | None = Field(
         None,
-        description="Truncated persona preview for competitor migration",
+        description="Truncated persona preview for external assistant migration",
     )
     instruction_preview_rule_names: list[str] = Field(default_factory=list)
     instruction_total_chars: int = Field(
@@ -180,7 +180,7 @@ class MemoryImportDryRunResponse(BaseModel):
     )
     providers_configured: bool = Field(
         True,
-        description="Whether model provider slots exist for competitor API key import",
+        description="Whether model provider slots exist for external assistant API key import",
     )
 
 
@@ -202,7 +202,7 @@ class MemoryImportRollbackRequest(BaseModel):
     import_batch_id: str | None = Field(None, description="Confirmed import batch id")
     delete_imported_agent: bool = Field(
         False,
-        description="When true, delete the agent created by this competitor import batch",
+        description="When true, delete the agent created by this external assistant import batch",
     )
 
 

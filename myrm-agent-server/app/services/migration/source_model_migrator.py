@@ -1,7 +1,7 @@
 """Auto-migrate Hermes auxiliary model config into Myrm model slots (Local/Tauri only).
 
 [INPUT]
-competitor_payload_loader hermes_config dict; Hermes config.yaml ``auxiliary`` section
+source_payload_loader hermes_config dict; Hermes config.yaml ``auxiliary`` section
 
 [OUTPUT]
 migrate_hermes_auxiliary_models(): detect and convert Hermes per-task auxiliary models

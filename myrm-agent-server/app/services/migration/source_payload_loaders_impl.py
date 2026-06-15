@@ -1,4 +1,4 @@
-"""Per-competitor payload loader implementations (basic loaders).
+"""Per-source payload loader implementations (basic loaders).
 
 [INPUT]
 Path root + file_paths from discovery.

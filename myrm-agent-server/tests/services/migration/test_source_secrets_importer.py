@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.migration.competitor_secrets_importer import import_competitor_secrets
+from app.services.migration.source_secrets_importer import import_external_source_secrets
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_import_secrets_seeds_providers_when_list_empty(
     (root / ".env").write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "app.services.migration.competitor_secrets_importer.is_local_mode",
+        "app.services.migration.source_secrets_importer.is_local_mode",
         lambda: True,
     )
 
@@ -42,15 +42,15 @@ async def test_import_secrets_seeds_providers_when_list_empty(
         stored["value"] = value
 
     monkeypatch.setattr(
-        "app.services.migration.competitor_secrets_importer.config_service.get",
+        "app.services.migration.source_secrets_importer.config_service.get",
         fake_get,
     )
     monkeypatch.setattr(
-        "app.services.migration.competitor_secrets_importer.config_service.set",
+        "app.services.migration.source_secrets_importer.config_service.set",
         fake_set,
     )
 
-    result = await import_competitor_secrets(root)
+    result = await import_external_source_secrets(root)
     assert result["imported_keys"] == ["OPENAI_API_KEY"]
     providers = stored["value"]["providers"]
     assert isinstance(providers, list)
