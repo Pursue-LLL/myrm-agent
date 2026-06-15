@@ -153,7 +153,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "config": ("config", "artifact_mappings"),
     "statistics": ("statistics",),
     "memory": ("memory",),
-    "projects": ("projects",),
+    "projects": ("projects", "chats"),
     "wiki": ("wiki",),
     "connect": ("connect",),
     "companion": ("companion",),
