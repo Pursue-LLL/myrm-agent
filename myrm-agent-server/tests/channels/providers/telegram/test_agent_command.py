@@ -258,3 +258,58 @@ class TestSendAgentPicker:
         call_kwargs = channel._client.send_message.call_args.kwargs
         reply_markup = call_kwargs.get("reply_markup")
         assert reply_markup["inline_keyboard"][0][0]["text"] == "raw-id"
+
+    @pytest.mark.asyncio
+    async def test_picker_marks_bound_agent_with_checkmark(self, channel):
+        agents = [
+            FakeAgentProfile(id="a1", display_name="Alpha"),
+            FakeAgentProfile(id="a2", display_name="Beta"),
+        ]
+        msg = _make_msg(content="/agent")
+
+        class _BoundTopicManager:
+            async def resolve_topic(self, channel_name, chat_id, thread_id):
+                if thread_id is None:
+                    return _FakeTopicContext(agent_id="a2")
+                return None
+
+        with (
+            patch(
+                "app.services.agent.agent_service.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                return_value=(agents, 2),
+            ),
+            patch(
+                "app.core.channel_bridge.topic_config.SqlTopicManager",
+                return_value=_BoundTopicManager(),
+            ),
+        ):
+            await channel._send_agent_picker(msg)
+
+        call_kwargs = channel._client.send_message.call_args.kwargs
+        keyboard = call_kwargs["reply_markup"]["inline_keyboard"]
+        assert keyboard[0][0]["text"] == "Alpha"
+        assert keyboard[1][0]["text"] == "✅ Beta"
+
+    @pytest.mark.asyncio
+    async def test_picker_no_bound_agent_no_checkmark(self, channel):
+        agents = [FakeAgentProfile(id="a1", display_name="Alpha")]
+        msg = _make_msg(content="/agent")
+
+        with (
+            patch(
+                "app.services.agent.agent_service.AgentService.get_agent_list",
+                new_callable=AsyncMock,
+                return_value=(agents, 1),
+            ),
+            patch(
+                "app.core.channel_bridge.topic_config.SqlTopicManager",
+                return_value=_FakeTopicManager(),
+            ),
+        ):
+            await channel._send_agent_picker(msg)
+
+        call_kwargs = channel._client.send_message.call_args.kwargs
+        keyboard = call_kwargs["reply_markup"]["inline_keyboard"]
+        assert keyboard[0][0]["text"] == "Alpha"
+        assert "✅" not in keyboard[0][0]["text"]

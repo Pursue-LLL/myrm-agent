@@ -152,7 +152,6 @@ personality_activated =
     { $description }
 personality_set =  Personality set to **{ $style }**
 personality_invalid =  Invalid style '{ $style }'. Use `/personality list` to see available options.
-agent_route_switched =  Default agent switched to: { $agent_id }
 status_header = **Session Status**
 status_session = • **Session:** `{ $session_id }`
 status_title = • **Title:** { $title }

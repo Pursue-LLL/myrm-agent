@@ -152,7 +152,6 @@ personality_activated =
     { $description }
 personality_set =  个性已设为 **{ $style }**
 personality_invalid =  无效风格「{ $style }」。使用 `/personality list` 查看可用选项。
-agent_route_switched =  默认智能体已切换为：{ $agent_id }
 status_header = **会话状态**
 status_session = • **会话：** `{ $session_id }`
 status_title = • **标题：** { $title }
