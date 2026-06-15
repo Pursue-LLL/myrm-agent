@@ -65,7 +65,7 @@ const MemoryCenterSection = memo(() => {
       case 'archival':
         return '配置归档策略、运行自动归档，维持高性能的大脑索引 / Manage criteria and run older memory archival';
       case 'migration':
-        return '扫描本地竞品数据、预览导入记忆；技能提交审核；MCP 与渠道需手动补配 / Scan local competitor data, preview memory import; skills require review';
+        return t('memoryCenter.tabDescriptions.migration');
       default:
         return '';
     }

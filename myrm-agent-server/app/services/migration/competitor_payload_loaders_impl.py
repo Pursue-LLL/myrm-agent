@@ -7,9 +7,8 @@ Path root + file_paths from discovery.
 Adapter-ready dict per competitor (soul_md, memory, skills, env_keys, etc.).
 
 [POS]
-Basic loaders (hermes/cursor/codex/claude/windsurf/trae) live here.
-Complex loaders (openclaw/qwenpaw) live in _loaders_openclaw_qwenpaw.py and are
-re-exported from this module for a single public import surface.
+Basic loaders (hermes/codex/claude) live here.
+OpenClaw loader lives in _loaders_openclaw.py and is re-exported from this module.
 """
 
 from __future__ import annotations
@@ -24,9 +23,6 @@ from ._loader_utils import (
     read_text,
     read_yaml,
 )
-
-
-# --- Per-competitor loaders ---
 
 
 def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
@@ -66,35 +62,6 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
         skills = load_skill_directories(skills_dir, source="hermes")
         if skills:
             result["skills"] = skills
-
-    return result
-
-
-def load_cursor(root: Path, file_paths: list[str]) -> dict[str, object]:
-    from ._loader_utils import read_json
-
-    result: dict[str, object] = {}
-    rules: list[dict[str, object]] = []
-
-    for raw in file_paths:
-        path = Path(raw)
-        if path.suffix in {".md", ".mdc"} and path.is_file():
-            rules.append(_rule_from_file(path))
-
-    rules_dir = root / "rules"
-    if rules_dir.is_dir():
-        for path in rules_dir.iterdir():
-            if path.suffix in {".md", ".mdc"} and path.is_file():
-                rules.append(_rule_from_file(path))
-
-    if rules:
-        result["cursor_rules"] = rules
-
-    settings_path = path_by_kind(file_paths, "settings.json") or find_file(root, "settings.json")
-    if settings_path:
-        settings_data = read_json(settings_path)
-        if isinstance(settings_data, dict):
-            result["cursor_settings"] = settings_data
 
     return result
 
@@ -164,79 +131,4 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
     return result
 
 
-def load_windsurf(root: Path, file_paths: list[str]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    extra_dirs: list[Path] = []
-    memories_dir = root / "memories"
-    if memories_dir.is_dir():
-        extra_dirs.append(memories_dir)
-    rules = _collect_rules(root, file_paths, extra_scan_dirs=extra_dirs)
-    if rules:
-        result["cursor_rules"] = rules
-    return result
-
-
-def load_trae(root: Path, file_paths: list[str]) -> dict[str, object]:
-    result: dict[str, object] = {}
-    rules = _collect_rules(root, file_paths)
-    if rules:
-        result["cursor_rules"] = rules
-    skills_dir = root / "skills"
-    if skills_dir.is_dir():
-        skills = load_skill_directories(skills_dir, source="trae")
-        if skills:
-            result["skills"] = skills
-    return result
-
-
-# --- Private helpers ---
-
-
-def _collect_rules(
-    root: Path,
-    file_paths: list[str],
-    *,
-    extra_scan_dirs: list[Path] | None = None,
-) -> list[dict[str, object]]:
-    """Collect rule files from explicit paths, extra dirs, and root/rules/."""
-
-    rules: list[dict[str, object]] = []
-    seen: set[str] = set()
-
-    for raw in file_paths:
-        path = Path(raw)
-        if path.suffix == ".md" and path.is_file():
-            resolved = str(path.resolve())
-            if resolved not in seen:
-                seen.add(resolved)
-                rules.append(_rule_from_file(path))
-
-    scan_dirs = list(extra_scan_dirs or [])
-    rules_dir = root / "rules"
-    if rules_dir.is_dir():
-        scan_dirs.append(rules_dir)
-
-    for dir_path in scan_dirs:
-        if not dir_path.is_dir():
-            continue
-        for path in dir_path.iterdir():
-            if path.suffix == ".md" and path.is_file():
-                resolved = str(path.resolve())
-                if resolved not in seen:
-                    seen.add(resolved)
-                    rules.append(_rule_from_file(path))
-
-    return rules
-
-
-def _rule_from_file(path: Path) -> dict[str, object]:
-    return {
-        "name": path.stem,
-        "content": read_text(path),
-        "globs": "*.md",
-        "path": str(path),
-    }
-
-
-# Re-export complex loaders for a unified import surface
-from ._loaders_openclaw_qwenpaw import load_openclaw, load_qwenpaw  # noqa: E402, F401
+from ._loaders_openclaw import load_openclaw  # noqa: E402, F401

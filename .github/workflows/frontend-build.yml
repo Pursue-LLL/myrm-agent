@@ -23,6 +23,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Frontend line budget (no new >400-line modules)
+        run: python3 scripts/check_file_line_budget.py
       - name: Vitest (shared provider remap contract)
         run: bunx vitest run src/store/config/__tests__/providerIdentityMigration.test.ts
       - name: Next.js build (module graph)

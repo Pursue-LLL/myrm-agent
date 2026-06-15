@@ -43,6 +43,7 @@ class CommandAction(Enum):
     BACKGROUND = "background"
     HANDOFF = "handoff"
     KANBAN = "kanban"
+    MEMORY = "memory"
     STATUS = "status"
     HELP = "help"
 
@@ -214,6 +215,14 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Tasks",
         parse_args=True,
         args_pattern="list|show <id>|create <title>|comment <id> <msg>|edit <id> title|desc <text>|complete <id>|block <id> [reason]|unblock <id>|archive <id>|stats",
+    ),
+    CommandDef(
+        name="memory",
+        description="Review pending memory writes (approve/reject)",
+        action=CommandAction.MEMORY,
+        category="Memory",
+        parse_args=True,
+        args_pattern="[pending|approve <id>|reject <id>|approve all]",
     ),
     CommandDef(
         name="status",

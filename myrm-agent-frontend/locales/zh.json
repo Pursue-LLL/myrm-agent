@@ -209,9 +209,12 @@
       }
     },
     "memoryCenter": {
+      "tabDescriptions": {
+        "migration": "扫描本地其他 AI 助手数据、预览导入记忆；技能提交审核；MCP 与渠道需手动补配"
+      },
       "migrationUnavailable": {
-        "title": "竞品迁移仅支持本地与桌面版",
-        "description": "SaaS 云沙箱无法访问你电脑上的 Hermes/OpenClaw 等目录。请下载 Tauri 桌面版或使用 Local WebUI 后，在设置→记忆→迁移中使用向导。",
+        "title": "助手导入仅支持本地与桌面版",
+        "description": "SaaS 云沙箱无法访问你电脑上的 Hermes、OpenClaw、Claude Code、Codex 等目录。请下载 Tauri 桌面版或使用 Local WebUI 后，在设置→记忆→迁移中使用向导。",
         "downloadCta": "前往下载页面"
       }
     },
@@ -6781,8 +6784,8 @@
       }
     },
     "migrationWizard": {
-      "title": "竞品数据迁移",
-      "description": "扫描 Hermes、OpenClaw、Claude Code、Cursor、Codex —— 人设写入新智能体，事实进全局记忆，规则进工作区",
+      "title": "从其他 AI 助手导入",
+      "description": "扫描 Hermes、OpenClaw、Claude Code、Codex —— 人设写入新智能体，事实进全局记忆，规则进工作区",
       "scanIncludeEpisodic": "导入 OpenClaw 会话摘要（情景记忆）",
       "targetAgentLabel": "目标智能体",
       "targetAgentCreate": "从导入新建智能体",
@@ -6791,7 +6794,7 @@
       "scanning": "正在扫描...",
       "rescan": "重新扫描",
       "noSourcesFound": "未检测到本地 AI 助手数据",
-      "noSourcesHint": "确保目标 AI 助手的数据目录在本机可访问（如 ~/.hermes, ~/.openclaw 等）",
+      "noSourcesHint": "确保目标 AI 助手的数据目录在本机可访问（如 ~/.hermes、~/.openclaw、~/.claude、~/.codex）",
       "scanFailed": "扫描本地数据失败",
       "previewFailed": "预览导入失败",
       "importFailed": "导入失败",

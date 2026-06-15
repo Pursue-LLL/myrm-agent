@@ -1,13 +1,13 @@
-"""OpenClaw and QwenPaw/CoPaw payload loader implementations.
+"""OpenClaw payload loader implementation.
 
 [INPUT]
 Path root + file_paths from discovery (multi-workspace directory structures).
 
 [OUTPUT]
-Adapter-ready dict with sessions, memory, MCP servers, skills for openclaw/qwenpaw.
+Adapter-ready dict with sessions, memory, MCP servers, skills for openclaw.
 
 [POS]
-Complex loaders handling multi-directory traversal (workspaces, agent.json parsing).
+OpenClaw loader handling multi-directory traversal (workspaces, markdown merge).
 """
 
 from __future__ import annotations
@@ -15,14 +15,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from ._loader_utils import (
-    extract_env_key_names,
-    find_file,
     load_skill_directories,
     markdown_bullets_to_memory,
     path_by_kind,
     read_json,
     read_text,
     read_yaml,
+    find_file,
 )
 
 
@@ -87,96 +86,6 @@ def load_openclaw(root: Path, file_paths: list[str]) -> dict[str, object]:
             result["openclaw_skills"] = merged_skills
 
     return result
-
-
-def load_qwenpaw(root: Path, file_paths: list[str]) -> dict[str, object]:
-    """Load QwenPaw/CoPaw agent configs, prompts, memory, and plugins."""
-
-    result: dict[str, object] = {}
-    agents: list[dict[str, object]] = []
-    mcp_clients: dict[str, object] = {}
-
-    for workspace_dir in _discover_qwenpaw_workspace_dirs(root):
-        agent_json = workspace_dir / "agent.json"
-        if not agent_json.is_file():
-            continue
-        agent_data = read_json(agent_json)
-        if not isinstance(agent_data, dict):
-            continue
-
-        agent_entry: dict[str, object] = {
-            "name": agent_data.get("name", workspace_dir.name),
-            "id": agent_data.get("id", workspace_dir.name),
-        }
-
-        prompt_parts: list[str] = []
-        prompt_files = agent_data.get("system_prompt_files")
-        if isinstance(prompt_files, list):
-            for filename in prompt_files:
-                if isinstance(filename, str):
-                    prompt_path = workspace_dir / filename
-                    if prompt_path.is_file():
-                        prompt_parts.append(read_text(prompt_path))
-
-        if prompt_parts:
-            agent_entry["system_prompt"] = "\n\n---\n\n".join(prompt_parts)
-
-        mcp_cfg = agent_data.get("mcp")
-        if isinstance(mcp_cfg, dict):
-            clients = mcp_cfg.get("clients")
-            if isinstance(clients, dict):
-                mcp_clients.update(clients)
-
-        agents.append(agent_entry)
-
-    if agents:
-        result["qwenpaw_agents"] = agents
-        combined_prompts = [
-            a["system_prompt"] for a in agents if isinstance(a.get("system_prompt"), str)
-        ]
-        if combined_prompts:
-            result["soul_md"] = "\n\n---\n\n".join(combined_prompts)
-
-    if mcp_clients:
-        result["mcp_servers"] = mcp_clients
-
-    memory_dir = root / "memory"
-    if memory_dir.is_dir():
-        memory_entries: list[dict[str, object]] = []
-        for entry in sorted(memory_dir.iterdir()):
-            if not entry.is_file():
-                continue
-            if entry.suffix == ".json":
-                data = read_json(entry)
-                if isinstance(data, list):
-                    memory_entries.extend(item for item in data if isinstance(item, dict))
-                elif isinstance(data, dict):
-                    memory_entries.append(data)
-            elif entry.suffix in (".md", ".txt"):
-                text = read_text(entry).strip()
-                if text:
-                    memory_entries.extend(
-                        markdown_bullets_to_memory(text, category="memory")
-                    )
-        if memory_entries:
-            result["openclaw_memory"] = memory_entries
-
-    secret_dir = root / ".secret"
-    if secret_dir.is_dir():
-        env_file = secret_dir / ".env"
-        if env_file.is_file():
-            result["env_keys"] = extract_env_key_names(env_file)
-
-    plugins_dir = root / "plugins"
-    if plugins_dir.is_dir():
-        skills = load_skill_directories(plugins_dir, source="qwenpaw")
-        if skills:
-            result["skills"] = skills
-
-    return result
-
-
-# --- Private helpers ---
 
 
 def _normalize_openclaw_sessions(data: object | None) -> list[dict[str, object]]:
@@ -252,15 +161,4 @@ def _discover_openclaw_skill_dirs(root: Path) -> list[Path]:
         skills_dir = workspace_dir / "skills"
         if skills_dir.is_dir():
             dirs.append(skills_dir)
-    return dirs
-
-
-def _discover_qwenpaw_workspace_dirs(root: Path) -> list[Path]:
-    dirs: list[Path] = []
-    try:
-        for entry in root.iterdir():
-            if entry.is_dir() and (entry / "agent.json").is_file():
-                dirs.append(entry)
-    except OSError:
-        pass
     return dirs

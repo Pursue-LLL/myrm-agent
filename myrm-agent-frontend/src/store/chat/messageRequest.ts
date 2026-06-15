@@ -55,6 +55,7 @@ import { generateCompanion, getEnhancedPersonality, getTitle } from '@/component
 import useCompanionStore from '../useCompanionStore';
 import { API_BASE_URL } from '@/lib/api';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
+import { normalizeApiUrl } from '@/store/config/providerTypes';
 import type { ChatState } from './types';
 
 import type { Rarity } from '@/components/features/companion/companionGenerator';
@@ -211,7 +212,7 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
   return {
     providerId: selection.providerId,
     model: selection.model,
-    baseUrl: provider.apiUrl || undefined,
+    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
     modelKwargs: mergedKwargs,
     supportsVision: modelInfo?.supports_vision ?? false,
   };
@@ -243,7 +244,7 @@ const resolveSelectionToModelSelection = (
   return {
     providerId: selection.providerId,
     model: selection.model,
-    baseUrl: provider.apiUrl || undefined,
+    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
     modelKwargs: Object.keys(mergedKwargs).length > 0 ? mergedKwargs : undefined,
     supportsVision: modelInfo?.supports_vision ?? false,
   };

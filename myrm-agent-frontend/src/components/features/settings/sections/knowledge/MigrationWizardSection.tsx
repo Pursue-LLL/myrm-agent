@@ -44,13 +44,8 @@ type WizardStep = 'scan' | 'preview' | 'result';
 const COMPETITOR_IMPORT_SOURCE_BY_ID: Record<string, MemoryImportSource> = {
   hermes: 'hermes',
   openclaw: 'openclaw',
-  cursor: 'cursor_rules',
   codex: 'codex',
   claude: 'claude',
-  windsurf: 'windsurf',
-  trae: 'trae',
-  qwenpaw: 'hermes',
-  mem0: 'mem0',
 };
 
 function resolveCompetitorImportSource(competitor: string): MemoryImportSource {
@@ -147,7 +142,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       const skillResult = await submitSkillMigration({
         source: selectedSource.competitor,
         skills: pendingSkills.map((skill) => ({ ...skill })),
-        description: `Competitor migration from ${selectedSource.competitor}`,
+        description: `Assistant import from ${selectedSource.competitor}`,
         target_agent_id: bindAgentId ?? null,
       });
       setSkillSubmitResult(skillResult);

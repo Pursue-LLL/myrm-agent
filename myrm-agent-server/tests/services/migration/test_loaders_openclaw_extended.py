@@ -1,4 +1,4 @@
-"""Extended unit tests for OpenClaw loader branches in _loaders_openclaw_qwenpaw.py."""
+"""Extended unit tests for OpenClaw loader branches in _loaders_openclaw.py."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.migration._loaders_openclaw_qwenpaw import load_openclaw
+from app.services.migration._loaders_openclaw import load_openclaw
 
 
 class TestOpenClawConfigJson:

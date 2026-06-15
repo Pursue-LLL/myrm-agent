@@ -1,4 +1,4 @@
-"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, topic commands.
+"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, topic commands.
 
 [INPUT]
 - channels.protocols.goal_command::GoalSubcommand (POS: parsed /goal subcommand actions)
@@ -21,8 +21,12 @@ from __future__ import annotations
 import dataclasses
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from app.ai_agents.personality_templates import PERSONALITY_TEMPLATES
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory import MemoryManager
 from app.channels.i18n import get_text
 from app.channels.protocols.goal_command import GoalSubcommand
 from app.channels.routing.commands import (
@@ -33,6 +37,7 @@ from app.channels.routing.commands import (
     handle_retry,
     handle_topic_command,
     handle_undo,
+    parse_memory_args,
 )
 from app.channels.routing.router_host import RouterCommandsHost
 from app.channels.routing.router_keys import routing_session_key
@@ -922,3 +927,112 @@ class RouterCommandsMixin:
             reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
+
+    # ── /memory: pending memory approval flow ──────────────────────
+
+    async def _handle_memory_command(
+        self: RouterCommandsHost,
+        msg: InboundMessage,
+        raw_args: str,
+    ) -> None:
+        """Handle /memory command: review and approve/reject pending memory writes."""
+        chat_id = msg.chat_id or msg.sender_id
+        action, memory_id = parse_memory_args(raw_args)
+
+        try:
+            from app.core.memory.adapters.setup import (
+                create_memory_manager,
+                resolve_context_binding,
+            )
+            from app.services.agent.platform_config import require_platform_embedding_config
+
+            embedding_cfg = await require_platform_embedding_config()
+            manager = await create_memory_manager(
+                resolve_context_binding(
+                    namespaces=None,
+                    agent_id=None,
+                    channel_id=None,
+                    conversation_id=None,
+                    task_id=None,
+                ),
+                embedding_cfg,
+                approval_required=True,
+            )
+        except Exception:
+            logger.exception("Failed to create MemoryManager for /memory command")
+            content = get_text(msg, "memory_unavailable")
+            await self._bus.publish_outbound(OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=content,
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            ))
+            return
+
+        try:
+            if action == "pending":
+                records = await manager.list_pending(limit=20)
+                if not records:
+                    content = get_text(msg, "memory_no_pending")
+                else:
+                    lines: list[str] = [get_text(msg, "memory_pending_header", count=len(records))]
+                    for rec in records:
+                        short_id = rec.id[:8]
+                        lines.append(f"  `{short_id}` [{rec.memory_type.value}] {rec.content[:60]}")
+                    lines.append("")
+                    lines.append(get_text(msg, "memory_pending_hint"))
+                    content = "\n".join(lines)
+
+            elif action == "approve" and memory_id:
+                matched = await _resolve_pending_id(manager, memory_id)
+                if not matched:
+                    content = get_text(msg, "memory_not_found", id=memory_id)
+                else:
+                    await manager.approve(matched)
+                    content = get_text(msg, "memory_approved", id=matched[:8])
+
+            elif action == "reject" and memory_id:
+                matched = await _resolve_pending_id(manager, memory_id)
+                if not matched:
+                    content = get_text(msg, "memory_not_found", id=memory_id)
+                else:
+                    await manager.reject(matched)
+                    content = get_text(msg, "memory_rejected", id=matched[:8])
+
+            elif action == "approve_all":
+                records = await manager.list_pending()
+                if not records:
+                    content = get_text(msg, "memory_no_pending")
+                else:
+                    for rec in records:
+                        await manager.approve(rec.id)
+                    content = get_text(msg, "memory_approved_all", count=len(records))
+            else:
+                content = get_text(msg, "memory_no_pending")
+
+        except Exception:
+            logger.exception("Memory command failed: /memory %s", raw_args)
+            content = get_text(msg, "memory_error")
+
+        await self._bus.publish_outbound(OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=content,
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        ))
+
+
+async def _resolve_pending_id(
+    manager: MemoryManager,
+    partial_id: str,
+) -> str | None:
+    """Resolve a partial memory ID prefix to a full pending ID."""
+    records = await manager.list_pending()
+    for rec in records:
+        if rec.id.startswith(partial_id):
+            return rec.id
+    return None

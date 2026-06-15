@@ -48,9 +48,9 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Inbound message processing pipeline: routing, commands, policy, sessions. | — |
-| command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, handoff, status, help). | — |
+| command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, handoff, status, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
-| commands.py | Core | Pure argument parsers for complex commands (approval incl. emoji reactions, yolo, personality, topic) and async command handlers. No business-specific route definitions. | ✅ |
+| commands.py | Core | Pure argument parsers for complex commands (approval incl. emoji reactions, yolo, personality, memory, topic) and async command handlers. No business-specific route definitions. | ✅ |
 | context_buffer.py | Core | Pure in-memory buffer, no I/O, no lifecycle management. | ✅ |
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply). Operational replies use `MessagePriority.SYSTEM` for important-mode notify. | ✅ |

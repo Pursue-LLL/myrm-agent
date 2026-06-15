@@ -6462,7 +6462,7 @@
     },
     "migrationWizard": {
       "title": "Competitor Data Migration",
-      "description": "Scan Hermes, OpenClaw, Claude Code, Cursor, or Codex — persona goes to a new agent, facts to global memory, rules to workspace",
+      "description": "Scan Hermes, OpenClaw, Claude Code, or Codex — persona goes to a new agent, facts to global memory, rules to workspace",
       "scanIncludeEpisodic": "Include OpenClaw session summaries (episodic memory)",
       "targetAgentLabel": "Target agent",
       "targetAgentCreate": "Create new agent from import",

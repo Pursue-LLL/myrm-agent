@@ -7,7 +7,7 @@ Path objects and raw file content from competitor data directories.
 Parsed text/JSON/YAML, path lookups, env key extraction, skill directory scanning.
 
 [POS]
-Shared module used by competitor_payload_loaders_impl.py and _loaders_openclaw_qwenpaw.py.
+Shared module used by competitor_payload_loaders_impl.py and _loaders_openclaw.py.
 """
 
 from __future__ import annotations

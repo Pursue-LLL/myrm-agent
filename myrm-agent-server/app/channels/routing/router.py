@@ -618,6 +618,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             asyncio.create_task(self._handle_kanban_command(msg, raw_args))
             return True
 
+        if action == CommandAction.MEMORY:
+            asyncio.create_task(self._handle_memory_command(msg, raw_args))
+            return True
+
         if action == CommandAction.HANDOFF:
             asyncio.create_task(self._handle_handoff_command(msg, raw_args))
             return True

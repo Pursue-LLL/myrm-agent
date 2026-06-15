@@ -16,7 +16,8 @@ without bloating the core routing loop.
 
 [OUTPUT]
 - parse_approval_command, is_explicit_approval_command: approval command parsing
-- parse_yolo_args, parse_personality_args: argument parsers for complex commands
+- parse_yolo_args, parse_personality_args, parse_memory_args: argument parsers for complex commands
+- MemoryAction: Literal type for /memory sub-commands
 - TopicCommand, parse_topic_args: topic command parsing
 - handle_new_session, handle_compact, handle_topic_command: async command handlers
 - handle_retry, handle_undo: async command handlers
@@ -103,6 +104,43 @@ def parse_personality_args(raw_args: str) -> str:
     """
     style = raw_args.strip().lower()
     return style if style else "list"
+
+
+MemoryAction = Literal["pending", "approve", "reject", "approve_all"]
+
+
+def parse_memory_args(raw_args: str) -> tuple[MemoryAction, str | None]:
+    """Parse /memory sub-command arguments.
+
+    Supported formats:
+    - ""                    -> ("pending", None)
+    - "pending"             -> ("pending", None)
+    - "approve <id>"        -> ("approve", "<id>")
+    - "reject <id>"         -> ("reject", "<id>")
+    - "approve all"         -> ("approve_all", None)
+
+    Returns:
+        Tuple of (action, memory_id_or_none).
+    """
+    parts = raw_args.strip().split(maxsplit=1)
+    if not parts:
+        return ("pending", None)
+
+    action = parts[0].lower()
+    rest = parts[1].strip() if len(parts) > 1 else ""
+
+    if action == "pending":
+        return ("pending", None)
+
+    if action == "approve":
+        if rest.lower() == "all":
+            return ("approve_all", None)
+        return ("approve", rest) if rest else ("pending", None)
+
+    if action == "reject":
+        return ("reject", rest) if rest else ("pending", None)
+
+    return ("pending", None)
 
 
 # ---------------------------------------------------------------------------

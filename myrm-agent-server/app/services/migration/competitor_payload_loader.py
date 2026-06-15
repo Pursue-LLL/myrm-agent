@@ -4,12 +4,12 @@
 Wizard/discovery payload: ``{competitor, root, files}``.
 
 [OUTPUT]
-Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``cursor_rules``, etc.).
+Adapter-ready dict (``soul_md``, ``openclaw_sessions``, ``memory_md``, etc.).
 
 [POS]
 Local/Tauri-only bridge between filesystem discovery and memory import adapters.
 Public API: load_competitor_payload, build_coverage_items, extract_pending_skills.
-Per-competitor loader implementations live in competitor_payload_loaders_impl.py.
+Loaders: hermes/claude/codex in competitor_payload_loaders_impl.py; openclaw in _loaders_openclaw.py.
 """
 
 from __future__ import annotations
@@ -22,13 +22,11 @@ from app.config.deploy_mode import is_local_mode
 from .competitor_payload_loaders_impl import (
     load_claude,
     load_codex,
-    load_cursor,
     load_hermes,
     load_openclaw,
-    load_qwenpaw,
-    load_trae,
-    load_windsurf,
 )
+
+_SUPPORTED_COMPETITORS = frozenset({"hermes", "openclaw", "claude", "codex"})
 
 
 class CompetitorDiscoveryPayload(TypedDict, total=False):
@@ -60,12 +58,8 @@ def load_competitor_payload(payload: dict[str, object]) -> dict[str, object]:
     loaders = {
         "hermes": load_hermes,
         "openclaw": load_openclaw,
-        "cursor": load_cursor,
         "codex": load_codex,
         "claude": load_claude,
-        "windsurf": load_windsurf,
-        "trae": load_trae,
-        "qwenpaw": load_qwenpaw,
     }
     loader = loaders.get(competitor)
     if loader is None:
@@ -130,3 +124,9 @@ def extract_pending_skills(payload: dict[str, object]) -> list[dict[str, object]
         return [item for item in openclaw_skills if isinstance(item, dict)]
 
     return []
+
+
+def supported_competitor_ids() -> frozenset[str]:
+    """Return the closed set of wizard-discoverable migration source ids."""
+
+    return _SUPPORTED_COMPETITORS

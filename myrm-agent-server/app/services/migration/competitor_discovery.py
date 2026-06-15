@@ -1,17 +1,17 @@
-"""Competitor data auto-discovery service.
+"""External AI assistant data auto-discovery service.
 
 [INPUT]
-Local filesystem scan of well-known competitor data directories.
+Local filesystem scan of well-known external assistant data directories.
 
 [OUTPUT]
-DiscoveryResult: list of detected competitor data sources with confidence scoring.
+DiscoveryResult: list of detected data sources with confidence scoring.
 
 [POS]
-Local/Tauri-only service that scans the user's home directory for competitor
-AI assistant data (Hermes, Claude Code, OpenClaw, Cursor, Codex, Windsurf, Trae, QwenPaw).
-SaaS mode cannot access user filesystems, so this service only runs in local deployments.
-
-Individual per-competitor probe logic lives in competitor_probes.py.
+Local/Tauri-only service that scans the user's home directory for external
+AI assistant data (Hermes, Claude Code, OpenClaw, Codex — four sources only).
+SaaS sandboxes cannot access user filesystems.
+Per-source probe logic lives in competitor_probes.py.
+New migration sources are intentionally out of scope; see _ARCH.md policy.
 """
 
 from __future__ import annotations
@@ -133,12 +133,8 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
     from .competitor_probes import (
         discover_claude,
         discover_codex,
-        discover_cursor,
         discover_hermes,
         discover_openclaw,
-        discover_qwenpaw,
-        discover_trae,
-        discover_windsurf,
     )
 
     home = Path(home_dir) if home_dir else None
@@ -149,11 +145,7 @@ def discover_competitors(home_dir: str | None = None) -> DiscoveryResult:
         discover_hermes,
         discover_claude,
         discover_openclaw,
-        discover_cursor,
         discover_codex,
-        discover_windsurf,
-        discover_trae,
-        discover_qwenpaw,
     ]
 
     for probe in probes:

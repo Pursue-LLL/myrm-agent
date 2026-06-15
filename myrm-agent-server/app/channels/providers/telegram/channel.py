@@ -147,6 +147,7 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
 
     _DEFAULT_COMMANDS = (
         BotCommand(command="agent", description="Switch active agent"),
+        BotCommand(command="memory", description="Review pending memory writes"),
     )
 
     @classmethod

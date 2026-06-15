@@ -1,9 +1,9 @@
 /**
- * Migration competitor discovery client.
+ * Migration assistant discovery client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
  * [OUTPUT] discoverCompetitors, DiscoveryResponse
- * [POS] Frontend service for competitor data auto-discovery (local/Tauri only).
+ * [POS] Frontend service for local/Tauri assistant data auto-discovery.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -70,11 +70,7 @@ export function getCompetitorDisplayName(competitor: string): string {
     hermes: 'Hermes',
     claude: 'Claude Code',
     openclaw: 'OpenClaw',
-    cursor: 'Cursor',
     codex: 'Codex',
-    windsurf: 'Windsurf',
-    trae: 'Trae',
-    qwenpaw: 'QwenPaw',
   };
   return names[competitor] ?? competitor;
 }

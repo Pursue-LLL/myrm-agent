@@ -1,4 +1,4 @@
-"""Gap-fill tests for five-source competitor migration (v1.4 routing + lanes)."""
+"""Gap-fill tests for four-source competitor migration (v1.4 routing + lanes)."""
 
 from __future__ import annotations
 
@@ -32,7 +32,6 @@ class TestResolveCompetitorImportSource:
         [
             ("hermes", "hermes"),
             ("openclaw", "openclaw"),
-            ("cursor", "cursor_rules"),
             ("codex", "codex"),
             ("claude", "claude"),
             ("unknown_vendor", "auto"),
