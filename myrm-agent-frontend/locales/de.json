@@ -8862,6 +8862,8 @@
     "sttModel": "Model",
     "sttLanguage": "Language",
     "sttLanguagePlaceholder": "Auto-detect",
+    "sttBaseUrl": "STT-Basis-URL",
+    "sttBaseUrlPlaceholder": "https://api.openai.com/v1 (Standard)",
     "ttsTitle": "Text-to-Speech (TTS)",
     "ttsDesc": "Convert agent text replies to audio before sending.",
     "ttsMode": "TTS Mode",

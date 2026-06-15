@@ -9382,6 +9382,8 @@
     "sttLocalDevice": "运行设备",
     "sttLanguage": "语言",
     "sttLanguagePlaceholder": "自动检测",
+    "sttBaseUrl": "STT 基础 URL",
+    "sttBaseUrlPlaceholder": "https://api.openai.com/v1（默认）",
     "ttsTitle": "文字转语音 (TTS)",
     "ttsDesc": "在发送前将 Agent 文字回复转换为语音。",
     "ttsMode": "TTS 模式",

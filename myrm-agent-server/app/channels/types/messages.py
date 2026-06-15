@@ -577,6 +577,7 @@ class VoiceConfig:
     stt_local_model: str = "base"
     stt_local_device: str = "auto"
     stt_local_compute_type: str = "auto"
+    stt_base_url: str = ""
 
     tts_mode: TTSMode = TTSMode.OFF
     tts_provider: str = "edge"

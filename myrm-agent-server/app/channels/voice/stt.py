@@ -218,6 +218,8 @@ async def transcribe(audio_path: Path | None, config: VoiceConfig, audio_bytes: 
             return await _transcribe_openai_compatible(audio_path, config, audio_bytes)
         if provider == "deepgram":
             return await _transcribe_deepgram(audio_path, config, audio_bytes)
+        if provider == "xai":
+            return await _transcribe_xai(audio_path, config, audio_bytes)
         logger.warning("STT: unknown provider '%s', trying OpenAI-compatible", provider)
         return await _transcribe_openai_compatible(audio_path, config, audio_bytes)
     except Exception:
@@ -313,7 +315,12 @@ async def _transcribe_openai_compatible(
 ) -> STTResult:
     """OpenAI / Groq transcription (same API format)."""
     provider = config.stt_provider.lower()
-    base_url = _GROQ_TRANSCRIPTION_URL if provider == "groq" else _OPENAI_TRANSCRIPTION_URL
+    if config.stt_base_url:
+        base_url = config.stt_base_url.rstrip("/") + "/audio/transcriptions"
+    elif provider == "groq":
+        base_url = _GROQ_TRANSCRIPTION_URL
+    else:
+        base_url = _OPENAI_TRANSCRIPTION_URL
     model = config.stt_model or ("whisper-large-v3" if provider == "groq" else "whisper-1")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -410,6 +417,65 @@ async def _transcribe_deepgram(
         text=text,
         language=metadata.get("language"),
         duration=metadata.get("duration"),
+    )
+
+
+_XAI_STT_URL = "https://api.x.ai/v1/stt"
+
+
+async def _transcribe_xai(
+    audio_path: Path | None,
+    config: VoiceConfig,
+    audio_bytes: bytes | None = None,
+) -> STTResult:
+    """xAI Grok STT via POST /v1/stt (multipart/form-data).
+
+    Supports Inverse Text Normalization and diarization.
+    Non-OpenAI-compatible API — requires dedicated implementation.
+    """
+    base_url = (config.stt_base_url.rstrip("/") if config.stt_base_url else _XAI_STT_URL.rsplit("/", 1)[0])
+    url = f"{base_url}/stt"
+
+    data: dict[str, str] = {}
+    if config.stt_language:
+        data["language"] = config.stt_language
+    data["format"] = "true"
+
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        if audio_bytes is not None:
+            files = {"file": ("audio.wav", audio_bytes, "audio/wav")}
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {config.stt_api_key}"},
+                files=files,
+                data=data,
+            )
+            resp.raise_for_status()
+        else:
+            with audio_path.open("rb") as f:
+                files = {"file": (audio_path.name, f, _guess_mime(audio_path))}
+                resp = await client.post(
+                    url,
+                    headers={"Authorization": f"Bearer {config.stt_api_key}"},
+                    files=files,
+                    data=data,
+                )
+                resp.raise_for_status()
+
+    body = resp.json()
+    text = body.get("text", "").strip()
+    if not text:
+        raise ValueError("Empty transcript returned from xAI STT")
+
+    logger.info(
+        "STT: xai transcription ok (chars=%d, lang=%s)",
+        len(text),
+        body.get("language"),
+    )
+    return STTResult(
+        text=text,
+        language=body.get("language"),
+        duration=body.get("duration"),
     )
 
 

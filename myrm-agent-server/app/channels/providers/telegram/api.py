@@ -796,6 +796,25 @@ class TelegramClient:
             logger.warning("TelegramClient: download_voice failed %s: %s", file_id, exc)
             return None
 
+    async def download_video(self, file_id: str) -> Path | None:
+        """Download a video/video_note file to a local temp path for STT."""
+        import tempfile
+
+        try:
+            result = await self.get_file(file_id)
+            file_path = str(result.get("file_path", ""))
+            if not file_path:
+                return None
+            content = await self.download_file(file_path)
+            suffix = Path(file_path).suffix or ".mp4"
+            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            tmp.write(content)
+            tmp.close()
+            return Path(tmp.name)
+        except Exception as exc:
+            logger.warning("TelegramClient: download_video failed %s: %s", file_id, exc)
+            return None
+
 
 def get_recommended_send_method(mime_type: str, size: int | None = None) -> str:
     """Recommend the most appropriate Telegram send method based on MIME type and size.

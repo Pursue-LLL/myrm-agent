@@ -21,6 +21,7 @@ interface VoiceFormState {
   sttLocalModel: string;
   sttLocalDevice: string;
   sttLocalComputeType: string;
+  sttBaseUrl: string;
   ttsMode: string;
   ttsProvider: string;
   ttsApiKey: string;
@@ -41,6 +42,7 @@ const DEFAULT_STATE: VoiceFormState = {
   sttLocalModel: 'base',
   sttLocalDevice: 'auto',
   sttLocalComputeType: 'auto',
+  sttBaseUrl: '',
   ttsMode: 'off',
   ttsProvider: 'edge',
   ttsApiKey: '',
@@ -57,6 +59,7 @@ const STT_PROVIDERS = [
   { value: 'openai', label: 'OpenAI Whisper' },
   { value: 'groq', label: 'Groq Whisper' },
   { value: 'deepgram', label: 'Deepgram' },
+  { value: 'xai', label: 'xAI Grok STT' },
 ];
 
 const LOCAL_MODELS = [
@@ -246,6 +249,16 @@ const VoiceSection = memo(() => {
                     placeholder={t('sttApiKeyPlaceholder')}
                     value={form.sttApiKey}
                     onChange={(e) => update({ sttApiKey: e.target.value })}
+                  />
+                </FieldRow>
+              )}
+
+              {(form.sttProvider === 'openai' || form.sttProvider === 'xai') && (
+                <FieldRow label={t('sttBaseUrl')}>
+                  <Input
+                    placeholder={t('sttBaseUrlPlaceholder')}
+                    value={form.sttBaseUrl}
+                    onChange={(e) => update({ sttBaseUrl: e.target.value })}
                   />
                 </FieldRow>
               )}

@@ -3,13 +3,15 @@
 Inbound: getUpdates/Webhook -> _parse_update -> _pre_emit_hook -> _buffer_or_emit -> _emit_inbound
   - DM: direct messages; Group: mention detection via entities
   - Media groups: debounce + hard deadline aggregation into single InboundMessage
-  - Supports message, edited_message, callback_query, sticker
+  - Supports message, edited_message, callback_query (qr/act/sel/ag), sticker
+  - _pre_emit_hook may return None to suppress messages handled as bot commands (/agent)
 Outbound: sendMessage/sendPhoto/sendDocument/sendVoice/sendAudio/sendVideo (HTML parse_mode)
 Forum Topics: create/rename/close/reopen + auto-topic creation with per-user dedup and name sync
 
 [INPUT]
 - channels.core.base::BaseChannel (POS: Abstract base for channel providers.)
 - channels.types::OutboundMessage, InboundMessage
+- services.agent.agent_service::AgentService (POS: 业务层Agent服务。)
 
 [OUTPUT]
 - TelegramChannel: Telegram Bot bidirectional Channel (polling + webhook)
@@ -17,13 +19,15 @@ Forum Topics: create/rename/close/reopen + auto-topic creation with per-user ded
 [POS]
 Telegram Bot channel implementation. Supports DM and group chat, media group
 debounce aggregation, webhook/polling dual mode, inline keyboard rendering,
-Markdown -> HTML conversion, message splitting, command registration, diagnostics,
+Markdown -> HTML conversion, message splitting, command registration, /agent
+inline picker (agent switching via Inline Keyboard), diagnostics,
 and Forum Topic management (create/rename/close/reopen, auto-topic, name sync).
 """
 
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hmac
 import logging
 from pathlib import Path
@@ -140,12 +144,17 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         "allow": ChatPolicy.ALLOW,
     }
 
+    _DEFAULT_COMMANDS = (
+        BotCommand(command="agent", description="Switch active agent"),
+    )
+
     @classmethod
     def from_credentials(cls, creds: dict[str, str]) -> Self:
         from app.channels.core.credentials import parse_bool
 
         instance = cls(
             bot_token=creds.get("token", ""),
+            commands=list(cls._DEFAULT_COMMANDS),
             webhook_url=creds.get("webhook_url") or None,
             auto_topic=parse_bool(creds.get("auto_topic", "false")),
         )
@@ -965,11 +974,73 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         msg = self._parse_update(update)
         if msg:
             msg = await self._pre_emit_hook(msg)
-            await self._buffer_or_emit(msg, update)
+            if msg:
+                await self._buffer_or_emit(msg, update)
 
-    async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage:
-        """Apply auto-topic creation and name sync before emitting inbound messages."""
-        return await self._apply_auto_topic(msg)
+    async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None:
+        """Intercept bot commands and apply auto-topic before emitting."""
+        intercepted = await self._handle_agent_command(msg)
+        if intercepted is None:
+            return None
+        return await self._apply_auto_topic(intercepted)
+
+    async def _handle_agent_command(self, msg: InboundMessage) -> InboundMessage | None:
+        """Intercept /agent command and ag: callback for inline agent switching.
+
+        Returns None when the message was fully handled (suppressed from agent routing).
+        """
+        prefix = msg.metadata.get("callback_prefix")
+
+        if prefix == "ag":
+            return await self._handle_agent_callback(msg)
+
+        content = (msg.content or "").strip().lower()
+        bot_suffix = f"/agent@{self._bot_username}".lower() if self._bot_username else ""
+        if content == "/agent" or (bot_suffix and content == bot_suffix):
+            try:
+                await self._send_agent_picker(msg)
+            except Exception as exc:
+                logger.warning("TelegramChannel: /agent picker failed: %s", exc)
+            return None
+
+        return msg
+
+    async def _send_agent_picker(self, msg: InboundMessage) -> None:
+        """Query available agents and send an inline keyboard picker."""
+        from app.services.agent.agent_service import AgentService
+
+        agents, _ = await AgentService.get_agent_list(page=1, page_size=50)
+        chat_id = msg.chat_id or msg.sender_id
+        if not chat_id:
+            return
+
+        if not agents:
+            await self._client.send_message(
+                chat_id,
+                "No agents configured.",
+                message_thread_id=int(msg.thread_id) if msg.thread_id else None,
+            )
+            return
+
+        keyboard_rows: list[list[dict[str, str]]] = []
+        for agent in agents:
+            label = agent.display_name or agent.id
+            keyboard_rows.append([{"text": label, "callback_data": f"ag:{agent.id}"}])
+
+        reply_markup = {"inline_keyboard": keyboard_rows}
+        await self._client.send_message(
+            chat_id,
+            "Select an agent:",
+            message_thread_id=int(msg.thread_id) if msg.thread_id else None,
+            reply_markup=reply_markup,
+        )
+
+    async def _handle_agent_callback(self, msg: InboundMessage) -> InboundMessage | None:
+        """Convert ag: callback into a /bind command for the router layer."""
+        agent_id = (msg.content or "").strip()
+        if not agent_id:
+            return msg
+        return dataclasses.replace(msg, content=f"/bind {agent_id}")
 
     async def _apply_auto_topic(self, msg: InboundMessage) -> InboundMessage:
         """Auto-create a Forum topic and sync name for inbound messages.
@@ -1027,6 +1098,10 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
     async def download_voice_message(self, file_id: str) -> Path | None:
         """Download a Telegram voice/audio file via getFile API to a local temp path."""
         return await self._client.download_voice(file_id)
+
+    async def download_video_file(self, file_id: str) -> Path | None:
+        """Download a Telegram video/video_note via getFile API to a local temp path."""
+        return await self._client.download_video(file_id)
 
     # ------------------------------------------------------------------
     # Internal: commands, webhook

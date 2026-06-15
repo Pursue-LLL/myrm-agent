@@ -14,8 +14,9 @@ Handles message, edited_message, callback_query, sticker, location, venue, and m
 
 [POS]
 Telegram inbound message parsing, polling loop, and media group aggregation mixin.
-Supports message/edited_message/callback_query/sticker/location/venue. Sets
-`explicit_mention` metadata for guest-mode gating. Webhook payloads validated via Pydantic models.
+Supports message/edited_message/callback_query (qr/act/sel/ag)/sticker/location/venue.
+_pre_emit_hook returns None to suppress handled commands. Sets `explicit_mention`
+metadata for guest-mode gating. Webhook payloads validated via Pydantic models.
 """
 
 from __future__ import annotations
@@ -276,6 +277,11 @@ class TelegramInboundMixin:
             media_list.append(MediaAttachment(media_type=MediaType.VIDEO))
             metadata["video_file_id"] = msg.video.file_id
 
+        if hasattr(msg, "video_note") and msg.video_note:
+            media_list.append(MediaAttachment(media_type=MediaType.VIDEO))
+            metadata["video_file_id"] = msg.video_note.file_id
+            metadata["video_is_video_note"] = True
+
         voice_data = msg.voice or msg.audio
         if voice_data:
             media_list.append(MediaAttachment(media_type=MediaType.AUDIO, mime_type=voice_data.mime_type))
@@ -475,7 +481,7 @@ class TelegramInboundMixin:
             return None
 
         prefix, payload = data.split(":", 1)
-        if prefix not in ("qr", "act", "sel"):
+        if prefix not in ("qr", "act", "sel", "ag"):
             return None
 
         chat_id = ""
@@ -514,8 +520,11 @@ class TelegramInboundMixin:
             },
         )
 
-    async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage:
-        """Hook for subclasses to transform messages before emit. Default: passthrough."""
+    async def _pre_emit_hook(self, msg: InboundMessage) -> InboundMessage | None:
+        """Hook for subclasses to transform/intercept messages before emit.
+
+        Return None to suppress the message (e.g. handled as a bot command).
+        """
         return msg
 
     def _message_mentions_bot(self, msg: TgMessage) -> bool:
@@ -622,7 +631,8 @@ class TelegramInboundMixin:
                     msg = self._parse_update(raw_update)
                     if msg:
                         msg = await self._pre_emit_hook(msg)
-                        await self._buffer_or_emit(msg, raw_update)
+                        if msg:
+                            await self._buffer_or_emit(msg, raw_update)
 
             except asyncio.CancelledError:
                 break

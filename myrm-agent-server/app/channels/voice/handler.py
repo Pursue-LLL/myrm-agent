@@ -12,9 +12,12 @@ dynamic voice control.
 
 [OUTPUT]
 - transcribe_inbound(): STT transcription of inbound voice
+- transcribe_video_inbound(): STT transcription of video audio track
 - download_inbound_audio(): download inbound voice attachment
+- download_inbound_video(): download inbound video attachment for STT
 - maybe_tts(): outbound TTS synthesis
 - has_audio_attachment(): check whether message contains audio attachment
+- has_video_with_audio(): check whether message contains video with audio
 - parse_tts_directives(): parse Agent TTS directives
 - strip_tts_tags(): strip TTS tags
 
@@ -48,6 +51,11 @@ _TTS_TEXT_RE = re.compile(r"\[\[tts:text\]\](.*?)\[\[/tts:text\]\]", re.DOTALL)
 def has_audio_attachment(msg: InboundMessage) -> bool:
     """Check if the message contains an audio/voice attachment."""
     return any(a.media_type == MediaType.AUDIO for a in msg.media)
+
+
+def has_video_with_audio(msg: InboundMessage) -> bool:
+    """Check if the message contains a video attachment that may have audio to transcribe."""
+    return any(a.media_type == MediaType.VIDEO for a in msg.media)
 
 
 def parse_tts_directives(text: str) -> tuple[dict[str, str], str | None]:
@@ -117,6 +125,70 @@ async def transcribe_inbound(
     content = f"{prefix}\n{msg.content}" if msg.content else prefix
     logger.warning("Voice: STT transcribed %d chars from voice", len(result.text))
     return dataclasses.replace(msg, content=content)
+
+
+async def transcribe_video_inbound(
+    msg: InboundMessage,
+    voice_config: VoiceConfig | None,
+    get_channel_fn: object,
+) -> InboundMessage:
+    """Transcribe audio from video attachments and inject transcript into content.
+
+    Best-effort: returns original message unchanged on failure.
+    Video files (.mp4, .webm) are passed directly to STT providers
+    which natively support these formats.
+    """
+    if not voice_config or not voice_config.stt_enabled:
+        return msg
+
+    from app.channels.voice.stt import transcribe
+
+    video_path = await download_inbound_video(msg, get_channel_fn)
+    if not video_path:
+        return msg
+
+    try:
+        result = await transcribe(video_path, voice_config)
+    finally:
+        video_path.unlink(missing_ok=True)
+
+    if not result or not result.text:
+        return msg
+
+    prefix = f"[🎬 Video Transcript] {result.text}"
+    content = f"{prefix}\n{msg.content}" if msg.content else prefix
+    logger.warning("Voice: STT transcribed %d chars from video audio", len(result.text))
+    return dataclasses.replace(msg, content=content)
+
+
+async def download_inbound_video(
+    msg: InboundMessage,
+    get_channel_fn: object,
+) -> Path | None:
+    """Download a video attachment from the inbound message for STT."""
+    from collections.abc import Callable
+
+    assert callable(get_channel_fn)
+    get_channel: Callable[[str], object | None] = get_channel_fn  # type: ignore[assignment]
+    ch = get_channel(msg.channel)
+    if not ch:
+        return None
+
+    if msg.channel == "telegram":
+        file_id = msg.metadata.get("video_file_id")
+        if isinstance(file_id, str) and hasattr(ch, "download_video_file"):
+            return await ch.download_video_file(file_id)  # type: ignore[union-attr]
+
+    for attachment in msg.media:
+        if attachment.media_type == MediaType.VIDEO:
+            if attachment.path:
+                return Path(attachment.path)
+            if attachment.url:
+                from app.channels.voice.stt import download_audio
+
+                return await download_audio(attachment.url)
+
+    return None
 
 
 async def download_inbound_audio(

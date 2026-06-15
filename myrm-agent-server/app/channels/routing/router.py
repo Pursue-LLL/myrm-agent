@@ -34,7 +34,7 @@ and voice STT/TTS via voice_handler module.
 - channels.protocols.pairing::PairingStore, ChannelPolicyProvider (POS: identity binding and policy protocols)
 - channels.protocols.topic::TopicManager (POS: topic management protocol)
 - channels.types::InboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
-- channels.voice.handler::transcribe_inbound, has_audio_attachment (POS: voice processing)
+- channels.voice.handler::transcribe_inbound, transcribe_video_inbound, has_audio_attachment, has_video_with_audio (POS: voice processing)
 - channels.media.image_enrichment::enrich_image_inbound, has_image_attachment (POS: image attachment base64 enrichment)
 - channels.media.video_enrichment::enrich_video_inbound, has_video_attachment (POS: video attachment metadata enrichment)
 - channels.media.document_enrichment::enrich_document_inbound, has_document_attachment (POS: PDF/Office text extraction for IM)
@@ -209,7 +209,9 @@ from app.channels.types import (
 )
 from app.channels.voice.handler import (
     has_audio_attachment,
+    has_video_with_audio,
     transcribe_inbound,
+    transcribe_video_inbound,
 )
 
 logger = logging.getLogger(__name__)
@@ -773,6 +775,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         if not is_resume and has_video_attachment_fn(msg):
             msg = enrich_video_inbound(msg)
             exec_for_error = msg
+            if has_video_with_audio(msg):
+                msg = await transcribe_video_inbound(msg, self._voice, self._bus.get_channel)
+                exec_for_error = msg
 
         if not is_resume and has_image_attachment_fn(msg):
             msg = await enrich_image_inbound(msg, self._bus.get_channel)

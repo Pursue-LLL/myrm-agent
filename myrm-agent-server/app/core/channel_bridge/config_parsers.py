@@ -121,6 +121,7 @@ def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig |
         stt_local_model=str(voice_dict.get("sttLocalModel", "base")),
         stt_local_device=str(voice_dict.get("sttLocalDevice", "auto")),
         stt_local_compute_type=str(voice_dict.get("sttLocalComputeType", "auto")),
+        stt_base_url=str(voice_dict.get("sttBaseUrl", "")),
         tts_mode=tts_mode,
         tts_provider=str(voice_dict.get("ttsProvider", "edge")),
         tts_api_key=str(voice_dict.get("ttsApiKey", "")),

@@ -290,6 +290,7 @@ export interface VoiceConfigValue {
   sttLocalModel: string;
   sttLocalDevice: string;
   sttLocalComputeType: string;
+  sttBaseUrl: string;
   ttsMode: string;
   ttsProvider: string;
   ttsApiKey: string;
