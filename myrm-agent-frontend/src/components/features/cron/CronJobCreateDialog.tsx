@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bot, Terminal, Plus, Loader2, Waypoints, Info, CalendarDays, Cpu, MessageCircle } from 'lucide-react';
+import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle } from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -19,6 +19,7 @@ import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
+import { apiRequest } from '@/lib/api';
 import type { CronSchedule } from '@/services/cron';
 import {
   estimateCronMonthlyExecutions,
@@ -28,6 +29,7 @@ import {
 } from '@/lib/utils/cronEstimate';
 
 type JobType = 'agent' | 'shell' | 'router';
+type UIJobMode = 'agent' | 'shell' | 'script';
 type ScheduleKind = 'cron' | 'interval' | 'once';
 
 const TOGGLE_CLS =
@@ -54,10 +56,12 @@ export default function CronJobCreateDialog({
   const { agents, fetchAgents } = useAgentStore();
   const { defaultModelConfig } = useProviderStore();
 
-  const [jobType, setJobType] = useState<JobType>('agent');
+  const [uiMode, setUiMode] = useState<UIJobMode>('agent');
+  const [shellEnabled, setShellEnabled] = useState<boolean | null>(null);
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [command, setCommand] = useState('');
+  const [scriptCode, setScriptCode] = useState('');
   const [agentId, setAgentId] = useState('__default__');
   const [scheduleKind, setScheduleKind] = useState<ScheduleKind>('cron');
   const [cronExpr, setCronExpr] = useState('');
@@ -72,14 +76,25 @@ export default function CronJobCreateDialog({
     if (open) {
       fetchAgents();
       if (presetChatId) setSessionTarget('main');
+      apiRequest<{ deploy_mode: string }>('/health/info')
+        .then((info) => {
+          const enabled = info.deploy_mode !== 'sandbox';
+          setShellEnabled(enabled);
+          if (!enabled && uiMode === 'shell') setUiMode('agent');
+        })
+        .catch(() => {
+          setShellEnabled(false);
+          if (uiMode === 'shell') setUiMode('agent');
+        });
     }
-  }, [open, fetchAgents, presetChatId]);
+  }, [open, fetchAgents, presetChatId]); // eslint-disable-line react-hooks/exhaustive-deps -- uiMode read only for reset guard
 
   const reset = useCallback(() => {
-    setJobType('agent');
+    setUiMode('agent');
     setName('');
     setPrompt('');
     setCommand('');
+    setScriptCode('');
     setAgentId('__default__');
     setScheduleKind('cron');
     setCronExpr('');
@@ -133,9 +148,11 @@ export default function CronJobCreateDialog({
     return { providerId: primary.providerId, model: primary.model };
   }, [defaultModelConfig]);
 
+  const jobType: JobType = uiMode === 'script' ? 'router' : uiMode;
+
   const effectiveChatId = presetChatId || selectedChatId || null;
   const contentValid =
-    jobType === 'agent' ? prompt.trim().length > 0 : jobType === 'shell' ? command.trim().length > 0 : true;
+    uiMode === 'agent' ? prompt.trim().length > 0 : uiMode === 'shell' ? command.trim().length > 0 : scriptCode.trim().length > 0;
   const sessionValid = sessionTarget === 'isolated' || effectiveChatId !== null;
   const canSubmit = contentValid && schedule !== null && sessionValid;
 
@@ -143,16 +160,28 @@ export default function CronJobCreateDialog({
     if (!canSubmit || !schedule) return;
     setSaving(true);
     try {
-      const taskName = name.trim() || (jobType === 'agent' ? prompt.trim().slice(0, 30) : command.trim().slice(0, 30));
-      await createJob({
+      const taskName =
+        name.trim() ||
+        (uiMode === 'agent' ? prompt.trim().slice(0, 30) : uiMode === 'shell' ? command.trim().slice(0, 30) : scriptCode.trim().slice(0, 30));
+
+      const payload: Parameters<typeof createJob>[0] = {
         name: taskName,
         job_type: jobType,
         schedule,
-        ...(jobType === 'agent' ? { prompt: prompt.trim() } : { command: command.trim() }),
-        ...(jobType === 'agent' && agentId !== '__default__' ? { agent_id: agentId } : {}),
         session_target: sessionTarget,
         ...(sessionTarget === 'main' && effectiveChatId ? { chat_id: effectiveChatId } : {}),
-      });
+      };
+
+      if (uiMode === 'agent') {
+        payload.prompt = prompt.trim();
+        if (agentId !== '__default__') payload.agent_id = agentId;
+      } else if (uiMode === 'shell') {
+        payload.command = command.trim();
+      } else {
+        payload.pre_condition_script = scriptCode.trim();
+      }
+
+      await createJob(payload);
       toast.success(t('createSuccess'));
       reset();
       onOpenChange(false);
@@ -165,9 +194,11 @@ export default function CronJobCreateDialog({
     canSubmit,
     schedule,
     name,
+    uiMode,
     jobType,
     prompt,
     command,
+    scriptCode,
     agentId,
     sessionTarget,
     effectiveChatId,
@@ -199,21 +230,23 @@ export default function CronJobCreateDialog({
             <Label className="text-xs">{t('createTypeLabel')}</Label>
             <ToggleGroup
               type="single"
-              value={jobType}
-              onValueChange={(v) => v && setJobType(v as JobType)}
+              value={uiMode}
+              onValueChange={(v) => v && setUiMode(v as UIJobMode)}
               className="justify-start"
             >
               <ToggleGroupItem value="agent" className={TOGGLE_CLS}>
                 <Bot className="h-3.5 w-3.5" />
                 {t('jobTypeAgent')}
               </ToggleGroupItem>
-              <ToggleGroupItem value="shell" className={TOGGLE_CLS}>
-                <Terminal className="h-3.5 w-3.5" />
-                {t('jobTypeShell')}
-              </ToggleGroupItem>
-              <ToggleGroupItem value="router" className={TOGGLE_CLS}>
-                <Waypoints className="h-3.5 w-3.5" />
-                Router
+              {shellEnabled === true && (
+                <ToggleGroupItem value="shell" className={TOGGLE_CLS}>
+                  <Terminal className="h-3.5 w-3.5" />
+                  {t('jobTypeShell')}
+                </ToggleGroupItem>
+              )}
+              <ToggleGroupItem value="script" className={TOGGLE_CLS}>
+                <FileCode2 className="h-3.5 w-3.5" />
+                {t('jobTypeScript')}
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
@@ -229,44 +262,48 @@ export default function CronJobCreateDialog({
             />
           </div>
 
-          {/* Content */}
-          {jobType !== 'router' && (
+          {/* Content: Agent prompt */}
+          {uiMode === 'agent' && (
             <div className="space-y-1.5">
-              <Label className="text-xs">
-                {jobType === 'agent' ? t('createPromptLabel') : t('createCommandLabel')}
-              </Label>
-              {jobType === 'agent' ? (
-                <Textarea
-                  placeholder={t('createPromptPlaceholder')}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  className="min-h-[80px] text-sm resize-none"
-                />
-              ) : (
-                <Input
-                  placeholder={t('createCommandPlaceholder')}
-                  value={command}
-                  onChange={(e) => setCommand(e.target.value)}
-                  className="h-8 text-sm font-mono"
-                />
-              )}
+              <Label className="text-xs">{t('createPromptLabel')}</Label>
+              <Textarea
+                placeholder={t('createPromptPlaceholder')}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="min-h-[80px] text-sm resize-none"
+              />
             </div>
           )}
 
-          {/* Router Info */}
-          {jobType === 'router' && (
-            <div className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 flex gap-2">
-              <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
-                Router mode is a zero-LLM passthrough. Data from the trigger (e.g., Webhook) will be sent directly to
-                the delivery channel. Configure a <strong>Pre-flight Probe</strong> after creation to format the data
-                with Python.
-              </p>
+          {/* Content: Shell command */}
+          {uiMode === 'shell' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('createCommandLabel')}</Label>
+              <Input
+                placeholder={t('createCommandPlaceholder')}
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                className="h-8 text-sm font-mono"
+              />
+            </div>
+          )}
+
+          {/* Content: Python script */}
+          {uiMode === 'script' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('scriptLabel')}</Label>
+              <Textarea
+                placeholder={t('scriptPlaceholder')}
+                value={scriptCode}
+                onChange={(e) => setScriptCode(e.target.value)}
+                className="min-h-[100px] text-sm resize-none font-mono"
+              />
+              <p className="text-[11px] text-muted-foreground">{t('scriptHint')}</p>
             </div>
           )}
 
           {/* Agent Binding */}
-          {jobType === 'agent' && agents.length > 0 && (
+          {uiMode === 'agent' && agents.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs">{t('createAgentLabel')}</Label>
               <Select value={agentId} onValueChange={setAgentId}>
@@ -371,8 +408,8 @@ export default function CronJobCreateDialog({
             </div>
           )}
 
-          {/* Session Mode — only for recurring schedules */}
-          {jobType === 'agent' && scheduleKind !== 'once' && (
+          {/* Session Mode — only for recurring agent schedules */}
+          {uiMode === 'agent' && scheduleKind !== 'once' && (
             <div className="space-y-1.5">
               <Label className="text-xs">{t('createSessionModeLabel')}</Label>
               <Select value={sessionTarget} onValueChange={(v) => setSessionTarget(v as 'isolated' | 'main')}>
@@ -411,7 +448,7 @@ export default function CronJobCreateDialog({
           )}
 
           {/* Default Model Info */}
-          {jobType === 'agent' && agentId === '__default__' && defaultModel && (
+          {uiMode === 'agent' && agentId === '__default__' && defaultModel && (
             <div className="rounded-full border border-border bg-muted/30 px-3 py-2.5 flex gap-2">
               <Cpu className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">

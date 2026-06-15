@@ -7,6 +7,7 @@ import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import {
   Timer,
   Terminal,
+  FileCode2,
   Clock,
   Pause,
   Play,
@@ -149,7 +150,8 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
     paused: t('statusPaused'),
     completed: t('statusCompleted'),
   };
-  const TypeIcon = job.job_type === 'shell' ? Terminal : Timer;
+  const isScriptJob = job.job_type === 'router' && !!job.pre_condition_script && !job.prompt;
+  const TypeIcon = job.job_type === 'shell' ? Terminal : isScriptJob ? FileCode2 : Timer;
 
   const handleToggle = useCallback(async () => {
     try {

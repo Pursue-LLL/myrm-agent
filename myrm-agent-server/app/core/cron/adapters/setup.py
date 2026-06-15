@@ -95,7 +95,7 @@ def _build_scheduler() -> CronScheduler:
         lock=CrossProcessCronLock(),
         push_callback=_push_callback,
         trigger_provider=SqlAlchemyTriggerProvider(),
-        pre_condition=SandboxedPythonCondition(),
+        pre_condition=SandboxedPythonCondition(timeout_seconds=60),
     )
 
 
