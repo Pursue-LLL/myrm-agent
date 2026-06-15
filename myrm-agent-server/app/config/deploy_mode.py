@@ -42,6 +42,12 @@
     所有模式统一使用 SQLite + 嵌入式 Qdrant。
     沙箱模式下数据存储在沙箱持久化卷上，控制平面通过 HTTP 反向代理路由。
 
+云托管 vs 竞品平台（术语，非能力独占）：
+    AgentScope Platform、QwenPaw「一键云端部署」等在后台同样会创建/调度托管实例。
+    控制平面（CP）是基础设施层，**不面向最终用户**；用户只见 WebUI。
+    Myrm 差异在于：local/Tauri/cloud 同一套 GUI 与 agent-server；CP 负责 per-user 容器+Volume、
+    OAuth/计费/LLM Relay 等（见 myrm-control-plane/ARCHITECTURE.md），而非「独有 CP」本身。
+
 使用方式：
     from app.config.deploy_mode import get_deploy_mode, DeployMode, is_local_mode, is_sandbox
 

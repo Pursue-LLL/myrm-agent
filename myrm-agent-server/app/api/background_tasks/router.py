@@ -95,7 +95,7 @@ async def get_background_task(task_id: str) -> BackgroundTaskResponse:
 
     from app.core.channel_bridge.background_task_handler import _kanban_status_to_bg_status
 
-    status = _kanban_status_to_bg_status(task.status)
+    status = _kanban_status_to_bg_status(task.status, task.error)
     completed_at = task.completed_at.timestamp() if task.completed_at else None
     created_at = task.created_at.timestamp() if task.created_at else time.time()
 

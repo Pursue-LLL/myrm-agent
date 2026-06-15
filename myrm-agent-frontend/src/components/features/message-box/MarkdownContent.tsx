@@ -236,6 +236,12 @@ const MarkdownContent = React.memo(
           'max-w-none break-words text-black dark:text-white',
           'prose-math:text-inherit',
           'prose-pre:rounded-md prose-pre:bg-transparent prose-pre:p-0 prose-pre:text-gray-500 dark:prose-pre:text-gray-100',
+          'prose-details:bg-gray-50 dark:prose-details:bg-gray-800/50 prose-details:rounded-lg prose-details:border prose-details:border-gray-200 dark:prose-details:border-gray-700 prose-details:mb-4 prose-details:overflow-hidden',
+          'prose-summary:px-4 prose-summary:py-2.5 prose-summary:bg-gray-100 dark:prose-summary:bg-gray-800 prose-summary:font-semibold prose-summary:cursor-pointer prose-summary:select-none hover:prose-summary:bg-gray-200 dark:hover:prose-summary:bg-gray-700 transition-colors',
+          '[&_details[open]_summary]:border-b [&_details[open]_summary]:border-gray-200 dark:[&_details[open]_summary]:border-gray-700',
+          '[&_details_>_*:not(summary)]:px-4 [&_details_>_*:not(summary)]:py-3 [&_details_>_*:last-child]:mb-3',
+          '[&_input[type="checkbox"]]:w-4 [&_input[type="checkbox"]]:h-4 [&_input[type="checkbox"]]:text-primary [&_input[type="checkbox"]]:rounded [&_input[type="checkbox"]]:border-gray-300 [&_input[type="checkbox"]]:focus:ring-primary [&_input[type="checkbox"]]:cursor-default [&_input[type="checkbox"]]:mt-1.5 [&_input[type="checkbox"]]:align-top',
+          '[&_li.task-list-item]:flex [&_li.task-list-item]:items-start [&_li.task-list-item]:gap-2 [&_li.task-list-item_>_p]:m-0',
         )}
       >
         <ReactMarkdown
@@ -280,6 +286,10 @@ const MarkdownContent = React.memo(
             // 容器
             'div',
             'span',
+            // 交互元素
+            'input',
+            'details',
+            'summary',
             // 自定义标签
             'think',
             'thinking',

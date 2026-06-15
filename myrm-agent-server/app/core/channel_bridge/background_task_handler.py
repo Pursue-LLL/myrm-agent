@@ -264,11 +264,9 @@ class ChannelBackgroundTaskHandler:
 def _kanban_status_to_bg_status(status: str, error: str = "") -> str:
     """Map KanbanTask TaskStatus value to background task status string.
 
-    When a FAILED task carries a timeout error message (set by KanbanDispatcher
-    via TaskTimeoutError), we surface it as "timed_out" rather than the generic
-    "failed" so the frontend can display a distinct icon and actionable tooltip.
-    The timeout string is written unconditionally by TaskTimeoutError.__init__:
-    ``"Task {id[:8]} timed out after {elapsed:.0f}s (limit {limit}s)"``.
+    When a FAILED task carries a timeout or cancellation error message, we
+    surface it as ``"timed_out"`` or ``"cancelled"`` rather than the generic
+    ``"failed"`` so the frontend can display a distinct icon and tooltip.
     """
     from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 
@@ -283,6 +281,10 @@ def _kanban_status_to_bg_status(status: str, error: str = "") -> str:
         TaskStatus.ARCHIVED: "completed",
     }
     resolved = status_map.get(status, "running")  # type: ignore[arg-type]
-    if resolved == "failed" and "timed out" in error:
-        return "timed_out"
+    if resolved == "failed":
+        error_lower = error.lower()
+        if "timed out" in error_lower:
+            return "timed_out"
+        if "cancelled" in error_lower:
+            return "cancelled"
     return resolved

@@ -51,5 +51,17 @@ class TestKanbanStatusToBgStatus:
         error = "Task abc12345 timed out after 300s (limit 300s)"
         assert _kanban_status_to_bg_status(TaskStatus.RUNNING, error) == "running"
 
+    def test_failed_with_cancelled_error_returns_cancelled(self) -> None:
+        """User-cancelled tasks surface as 'cancelled' instead of generic 'failed'."""
+        assert _kanban_status_to_bg_status(TaskStatus.FAILED, "Cancelled by user") == "cancelled"
+
+    def test_blocked_with_cancelled_error_returns_cancelled(self) -> None:
+        """BLOCKED tasks with cancellation error also surface as 'cancelled'."""
+        assert _kanban_status_to_bg_status(TaskStatus.BLOCKED, "Cancelled by user") == "cancelled"
+
+    def test_running_with_cancelled_error_is_not_cancelled(self) -> None:
+        """Non-terminal states never produce cancelled even with a stale cancel error."""
+        assert _kanban_status_to_bg_status(TaskStatus.RUNNING, "Cancelled by user") == "running"
+
     def test_unknown_status_falls_back_to_running(self) -> None:
         assert _kanban_status_to_bg_status("unknown_status") == "running"  # type: ignore[arg-type]

@@ -7,7 +7,7 @@
 
 平台适配层。通过协议接口抽象 Sandbox 和本地模式的差异，实现运行时自动切换。
 
-**核心原则**：`myrm-agent-server` 在容器内以单用户实例运行。Sandbox 模式下 CP 负责调度与 env 注入；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。
+**核心原则**：`myrm-agent-server` 在容器内以单用户实例运行。Sandbox 模式下 CP **在基础设施层**调度沙箱并注入 env；`platform_utils/sandbox/` 通过 HTTP 调用 CP internal API（entitlements/budget）。**CP 不对用户暴露**；AgentScope/QwenPaw 等托管云端同样在后台编排实例，差异见 `myrm-control-plane/ARCHITECTURE.md`「术语澄清」。
 
 ---
 
