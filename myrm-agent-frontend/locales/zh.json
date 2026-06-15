@@ -4869,6 +4869,23 @@
     "performanceDiagnostics": "耗时与性能诊断",
     "memoryFeedbackGood": "记忆有帮助",
     "memoryFeedbackBad": "记忆没帮助",
+    "fork": {
+      "title": "分支对话",
+      "description": "从消息 #{index} 创建新的对话分支。分支对话将保留此时刻的完整状态。",
+      "titleLabel": "新对话标题",
+      "titlePlaceholder": "输入标题（可选）",
+      "cancel": "取消",
+      "create": "创建分支",
+      "creating": "正在创建分支...",
+      "success": "对话分支创建成功",
+      "successDescription": "从消息 #{index} 创建了新分支",
+      "failed": "分支创建失败",
+      "buttonLabel": "从此消息创建对话分支",
+      "buttonTitle": "分支对话",
+      "parentLink": "来自父对话的分支",
+      "parentLinkWithIndex": "来自父对话的分支（从消息 #{index}）",
+      "unknownError": "发生未知错误"
+    },
     "deleteChat": {
       "title": "删除会话",
       "description": "此会话将移入回收站，30天内可恢复。",

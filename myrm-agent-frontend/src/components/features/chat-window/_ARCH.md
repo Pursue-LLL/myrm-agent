@@ -12,14 +12,14 @@
 | `AgentWorkMap.tsx` | 组件/模块 | — | — |
 | `BudgetBadge.tsx` | 组件/模块 | — | — |
 | `Chat.tsx` | 组件/模块 | — | — |
-| `ChatWindow.tsx` | 组件/模块 | — | — |
+| `ChatWindow.tsx` | 核心 | 主对话窗口入口：消息列表 + 输入框 + Banner 集成（含 ParentChatLink） | — |
 | `CompactedSummaryView.tsx` | 组件/模块 | — | — |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
 | `ConversationJumpBar.tsx` | 组件/模块 | — | — |
 | `DeleteChat.tsx` | 组件/模块 | — | — |
 | `EmptyChat.tsx` | 组件/模块 | — | — |
-| `ForkButton.tsx` | 组件/模块 | — | — |
-| `ForkDialog.tsx` | 组件/模块 | — | — |
+| `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar） | ✅ |
+| `ForkDialog.tsx` | 组件 | Fork 确认弹窗：标题输入 + 调 POST /fork + 自动导航 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件/模块 | — | — |
 | `LinkDetectionDialog.tsx` | 组件/模块 | — | — |
 | `LocalCapabilitiesBanner.tsx` | 组件/模块 | — | — |
@@ -28,7 +28,7 @@
 | `MobileActionSheet.tsx` | 组件/模块 | — | — |
 | `MobileStatusBoard.tsx` | 组件/模块 | — | — |
 | `Navbar.tsx` | 组件/模块 | — | — |
-| `ParentChatLink.tsx` | 组件/模块 | — | — |
+| `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
 | `QuoteCard.tsx` | 组件/模块 | — | — |
 | `ReferenceMentionPopover.tsx` | 组件/模块 | — | — |
 | `SamplePrompts.tsx` | 组件/模块 | — | — |

@@ -110,7 +110,7 @@ export default function MessageActionBar({
         )}
         {!isStreaming && <ReadAloud content={message.content} />}
         {!isStreaming && chatId && (
-          <ForkButton chatId={chatId} messageIndex={messageIndex} messageContent={message.content} />
+          <ForkButton chatId={chatId} messageIndex={messageIndex} />
         )}
         {!isStreaming && <SaveToWikiButton message={message} />}
         {!isStreaming && <Copy message={message} markdownRef={markdownRef} />}

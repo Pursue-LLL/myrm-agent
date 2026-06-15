@@ -50,7 +50,7 @@ export async function forkConversation(
   messageIndex: number,
   newTitle?: string,
 ): Promise<ForkConversationResponse> {
-  return apiRequest<ForkConversationResponse>(`/api/v1/chats/${chatId}/fork`, {
+  return apiRequest<ForkConversationResponse>(`/chats/${chatId}/fork`, {
     method: 'POST',
     body: JSON.stringify({ message_index: messageIndex, new_title: newTitle }),
   });
@@ -60,5 +60,5 @@ export async function forkConversation(
  * Get fork relationship information
  */
 export async function getForkInfo(chatId: string): Promise<ForkInfoResponse> {
-  return apiRequest<ForkInfoResponse>(`/api/v1/chats/${chatId}/fork-info`);
+  return apiRequest<ForkInfoResponse>(`/chats/${chatId}/fork-info`);
 }

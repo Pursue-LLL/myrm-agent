@@ -1,13 +1,14 @@
 /**
- * Fork Button Component
+ * Fork Button — triggers ForkDialog to create a conversation branch from a message.
  *
- * Button to fork conversation from specific message.
- * P0-3 implementation.
+ * I: chatId, messageIndex, variant, size
+ * O: renders ghost button with GitFork icon + ForkDialog
  */
 
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { GitFork } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { ForkDialog } from './ForkDialog';
@@ -15,13 +16,13 @@ import { ForkDialog } from './ForkDialog';
 interface ForkButtonProps {
   chatId: string;
   messageIndex: number;
-  messageContent?: string;
   variant?: 'ghost' | 'outline' | 'default';
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function ForkButton({ chatId, messageIndex, messageContent, variant = 'ghost', size = 'sm' }: ForkButtonProps) {
+export function ForkButton({ chatId, messageIndex, variant = 'ghost', size = 'sm' }: ForkButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const t = useTranslations('chat.fork');
   const buttonSize = size === 'md' ? 'default' : size;
 
   return (
@@ -30,19 +31,20 @@ export function ForkButton({ chatId, messageIndex, messageContent, variant = 'gh
         variant={variant}
         size={buttonSize}
         onClick={() => setDialogOpen(true)}
-        aria-label="Fork conversation from this message"
-        title="Fork conversation"
+        aria-label={t('buttonLabel')}
+        title={t('buttonTitle')}
       >
         <GitFork className="h-4 w-4" />
       </Button>
 
-      <ForkDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        chatId={chatId}
-        messageIndex={messageIndex}
-        messageSnippet={messageContent}
-      />
+      {dialogOpen && (
+        <ForkDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          chatId={chatId}
+          messageIndex={messageIndex}
+        />
+      )}
     </>
   );
 }

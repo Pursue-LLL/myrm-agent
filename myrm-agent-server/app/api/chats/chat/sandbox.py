@@ -7,6 +7,7 @@
 - POST /{chat_id}/sandbox/disable: Deactivate sandbox (discard changes).
 - POST /{chat_id}/sandbox/merge: Merge sandbox changes back to parent branch.
 - GET /{chat_id}/sandbox/status: Query sandbox state for a chat.
+- GET /{chat_id}/sandbox/diff: Retrieve unified diff of all sandbox changes.
 
 [POS]
 API endpoints for managing chat sandbox sessions (git worktree isolation).
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import weakref
 from pathlib import Path
 
@@ -170,3 +172,50 @@ async def sandbox_status(chat_id: str):
         branch=f"sandbox/chat-{chat_id[:12]}" if active else None,
         base_dir=sandbox_base,
     ).model_dump())
+
+
+@router.get("/{chat_id}/sandbox/diff")
+async def sandbox_diff(chat_id: str):
+    """Retrieve the unified diff of all sandbox changes vs. the parent branch."""
+    _, sandbox_base = await _resolve_chat_base_dir(chat_id)
+    if not sandbox_base:
+        raise HTTPException(status_code=400, detail="No active sandbox session")
+
+    sandbox_path = get_sandbox_worktree_path(sandbox_base, chat_id)
+    if not Path(sandbox_path).exists():
+        raise HTTPException(status_code=400, detail="Sandbox worktree not found")
+
+    try:
+        stat_result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "diff", "--stat", "HEAD"],
+            cwd=sandbox_path,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+        diff_result = await asyncio.to_thread(
+            subprocess.run,
+            ["git", "diff", "HEAD"],
+            cwd=sandbox_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        if diff_result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"git diff failed: {diff_result.stderr.strip()}")
+
+        return success_response({
+            "stat": stat_result.stdout if stat_result.returncode == 0 else "",
+            "diff": diff_result.stdout,
+            "has_changes": bool(diff_result.stdout.strip()),
+        })
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git diff timed out")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("Failed to get sandbox diff for chat %s: %s", chat_id[:8], exc)
+        raise HTTPException(status_code=500, detail=f"Failed to get diff: {exc}")

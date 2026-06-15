@@ -80,6 +80,11 @@ export const isSkillSelectItems = (items: unknown): items is SkillSelectItem[] =
 // 文件路径项类型定义
 export interface FilePathItem {
   file_path: string;
+  line_range?: string;
+  action_type?: string;
+  size_bytes?: string;
+  diff?: string;
+  diff_truncated?: boolean;
 }
 
 export const isFilePathItems = (items: unknown): items is FilePathItem[] => {

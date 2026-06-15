@@ -2,7 +2,15 @@
  * Parent Chat Link Component
  *
  * Shows link to parent chat if current chat is a fork.
- * P0-3 implementation.
+ *
+ * [INPUT]
+ * - @/services/fork-api::getForkInfo (POS: Fetch fork relationship metadata)
+ *
+ * [OUTPUT]
+ * - ParentChatLink: Conditional navigation link back to parent conversation.
+ *
+ * [POS]
+ * Renders only when the current chat is a fork. Fetches fork-info once on mount.
  */
 
 'use client';
@@ -10,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { getForkInfo } from '@/services/fork-api';
 
 interface ParentChatLinkProps {
@@ -17,6 +26,7 @@ interface ParentChatLinkProps {
 }
 
 export function ParentChatLink({ chatId }: ParentChatLinkProps) {
+  const t = useTranslations('chat.fork');
   const [parentChatId, setParentChatId] = useState<string | null>(null);
   const [forkPoint, setForkPoint] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,31 +55,18 @@ export function ParentChatLink({ chatId }: ParentChatLinkProps) {
   }
 
   return (
-    <Link
-      href={`/${parentChatId}`}
-      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-    >
-      <ArrowLeft className="h-4 w-4" />
-      <span>
-        Forked from parent conversation
-        {forkPoint !== null && ` (from message #${forkPoint})`}
-      </span>
-    </Link>
+    <div className="px-4 py-1.5">
+      <Link
+        href={`/${parentChatId}`}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>
+          {forkPoint !== null
+            ? t('parentLinkWithIndex', { index: forkPoint })
+            : t('parentLink')}
+        </span>
+      </Link>
+    </div>
   );
 }
-
-/**
- * Integration TODO:
- *
- * Add to ChatHeader component:
- *
- * ```tsx
- * import { ParentChatLink } from './ParentChatLink';
- *
- * // Inside ChatHeader component:
- * <div className="flex items-center gap-4">
- *   <ParentChatLink chatId={chatId} />
- *   {/ ...other header content /}
- * </div>
- * ```
- */

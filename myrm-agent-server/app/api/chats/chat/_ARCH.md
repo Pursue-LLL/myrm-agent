@@ -15,6 +15,7 @@
 | `fork.py` | 模块 | Fork conversation from specific message index. | ✅ |
 | `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |
 | `messages.py` | 模块 | Full-text search across all chat messages using FTS5. | ✅ |
+| `sandbox.py` | 模块 | Chat sandbox session management (enable/disable/merge/status/diff). Git worktree isolation for agent experimentation. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |
 | `turn.py` | 模块 | Delete the last assistant turn so the original query can be re-sent. | ✅ |

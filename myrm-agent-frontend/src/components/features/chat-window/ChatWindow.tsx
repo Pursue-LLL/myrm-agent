@@ -34,6 +34,7 @@ import { FileSnapshotPanel } from '@/components/features/checkpoint';
 import { LifeStatusCapsule } from './LifeStatusCapsule';
 import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
+import { ParentChatLink } from './ParentChatLink';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
@@ -358,6 +359,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           <div className="flex-1 min-w-0 w-full flex flex-col">
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
+            {id && <ParentChatLink chatId={id} />}
             <YoloModeBanner />
             <EStopBanner />
             <ExtensionDisconnectedBanner />

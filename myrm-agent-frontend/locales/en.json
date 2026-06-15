@@ -4869,6 +4869,23 @@
     "performanceDiagnostics": "Performance Diagnostics",
     "memoryFeedbackGood": "Helpful memory",
     "memoryFeedbackBad": "Unhelpful memory",
+    "fork": {
+      "title": "Fork Conversation",
+      "description": "Create a new conversation branch from message #{index}. The forked conversation will preserve the complete state at this point.",
+      "titleLabel": "New conversation title",
+      "titlePlaceholder": "Enter title (optional)",
+      "cancel": "Cancel",
+      "create": "Create Branch",
+      "creating": "Creating branch...",
+      "success": "Conversation forked successfully",
+      "successDescription": "New branch created from message #{index}",
+      "failed": "Fork failed",
+      "buttonLabel": "Fork conversation from this message",
+      "buttonTitle": "Fork conversation",
+      "parentLink": "Forked from parent conversation",
+      "parentLinkWithIndex": "Forked from parent conversation (from message #{index})",
+      "unknownError": "Unknown error occurred"
+    },
     "deleteChat": {
       "title": "Delete Conversation",
       "description": "This conversation will be moved to trash. You can restore it within 30 days.",
