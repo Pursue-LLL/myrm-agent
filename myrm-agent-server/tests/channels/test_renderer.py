@@ -73,10 +73,19 @@ class TestReasoningBlock:
         assert "Thinking" in result[0]
         assert "I think about this" in result[0]
 
-    def test_reasoning_collapsed(self) -> None:
+    def test_reasoning_collapsed_markdown(self) -> None:
         result = render(
             _msg(reasoning="Deep thought"),
-            _style(reasoning_display=ReasoningDisplay.COLLAPSED),
+            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_latex=True),
+        )
+        assert "> " in result[0]
+        assert "Thinking" in result[0]
+        assert "Deep thought" in result[0]
+
+    def test_reasoning_collapsed_html(self) -> None:
+        result = render(
+            _msg(reasoning="Deep thought"),
+            _style(reasoning_display=ReasoningDisplay.COLLAPSED, supports_latex=False),
         )
         assert "<blockquote expandable>" in result[0]
         assert "Deep thought" in result[0]
