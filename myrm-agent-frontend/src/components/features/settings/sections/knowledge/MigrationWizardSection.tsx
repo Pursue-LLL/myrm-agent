@@ -6,11 +6,12 @@
  * @/services/memoryArchive (POS: memory import dry-run / confirm / rollback client)
  *
  * [OUTPUT]
- * MigrationWizardSection: full migration flow — discover → preview → import → result
+ * MigrationWizardSection: discover → preview → import; honors ?source= deep link auto-preview.
  *
  * [POS]
  * Settings sub-tab under Memory Center. Local/Tauri-only.
  * Implements a 3-step wizard: scan → dry-run preview → confirm import.
+ * When URL contains ?source=<id>, auto-starts preview after scan for that source.
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
@@ -107,7 +108,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   }, [handleScan, fetchAgents]);
 
   const handlePreview = useCallback(
-    async (source: ExternalSource) => {
+    async (source: ExternalSource): Promise<boolean> => {
       setSelectedSource(source);
       setPreviewing(true);
       setImportSecrets(false);
@@ -129,8 +130,10 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         );
         setDryRunResult(result);
         setStep('preview');
+        return true;
       } catch {
         toast.error(t('previewFailed'));
+        return false;
       } finally {
         setPreviewing(false);
       }
@@ -150,20 +153,25 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       return;
     }
 
-    deepLinkPreviewAttemptedRef.current = true;
-
     if (!(deepLinkSourceId in MIGRATION_SOURCE_IMPORT_BY_ID)) {
+      deepLinkPreviewAttemptedRef.current = true;
       toast.error(t('deepLinkSourceInvalid'));
       return;
     }
 
     const matched = discovery.sources.find((source) => source.competitor.toLowerCase() === deepLinkSourceId);
     if (!matched) {
+      deepLinkPreviewAttemptedRef.current = true;
       toast.error(t('deepLinkSourceNotFound'));
       return;
     }
 
-    void handlePreview(matched);
+    deepLinkPreviewAttemptedRef.current = true;
+    void handlePreview(matched).then((ok) => {
+      if (!ok) {
+        deepLinkPreviewAttemptedRef.current = false;
+      }
+    });
   }, [deepLinkSourceId, discovery, scanning, previewing, step, handlePreview, t]);
 
   const submitPendingSkills = useCallback(
