@@ -305,6 +305,10 @@ export async function triggerCronJob(id: string): Promise<void> {
   return apiRequest(`/cron/${id}/trigger`, { method: 'POST' });
 }
 
+export async function duplicateCronJob(id: string): Promise<CronJob> {
+  return apiRequest(`/cron/${id}/duplicate`, { method: 'POST' });
+}
+
 export async function resetMonitorBaseline(id: string): Promise<void> {
   return apiRequest(`/cron/${id}/reset-baseline`, { method: 'POST' });
 }

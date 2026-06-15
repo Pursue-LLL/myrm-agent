@@ -12,6 +12,7 @@ Thin delegation layer: parameter parsing → CronManager → response conversion
 - GET /{job_id} — get single job
 - PATCH /{job_id} — update job
 - DELETE /{job_id} — delete job
+- POST /{job_id}/duplicate — duplicate job with config, paused
 - POST /{job_id}/pause — pause job
 - POST /{job_id}/resume — resume job
 - POST /{job_id}/trigger — trigger immediate execution
@@ -192,6 +193,24 @@ async def delete_job(job_id: str) -> None:
     if not deleted:
         raise HTTPException(status_code=404, detail="Job not found")
     invalidate_ingress_requirement_cache()
+
+
+@router.post("/{job_id}/duplicate", response_model=CronJobResponse, status_code=201)
+async def duplicate_job(job_id: str) -> CronJobResponse:
+    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_cron_slot
+
+    mgr = _h._get_manager()
+    try:
+        current_count = await mgr.count_jobs(USER_ID)
+        require_cron_slot(current_count)
+    except EntitlementGuardError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    job = await mgr.duplicate_job(job_id, USER_ID)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    invalidate_ingress_requirement_cache()
+    return _h._to_response(job)
 
 
 @router.post("/{job_id}/pause", response_model=CronJobResponse)

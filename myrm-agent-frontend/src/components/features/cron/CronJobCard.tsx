@@ -13,6 +13,7 @@ import {
   Play,
   Trash2,
   RotateCw,
+  Copy,
   AlertTriangle,
   Cpu,
   Hourglass,
@@ -34,7 +35,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
-import { updateCronJob } from '@/services/cron';
+import { updateCronJob, duplicateCronJob } from '@/services/cron';
 import { formatNextRun, statusBorderColor, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
@@ -182,6 +183,22 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
     }
     setTimeout(() => setTriggering(false), 5_000);
   }, [triggering, job, triggerJob, t]);
+
+  const [duplicating, setDuplicating] = useState(false);
+
+  const handleDuplicate = useCallback(async () => {
+    if (duplicating) return;
+    setDuplicating(true);
+    try {
+      await duplicateCronJob(job.id);
+      toast.success(t('duplicateSuccess', { name: job.name }));
+      fetchJobs(true);
+    } catch {
+      toast.error(t('duplicateFail'));
+    } finally {
+      setDuplicating(false);
+    }
+  }, [duplicating, job, fetchJobs, t]);
 
   return (
     <div
@@ -409,6 +426,15 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
             </Button>
           </TooltipTrigger>
           <TooltipContent>{t('trigger')}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleDuplicate} disabled={duplicating}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('duplicate')}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
