@@ -1,4 +1,4 @@
-"""API integration tests for competitor import dry-run (v1.4 routing)."""
+"""API integration tests for external assistant import dry-run (v1.4 routing)."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def claude_fixture(tmp_path: Path) -> Path:
     return root
 
 
-class TestCompetitorImportDryRunApi:
+class TestSourceImportDryRunApi:
     @pytest.fixture(autouse=True)
     def _local_mode(self) -> None:
         with (
@@ -156,7 +156,8 @@ class TestCompetitorImportDryRunApi:
         assert body["pending_skills"][0]["name"] == "review"
         assert "unsupported_source" not in body["result"]["warnings"]
 
-    def test_cursor_dry_run_instruction_rules_only(self, client: TestClient, tmp_path: Path) -> None:
+    def test_cursor_discovery_payload_not_in_wizard(self, client: TestClient, tmp_path: Path) -> None:
+        """Cursor is Memory Center manual import (cursor_rules), not wizard discovery."""
         root = tmp_path / ".cursor"
         root.mkdir()
         rules = root / "rules"
@@ -171,10 +172,10 @@ class TestCompetitorImportDryRunApi:
         resp = client.post("/api/v1/memory/import/dry-run", json=payload)
         assert resp.status_code == 200
         body = resp.json()
-        assert len(body["instruction_preview_rule_names"]) >= 1
-        assert body["result"]["summary"]["status"] == "ready"
+        coverage_keys = {item["key"] for item in body["coverage_items"]}
+        assert "load_error" in coverage_keys
+        assert body["instruction_preview_rule_names"] == []
         assert body["result"]["summary"]["mapped_items"] == 0
-        assert "unsupported_source" not in body["result"]["warnings"]
 
     def test_codex_dry_run_instruction_lane(self, client: TestClient, tmp_path: Path) -> None:
         root = tmp_path / ".codex"
