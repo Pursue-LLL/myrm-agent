@@ -10,7 +10,7 @@
 |------|------|------|
 | `MemoryCenterSection.tsx` | 容器 | 记忆 Tab 路由（explorer / wiki / migration / backup） |
 | `MemorySection.tsx` | 核心 | 记忆浏览器与 CRUD |
-| `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result） |
+| `MigrationWizardSection.tsx` | 核心 | 四源迁移向导（scan → preview → result）；支持 `?source=` 深链自动 preview | 
 | `MigrationWizardSteps.tsx` | 核心 | 向导步骤 UI（ScanStep / PreviewStep / ResultStep）；OpenClaw episodic 勾选仅当 scan 含 openclaw 源，且 preview API 对非 openclaw 强制 `include_episodic=false` |
 | `MigrationPendingReviewSection.tsx` | 辅助 | 待审核迁移技能队列 |
 | `MemoryArchivalSection.tsx` | 辅助 | 归档导入/导出 |

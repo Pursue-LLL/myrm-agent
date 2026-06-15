@@ -5,7 +5,7 @@
  * @/services/migrationDiscovery::discoverMigrationSources (POS: External assistant data auto-discovery client)
  *
  * [OUTPUT]
- * MigrationDiscoveryBanner: one-click import prompt for detected competitor AI assistant data.
+ * MigrationDiscoveryBanner: one-click import prompt for detected external assistant data.
  *
  * [POS]
  * Local/Tauri-only banner shown in EmptyChat when external assistant data is detected.
@@ -69,8 +69,14 @@ export default function MigrationDiscoveryBanner() {
   }, []);
 
   const handleNavigate = useCallback(() => {
+    if (sources.length === 1) {
+      router.push(
+        `/settings/memory?sub=migration&source=${encodeURIComponent(sources[0].competitor)}`,
+      );
+      return;
+    }
     router.push('/settings/memory?sub=migration');
-  }, [router]);
+  }, [router, sources]);
 
   if (!isLocalMode() || state === 'idle' || state === 'dismissed') return null;
 

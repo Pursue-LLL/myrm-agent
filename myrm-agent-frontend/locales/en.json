@@ -6793,6 +6793,8 @@
       "noSourcesHint": "Ensure assistant data directories are accessible locally (e.g. ~/.hermes, ~/.openclaw, ~/.claude, ~/.codex)",
       "scanFailed": "Failed to scan local data",
       "previewFailed": "Failed to preview import",
+      "deepLinkSourceInvalid": "Unknown migration source in link — pick a source below",
+      "deepLinkSourceNotFound": "Linked source was not found on this device — pick a source below",
       "importFailed": "Import failed",
       "skillsSubmitFailed": "Memories imported, but skill review submission failed — use the pending queue above",
       "secretsImportSuccess": "Imported {count} API key(s) into provider settings",

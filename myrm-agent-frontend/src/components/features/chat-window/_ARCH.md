@@ -14,7 +14,7 @@
 | `Chat.tsx` | 组件/模块 | — | — |
 | `ChatWindow.tsx` | 组件/模块 | — | — |
 | `CompactedSummaryView.tsx` | 组件/模块 | — | — |
-| `MigrationDiscoveryBanner.tsx` | 组件/模块 | — | — |
+| `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
 | `ConversationJumpBar.tsx` | 组件/模块 | — | — |
 | `DeleteChat.tsx` | 组件/模块 | — | — |
 | `EmptyChat.tsx` | 组件/模块 | — | — |

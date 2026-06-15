@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * @/services/migrationDiscovery (POS: competitor auto-discovery client)
+ * @/services/migrationDiscovery (POS: external assistant auto-discovery client)
  * @/services/memoryArchive (POS: memory import dry-run / confirm / rollback client)
  *
  * [OUTPUT]
@@ -13,8 +13,9 @@
  * Implements a 3-step wizard: scan → dry-run preview → confirm import.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 import {
@@ -58,6 +59,9 @@ interface MigrationWizardSectionProps {
 
 const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSectionProps) => {
   const t = useTranslations('memory.migrationWizard');
+  const searchParams = useSearchParams();
+  const deepLinkSourceId = searchParams.get('source')?.trim().toLowerCase() ?? '';
+  const deepLinkPreviewAttemptedRef = useRef(false);
 
   const [step, setStep] = useState<WizardStep>('scan');
   const [scanning, setScanning] = useState(false);
@@ -133,6 +137,34 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     },
     [includeEpisodic, targetAgentId, t],
   );
+
+  useEffect(() => {
+    if (
+      !deepLinkSourceId ||
+      !discovery ||
+      scanning ||
+      previewing ||
+      step !== 'scan' ||
+      deepLinkPreviewAttemptedRef.current
+    ) {
+      return;
+    }
+
+    deepLinkPreviewAttemptedRef.current = true;
+
+    if (!(deepLinkSourceId in MIGRATION_SOURCE_IMPORT_BY_ID)) {
+      toast.error(t('deepLinkSourceInvalid'));
+      return;
+    }
+
+    const matched = discovery.sources.find((source) => source.competitor.toLowerCase() === deepLinkSourceId);
+    if (!matched) {
+      toast.error(t('deepLinkSourceNotFound'));
+      return;
+    }
+
+    void handlePreview(matched);
+  }, [deepLinkSourceId, discovery, scanning, previewing, step, handlePreview, t]);
 
   const submitPendingSkills = useCallback(
     async (pendingSkills: MemoryImportPendingSkill[], bindAgentId: string | null | undefined) => {

@@ -6797,6 +6797,8 @@
       "noSourcesHint": "确保目标 AI 助手的数据目录在本机可访问（如 ~/.hermes、~/.openclaw、~/.claude、~/.codex）",
       "scanFailed": "扫描本地数据失败",
       "previewFailed": "预览导入失败",
+      "deepLinkSourceInvalid": "链接中的迁移来源无效，请在下方手动选择",
+      "deepLinkSourceNotFound": "链接中的来源在本机未找到，请在下方手动选择",
       "importFailed": "导入失败",
       "skillsSubmitFailed": "记忆已导入，但技能提交审核失败，请稍后在上方审核队列手动处理",
       "secretsImportSuccess": "已导入 {count} 个 API Key 到模型服务商配置",
