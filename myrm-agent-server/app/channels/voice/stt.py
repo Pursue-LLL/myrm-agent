@@ -5,6 +5,7 @@ Supports multiple providers with automatic fallback:
   2. OpenAI Whisper (whisper-1, gpt-4o-mini-transcribe)
   3. Groq (whisper-large-v3) — OpenAI-compatible endpoint
   4. Deepgram (nova-3)
+  5. xAI Grok STT (/v1/stt, ITN, diarization)
 
 Fallback strategy (mirrors TTS Edge-TTS fallback design):
   - Primary provider fails → try local if available (free fallback)

@@ -155,7 +155,7 @@ async def transcribe_video_inbound(
     if not result or not result.text:
         return msg
 
-    prefix = f"[🎬 Video Transcript] {result.text}"
+    prefix = f"[Video Transcript] {result.text}"
     content = f"{prefix}\n{msg.content}" if msg.content else prefix
     logger.warning("Voice: STT transcribed %d chars from video audio", len(result.text))
     return dataclasses.replace(msg, content=content)
