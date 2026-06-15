@@ -370,6 +370,18 @@ function detachAllDebuggers() {
     chrome.debugger.detach({ tabId }).catch(() => {});
   }
   attachedTabs.clear();
+  cleanupBackgroundTabs();
+}
+
+function cleanupBackgroundTabs() {
+  if (backgroundWindowId === null) return;
+  chrome.tabs.query({ windowId: backgroundWindowId }, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.url && tab.url !== "about:blank" && tab.url !== "chrome://newtab/") {
+        chrome.tabs.remove(tab.id).catch(() => {});
+      }
+    }
+  });
 }
 
 async function sendCdpCommand(tabId, method, params) {

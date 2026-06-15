@@ -4,12 +4,11 @@
 HTTP GET request to scan for competitor data installations.
 
 [OUTPUT]
-JSON response with discovered competitor sources and confidence levels.
+JSON discovery response; opt-in POST `/secrets/import` for competitor .env keys.
 
 [POS]
-Local/Tauri-only endpoint for external assistant data auto-discovery (Hermes,
-OpenClaw, Claude Code, Codex). Returns detected data directories with confidence
-scores and file metadata.
+Local/Tauri-only migration API (Hermes, OpenClaw, Claude Code, Codex discover;
+secrets import opt-in). SaaS returns empty discovery.
 """
 
 from __future__ import annotations
