@@ -23,7 +23,7 @@
 | `auth-initializer.tsx` | 组件/模块 | — | — |
 | `boot-screen.tsx` | 组件/模块 | — | — |
 | `capability-icons.tsx` | 组件/模块 | — | — |
-| `command-palette.tsx` | 组件/模块 | — | — |
+| `command-palette.tsx` | 组件/模块 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | `useCommandStore` |
 | `flow-pad-modal.tsx` | 组件/模块 | Omni-FlowPad 全局 Dialog：截图预览+语音/文本输入+当前 Agent 显示 | — |
 | `config-load-error.tsx` | 组件/模块 | — | — |
 | `confirm-dialog.tsx` | 组件/模块 | — | — |

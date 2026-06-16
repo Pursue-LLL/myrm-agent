@@ -82,8 +82,8 @@
     "builtin": {
       "compact": "Compress conversation context to save tokens",
       "focus": "Clear chat history but keep the sandbox environment intact (Saves tokens)",
-      "yolo": "Toggle YOLO mode (auto-approve all tools). Usage: /yolo [on|off|<seconds>]",
-      "freeze": "Emergency stop – freeze all tool execution. Usage: /freeze [off|resume]",
+      "yolo": "Toggle YOLO mode – auto-approve all tool executions",
+      "freeze": "Emergency stop – freeze all tool execution",
       "compactToast": "Manual compaction clears Prompt Cache. The system auto-compacts at 90% token usage.",
       "compacting": "Compacting…",
       "compacted": "Compacted {messageCount} messages, ~{tokensSaved} tokens saved",
@@ -97,7 +97,12 @@
       "yoloDisabled": "YOLO mode disabled – approval prompts restored",
       "freezeActivated": "E-Stop activated – all tool execution frozen",
       "freezeResumed": "E-Stop released – tool execution resumed",
-      "freezeFailed": "Failed to toggle E-Stop"
+      "freezeFailed": "Failed to toggle E-Stop",
+      "new": "Start a new conversation",
+      "stop": "Stop the current agent response",
+      "stopped": "Agent response stopped",
+      "model": "Switch the AI model",
+      "modelHint": "Use the model selector above the input box to switch models"
     }
   },
   "settings": {

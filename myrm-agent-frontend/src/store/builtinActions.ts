@@ -26,6 +26,8 @@ export function buildBuiltinActions(): SlashAction[] {
       id: 'builtin:compact',
       name: 'compact',
       description: 'commands.builtin.compact',
+      argsHint: '[topic]',
+      aliases: ['compress'],
       type: 'action',
       execute: async (inputValue: string) => {
         const { default: useChatStore } = await import('@/store/useChatStore');
@@ -110,6 +112,7 @@ export function buildBuiltinActions(): SlashAction[] {
       id: 'builtin:yolo',
       name: 'yolo',
       description: 'commands.builtin.yolo',
+      argsHint: '[on|off|<seconds>]',
       type: 'action',
       execute: async (inputValue: string) => {
         const { getConfigSyncManager } = await import('@/services/config');
@@ -148,6 +151,8 @@ export function buildBuiltinActions(): SlashAction[] {
       id: 'builtin:freeze',
       name: 'freeze',
       description: 'commands.builtin.freeze',
+      argsHint: '[off|resume]',
+      aliases: ['estop'],
       type: 'action',
       execute: async (inputValue: string) => {
         const { apiRequest } = await import('@/lib/api');
@@ -179,6 +184,46 @@ export function buildBuiltinActions(): SlashAction[] {
           showI18nToast('commands.builtin.freezeFailed', undefined, { type: 'error' });
           return { success: false, error: msg };
         }
+      },
+    },
+    {
+      id: 'builtin:new',
+      name: 'new',
+      description: 'commands.builtin.new',
+      aliases: ['reset'],
+      type: 'action',
+      execute: async () => {
+        const { default: useWorkspaceStore } = await import('@/store/useWorkspaceStore');
+        useWorkspaceStore.getState().addPane();
+        return { success: true, newInputValue: '' };
+      },
+    },
+    {
+      id: 'builtin:stop',
+      name: 'stop',
+      description: 'commands.builtin.stop',
+      aliases: ['cancel', 'abort'],
+      type: 'action',
+      execute: async () => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { chatId } = useChatStore.getState();
+        if (!chatId) {
+          return { success: false, error: 'No active chat' };
+        }
+        useChatStore.getState().stopMessage();
+        showI18nToast('commands.builtin.stopped', undefined, { type: 'info' });
+        return { success: true, newInputValue: '' };
+      },
+    },
+    {
+      id: 'builtin:model',
+      name: 'model',
+      description: 'commands.builtin.model',
+      aliases: ['switch-model'],
+      type: 'action',
+      execute: async () => {
+        showI18nToast('commands.builtin.modelHint', undefined, { type: 'info', duration: 4000 });
+        return { success: true, newInputValue: '' };
       },
     },
   ];

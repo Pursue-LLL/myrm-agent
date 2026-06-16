@@ -25,7 +25,7 @@ interface CommandState {
   /** 用户自定义命令列表 */
   commands: SlashCommand[];
 
-  /** 系统行为列表（未来扩展） */
+  /** 系统行为列表 */
   actions: SlashAction[];
 
   /** 最近使用的命令ID */
@@ -179,7 +179,13 @@ export const useCommandStore = create<CommandState>()(
       const lowerQuery = query.toLowerCase();
 
       return items.filter((item) => {
-        return item.name.toLowerCase().includes(lowerQuery);
+        if (item.name.toLowerCase().includes(lowerQuery)) return true;
+        if (item.type === 'action') {
+          if (item.aliases?.some((a) => a.toLowerCase().includes(lowerQuery))) return true;
+          if (item.description.toLowerCase().includes(lowerQuery)) return true;
+        }
+        if (item.type === 'command' && item.template.toLowerCase().includes(lowerQuery)) return true;
+        return false;
       });
     },
 

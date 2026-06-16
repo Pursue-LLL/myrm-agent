@@ -170,6 +170,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, sel
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm flex items-center gap-2">
                                 <span>/{item.name}</span>
+                                {item.argsHint && (
+                                  <span className="text-xs text-muted-foreground/60 font-normal">
+                                    {item.argsHint}
+                                  </span>
+                                )}
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                                   {t('palette.actionType')}
                                 </span>
@@ -209,6 +214,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, items, sel
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm flex items-center gap-2">
                                 <span>/{item.name}</span>
+                                {item.argsHint && (
+                                  <span className="text-xs text-muted-foreground/60 font-normal">
+                                    {item.argsHint}
+                                  </span>
+                                )}
                                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
                                   {t('palette.skillType')}
                                 </span>

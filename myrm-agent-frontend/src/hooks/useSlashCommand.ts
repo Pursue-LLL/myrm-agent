@@ -71,9 +71,14 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
 
     const baseItems = !query ? getAllItems() : searchItems(query);
 
+    const lowerQuery = query.toLowerCase();
     const matchingSkills = !query
       ? skillActions
-      : skillActions.filter((s) => s.name.toLowerCase().includes(query.toLowerCase()));
+      : skillActions.filter(
+          (s) =>
+            s.name.toLowerCase().includes(lowerQuery) ||
+            s.description.toLowerCase().includes(lowerQuery),
+        );
 
     return [...baseItems, ...matchingSkills];
   }, [shouldShow, query, getAllItems, searchItems, skillActions]);

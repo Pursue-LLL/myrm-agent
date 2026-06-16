@@ -1,8 +1,7 @@
 /**
- * 快捷指令类型定义（极简版）
+ * 快捷指令类型定义
  *
- * 参考 Cursor 的设计理念：
- * - 行为 (Actions): 系统内置功能
+ * - 行为 (Actions): 系统内置功能（含参数提示、别名搜索）
  * - 命令 (Commands): 用户自定义模板
  */
 
@@ -12,7 +11,7 @@
 export type SlashItemType = 'action' | 'command';
 
 /**
- * 行为定义（系统内置，未来扩展）
+ * 行为定义（系统内置）
  */
 export interface SlashAction {
   /** 唯一标识 */
@@ -26,6 +25,12 @@ export interface SlashAction {
 
   /** 图标 */
   icon?: string;
+
+  /** 参数用法提示，显示在命令面板中（如 "[on|off|<seconds>]"） */
+  argsHint?: string;
+
+  /** 命令别名，用于搜索匹配（如 ["reset", "clear"]） */
+  aliases?: string[];
 
   /** 类型标识 */
   type: 'action';
