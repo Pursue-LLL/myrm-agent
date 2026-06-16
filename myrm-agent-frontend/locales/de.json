@@ -4665,7 +4665,12 @@
         "cacheHitRate": "Hit {rate}%",
         "allInactive": "All strategies idle",
         "restoreBlocked": "Archive restore blocked {count}× — consider forking.",
-        "viewDetails": "View full analytics →"
+        "viewDetails": "View full analytics →",
+        "compressContext": "Kontext komprimieren",
+        "compressing": "Komprimiere…",
+        "compressSuccess": "{tokens} Token gespart",
+        "compressNotNeeded": "Keine Komprimierung nötig",
+        "compressError": "Komprimierung fehlgeschlagen"
       }
     },
     "compact": {
@@ -10448,20 +10453,26 @@
         "companion": {
           "name": "Companion",
           "description": "For daily AI work habits",
-          "feature1": "6,000 WU/month",
-          "feature2": "Public ingress + Cron (×3)"
+          "feature1": "2,500 WU/month",
+          "feature2": "2C sandbox + Cron (×3)"
+        },
+        "plus": {
+          "name": "Plus",
+          "description": "More monthly WU on the same sandbox",
+          "feature1": "5,000 WU/month",
+          "feature2": "Same 2C sandbox as Companion"
         },
         "pro": {
           "name": "Pro",
           "description": "For power users and builders",
-          "feature1": "18,000 WU/month",
-          "feature2": "Higher sandbox resources"
+          "feature1": "12,000 WU/month",
+          "feature2": "8C sandbox + VNC desktop"
         },
         "max": {
           "name": "Max",
           "description": "Maximum capacity and concurrency",
-          "feature1": "60,000 WU/month",
-          "feature2": "Extended active time limits"
+          "feature1": "22,000 WU/month",
+          "feature2": "8C sandbox + extended active time"
         }
       }
     }

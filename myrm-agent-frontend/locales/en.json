@@ -2122,7 +2122,7 @@
         "title": "Skill Market",
         "description": "Browse and enable prebuilt skills to extend AI assistant capabilities",
         "empty": "No skills available",
-        "emptyDesc": "Skill market is under construction, stay tuned"
+        "emptyDesc": "Prebuilt skills load here after you install them from Discover",
       },
       "personal": {
         "title": "Personal Skills",
@@ -2135,7 +2135,7 @@
         "title": "Enabled Skills",
         "description": "List of currently enabled skills",
         "empty": "No enabled skills",
-        "emptyDesc": "Go to Skill Market to enable skills you need",
+        "emptyDesc": "Open the Discover tab to search and install skills from ClawHub, GitHub, and more",
         "count": "{count} enabled"
       },
       "card": {
@@ -5197,7 +5197,12 @@
         "cacheHitRate": "Hit {rate}%",
         "allInactive": "All strategies idle",
         "restoreBlocked": "Archive restore blocked {count}× — consider forking.",
-        "viewDetails": "View full analytics →"
+        "viewDetails": "View full analytics →",
+        "compressContext": "Compress context",
+        "compressing": "Compressing…",
+        "compressSuccess": "Saved {tokens} tokens",
+        "compressNotNeeded": "No compression needed",
+        "compressError": "Compression failed"
       }
     },
     "dragDrop": {
@@ -10802,6 +10807,7 @@
   "billing": {
     "wuBalance": "Work Units",
     "estimateToast": "Estimated ~{wu} WU for this message. {remaining} WU remaining.",
+    "sessionWuBurn": "This task used {wu} WU. {remaining} WU remaining.",
     "insufficientWu": "Insufficient Work Units. Upgrade your plan or wait for daily refresh.",
     "exceeded": {
       "title": "Work Units exhausted",
@@ -10845,6 +10851,8 @@
       "included": "Included",
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
+      "loadingCatalog": "Loading plans…",
+      "catalogLoadFailed": "Could not load pricing. Refresh or try again later.",
       "perYear": "/yr",
       "yearlyEquivalent": "≈ {amount}/mo billed annually",
       "everythingIn": "Everything in {plan}, plus:",
@@ -10865,20 +10873,26 @@
         "companion": {
           "name": "Companion",
           "description": "For daily AI work habits",
-          "feature1": "6,000 WU/month",
-          "feature2": "Public ingress + Cron (×3)"
+          "feature1": "2,500 WU/month",
+          "feature2": "2C sandbox + Cron (×3)"
+        },
+        "plus": {
+          "name": "Plus",
+          "description": "More monthly WU on the same sandbox",
+          "feature1": "5,000 WU/month",
+          "feature2": "Same 2C sandbox as Companion"
         },
         "pro": {
           "name": "Pro",
           "description": "For power users and builders",
-          "feature1": "18,000 WU/month",
-          "feature2": "Higher sandbox resources"
+          "feature1": "12,000 WU/month",
+          "feature2": "8C sandbox + VNC desktop"
         },
         "max": {
           "name": "Max",
           "description": "Maximum capacity and concurrency",
-          "feature1": "60,000 WU/month",
-          "feature2": "Extended active time limits"
+          "feature1": "22,000 WU/month",
+          "feature2": "8C sandbox + extended active time"
         }
       }
     }

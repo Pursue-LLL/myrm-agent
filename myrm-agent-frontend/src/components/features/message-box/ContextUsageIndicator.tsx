@@ -5,17 +5,19 @@
  * - store/useChatStore::messages, chatId, setActiveSessionAnalyticsId (POS: Chat state management store.)
  * - store/useConfigStore::showContextUsage (POS: User configuration store.)
  * - services/statistics::getSessionAnalytics (POS: Statistics API client DTO layer.)
+ * - services/chat::compactChat (POS: Chat service — manual context compaction.)
  * - services/contextHealth::ContextHealth, HealthStatus (POS: Statistics context-health DTO layer.)
  *
  * [OUTPUT]
- * - ContextUsageIndicator: token usage ring with strategy health dot and expandable mini panel.
+ * - ContextUsageIndicator: token usage ring with strategy health dot and expandable mini panel with manual compress.
  *
  * [POS]
  * Context usage and memory strategy indicator for the chat window.
- * Displays token usage ring, strategy health status dot, and on-click mini panel with compaction/pruning/cache details.
+ * Displays token usage ring, strategy health status dot, and on-click mini panel with compaction/pruning/cache details
+ * and a manual "Compress context" button that calls the existing compact API.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -25,6 +27,7 @@ import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { getSessionAnalytics } from '@/services/statistics';
+import { compactChat } from '@/services/chat';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';
 
 const STATUS_DOT_COLORS: Record<HealthStatus, string> = {
@@ -66,11 +69,37 @@ function resolveDisplayStatus(health: ContextHealth | null): HealthStatus {
 interface MiniPanelContentProps {
   health: ContextHealth | null;
   loading: boolean;
+  chatId: string | null;
+  usagePercent: number;
   onNavigateDetails: () => void;
 }
 
-function MiniPanelContent({ health, loading, onNavigateDetails }: MiniPanelContentProps) {
+function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails }: MiniPanelContentProps) {
   const t = useTranslations('chat.contextUsage.strategy');
+  const [compacting, setCompacting] = useState(false);
+  const [compactResult, setCompactResult] = useState<string | null>(null);
+  const [compactError, setCompactError] = useState<string | null>(null);
+
+  const canCompress = !!chatId && usagePercent >= 30 && !compacting;
+
+  const handleCompress = useCallback(async () => {
+    if (!chatId || compacting) return;
+    setCompacting(true);
+    setCompactResult(null);
+    setCompactError(null);
+    try {
+      const result = await compactChat(chatId);
+      if (result.compacted) {
+        setCompactResult(t('compressSuccess', { tokens: formatTokens(result.tokens_saved) }));
+      } else {
+        setCompactResult(t('compressNotNeeded'));
+      }
+    } catch (err) {
+      setCompactError(err instanceof Error ? err.message : t('compressError'));
+    } finally {
+      setCompacting(false);
+    }
+  }, [chatId, compacting, t]);
 
   if (loading) {
     return (
@@ -149,10 +178,32 @@ function MiniPanelContent({ health, loading, onNavigateDetails }: MiniPanelConte
         </div>
       )}
 
+      <div className="mt-1 pt-1.5 border-t border-border/50 flex flex-col gap-1.5">
+        <button
+          type="button"
+          disabled={!canCompress}
+          onClick={handleCompress}
+          className={`w-full text-[11px] font-medium py-1.5 px-2 rounded-md transition-colors ${
+            canCompress
+              ? 'bg-primary-dark/10 text-primary-dark hover:bg-primary-dark/20 dark:bg-primary-light/10 dark:text-primary-light dark:hover:bg-primary-light/20'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
+        >
+          {compacting ? t('compressing') : t('compressContext')}
+        </button>
+
+        {compactResult && (
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{compactResult}</span>
+        )}
+        {compactError && (
+          <span className="text-[10px] text-rose-600 dark:text-rose-400">{compactError}</span>
+        )}
+      </div>
+
       <button
         type="button"
         onClick={onNavigateDetails}
-        className="mt-1 pt-1.5 border-t border-border/50 text-[10px] text-primary-dark hover:text-primary-dark/80 dark:text-primary-light dark:hover:text-primary-light/80 text-left transition-colors"
+        className="text-[10px] text-primary-dark hover:text-primary-dark/80 dark:text-primary-light dark:hover:text-primary-light/80 text-left transition-colors"
       >
         {t('viewDetails')}
       </button>
@@ -278,7 +329,13 @@ export default function ContextUsageIndicator() {
   );
 
   const panelContent = (
-    <MiniPanelContent health={contextHealth} loading={loadingHealth} onNavigateDetails={handleNavigateDetails} />
+    <MiniPanelContent
+      health={contextHealth}
+      loading={loadingHealth}
+      chatId={chatId}
+      usagePercent={percentage}
+      onNavigateDetails={handleNavigateDetails}
+    />
   );
 
   const tooltipContent = (
