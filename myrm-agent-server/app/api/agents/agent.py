@@ -123,10 +123,14 @@ def _meta_list_or_none(meta: dict[str, object], key: str) -> list[dict[str, str]
     return None
 
 
+_WORKSPACE_POLICY_MAP: dict[str, WorkspacePolicyLiteral] = {
+    "ISOLATED_COPY": "ISOLATED_COPY",
+    "READ_ONLY_SANDBOX": "READ_ONLY_SANDBOX",
+}
+
+
 def _workspace_policy_from_metadata(raw: object) -> WorkspacePolicyLiteral:
-    if raw == "ISOLATED_COPY":
-        return "ISOLATED_COPY"
-    return "INHERIT_REQUESTER"
+    return _WORKSPACE_POLICY_MAP.get(str(raw), "INHERIT_REQUESTER") if raw else "INHERIT_REQUESTER"
 
 
 def _response_memory_policy(agent: AgentProfile) -> AgentMemoryPolicyConfig | None:

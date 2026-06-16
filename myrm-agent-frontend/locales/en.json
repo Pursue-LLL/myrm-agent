@@ -4264,6 +4264,13 @@
     "focused": "Focused",
     "diverse": "Diverse",
     "maxIterationsPlaceholder": "Default 100",
+    "workspacePolicy": "Subagent Workspace Policy",
+    "workspacePolicyDesc": "Control subagent access to the parent workspace",
+    "workspacePolicyOption": {
+      "INHERIT_REQUESTER": "Inherit Parent",
+      "ISOLATED_COPY": "Isolated Copy",
+      "READ_ONLY_SANDBOX": "Read-Only Sandbox"
+    },
     "maxParallelFission": "Max Parallel Fission",
     "maxParallelFissionDesc": "Maximum concurrent subagents during swarm fission (default 3, max 5)",
     "maxParallelFissionPlaceholder": "Default 3",

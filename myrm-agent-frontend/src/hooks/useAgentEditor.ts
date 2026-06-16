@@ -26,6 +26,7 @@ import {
   AgentUpdate,
   AgentCreate,
   OpenAPIServiceConfig,
+  type WorkspacePolicy,
 } from '@/services/agent';
 import { DEFAULT_ENABLED_BUILTIN_TOOLS, type BuiltinToolId } from '@/store/chat/types';
 import { type ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
@@ -104,6 +105,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 记忆遗忘速度
   const [memoryDecayProfile, setMemoryDecayProfile] = useState<'permanent' | 'normal' | 'fast'>('normal');
 
+  // 子智能体工作空间策略
+  const [workspacePolicy, setWorkspacePolicy] = useState<WorkspacePolicy>('INHERIT_REQUESTER');
+
   // 高级引擎设置
   const [engineParams, setEngineParams] = useState<Record<string, unknown> | null>(null);
 
@@ -162,6 +166,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     personalityStyle: DEFAULT_PERSONALITY_STYLE as string,
     promptMode: 'full' as 'full' | 'lean' | 'naked',
     maxIterations: null as number | null,
+    workspacePolicy: 'INHERIT_REQUESTER' as WorkspacePolicy,
     memoryDecayProfile: 'normal' as 'permanent' | 'normal' | 'fast',
     engineParams: null as Record<string, unknown> | null,
     openapiServices: [] as OpenAPIServiceConfig[],
@@ -208,6 +213,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       personalityStyle !== originalData.personalityStyle ||
       promptMode !== originalData.promptMode ||
       memoryDecayProfile !== originalData.memoryDecayProfile ||
+      workspacePolicy !== originalData.workspacePolicy ||
       sessionPolicyChanged ||
       notifyChanged ||
       allowDiscovery !== originalData.allowDiscovery ||
@@ -300,6 +306,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setPersonalityStyle(data.personality_style || DEFAULT_PERSONALITY_STYLE);
       setPromptMode(data.prompt_mode || 'full');
       setMaxIterations(data.max_iterations ?? null);
+      setWorkspacePolicy(data.workspace_policy || 'INHERIT_REQUESTER');
       setAllowDiscovery(data.allow_discovery ?? true);
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
       setEngineParams(data.engine_params ?? null);
@@ -328,6 +335,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
         maxIterations: data.max_iterations ?? null,
+        workspacePolicy: data.workspace_policy || 'INHERIT_REQUESTER',
         memoryDecayProfile: data.memory_decay_profile || 'normal',
         engineParams: data.engine_params ?? null,
         openapiServices: (data.openapi_services as OpenAPIServiceConfig[]) || [],
@@ -421,6 +429,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           allow_discovery: allowDiscovery,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : undefined,
           max_iterations: maxIterations,
+          workspace_policy: workspacePolicy,
           memory_decay_profile: memoryDecayProfile,
           session_policy: sessionPolicy,
           engine_params: engineParams,
@@ -455,6 +464,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           allow_discovery: allowDiscovery,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : [],
           max_iterations: maxIterations,
+          workspace_policy: workspacePolicy,
           memory_decay_profile: memoryDecayProfile,
           session_policy: sessionPolicy,
           engine_params: engineParams,
@@ -652,6 +662,9 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 迭代次数
     maxIterations,
     setMaxIterations,
+    // 工作空间策略
+    workspacePolicy,
+    setWorkspacePolicy,
     // 记忆遗忘速度
     memoryDecayProfile,
     setMemoryDecayProfile,

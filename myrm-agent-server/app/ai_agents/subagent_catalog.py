@@ -26,6 +26,11 @@ from app.services.agent.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
 
+_WP_MAP: dict[str, WorkspacePolicy] = {
+    "ISOLATED_COPY": WorkspacePolicy.ISOLATED_COPY,
+    "READ_ONLY_SANDBOX": WorkspacePolicy.READ_ONLY_SANDBOX,
+}
+
 
 class _LLMModelResolver:
     """ModelResolver implementation using the business layer's model resolver.
@@ -111,10 +116,8 @@ class DatabaseSubagentCatalog:
                 )
 
                 max_turns = agent_profile.max_iterations or 25
-                workspace_policy = WorkspacePolicy.INHERIT
                 raw_workspace_policy = (agent_profile.metadata or {}).get("workspace_policy")
-                if raw_workspace_policy == "ISOLATED_COPY":
-                    workspace_policy = WorkspacePolicy.ISOLATED_COPY
+                workspace_policy = _WP_MAP.get(str(raw_workspace_policy), WorkspacePolicy.INHERIT) if raw_workspace_policy else WorkspacePolicy.INHERIT
 
                 return SubagentConfig(
                     system_prompt=agent_profile.system_prompt or "",

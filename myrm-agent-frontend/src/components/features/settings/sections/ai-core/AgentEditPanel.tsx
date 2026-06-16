@@ -561,6 +561,32 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
 
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="mb-3">
+                  <h3 className="text-sm font-medium text-foreground">{t('agent.workspacePolicy')}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('agent.workspacePolicyDesc')}</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {(['INHERIT_REQUESTER', 'ISOLATED_COPY', 'READ_ONLY_SANDBOX'] as const).map((policy) => (
+                    <button
+                      key={policy}
+                      type="button"
+                      disabled={editor.isReadonly}
+                      className={cn(
+                        'flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors',
+                        'disabled:opacity-50 disabled:cursor-not-allowed',
+                        editor.workspacePolicy === policy
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground hover:bg-muted',
+                      )}
+                      onClick={() => editor.setWorkspacePolicy(policy)}
+                    >
+                      {t(`agent.workspacePolicyOption.${policy}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="mb-3">
                   <h3 className="text-sm font-medium text-foreground">{t('agent.maxParallelFission')}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">{t('agent.maxParallelFissionDesc')}</p>
                 </div>

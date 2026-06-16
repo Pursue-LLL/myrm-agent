@@ -50,6 +50,7 @@ export interface OpenAPIServiceConfig {
 }
 
 export type AgentType = 'individual' | 'team';
+export type WorkspacePolicy = 'INHERIT_REQUESTER' | 'ISOLATED_COPY' | 'READ_ONLY_SANDBOX';
 export type SessionResetMode = 'persistent' | 'daily' | 'idle';
 
 export interface AgentSessionPolicy {
@@ -98,6 +99,7 @@ export interface Agent {
   personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
+  workspace_policy?: WorkspacePolicy;
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';
@@ -152,6 +154,7 @@ export interface AgentCreate {
   personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
+  workspace_policy?: WorkspacePolicy;
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';
@@ -188,6 +191,7 @@ export interface AgentUpdate {
   personality_style?: string;
   subagent_ids?: string[];
   max_iterations?: number | null;
+  workspace_policy?: WorkspacePolicy;
   engine_params?: Record<string, unknown> | null;
   openapi_services?: OpenAPIServiceConfig[];
   memory_decay_profile?: 'permanent' | 'normal' | 'fast';

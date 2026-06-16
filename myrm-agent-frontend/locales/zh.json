@@ -4267,6 +4267,13 @@
     "focused": "集中",
     "diverse": "多样",
     "maxIterationsPlaceholder": "默认 100",
+    "workspacePolicy": "子智能体工作空间策略",
+    "workspacePolicyDesc": "控制子智能体对主工作空间的访问权限",
+    "workspacePolicyOption": {
+      "INHERIT_REQUESTER": "继承父级",
+      "ISOLATED_COPY": "隔离副本",
+      "READ_ONLY_SANDBOX": "只读沙箱"
+    },
     "maxParallelFission": "最大并行裂变数",
     "maxParallelFissionDesc": "Swarm Fission 同时运行的最大子 Agent 数量（默认 3，上限 5）",
     "maxParallelFissionPlaceholder": "默认 3",

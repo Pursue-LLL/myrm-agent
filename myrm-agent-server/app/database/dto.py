@@ -31,7 +31,7 @@ PersonalityStyleLiteral = Literal[
 ]
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
 PromptModeLiteral = Literal["full", "lean", "naked"]
-WorkspacePolicyLiteral = Literal["INHERIT_REQUESTER", "ISOLATED_COPY"]
+WorkspacePolicyLiteral = Literal["INHERIT_REQUESTER", "ISOLATED_COPY", "READ_ONLY_SANDBOX"]
 AgentTypeLiteral = Literal["individual", "team"]
 
 T = TypeVar("T")

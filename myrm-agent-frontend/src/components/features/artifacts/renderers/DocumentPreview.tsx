@@ -34,10 +34,13 @@ const SkeletonLoader: React.FC = () => (
 const ReactMarkdownRenderer: React.FC<{ content: string }> = memo(({ content }) => {
   const ReactMarkdown = require('react-markdown').default;
   const remarkGfm = require('remark-gfm').default;
+  const remarkMath = require('remark-math').default;
+  const rehypeKatex = require('rehype-katex').default;
 
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
       components={{
         code: ({
           node: _node,
