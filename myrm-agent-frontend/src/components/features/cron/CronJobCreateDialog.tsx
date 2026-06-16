@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle } from 'lucide-react';
+import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send } from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -27,6 +27,9 @@ import {
   formatMonthlyExecutions,
   getFrequencyRiskLevel,
 } from '@/lib/utils/cronEstimate';
+import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
+import { listChannelStatuses } from '@/services/channels';
+import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 
 type JobType = 'agent' | 'shell' | 'router';
 type UIJobMode = 'agent' | 'shell' | 'script';
@@ -70,7 +73,25 @@ export default function CronJobCreateDialog({
   const [saving, setSaving] = useState(false);
   const [sessionTarget, setSessionTarget] = useState<'isolated' | 'main'>(presetChatId ? 'main' : 'isolated');
   const [selectedChatId, setSelectedChatId] = useState<string>('');
+  const [deliveryChannel, setDeliveryChannel] = useState<string>('chat');
+  const [deliveryTarget, setDeliveryTarget] = useState('');
+  const [connectedChannels, setConnectedChannels] = useState<string[]>([]);
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
+
+  useEffect(() => {
+    if (open) {
+      listChannelStatuses()
+        .then((statuses) => {
+          const NON_IM = new Set(['chat', 'webhook', 'none', 'web']);
+          setConnectedChannels(
+            statuses
+              .filter((s) => s.status === 'running' && !NON_IM.has(s.name))
+              .map((s) => s.name),
+          );
+        })
+        .catch(() => setConnectedChannels([]));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -102,6 +123,8 @@ export default function CronJobCreateDialog({
     setOnceAt('');
     setSessionTarget(presetChatId ? 'main' : 'isolated');
     setSelectedChatId('');
+    setDeliveryChannel('chat');
+    setDeliveryTarget('');
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -179,6 +202,10 @@ export default function CronJobCreateDialog({
         payload.command = command.trim();
       } else {
         payload.pre_condition_script = scriptCode.trim();
+        if (deliveryChannel !== 'chat') {
+          const target = deliveryTarget.trim() || undefined;
+          payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
+        }
       }
 
       await createJob(payload);
@@ -202,6 +229,8 @@ export default function CronJobCreateDialog({
     agentId,
     sessionTarget,
     effectiveChatId,
+    deliveryChannel,
+    deliveryTarget,
     createJob,
     t,
     reset,
@@ -299,6 +328,42 @@ export default function CronJobCreateDialog({
                 className="min-h-[100px] text-sm resize-none font-mono"
               />
               <p className="text-[11px] text-muted-foreground">{t('scriptHint')}</p>
+            </div>
+          )}
+
+          {/* Script Delivery Target */}
+          {uiMode === 'script' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('deliveryLabel')}</Label>
+              <ToggleGroup
+                type="single"
+                value={deliveryChannel}
+                onValueChange={(v) => v && setDeliveryChannel(v)}
+                className="flex-wrap justify-start"
+                size="sm"
+              >
+                <ToggleGroupItem value="chat" className={TOGGLE_CLS}>
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {t('deliveryChat')}
+                </ToggleGroupItem>
+                {connectedChannels.map((ch) => (
+                  <ToggleGroupItem key={ch} value={ch} className={TOGGLE_CLS}>
+                    <ChannelIcon channelId={ch} size={14} />
+                    {IM_CHANNELS[ch]?.label ?? ch}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              {(deliveryChannel in IM_CHANNELS) && (
+                <div className="flex items-center gap-2">
+                  <Send className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <Input
+                    placeholder={IM_CHANNELS[deliveryChannel]?.hint ?? ''}
+                    value={deliveryTarget}
+                    onChange={(e) => setDeliveryTarget(e.target.value)}
+                    className="h-7 text-xs flex-1"
+                  />
+                </div>
+              )}
             </div>
           )}
 

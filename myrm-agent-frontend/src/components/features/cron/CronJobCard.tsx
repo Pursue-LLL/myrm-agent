@@ -243,19 +243,21 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
         {job.prompt && <p className="text-xs text-muted-foreground mt-0.5 truncate">{job.prompt}</p>}
 
         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-          <ModelPickerPopover
-            trigger={
-              <button
-                className="flex items-center gap-1 rounded-full border border-transparent px-1.5 py-0.5 -ml-1 text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50 transition-all cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Cpu className="h-3 w-3" />
-                <span className="truncate max-w-[120px]">{displayModelName}</span>
-              </button>
-            }
-            currentSelection={currentSelection}
-            onSelect={handleModelChange}
-          />
+          {!isScriptJob && job.job_type !== 'shell' && (
+            <ModelPickerPopover
+              trigger={
+                <button
+                  className="flex items-center gap-1 rounded-full border border-transparent px-1.5 py-0.5 -ml-1 text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent/50 transition-all cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Cpu className="h-3 w-3" />
+                  <span className="truncate max-w-[120px]">{displayModelName}</span>
+                </button>
+              }
+              currentSelection={currentSelection}
+              onSelect={handleModelChange}
+            />
+          )}
           <ScheduleLabel job={job} t={t} />
           <AgentLabel agentId={job.agent_id} />
           {job.session_target === 'main' && <ThreadBadge chatId={job.chat_id} t={t} />}
