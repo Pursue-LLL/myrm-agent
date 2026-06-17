@@ -13,10 +13,9 @@
 
 import type { ComponentType } from 'react';
 import { AiMagicIcon, CloudIcon, Diamond02Icon, Rocket01Icon, Layers01Icon } from 'hugeicons-react';
-import type { BillingCatalogPlan } from '@/lib/cp-billing';
+import type { BillingCatalogPlan, BillingPlanKey, PaidBillingPlanKey } from '@/lib/cp-billing';
 
-export type BillingPlanKey = 'free' | 'companion' | 'plus' | 'pro' | 'max';
-export type PaidBillingPlanKey = Exclude<BillingPlanKey, 'free'>;
+export type { BillingPlanKey, PaidBillingPlanKey } from '@/lib/cp-billing';
 
 export interface BillingPlanCatalogEntry {
   key: BillingPlanKey;

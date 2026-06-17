@@ -4965,7 +4965,6 @@
       "error": "批量删除失败"
     },
     "openInNewWindow": "在新窗口中打开",
-    "openInNewWindow": "在新窗口中打开",
     "createAutomation": "创建自动化",
     "handoff": {
       "menuAction": "转移到...",
@@ -7811,8 +7810,7 @@
       "proMember": "Pro 会员",
       "freeTier": "免费版",
       "upgradeToPro": "升级到 Pro",
-      "dailyLimitsSubtitle": "每日配额 & 实时用量",
-      "billingSecure": "由 Creem 加密的安全计费"
+      "dailyLimitsSubtitle": "每日配额 & 实时用量"
     },
     "subscription": {
       "title": "订阅管理",
@@ -7875,7 +7873,7 @@
     "errorDesc": "无法获取订阅状态，请检查网络后重试。",
     "retry": "重试",
     "portalTitle": "客户门户",
-    "portalDescription": "打开 Creem 查看账单、更新付款方式或设置到期取消。",
+    "portalDescription": "打开 Stripe 客户门户查看账单、更新付款方式或设置到期取消。",
     "portalUnavailable": "订阅门户尚未就绪，请稍后重试。",
     "readonlyNote": "此页面仅只读展示，变更请前往订阅门户。",
     "notAvailable": "暂无",
@@ -8128,9 +8126,12 @@
       "browser_session": "管理浏览器会话（创建/销毁）"
     },
     "preset": {
-      "research": "研究",
-      "devops": "运维",
-      "full": "不限制"
+      "everyHour": "每小时",
+      "daily8am": "每天 8:00",
+      "daily9am": "每天 9:00",
+      "weekdays9am": "工作日 9:00",
+      "weeklyMonday": "每周一",
+      "monthlyFirst": "每月1日"
     },
     "cooldownLabel": "冷却时间",
     "cooldownDesc": "两次连续执行之间的最小间隔（秒）",
@@ -8245,7 +8246,56 @@
     "triggerSourceEvent": "事件",
     "triggerSourceWebhook": "Webhook",
     "triggerSourceSystem": "系统",
-    "triggerSourceManual": "手动"
+    "triggerSourceManual": "手动",
+    "blueprint": {
+      "quickStart": "从模板快速创建",
+      "tabTemplate": "从模板",
+      "tabCustom": "自定义",
+      "backToTemplates": "返回模板列表",
+      "slotTime": "时间",
+      "slotDay": "星期几",
+      "slotWeekdays": "重复",
+      "slotMessage": "提醒内容",
+      "slotTopic": "主题",
+      "slotTextPlaceholder": "输入内容...",
+      "enum": {
+        "everyday": "每天",
+        "weekdays": "仅工作日",
+        "weekends": "仅周末"
+      },
+      "dayMon": "周一",
+      "dayTue": "周二",
+      "dayWed": "周三",
+      "dayThu": "周四",
+      "dayFri": "周五",
+      "daySat": "周六",
+      "daySun": "周日",
+      "morningBriefing": {
+        "title": "每日简报",
+        "desc": "每日新闻、天气和日程摘要",
+        "prompt": "给我一份简洁的晨间简报：今日5条科技要闻、天气概况和我的日程重点。"
+      },
+      "weeklyReview": {
+        "title": "每周回顾",
+        "desc": "周末工作总结与下周计划",
+        "prompt": "总结我的一周：主要成果、待办事项和下周建议。"
+      },
+      "customReminder": {
+        "title": "自定义提醒",
+        "desc": "每日定时推送你的个性化提醒",
+        "prompt": "提醒我即将到来的任务和截止日期。"
+      },
+      "newsDigest": {
+        "title": "新闻摘要",
+        "desc": "自选主题的精选新闻汇总",
+        "prompt": "搜索并汇总关于\"{topic}\"的最新新闻。列出5条重要标题，附简要摘要和来源链接。"
+      },
+      "eveningWinddown": {
+        "title": "晚间复盘",
+        "desc": "一天回顾和放松建议",
+        "prompt": "回顾我的一天：完成了什么、明天需要跟进的事项，并推荐一项放松活动。"
+      }
+    }
   },
   "heartbeat": {
     "title": "Agent 自动巡检",
@@ -9273,7 +9323,6 @@
     "onebotTestFailed": "启动 OneBot WebSocket 服务器失败",
     "slackBotTokenPlaceholder": "xoxb-xxx",
     "slackBotTokenTooltip": "Get from Slack App OAuth & Permissions page",
-    "slackSigningSecret": "Signing Secret",
     "slackSigningSecretPlaceholder": "xxx",
     "slackSigningSecretTooltip": "Get from Slack App Basic Information page",
     "slackNotConfigured": "Slack not configured yet.",
@@ -9581,7 +9630,7 @@
     "editValidationError": "参数格式错误：{fields}",
     "guidance": {
       "toggle": "附加引导指令",
-      "placeholder": "为智能体提供额外的上下文或指令（例如：\u201c使用生产环境 API，不要用测试环境\u201d、\u201c这次跳过错误检查\u201d）...",
+      "placeholder": "为智能体提供额外的上下文或指令（例如：“使用生产环境 API，不要用测试环境”、“这次跳过错误检查”）...",
       "hint": "此引导将在智能体恢复执行时作为上下文注入。",
       "hasGuidance": "已附加引导"
     },
@@ -10372,6 +10421,17 @@
       "empty": "当天无活动记录",
       "error": "加载每日日志失败",
       "retry": "重试"
+    },
+    "timeRange": {
+      "7d": "7天",
+      "30d": "30天",
+      "90d": "90天"
+    },
+    "savings": {
+      "title": "智能优化节省",
+      "cache": "缓存节省",
+      "routing": "路由节省",
+      "totalCost": "实际花费"
     }
   },
   "subagentDashboard": {
@@ -10820,6 +10880,8 @@
       "included": "已包含",
       "processing": "处理中…",
       "checkoutFailed": "结账失败，请重试。",
+      "checkoutUnavailable": "订阅暂未开放",
+      "checkoutUnavailableBanner": "付费订阅尚未开放（Stripe 账单配置中）。您可先使用免费版，或联系 support@myrmagent.ai。",
       "loadingCatalog": "正在加载套餐…",
       "catalogLoadFailed": "无法加载定价，请刷新后重试。",
       "perYear": "/年",

@@ -3,11 +3,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isPaidBillingPlan, type PaidBillingPlanKey } from '@/lib/cp-billing';
 
 const CP_API_URL = process.env.MYRM_CP_API_URL || 'http://127.0.0.1:8003';
 
 interface CheckoutRequest {
-  plan: 'companion' | 'pro' | 'max';
+  plan: PaidBillingPlanKey;
   billingCycle: 'monthly' | 'yearly';
   email?: string;
   enableTrial?: boolean;
@@ -25,6 +26,10 @@ export async function POST(request: NextRequest) {
 
     if (!plan) {
       return NextResponse.json({ error: 'Plan is required' }, { status: 400 });
+    }
+
+    if (!isPaidBillingPlan(plan)) {
+      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
     const authHeader = request.headers.get('Authorization');

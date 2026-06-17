@@ -10,7 +10,7 @@
 |-------------|------|------|
 | `api.ts` | 通用 fetch 封装与错误处理 | — |
 | `batch-optimization.ts` | 批量优化页类型、状态过滤、进度/统计聚合与格式化（无 HTTP；列表/创建在 page 直调 `apiRequest`） | — |
-| `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL | — |
+| `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL、Billing API 与 `BillingPlanKey` SSOT | — |
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | — |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |

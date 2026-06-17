@@ -7273,8 +7273,7 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
-      "billingSecure": "Secure billing encrypted with Creem"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
     },
     "subscription": {
       "title": "Subscription",
@@ -7337,7 +7336,7 @@
     "errorDesc": "We couldn't load your subscription status. Please check your connection and retry.",
     "retry": "Retry",
     "portalTitle": "Customer Portal",
-    "portalDescription": "Open Creem to review invoices, update payment methods, or cancel at period end.",
+    "portalDescription": "Öffnen Sie das Stripe-Kundenportal, um Rechnungen einzusehen, Zahlungsmethoden zu aktualisieren oder zum Periodenende zu kündigen.",
     "portalUnavailable": "Billing portal is not ready yet. Please try again later.",
     "readonlyNote": "This page is read-only. Manage changes in the billing portal.",
     "notAvailable": "Not available",
@@ -7589,9 +7588,12 @@
       "browser_session": "Manage browser sessions (create/destroy)"
     },
     "preset": {
-      "research": "Research",
-      "devops": "DevOps",
-      "full": "Unrestricted"
+      "everyHour": "Stündlich",
+      "daily8am": "Täglich 8:00",
+      "daily9am": "Täglich 9:00",
+      "weekdays9am": "Werktags 9:00",
+      "weeklyMonday": "Wöchentlich Montag",
+      "monthlyFirst": "Monatlich am 1."
     },
     "cooldownLabel": "Cooldown",
     "cooldownDesc": "Minimum interval between two consecutive runs (seconds)",
@@ -7707,7 +7709,56 @@
     "triggerSourceEvent": "event",
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
-    "triggerSourceManual": "manual"
+    "triggerSourceManual": "manual",
+    "blueprint": {
+      "quickStart": "Schnellstart mit Vorlage",
+      "tabTemplate": "Vorlage",
+      "tabCustom": "Benutzerdefiniert",
+      "backToTemplates": "Zurück zur Vorlagenübersicht",
+      "slotTime": "Uhrzeit",
+      "slotDay": "Wochentag",
+      "slotWeekdays": "Wiederholung",
+      "slotMessage": "Erinnerungsnachricht",
+      "slotTopic": "Thema",
+      "slotTextPlaceholder": "Inhalt eingeben...",
+      "enum": {
+        "everyday": "Täglich",
+        "weekdays": "Nur Werktage",
+        "weekends": "Nur Wochenende"
+      },
+      "dayMon": "Montag",
+      "dayTue": "Dienstag",
+      "dayWed": "Mittwoch",
+      "dayThu": "Donnerstag",
+      "dayFri": "Freitag",
+      "daySat": "Samstag",
+      "daySun": "Sonntag",
+      "morningBriefing": {
+        "title": "Morgen-Briefing",
+        "desc": "Tägliche Zusammenfassung von Nachrichten, Wetter und Terminen",
+        "prompt": "Gib mir ein kompaktes Morgen-Briefing: Top 5 Tech-News, Wetterzusammenfassung und meine heutigen Kalender-Highlights."
+      },
+      "weeklyReview": {
+        "title": "Wochenrückblick",
+        "desc": "Wochenend-Zusammenfassung mit Erfolgen und Plänen",
+        "prompt": "Fasse meine Woche zusammen: wichtige Erfolge, offene Aufgaben und Vorschläge für nächste Woche."
+      },
+      "customReminder": {
+        "title": "Eigene Erinnerung",
+        "desc": "Tägliche Erinnerung mit persönlicher Nachricht",
+        "prompt": "Erinnere mich an meine anstehenden Aufgaben und Fristen."
+      },
+      "newsDigest": {
+        "title": "Nachrichtenübersicht",
+        "desc": "Kuratierte Nachrichtenzusammenfassung zum gewählten Thema",
+        "prompt": "Suche und fasse die neuesten Nachrichten zu \"{topic}\" zusammen. Füge die Top 5 Schlagzeilen mit kurzen Zusammenfassungen und Quelllinks hinzu."
+      },
+      "eveningWinddown": {
+        "title": "Abend-Rückblick",
+        "desc": "Tagesrückblick und Entspannungsvorschläge",
+        "prompt": "Überprüfe meinen Tag: Was habe ich erreicht, welche offenen Punkte gibt es für morgen, und schlage eine entspannende Aktivität vor."
+      }
+    }
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -10285,6 +10336,17 @@
       "empty": "No activity on this day",
       "error": "Failed to load daily journal",
       "retry": "Retry"
+    },
+    "timeRange": {
+      "7d": "7T",
+      "30d": "30T",
+      "90d": "90T"
+    },
+    "savings": {
+      "title": "Smarte Einsparungen",
+      "cache": "Cache-Einsparungen",
+      "routing": "Routing-Einsparungen",
+      "totalCost": "Tatsächliche Kosten"
     }
   },
   "commitments": {
@@ -10434,6 +10496,8 @@
       "included": "Included",
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
+      "checkoutUnavailable": "Billing not open yet",
+      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — Stripe billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
       "perYear": "/yr",
       "yearlyEquivalent": "≈ {amount}/mo billed annually",
       "everythingIn": "Everything in {plan}, plus:",

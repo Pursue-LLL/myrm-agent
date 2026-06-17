@@ -3,6 +3,7 @@
  * - process.env.NEXT_PUBLIC_CP_API_URL (POS: Control Plane 基础 URL)
  *
  * [OUTPUT]
+ * - BillingPlanKey / PaidBillingPlanKey / isPaidBillingPlan: 套餐键 SSOT
  * - fetchEntitlements: 拉取 CP 权益 + WU 余额
  * - fetchBillingCatalog: 拉取 CP 公开定价 catalog
  * - fetchWorkUnitEstimate: 拉取 CP 消息 WU 预估值
@@ -11,9 +12,23 @@
  * 前端 Control Plane Billing API 薄封装（仅 SaaS Sandbox）。
  */
 
+export type BillingPlanKey = 'free' | 'companion' | 'plus' | 'pro' | 'max';
+export type PaidBillingPlanKey = Exclude<BillingPlanKey, 'free'>;
+
+export const PAID_BILLING_PLAN_KEYS: readonly PaidBillingPlanKey[] = [
+  'companion',
+  'plus',
+  'pro',
+  'max',
+];
+
+export function isPaidBillingPlan(plan: string): plan is PaidBillingPlanKey {
+  return (PAID_BILLING_PLAN_KEYS as readonly string[]).includes(plan);
+}
+
 export interface EntitlementSnapshot {
   user_id: string;
-  plan: 'free' | 'companion' | 'plus' | 'pro' | 'max' | 'team';
+  plan: BillingPlanKey | 'team';
   status: string;
   balance_wu: number;
   subscription_wu: number;
@@ -46,7 +61,7 @@ export interface WorkUnitEstimateRequest {
 }
 
 export interface BillingCatalogPlan {
-  plan: 'free' | 'companion' | 'plus' | 'pro' | 'max' | 'team';
+  plan: BillingPlanKey | 'team';
   monthly_usd: number;
   yearly_usd: number;
   monthly_wu: number;

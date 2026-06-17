@@ -25,6 +25,10 @@ export default function PricingPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<PaidBillingPlanKey | null>(null);
 
   const currentPlan = isSandbox() && entitlements ? entitlements.plan : 'free';
+  const billingNotReady =
+    isSandbox() &&
+    !catalogLoading &&
+    planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable);
 
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
@@ -123,6 +127,11 @@ export default function PricingPage() {
                 {t('yearly')}
               </span>
             </div>
+          ) : null}
+          {billingNotReady ? (
+            <p className="mt-6 max-w-2xl mx-auto text-center text-sm leading-relaxed text-muted-foreground rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+              {t('checkoutUnavailableBanner')}
+            </p>
           ) : null}
         </div>
 
@@ -273,10 +282,14 @@ export default function PricingPage() {
                             'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0',
                         )}
                         variant="default"
-                        disabled={checkoutLoading !== null}
+                        disabled={checkoutLoading !== null || !checkoutAvailable}
                         onClick={() => handleSubscribe(key as PaidBillingPlanKey, true)}
                       >
-                        {checkoutLoading === key ? t('processing') : t('startTrial')}
+                        {checkoutLoading === key
+                          ? t('processing')
+                          : !checkoutAvailable
+                            ? t('checkoutUnavailable')
+                            : t('startTrial')}
                       </Button>
                     )}
                     <Button
@@ -294,9 +307,11 @@ export default function PricingPage() {
                         ? t('processing')
                         : isCurrent
                           ? t('currentPlan')
-                          : isPaid
-                            ? t('subscribe')
-                            : t('included')}
+                          : isPaid && !checkoutAvailable
+                            ? t('checkoutUnavailable')
+                            : isPaid
+                              ? t('subscribe')
+                              : t('included')}
                     </Button>
                   </div>
                 </div>

@@ -7273,8 +7273,7 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
-      "billingSecure": "Secure billing encrypted with Creem"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
     },
     "subscription": {
       "title": "Subscription",
@@ -7337,7 +7336,7 @@
     "errorDesc": "We couldn't load your subscription status. Please check your connection and retry.",
     "retry": "Retry",
     "portalTitle": "Customer Portal",
-    "portalDescription": "Open Creem to review invoices, update payment methods, or cancel at period end.",
+    "portalDescription": "Stripe 고객 포털에서 청구서 확인, 결제 수단 변경, 기간 종료 시 해지를 할 수 있습니다.",
     "portalUnavailable": "Billing portal is not ready yet. Please try again later.",
     "readonlyNote": "This page is read-only. Manage changes in the billing portal.",
     "notAvailable": "Not available",
@@ -7589,9 +7588,12 @@
       "browser_session": "Manage browser sessions (create/destroy)"
     },
     "preset": {
-      "research": "Research",
-      "devops": "DevOps",
-      "full": "Unrestricted"
+      "everyHour": "매시간",
+      "daily8am": "매일 8:00",
+      "daily9am": "매일 9:00",
+      "weekdays9am": "평일 9:00",
+      "weeklyMonday": "매주 월요일",
+      "monthlyFirst": "매월 1일"
     },
     "cooldownLabel": "Cooldown",
     "cooldownDesc": "Minimum interval between two consecutive runs (seconds)",
@@ -7707,7 +7709,56 @@
     "triggerSourceEvent": "event",
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
-    "triggerSourceManual": "manual"
+    "triggerSourceManual": "manual",
+    "blueprint": {
+      "quickStart": "템플릿으로 빠르게 시작",
+      "tabTemplate": "템플릿",
+      "tabCustom": "사용자 정의",
+      "backToTemplates": "템플릿 목록으로 돌아가기",
+      "slotTime": "시간",
+      "slotDay": "요일",
+      "slotWeekdays": "반복",
+      "slotMessage": "알림 메시지",
+      "slotTopic": "주제",
+      "slotTextPlaceholder": "내용을 입력하세요...",
+      "enum": {
+        "everyday": "매일",
+        "weekdays": "평일만",
+        "weekends": "주말만"
+      },
+      "dayMon": "월요일",
+      "dayTue": "화요일",
+      "dayWed": "수요일",
+      "dayThu": "목요일",
+      "dayFri": "금요일",
+      "daySat": "토요일",
+      "daySun": "일요일",
+      "morningBriefing": {
+        "title": "모닝 브리핑",
+        "desc": "뉴스, 날씨, 일정 하이라이트 데일리 다이제스트",
+        "prompt": "간결한 모닝 브리핑을 주세요: 오늘의 주요 테크 뉴스 5건, 날씨 요약, 일정 하이라이트."
+      },
+      "weeklyReview": {
+        "title": "주간 리뷰",
+        "desc": "주말 성과 요약 및 다음 주 계획",
+        "prompt": "이번 주 요약: 주요 성과, 보류 작업, 다음 주에 대한 제안."
+      },
+      "customReminder": {
+        "title": "맞춤 알림",
+        "desc": "개인화된 메시지로 매일 알림",
+        "prompt": "예정된 작업과 마감일에 대해 알려주세요."
+      },
+      "newsDigest": {
+        "title": "뉴스 다이제스트",
+        "desc": "선택한 주제의 큐레이션된 뉴스 요약",
+        "prompt": "\"{topic}\"에 관한 최신 뉴스를 검색하고 요약해 주세요. 간략한 요약과 출처 링크가 포함된 상위 5개 헤드라인을 포함해 주세요."
+      },
+      "eveningWinddown": {
+        "title": "저녁 회고",
+        "desc": "하루 리뷰 및 휴식 제안",
+        "prompt": "오늘 하루 리뷰: 무엇을 완수했는지, 내일 후속 조치가 필요한 사항, 휴식 활동 제안."
+      }
+    }
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -7902,7 +7953,7 @@
       "specified": "Specified",
       "decomposed": "Decomposed",
       "timed_out": "Timed Out",
-      "edited": "\ud3b8\uc9d1\ub428"
+      "edited": "편집됨"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -7952,10 +8003,10 @@
     "skillsUpdateError": "Failed to update skills",
     "timeoutUpdated": "Task timeout updated",
     "timeoutUpdateError": "Failed to update timeout",
-    "taskResult": "\ud0dc\uc2a4\ud06c \uacb0\uacfc",
-    "resultUpdated": "\ud0dc\uc2a4\ud06c \uacb0\uacfc\uac00 \uc5c5\ub370\uc774\ud2b8\ub418\uc5c8\uc2b5\ub2c8\ub2e4",
-    "noResult": "\uacb0\uacfc \uc5c6\uc74c",
-    "saving": "\uc800\uc7a5 \uc911...",
+    "taskResult": "태스크 결과",
+    "resultUpdated": "태스크 결과가 업데이트되었습니다",
+    "noResult": "결과 없음",
+    "saving": "저장 중...",
     "selectAgent": "Assign Agent (optional)",
     "timeoutDefault": "Timeout (system default)",
     "timeout1m": "Timeout: 1 min",
@@ -10285,6 +10336,17 @@
       "empty": "No activity on this day",
       "error": "Failed to load daily journal",
       "retry": "Retry"
+    },
+    "timeRange": {
+      "7d": "7일",
+      "30d": "30일",
+      "90d": "90일"
+    },
+    "savings": {
+      "title": "스마트 절감",
+      "cache": "캐시 절감",
+      "routing": "라우팅 절감",
+      "totalCost": "실제 비용"
     }
   },
   "commitments": {
@@ -10434,6 +10496,8 @@
       "included": "Included",
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
+      "checkoutUnavailable": "Billing not open yet",
+      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — Stripe billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
       "perYear": "/yr",
       "yearlyEquivalent": "≈ {amount}/mo billed annually",
       "everythingIn": "Everything in {plan}, plus:",

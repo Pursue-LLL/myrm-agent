@@ -449,7 +449,7 @@ export function QuotaDisplay({ className, compact = false }: QuotaDisplayProps) 
               minute: '2-digit',
             })}
           </div>
-          <div className="text-[10px] font-medium text-muted-foreground/30">{t('billingSecure')}</div>
+          <div className="text-[10px] font-medium text-muted-foreground/30">{t('billingStripe')}</div>
         </div>
       </div>
     </div>

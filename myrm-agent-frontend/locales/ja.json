@@ -7273,8 +7273,7 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
-      "billingSecure": "Secure billing encrypted with Creem"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
     },
     "subscription": {
       "title": "Subscription",
@@ -7337,7 +7336,7 @@
     "errorDesc": "We couldn't load your subscription status. Please check your connection and retry.",
     "retry": "Retry",
     "portalTitle": "Customer Portal",
-    "portalDescription": "Open Creem to review invoices, update payment methods, or cancel at period end.",
+    "portalDescription": "Stripe カスタマーポータルで請求書の確認、支払い方法の更新、期間終了時の解約ができます。",
     "portalUnavailable": "Billing portal is not ready yet. Please try again later.",
     "readonlyNote": "This page is read-only. Manage changes in the billing portal.",
     "notAvailable": "Not available",
@@ -7589,9 +7588,12 @@
       "browser_session": "Manage browser sessions (create/destroy)"
     },
     "preset": {
-      "research": "Research",
-      "devops": "DevOps",
-      "full": "Unrestricted"
+      "everyHour": "毎時",
+      "daily8am": "毎日 8:00",
+      "daily9am": "毎日 9:00",
+      "weekdays9am": "平日 9:00",
+      "weeklyMonday": "毎週月曜",
+      "monthlyFirst": "毎月1日"
     },
     "cooldownLabel": "Cooldown",
     "cooldownDesc": "Minimum interval between two consecutive runs (seconds)",
@@ -7707,7 +7709,56 @@
     "triggerSourceEvent": "event",
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
-    "triggerSourceManual": "manual"
+    "triggerSourceManual": "manual",
+    "blueprint": {
+      "quickStart": "テンプレートからクイックスタート",
+      "tabTemplate": "テンプレート",
+      "tabCustom": "カスタム",
+      "backToTemplates": "テンプレート一覧に戻る",
+      "slotTime": "時刻",
+      "slotDay": "曜日",
+      "slotWeekdays": "繰り返し",
+      "slotMessage": "リマインダー内容",
+      "slotTopic": "トピック",
+      "slotTextPlaceholder": "内容を入力...",
+      "enum": {
+        "everyday": "毎日",
+        "weekdays": "平日のみ",
+        "weekends": "週末のみ"
+      },
+      "dayMon": "月曜日",
+      "dayTue": "火曜日",
+      "dayWed": "水曜日",
+      "dayThu": "木曜日",
+      "dayFri": "金曜日",
+      "daySat": "土曜日",
+      "daySun": "日曜日",
+      "morningBriefing": {
+        "title": "モーニングブリーフィング",
+        "desc": "ニュース、天気、予定のデイリーダイジェスト",
+        "prompt": "簡潔なモーニングブリーフィングをください：テック関連ニュース5件、天気概要、今日のカレンダーハイライト。"
+      },
+      "weeklyReview": {
+        "title": "週次レビュー",
+        "desc": "週末の成果まとめと来週の計画",
+        "prompt": "今週のまとめ：主な成果、保留タスク、来週への提案。"
+      },
+      "customReminder": {
+        "title": "カスタムリマインダー",
+        "desc": "パーソナライズされたメッセージの日次リマインダー",
+        "prompt": "今後のタスクと締め切りについてリマインドしてください。"
+      },
+      "newsDigest": {
+        "title": "ニュースダイジェスト",
+        "desc": "選択したトピックの厳選ニュースまとめ",
+        "prompt": "「{topic}」に関する最新ニュースを検索してまとめてください。重要な見出し5件を簡潔な要約とソースリンク付きで掲載してください。"
+      },
+      "eveningWinddown": {
+        "title": "イブニング振り返り",
+        "desc": "一日の振り返りとリラクゼーション提案",
+        "prompt": "今日の振り返り：何を達成したか、明日フォローすべきこと、リラックスできるアクティビティの提案。"
+      }
+    }
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -7902,7 +7953,7 @@
       "specified": "Specified",
       "decomposed": "Decomposed",
       "timed_out": "Timed Out",
-      "edited": "\u7de8\u96c6\u6e08\u307f"
+      "edited": "編集済み"
     },
     "depBadge": "{count} deps",
     "commentBadge": "{count} comments",
@@ -7952,10 +8003,10 @@
     "skillsUpdateError": "Failed to update skills",
     "timeoutUpdated": "Task timeout updated",
     "timeoutUpdateError": "Failed to update timeout",
-    "taskResult": "\u30bf\u30b9\u30af\u7d50\u679c",
-    "resultUpdated": "\u30bf\u30b9\u30af\u7d50\u679c\u304c\u66f4\u65b0\u3055\u308c\u307e\u3057\u305f",
-    "noResult": "\u7d50\u679c\u306a\u3057",
-    "saving": "\u4fdd\u5b58\u4e2d...",
+    "taskResult": "タスク結果",
+    "resultUpdated": "タスク結果が更新されました",
+    "noResult": "結果なし",
+    "saving": "保存中...",
     "selectAgent": "Assign Agent (optional)",
     "timeoutDefault": "Timeout (system default)",
     "timeout1m": "Timeout: 1 min",
@@ -10285,6 +10336,17 @@
       "empty": "No activity on this day",
       "error": "Failed to load daily journal",
       "retry": "Retry"
+    },
+    "timeRange": {
+      "7d": "7日",
+      "30d": "30日",
+      "90d": "90日"
+    },
+    "savings": {
+      "title": "スマート節約",
+      "cache": "キャッシュ節約",
+      "routing": "ルーティング節約",
+      "totalCost": "実際コスト"
     }
   },
   "commitments": {
@@ -10434,6 +10496,8 @@
       "included": "Included",
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
+      "checkoutUnavailable": "Billing not open yet",
+      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — Stripe billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
       "perYear": "/yr",
       "yearlyEquivalent": "≈ {amount}/mo billed annually",
       "everythingIn": "Everything in {plan}, plus:",

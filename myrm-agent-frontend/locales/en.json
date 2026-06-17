@@ -7810,8 +7810,7 @@
       "proMember": "Pro Member",
       "freeTier": "Free Tier",
       "upgradeToPro": "Upgrade to Pro",
-      "dailyLimitsSubtitle": "Daily limits & Real-time usage",
-      "billingSecure": "Secure billing encrypted with Creem"
+      "dailyLimitsSubtitle": "Daily limits & Real-time usage"
     },
     "subscription": {
       "title": "Subscription",
@@ -7874,7 +7873,7 @@
     "errorDesc": "We couldn't load your subscription status. Please check your connection and retry.",
     "retry": "Retry",
     "portalTitle": "Customer Portal",
-    "portalDescription": "Open Creem to review invoices, update payment methods, or cancel at period end.",
+    "portalDescription": "Open the Stripe customer portal to review invoices, update payment methods, or cancel at period end.",
     "portalUnavailable": "Billing portal is not ready yet. Please try again later.",
     "readonlyNote": "This page is read-only. Manage changes in the billing portal.",
     "notAvailable": "Not available",
@@ -8127,9 +8126,12 @@
       "browser_session": "Manage browser sessions (create/destroy)"
     },
     "preset": {
-      "research": "Research",
-      "devops": "DevOps",
-      "full": "Unrestricted"
+      "everyHour": "Every hour",
+      "daily8am": "Daily 8:00 AM",
+      "daily9am": "Daily 9:00 AM",
+      "weekdays9am": "Weekdays 9:00 AM",
+      "weeklyMonday": "Weekly Monday",
+      "monthlyFirst": "Monthly 1st"
     },
     "cooldownLabel": "Cooldown",
     "cooldownDesc": "Minimum interval between two consecutive runs (seconds)",
@@ -8244,7 +8246,56 @@
     "triggerSourceEvent": "event",
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
-    "triggerSourceManual": "manual"
+    "triggerSourceManual": "manual",
+    "blueprint": {
+      "quickStart": "Quick Start from Template",
+      "tabTemplate": "From Template",
+      "tabCustom": "Custom",
+      "backToTemplates": "Back to templates",
+      "slotTime": "Time",
+      "slotDay": "Day of Week",
+      "slotWeekdays": "Repeat",
+      "slotMessage": "Reminder Message",
+      "slotTopic": "Topic",
+      "slotTextPlaceholder": "Enter your content...",
+      "enum": {
+        "everyday": "Every day",
+        "weekdays": "Weekdays only",
+        "weekends": "Weekends only"
+      },
+      "dayMon": "Monday",
+      "dayTue": "Tuesday",
+      "dayWed": "Wednesday",
+      "dayThu": "Thursday",
+      "dayFri": "Friday",
+      "daySat": "Saturday",
+      "daySun": "Sunday",
+      "morningBriefing": {
+        "title": "Morning Briefing",
+        "desc": "Daily digest of news, weather, and calendar highlights",
+        "prompt": "Give me a concise morning briefing: top 5 tech news, weather summary, and my calendar highlights for today."
+      },
+      "weeklyReview": {
+        "title": "Weekly Review",
+        "desc": "End-of-week summary with accomplishments and plans",
+        "prompt": "Summarize my week: key accomplishments, pending tasks, and suggestions for next week."
+      },
+      "customReminder": {
+        "title": "Custom Reminder",
+        "desc": "Daily reminder with your personalized message",
+        "prompt": "Remind me about my upcoming tasks and deadlines."
+      },
+      "newsDigest": {
+        "title": "News Digest",
+        "desc": "Curated news summary on your chosen topic",
+        "prompt": "Search and summarize the latest news about \"{topic}\". Include top 5 headlines with brief summaries and source links."
+      },
+      "eveningWinddown": {
+        "title": "Evening Wind-down",
+        "desc": "Daily review and relaxation suggestions",
+        "prompt": "Review my day: what did I accomplish, any open threads to address tomorrow, and suggest a relaxing activity."
+      }
+    }
   },
   "heartbeat": {
     "title": "Agent Auto-Check",
@@ -8823,10 +8874,6 @@
     "discordPublicKey": "Public Key (hex)",
     "discordEnableGateway": "Gateway for inbound messages",
     "discordEnableGatewayHint": "Required for Discord DMs and channel messages in cloud hosting. Interactions always work via webhook.",
-    "discordApplicationId": "Application ID",
-    "discordPublicKey": "Public Key (hex)",
-    "discordEnableGateway": "Gateway for inbound messages",
-    "discordEnableGatewayHint": "Required for Discord DMs and channel messages in cloud hosting. Interactions always work via webhook.",
     "discordSaved": "Discord Configuration Saved",
     "discordSaveError": "Failed to save Discord Configuration",
     "discordTestConnection": "Test Connection",
@@ -9276,7 +9323,6 @@
     "onebotTestFailed": "Failed to start OneBot WebSocket Server",
     "slackBotTokenPlaceholder": "xoxb-xxx",
     "slackBotTokenTooltip": "Get from Slack App OAuth & Permissions page",
-    "slackSigningSecret": "Signing Secret",
     "slackSigningSecretPlaceholder": "xxx",
     "slackSigningSecretTooltip": "Get from Slack App Basic Information page",
     "slackNotConfigured": "Slack not configured yet.",
@@ -10404,6 +10450,17 @@
       "empty": "No activity on this day",
       "error": "Failed to load daily journal",
       "retry": "Retry"
+    },
+    "timeRange": {
+      "7d": "7D",
+      "30d": "30D",
+      "90d": "90D"
+    },
+    "savings": {
+      "title": "Smart Savings",
+      "cache": "Cache Savings",
+      "routing": "Routing Savings",
+      "totalCost": "Actual Cost"
     }
   },
   "subagentDashboard": {
@@ -10852,6 +10909,8 @@
       "included": "Included",
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
+      "checkoutUnavailable": "Billing not open yet",
+      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — Stripe billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
       "loadingCatalog": "Loading plans…",
       "catalogLoadFailed": "Could not load pricing. Refresh or try again later.",
       "perYear": "/yr",
