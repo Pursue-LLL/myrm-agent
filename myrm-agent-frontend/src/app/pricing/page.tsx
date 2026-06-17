@@ -44,6 +44,11 @@ export default function PricingPage() {
       return;
     }
 
+    const planEntry = planCatalog.find((plan) => plan.key === planKey);
+    if (!planEntry?.checkoutAvailable) {
+      return;
+    }
+
     setCheckoutLoading(planKey);
     try {
       const authToken = token || localStorage.getItem('auth_token');
