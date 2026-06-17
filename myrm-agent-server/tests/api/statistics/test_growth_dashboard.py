@@ -544,6 +544,10 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
         "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
         AsyncMock(return_value=_SkillEvolutionSnapshot(total_skills=2, total_evolutions=5, approved=3)),
     )
+    monkeypatch.setattr(
+        "app.api.statistics.growth_dashboard._fetch_cost_summary",
+        AsyncMock(return_value=CostSummary(total_cost_usd=2.5, cache_savings_usd=0.8, routing_savings=0.5, routing_savings_percent=20.0, total_savings_usd=1.3)),
+    )
 
     mock_db = AsyncMock()
     response = await get_growth_dashboard(days=84, db=mock_db)
@@ -561,6 +565,9 @@ async def test_get_growth_dashboard_endpoint(monkeypatch: pytest.MonkeyPatch) ->
     assert data["weekly_summary"]["previous_tool_calls"] == 30
     assert data["weekly_summary"]["conversations"] == 6
     assert len(data["activity_heatmap"]) == 1
+    assert data["cost_summary"] is not None
+    assert data["cost_summary"]["total_savings_usd"] == 1.3
+    assert data["cost_summary"]["cache_savings_usd"] == 0.8
 
 
 @pytest.mark.asyncio
@@ -583,6 +590,10 @@ async def test_get_growth_dashboard_endpoint_error(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(
         "app.api.statistics.growth_dashboard._fetch_skill_evolution_data",
         AsyncMock(return_value=_SkillEvolutionSnapshot()),
+    )
+    monkeypatch.setattr(
+        "app.api.statistics.growth_dashboard._fetch_cost_summary",
+        AsyncMock(return_value=None),
     )
 
     mock_db = AsyncMock()
