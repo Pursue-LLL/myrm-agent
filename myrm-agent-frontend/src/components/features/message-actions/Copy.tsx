@@ -2,7 +2,7 @@ import { Check, ChevronDown, Copy as CopyIcon, FileText, Type } from 'lucide-rea
 import { Message } from '@/store/useChatStore';
 import { RefObject, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { writeToClipboard, writeRichToClipboard } from '@/lib/utils/clipboardUtils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,14 @@ function buildMarkdownContent(content: string, sources?: { url?: string }[]): st
   if (!sources || sources.length === 0) return content;
   const citations = sources.map((s, i) => `[${i + 1}] ${s.url || 'Unknown source'}`).join('\n');
   return `${content}\n\nCitations:\n${citations}`;
+}
+
+function getRenderedHtml(markdownRef: RefObject<HTMLDivElement | null>): string {
+  const el = markdownRef.current;
+  if (!el) return '';
+  const clone = el.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('button').forEach((btn) => btn.remove());
+  return clone.innerHTML;
 }
 
 function getPlainText(markdownRef: RefObject<HTMLDivElement | null>): string {
@@ -32,10 +40,15 @@ const Copy = ({ message, markdownRef }: { message: Message; markdownRef: RefObje
   }, []);
 
   const handleCopyMarkdown = useCallback(() => {
-    const text = buildMarkdownContent(message.content, message.sources);
-    writeToClipboard(text);
+    const markdown = buildMarkdownContent(message.content, message.sources);
+    const html = getRenderedHtml(markdownRef);
+    if (html) {
+      writeRichToClipboard(markdown, html);
+    } else {
+      writeToClipboard(markdown);
+    }
     flash('markdown');
-  }, [message.content, message.sources, flash]);
+  }, [message.content, message.sources, markdownRef, flash]);
 
   const handleCopyText = useCallback(() => {
     const text = getPlainText(markdownRef);

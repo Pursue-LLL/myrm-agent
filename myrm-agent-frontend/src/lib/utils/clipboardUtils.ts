@@ -1,4 +1,4 @@
-import { writeText as tauriWriteText, readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
+import { writeText as tauriWriteText, readText as tauriReadText, writeHtml as tauriWriteHtml } from '@tauri-apps/plugin-clipboard-manager';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { toast } from 'sonner';
 
@@ -37,6 +37,45 @@ export const writeToClipboard = async (text: string, silent = false): Promise<bo
       toast.error('复制失败，请检查剪贴板权限');
     }
     return false;
+  }
+};
+
+/**
+ * 将富文本（text/plain + text/html）同时写入剪贴板。
+ * 粘贴到 Notion/飞书/Word 时保留表格、代码高亮等格式；
+ * 粘贴到纯文本编辑器时得到 Markdown 源码。
+ *
+ * Tauri 环境使用 writeHtml（将 HTML 写入系统剪贴板的富文本区域）。
+ * Web 环境使用 ClipboardItem API 同时注入 text/plain + text/html。
+ */
+export const writeRichToClipboard = async (plainText: string, html: string, silent = false): Promise<boolean> => {
+  try {
+    if (isTauri()) {
+      await tauriWriteHtml(html);
+    } else if (typeof ClipboardItem !== 'undefined' && navigator.clipboard.write) {
+      const item = new ClipboardItem({
+        'text/plain': new Blob([plainText], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      });
+      await navigator.clipboard.write([item]);
+    } else {
+      await navigator.clipboard.writeText(plainText);
+    }
+
+    if (!silent) {
+      toast.success('已复制到剪贴板');
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to write rich content to clipboard:', error);
+    try {
+      await navigator.clipboard.writeText(plainText);
+      if (!silent) toast.success('已复制到剪贴板');
+      return true;
+    } catch {
+      if (!silent) toast.error('复制失败，请检查剪贴板权限');
+      return false;
+    }
   }
 };
 
