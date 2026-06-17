@@ -122,4 +122,106 @@ describe('buildAgentConfig', () => {
     expect(config.autoRestoreDomains).toEqual([]);
     expect(config.suggestionPrompts).toBeUndefined();
   });
+
+  it('handles empty arrays for skill_ids and mcp_ids', () => {
+    const config = buildAgentConfig(makeAgent({ skill_ids: [], mcp_ids: [] }));
+
+    expect(config.selectedSkillIds).toEqual([]);
+    expect(config.selectedMcpNames).toEqual([]);
+  });
+
+  it('handles empty mcp_tool_selections object', () => {
+    const config = buildAgentConfig(makeAgent({ mcp_tool_selections: {} }));
+
+    expect(config.mcpToolSelections).toEqual({});
+  });
+
+  it('handles model_selection with only primary (no fallback or safety)', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: {
+          providerId: 'anthropic',
+          model: 'claude-4-opus',
+        },
+      }),
+    );
+
+    expect(config.modelSelection).toEqual({ providerId: 'anthropic', model: 'claude-4-opus' });
+    expect(config.fallbackModelSelection).toBeUndefined();
+    expect(config.safetyFallbackModelSelection).toBeUndefined();
+  });
+
+  it('handles model_selection with empty string provider/model', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: { providerId: '', model: '' },
+      }),
+    );
+
+    expect(config.modelSelection).toBeUndefined();
+  });
+
+  it('handles model_selection with only safety fallback (no primary, no fallback)', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        model_selection: {
+          providerId: '',
+          model: '',
+          safetyFallbackProviderId: 'openai',
+          safetyFallbackModel: 'gpt-4o-mini',
+        },
+      }),
+    );
+
+    expect(config.modelSelection).toBeUndefined();
+    expect(config.fallbackModelSelection).toBeUndefined();
+    expect(config.safetyFallbackModelSelection).toEqual({ providerId: 'openai', model: 'gpt-4o-mini' });
+  });
+
+  it('preserves all agent metadata fields', () => {
+    const agent = makeAgent({
+      id: 'unique-id-123',
+      name: 'Custom Agent Name',
+      description: 'Custom description with special chars: <>&"',
+      avatar_url: 'https://example.com/avatar.png',
+    });
+    const config = buildAgentConfig(agent);
+
+    expect(config.agentId).toBe('unique-id-123');
+    expect(config.agentName).toBe('Custom Agent Name');
+    expect(config.agentDescription).toBe('Custom description with special chars: <>&"');
+    expect(config.avatarUrl).toBe('https://example.com/avatar.png');
+  });
+
+  it('maps all dialog policy variants', () => {
+    for (const policy of ['smart', 'always', 'never'] as const) {
+      const config = buildAgentConfig(makeAgent({ dialog_policy: policy }));
+      expect(config.dialogPolicy).toBe(policy);
+    }
+  });
+
+  it('maps all session recording variants', () => {
+    for (const recording of ['always', 'on_failure', 'never'] as const) {
+      const config = buildAgentConfig(makeAgent({ session_recording: recording }));
+      expect(config.sessionRecording).toBe(recording);
+    }
+  });
+
+  it('handles multiple mcp_tool_selections entries', () => {
+    const config = buildAgentConfig(
+      makeAgent({
+        mcp_tool_selections: {
+          'mcp-a': ['read', 'write'],
+          'mcp-b': ['search'],
+          'mcp-c': [],
+        },
+      }),
+    );
+
+    expect(config.mcpToolSelections).toEqual({
+      'mcp-a': ['read', 'write'],
+      'mcp-b': ['search'],
+      'mcp-c': [],
+    });
+  });
 });
