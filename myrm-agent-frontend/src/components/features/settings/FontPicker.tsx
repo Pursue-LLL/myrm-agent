@@ -1,5 +1,7 @@
 /**
- * [INPUT] '@/lib/fonts'::FONT_CHOICES, FONT_STORAGE_KEY, FontId, getFontStack, ensureFontLoaded
+ * [INPUT] '@/lib/fonts'::FONT_CHOICES, FONT_STORAGE_KEY, FontId, getFontStack, ensureFontLoaded (POS: 全局字体系统 SSOT)
+ * [INPUT] 'next-intl'::useTranslations (POS: i18n 翻译)
+ * [INPUT] '@/lib/utils/classnameUtils'::cn (POS: 样式合并工具)
  * [OUTPUT] FontPicker: 字体选择器组件，支持 3 种预设字体方案。
  * [POS] 设置页外观子组件。通过 CSS 变量 --font-override 切换全局正文字体，持久化到 localStorage。
  *       设计模式与 SkinPicker 一致：data-attribute + localStorage + CSS 变量。

@@ -1,9 +1,9 @@
 /**
- * [OUTPUT] fontSans, fontMono: next/font instances for Inter and JetBrains Mono.
- * [OUTPUT] FONT_STORAGE_KEY: localStorage key for user font preference.
- * [OUTPUT] FontId, FONT_CHOICES: curated font catalog with CSS stacks.
- * [POS] 全局字体系统配置。layout.tsx 导入字体实例用于 self-host 加载；
- *       FontPicker/ThemeProvider 导入 FONT_CHOICES 实现运行时切换。
+ * [INPUT] 'next/font/google'::Inter, JetBrains_Mono (POS: Next.js self-hosted Google Fonts)
+ * [OUTPUT] fontSans, fontMono: next/font instances (Inter / JetBrains Mono).
+ * [OUTPUT] FONT_STORAGE_KEY, FontId, FONT_CHOICES, getFontStack, ensureFontLoaded.
+ * [POS] 全局字体系统 SSOT。layout.tsx 导入实例用于 self-host 加载；
+ *       FontPicker / ThemeProvider 导入 FONT_CHOICES 实现运行时切换。
  */
 import { Inter, JetBrains_Mono } from 'next/font/google';
 
@@ -39,6 +39,7 @@ interface FontChoice {
   stack: string;
 }
 
+// layout.tsx blocking script 中有同步副本，修改 stack 时需同步更新
 export const FONT_CHOICES: FontChoice[] = [
   {
     id: 'inter',
