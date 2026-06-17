@@ -37,7 +37,7 @@
 | `finalize-release` | Mac+Win 完成后：`latest.json` + sha256 + verify |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
 
-**官网部署（brand 仓，非 agent CI）**：desktop `v*` Release 完成后，在 `myrm-agent-brand` 打 `website-v{semver}` tag → `website-release.yml` preflight bake + POST `CF_PAGES_DEPLOY_HOOK`；或本地 `bun run release:website -- website-v*`。
+**官网部署（brand 仓，非 agent CI）**：desktop `v*` Release 完成后，在 `myrm-agent-brand` 打 `website-v{semver}` tag → `website-release.yml` preflight + GHA POST `CF_PAGES_DEPLOY_HOOK`；或本地 `bun run release:website -- website-v*`（preflight + push tag）。
 
 `collect-bundle-assets.sh`：`bundle-find.sh` + `bundle-paths` 收集资产；Bash 3.2 兼容（macOS GHA 无 `mapfile`）；workflow upload 步亦用 `while read`。
 
@@ -56,4 +56,4 @@
 ## 依赖
 
 - 父模块 [../_ARCH.md](../_ARCH.md)
-- 营销站发布契约：`myrm-agent-brand/myrm-website/scripts/release-website.ts` (POS: tag + Deploy Hook 手动发布入口)
+- 营销站发布契约：`myrm-agent-brand/myrm-website/scripts/release-website.ts` (POS: 本地应急 preflight + push tag)
