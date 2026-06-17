@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SlashAction, SlashCommand } from '@/types/command';
+import type { SlashAction } from '@/types/command';
 
 const syncSetMock = vi.fn();
 

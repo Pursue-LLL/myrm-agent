@@ -18,4 +18,5 @@
 |------|------|------|-------|
 | `entitlements/entitlement_guard.py` | ✅ 核心 | CP `/api/internal/billing/entitlements` 客户端 | ✅ |
 | `entitlements/platform_budget_adapter.py` | ✅ 核心 | CP Work Unit reserve/commit/release | ✅ |
+| `saas_providers_seed.py` | ✅ 核心 | SaaS 首启种子 lite `defaultModelConfig`（平台 relay） | ✅ |
 | `storage.py` | 辅助 | S3 云对象存储后端 | ⚠️ |

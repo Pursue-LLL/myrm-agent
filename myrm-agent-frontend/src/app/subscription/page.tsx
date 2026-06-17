@@ -17,7 +17,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import useAuthStore from '@/store/useAuthStore';
 import LoginPrompt from '@/components/features/app-shell/login-prompt';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
-import { BILLING_PLAN_CATALOG, TOPUP_WU_PER_USD, type BillingPlanKey } from '@/lib/billing-plans';
+import { mergeBillingCatalog, type BillingPlanKey } from '@/lib/billing-plans';
+import { useBillingCatalog } from '@/hooks/useBillingCatalog';
 import { type SubscriptionStatus, useSubscription } from '@/hooks/useSubscription';
 import { toast } from '@/lib/utils/toast';
 
@@ -82,6 +83,9 @@ export default function SubscriptionPage() {
   const locale = useLocale();
   const router = useRouter();
   const { subscription, isLoading, error, refresh, isPaidPlan } = useSubscription();
+  const { catalog } = useBillingCatalog();
+  const topupWuPerUsd = catalog?.topup_wu_per_usd ?? 1000;
+  const planCatalog = catalog ? mergeBillingCatalog(catalog.plans) : [];
   const { user, isInitialized } = useAuthStore();
   const isLocal = isLocalMode();
   const sandbox = isSandbox();
@@ -123,7 +127,7 @@ export default function SubscriptionPage() {
     : Boolean(subscription.stripe_customer_id);
   const isEmptyState = !isLoading && !error && subscription.plan_type === 'free' && !subscription.current_period_end;
 
-  const planKeys = BILLING_PLAN_CATALOG.map((plan) => plan.key);
+  const planKeys = planCatalog.map((plan) => plan.key);
   const planName = useMemo(() => {
     if (sandbox && (planKeys as readonly string[]).includes(subscription.plan_type)) {
       return tBilling(`plans.${subscription.plan_type as BillingPlanKey}.name`);
@@ -397,7 +401,7 @@ export default function SubscriptionPage() {
             <div className="rounded-3xl border border-border/60 bg-background/70 backdrop-blur-xl p-6 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">{tBilling('topupTitle')}</h2>
               <p className="text-sm text-muted-foreground">
-                {tBilling('topupDescription', { rate: String(TOPUP_WU_PER_USD) })}
+                {tBilling('topupDescription', { rate: String(topupWuPerUsd) })}
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {[5, 10, 20].map((amt) => (
@@ -408,7 +412,7 @@ export default function SubscriptionPage() {
                     className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-primary/10 hover:border-primary/30 transition-all disabled:opacity-50"
                   >
                     <div>${amt}</div>
-                    <div className="text-xs text-muted-foreground">{(amt * TOPUP_WU_PER_USD).toLocaleString()} WU</div>
+                    <div className="text-xs text-muted-foreground">{(amt * topupWuPerUsd).toLocaleString()} WU</div>
                   </button>
                 ))}
               </div>

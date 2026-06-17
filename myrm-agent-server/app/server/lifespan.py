@@ -235,6 +235,13 @@ async def _phase_1a_sequential() -> None:
                 await reset_database_engine()
                 await init_database()
 
+    try:
+        from app.platform_utils.sandbox.saas_providers_seed import seed_saas_platform_providers_if_needed
+
+        await seed_saas_platform_providers_if_needed()
+    except Exception as exc:
+        logger.warning("[Startup] SaaS provider seed skipped: %s", exc)
+
     await _register_db_pool_metrics_task()
 
     try:

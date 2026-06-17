@@ -72,9 +72,10 @@ interface MiniPanelContentProps {
   chatId: string | null;
   usagePercent: number;
   onNavigateDetails: () => void;
+  onRefreshHealth: () => void;
 }
 
-function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails }: MiniPanelContentProps) {
+function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDetails, onRefreshHealth }: MiniPanelContentProps) {
   const t = useTranslations('chat.contextUsage.strategy');
   const [compacting, setCompacting] = useState(false);
   const [compactResult, setCompactResult] = useState<string | null>(null);
@@ -91,6 +92,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
       const result = await compactChat(chatId);
       if (result.compacted) {
         setCompactResult(t('compressSuccess', { tokens: formatTokens(result.tokens_saved) }));
+        onRefreshHealth();
       } else {
         setCompactResult(t('compressNotNeeded'));
       }
@@ -99,7 +101,7 @@ function MiniPanelContent({ health, loading, chatId, usagePercent, onNavigateDet
     } finally {
       setCompacting(false);
     }
-  }, [chatId, compacting, t]);
+  }, [chatId, compacting, t, onRefreshHealth]);
 
   if (loading) {
     return (
@@ -233,24 +235,18 @@ export default function ContextUsageIndicator() {
     return null;
   }, [messages]);
 
-  useEffect(() => {
-    if (!panelOpen || !chatId) return;
-    let cancelled = false;
+  const fetchHealth = useCallback(() => {
+    if (!chatId) return;
     setLoadingHealth(true);
     getSessionAnalytics(chatId)
-      .then((analytics) => {
-        if (!cancelled) setContextHealth(analytics.context_health ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setContextHealth(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingHealth(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [panelOpen, chatId]);
+      .then((analytics) => setContextHealth(analytics.context_health ?? null))
+      .catch(() => setContextHealth(null))
+      .finally(() => setLoadingHealth(false));
+  }, [chatId]);
+
+  useEffect(() => {
+    if (panelOpen && chatId) fetchHealth();
+  }, [panelOpen, chatId, fetchHealth]);
 
   const { percentage, displayUsage } = useMemo(() => {
     if (!contextBudget) return { percentage: 0, displayUsage: '0 / 0' };
@@ -335,6 +331,7 @@ export default function ContextUsageIndicator() {
       chatId={chatId}
       usagePercent={percentage}
       onNavigateDetails={handleNavigateDetails}
+      onRefreshHealth={fetchHealth}
     />
   );
 

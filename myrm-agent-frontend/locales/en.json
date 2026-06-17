@@ -189,6 +189,7 @@
       "integrationCatalog": "Service Catalog",
       "integrationMemory": "Integration Memory",
       "extensionBridge": "Browser Extension",
+      "connect": "External Agents",
       "workspaceRules": "Workspace Rules",
       "developer": "Developer",
       "importExport": "Import / Export",
@@ -2122,7 +2123,7 @@
         "title": "Skill Market",
         "description": "Browse and enable prebuilt skills to extend AI assistant capabilities",
         "empty": "No skills available",
-        "emptyDesc": "Prebuilt skills load here after you install them from Discover",
+        "emptyDesc": "Prebuilt skills load here after you install them from Discover"
       },
       "personal": {
         "title": "Personal Skills",
@@ -10906,6 +10907,7 @@
     "generating": "Generating...",
     "generate": "Generate Config",
     "regenerate": "Regenerate",
+    "regenerateConfirm": "Regenerating will invalidate the current token. Any connected external agent will be disconnected immediately. Continue?",
     "configReady": "Configuration Ready",
     "configReadyDesc": "Add the following to your agent's config file:",
     "token": "Token",

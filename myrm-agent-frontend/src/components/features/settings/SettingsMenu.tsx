@@ -29,6 +29,7 @@ import {
   Brain,
   Database,
   Cable,
+  Share2,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 
@@ -83,6 +84,7 @@ export type SettingsTab =
   | 'integrationCatalog'
   | 'integrationMemory'
   | 'extensionBridge'
+  | 'connect'
   | 'workspaceRules'
   | 'system'
   | 'about';
@@ -122,6 +124,7 @@ const menuItems: MenuItem[] = [
   { id: 'integrationCatalog', icon: Plug, labelKey: 'integrationCatalog', group: 'integration' },
   { id: 'integrationMemory', icon: Database, labelKey: 'integrationMemory', group: 'integration' },
   { id: 'extensionBridge', icon: Cable, labelKey: 'extensionBridge', group: 'integration' },
+  { id: 'connect', icon: Share2, labelKey: 'connect', group: 'integration' },
   { id: 'channels', icon: Radio, labelKey: 'channels', group: 'integration', tauriOnly: true },
   { id: 'openaiApi', icon: KeyRound, labelKey: 'openaiApi', group: 'integration' },
 

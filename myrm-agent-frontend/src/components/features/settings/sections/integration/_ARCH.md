@@ -2,12 +2,13 @@
 
 ## 架构概述
 
-设置页「集成」域 Section 组件：凭证、外部 Agent、浏览器扩展桥、集成目录与通信渠道容器。`CommunicationSection` 以 Tab 聚合 `channels/` 子目录。
+设置页「集成」域 Section 组件：凭证、外部 Agent 连接、浏览器扩展桥、集成目录与通信渠道容器。`CommunicationSection` 以 Tab 聚合 `channels/` 子目录。
 
 ## 文件清单
 
 | 文件 | 职责 |
 |------|------|
+| `ConnectSection.tsx` | Connect Wizard：外部 AI Agent（Cursor/Claude Code 等）连接记忆 MCP 的配置生成、Token 签发、健康检查与撤销 |
 | `ExtensionBridgeSection.tsx` | 浏览器扩展桥：WS URL 复制、Token 配置状态、扩展路径复制、Setup Guide、连接状态、授权域名、可用标签页 |
 | `CredentialsSection.tsx` | 凭证管理 |
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置 |
@@ -20,6 +21,7 @@
 
 | Tab id | 组件 |
 |--------|------|
+| `connect` | `ConnectSection` |
 | `extensionBridge` | `ExtensionBridgeSection` |
 | `integrationCatalog` | `integrations/IntegrationCatalogSection` |
 | `integrationMemory` | `integrations/IntegrationMemorySection` |
@@ -30,6 +32,7 @@
 
 ## 依赖
 
+- `@/services/connect` — Connect Wizard REST
 - `@/services/extension` — 扩展桥 REST
 - `@/services/channels` — 渠道配置
 - `../SettingsSection.tsx`

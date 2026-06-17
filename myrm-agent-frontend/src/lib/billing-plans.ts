@@ -1,19 +1,21 @@
 /**
  * [INPUT]
- * - myrm_control_plane/billing/plans.py::PLAN_ENTITLEMENTS (POS: 各 tier 权益表)
+ * - CP GET /api/billing/catalog (POS: USD + WU SSOT)
  *
  * [OUTPUT]
- * - BILLING_PLAN_CATALOG: SaaS 定价页展示用静态 catalog（WU 配额与 CP 一致）
+ * - BILLING_PLAN_PRESENTATION: 前端展示元数据（icon/highlight）
+ * - mergeBillingCatalog: 合并 CP catalog 与展示元数据
  * - formatWu: WU 数字格式化
  *
  * [POS]
- * 前端计费展示常量层。Stripe 价格由 Dashboard 配置，此处仅维护展示用 USD 与 WU 配额。
+ * 定价页展示层。USD/WU 数字来自 CP catalog，此处仅保留 UI 元数据。
  */
 
 import type { ComponentType } from 'react';
-import { AiMagicIcon, CloudIcon, Rocket01Icon, Layers01Icon } from 'hugeicons-react';
+import { AiMagicIcon, CloudIcon, Diamond02Icon, Rocket01Icon, Layers01Icon } from 'hugeicons-react';
+import type { BillingCatalogPlan } from '@/lib/cp-billing';
 
-export type BillingPlanKey = 'free' | 'companion' | 'pro' | 'max';
+export type BillingPlanKey = 'free' | 'companion' | 'plus' | 'pro' | 'max';
 export type PaidBillingPlanKey = Exclude<BillingPlanKey, 'free'>;
 
 export interface BillingPlanCatalogEntry {
@@ -24,33 +26,39 @@ export interface BillingPlanCatalogEntry {
   monthlyWu: number;
   highlight: boolean;
   trialDays: number;
+  checkoutAvailable: boolean;
 }
 
-/** WU quotas must match CP `PLAN_ENTITLEMENTS` monthly_wu values. */
-export const BILLING_PLAN_CATALOG: BillingPlanCatalogEntry[] = [
-  { key: 'free', icon: AiMagicIcon, monthlyUsd: 0, yearlyUsd: 0, monthlyWu: 600, highlight: false, trialDays: 0 },
-  {
-    key: 'companion',
-    icon: CloudIcon,
-    monthlyUsd: 19,
-    yearlyUsd: 190,
-    monthlyWu: 6000,
-    highlight: false,
-    trialDays: 0,
-  },
-  { key: 'pro', icon: Rocket01Icon, monthlyUsd: 49, yearlyUsd: 490, monthlyWu: 18000, highlight: true, trialDays: 7 },
-  {
-    key: 'max',
-    icon: Layers01Icon,
-    monthlyUsd: 149,
-    yearlyUsd: 1490,
-    monthlyWu: 60000,
-    highlight: false,
-    trialDays: 0,
-  },
-];
+const PRESENTATION: Record<
+  BillingPlanKey,
+  { icon: ComponentType<{ size?: number; className?: string }>; highlight: boolean }
+> = {
+  free: { icon: AiMagicIcon, highlight: false },
+  companion: { icon: CloudIcon, highlight: false },
+  plus: { icon: Diamond02Icon, highlight: false },
+  pro: { icon: Rocket01Icon, highlight: true },
+  max: { icon: Layers01Icon, highlight: false },
+};
 
-export const TOPUP_WU_PER_USD = 1000;
+const PLAN_ORDER: BillingPlanKey[] = ['free', 'companion', 'plus', 'pro', 'max'];
+
+export function mergeBillingCatalog(plans: BillingCatalogPlan[]): BillingPlanCatalogEntry[] {
+  const byKey = new Map(plans.map((p) => [p.plan, p]));
+  return PLAN_ORDER.map((key) => {
+    const remote = byKey.get(key);
+    const meta = PRESENTATION[key];
+    return {
+      key,
+      icon: meta.icon,
+      highlight: meta.highlight,
+      monthlyUsd: remote?.monthly_usd ?? 0,
+      yearlyUsd: remote?.yearly_usd ?? 0,
+      monthlyWu: remote?.monthly_wu ?? 0,
+      trialDays: remote?.trial_days ?? 0,
+      checkoutAvailable: remote?.checkout_available ?? false,
+    };
+  });
+}
 
 export function formatWu(value: number): string {
   return value.toLocaleString();

@@ -714,7 +714,7 @@ const SkillsSection = memo(() => {
                 isSkillEnabled={isSkillEnabled}
                 isLoading={isLoading}
                 emptyStateType={
-                  installedSearch || sourceFilter !== 'all' || statusFilter !== 'all' ? 'search' : 'market'
+                  installedSearch || sourceFilter !== 'all' || statusFilter !== 'all' ? 'search' : 'enabled'
                 }
                 onToggle={handleToggleSkill}
                 onViewDetails={setDetailSkill}

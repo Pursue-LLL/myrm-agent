@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import useAuthStore from '@/store/useAuthStore';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { useEntitlements } from '@/hooks/useEntitlements';
-import { BILLING_PLAN_CATALOG, formatWu, type PaidBillingPlanKey } from '@/lib/billing-plans';
+import { useBillingCatalog } from '@/hooks/useBillingCatalog';
+import { mergeBillingCatalog, formatWu, type PaidBillingPlanKey } from '@/lib/billing-plans';
 import { toast } from '@/lib/utils/toast';
 
 export default function PricingPage() {
@@ -18,6 +19,8 @@ export default function PricingPage() {
   const router = useRouter();
   const { isAuthenticated, user, token } = useAuthStore();
   const { entitlements } = useEntitlements();
+  const { catalog, isLoading: catalogLoading, error: catalogError } = useBillingCatalog();
+  const planCatalog = catalog ? mergeBillingCatalog(catalog.plans) : [];
   const [isYearly, setIsYearly] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState<PaidBillingPlanKey | null>(null);
 
@@ -26,7 +29,8 @@ export default function PricingPage() {
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
     companion: 'Free',
-    pro: 'Companion',
+    plus: 'Companion',
+    pro: 'Plus',
     max: 'Pro',
   };
 
@@ -122,9 +126,24 @@ export default function PricingPage() {
           ) : null}
         </div>
 
-        {/* Pricing Grid */}
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4 items-start">
-          {BILLING_PLAN_CATALOG.map(({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays }) => {
+        {/* Pricing Grid — horizontal snap on mobile, 5-col on xl */}
+        <div
+          className={cn(
+            'flex gap-5 overflow-x-auto snap-x snap-mandatory pb-4 -mx-4 px-4 sm:mx-0 sm:px-0',
+            'xl:grid xl:grid-cols-5 xl:overflow-visible xl:snap-none xl:pb-0 items-start',
+          )}
+        >
+          {catalogLoading && planCatalog.length === 0
+            ? Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={`pricing-skeleton-${index}`}
+                  className="min-w-[min(100%,280px)] snap-center shrink-0 xl:min-w-0 rounded-2xl border border-border/40 bg-muted/20 p-6 h-[420px] animate-pulse"
+                />
+              ))
+            : null}
+          {!catalogLoading || planCatalog.length > 0
+            ? planCatalog.map(
+            ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable }) => {
             const isCurrent = currentPlan === key;
             const isPaid = key !== 'free';
             const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
@@ -134,7 +153,8 @@ export default function PricingPage() {
               <div
                 key={key}
                 className={cn(
-                  'group relative flex flex-col rounded-2xl p-[1px] transition-all duration-500',
+                  'group relative flex flex-col rounded-2xl p-[1px] transition-all duration-500 min-w-[min(100%,280px)] snap-center shrink-0',
+                  'xl:min-w-0 xl:shrink',
                   highlight
                     ? 'bg-gradient-to-b from-primary/60 via-primary/30 to-primary-dark/20 scale-[1.02] xl:-mt-4 xl:mb-4 shadow-2xl shadow-primary/10'
                     : 'bg-border/50 hover:bg-border/80',
@@ -267,7 +287,7 @@ export default function PricingPage() {
                           'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0 font-semibold',
                       )}
                       variant={highlight && !hasTrial ? 'default' : 'outline'}
-                      disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid}
+                      disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !checkoutAvailable}
                       onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
                     >
                       {checkoutLoading === key && !hasTrial
@@ -282,8 +302,12 @@ export default function PricingPage() {
                 </div>
               </div>
             );
-          })}
+          })
+            : null}
         </div>
+        {catalogError ? (
+          <p className="mt-6 text-center text-sm text-destructive">{t('catalogLoadFailed')}</p>
+        ) : null}
       </div>
     </div>
   );

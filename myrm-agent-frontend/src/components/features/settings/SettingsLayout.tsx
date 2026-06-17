@@ -53,6 +53,9 @@ const IntegrationMemorySection = dynamic(() => import('./sections/integration/in
 const ExtensionBridgeSection = dynamic(() => import('./sections/integration/ExtensionBridgeSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const ConnectSection = dynamic(() => import('./sections/integration/ConnectSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 
 // 新增合并容器组件 (动态加载)
 const ModelSettingsSection = dynamic(() => import('./sections/ai-core/ModelSettingsSection'), {
@@ -118,6 +121,7 @@ const BASE_TABS: SettingsTab[] = [
   'openaiApi',
   'integrationCatalog',
   'integrationMemory',
+  'connect',
   'workspaceRules',
   'developer',
   'importExport',
@@ -185,6 +189,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   openaiApi: OpenAIApiSection,
   integrationCatalog: IntegrationCatalogSection,
   integrationMemory: IntegrationMemorySection,
+  connect: ConnectSection,
   cron: CronSection,
   kanban: KanbanSection,
   checkpoint: CheckpointSection,

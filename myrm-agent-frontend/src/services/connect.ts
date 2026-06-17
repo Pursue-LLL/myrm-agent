@@ -1,12 +1,13 @@
 /**
  * [INPUT]
- * @/lib/api::apiRequest (POS: HTTP client wrapper)
+ * @/lib/api::apiRequest (POS: frontend API request helper)
  *
  * [OUTPUT]
- * Connect Wizard API client functions.
+ * Connect Wizard API DTOs and request helpers for external agent connection management.
  *
  * [POS]
- * Frontend service for managing external agent connections (Connect Wizard).
+ * Frontend Connect Wizard API client. Typed HTTP contracts for listing profiles,
+ * generating MCP configs, health checks, and revoking external agent connections.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -38,7 +39,7 @@ export interface RevokeResponse {
   trees_removed: number;
 }
 
-export interface ConnectorStatusItem {
+export interface ConnectorStatus {
   profile_id: string;
   label: string;
   status: 'ready' | 'manual_config_required' | 'missing';
@@ -46,14 +47,13 @@ export interface ConnectorStatusItem {
   connected_at: string | null;
 }
 
-export async function fetchConnectProfiles(): Promise<ConnectProfile[]> {
+export async function listConnectProfiles(): Promise<ConnectProfile[]> {
   return apiRequest<ConnectProfile[]>('/connect/profiles');
 }
 
 export async function generateConnectConfig(profileId: string): Promise<GenerateConfigResponse> {
   return apiRequest<GenerateConfigResponse>('/connect/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile_id: profileId }),
   });
 }
@@ -61,19 +61,20 @@ export async function generateConnectConfig(profileId: string): Promise<Generate
 export async function runConnectDoctor(profileId: string): Promise<DoctorResponse> {
   return apiRequest<DoctorResponse>('/connect/doctor', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile_id: profileId }),
   });
 }
 
-export async function revokeConnect(profileId: string, clearSyncedMemory = false): Promise<RevokeResponse> {
+export async function revokeConnect(
+  profileId: string,
+  clearSyncedMemory: boolean = false,
+): Promise<RevokeResponse> {
   return apiRequest<RevokeResponse>('/connect/revoke', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile_id: profileId, clear_synced_memory: clearSyncedMemory }),
   });
 }
 
-export async function fetchConnectorStatus(): Promise<ConnectorStatusItem[]> {
-  return apiRequest<ConnectorStatusItem[]>('/connect/status');
+export async function listConnectorStatus(): Promise<ConnectorStatus[]> {
+  return apiRequest<ConnectorStatus[]>('/connect/status');
 }

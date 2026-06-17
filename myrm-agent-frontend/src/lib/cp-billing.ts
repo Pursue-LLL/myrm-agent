@@ -4,6 +4,7 @@
  *
  * [OUTPUT]
  * - fetchEntitlements: 拉取 CP 权益 + WU 余额
+ * - fetchBillingCatalog: 拉取 CP 公开定价 catalog
  * - fetchWorkUnitEstimate: 拉取 CP 消息 WU 预估值
  *
  * [POS]
@@ -12,7 +13,7 @@
 
 export interface EntitlementSnapshot {
   user_id: string;
-  plan: 'free' | 'companion' | 'pro' | 'max' | 'team';
+  plan: 'free' | 'companion' | 'plus' | 'pro' | 'max' | 'team';
   status: string;
   balance_wu: number;
   subscription_wu: number;
@@ -44,6 +45,20 @@ export interface WorkUnitEstimateRequest {
   action_mode?: string;
 }
 
+export interface BillingCatalogPlan {
+  plan: 'free' | 'companion' | 'plus' | 'pro' | 'max' | 'team';
+  monthly_usd: number;
+  yearly_usd: number;
+  monthly_wu: number;
+  trial_days: number;
+  checkout_available: boolean;
+}
+
+export interface BillingCatalogResponse {
+  plans: BillingCatalogPlan[];
+  topup_wu_per_usd: number;
+}
+
 export function getCpApiBaseUrl(): string {
   return (process.env.NEXT_PUBLIC_CP_API_URL || 'http://127.0.0.1:8003').replace(/\/+$/, '');
 }
@@ -58,6 +73,16 @@ export async function fetchEntitlements(token: string): Promise<EntitlementSnaps
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch entitlements: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchBillingCatalog(): Promise<BillingCatalogResponse> {
+  const response = await fetch(`${getCpApiBaseUrl()}/api/billing/catalog`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch billing catalog: ${response.status}`);
   }
   return response.json();
 }
