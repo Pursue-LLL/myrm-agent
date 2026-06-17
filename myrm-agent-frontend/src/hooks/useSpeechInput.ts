@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiRequest, ApiError, getWsUrl } from '@/lib/api';
+import { getMobilePairToken } from '@/lib/mobileRemote';
 
 export type SpeechState = 'idle' | 'recording' | 'transcribing';
 export type SpeechMode = 'toggle' | 'push-to-talk';
@@ -226,8 +227,16 @@ export function useSpeechInput({
   const startStreamingSTT = useCallback(
     (stream: MediaStream) => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-      const base = getWsUrl('/ws/stt/stream');
-      const wsUrl = token ? `${base}?token=${encodeURIComponent(token)}` : base;
+      const pair = getMobilePairToken();
+      const params = new URLSearchParams();
+      if (token) {
+        params.set('token', token);
+      }
+      if (pair) {
+        params.set('pair', pair);
+      }
+      const query = params.toString();
+      const wsUrl = query ? `${getWsUrl('/ws/stt/stream')}?${query}` : getWsUrl('/ws/stt/stream');
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

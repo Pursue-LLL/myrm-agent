@@ -7,8 +7,10 @@ from app.config.settings import settings
 from app.core.infra.cors_validator import CORS_ORIGINS_DEFAULT, parse_and_validate_cors_origins
 from app.middleware.auth import AuthMiddleware
 from app.middleware.cache import CacheControlMiddleware
+from app.middleware.host_allowlist import HostAllowlistMiddleware
 from app.middleware.ingress import PublicIngressMiddleware
 from app.middleware.max_body_size import MaxBodySizeMiddleware
+from app.middleware.session_idle import SessionIdleMiddleware
 from app.middleware.text_sanitizer_middleware import TextSanitizerMiddleware
 from app.middleware.webhook_security import RawBodyLimitMiddleware
 from app.middleware.ws_auth import WsAuthMiddleware
@@ -19,6 +21,8 @@ def register_middlewares(app: FastAPI) -> None:
     # 中间件注册顺序（LIFO）：CORS → MaxBodySize → RawBodyLimit → Cache → Auth → TextSanitizer
     # 实际执行顺序：TextSanitizer → Auth → Cache → RawBodyLimit → MaxBodySize → CORS
     app.add_middleware(TextSanitizerMiddleware)
+    app.add_middleware(HostAllowlistMiddleware)
+    app.add_middleware(SessionIdleMiddleware)
     app.add_middleware(AuthMiddleware)
     app.add_middleware(WsAuthMiddleware)
     app.add_middleware(CacheControlMiddleware)

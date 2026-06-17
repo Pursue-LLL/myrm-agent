@@ -275,6 +275,64 @@ class TestBtwTaskNotifier:
             assert sent_msg.content == "Test notification"
 
     @pytest.mark.asyncio
+    async def test_deliver_adds_mobile_status_button_when_task_id_present(self) -> None:
+        from app.channels.types.components import ActionButton, ButtonStyle
+        from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
+
+        bus = _make_event_bus()
+        notifier = BtwTaskNotifier(bus)
+
+        from app.channels.types.status import ChannelStatus
+
+        mock_channel = MagicMock()
+        mock_channel.status = ChannelStatus.RUNNING
+        mock_channel.send = AsyncMock()
+        mock_channel.retry_config = MagicMock()
+        mock_channel.should_retry = MagicMock(return_value=False)
+        mock_channel.extract_retry_after = MagicMock(return_value=None)
+        mock_channel.activity = MagicMock()
+
+        mock_gateway = MagicMock()
+        mock_gateway.bus.channels.get.return_value = mock_channel
+        mock_send_with_retry = AsyncMock()
+        mobile_components = (
+            (
+                ActionButton(
+                    label="Open mobile status",
+                    action_id="mobile:open_status",
+                    style=ButtonStyle.PRIMARY,
+                    url="https://tunnel.example.com/mobile/status/ch1?pair=token",
+                ),
+            ),
+        )
+
+        with (
+            patch("app.core.channel_bridge.btw_notifier.channel_t", return_value="Test notification"),
+            patch("app.channels.reliability.retry.send_with_retry", mock_send_with_retry),
+            patch("app.channels.core.bus.downgrade_components", side_effect=lambda m, c: m),
+            patch("app.core.channel_bridge.channel_gateway", mock_gateway),
+            patch(
+                "app.remote_access.mobile_deep_link.resolve_mobile_status_action_components",
+                AsyncMock(return_value=mobile_components),
+            ),
+        ):
+            await notifier._deliver({
+                "channel": "discord",
+                "chat_id": "ch1",
+                "status": "completed",
+                "title": "test task",
+                "result": "done",
+                "thread_id": "th1",
+                "user_id": "uid1",
+                "locale": "en",
+                "task_id": "task-42",
+            })
+
+            mock_send_with_retry.assert_called_once()
+            sent_msg = mock_send_with_retry.call_args[0][1]
+            assert sent_msg.components == mobile_components
+
+    @pytest.mark.asyncio
     async def test_deliver_skips_missing_channel(self) -> None:
         from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 

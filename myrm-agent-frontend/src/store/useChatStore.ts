@@ -416,10 +416,10 @@ const useChatStore = create<ChatState>()(
         };
         await loadMessages(chatId, actions);
 
-        // 尝试无缝 Attach 到后台可能正在运行的任务
-        if (!paneConfig?.abortController) {
-        attachToChat(chatId, actions, get).catch(console.error);
-      }
+        const pane = useWorkspaceStore.getState().panes.find((p) => p.chatId === chatId);
+        if (!pane?.abortController) {
+          attachToChat(chatId, actions, get).catch(console.error);
+        }
       },
 
       loadOlderMessages: async () => {

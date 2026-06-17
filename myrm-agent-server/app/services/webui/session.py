@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 SESSION_COOKIE_NAME = "myrm_webui_session"
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
+REMOTE_IDLE_TTL_SECONDS = 60 * 30
 _KEY_FILE = Path("webui") / "session_key"
 
 
@@ -61,15 +62,21 @@ def _sign(payload: str) -> str:
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
-def create_session_value(username: str) -> str:
-    expires_at = int(time.time()) + SESSION_TTL_SECONDS
-    body = json.dumps({"u": username, "exp": expires_at}, separators=(",", ":"))
+def create_session_value(username: str, *, last_activity: int | None = None) -> str:
+    now = int(time.time())
+    last = last_activity if last_activity is not None else now
+    expires_at = now + SESSION_TTL_SECONDS
+    body = json.dumps({"u": username, "exp": expires_at, "last": last}, separators=(",", ":"))
     body_b64 = base64.urlsafe_b64encode(body.encode("utf-8")).decode("ascii").rstrip("=")
     signature = _sign(body_b64)
     return f"{body_b64}.{signature}"
 
 
-def parse_session_value(value: str | None) -> str | None:
+def parse_session_value(
+    value: str | None,
+    *,
+    max_idle_seconds: int | None = None,
+) -> str | None:
     if not value or "." not in value:
         return None
     body_b64, signature = value.rsplit(".", 1)
@@ -82,16 +89,23 @@ def parse_session_value(value: str | None) -> str | None:
         return None
     username = body.get("u")
     expires_at = body.get("exp")
+    last_activity = body.get("last")
     if not isinstance(username, str) or not isinstance(expires_at, int):
         return None
-    if expires_at < int(time.time()):
+    now = int(time.time())
+    if expires_at < now:
         return None
+    if max_idle_seconds is not None:
+        idle_anchor = last_activity if isinstance(last_activity, int) else expires_at
+        if now - idle_anchor > max_idle_seconds:
+            return None
     return username
 
 
 __all__ = [
     "SESSION_COOKIE_NAME",
     "SESSION_TTL_SECONDS",
+    "REMOTE_IDLE_TTL_SECONDS",
     "create_session_value",
     "parse_session_value",
     "rotate_session_signing_key",

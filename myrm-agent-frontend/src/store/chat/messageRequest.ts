@@ -53,7 +53,8 @@ import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUt
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { generateCompanion, getEnhancedPersonality, getTitle } from '@/components/features/companion/companionGenerator';
 import useCompanionStore from '../useCompanionStore';
-import { API_BASE_URL } from '@/lib/api';
+import { API_BASE_URL, fetchWithTimeout } from '@/lib/api';
+import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { normalizeApiUrl } from '@/store/config/providerTypes';
 import type { ChatState } from './types';
@@ -905,19 +906,20 @@ export const attachToChat = async (
 
   try {
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
-    const headers: Record<string, string> = {
+    const headers = withMobilePairHeaders({
       Accept: 'text/event-stream',
-    };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}/agents/chat/${chatId}/attach`, {
-      method: 'GET',
-      headers,
-      signal: abortController.signal,
-      cache: 'no-store',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     });
+
+    const response = await fetchWithTimeout(
+      `/agents/chat/${chatId}/attach`,
+      {
+        method: 'GET',
+        headers,
+        signal: abortController.signal,
+      },
+      0,
+    );
 
     if (!response.ok) {
       if (response.status === 404) {

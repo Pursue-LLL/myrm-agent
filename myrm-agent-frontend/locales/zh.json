@@ -3023,6 +3023,23 @@
           "testFailed": "连通性测试失败，请检查地址与网络。",
           "notConfigured": "未配置公网 Ingress 地址。",
           "httpsRequired": "公网 Ingress 必须使用 HTTPS（https://...）。"
+        },
+        "tunnel": {
+          "title": "外网一键访问",
+          "globalHint": "海外用户：启动 Cloudflare 快速隧道（需系统 PATH 中有 cloudflared）。",
+          "cnHint": "国内用户：建议使用文档中的 cpolar/NATAPP/frp，再将 HTTPS 地址粘贴到上方。",
+          "start": "启动 CF 隧道",
+          "stop": "停止隧道",
+          "starting": "启动中...",
+          "shareMobile": "复制移动端 Hub 链接",
+          "shareCopied": "移动端链接已复制",
+          "error": "隧道操作失败",
+          "hubQrAlt": "移动端 Hub 二维码",
+          "hubScanHint": "用手机扫码打开移动控制台",
+          "pwaTitle": "添加到主屏幕",
+          "pwaHint": "在手机上安装 Web 应用，一键远程控制。",
+          "pwaInstall": "安装应用",
+          "pwaInstalled": "已添加到主屏幕"
         }
       }
     },
@@ -11610,5 +11627,17 @@
     "mergeSuccess": "变更已成功合并",
     "mergeFailed": "合并失败 — 请手动解决冲突",
     "discardSuccess": "沙箱已丢弃"
+  },
+  "mobileHub": {
+    "title": "活跃 Agent",
+    "badge": "移动遥控",
+    "subtitle": "点选正在运行的任务，在手机上跟进进度或审批操作。",
+    "loading": "正在加载活跃会话...",
+    "empty": "当前没有运行中的 Agent。",
+    "loadFailed": "加载活跃会话失败。",
+    "openFailed": "打开会话控制链接失败。",
+    "opening": "正在打开…",
+    "footer": "链接 1 小时后过期；若无法访问，请从设置页重新分享。",
+    "elapsed": "已运行 {seconds} 秒"
   }
 }

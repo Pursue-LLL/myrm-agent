@@ -25,6 +25,9 @@ async def agent_stream(
     request: AgentRequest,
     http_request: Request,
 ) -> StreamingResponse | JSONResponse:
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
+
+    require_mobile_pair_chat_access(http_request, request.chat_id)
     return await run_agent_stream(request, http_request)
 
 
@@ -75,7 +78,9 @@ async def steer_agent(
     http_request: Request,
 ) -> JSONResponse:
     from app.core.utils.response_utils import error_response, success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
 
+    require_mobile_pair_chat_access(http_request, chat_id)
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 

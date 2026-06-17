@@ -29,6 +29,8 @@ import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send }
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
+import { scheduleMobilePairRefresh } from '@/lib/mobileRemote';
+import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { Button } from '@/components/primitives/button';
 import ProgressSteps from '@/components/features/message-box/progress-steps/ProgressSteps';
 import VisualApprovalRequestRenderer from '@/components/features/chat-window/approval/VisualApprovalRequestRenderer';
@@ -47,11 +49,10 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const tToolApproval = useTranslations('toolApproval');
   const tAgent = useTranslations('agent');
 
-  const { messages, loading, initializeChat, stopMessage, isMessagesLoaded, sendMessage, steerMessage } = useChatStore(
+  const { messages, loading, stopMessage, isMessagesLoaded, sendMessage, steerMessage } = useChatStore(
     useShallow((state) => ({
       messages: state.messages,
       loading: state.loading,
-      initializeChat: state.initializeChat,
       stopMessage: state.stopMessage,
       isMessagesLoaded: state.isMessagesLoaded,
       sendMessage: state.sendMessage,
@@ -81,8 +82,12 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const snapshotRetrying = status === 'loading';
 
   useEffect(() => {
-    initializeChat(chatId);
-  }, [chatId, initializeChat]);
+    void useChatStore.getState().loadMessages(chatId);
+  }, [chatId]);
+
+  useEffect(() => {
+    return scheduleMobilePairRefresh();
+  }, []);
 
   const handleSendQuickCommand = useCallback(() => {
     const text = quickInput.trim();
@@ -260,6 +265,18 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
 
       <div className="border-t bg-background/80 backdrop-blur-md pb-safe">
         <div className="p-3 flex items-center gap-2">
+          <SpeechInputButton
+            mode="push-to-talk"
+            onTranscript={(text) => {
+              const trimmed = text.trim();
+              if (!trimmed) return;
+              if (loading) {
+                steerMessage(trimmed);
+              } else {
+                sendMessage(trimmed);
+              }
+            }}
+          />
           <input
             type="text"
             value={quickInput}

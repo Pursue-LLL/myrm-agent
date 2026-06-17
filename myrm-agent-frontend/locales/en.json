@@ -3023,6 +3023,23 @@
           "testFailed": "Connectivity test failed. Check the URL and network.",
           "notConfigured": "No public ingress URL configured.",
           "httpsRequired": "Public Ingress must use HTTPS (https://...)."
+        },
+        "tunnel": {
+          "title": "One-click external access",
+          "globalHint": "Global users: start Cloudflare quick tunnel (requires cloudflared in PATH).",
+          "cnHint": "China users: prefer cpolar/NATAPP/frp from the docs, then paste the HTTPS URL above.",
+          "start": "Start CF tunnel",
+          "stop": "Stop tunnel",
+          "starting": "Starting...",
+          "shareMobile": "Copy mobile hub link",
+          "shareCopied": "Mobile link copied",
+          "error": "Tunnel operation failed",
+          "hubQrAlt": "Mobile hub QR code",
+          "hubScanHint": "Scan on your phone to open the mobile control hub",
+          "pwaTitle": "Add to home screen",
+          "pwaHint": "Install the Web app on your phone for one-tap remote control.",
+          "pwaInstall": "Install app",
+          "pwaInstalled": "Installed on home screen"
         }
       }
     },
@@ -11610,5 +11627,17 @@
     "mergeSuccess": "Changes merged successfully",
     "mergeFailed": "Merge failed — resolve conflicts manually",
     "discardSuccess": "Sandbox discarded"
+  },
+  "mobileHub": {
+    "title": "Active Agents",
+    "badge": "Mobile control",
+    "subtitle": "Tap a running task to follow progress or approve actions on your phone.",
+    "loading": "Loading active sessions...",
+    "empty": "No agents are running right now.",
+    "loadFailed": "Failed to load active sessions.",
+    "openFailed": "Failed to open session control link.",
+    "opening": "Opening…",
+    "footer": "Links expire after 1 hour. Re-share from Settings if access is lost.",
+    "elapsed": "{seconds}s running"
   }
 }

@@ -23,12 +23,22 @@ def test_resolve_identity_from_ws_scope_reads_api_key_header() -> None:
 
 @pytest.fixture
 def ws_app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
-    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
-    monkeypatch.setenv("SANDBOX_API_KEY", "ws-test-key")
+    from pydantic import SecretStr
+
+    import app.config.settings as settings_module
+    from app.config.deploy_mode import get_deploy_mode
     from app.config.settings import get_settings
     from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
 
+    monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    monkeypatch.setenv("SANDBOX_API_KEY", "ws-test-key")
+    get_deploy_mode.cache_clear()
     get_settings.cache_clear()
+    monkeypatch.setattr(
+        settings_module.settings,
+        "sandbox_api_key",
+        SecretStr("ws-test-key"),
+    )
     _reset_capabilities_cache_for_testing()
 
     app = FastAPI()

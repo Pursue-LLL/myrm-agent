@@ -29,8 +29,10 @@ async def attach_to_chat(
     to recover lost data after a network drop without breaking the multiplexed stream.
     """
     from app.core.utils.response_utils import success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
     from app.services.agent.streaming_support.stream_collector import ACTIVE_COLLECTORS
 
+    require_mobile_pair_chat_access(request, chat_id)
     collector = ACTIVE_COLLECTORS.get(chat_id)
     if not collector:
         raise HTTPException(status_code=404, detail="No active task found for this chat in memory")

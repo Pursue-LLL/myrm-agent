@@ -468,6 +468,14 @@ async def _phase_1b_parallel() -> None:
 
 async def _shutdown(app_instance: FastAPI) -> None:
     """Graceful shutdown: stop all components in parallel."""
+    try:
+        from app.remote_access.tunnel_manager import get_tunnel_manager
+
+        await get_tunnel_manager().shutdown()
+        logger.info("[Shutdown] Cloudflare tunnel stopped")
+    except Exception as e:
+        logger.error("[Shutdown] Tunnel shutdown failed: %s", e)
+
     frontend_launcher = getattr(app_instance.state, "frontend_launcher", None)
     if frontend_launcher is not None:
         try:

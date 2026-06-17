@@ -50,6 +50,11 @@ class ResolvedIdentity:
     client_ip: str
     loopback: bool
     private_net: bool
+    local_trusted: bool = True
+    admission_path: str | None = None
+    trust_zone: str | None = None
+    session_username: str | None = None
+    pair_bound_chat_id: str | None = None
 
 
 def _ip_in_networks(
@@ -123,13 +128,49 @@ def resolve_identity(
     method: str,
     headers: Mapping[str, str],
     client_ip: str,
+    admission_path: str | None = None,
+    trust_zone: str | None = None,
+    local_trusted: bool | None = None,
+    query_string: str = "",
 ) -> ResolvedIdentity:
     """Resolve user identity from HTTP or WebSocket request metadata."""
     from app.core.security.auth.public_paths import is_public_path
     from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+    from app.remote_access.trust_zone import (
+        AdmissionPath,
+        TrustZone,
+        admission_path_to_trust_zone,
+        is_local_trusted_admission,
+        resolve_admission_path,
+    )
 
     loopback = is_loopback_ip(client_ip)
     private_net = is_private_network_ip(client_ip)
+
+    if admission_path is None:
+        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+
+        resolved_path = resolve_admission_path(
+            path=path,
+            client_ip=client_ip,
+            host_header=_header_value(headers, "Host"),
+            headers=headers,
+            is_sandbox=is_sandbox(),
+            is_webui_remote_mode=is_webui_remote_mode(),
+        )
+        admission_path = resolved_path.value
+        trust_zone = admission_path_to_trust_zone(resolved_path).value
+        local_trusted = is_local_trusted_admission(resolved_path)
+    elif local_trusted is None:
+        local_trusted = is_local_trusted_admission(AdmissionPath(admission_path))
+        if trust_zone is None:
+            trust_zone = admission_path_to_trust_zone(AdmissionPath(admission_path)).value
+
+    identity_meta = {
+        "local_trusted": local_trusted,
+        "admission_path": admission_path,
+        "trust_zone": trust_zone,
+    }
 
     if method == "OPTIONS" or is_public_path(path):
         return ResolvedIdentity(
@@ -138,11 +179,18 @@ def resolve_identity(
             client_ip=client_ip,
             loopback=loopback,
             private_net=private_net,
+            **identity_meta,
         )
 
     caps = get_deployment_capabilities()
     user_id: str | None = None
     auth_source: str | None = None
+    session_username: str | None = None
+    pair_bound_chat_id: str | None = None
+
+    from app.services.webui.session import REMOTE_IDLE_TTL_SECONDS
+
+    max_idle_seconds = None if local_trusted else REMOTE_IDLE_TTL_SECONDS
 
     if caps.is_sandbox_instance:
         from app.core.security.auth.cp_proxy import verify_cp_proxy_request
@@ -165,12 +213,33 @@ def resolve_identity(
             resolve_webui_session_username,
         )
 
-        session_user = resolve_webui_session_username(headers)
+        session_user = resolve_webui_session_username(headers, max_idle_seconds=max_idle_seconds)
         protected = local_api_requires_session()
         if session_user and protected:
             user_id = LOCAL_USER_ID
             auth_source = "webui_session"
-        elif loopback or (private_net and not protected):
+            session_username = session_user
+        elif trust_zone == TrustZone.REMOTE_EXPOSED.value:
+            from app.remote_access.mobile_gate import (
+                extract_pair_token,
+                is_mobile_remote_control_path,
+                is_mobile_remote_pairing_path,
+                pair_token_authorizes_path,
+            )
+
+            pair_token = extract_pair_token(headers, query_string)
+            mobile_pair_path = is_mobile_remote_control_path(path) or is_mobile_remote_pairing_path(path)
+            if mobile_pair_path and pair_token_authorizes_path(pair_token, path):
+                user_id = LOCAL_USER_ID
+                auth_source = "pair_token"
+                from app.remote_access.pairing import parse_pairing_token
+
+                parsed = parse_pairing_token(pair_token)
+                if parsed is not None:
+                    bound = parsed.get("chat_id")
+                    if isinstance(bound, str):
+                        pair_bound_chat_id = bound
+        elif local_trusted and (loopback or (private_net and not protected)):
             user_id = LOCAL_USER_ID
             auth_source = "loopback"
         elif caps.requires_api_key_auth:
@@ -178,7 +247,7 @@ def resolve_identity(
             if api_key and _verify_sandbox_api_key(api_key):
                 user_id = LOCAL_USER_ID
                 auth_source = "sandbox_api_key"
-    elif loopback:
+    elif local_trusted and loopback:
         user_id = LOCAL_USER_ID
         auth_source = "loopback"
 
@@ -188,6 +257,9 @@ def resolve_identity(
         client_ip=client_ip,
         loopback=loopback,
         private_net=private_net,
+        session_username=session_username,
+        pair_bound_chat_id=pair_bound_chat_id,
+        **identity_meta,
     )
 
 
@@ -198,7 +270,14 @@ def resolve_identity_from_http_scope(scope: dict[str, object]) -> ResolvedIdenti
     client_ip = _client_ip_from_scope(client if isinstance(client, tuple) else None)
     path = str(scope.get("path", ""))
     method = str(scope.get("method", "GET"))
-    return resolve_identity(path=path, method=method, headers=headers, client_ip=client_ip)
+    query_string = str(scope.get("query_string", b""), "latin-1")
+    return resolve_identity(
+        path=path,
+        method=method,
+        headers=headers,
+        client_ip=client_ip,
+        query_string=query_string,
+    )
 
 
 def resolve_identity_from_ws_scope(scope: dict[str, object]) -> ResolvedIdentity:
@@ -207,7 +286,14 @@ def resolve_identity_from_ws_scope(scope: dict[str, object]) -> ResolvedIdentity
     client = scope.get("client")
     client_ip = _client_ip_from_scope(client if isinstance(client, tuple) else None)
     path = str(scope.get("path", ""))
-    return resolve_identity(path=path, method="GET", headers=headers, client_ip=client_ip)
+    query_string = str(scope.get("query_string", b""), "latin-1")
+    return resolve_identity(
+        path=path,
+        method="GET",
+        headers=headers,
+        client_ip=client_ip,
+        query_string=query_string,
+    )
 
 
 __all__ = [

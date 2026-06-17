@@ -6,7 +6,7 @@
  * - API_BASE_URL: 规范化的 API 基础地址。
  * - BACKEND_BASE_URL: 规范化的后端基础地址。
  * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
- * - fetchWithTimeout / apiRequest: 前端统一请求入口（内置全局 401/403 强登出拦截）。
+ * - fetchWithTimeout / apiRequest: 前端统一请求入口（fetchWithTimeout 注入 mobile pair header；401/403 强登出拦截）
  *
  * [POS]
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
@@ -14,6 +14,7 @@
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { getApiBaseUrl, getBackendBaseUrl, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
+import { withMobilePairHeaders } from '@/lib/mobileRemote';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -200,10 +201,16 @@ export const fetchWithTimeout = async (
   try {
     // 强制禁用 Next.js 缓存，防止在开发模式下缓存 502/ECONNREFUSED 错误
     // 默认携带 credentials 以确保 SSE 和普通请求都发送认证 cookie
+    const incomingHeaders =
+      options.headers instanceof Headers
+        ? Object.fromEntries(options.headers.entries())
+        : ((options.headers as Record<string, string> | undefined) ?? {});
+    const headers = withMobilePairHeaders(incomingHeaders);
     const fetchOptions: RequestInit = {
       cache: 'no-store',
       credentials: 'include',
       ...options,
+      headers,
       signal: combinedSignal,
     };
     const response = await fetch(url, fetchOptions);
@@ -273,10 +280,9 @@ export const apiRequest = async <T = unknown>(
     const token = getAuthToken();
 
     // 如果是FormData，不设置Content-Type，让浏览器自动处理
-    const headers: Record<string, string> =
-      fetchOptions.body instanceof FormData
-        ? { ...(fetchOptions.headers as Record<string, string>) }
-        : { 'Content-Type': 'application/json', ...(fetchOptions.headers as Record<string, string>) };
+    const headers: Record<string, string> = fetchOptions.body instanceof FormData
+      ? { ...(fetchOptions.headers as Record<string, string>) }
+      : { 'Content-Type': 'application/json', ...(fetchOptions.headers as Record<string, string>) };
 
     // 添加认证头
     if (token) {

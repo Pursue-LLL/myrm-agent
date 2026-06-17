@@ -166,6 +166,7 @@ async def run_agent_stream(
             params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
                 request,
                 chat_history,
+                http_request=http_request,
             )
             params.query = Command(resume=request.resume_value)
 
@@ -175,6 +176,7 @@ async def run_agent_stream(
             params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(
                 request,
                 chat_history,
+                http_request=http_request,
             )
     except ArchiveRestoreRequestError as exc:
         return archive_restore_error_response(exc)

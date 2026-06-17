@@ -34,6 +34,7 @@ from app.channels.types import (
     StreamingText,
     TopicContext,
 )
+from app.channels.types.components import ActionButton, ButtonStyle
 
 logger = logging.getLogger("myrm.channels.routing.stream")
 
@@ -264,12 +265,27 @@ class RouterStreamMixin:
         if channel_obj and getattr(channel_obj.capabilities, "reactions", False):
             content += self._EMOJI_APPROVAL_HINT
 
+        components: tuple[tuple[ActionButton, ...], ...] = ()
+        deep_link = await self._resolve_mobile_status_deep_link(chat_id)
+        if deep_link:
+            components = (
+                (
+                    ActionButton(
+                        label=get_text(msg, "mobile_hitl_open"),
+                        action_id="mobile:open_status",
+                        style=ButtonStyle.PRIMARY,
+                        url=deep_link,
+                    ),
+                ),
+            )
+
         reply = OutboundMessage(
             channel=msg.channel,
             recipient_id=chat_id,
             content=content,
             user_id=msg.user_id or "",
             quick_replies=progress.quick_replies,
+            components=components,
             thread_id=msg.thread_id,
             reply_to_id=(
                 (msg.message_id or str(msg.metadata["message_id"]))
@@ -279,6 +295,11 @@ class RouterStreamMixin:
             priority=MessagePriority.SYSTEM,
         )
         return await self._bus.send_tracked(reply)
+
+    async def _resolve_mobile_status_deep_link(self: RouterStreamHost, chat_id: str) -> str | None:
+        from app.remote_access.mobile_deep_link import resolve_mobile_status_deep_link
+
+        return await resolve_mobile_status_deep_link(chat_id)
 
     async def _try_throttled_edit(
         self: RouterStreamHost,

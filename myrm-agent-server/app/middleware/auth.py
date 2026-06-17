@@ -3,7 +3,7 @@
 Local/Tauri: loopback requests receive a fixed local user identity.
 Sandbox: trust CP reverse-proxy identity (X-User-Id) on private networks, or
            SANDBOX_API_KEY for direct / remote access.
-WebUI Remote: non-loopback requests require SANDBOX_API_KEY.
+WebUI Remote: non-loopback requests require SANDBOX_API_KEY or pair token / session.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
+from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.security.auth.identity import (
     LOCAL_USER_ID,
     SANDBOX_FALLBACK_USER_ID,
@@ -23,6 +24,11 @@ from app.core.security.auth.identity import (
 )
 from app.core.security.auth.public_paths import is_public_path
 from app.middleware.auth_audit import AuthEventType, log_auth_event
+from app.remote_access.trust_zone import (
+    admission_path_to_trust_zone,
+    is_local_trusted_admission,
+    resolve_admission_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +71,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else ""
+        host_header = request.headers.get("host", "")
+        public_ingress_base_url = await get_public_ingress_base_url()
+        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+
+        resolved_admission = resolve_admission_path(
+            path=path,
+            client_ip=client_ip,
+            host_header=host_header,
+            headers=request.headers,
+            public_ingress_base_url=public_ingress_base_url,
+            is_sandbox=is_sandbox(),
+            is_webui_remote_mode=is_webui_remote_mode(),
+        )
         identity = resolve_identity(
             path=path,
             method=request.method,
             headers=request.headers,
             client_ip=client_ip,
+            admission_path=resolved_admission.value,
+            trust_zone=admission_path_to_trust_zone(resolved_admission).value,
+            local_trusted=is_local_trusted_admission(resolved_admission),
+            query_string=request.url.query,
         )
 
         if identity.user_id:
             request.state.user_id = identity.user_id
+            request.state.admission_path = identity.admission_path
+            request.state.trust_zone = identity.trust_zone
+            request.state.local_trusted = identity.local_trusted
+            if identity.auth_source:
+                request.state.auth_source = identity.auth_source
+            if identity.pair_bound_chat_id:
+                request.state.pair_bound_chat_id = identity.pair_bound_chat_id
+            if identity.session_username:
+                request.state.session_username = identity.session_username
             if not identity.loopback and identity.auth_source in ("sandbox_api_key", "cp_proxy"):
                 log_auth_event(
                     AuthEventType.AUTH_SUCCESS,
@@ -83,7 +115,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 )
             return await call_next(request)
 
-        if not identity.loopback:
+        if not identity.local_trusted:
             log_auth_event(
                 AuthEventType.AUTH_FAILURE,
                 identity.client_ip,

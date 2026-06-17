@@ -58,7 +58,10 @@ async def test_ws_middleware_rejects_unauthenticated_lan_upgrade_403() -> None:
         "state": {},
     }
 
-    middleware = WsAuthMiddleware(app=None)  # type: ignore
+    async def mock_app(scope: dict, receive: object, send: object) -> None:
+        return None
+
+    middleware = WsAuthMiddleware(app=mock_app)
 
     sent_messages = []
 

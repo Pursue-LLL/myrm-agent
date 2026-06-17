@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   IconCheck,
   IconCopy,
@@ -19,6 +19,10 @@ import { isValidPublicIngressBaseUrl } from '@/lib/utils/urlUtils';
 import { toast } from '@/lib/utils/toast';
 import { systemService } from '@/services/system';
 import { fetchWebuiProtection } from '@/services/webui-auth';
+import { remoteAccessService, type TunnelStatus } from '@/services/remoteAccess';
+import { buildMobileHubUrl } from '@/lib/mobileRemote';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { Button } from '@/components/primitives/button';
 import useConfigStore from '@/store/useConfigStore';
 import { SystemConfig } from '@/types/system';
 
@@ -41,6 +45,7 @@ export const AccessCard = memo<{
   ingressSnapshot: ReturnType<typeof useIngressRequirement>;
 }>(({ config, localIP, ingressSnapshot }) => {
   const t = useTranslations('settings.system');
+  const locale = useLocale();
   const [copied, setCopied] = useState<string | null>(null);
   const [testingIngress, setTestingIngress] = useState(false);
   const publicIngressBaseUrl = useConfigStore((s) => s.publicIngressBaseUrl);
@@ -79,6 +84,11 @@ export const AccessCard = memo<{
   const ingressRequired = ingressResolved && ingressSnapshot.required;
   const docsTunnelUrl = getDocsUrl('/guides/tunnel');
   const [lanNetworkUrl, setLanNetworkUrl] = useState('');
+  const [tunnelStatus, setTunnelStatus] = useState<TunnelStatus | null>(null);
+  const [tunnelBusy, setTunnelBusy] = useState(false);
+  const [mobileHubUrl, setMobileHubUrl] = useState('');
+  const localeIsZh = locale.startsWith('zh');
+  const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
 
   useEffect(() => {
     if (!showLocalIngress) {
@@ -115,6 +125,10 @@ export const AccessCard = memo<{
       : `/webui/qrcode.png?url=${encodeURIComponent(remoteUrl)}`
     : '';
 
+  const mobileHubQrSrc = mobileHubUrl
+    ? `/webui/qrcode.png?url=${encodeURIComponent(mobileHubUrl)}`
+    : '';
+
   const handleTestIngress = async () => {
     setTestingIngress(true);
     try {
@@ -139,6 +153,75 @@ export const AccessCard = memo<{
       setTestingIngress(false);
     }
   };
+
+  useEffect(() => {
+    if (!showLocalIngress) {
+      return;
+    }
+    let cancelled = false;
+    void remoteAccessService.getTunnelStatus().then((status) => {
+      if (!cancelled) {
+        setTunnelStatus(status);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showLocalIngress]);
+
+  const handleTunnelToggle = async () => {
+    setTunnelBusy(true);
+    try {
+      const next =
+        tunnelStatus?.state === 'running'
+          ? await remoteAccessService.stopTunnel()
+          : await remoteAccessService.startTunnel(webuiPort);
+      setTunnelStatus(next);
+      if (next.publicUrl) {
+        setPublicIngressBaseUrl(next.publicUrl);
+      }
+      if (next.state === 'error' && next.error) {
+        toast.error(next.error);
+      }
+    } catch {
+      toast.error(t('access.tunnel.error'));
+    } finally {
+      setTunnelBusy(false);
+    }
+  };
+
+  const handleShareMobileLink = async () => {
+    try {
+      const { mobilePath } = await remoteAccessService.createPairingToken();
+      const hubUrl = buildMobileHubUrl(mobilePath, tunnelStatus?.publicUrl ?? '', publicIngressBaseUrl ?? '');
+      setMobileHubUrl(hubUrl);
+      writeToClipboard(hubUrl);
+      toast.success(t('access.tunnel.shareCopied'));
+    } catch {
+      toast.error(t('access.tunnel.error'));
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !showLocalIngress ||
+      !passwordProtectionEnabled ||
+      tunnelStatus?.state !== 'running' ||
+      mobileHubUrl
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void remoteAccessService.createPairingToken().then(({ mobilePath }) => {
+      if (cancelled) {
+        return;
+      }
+      setMobileHubUrl(buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? ''));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showLocalIngress, passwordProtectionEnabled, tunnelStatus?.state, tunnelStatus?.publicUrl, publicIngressBaseUrl, mobileHubUrl]);
 
   if (!accessEnabled) {
     return (
@@ -293,6 +376,71 @@ export const AccessCard = memo<{
             {!passwordProtectionEnabled && (
               <p className="text-xs text-amber-500/90">{t('access.ingress.passwordRequired')}</p>
             )}
+            <div className="rounded-xl border border-white/10 bg-black/10 p-4 space-y-3">
+              <p className="text-sm font-semibold text-foreground">{t('access.tunnel.title')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {localeIsZh ? t('access.tunnel.cnHint') : t('access.tunnel.globalHint')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleTunnelToggle()}
+                  disabled={tunnelBusy || !passwordProtectionEnabled}
+                  className="px-4 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white text-sm font-bold"
+                >
+                  {tunnelBusy
+                    ? t('access.tunnel.starting')
+                    : tunnelStatus?.state === 'running'
+                      ? t('access.tunnel.stop')
+                      : t('access.tunnel.start')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleShareMobileLink()}
+                  disabled={!passwordProtectionEnabled}
+                  className="px-4 py-2 rounded-xl border border-white/15 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
+                >
+                  {t('access.tunnel.shareMobile')}
+                </button>
+              </div>
+              {tunnelStatus?.publicUrl ? (
+                <p className="text-xs text-emerald-400 break-all">{tunnelStatus.publicUrl}</p>
+              ) : null}
+              {mobileHubQrSrc ? (
+                <div className="flex flex-col items-center gap-2 pt-2">
+                  <div className="p-3 bg-white rounded-xl">
+                    <img
+                      src={mobileHubQrSrc}
+                      alt={t('access.tunnel.hubQrAlt')}
+                      width={160}
+                      height={160}
+                      className="block"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center break-all">{mobileHubUrl}</p>
+                  <p className="text-xs text-muted-foreground">{t('access.tunnel.hubScanHint')}</p>
+                  {(isInstallable || isInstalled) ? (
+                    <div className="w-full rounded-xl border border-border/60 bg-card/40 p-3 space-y-2 mt-2">
+                      <p className="text-xs font-medium text-foreground">{t('access.tunnel.pwaTitle')}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.pwaHint')}</p>
+                      {isInstalled ? (
+                        <p className="text-xs text-emerald-400">{t('access.tunnel.pwaInstalled')}</p>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => void promptInstall()}
+                        >
+                          {t('access.tunnel.pwaInstall')}
+                        </Button>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <input
                 type="text"

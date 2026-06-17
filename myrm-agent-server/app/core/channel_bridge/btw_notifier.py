@@ -91,6 +91,7 @@ class BtwTaskNotifier:
 
         locale = str(data.get("locale", "en"))
         content = _format_notification(status, title, result, locale)
+        task_id = str(data.get("task_id", ""))
 
         metadata: dict[str, object] = {}
         if thread_id:
@@ -98,12 +99,23 @@ class BtwTaskNotifier:
 
         user_id = str(data.get("user_id", "")) or "local-user"
 
+        components: tuple[tuple[object, ...], ...] = ()
+        if task_id:
+            from app.remote_access.mobile_deep_link import resolve_mobile_status_action_components
+
+            components = await resolve_mobile_status_action_components(
+                chat_id,
+                label_key="mobile_btw_open",
+                locale=locale,
+            )
+
         msg = OutboundMessage(
             channel=channel_name,
             recipient_id=chat_id,
             content=content,
             user_id=user_id,
             metadata=metadata if metadata else None,
+            components=components or None,
         )
 
         channel = channel_gateway.bus.channels.get(channel_name)

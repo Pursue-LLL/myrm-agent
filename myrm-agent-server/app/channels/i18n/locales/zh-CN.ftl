@@ -1,3 +1,6 @@
+mobile_hitl_open = 打开手机审批
+mobile_btw_open = 手机查看结果
+
 no_active_task_to_stop = ℹ 当前没有正在执行的任务。
 execution_stopped =  任务已停止。
 placeholder_stopped =  任务已停止。
