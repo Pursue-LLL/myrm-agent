@@ -4458,6 +4458,8 @@
       "noConfiguredItems": "暂无配置",
       "saveAsNewAgentTip": "你可以将常用能力组合保存为智能体，下次直接使用",
       "updateSuccess": "已切换智能体",
+      "switchFailed": "切换智能体失败",
+      "switchButton": "切换",
       "directDelegate": "直连外部 Agent",
       "directDelegateOff": "关闭（经由主模型）",
       "builtinTools": "内置工具",

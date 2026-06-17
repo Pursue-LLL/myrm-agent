@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `AgentInfoBanner.tsx` | 组件/模块 | — | — |
+| `AgentInfoBanner.tsx` | 组件 | 当前 Agent 信息横幅：头像+名称+描述+会话内切换下拉+设置快捷入口 | ✅ |
 | `AgentWorkMap.tsx` | 组件/模块 | — | — |
 | `BudgetBadge.tsx` | 组件/模块 | — | — |
 | `Chat.tsx` | 组件/模块 | — | — |

@@ -239,6 +239,8 @@ class ChatDetail(BaseModel):
     id: str = Field(..., description="聊天会话ID")
     title: str | None = Field(None, description="聊天标题")
     actionMode: str = Field(..., description="聊天模式")
+    agent_id: str | None = Field(None, description="绑定的智能体ID")
+    is_incognito: bool = Field(False, description="是否为无痕模式")
     compacted_summary: str | None = Field(None, description="上下文压缩结构化摘要")
     compacted_before_id: str | None = Field(None, description="被压缩的最后一条消息ID")
     workspace_dir: str | None = Field(None, description="Per-chat working directory")

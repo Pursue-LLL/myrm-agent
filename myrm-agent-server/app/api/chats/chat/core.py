@@ -144,6 +144,8 @@ async def get_chat(
             id=chat.id,
             title=chat.title,
             actionMode=chat.action_mode,
+            agent_id=chat.agent_id,
+            is_incognito=chat.is_incognito,
             compacted_summary=chat.compacted_summary,
             compacted_before_id=chat.compacted_before_id,
             workspace_dir=workspace_dir,
@@ -389,11 +391,9 @@ async def get_fission_topology(
         record = result.scalar_one_or_none()
 
         if not record:
-            # Not found is ok, just return null
             return success_response(data=None)
 
         data = {"fission_id": record.fission_id, "nodes": record.nodes, "total_cost_usd": record.total_cost_usd}
-
         return success_response(data=data)
     except Exception as e:
         raise internal_error(operation="Get Fission Topology", exception=e) from e

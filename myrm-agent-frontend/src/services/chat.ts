@@ -128,6 +128,8 @@ export const getChatDetail = async (
     id: string;
     title: string | null;
     actionMode: string;
+    agent_id: string | null;
+    is_incognito: boolean;
     compacted_summary: string | null;
     compacted_before_id: string | null;
     workspace_dir: string | null;

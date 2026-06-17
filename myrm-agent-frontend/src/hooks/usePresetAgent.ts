@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { PresetAgent } from '@/types/presetAgent';
 import { AgentConfig } from '@/store/chat/types';
 import { toast } from '@/hooks/useToast';
+import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 
@@ -54,25 +55,12 @@ export function usePresetAgent({
   // 应用预置智能体配置的通用函数
   const applyPresetAgentConfig = useCallback(
     async (preset: PresetAgent, workingDirectory?: string) => {
-      let fullSystemPrompt = preset.systemPrompt || '';
-      let fullSkillIds = preset.skillIds || [];
-
-      try {
-        const fullAgent = await useAgentStore.getState().fetchAgent(preset.id);
-        if (fullAgent) {
-          fullSystemPrompt = fullAgent.system_prompt || fullSystemPrompt;
-          fullSkillIds = fullAgent.skill_ids || fullSkillIds;
-        }
-      } catch (e) {
-        console.error('Failed to fetch full agent details for preset', e);
-      }
-
-      const config: AgentConfig = {
+      let config: AgentConfig = {
         agentId: preset.id,
-        selectedSkillIds: fullSkillIds,
+        selectedSkillIds: preset.skillIds || [],
         skillConfigs: {},
         selectedMcpNames: [],
-        systemPrompt: fullSystemPrompt,
+        systemPrompt: preset.systemPrompt || '',
         useGlobalInstruction: true,
         autoRestoreDomains: [],
         presetId: preset.id,
@@ -80,7 +68,20 @@ export function usePresetAgent({
         presetIcon: preset.icon,
       };
 
-      // 如果有工作目录，存储在 agentDescription
+      try {
+        const fullAgent = await useAgentStore.getState().fetchAgent(preset.id);
+        if (fullAgent) {
+          config = {
+            ...buildAgentConfig(fullAgent),
+            presetId: preset.id,
+            presetName: preset.name,
+            presetIcon: preset.icon,
+          };
+        }
+      } catch (e) {
+        console.error('Failed to fetch full agent details for preset', e);
+      }
+
       if (workingDirectory) {
         config.agentDescription = `workingDirectory:${workingDirectory}`;
       }
@@ -123,7 +124,6 @@ export function usePresetAgent({
       return;
     }
 
-    // 没有现有配置，应用默认的通用助手
     useAgentStore
       .getState()
       .fetchAgents()
@@ -133,30 +133,33 @@ export function usePresetAgent({
         if (generalBp) {
           setSelectedPresetId(generalBp.id);
 
-          let fullSystemPrompt = '';
-          let fullSkillIds: string[] = [];
-          try {
-            const fullAgent = await useAgentStore.getState().fetchAgent(generalBp.id);
-            if (fullAgent) {
-              fullSystemPrompt = fullAgent.system_prompt || '';
-              fullSkillIds = fullAgent.skill_ids || [];
-            }
-          } catch (e) {
-            console.error('Failed to fetch full agent details for general', e);
-          }
-
-          const config: AgentConfig = {
+          let config: AgentConfig = {
             agentId: generalBp.id,
-            selectedSkillIds: fullSkillIds,
+            selectedSkillIds: [],
             skillConfigs: {},
             selectedMcpNames: [],
-            systemPrompt: fullSystemPrompt,
+            systemPrompt: '',
             useGlobalInstruction: true,
             autoRestoreDomains: [],
             presetId: generalBp.id,
             presetName: generalBp.name,
             presetIcon: generalBp.avatar_url?.replace('icon:', '') || 'MessageCircle',
           };
+
+          try {
+            const fullAgent = await useAgentStore.getState().fetchAgent(generalBp.id);
+            if (fullAgent) {
+              config = {
+                ...buildAgentConfig(fullAgent),
+                presetId: generalBp.id,
+                presetName: generalBp.name,
+                presetIcon: generalBp.avatar_url?.replace('icon:', '') || 'MessageCircle',
+              };
+            }
+          } catch (e) {
+            console.error('Failed to fetch full agent details for general', e);
+          }
+
           setAgentConfig(config);
         }
       })

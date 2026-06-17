@@ -13,6 +13,7 @@
 | `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL、Billing API 与 `BillingPlanKey` SSOT | — |
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | — |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |
+| `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（消除多处重复映射） | — |
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
 | `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
 | `config/` | 设置表单 schema 工具 | — |

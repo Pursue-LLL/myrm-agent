@@ -2,10 +2,11 @@
  * [INPUT]
  * @/services/chat::getChatDetail (POS: Chat API client)
  * @/store/useWorkspaceStore::useWorkspaceStore (POS: Workspace state manager)
+ * @/lib/utils/agentConfigMapper::buildAgentConfig (POS: Agent→AgentConfig 标准映射)
  *
  * [OUTPUT]
  * initializeChat: Initialize or switch chat sessions with instant snapshot rendering.
- * loadMessages: Fetch chat history from DB.
+ * loadMessages: Fetch chat history from DB + restore bound agentConfig.
  * autoSaveChat: Auto-generate and save chat titles.
  *
  * [POS]
@@ -18,8 +19,10 @@ import { ChatActionsMethods } from './messageRequest';
 import { getChatDetail, getMessages, generateChatTitle, updateChatTitle } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
+import useAgentStore from '@/store/useAgentStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useProjectStore } from '@/store/useProjectStore';
 import { moveChatToProject } from '@/services/projects';
@@ -34,6 +37,22 @@ function normalizeActionMode(actionMode: string | null | undefined): ActionMode 
     return actionMode as ActionMode;
   }
   return 'agent';
+}
+
+/**
+ * Restore agentConfig when loading a historical chat that was bound to a specific agent.
+ * Runs asynchronously to avoid blocking message rendering.
+ */
+function restoreAgentConfigFromChat(chatId: string, agentId: string | null | undefined): void {
+  if (!agentId) return;
+
+  const currentConfig = useChatStore.getState().agentConfig;
+  if (currentConfig?.agentId === agentId) return;
+
+  useAgentStore.getState().fetchAgent(agentId).then((agent) => {
+    if (!agent || useChatStore.getState().chatId !== chatId) return;
+    useChatStore.getState().setAgentConfig(buildAgentConfig(agent));
+  }).catch(() => {});
 }
 
 /**
@@ -74,6 +93,8 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
         state.loading = false;
       }
     });
+
+    restoreAgentConfigFromChat(chatId, chatData.chat.agent_id);
 
     apiRequest<{ active: boolean }>(`/chats/${chatId}/sandbox/status`).then((res) => {
       if (res?.active && useChatStore.getState().chatId === chatId) {

@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings } from 'lucide-react';
-import Image from 'next/image';
-import { useLocale } from 'next-intl';
+import { Settings, ChevronDown, Check } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
-import { AgentIcon } from '@/components/agent/agent-icons';
-import { parseAvatarUrl } from '@/lib/utils/avatar-utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { getBuiltinAgentName, getBuiltinAgentDescription } from '@/components/agent/builtin-agent-i18n';
 import { getAgent, type Agent } from '@/services/agent';
+import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
+import useAgentStore from '@/store/useAgentStore';
+import useChatStore from '@/store/useChatStore';
+import { toast } from '@/hooks/useToast';
 
 interface AgentInfoBannerProps {
   agentId: string;
@@ -20,78 +23,63 @@ interface AgentInfoBannerProps {
 export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerProps) {
   const router = useRouter();
   const locale = useLocale();
+  const t = useTranslations('agent.configPanel');
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetchAgents);
+  const isStreaming = useChatStore((s) => s.loading);
 
   useEffect(() => {
+    let stale = false;
     const loadAgent = async () => {
       try {
         const data = await getAgent(agentId);
-        setAgent(data);
-      } catch (error) {
-        console.error('Failed to load agent:', error);
+        if (!stale) setAgent(data);
+      } catch {
+        if (!stale) setAgent(null);
       } finally {
-        setLoading(false);
+        if (!stale) setInitialLoading(false);
       }
     };
     loadAgent();
+    return () => { stale = true; };
   }, [agentId]);
 
-  if (loading || !agent) return null;
+  useEffect(() => {
+    fetchAgents();
+  }, [fetchAgents]);
 
-  const renderAvatar = () => {
-    const parsed = parseAvatarUrl(agent.avatar_url, agent.id);
+  const handleSwitchAgent = useCallback(
+    async (targetAgentId: string) => {
+      if (targetAgentId === agentId) {
+        setSwitchOpen(false);
+        return;
+      }
 
-    if (parsed?.type === 'icon') {
-      return <AgentIcon iconId={parsed.iconId} size="sm" />;
-    }
+      try {
+        const fullAgent = await getAgent(targetAgentId);
+        if (!fullAgent) return;
 
-    if (parsed?.type === 'emoji') {
-      return <span className="text-2xl">{parsed.emoji}</span>;
-    }
+        useChatStore.getState().setAgentConfig(buildAgentConfig(fullAgent));
+        setAgent(fullAgent);
+        toast({ title: t('updateSuccess'), description: getBuiltinAgentName(fullAgent.id, fullAgent.name, locale) });
+      } catch {
+        toast({ title: t('switchFailed'), variant: 'destructive' });
+      } finally {
+        setSwitchOpen(false);
+      }
+    },
+    [agentId, locale, t],
+  );
 
-    if (parsed?.type === 'image') {
-      return (
-        <Image
-          src={parsed.src}
-          alt={agent.name}
-          width={32}
-          height={32}
-          unoptimized={parsed.src.startsWith('http')}
-          className="w-8 h-8 rounded-full object-cover"
-        />
-      );
-    }
-
-    const gradients = [
-      { from: 'from-primary', to: 'to-violet-500' },
-      { from: 'from-blue-500', to: 'to-cyan-500' },
-      { from: 'from-emerald-500', to: 'to-teal-500' },
-      { from: 'from-orange-500', to: 'to-amber-500' },
-      { from: 'from-pink-500', to: 'to-rose-500' },
-      { from: 'from-indigo-500', to: 'to-purple-500' },
-    ];
-
-    const gradientIdx = parsed?.type === 'gradient' ? parsed.index : 0;
-    const gradient = gradients[gradientIdx % gradients.length];
-
-    return (
-      <div
-        className={cn(
-          'w-8 h-8 rounded-full flex items-center justify-center',
-          'bg-gradient-to-br',
-          gradient.from,
-          gradient.to,
-        )}
-      >
-        <span className="text-sm font-semibold text-white">{agent.name[0]}</span>
-      </div>
-    );
-  };
+  if (initialLoading || !agent) return null;
 
   return (
     <div className={cn('flex items-center gap-3 px-4 py-2 bg-muted/50 border-b border-border', className)}>
-      {renderAvatar()}
+      <AgentAvatar url={agent.avatar_url} name={agent.name} agentId={agent.id} size="sm" />
+
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{getBuiltinAgentName(agent.id, agent.name, locale)}</p>
         {agent.description && (
@@ -100,6 +88,35 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
           </p>
         )}
       </div>
+
+      <Popover open={switchOpen} onOpenChange={setSwitchOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" disabled={isStreaming} className="flex items-center gap-1">
+            <ChevronDown className="w-4 h-4" />
+            <span className="hidden sm:inline">{t('switchButton')}</span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[240px] p-1" align="end">
+          <div className="flex flex-col max-h-[300px] overflow-y-auto">
+            {agents.map((item) => (
+              <div
+                key={item.id}
+                className={cn(
+                  'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm',
+                  'hover:bg-accent hover:text-accent-foreground',
+                  item.id === agentId ? 'bg-accent/50' : '',
+                )}
+                onClick={() => handleSwitchAgent(item.id)}
+              >
+                <AgentAvatar url={item.avatar_url} name={item.name} agentId={item.id} size="sm" className="h-6 w-6" />
+                <span className="flex-1 truncate">{getBuiltinAgentName(item.id, item.name, locale)}</span>
+                {item.id === agentId && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              </div>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
       <Button
         variant="ghost"
         size="sm"
@@ -107,7 +124,6 @@ export default function AgentInfoBanner({ agentId, className }: AgentInfoBannerP
         className="flex items-center gap-1"
       >
         <Settings className="w-4 h-4" />
-        <span className="hidden sm:inline">Switch</span>
       </Button>
     </div>
   );

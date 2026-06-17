@@ -4458,6 +4458,8 @@
       "noConfiguredItems": "No configuration",
       "saveAsNewAgentTip": "Save frequently used capability combinations as agents for direct use next time",
       "updateSuccess": "Agent switched",
+      "switchFailed": "Failed to switch agent",
+      "switchButton": "Switch",
       "directDelegate": "Direct to External Agent",
       "directDelegateOff": "Off (via main model)",
       "builtinTools": "Built-in Tools",

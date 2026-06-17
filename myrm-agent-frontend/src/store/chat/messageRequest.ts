@@ -86,6 +86,8 @@ export interface ChatActionsState {
   isMessagesLoaded: boolean;
   hasMoreMessages: boolean;
   nextCursor: string | null;
+  incognitoMode: boolean;
+  sandboxMode: boolean;
   notFound: boolean;
   loadError: boolean;
   newChatCreated: boolean;
