@@ -17,6 +17,7 @@ import { Button } from '@/components/primitives/button';
 import { useBudgetExceededStore } from '@/store/useBudgetExceededStore';
 import { isSandbox } from '@/lib/deploy-mode';
 import useAuthStore from '@/store/useAuthStore';
+import { useSubscription } from '@/hooks/useSubscription';
 import { toast } from '@/lib/utils/toast';
 
 export default function BudgetExceededDialog() {
@@ -24,6 +25,7 @@ export default function BudgetExceededDialog() {
   const pricingT = useTranslations('billing.pricing');
   const { open, requiredWu, availableWu, close } = useBudgetExceededStore();
   const { token } = useAuthStore();
+  const { isPaidPlan } = useSubscription();
   const [topupLoading, setTopupLoading] = useState(false);
 
   if (!isSandbox()) {
@@ -71,9 +73,11 @@ export default function BudgetExceededDialog() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('dismiss')}</AlertDialogCancel>
-          <Button variant="outline" disabled={topupLoading} onClick={handleTopup}>
-            {topupLoading ? pricingT('processing') : t('topup')}
-          </Button>
+          {isPaidPlan && (
+            <Button variant="outline" disabled={topupLoading} onClick={handleTopup}>
+              {topupLoading ? pricingT('processing') : t('topup')}
+            </Button>
+          )}
           <AlertDialogAction asChild>
             <Link href="/pricing" onClick={close}>
               {t('upgrade')}

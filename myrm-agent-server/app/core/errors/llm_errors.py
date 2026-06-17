@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason
 
+from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
 # ============================================================================
 # Action ID Mappings (Error Code -> Action IDs)
 # ============================================================================
@@ -77,6 +79,13 @@ _ACTION_TRANSLATIONS["de"] = _ACTION_TRANSLATIONS["en"]
 # ============================================================================
 
 
+def _resolve_action_url(action_id: str, default_url: str) -> str:
+    """Map recovery URLs for sandbox (platform WU) vs local (BYOK) deployments."""
+    if action_id == "top_up" and get_deployment_capabilities().uses_platform_budget:
+        return "/subscription"
+    return default_url
+
+
 def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") -> list[dict[str, str]]:
     """Generate recovery actions with localized labels and business URLs.
 
@@ -103,7 +112,7 @@ def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") ->
                 {
                     "id": action_id,
                     "label": action_info["label"],
-                    "url": action_info["url"],
+                    "url": _resolve_action_url(action_id, action_info["url"]),
                 }
             )
         else:

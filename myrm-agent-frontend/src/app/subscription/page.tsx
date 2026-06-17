@@ -396,7 +396,7 @@ export default function SubscriptionPage() {
             {!canOpenPortal && isPaidPlan && <p className="text-xs text-muted-foreground">{t('portalUnavailable')}</p>}
           </div>
 
-          {sandbox && (
+          {sandbox && isPaidPlan && catalog?.topup_available && (
             <div className="rounded-3xl border border-border/60 bg-background/70 backdrop-blur-xl p-6 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">{tBilling('topupTitle')}</h2>
               <p className="text-sm text-muted-foreground">
