@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
-import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send } from 'lucide-react';
+import { Bot, Terminal, Plus, Loader2, FileCode2, CalendarDays, Cpu, MessageCircle, Send, Sparkles } from 'lucide-react';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
@@ -30,6 +30,9 @@ import {
 import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import BlueprintCatalog from './BlueprintCatalog';
+import BlueprintInlineFill from './BlueprintInlineFill';
+import { CRON_PRESETS, type CronBlueprint } from './cron-blueprints';
 
 type JobType = 'agent' | 'shell' | 'router';
 type UIJobMode = 'agent' | 'shell' | 'script';
@@ -77,6 +80,8 @@ export default function CronJobCreateDialog({
   const [deliveryTarget, setDeliveryTarget] = useState('');
   const [connectedChannels, setConnectedChannels] = useState<string[]>([]);
   const chatHistoryItems = useChatStore((s) => s.chatHistoryItems);
+  const [createMode, setCreateMode] = useState<'template' | 'custom'>('template');
+  const [selectedBlueprint, setSelectedBlueprint] = useState<CronBlueprint | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -125,6 +130,8 @@ export default function CronJobCreateDialog({
     setSelectedChatId('');
     setDeliveryChannel('chat');
     setDeliveryTarget('');
+    setCreateMode('template');
+    setSelectedBlueprint(null);
   }, [presetChatId]);
 
   const schedule = useMemo((): CronSchedule | null => {
@@ -202,10 +209,11 @@ export default function CronJobCreateDialog({
         payload.command = command.trim();
       } else {
         payload.pre_condition_script = scriptCode.trim();
-        if (deliveryChannel !== 'chat') {
-          const target = deliveryTarget.trim() || undefined;
-          payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
-        }
+      }
+
+      if (deliveryChannel !== 'chat') {
+        const target = deliveryTarget.trim() || undefined;
+        payload.delivery = { channel: toApiChannel(deliveryChannel), ...(target ? { target } : {}) };
       }
 
       await createJob(payload);
@@ -254,6 +262,51 @@ export default function CronJobCreateDialog({
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
+          {/* Mode Toggle */}
+          <div className="flex gap-1 border-b pb-0">
+            <button
+              type="button"
+              onClick={() => setCreateMode('template')}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors flex items-center gap-1',
+                createMode === 'template'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Sparkles className="h-3 w-3" />
+              {t('blueprint.tabTemplate')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreateMode('custom')}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
+                createMode === 'custom'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t('blueprint.tabCustom')}
+            </button>
+          </div>
+
+          {/* Template Mode */}
+          {createMode === 'template' && !selectedBlueprint && (
+            <BlueprintCatalog onSelect={(bp) => { setSelectedBlueprint(bp); }} />
+          )}
+
+          {/* Template Fill View (inline) */}
+          {createMode === 'template' && selectedBlueprint && (
+            <BlueprintInlineFill
+              blueprint={selectedBlueprint}
+              onBack={() => setSelectedBlueprint(null)}
+              onCreated={() => { reset(); onOpenChange(false); }}
+            />
+          )}
+
+          {/* Custom Mode */}
+          {createMode === 'custom' && (<>
           {/* Job Type */}
           <div className="space-y-1.5">
             <Label className="text-xs">{t('createTypeLabel')}</Label>
@@ -331,8 +384,8 @@ export default function CronJobCreateDialog({
             </div>
           )}
 
-          {/* Script Delivery Target */}
-          {uiMode === 'script' && (
+          {/* Delivery Target */}
+          {connectedChannels.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs">{t('deliveryLabel')}</Label>
               <ToggleGroup
@@ -409,12 +462,26 @@ export default function CronJobCreateDialog({
             </Select>
 
             {scheduleKind === 'cron' && (
-              <Input
-                placeholder={t('createCronPlaceholder')}
-                value={cronExpr}
-                onChange={(e) => setCronExpr(e.target.value)}
-                className="h-8 text-sm font-mono"
-              />
+              <div className="space-y-1.5">
+                <Input
+                  placeholder={t('createCronPlaceholder')}
+                  value={cronExpr}
+                  onChange={(e) => setCronExpr(e.target.value)}
+                  className="h-8 text-sm font-mono"
+                />
+                <div className="flex flex-wrap gap-1">
+                  {CRON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setCronExpr(p.expr)}
+                      className="text-[11px] px-2 py-0.5 rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                    >
+                      {t(p.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             {scheduleKind === 'interval' && (
               <div className="flex items-center gap-2">
@@ -548,6 +615,7 @@ export default function CronJobCreateDialog({
               {t('createSubmit')}
             </Button>
           </div>
+          </>)}
         </div>
       </DialogContent>
     </Dialog>

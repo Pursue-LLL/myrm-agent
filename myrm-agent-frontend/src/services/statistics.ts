@@ -433,11 +433,20 @@ export interface SkillEvolutionEvent {
   change_summary: string;
 }
 
+export interface CostSummary {
+  total_cost_usd: number;
+  cache_savings_usd: number;
+  routing_savings: number;
+  routing_savings_percent: number;
+  total_savings_usd: number;
+}
+
 export interface GrowthDashboardData {
   snapshot: GrowthSnapshot;
   activity_heatmap: ActivityDay[];
   weekly_summary: WeeklySummary;
   skill_events: SkillEvolutionEvent[];
+  cost_summary: CostSummary | null;
 }
 
 export async function getGrowthDashboard(days = 84): Promise<GrowthDashboardData> {

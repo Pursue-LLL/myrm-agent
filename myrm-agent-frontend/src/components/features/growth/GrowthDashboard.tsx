@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Zap, CalendarDays, HeartPulse, Loader2, Sprout, RefreshCw } from 'lucide-react';
+import { Brain, Zap, CalendarDays, HeartPulse, Loader2, Sprout, RefreshCw, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -15,17 +15,21 @@ import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
 import SkillEventList from './SkillEventList';
 
+const TIME_RANGE_OPTIONS = [7, 30, 90] as const;
+type TimeRange = (typeof TIME_RANGE_OPTIONS)[number];
+
 export default function GrowthDashboard() {
   const t = useTranslations('growthDashboard');
   const [data, setData] = useState<GrowthDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>(30);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (days: number) => {
     try {
       setLoading(true);
       setError(false);
-      const result = await getGrowthDashboard();
+      const result = await getGrowthDashboard(days);
       setData(result);
     } catch (e) {
       setError(true);
@@ -36,10 +40,10 @@ export default function GrowthDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData(timeRange);
+  }, [fetchData, timeRange]);
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -54,7 +58,7 @@ export default function GrowthDashboard() {
         <h2 className="text-xl font-semibold text-foreground">{t('empty.title')}</h2>
         <p className="text-muted-foreground text-sm">{t('empty.description')}</p>
         {error && (
-          <Button variant="outline" size="sm" onClick={fetchData} className="mt-2">
+          <Button variant="outline" size="sm" onClick={() => fetchData(timeRange)} className="mt-2">
             <RefreshCw className="h-4 w-4 mr-2" />
             {t('empty.retry')}
           </Button>
@@ -63,7 +67,7 @@ export default function GrowthDashboard() {
     );
   }
 
-  const { snapshot, activity_heatmap, weekly_summary, skill_events } = data;
+  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary } = data;
 
   const kpiCards = [
     {
@@ -118,10 +122,28 @@ export default function GrowthDashboard() {
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+      {/* Header with time range selector */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
+          {TIME_RANGE_OPTIONS.map((days) => (
+            <button
+              key={days}
+              onClick={() => setTimeRange(days)}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                timeRange === days
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t(`timeRange.${days}d`)}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
@@ -154,6 +176,52 @@ export default function GrowthDashboard() {
               </Card>
             ))}
           </div>
+
+          {/* Savings Summary Card */}
+          {cost_summary && cost_summary.total_savings_usd >= 0.01 && (
+            <Card className="relative overflow-hidden border-emerald-200/50 dark:border-emerald-800/30 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20">
+              <CardContent className="p-4 md:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="p-2 md:p-2.5 rounded-lg bg-emerald-500/10 shrink-0">
+                      <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs md:text-sm text-muted-foreground font-medium">{t('savings.title')}</p>
+                      <p className="text-xl md:text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                        ${cost_summary.total_savings_usd.toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 md:gap-6 text-sm pl-9 sm:pl-0">
+                    {cost_summary.cache_savings_usd > 0 && (
+                      <div className="sm:text-right">
+                        <p className="text-xs text-muted-foreground">{t('savings.cache')}</p>
+                        <p className="font-semibold text-foreground">${cost_summary.cache_savings_usd.toFixed(2)}</p>
+                      </div>
+                    )}
+                    {cost_summary.routing_savings > 0 && (
+                      <div className="sm:text-right">
+                        <p className="text-xs text-muted-foreground">{t('savings.routing')}</p>
+                        <p className="font-semibold text-foreground">
+                          ${cost_summary.routing_savings.toFixed(2)}
+                          <span className="text-xs text-muted-foreground ml-1">
+                            ({cost_summary.routing_savings_percent.toFixed(0)}%)
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                    {cost_summary.total_cost_usd > 0 && (
+                      <div className="sm:text-right">
+                        <p className="text-xs text-muted-foreground">{t('savings.totalCost')}</p>
+                        <p className="font-semibold text-foreground">${cost_summary.total_cost_usd.toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Middle row: Heatmap + Health Radar */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -22,6 +22,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.statistics.usage_aggregation import (
+    DayAccumulator,
+    TierAccumulator,
+    compute_estimated_savings,
+    extract_usage,
+    normalize_tier,
+)
 from app.config.settings import settings
 from app.core.skills.store.service import skills_service
 from app.core.utils.errors import internal_error
@@ -88,6 +95,16 @@ class SkillEvolutionEvent(BaseModel):
     change_summary: str = ""
 
 
+class CostSummary(BaseModel):
+    """Aggregated cost/savings for the dashboard time range."""
+
+    total_cost_usd: float = 0.0
+    cache_savings_usd: float = 0.0
+    routing_savings: float = 0.0
+    routing_savings_percent: float = 0.0
+    total_savings_usd: float = 0.0
+
+
 class GrowthDashboardResponse(BaseModel):
     """Full dashboard payload — single GET returns everything."""
 
@@ -95,6 +112,7 @@ class GrowthDashboardResponse(BaseModel):
     activity_heatmap: list[ActivityDay]
     weekly_summary: WeeklySummary
     skill_events: list[SkillEvolutionEvent]
+    cost_summary: CostSummary | None = None
 
 
 # ── Data fetchers (all read-only, no framework mutation) ─────────────
@@ -265,6 +283,62 @@ async def _fetch_skill_evolution_data() -> _SkillEvolutionSnapshot:
         return _SkillEvolutionSnapshot()
 
 
+async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
+    """Aggregate cost savings from message extra_data within the time range."""
+    try:
+        cutoff = datetime.now(UTC) - timedelta(days=time_range_days)
+        stmt = select(Message.extra_data).where(
+            and_(
+                Message.role == "assistant",
+                Message.created_at >= cutoff,
+                Message.extra_data.isnot(None),
+            )
+        ).limit(10000)
+        result = await db.execute(stmt)
+        rows = result.scalars().all()
+
+        if not rows:
+            return None
+
+        acc = DayAccumulator()
+        tier_accs: dict[str, TierAccumulator] = {}
+
+        for extra_data in rows:
+            if not isinstance(extra_data, dict):
+                continue
+            usage = extract_usage(extra_data)
+            if not usage:
+                continue
+            acc.add(usage, extra_data)
+            tier = normalize_tier(extra_data.get("routingTier"))
+            if tier:
+                if tier not in tier_accs:
+                    tier_accs[tier] = TierAccumulator()
+                tier_accs[tier].add(usage, extra_data)
+
+        if acc.calls == 0:
+            return None
+
+        routing_savings_data = compute_estimated_savings(tier_accs)
+        routing_savings = float(routing_savings_data["savings"]) if routing_savings_data else 0.0
+        routing_savings_pct = float(routing_savings_data["savingsPercent"]) if routing_savings_data else 0.0
+
+        total_savings = acc.cache_savings_usd + routing_savings
+        if total_savings <= 0 and acc.cost_usd <= 0:
+            return None
+
+        return CostSummary(
+            total_cost_usd=round(acc.cost_usd, 4),
+            cache_savings_usd=round(acc.cache_savings_usd, 4),
+            routing_savings=round(routing_savings, 4),
+            routing_savings_percent=round(routing_savings_pct, 1),
+            total_savings_usd=round(total_savings, 4),
+        )
+    except Exception as e:
+        logger.warning("Failed to fetch cost summary: %s", e)
+        return None
+
+
 async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
     """Fetch this-week and previous-week conversation/message/cron counts from DB."""
     try:
@@ -351,11 +425,13 @@ async def get_growth_dashboard(
             activity,
             weekly,
             skill_snapshot,
+            cost_summary,
         ) = await asyncio.gather(
             _fetch_memory_snapshot(),
             _fetch_activity_data(days),
             _fetch_weekly_summary(db),
             _fetch_skill_evolution_data(),
+            _fetch_cost_summary(db, days),
         )
 
         total_memories = sum(memory_by_type.values())
@@ -382,6 +458,7 @@ async def get_growth_dashboard(
             activity_heatmap=activity.heatmap,
             weekly_summary=weekly,
             skill_events=skill_snapshot.events,
+            cost_summary=cost_summary,
         )
 
         return success_response(data=dashboard.model_dump())

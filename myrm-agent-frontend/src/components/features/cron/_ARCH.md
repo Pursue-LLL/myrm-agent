@@ -2,20 +2,24 @@
 
 ## 架构概述
 
-定时任务（Cron）管理界面，对接 server cron API。
+定时任务（Cron）管理界面，对接 server cron API。含 Blueprint 模板库，提供模板化快速创建能力。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
+| `cron-blueprints.ts` | 数据/逻辑 | 模板定义（含 promptKey i18n、weekdays slot）、buildJobPayload(t, delivery?)、humanizeSchedule、Cron Presets | — |
+| `BlueprintCatalog.tsx` | 组件/模块 | 模板卡片网格，支持 maxItems 裁剪 | — |
+| `BlueprintInlineFill.tsx` | 组件/模块 | 内联模板填写表单（CronJobCreateDialog 内使用），含 delivery channel 选择 | — |
+| `BlueprintFillDialog.tsx` | 组件/模块 | 模板参数填写弹窗（typed slots + delivery channel），用于 CronJobList 空状态 | — |
 | `ActiveHoursEditor.tsx` | 组件/模块 | — | — |
 | `AllowedRootsEditor.tsx` | 组件/模块 | — | — |
 | `CapabilityEditor.tsx` | 组件/模块 | — | — |
 | `CronAdvancedEditors.tsx` | 组件/模块 | — | — |
 | `CronDeliveryEditors.tsx` | 组件/模块 | — | — |
 | `CronJobCard.tsx` | 组件/模块 | — | — |
-| `CronJobCreateDialog.tsx` | 组件/模块 | — | — |
-| `CronJobList.tsx` | 组件/模块 | — | — |
+| `CronJobCreateDialog.tsx` | 组件/模块 | 创建弹窗（Template/Custom 双模式 + 内联模板填写 + Cron Presets + delivery channel 全模式可用） | — |
+| `CronJobList.tsx` | 组件/模块 | 任务列表（空状态含模板引导） | — |
 | `CronMonitorEditors.tsx` | 组件/模块 | — | — |
 | `CronPushPoller.tsx` | 组件/模块 | — | — |
 | `CronRunHistory.tsx` | 组件/模块 | — | — |

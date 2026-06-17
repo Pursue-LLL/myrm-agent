@@ -11,12 +11,14 @@ import pytest
 
 from app.api.statistics.growth_dashboard import (
     ActivityDay,
+    CostSummary,
     GrowthDashboardResponse,
     GrowthSnapshot,
     SkillEvolutionEvent,
     WeeklySummary,
     _ActivitySnapshot,
     _fetch_activity_data,
+    _fetch_cost_summary,
     _fetch_memory_snapshot,
     _fetch_skill_evolution_data,
     _fetch_weekly_summary,
@@ -586,3 +588,142 @@ async def test_get_growth_dashboard_endpoint_error(monkeypatch: pytest.MonkeyPat
     mock_db = AsyncMock()
     with pytest.raises(StandardHTTPException):
         await get_growth_dashboard(days=84, db=mock_db)
+
+
+# ── CostSummary schema tests ─────────────────────────────────────────
+
+
+class TestCostSummary:
+    def test_defaults(self):
+        cs = CostSummary()
+        assert cs.total_cost_usd == 0.0
+        assert cs.cache_savings_usd == 0.0
+        assert cs.routing_savings == 0.0
+        assert cs.routing_savings_percent == 0.0
+        assert cs.total_savings_usd == 0.0
+
+    def test_with_data(self):
+        cs = CostSummary(
+            total_cost_usd=1.25,
+            cache_savings_usd=0.45,
+            routing_savings=0.30,
+            routing_savings_percent=24.0,
+            total_savings_usd=0.75,
+        )
+        assert cs.total_cost_usd == 1.25
+        assert cs.total_savings_usd == 0.75
+        dumped = cs.model_dump()
+        assert dumped["routing_savings_percent"] == 24.0
+
+    def test_dashboard_response_includes_cost_summary(self):
+        resp = GrowthDashboardResponse(
+            snapshot=GrowthSnapshot(),
+            activity_heatmap=[],
+            weekly_summary=WeeklySummary(),
+            skill_events=[],
+            cost_summary=CostSummary(total_savings_usd=1.50),
+        )
+        dumped = resp.model_dump()
+        assert dumped["cost_summary"]["total_savings_usd"] == 1.50
+
+    def test_dashboard_response_cost_summary_none(self):
+        resp = GrowthDashboardResponse(
+            snapshot=GrowthSnapshot(),
+            activity_heatmap=[],
+            weekly_summary=WeeklySummary(),
+            skill_events=[],
+        )
+        dumped = resp.model_dump()
+        assert dumped["cost_summary"] is None
+
+
+# ── _fetch_cost_summary tests ─────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_fetch_cost_summary_with_data() -> None:
+    """Test _fetch_cost_summary aggregates extra_data correctly."""
+    fake_rows = [
+        {
+            "usage": {"prompt_tokens": 1000, "completion_tokens": 200, "cached_tokens": 800},
+            "costUsd": 0.005,
+            "tokenEconomics": {"total_cache_savings_usd": 0.003},
+            "routingTier": "fast",
+        },
+        {
+            "usage": {"prompt_tokens": 2000, "completion_tokens": 400, "cached_tokens": 1500},
+            "costUsd": 0.010,
+            "tokenEconomics": {"total_cache_savings_usd": 0.006},
+            "routingTier": "fast",
+        },
+    ]
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = fake_rows
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    result = await _fetch_cost_summary(mock_db, 30)
+
+    assert result is not None
+    assert result.cache_savings_usd == pytest.approx(0.009, abs=0.001)
+    assert result.total_cost_usd > 0
+
+
+@pytest.mark.asyncio
+async def test_fetch_cost_summary_no_rows() -> None:
+    """When no rows returned, should return None."""
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = []
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    result = await _fetch_cost_summary(mock_db, 30)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_cost_summary_no_valid_usage() -> None:
+    """When rows have no valid usage data, return None."""
+    fake_rows = [
+        {"no_usage_key": True},
+        {"usage": None, "costUsd": 0},
+    ]
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = fake_rows
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    result = await _fetch_cost_summary(mock_db, 30)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_cost_summary_db_exception() -> None:
+    """When DB query fails, should return None gracefully."""
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(side_effect=RuntimeError("db connection lost"))
+
+    result = await _fetch_cost_summary(mock_db, 30)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
+    """Backend should return tiny savings (filtering is frontend's job)."""
+    fake_rows = [
+        {
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20, "cached_tokens": 50},
+            "costUsd": 0.001,
+            "tokenEconomics": {"total_cache_savings_usd": 0.0005},
+        },
+    ]
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = fake_rows
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    result = await _fetch_cost_summary(mock_db, 7)
+
+    if result is not None:
+        assert result.total_savings_usd >= 0

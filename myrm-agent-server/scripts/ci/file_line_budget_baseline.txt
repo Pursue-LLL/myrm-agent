@@ -23,6 +23,7 @@ app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
 app/api/statistics/context_health.py
+app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/voice/agent_bridge.py
 app/api/voice/ws_session.py

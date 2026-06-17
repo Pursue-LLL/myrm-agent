@@ -14,7 +14,7 @@
 | `context_health_cache.py` | 模块 | Statistics API cache-health layer. | ✅ |
 | `context_health_restore.py` | 模块 | Statistics API restore-health normalization layer. | ✅ |
 | `daily_journal.py` | 模块 | Daily journal API. | ✅ |
-| `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics. | ✅ |
+| `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics + cost/savings summary. | ✅ |
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
 | `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges. | ✅ |
 | `session_analytics.py` | 模块 | 会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）和执行追踪。 | ✅ |
