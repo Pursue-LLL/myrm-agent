@@ -22,3 +22,4 @@
 | `shared_context_migration.py` | 模块 | 共享上下文一次性迁移 API：`POST /migrate-legacy-team` 将 team-visible 记忆并入 `shared:legacy-team` namespace。 | ✅ |
 | `shared_context_serializers.py` | 模块 | 共享上下文 API 序列化辅助层。集中管理 ORM 到响应模型的无副作用转换。 | ✅ |
 | `shared_contexts.py` | 模块 | 共享上下文 API 操作层。提供产品层共享记忆空间治理，不暴露 team memory 语义。 | ✅ |
+| `working_state.py` | 模块 | Working State API — cross-session task continuity endpoint. 提供读/写/清除 `__working_state` Profile 属性的 HTTP 入口。 | ✅ |

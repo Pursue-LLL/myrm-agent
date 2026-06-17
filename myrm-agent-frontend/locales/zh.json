@@ -3312,6 +3312,20 @@
       "noModelSessions": "该模型在选定时间内无下钻会话",
       "lastUsed": "最后活跃"
     },
+    "workingState": {
+      "title": "工作记忆",
+      "empty": "无活跃任务上下文",
+      "cleared": "工作记忆已清除",
+      "clearFailed": "清除失败",
+      "saved": "工作记忆已更新",
+      "saveFailed": "保存失败",
+      "edit": "编辑",
+      "clear": "清除",
+      "cancel": "取消",
+      "save": "保存",
+      "placeholder": "描述当前任务进度...",
+      "updatedAt": "更新于: {time}"
+    },
     "memoryGuardian": {
       "title": "记忆健康",
       "description": "自主记忆维护保持您的知识库干净且一致",
@@ -3915,6 +3929,10 @@
         "layerHarness": "Harness 框架层",
         "layerServer": "Server 业务层",
         "noProbes": "暂无已注册的诊断探针。",
+        "exportCopyMarkdown": "复制报告",
+        "exportDownloadJson": "下载 JSON",
+        "exportCopied": "已复制!",
+        "exportCopyFailed": "复制失败，请检查剪贴板权限",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "消息投递队列出现严重故障（{failed_count} 条失败）。"

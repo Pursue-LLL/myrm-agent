@@ -3273,6 +3273,20 @@
       "noModelSessions": "No sessions found for this model in the selected period",
       "lastUsed": "Last Active"
     },
+    "workingState": {
+      "title": "Working Memory",
+      "empty": "No active task context",
+      "cleared": "Working memory cleared",
+      "clearFailed": "Failed to clear",
+      "saved": "Working memory updated",
+      "saveFailed": "Failed to save",
+      "edit": "Edit",
+      "clear": "Clear",
+      "cancel": "Cancel",
+      "save": "Save",
+      "placeholder": "Describe your current task progress...",
+      "updatedAt": "Updated: {time}"
+    },
     "memoryGuardian": {
       "title": "Memory Health",
       "description": "Autonomous memory maintenance keeps your knowledge base clean and consistent",
@@ -3915,6 +3929,10 @@
         "layerHarness": "Harness Framework Layer",
         "layerServer": "Server Business Layer",
         "noProbes": "No diagnostic probes registered yet.",
+        "exportCopyMarkdown": "Copy Report",
+        "exportDownloadJson": "Download JSON",
+        "exportCopied": "Copied!",
+        "exportCopyFailed": "Copy failed. Check clipboard permissions.",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."

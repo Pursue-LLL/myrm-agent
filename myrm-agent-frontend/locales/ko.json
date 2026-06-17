@@ -2890,6 +2890,10 @@
         "layerHarness": "Harness 프레임워크 계층",
         "layerServer": "Server 비즈니스 계층",
         "noProbes": "등록된 진단 프로브가 없습니다.",
+        "exportCopyMarkdown": "보고서 복사",
+        "exportDownloadJson": "JSON 다운로드",
+        "exportCopied": "복사됨!",
+        "exportCopyFailed": "복사 실패. 클립보드 권한을 확인하세요.",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."

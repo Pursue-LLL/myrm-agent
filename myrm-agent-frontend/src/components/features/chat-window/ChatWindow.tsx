@@ -35,6 +35,7 @@ import { LifeStatusCapsule } from './LifeStatusCapsule';
 import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
 import { ParentChatLink } from './ParentChatLink';
+import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
@@ -360,6 +361,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             {/* Agent Info Banner */}
             {agentConfig?.agentId && <AgentInfoBanner agentId={agentConfig.agentId} />}
             {id && <ParentChatLink chatId={id} />}
+            <WorkingStateBadge />
             <YoloModeBanner />
             <EStopBanner />
             <ExtensionDisconnectedBanner />

@@ -429,3 +429,29 @@ export const purgeMemory = async (memoryId: string): Promise<void> => {
     method: 'DELETE',
   });
 };
+
+// ==================== Working State ====================
+
+export interface WorkingStateResponse {
+  content: string | null;
+  updated_at: string | null;
+  ttl_days: number;
+  expired: boolean;
+}
+
+export const getWorkingState = async (): Promise<WorkingStateResponse> => {
+  return apiRequest<WorkingStateResponse>('/memory/working-state');
+};
+
+export const updateWorkingState = async (content: string): Promise<WorkingStateResponse> => {
+  return apiRequest<WorkingStateResponse>('/memory/working-state', {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+};
+
+export const clearWorkingState = async (): Promise<WorkingStateResponse> => {
+  return apiRequest<WorkingStateResponse>('/memory/working-state', {
+    method: 'DELETE',
+  });
+};

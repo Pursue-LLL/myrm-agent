@@ -18,6 +18,7 @@
 | `RemoteBackupSection.tsx` | 辅助 | 远程备份 |
 | `MemoryGuardianCard.tsx` | 辅助 | Memory Doctor 入口卡片 |
 | `MemoryMonitorCard.tsx` | 辅助 | 记忆健康监控 |
+| `WorkingStateCard.tsx` | 辅助 | Working Memory 状态卡片。展示/编辑/清除跨会话工作记忆 |
 | `WikiSection.tsx` | 容器 | Wiki 子 Tab |
 | `wiki/` | 子模块 | Wiki 概念树与编辑（见 [wiki/_ARCH.md](wiki/_ARCH.md)） |
 

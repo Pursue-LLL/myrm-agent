@@ -51,6 +51,7 @@ import { exportMemories, exportMemoriesMarkdown, updateMemoryStatus, getMemoryTa
 import { confirmImportMemories, dryRunImportMemories, type MemoryImportDryRunResult } from '@/services/memoryArchive';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import ShareRulesDialog from '@/components/features/memory/ShareRulesDialog';
+import WorkingStateCard from './WorkingStateCard';
 
 const MEMORY_TYPES: (MemoryType | null)[] = [
   null,
@@ -561,6 +562,7 @@ const MemorySection = memo(() => {
         <LoginPrompt title={t('loginRequired')} description={t('loginRequiredDesc')} />
       ) : (
         <>
+          <WorkingStateCard />
           <MemoryCommandCenter />
           <MemoryStats />
           <TasteSummaryCard />

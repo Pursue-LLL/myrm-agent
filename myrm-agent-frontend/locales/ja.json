@@ -2890,6 +2890,10 @@
         "layerHarness": "Harnessフレームワーク層",
         "layerServer": "Serverビジネス層",
         "noProbes": "登録済みの診断プローブはありません。",
+        "exportCopyMarkdown": "レポートをコピー",
+        "exportDownloadJson": "JSONダウンロード",
+        "exportCopied": "コピー完了!",
+        "exportCopyFailed": "コピーに失敗しました。クリップボードの権限を確認してください。",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."

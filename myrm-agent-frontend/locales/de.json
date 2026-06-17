@@ -2890,6 +2890,10 @@
         "layerHarness": "Harness-Framework-Schicht",
         "layerServer": "Server-Geschäftsschicht",
         "noProbes": "Noch keine Diagnosesonden registriert.",
+        "exportCopyMarkdown": "Bericht kopieren",
+        "exportDownloadJson": "JSON herunterladen",
+        "exportCopied": "Kopiert!",
+        "exportCopyFailed": "Kopieren fehlgeschlagen. Bitte Zwischenablage-Berechtigung prüfen.",
         "errors": {
           "ERR_DLQ_CRITICAL": {
             "message": "Message delivery queue has critical failures ({failed_count} failed)."

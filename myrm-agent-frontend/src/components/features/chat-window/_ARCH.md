@@ -29,6 +29,7 @@
 | `MobileStatusBoard.tsx` | 组件/模块 | — | — |
 | `Navbar.tsx` | 组件/模块 | — | — |
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow） | ✅ |
+| `WorkingStateBadge.tsx` | 组件 | 对话头部工作记忆状态标识。有活跃 working state 时显示简洁的单行 badge | ✅ |
 | `QuoteCard.tsx` | 组件/模块 | — | — |
 | `ReferenceMentionPopover.tsx` | 组件/模块 | — | — |
 | `SamplePrompts.tsx` | 组件/模块 | — | — |

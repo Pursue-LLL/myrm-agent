@@ -4,16 +4,19 @@
  * - src/services/runtime-health.ts::getRuntimeDoctor (POS: 运行时健康API客户端)
  * - components/features/health/HealthTrendChart.tsx::HealthTrendChart (POS: 健康趋势图表组件)
  * - components/features/health/GuidedRepairCard.tsx::GuidedRepairCard (POS: 引导式修复卡片组件)
+ * - components/features/health/doctor-icons.tsx::* (POS: 诊断面板SVG图标)
+ * - lib/utils/diagnostic-export.ts::copyDiagnosticMarkdown, downloadDiagnosticJson (POS: 诊断导出工具)
  *
  * [OUTPUT]
  * - DoctorDashboard: 系统诊断核心视图组件。
  *
  * [POS]
- * 系统诊断看板主组件。汇聚了各项健康指标和状态报告，并提供操作指引。
+ * 系统诊断看板主组件。汇聚了各项健康指标和状态报告，并提供操作指引与诊断导出。
  */
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -21,169 +24,14 @@ import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getRuntimeDoctor, type DoctorResponse, type HealthReport, type HealthStatus } from '@/services/runtime-health';
+import { copyDiagnosticMarkdown, downloadDiagnosticJson } from '@/lib/utils/diagnostic-export';
 import { HealthTrendChart } from './HealthTrendChart';
 import { GuidedRepairCard } from './GuidedRepairCard';
-
-// Custom Premium Icons
-const ActivityIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-  </svg>
-);
-const AlertCircleIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-);
-const CheckCircleIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-    <polyline points="22 4 12 14.01 9 11.01" />
-  </svg>
-);
-const XCircleIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="12" cy="12" r="10" />
-    <line x1="15" y1="9" x2="9" y2="15" />
-    <line x1="9" y1="9" x2="15" y2="15" />
-  </svg>
-);
-const RefreshIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-    <polyline points="3 3 3 8 8 8" />
-  </svg>
-);
-const SearchIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-);
-
-// Custom SVG Icons
-const PackageIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
-  </svg>
-);
-
-const ServerIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-    <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
-    <line x1="6" y1="6" x2="6.01" y2="6" />
-    <line x1="6" y1="18" x2="6.01" y2="18" />
-  </svg>
-);
-
-const IdeaIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.9 1.2 1.5 1.5 2.5" />
-    <path d="M9 18h6" />
-    <path d="M10 22h4" />
-  </svg>
-);
-
-const WrenchIcon = ({ className = 'w-4 h-4' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-  </svg>
-);
+import {
+  ActivityIcon, AlertCircleIcon, CheckCircleIcon, XCircleIcon, RefreshIcon,
+  SearchIcon, PackageIcon, ServerIcon, IdeaIcon, WrenchIcon,
+  ClipboardCopyIcon, DownloadIcon, CheckIcon,
+} from './doctor-icons';
 
 export function DoctorDashboard() {
   const t = useTranslations('settings.systemHealth.doctor');
@@ -192,6 +40,7 @@ export function DoctorDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | HealthStatus>('all');
+  const [copySuccess, setCopySuccess] = useState(false);
 
   const fetchHealth = useCallback(async () => {
     setLoading(true);
@@ -205,6 +54,22 @@ export function DoctorDashboard() {
       setLoading(false);
     }
   }, [t]);
+
+  const handleCopyMarkdown = useCallback(async () => {
+    if (!data) return;
+    const ok = await copyDiagnosticMarkdown(data);
+    if (ok) {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } else {
+      toast.error(t('exportCopyFailed'));
+    }
+  }, [data, t]);
+
+  const handleDownloadJson = useCallback(() => {
+    if (!data) return;
+    downloadDiagnosticJson(data);
+  }, [data]);
 
   useEffect(() => {
     fetchHealth();
@@ -328,24 +193,54 @@ export function DoctorDashboard() {
 
   return (
     <Card className="bg-zinc-900 border-zinc-800 text-zinc-100">
-      <CardHeader className="flex flex-row items-start justify-between pb-2">
-        <div className="space-y-1">
-          <CardTitle className="flex items-center gap-2">
-            <ActivityIcon className="h-5 w-5 text-indigo-400" />
-            {t('title')}
-          </CardTitle>
-          <CardDescription className="text-zinc-400">{t('description')}</CardDescription>
+      <CardHeader className="pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <ActivityIcon className="h-5 w-5 text-indigo-400" />
+              {t('title')}
+            </CardTitle>
+            <CardDescription className="text-zinc-400">{t('description')}</CardDescription>
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyMarkdown}
+              disabled={!data}
+              className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-xs"
+              title={t('exportCopyMarkdown')}
+            >
+              {copySuccess ? (
+                <CheckIcon className="h-3 w-3 mr-1.5 text-green-400" />
+              ) : (
+                <ClipboardCopyIcon className="h-3 w-3 mr-1.5" />
+              )}
+              {copySuccess ? t('exportCopied') : t('exportCopyMarkdown')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadJson}
+              disabled={!data}
+              className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-xs"
+              title={t('exportDownloadJson')}
+            >
+              <DownloadIcon className="h-3 w-3 mr-1.5" />
+              {t('exportDownloadJson')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchHealth}
+              disabled={loading}
+              className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-xs"
+            >
+              <RefreshIcon className={cn('h-3 w-3 mr-1.5', loading && 'animate-spin')} />
+              {t('retry')}
+            </Button>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchHealth}
-          disabled={loading}
-          className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-xs"
-        >
-          <RefreshIcon className={cn('h-3 w-3 mr-2', loading && 'animate-spin')} />
-          {t('retry')}
-        </Button>
       </CardHeader>
       <CardContent>
         {error ? (
