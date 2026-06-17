@@ -127,23 +127,27 @@ const WorkingStateCard = memo(() => {
             onChange={(e) => setEditContent(e.target.value)}
             className="w-full rounded-lg border border-border bg-background p-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
             rows={3}
+            maxLength={500}
             placeholder={t('placeholder')}
             autoFocus
           />
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => setEditing(false)}
-              className="rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
-            >
-              {t('cancel')}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !editContent.trim()}
-              className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              {saving ? <IconLoader className="h-3 w-3 animate-spin" /> : t('save')}
-            </button>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">{editContent.length}/500</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEditing(false)}
+                className="rounded-md px-3 py-1 text-xs text-muted-foreground hover:bg-accent"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || !editContent.trim()}
+                className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {saving ? <IconLoader className="h-3 w-3 animate-spin" /> : t('save')}
+              </button>
+            </div>
           </div>
         </div>
       ) : hasContent ? (

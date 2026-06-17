@@ -16,6 +16,7 @@
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |
 | `utils/agentConfigMapper.ts` | Agent → AgentConfig 标准映射（消除多处重复映射） | — |
 | `utils/diagnostic-export.ts` | DoctorDashboard 诊断数据格式化（Markdown/JSON）与导出 | — |
+| `fonts.ts` | 全局字体系统配置（Inter/JetBrains Mono next/font 实例、字体目录 FONT_CHOICES、动态加载 ensureFontLoaded） | — |
 | `utils/`（其他） | 消息、文件、URL 等工具函数 | — |
 | `diff/` | unified diff 纯函数解析 | [_ARCH.md](diff/_ARCH.md) |
 | `config/` | 设置表单 schema 工具 | — |

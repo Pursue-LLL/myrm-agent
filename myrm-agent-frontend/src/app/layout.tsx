@@ -27,6 +27,7 @@ import VoicePttInitializer from '@/components/features/app-shell/voice-ptt-initi
 import { WebVitals } from './web-vitals';
 import { getLocale, getMessages } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
+import { fontSans, fontMono } from '@/lib/fonts';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -59,24 +60,26 @@ export default async function LocaleLayout({ children }: { children: React.React
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var theme = localStorage.getItem('theme');
-                var isDark = theme === 'dark';
-                var color = isDark ? '#0a0a0a' : '#fdfdfb';
-                var meta = document.querySelector('meta[name="theme-color"]');
-                if (meta) meta.setAttribute('content', color);
-              } catch (e) {}
+                var d=document.documentElement;
+                var theme=localStorage.getItem('theme');
+                var isDark=theme==='dark';
+                var meta=document.querySelector('meta[name="theme-color"]');
+                if(meta)meta.setAttribute('content',isDark?'#0a0a0a':'#fdfdfb');
+                var skin=localStorage.getItem('myrm-skin');
+                if(skin&&skin!=='default')d.setAttribute('data-skin',skin);
+                var font=localStorage.getItem('myrm-font');
+                if(font&&font!=='inter')d.setAttribute('data-font',font);
+              } catch(e){}
             `,
           }}
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        {/* next/font self-hosts woff2 — no external preconnect needed */}
         <link rel="preload" as="image" href="/brand/logo-icon.webp" type="image/webp" />
       </head>
-      <body className={cn('min-h-full')}>
+      <body className={cn('min-h-full', fontSans.variable, fontMono.variable)}>
         <GlobalErrorBoundary>
           <WebVitals />
           <ThemeProvider>

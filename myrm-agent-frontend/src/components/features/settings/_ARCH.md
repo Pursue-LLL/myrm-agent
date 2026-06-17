@@ -15,6 +15,8 @@
 | `SchemaForm.tsx` | 辅助 | JSON Schema 驱动表单 | ✅ |
 | `ConfigImportExport.tsx` | 辅助 | 配置导入导出 | ✅ |
 | `MCPConfigForm.tsx` | 辅助 | MCP 顶层表单（详情见 `mcp/`） | ✅ |
+| `SkinPicker.tsx` | 辅助 | 品牌皮肤选择器（6 套强调色方案，data-skin + localStorage） | ✅ |
+| `FontPicker.tsx` | 辅助 | 字体选择器（Inter/系统字体/Atkinson Hyperlegible，data-font + localStorage） | ✅ |
 
 ## 子目录
 

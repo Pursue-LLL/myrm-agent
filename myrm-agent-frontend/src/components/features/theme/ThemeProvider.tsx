@@ -1,6 +1,7 @@
 'use client';
 import { ThemeProvider, useTheme } from 'next-themes';
 import { useEffect } from 'react';
+import { FONT_STORAGE_KEY, type FontId, getFontStack, ensureFontLoaded } from '@/lib/fonts';
 
 const SKIN_STORAGE_KEY = 'myrm-skin';
 
@@ -19,6 +20,13 @@ const ThemeColorMeta = () => {
     const skin = localStorage.getItem(SKIN_STORAGE_KEY);
     if (skin && skin !== 'default') {
       document.documentElement.setAttribute('data-skin', skin);
+    }
+
+    const fontId = localStorage.getItem(FONT_STORAGE_KEY) as FontId | null;
+    if (fontId && fontId !== 'inter') {
+      ensureFontLoaded(fontId);
+      document.documentElement.style.setProperty('--font-override', getFontStack(fontId));
+      document.documentElement.setAttribute('data-font', fontId);
     }
   }, []);
 

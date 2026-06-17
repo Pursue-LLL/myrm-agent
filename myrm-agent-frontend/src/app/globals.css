@@ -544,6 +544,17 @@ body {
 body {
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-override, var(--font-sans, ui-sans-serif)), -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+}
+
+pre,
+code,
+kbd,
+samp,
+.prose pre,
+.prose code {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* 可点击按钮使用小手光标 */

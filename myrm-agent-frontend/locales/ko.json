@@ -3145,6 +3145,12 @@
       "violet": "Violet",
       "ocean": "Ocean"
     },
+    "fontOptions": {
+      "inter": "Inter (기본값)",
+      "system": "시스템 글꼴",
+      "atkinson": "Atkinson Hyperlegible"
+    },
+    "font": "글꼴",
     "searxngFreeLocal": "SearXNG (Free Local)",
     "duckduckgoFree": "DuckDuckGo (Free Cloud)",
     "extractDocumentText": "Extract Attachment Text",

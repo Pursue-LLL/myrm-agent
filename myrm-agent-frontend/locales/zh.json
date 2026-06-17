@@ -2635,6 +2635,12 @@
       "violet": "紫罗兰",
       "ocean": "海洋"
     },
+    "fontOptions": {
+      "inter": "Inter（默认）",
+      "system": "系统字体",
+      "atkinson": "Atkinson Hyperlegible"
+    },
+    "font": "字体",
     "modelSettings": "模型设置",
     "baseModel": "基础模型",
     "visionModel": "视觉模型",
@@ -3324,7 +3330,8 @@
       "cancel": "取消",
       "save": "保存",
       "placeholder": "描述当前任务进度...",
-      "updatedAt": "更新于: {time}"
+      "updatedAt": "更新于: {time}",
+      "add": "添加"
     },
     "memoryGuardian": {
       "title": "记忆健康",

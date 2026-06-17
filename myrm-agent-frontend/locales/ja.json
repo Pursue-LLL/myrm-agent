@@ -3145,6 +3145,12 @@
       "violet": "Violet",
       "ocean": "Ocean"
     },
+    "fontOptions": {
+      "inter": "Inter（デフォルト）",
+      "system": "システムフォント",
+      "atkinson": "Atkinson Hyperlegible"
+    },
+    "font": "フォント",
     "searxngFreeLocal": "SearXNG (Free Local)",
     "duckduckgoFree": "DuckDuckGo (Free Cloud)",
     "extractDocumentText": "Extract Attachment Text",

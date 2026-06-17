@@ -16,14 +16,13 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from myrm_agent_harness.toolkits.memory import MemoryManager
-from myrm_agent_harness.toolkits.memory._internal.storage import (
-    WORKING_STATE_PROFILE_KEY,
-    WORKING_STATE_TTL_DAYS,
-    WORKING_STATE_UPDATED_AT_KEY,
-)
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.memory.utils import get_crud_memory_manager
+
+WORKING_STATE_PROFILE_KEY = "__working_state"
+WORKING_STATE_UPDATED_AT_KEY = "__working_state_updated_at"
+WORKING_STATE_TTL_DAYS = 7
 
 router = APIRouter(prefix="/working-state")
 
@@ -35,8 +34,11 @@ class WorkingStateResponse(BaseModel):
     expired: bool = False
 
 
+WORKING_STATE_MAX_LENGTH = 500
+
+
 class WorkingStateUpdateRequest(BaseModel):
-    content: str
+    content: str = Field(max_length=WORKING_STATE_MAX_LENGTH)
 
 
 @router.get("", response_model=WorkingStateResponse)

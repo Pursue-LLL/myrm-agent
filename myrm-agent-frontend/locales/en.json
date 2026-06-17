@@ -2635,6 +2635,12 @@
       "violet": "Violet",
       "ocean": "Ocean"
     },
+    "fontOptions": {
+      "inter": "Inter (Default)",
+      "system": "System Font",
+      "atkinson": "Atkinson Hyperlegible"
+    },
+    "font": "Font",
     "modelSettings": "Model Settings",
     "baseModel": "Base Model",
     "visionModel": "Vision Model",
@@ -3285,7 +3291,8 @@
       "cancel": "Cancel",
       "save": "Save",
       "placeholder": "Describe your current task progress...",
-      "updatedAt": "Updated: {time}"
+      "updatedAt": "Updated: {time}",
+      "add": "Add"
     },
     "memoryGuardian": {
       "title": "Memory Health",
