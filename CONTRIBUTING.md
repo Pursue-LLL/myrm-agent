@@ -136,6 +136,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `datasets/` | harness event-log export pipeline |
 | `eval/` | `core/eval/` (+ harness eval executors) |
 | `openai_compat/` | `services/agent/` streaming + `services/config/` |
+| `remote_access/` | `app/remote_access/` (pair tokens, tunnel, mobile hub gate) |
 | `voice/` · `stt/` · `tts/` · `media/` | `core/media/`, `services/agent/`, `app/tasks/` |
 | `cron/` | `core/cron/` + `services/kanban/` dispatch |
 | `tasks/` | `app/tasks/` executors |

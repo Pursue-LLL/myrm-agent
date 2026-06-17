@@ -39,7 +39,6 @@ myrm_agent_harness.agent.file_snapshot.local_store
 myrm_agent_harness.agent.file_snapshot.protocols
 myrm_agent_harness.agent.file_snapshot.restore_inbox
 myrm_agent_harness.agent.file_snapshot.shadow_git_store
-myrm_agent_harness.agent.file_snapshot.shadow_git_store
 myrm_agent_harness.agent.file_snapshot.types
 myrm_agent_harness.agent.goals.manager
 myrm_agent_harness.agent.goals.protocols
@@ -72,6 +71,7 @@ myrm_agent_harness.agent.security
 myrm_agent_harness.agent.security.approval_flow
 myrm_agent_harness.agent.security.audit
 myrm_agent_harness.agent.security.channel_presets
+myrm_agent_harness.agent.security.config
 myrm_agent_harness.agent.security.detection.content_boundary
 myrm_agent_harness.agent.security.engine
 myrm_agent_harness.agent.security.guards.estop
@@ -81,6 +81,7 @@ myrm_agent_harness.agent.security.policy_generator
 myrm_agent_harness.agent.security.rate_limiter
 myrm_agent_harness.agent.security.redact
 myrm_agent_harness.agent.security.transcript_classifier
+myrm_agent_harness.agent.security.trust_context
 myrm_agent_harness.agent.security.types
 myrm_agent_harness.agent.skill_agent
 myrm_agent_harness.agent.skills.curator

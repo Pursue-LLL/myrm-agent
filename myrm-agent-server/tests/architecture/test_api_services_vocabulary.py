@@ -71,6 +71,7 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "mem0_compat",
         "notifications",
         "openai_compat",
+        "remote_access",
         "statistics",
         "stt",
         "system",
