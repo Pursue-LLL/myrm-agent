@@ -4,6 +4,7 @@ Provides validation endpoints for external services:
 - LLM providers
 - Search services
 - MCP servers
+- A2A agents (Agent-to-Agent discovery and management)
 - Retrieval services (embedding, reranker)
 """
 

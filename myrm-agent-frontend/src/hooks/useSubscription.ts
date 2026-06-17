@@ -47,13 +47,13 @@ class SubscriptionError extends Error {
 }
 
 // Types
-export type PlanType = 'free' | 'companion' | 'pro' | 'max' | 'team';
+export type PlanType = 'free' | 'companion' | 'plus' | 'pro' | 'max' | 'team';
 
 export interface SubscriptionStatus {
   plan_type: PlanType;
   billing_cycle: 'monthly' | 'yearly';
   status: 'active' | 'trialing' | 'cancelled' | 'past_due' | 'expired';
-  stripe_customer_id?: string | null;
+  billing_customer_id?: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -63,6 +63,7 @@ export interface SubscriptionStatus {
   subscription_wu?: number;
   topup_wu?: number;
   monthly_allowance_wu?: number;
+  free_models?: string[];
 }
 
 export interface TokenUsage {
@@ -167,7 +168,7 @@ function mapEntitlementsToSubscription(snapshot: EntitlementSnapshot): Subscript
     plan_type: snapshot.plan,
     billing_cycle: 'monthly',
     status: mapCpStatus(snapshot.status),
-    stripe_customer_id: snapshot.stripe_customer_id ?? null,
+    billing_customer_id: snapshot.billing_customer_id ?? null,
     current_period_start: null,
     current_period_end: snapshot.period_end ? new Date(snapshot.period_end * 1000).toISOString() : null,
     cancel_at_period_end: snapshot.status === 'cancelled',
@@ -246,7 +247,7 @@ export function useSubscription() {
     plan_type: 'free',
     billing_cycle: 'monthly',
     status: 'active',
-    stripe_customer_id: null,
+    billing_customer_id: null,
     current_period_start: null,
     current_period_end: null,
     cancel_at_period_end: false,

@@ -26,6 +26,7 @@ export interface BillingPlanCatalogEntry {
   highlight: boolean;
   trialDays: number;
   checkoutAvailable: boolean;
+  yearlyCheckoutAvailable: boolean;
 }
 
 const PRESENTATION: Record<
@@ -55,6 +56,7 @@ export function mergeBillingCatalog(plans: BillingCatalogPlan[]): BillingPlanCat
       monthlyWu: remote?.monthly_wu ?? 0,
       trialDays: remote?.trial_days ?? 0,
       checkoutAvailable: remote?.checkout_available ?? false,
+      yearlyCheckoutAvailable: remote?.yearly_checkout_available ?? false,
     };
   });
 }

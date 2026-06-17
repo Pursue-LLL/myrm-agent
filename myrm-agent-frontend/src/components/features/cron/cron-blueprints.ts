@@ -18,6 +18,8 @@ export interface CronBlueprint {
   titleKey: string;
   descKey: string;
   promptKey: string;
+  /** When true, new jobs default to output-hash deduplication (aligns with heartbeat). */
+  defaultDeduplicate?: boolean;
   slots: BlueprintSlot[];
   buildSchedule: (values: Record<string, string>) => CronSchedule;
   buildPrompt: (values: Record<string, string>, t: (key: string, params?: Record<string, string>) => string) => string;
@@ -32,6 +34,7 @@ export const CRON_BLUEPRINTS: readonly CronBlueprint[] = [
     titleKey: 'blueprint.morningBriefing.title',
     descKey: 'blueprint.morningBriefing.desc',
     promptKey: 'blueprint.morningBriefing.prompt',
+    defaultDeduplicate: true,
     slots: [
       { name: 'time', type: 'time', label: 'blueprint.slotTime', default: '08:00' },
       {
@@ -92,6 +95,7 @@ export const CRON_BLUEPRINTS: readonly CronBlueprint[] = [
     titleKey: 'blueprint.newsDigest.title',
     descKey: 'blueprint.newsDigest.desc',
     promptKey: 'blueprint.newsDigest.prompt',
+    defaultDeduplicate: true,
     slots: [
       { name: 'time', type: 'time', label: 'blueprint.slotTime', default: '07:30' },
       {
@@ -120,6 +124,7 @@ export const CRON_BLUEPRINTS: readonly CronBlueprint[] = [
     titleKey: 'blueprint.eveningWinddown.title',
     descKey: 'blueprint.eveningWinddown.desc',
     promptKey: 'blueprint.eveningWinddown.prompt',
+    defaultDeduplicate: true,
     slots: [
       { name: 'time', type: 'time', label: 'blueprint.slotTime', default: '21:00' },
       {
@@ -205,6 +210,7 @@ export function buildJobPayload(
     schedule,
     prompt,
     session_target: 'isolated',
+    ...(blueprint.defaultDeduplicate ? { deduplicate: true } : {}),
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }

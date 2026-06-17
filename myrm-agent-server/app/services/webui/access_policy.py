@@ -31,7 +31,11 @@ def local_api_requires_session() -> bool:
     return is_password_protection_enabled()
 
 
-def resolve_webui_session_username(headers: Mapping[str, str]) -> str | None:
+def resolve_webui_session_username(
+    headers: Mapping[str, str],
+    *,
+    max_idle_seconds: int | None = None,
+) -> str | None:
     cookie_header = ""
     for key, value in headers.items():
         if key.lower() == "cookie":
@@ -43,7 +47,7 @@ def resolve_webui_session_username(headers: Mapping[str, str]) -> str | None:
     for part in cookie_header.split(";"):
         chunk = part.strip()
         if chunk.startswith(prefix):
-            return parse_session_value(chunk[len(prefix) :])
+            return parse_session_value(chunk[len(prefix) :], max_idle_seconds=max_idle_seconds)
     return None
 
 

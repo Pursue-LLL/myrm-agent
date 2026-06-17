@@ -30,6 +30,10 @@ export default function PricingPage() {
     !catalogLoading &&
     planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable);
 
+  const yearlyBillingAvailable =
+    !catalogLoading &&
+    planCatalog.some((plan) => plan.key !== 'free' && plan.yearlyCheckoutAvailable);
+
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
     companion: 'Free',
@@ -45,7 +49,10 @@ export default function PricingPage() {
     }
 
     const planEntry = planCatalog.find((plan) => plan.key === planKey);
-    if (!planEntry?.checkoutAvailable) {
+    const cycleAvailable = isYearly
+      ? planEntry?.yearlyCheckoutAvailable
+      : planEntry?.checkoutAvailable;
+    if (!cycleAvailable) {
       return;
     }
 
@@ -112,7 +119,7 @@ export default function PricingPage() {
           <p className="text-base text-muted-foreground/80 sm:text-lg max-w-xl mx-auto leading-relaxed">
             {t('subtitle')}
           </p>
-          {!isLocalMode() ? (
+          {!isLocalMode() && yearlyBillingAvailable ? (
             <div className="mt-10 inline-flex items-center gap-4 rounded-full border border-border/40 bg-background/60 backdrop-blur-lg px-6 py-3">
               <span
                 className={cn(
@@ -157,11 +164,12 @@ export default function PricingPage() {
             : null}
           {!catalogLoading || planCatalog.length > 0
             ? planCatalog.map(
-            ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable }) => {
+            ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable, yearlyCheckoutAvailable }) => {
             const isCurrent = currentPlan === key;
             const isPaid = key !== 'free';
             const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
             const hasTrial = trialDays > 0 && currentPlan === 'free';
+            const cycleCheckoutAvailable = isYearly ? yearlyCheckoutAvailable : checkoutAvailable;
 
             return (
               <div
@@ -287,12 +295,12 @@ export default function PricingPage() {
                             'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0',
                         )}
                         variant="default"
-                        disabled={checkoutLoading !== null || !checkoutAvailable}
+                        disabled={checkoutLoading !== null || !cycleCheckoutAvailable}
                         onClick={() => handleSubscribe(key as PaidBillingPlanKey, true)}
                       >
                         {checkoutLoading === key
                           ? t('processing')
-                          : !checkoutAvailable
+                          : !cycleCheckoutAvailable
                             ? t('checkoutUnavailable')
                             : t('startTrial')}
                       </Button>
@@ -305,14 +313,14 @@ export default function PricingPage() {
                           'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0 font-semibold',
                       )}
                       variant={highlight && !hasTrial ? 'default' : 'outline'}
-                      disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !checkoutAvailable}
+                      disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !cycleCheckoutAvailable}
                       onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
                     >
                       {checkoutLoading === key && !hasTrial
                         ? t('processing')
                         : isCurrent
                           ? t('currentPlan')
-                          : isPaid && !checkoutAvailable
+                          : isPaid && !cycleCheckoutAvailable
                             ? t('checkoutUnavailable')
                             : isPaid
                               ? t('subscribe')

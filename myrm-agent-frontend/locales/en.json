@@ -3023,6 +3023,21 @@
           "testFailed": "Connectivity test failed. Check the URL and network.",
           "notConfigured": "No public ingress URL configured.",
           "httpsRequired": "Public Ingress must use HTTPS (https://...)."
+        },
+        "tunnel": {
+          "title": "One-click external access",
+          "globalHint": "Global users: start Cloudflare quick tunnel (requires cloudflared in PATH).",
+          "cnHint": "China users: prefer cpolar/NATAPP/frp from the docs, then paste the HTTPS URL above.",
+          "start": "Start CF tunnel",
+          "stop": "Stop tunnel",
+          "starting": "Starting...",
+          "running": "Tunnel active",
+          "stopped": "Tunnel stopped",
+          "error": "Tunnel failed",
+          "shareMobile": "Copy mobile hub link",
+          "shareCopied": "Mobile link copied",
+          "hubQrAlt": "Mobile hub QR code",
+          "hubScanHint": "Scan to open the mobile session hub on your phone"
         }
       }
     },
@@ -7788,7 +7803,7 @@
       "tokens": "Tokens",
       "workUnits": "Work Units",
       "workUnitsSubtitle": "Monthly Work Unit balance",
-      "billingStripe": "Billing secured by Stripe",
+      "billingStripe": "Billing secured by Creem",
       "chats": "Chats",
       "searches": "Searches",
       "used": "Used",
@@ -7875,7 +7890,7 @@
     "errorDesc": "We couldn't load your subscription status. Please check your connection and retry.",
     "retry": "Retry",
     "portalTitle": "Customer Portal",
-    "portalDescription": "Open the Stripe customer portal to review invoices, update payment methods, or cancel at period end.",
+    "portalDescription": "Open the Creem customer portal to review invoices, update payment methods, or cancel at period end.",
     "portalUnavailable": "Billing portal is not ready yet. Please try again later.",
     "readonlyNote": "This page is read-only. Manage changes in the billing portal.",
     "notAvailable": "Not available",
@@ -8174,6 +8189,14 @@
     "skipIfActiveDesc": "Skip scheduled execution if a previous run is still in progress",
     "skipIfActiveEnabled": "Skip-if-active enabled",
     "skipIfActiveDisabled": "Skip-if-active disabled",
+    "deduplicateLabel": "Skip duplicate notifications",
+    "deduplicateDesc": "When enabled, identical successful outputs are not delivered again",
+    "deduplicateEnabled": "Duplicate skip enabled",
+    "deduplicateDisabled": "Duplicate skip disabled",
+    "deduplicateBadge": "Dedup",
+    "skipReasonSilentResponse": "Silent response",
+    "skipReasonDuplicateOutput": "Duplicate output",
+    "skipReasonNoNewContent": "No new content",
     "contextFromLabel": "Context From",
     "contextFromDesc": "Reference other tasks' latest successful output, auto-injected into this task's prompt for cross-task data piping",
     "contextFromUpdated": "Context references updated",
@@ -10912,7 +10935,7 @@
       "processing": "Processing…",
       "checkoutFailed": "Checkout failed. Please try again.",
       "checkoutUnavailable": "Billing not open yet",
-      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — Stripe billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
+      "checkoutUnavailableBanner": "Paid subscriptions are not available yet — billing is still being configured. You can use the Free plan or contact support@myrmagent.ai.",
       "loadingCatalog": "Loading plans…",
       "catalogLoadFailed": "Could not load pricing. Refresh or try again later.",
       "perYear": "/yr",
@@ -11610,5 +11633,15 @@
     "mergeSuccess": "Changes merged successfully",
     "mergeFailed": "Merge failed — resolve conflicts manually",
     "discardSuccess": "Sandbox discarded"
+  },
+  "mobileHub": {
+    "title": "Active Agents",
+    "badge": "Mobile control",
+    "subtitle": "Tap a running task to follow progress or approve actions on your phone.",
+    "loading": "Loading active sessions...",
+    "empty": "No agents are running right now.",
+    "loadFailed": "Failed to load active sessions.",
+    "elapsed": "{seconds}s running",
+    "footer": "Sessions refresh every 5 seconds."
   }
 }

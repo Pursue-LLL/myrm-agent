@@ -80,7 +80,7 @@ GeneralAgent.process_stream()
     ↓ _StreamAccumulator 收集 message/tasks_steps/sources
 JobResult (text + metadata)
     ↓ scheduler._try_deliver()
-    ↓ 检测 [SILENT] 标记 → skip delivery（仅成功结果）
+    ↓ harness executor._try_deliver() → delivery_guard.is_silent_output() exact-token → skip（仅成功结果）
     ↓ ChannelResultDelivery.deliver()
     ↓ IM 渠道: send_with_retry(channel.send, msg) — 复用渠道自身重试策略
     ↓ Webhook: _retry(max=2, backoff=2s/4s) — 永久错误跳过重试
@@ -180,8 +180,9 @@ scheduler 使用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录�
 - **零数据库改动**：不增加任何字段
 - **Agent 端**：`agent_runner._build_effective_prompt()` 为周期性任务（cron/interval）
   自动追加 `[SILENT]` 指令，告诉 Agent "无异常时回复 `[SILENT]`"
-- **Scheduler 端**：`_try_deliver()` 检测到输出以 `[SILENT]` 开头时，
-  跳过推送（`delivery_status=skipped, delivery_error=silent_response`）
+- **Scheduler 端**：harness `executor._try_deliver()` 调用 `delivery_guard.is_silent_output()`，
+  仅当输出为 exact-token `[SILENT]`（无实质内容）时跳过推送
+  （`delivery_status=skipped, delivery_error=silent_response`）
 - **一次性任务不受影响**：`ScheduleKind.ONCE` 不注入 SILENT 指令
 
 ### Heartbeat No-Content Skip
@@ -207,7 +208,9 @@ scheduler 使用 `asyncio.wait_for` 包装 `runner.run(job)`，超时后记录�
 
 - **可选开关**：`CronJob.deduplicate: bool = False`，用户在创建/编辑任务时选择开启
 - **判断逻辑**：`executor._try_deliver()` 在 [SILENT] 检查之后、实际推送之前，
-  计算输出的 SHA-256 hash（前 32 字符），与 `job.last_output_hash` 对比
+  对 **完整成功输出**（`result.output` 去首尾空白）计算 SHA-256 hash（前 32 字符），
+  与 `job.last_output_hash` 对比；incremental 任务的「无新内容」由 exit_code=0 gate 先行处理，
+  与 hash dedup 互补
 - **跳过条件**：hash 相同 → `delivery_status=skipped, delivery_error=duplicate_output`
 - **状态更新**：hash 不同时更新 `job.last_output_hash`，通过 `save_job` 持久化
 - **关闭时清除**：通过 patch 关闭 deduplicate 时自动清除 `last_output_hash`

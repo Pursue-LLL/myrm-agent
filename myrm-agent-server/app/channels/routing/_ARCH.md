@@ -64,7 +64,7 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token + `requester_id` for reaction approval auth, ReactionPolicy, etc.) | — |
-| router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; | — |
+| `router_stream.py` | Core | Stream consumer; HITL approval outbound with optional mobile deep-link button (`mobile_deep_link`) when public URL available. Covered by `tests/channels/routing/test_router_stream.py`. | — |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |

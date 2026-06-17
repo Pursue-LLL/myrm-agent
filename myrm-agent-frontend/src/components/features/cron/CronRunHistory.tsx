@@ -34,6 +34,7 @@ import {
   FailureAlertEditor,
   RunRetentionEditor,
   SkipIfActiveEditor,
+  DeduplicateEditor,
   ContextFromEditor,
   PreConditionEditor,
 } from './CronAdvancedEditors';
@@ -170,6 +171,7 @@ export default function CronRunHistory({ job, onBack }: CronRunHistoryProps) {
       <TriggerEditor job={job} onUpdated={handleEditorUpdated} />
       <DeliveryEditor job={job} onUpdated={handleEditorUpdated} />
       <FailureDeliveryEditor job={job} onUpdated={handleEditorUpdated} />
+      <DeduplicateEditor job={job} onUpdated={handleEditorUpdated} />
       <FailureAlertEditor job={job} onUpdated={handleEditorUpdated} />
       <IncrementalMonitorEditor job={job} onUpdated={handleEditorUpdated} />
       <SessionTargetEditor job={job} onUpdated={handleEditorUpdated} />

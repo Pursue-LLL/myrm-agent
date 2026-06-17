@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from fastapi import Request, Response
 
 from app.config.deploy_mode import DeployMode, get_deploy_mode, is_webui_remote_mode
-from app.core.security.auth.identity import is_loopback_ip
+from app.remote_access.trust_zone import resolve_request_local_trusted
 from app.services.webui.access_policy import local_api_requires_session
 from app.services.webui.admin_store import admin_is_configured, load_admin, save_admin
 from app.services.webui.passwords import hash_password, verify_password
@@ -96,8 +96,7 @@ class WebuiAuthService:
 
         configured = admin_is_configured()
         remote = is_webui_remote_mode()
-        client_ip = request.client.host if request.client else ""
-        loopback = is_loopback_ip(client_ip)
+        local_trusted = resolve_request_local_trusted(request)
 
         if not configured:
             if remote:
@@ -127,7 +126,7 @@ class WebuiAuthService:
                 username=session_user,
                 role="admin",
             )
-        if loopback and (not self._password_required() or not remote):
+        if local_trusted and (not self._password_required() or not remote):
             return WebuiAuthStatus(
                 is_setup_done=True,
                 is_authenticated=True,
@@ -259,9 +258,8 @@ class WebuiAuthService:
 
     def generate_setup_token(self, request: Request) -> str:
         if not admin_is_configured():
-            client_ip = request.client.host if request.client else ""
-            if not is_loopback_ip(client_ip):
-                raise PermissionError("Setup token can only be generated from loopback before admin exists")
+            if not resolve_request_local_trusted(request):
+                raise PermissionError("Setup token can only be generated from local-trusted admission before admin exists")
             return temp_token_service.generate_token()
         status = self.resolve_status(request)
         if not status.is_authenticated:

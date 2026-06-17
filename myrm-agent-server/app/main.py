@@ -29,6 +29,7 @@ from app.api.mem0_compat.router import mem0_compat_router
 from app.api.openai_compat.router import openai_compat_router
 from app.api.router import api_router
 from app.api.webui.router import router as webui_router
+from app.api.a2a.well_known import router as a2a_well_known_router
 from app.config.logging import configure_logging
 from app.config.settings import settings
 from app.core.utils.errors import register_exception_handlers
@@ -57,6 +58,7 @@ app.include_router(internal_skills_killswitch_router)
 app.include_router(openai_compat_router)
 app.include_router(mem0_compat_router)
 app.include_router(webui_router)
+app.include_router(a2a_well_known_router)
 
 app.add_exception_handler(404, not_found_handler)
 app.add_exception_handler(Exception, general_exception_handler)

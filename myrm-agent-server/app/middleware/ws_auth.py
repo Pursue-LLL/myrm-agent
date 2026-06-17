@@ -35,6 +35,9 @@ class WsAuthMiddleware:
         if identity.user_id:
             state = scope.setdefault("state", {})
             state["user_id"] = identity.user_id
+            state["admission_path"] = identity.admission_path
+            state["trust_zone"] = identity.trust_zone
+            state["local_trusted"] = identity.local_trusted
             if not identity.loopback and identity.auth_source in ("sandbox_api_key", "cp_proxy"):
                 log_auth_event(
                     AuthEventType.AUTH_SUCCESS,
@@ -48,7 +51,7 @@ class WsAuthMiddleware:
         from app.services.webui.access_policy import local_api_requires_session
 
         local_ws_gate = caps.allows_local_skills and local_api_requires_session()
-        if (caps.requires_strict_ws_auth or local_ws_gate) and not identity.loopback:
+        if (caps.requires_strict_ws_auth or local_ws_gate) and not identity.local_trusted:
             log_auth_event(
                 AuthEventType.AUTH_FAILURE,
                 identity.client_ip,

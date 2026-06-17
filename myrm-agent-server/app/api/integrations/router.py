@@ -9,6 +9,7 @@ import logging
 from fastapi import APIRouter
 
 from app.api.integrations import (
+    a2a,
     catalog,
     hardware,
     im_contacts,
@@ -37,3 +38,4 @@ router.include_router(catalog.router, prefix="/catalog", tags=["integrations-cat
 router.include_router(oauth.router, prefix="/oauth", tags=["integrations-oauth"])
 router.include_router(im_contacts.router, prefix="/contacts", tags=["integrations-contacts"])
 router.include_router(integration_memory.router, prefix="/memory", tags=["integrations-memory"])
+router.include_router(a2a.router, prefix="/a2a", tags=["integrations-a2a"])

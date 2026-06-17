@@ -912,12 +912,16 @@ export const attachToChat = async (
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}/agents/chat/${chatId}/attach`, {
-      method: 'GET',
-      headers,
-      signal: abortController.signal,
-      cache: 'no-store',
-    });
+    const { fetchWithTimeout } = await import('@/lib/api');
+    const response = await fetchWithTimeout(
+      `/agents/chat/${chatId}/attach`,
+      {
+        method: 'GET',
+        headers,
+        signal: abortController.signal,
+      },
+      0,
+    );
 
     if (!response.ok) {
       if (response.status === 404) {

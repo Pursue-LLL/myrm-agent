@@ -123,8 +123,8 @@ export default function SubscriptionPage() {
   const StatusIcon = statusMeta.icon;
   const isHealthy = subscription.status === 'active';
   const canOpenPortal = sandbox
-    ? Boolean(subscription.stripe_customer_id) || isPaidPlan
-    : Boolean(subscription.stripe_customer_id);
+    ? Boolean(subscription.billing_customer_id) || isPaidPlan
+    : Boolean(subscription.billing_customer_id);
   const isEmptyState = !isLoading && !error && subscription.plan_type === 'free' && !subscription.current_period_end;
 
   const planKeys = planCatalog.map((plan) => plan.key);
@@ -397,7 +397,7 @@ export default function SubscriptionPage() {
             {!canOpenPortal && isPaidPlan && <p className="text-xs text-muted-foreground">{t('portalUnavailable')}</p>}
           </div>
 
-          {sandbox && (
+          {sandbox && catalog?.topup_available ? (
             <div className="rounded-3xl border border-border/60 bg-background/70 backdrop-blur-xl p-6 space-y-4">
               <h2 className="text-lg font-semibold text-foreground">{tBilling('topupTitle')}</h2>
               <p className="text-sm text-muted-foreground">
@@ -417,7 +417,7 @@ export default function SubscriptionPage() {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 

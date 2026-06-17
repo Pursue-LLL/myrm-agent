@@ -433,6 +433,43 @@ export function SkipIfActiveEditor({ job, onUpdated }: EditorProps) {
   );
 }
 
+export function DeduplicateEditor({ job, onUpdated }: EditorProps) {
+  const t = useTranslations('cron');
+  const [enabled, setEnabled] = useState(job.deduplicate);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => setEnabled(job.deduplicate), [job.deduplicate]);
+
+  const handleToggle = async () => {
+    const next = !enabled;
+    setEnabled(next);
+    setSaving(true);
+    try {
+      await updateCronJob(job.id, { deduplicate: next });
+      onUpdated();
+      toast.success(t(next ? 'deduplicateEnabled' : 'deduplicateDisabled'));
+    } catch {
+      setEnabled(!next);
+      toast.error(t('actionFail'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">{t('deduplicateLabel')}</span>
+        </div>
+        <EditorToggle enabled={enabled} onToggle={handleToggle} disabled={saving} />
+      </div>
+      <p className="text-[11px] text-muted-foreground">{t('deduplicateDesc')}</p>
+    </div>
+  );
+}
+
 export function RunRetentionEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
   const [value, setValue] = useState(job.run_retention_days);

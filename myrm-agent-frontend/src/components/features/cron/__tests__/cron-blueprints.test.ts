@@ -116,6 +116,7 @@ describe('cron-blueprints', () => {
       expect(payload.schedule.expr).toBe('0 8 * * *');
       expect(payload.schedule.tz).toBe('Asia/Shanghai');
       expect(payload.session_target).toBe('isolated');
+      expect(payload.deduplicate).toBe(true);
       expect(payload.delivery).toBeUndefined();
     });
 
@@ -154,6 +155,23 @@ describe('cron-blueprints', () => {
         mockT,
       );
       expect(payload.name.length).toBe(40);
+    });
+
+    it('custom_reminder does not default deduplicate', () => {
+      const bp = CRON_BLUEPRINTS.find((b) => b.id === 'custom_reminder')!;
+      const payload = buildJobPayload(bp, { time: '09:00', message: 'hello' }, 'UTC', mockT);
+      expect(payload.deduplicate).toBeUndefined();
+    });
+
+    it('news_digest defaults deduplicate to true', () => {
+      const bp = CRON_BLUEPRINTS.find((b) => b.id === 'news_digest')!;
+      const payload = buildJobPayload(
+        bp,
+        { time: '07:30', weekdays: 'everyday', topic: 'AI' },
+        'UTC',
+        mockT,
+      );
+      expect(payload.deduplicate).toBe(true);
     });
   });
 

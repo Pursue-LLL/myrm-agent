@@ -21,6 +21,7 @@ from app.core.security.auth.identity import (
     is_private_network_ip,
     resolve_identity,
 )
+from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.security.auth.public_paths import is_public_path
 from app.middleware.auth_audit import AuthEventType, log_auth_event
 
@@ -65,15 +66,42 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         client_ip = request.client.host if request.client else ""
+        host_header = request.headers.get("host", "")
+        public_ingress_base_url = await get_public_ingress_base_url()
+        from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
+        from app.remote_access.trust_zone import (
+            admission_path_to_trust_zone,
+            is_local_trusted_admission,
+            resolve_admission_path,
+        )
+
+        resolved_admission = resolve_admission_path(
+            path=path,
+            client_ip=client_ip,
+            host_header=host_header,
+            headers=request.headers,
+            public_ingress_base_url=public_ingress_base_url,
+            is_sandbox=is_sandbox(),
+            is_webui_remote_mode=is_webui_remote_mode(),
+        )
         identity = resolve_identity(
             path=path,
             method=request.method,
             headers=request.headers,
             client_ip=client_ip,
+            admission_path=resolved_admission.value,
+            trust_zone=admission_path_to_trust_zone(resolved_admission).value,
+            local_trusted=is_local_trusted_admission(resolved_admission),
+            query_string=request.url.query,
         )
 
         if identity.user_id:
             request.state.user_id = identity.user_id
+            request.state.admission_path = identity.admission_path
+            request.state.trust_zone = identity.trust_zone
+            request.state.local_trusted = identity.local_trusted
+            if identity.session_username:
+                request.state.session_username = identity.session_username
             if not identity.loopback and identity.auth_source in ("sandbox_api_key", "cp_proxy"):
                 log_auth_event(
                     AuthEventType.AUTH_SUCCESS,

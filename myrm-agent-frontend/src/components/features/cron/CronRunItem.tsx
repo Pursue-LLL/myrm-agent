@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
-import { formatDuration, formatTime } from './cron-utils';
+import { formatDuration, formatTime, resolveDeliverySkipReasonKey } from './cron-utils';
 
 interface CronRunItemProps {
   run: CronRun;
@@ -35,6 +35,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isSkipped = run.status === 'skipped';
   const hasContent = !!(run.output || run.error);
   const securityDenied = !isOk && !isSkipped && hasSecurityDenial(run);
+  const skipReasonKey = resolveDeliverySkipReasonKey(run.delivery_status, run.delivery_error);
 
   const deliveryLabel =
     run.delivery_status === 'delivered'
@@ -110,12 +111,18 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
           {deliveryIcon && (
             <span
               className="inline-flex items-center gap-0.5"
-              title={run.delivery_error ?? deliveryLabel ?? run.delivery_status}
+              title={skipReasonKey ? t(skipReasonKey) : run.delivery_error ?? deliveryLabel ?? run.delivery_status}
             >
               {deliveryIcon}
               {run.delivery_status === 'failed' && (
                 <span className="text-[10px] text-destructive">{deliveryLabel}</span>
               )}
+            </span>
+          )}
+
+          {skipReasonKey && (
+            <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+              {t(skipReasonKey)}
             </span>
           )}
 

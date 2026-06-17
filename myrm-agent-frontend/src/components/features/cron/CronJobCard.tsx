@@ -27,6 +27,7 @@ import {
   Zap,
   Link2,
   MessageCircle,
+  Filter,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
@@ -317,6 +318,17 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
               <TooltipContent>
                 {t('incrementalMonitorTooltip', { ttl: String(job.monitor_config.ttl_days) })}
               </TooltipContent>
+            </Tooltip>
+          )}
+          {job.deduplicate && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-400">
+                  <Filter className="h-3 w-3" />
+                  <span>{t('deduplicateBadge')}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{t('deduplicateDesc')}</TooltipContent>
             </Tooltip>
           )}
           {job.max_fires != null && (

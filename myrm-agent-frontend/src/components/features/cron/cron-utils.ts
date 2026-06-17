@@ -74,6 +74,22 @@ export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string)
   return result;
 }
 
+const SKIP_REASON_KEYS: Record<string, string> = {
+  silent_response: 'skipReasonSilentResponse',
+  duplicate_output: 'skipReasonDuplicateOutput',
+  no_new_content: 'skipReasonNoNewContent',
+};
+
+export function resolveDeliverySkipReasonKey(
+  deliveryStatus: CronRun['delivery_status'],
+  deliveryError: string | undefined,
+): string | undefined {
+  if (deliveryStatus !== 'skipped' || !deliveryError) {
+    return undefined;
+  }
+  return SKIP_REASON_KEYS[deliveryError];
+}
+
 export function computeRunStats(runs: CronRun[]) {
   if (runs.length === 0) return { total: 0, successRate: 0, avgDuration: 0 };
   const ok = runs.filter((r) => r.status === 'ok').length;

@@ -36,7 +36,7 @@ export interface EntitlementSnapshot {
   monthly_allowance_wu: number;
   daily_refresh_remaining_wu: number;
   period_end: number | null;
-  stripe_customer_id?: string | null;
+  billing_customer_id?: string | null;
   enable_cron: boolean;
   enable_public_ingress: boolean;
   max_cron_triggers: number;
@@ -67,11 +67,14 @@ export interface BillingCatalogPlan {
   monthly_wu: number;
   trial_days: number;
   checkout_available: boolean;
+  yearly_checkout_available: boolean;
 }
 
 export interface BillingCatalogResponse {
   plans: BillingCatalogPlan[];
   topup_wu_per_usd: number;
+  billing_provider: 'stripe' | 'creem';
+  topup_available: boolean;
 }
 
 export function getCpApiBaseUrl(): string {
