@@ -122,9 +122,8 @@ export default function SubscriptionPage() {
   const statusMeta = STATUS_META[subscription.status];
   const StatusIcon = statusMeta.icon;
   const isHealthy = subscription.status === 'active';
-  const canOpenPortal = sandbox
-    ? Boolean(subscription.stripe_customer_id) || isPaidPlan
-    : Boolean(subscription.stripe_customer_id);
+  const canOpenPortal =
+    Boolean(subscription.billing_customer_id) || (sandbox && isPaidPlan);
   const isEmptyState = !isLoading && !error && subscription.plan_type === 'free' && !subscription.current_period_end;
 
   const planKeys = planCatalog.map((plan) => plan.key);

@@ -36,7 +36,7 @@ export interface EntitlementSnapshot {
   monthly_allowance_wu: number;
   daily_refresh_remaining_wu: number;
   period_end: number | null;
-  stripe_customer_id?: string | null;
+  billing_customer_id?: string | null;
   enable_cron: boolean;
   enable_public_ingress: boolean;
   max_cron_triggers: number;

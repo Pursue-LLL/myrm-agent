@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截未授权能力；`QuotaDisplay` 在账户设置页展示订阅配额。计费支付经 Stripe（CP `/api/billing/*`），前端 locale 统一 `billingStripe` 键；`/pricing` 在 `checkout_available=false` 时展示 banner + 禁用 CTA，并在 `handleSubscribe` 内二次校验 `checkoutAvailable`。
+SaaS / Sandbox Work Unit 门禁与配额展示。Entitlement gate 组件拦截未授权能力；`QuotaDisplay` 在账户设置页展示订阅配额。计费经 Creem MoR（CP `/api/billing/*`），前端 locale 使用 `billingMoR` 键；`/pricing` 在 `checkout_available=false` 时展示 banner + 禁用 CTA，并在 `handleSubscribe` 内二次校验 `checkoutAvailable`。Entitlements 使用 CP 字段 `billing_customer_id`（`cp-billing.ts`）。
 
 ## 文件清单
 

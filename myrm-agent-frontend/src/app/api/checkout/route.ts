@@ -1,5 +1,5 @@
 /**
- * Stripe Checkout proxy — forwards to Control Plane /api/billing/checkout.
+ * Billing checkout proxy — forwards to Control Plane /api/billing/checkout (Creem or Stripe per CP config).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
