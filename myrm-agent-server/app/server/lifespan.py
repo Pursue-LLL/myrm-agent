@@ -527,6 +527,11 @@ async def _shutdown(app_instance: FastAPI) -> None:
 
         await shutdown_mcp_endpoint()
 
+    async def _shutdown_remote_tunnel() -> None:
+        from app.remote_access.tunnel_manager import get_tunnel_manager
+
+        await get_tunnel_manager().shutdown()
+
     shutdown_results = await asyncio.gather(
         safe_stop_cron(),
         safe_stop_gateway(),
@@ -556,6 +561,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
         stop_integration_sync_daemon(),
         harness_bridge_task,
         _shutdown_mcp(),
+        _shutdown_remote_tunnel(),
         return_exceptions=True,
     )
     for r in shutdown_results:

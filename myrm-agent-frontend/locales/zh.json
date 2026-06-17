@@ -3023,6 +3023,21 @@
           "testFailed": "连通性测试失败，请检查地址与网络。",
           "notConfigured": "未配置公网 Ingress 地址。",
           "httpsRequired": "公网 Ingress 必须使用 HTTPS（https://...）。"
+        },
+        "tunnel": {
+          "title": "外网一键穿透",
+          "globalHint": "全球用户：可一键启动 Cloudflare 临时隧道（需本机已安装 cloudflared）。",
+          "cnHint": "国内用户：建议用文档中的 cpolar/NATAPP/frp 获得 HTTPS 后粘贴到上方。",
+          "start": "启动 CF 隧道",
+          "stop": "停止隧道",
+          "starting": "启动中...",
+          "running": "隧道已连接",
+          "stopped": "隧道已停止",
+          "error": "隧道启动失败",
+          "shareMobile": "复制手机 Hub 链接",
+          "shareCopied": "手机链接已复制",
+          "hubQrAlt": "手机 Hub 二维码",
+          "hubScanHint": "扫码在手机上打开会话 Hub"
         }
       }
     },
@@ -11610,5 +11625,16 @@
     "mergeSuccess": "变更已成功合并",
     "mergeFailed": "合并失败 — 请手动解决冲突",
     "discardSuccess": "沙箱已丢弃"
+  },
+  "mobileHub": {
+    "title": "进行中的 Agent",
+    "badge": "移动端控制",
+    "subtitle": "点选正在运行的任务，在手机上跟进进度或审批操作。",
+    "loading": "正在加载活跃会话...",
+    "empty": "当前没有正在运行的 Agent。",
+    "loadFailed": "加载活跃会话失败。",
+    "elapsed": "已运行 {seconds} 秒",
+    "footerEn": "列表每 5 秒自动刷新。",
+    "footerZh": "列表每 5 秒自动刷新。"
   }
 }

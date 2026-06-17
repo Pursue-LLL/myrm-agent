@@ -19,6 +19,8 @@ import logging
 from dataclasses import dataclass
 from typing import cast
 
+from fastapi import Request
+
 from app.ai_agents import GeneralAgentParams
 from app.ai_agents.general_agent.llm_factory import select_tool_capable_model_cfg
 from app.core.channel_bridge.config_parsers import verify_search_service_available
@@ -210,6 +212,7 @@ async def prevalidate_archive_restore_actions(request: AgentRequest) -> None:
 async def convert_to_general_agent_params(
     request: AgentRequest,
     chat_history: list[list[str | dict[str, object]]],
+    http_request: Request | None = None,
 ) -> tuple[GeneralAgentParams, str | None, list[str], list[dict[str, object]]]:
     """将 Agent API 请求转换为 General Agent 参数。
 
@@ -581,6 +584,14 @@ async def convert_to_general_agent_params(
     )
 
     security_config_dict = configs.security_config_dict if configs else None
+    if http_request is not None:
+        from app.remote_access.tool_policy import merge_remote_security_overlay
+
+        security_config_dict = merge_remote_security_overlay(
+            security_config_dict,
+            trust_zone=getattr(http_request.state, "trust_zone", None),
+            admission_path=getattr(http_request.state, "admission_path", None),
+        )
 
     external_agents_config = None
     if configs and configs.external_agents_dict:

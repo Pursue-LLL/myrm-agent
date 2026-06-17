@@ -14,6 +14,7 @@
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { getApiBaseUrl, getBackendBaseUrl, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
+import { withMobilePairHeaders } from '@/lib/mobileRemote';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -198,12 +199,17 @@ export const fetchWithTimeout = async (
   const combinedSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
 
   try {
+    const headerRecord = options.headers instanceof Headers
+      ? Object.fromEntries(options.headers.entries())
+      : { ...(options.headers as Record<string, string> | undefined) };
+    const mergedHeaders = withMobilePairHeaders(headerRecord);
     // 强制禁用 Next.js 缓存，防止在开发模式下缓存 502/ECONNREFUSED 错误
     // 默认携带 credentials 以确保 SSE 和普通请求都发送认证 cookie
     const fetchOptions: RequestInit = {
       cache: 'no-store',
       credentials: 'include',
       ...options,
+      headers: mergedHeaders,
       signal: combinedSignal,
     };
     const response = await fetch(url, fetchOptions);

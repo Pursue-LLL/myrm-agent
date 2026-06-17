@@ -75,6 +75,7 @@ from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
 from app.api.system.router import router as system_router
 from app.api.system.shutdown import router as system_shutdown_router
+from app.api.remote_access.router import router as remote_access_router
 from app.api.tasks.router import router as tasks_router
 from app.api.tts.router import router as tts_router
 from app.api.voice.realtime import router as voice_realtime_router
@@ -209,6 +210,7 @@ api_router.include_router(artifact_mappings_router, prefix="/config", tags=["con
 api_router.include_router(build_statistics_router(), prefix="/statistics", tags=["statistics"])
 api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(system_shutdown_router, prefix="/system", tags=["system"])
+api_router.include_router(remote_access_router, prefix="/remote-access", tags=["remote-access"])
 
 api_router.include_router(budget_router, prefix="/budget", tags=["budget"])
 api_router.include_router(api_keys_router)
