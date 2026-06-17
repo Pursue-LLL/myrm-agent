@@ -3,6 +3,7 @@
 - app.services.webui.admin_store (POS: admin credential persistence)
 - app.services.webui.temp_token (POS: setup token issuance)
 - app.services.webui.session (POS: signed session cookies)
+- app.remote_access.pairing (POS: mobile pair token HMAC signing)
 - app.config.deploy_mode (POS: local vs remote WebUI flags)
 
 [OUTPUT]
@@ -36,6 +37,7 @@ from app.services.webui.session import (
     parse_session_value,
     rotate_session_signing_key,
 )
+from app.remote_access.pairing import rotate_pairing_key
 from app.services.webui.temp_token import temp_token_service
 
 _LOCAL_USER_ID = "local-user"
@@ -165,6 +167,7 @@ class WebuiAuthService:
 
     def invalidate_all_sessions(self) -> None:
         rotate_session_signing_key()
+        rotate_pairing_key()
 
     def clear_session_cookie(self, response: Response) -> None:
         response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")

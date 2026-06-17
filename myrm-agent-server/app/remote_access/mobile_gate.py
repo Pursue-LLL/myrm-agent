@@ -45,9 +45,9 @@ def is_mobile_remote_api_path(path: str) -> bool:
         return True
     if path == "/api/v1/agents/agent-stream":
         return True
-    if path.startswith("/api/v1/agents/chats/") and path.endswith("/steer"):
-        return True
-    if path.startswith("/api/v1/agents/agent/") and path.endswith("/cancel"):
+    if path.startswith("/api/v1/agents/chats/") and (
+        path.endswith("/steer") or path.endswith("/cancel")
+    ):
         return True
     if path.startswith("/api/v1/chats/"):
         return True
@@ -67,7 +67,6 @@ def is_mobile_remote_control_path(path: str) -> bool:
 _CHAT_ID_PATH_PREFIXES = (
     "/api/v1/agents/chat/",
     "/api/v1/agents/chats/",
-    "/api/v1/agents/agent/",
     "/api/v1/chats/",
 )
 

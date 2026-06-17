@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import {
   type ConnectProfile,
   type GenerateConfigResponse,
-  fetchConnectProfiles,
+  listConnectProfiles,
   generateConnectConfig,
   revokeConnect,
   runConnectDoctor,
@@ -39,7 +39,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
 
   const loadProfiles = useCallback(async () => {
     try {
-      const data = await fetchConnectProfiles();
+      const data = await listConnectProfiles();
       setProfiles(data);
     } catch {
       // Silently handle - profiles will be empty

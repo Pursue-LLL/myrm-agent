@@ -4774,6 +4774,8 @@
       "viewFull": "View Full Conversation",
       "noStatus": "No task status",
       "stopTask": "Stop Task",
+      "stopTaskSuccess": "Task stop requested",
+      "stopTaskFailed": "No running task to stop",
       "pendingApprovals": "Pending Approvals",
       "approve": "Approve",
       "reject": "Reject",
@@ -10457,7 +10459,30 @@
     },
     "tabs": {
       "overview": "Overview",
+      "evolution": "Evolution Digest",
       "daily": "Daily Review"
+    },
+    "patternDigest": {
+      "title": "Behavioral Pattern Discovery",
+      "description": "Your AI agent periodically analyzes interaction patterns and surfaces behavioral insights.",
+      "emptyTitle": "Learning in Progress",
+      "emptyDescription": "The memory system needs more interactions before pattern analysis can run. Keep chatting normally and patterns will be discovered automatically.",
+      "triggerButton": "Analyze Now",
+      "triggering": "Analyzing...",
+      "triggerSkipped": "System not ready yet — more conversations needed",
+      "triggerNoNewPatterns": "Analysis complete — no new patterns discovered",
+      "confidence": "Confidence",
+      "durability": "Stage",
+      "suggestion": "Suggestion",
+      "evidence": "Evidence",
+      "discoveredAt": "Discovered",
+      "patternCount": "{count} pattern(s) discovered",
+      "noPatterns": "No behavioral patterns discovered in the latest analysis",
+      "durabilityStages": {
+        "emerging": "Emerging",
+        "established": "Established",
+        "declining": "Declining"
+      }
     },
     "dailyJournal": {
       "today": "Today",

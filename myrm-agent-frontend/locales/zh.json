@@ -4774,6 +4774,8 @@
       "viewFull": "查看完整对话",
       "noStatus": "暂无任务状态",
       "stopTask": "停止任务",
+      "stopTaskSuccess": "已请求停止任务",
+      "stopTaskFailed": "没有正在运行的任务",
       "pendingApprovals": "待审批操作",
       "approve": "批准",
       "reject": "拒绝",
@@ -10428,7 +10430,30 @@
     },
     "tabs": {
       "overview": "总览",
+      "evolution": "进化复盘",
       "daily": "每日回顾"
+    },
+    "patternDigest": {
+      "title": "行为模式发现",
+      "description": "AI 助手会定期分析交互模式，提炼出你的行为习惯与偏好洞察。",
+      "emptyTitle": "学习进行中",
+      "emptyDescription": "记忆系统需要更多交互才能启动模式分析。继续正常对话，系统会自动发现规律。",
+      "triggerButton": "立即分析",
+      "triggering": "分析中...",
+      "triggerSkipped": "系统尚未就绪 — 需要更多对话积累",
+      "triggerNoNewPatterns": "分析完成 — 未发现新模式",
+      "confidence": "置信度",
+      "durability": "阶段",
+      "suggestion": "建议",
+      "evidence": "证据",
+      "discoveredAt": "发现时间",
+      "patternCount": "发现 {count} 个行为模式",
+      "noPatterns": "最近一次分析未发现新的行为模式",
+      "durabilityStages": {
+        "emerging": "萌芽",
+        "established": "成型",
+        "declining": "衰减中"
+      }
     },
     "dailyJournal": {
       "today": "今天",

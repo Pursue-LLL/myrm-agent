@@ -178,6 +178,7 @@ async def ai_agent_service_stream(
             agent_type="general",
             session_id=params.chat_id,
             agent_instance=agent,
+            active_message_id=params.message_id,
             goal_active=goal_active,
             fission_active=fission_concurrency > 1,
         ):
@@ -439,6 +440,7 @@ async def ai_deep_research_service_stream(
             agent_type="deep_research",
             session_id=session_id_val,
             agent_instance=agent_instance,
+            active_message_id=message_id,
         ):
             if cancel_token and cancel_token.is_cancelled:
                 logger.warning("Deep research stream cancelled: message_id=%s", message_id)

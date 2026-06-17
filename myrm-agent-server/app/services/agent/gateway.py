@@ -76,6 +76,7 @@ class ActiveSessionInfo:
     agent_type: str
     started_at: float = field(default_factory=time.monotonic)
     agent: "weakref.ReferenceType[BaseAgent] | None" = None
+    current_message_id: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -154,6 +155,25 @@ class AgentGateway:
             return True
         logger.debug("No active agent to interrupt for sandbox user")
         return False
+
+    def interrupt_session(self, chat_id: str) -> bool:
+        """Signal a single chat session to stop.
+
+        Returns True when an interrupt event was set for ``chat_id``.
+        """
+        user_events = self._interrupt_events.get("sandbox")
+        if not user_events:
+            return False
+        event = user_events.get(chat_id)
+        if event is None:
+            return False
+        event.set()
+        logger.info("Interrupt signal sent for chat_id=%s", chat_id)
+        return True
+
+    def get_active_message_id(self, chat_id: str) -> str | None:
+        info = self._session_info.get(chat_id)
+        return info.current_message_id if info else None
 
     def get_active_sessions(self) -> list[dict[str, object]]:
         """Get active session info for a specific user (for Multi-Pane status)."""
@@ -272,6 +292,7 @@ class AgentGateway:
         agent_type: str,
         session_id: str | None = None,
         agent_instance: "BaseAgent | None" = None,
+        active_message_id: str | None = None,
         goal_active: bool = False,
         fission_active: bool = False,
     ) -> AsyncGenerator[dict[str, object], None]:
@@ -304,6 +325,7 @@ class AgentGateway:
                 chat_id=session_id,
                 agent_type=agent_type,
                 agent=weakref.ref(agent_instance) if agent_instance else None,
+                current_message_id=active_message_id,
             )
 
         user_sem = self._get_user_sem("sandbox")

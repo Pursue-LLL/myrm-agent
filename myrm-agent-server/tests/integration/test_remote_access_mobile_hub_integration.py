@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -237,5 +238,38 @@ class TestMobileHubIntegration:
             "/api/v1/agents/chats/other-chat/steer",
             headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
             json={"message": "continue"},
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_cancels_matching_chat_auth_only(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        chat_id = active_chat_with_collector
+        scoped_token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        with patch(
+            "app.services.agent.gateway.get_agent_gateway",
+        ) as mock_get_gateway:
+            mock_get_gateway.return_value.interrupt_session.return_value = True
+            response = integration_client.post(
+                f"/api/v1/agents/chats/{chat_id}/cancel",
+                headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
+            )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_rejects_cancel_on_other_chat(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        chat_id = active_chat_with_collector
+        scoped_token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        response = integration_client.post(
+            "/api/v1/agents/chats/other-chat/cancel",
+            headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
         )
         assert response.status_code == 401

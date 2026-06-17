@@ -521,6 +521,15 @@ export const cancelAgentRequest = async (messageId: string): Promise<{ cancelled
 };
 
 /**
+ * Cancel the active agent run for a chat (mobile remote / no workspace pane).
+ */
+export const cancelActiveChatAgent = async (chatId: string): Promise<{ cancelled: boolean; chat_id: string }> => {
+  return apiRequest(`/agents/chats/${chatId}/cancel`, {
+    method: 'POST',
+  });
+};
+
+/**
  * 获取后续建议（搜索模式和 Agent 模式通用）
  *
  * 后端从 UserConfig 表读取 filter model 配置。

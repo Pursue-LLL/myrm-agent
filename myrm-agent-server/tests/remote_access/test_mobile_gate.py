@@ -74,9 +74,17 @@ def test_scoped_control_token_authorizes_matching_paths() -> None:
     token = create_pairing_token(chat_id="chat-a", purpose=MOBILE_HUB_CONTROL_PURPOSE)
     assert pair_token_authorizes_path(token, "/api/v1/agents/chat/chat-a/attach")
     assert pair_token_authorizes_path(token, "/api/v1/agents/agent-stream")
+    assert pair_token_authorizes_path(token, "/api/v1/agents/chats/chat-a/steer")
+    assert pair_token_authorizes_path(token, "/api/v1/agents/chats/chat-a/cancel")
     assert pair_token_authorizes_path(token, "/ws/stt/stream")
     assert not pair_token_authorizes_path(token, "/api/v1/remote-access/mobile/sessions")
     assert not pair_token_authorizes_path(token, "/api/v1/agents/chat/chat-b/attach")
+    assert not pair_token_authorizes_path(token, "/api/v1/agents/chats/chat-b/cancel")
+
+
+def test_scoped_control_token_rejects_message_cancel_path() -> None:
+    token = create_pairing_token(chat_id="chat-a", purpose=MOBILE_HUB_CONTROL_PURPOSE)
+    assert not pair_token_authorizes_path(token, "/api/v1/agents/agent/msg-1/cancel")
 
 
 def test_scoped_pair_authorizes_mobile_stt_ws() -> None:

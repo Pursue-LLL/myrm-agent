@@ -10324,7 +10324,30 @@
     },
     "tabs": {
       "overview": "Overview",
+      "evolution": "Evolution Digest",
       "daily": "Daily Review"
+    },
+    "patternDigest": {
+      "title": "Behavioral Pattern Discovery",
+      "description": "Your AI agent periodically analyzes interaction patterns and surfaces behavioral insights.",
+      "emptyTitle": "Learning in Progress",
+      "emptyDescription": "The memory system needs more interactions before pattern analysis can run.",
+      "triggerButton": "Analyze Now",
+      "triggering": "Analyzing...",
+      "triggerSkipped": "System not ready yet",
+      "triggerNoNewPatterns": "Analyse abgeschlossen — keine neuen Muster entdeckt",
+      "confidence": "Confidence",
+      "durability": "Stage",
+      "suggestion": "Suggestion",
+      "evidence": "Evidence",
+      "discoveredAt": "Discovered",
+      "patternCount": "{count} pattern(s) discovered",
+      "noPatterns": "No behavioral patterns discovered in the latest analysis",
+      "durabilityStages": {
+        "emerging": "Emerging",
+        "established": "Established",
+        "declining": "Abnehmend"
+      }
     },
     "dailyJournal": {
       "today": "Today",

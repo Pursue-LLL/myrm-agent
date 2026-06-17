@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { Brain, Zap, CalendarDays, HeartPulse, Loader2, Sprout, RefreshCw, TrendingDown } from 'lucide-react';
+import { Brain, Zap, CalendarDays, HeartPulse, Loader2, Sprout, RefreshCw, TrendingDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -13,6 +13,7 @@ import { showApiError } from '@/lib/api';
 import ActivityHeatmap from './ActivityHeatmap';
 import DailyJournal from './DailyJournal';
 import HealthRadar from './HealthRadar';
+import PatternDigestPanel from './PatternDigestPanel';
 import SkillEventList from './SkillEventList';
 
 const TIME_RANGE_OPTIONS = [7, 30, 90] as const;
@@ -149,8 +150,16 @@ export default function GrowthDashboard() {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList>
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="evolution" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            {t('tabs.evolution')}
+          </TabsTrigger>
           <TabsTrigger value="daily">{t('tabs.daily')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="evolution" className="mt-4">
+          <PatternDigestPanel />
+        </TabsContent>
 
         <TabsContent value="daily" className="mt-4">
           <DailyJournal />

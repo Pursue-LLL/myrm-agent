@@ -91,3 +91,40 @@ async def steer_agent(
         return success_response(data={"steered": True, "chat_id": chat_id})
 
     return error_response(message="No active agent for this chat", code=404)
+
+
+@router.post("/chats/{chat_id}/cancel")
+@limiter.limit(settings.rate_limit.chat)
+async def cancel_active_chat_agent(
+    chat_id: str,
+    http_request: Request,
+) -> JSONResponse:
+    from myrm_agent_harness.utils.runtime.cancellation import CancelReason
+
+    from app.core.utils.response_utils import error_response, success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
+    from app.services.agent.gateway import get_agent_gateway
+
+    require_mobile_pair_chat_access(http_request, chat_id)
+    gateway = get_agent_gateway()
+    message_id = gateway.get_active_message_id(chat_id)
+    interrupted = gateway.interrupt_session(chat_id)
+    registry_cancelled = False
+    if message_id:
+        registry_cancelled = CancellationRegistry.cancel(message_id, CancelReason.USER_CANCELLED)
+
+    if not interrupted and not registry_cancelled:
+        return error_response(message="No active agent for this chat", code=404)
+
+    logger.info(
+        "User cancelled active chat agent: chat_id=%s message_id=%s",
+        chat_id,
+        message_id,
+    )
+    return success_response(
+        data={
+            "cancelled": True,
+            "chat_id": chat_id,
+            "message_id": message_id,
+        }
+    )

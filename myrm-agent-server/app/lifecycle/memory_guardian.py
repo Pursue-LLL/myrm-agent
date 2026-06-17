@@ -14,7 +14,8 @@
 - start_memory_guardian_scheduler: Start periodic background memory maintenance
 - stop_memory_guardian_scheduler: Graceful shutdown
 - get_memory_guardian_status: Expose scheduler state for API
-- run_memory_guardian_once: Manual trigger entry point
+- run_memory_guardian_once: Manual trigger entry point (maintenance only)
+- run_pattern_discovery_once: Manual trigger entry point (pattern discovery)
 
 [POS]
 记忆守护者调度器。独立于用户会话的周期性记忆维护，自适应频率（健康时 6h / 不健康时 2h），
@@ -357,35 +358,17 @@ async def run_memory_guardian_once() -> dict[str, object]:
 
 
 async def _run_pattern_discovery_cycle() -> None:
-    """Execute a pattern discovery pass using the consolidation LLM.
+    """Delegate to pattern_discovery_trigger module."""
+    from app.lifecycle.pattern_discovery_trigger import run_pattern_discovery_cycle
 
-    Runs independently of maintenance — the harness-layer strategy handles
-    gate checks (memory count >= 50, consolidation count >= 3) and returns
-    a skipped report if not ready.
-    """
-    try:
-        from myrm_agent_harness.toolkits.memory.strategies.pattern_discovery import (
-            run_pattern_discovery,
-        )
+    await run_pattern_discovery_cycle()
 
-        manager = await _create_memory_manager()
-        if manager._consolidation_llm is None:
-            logger.debug("Memory guardian: pattern discovery skipped (no consolidation LLM)")
-            return
 
-        report = await run_pattern_discovery(manager, manager._consolidation_llm)
-        if report.skipped:
-            logger.info("Memory guardian: pattern discovery skipped (%s)", report.skip_reason)
-        elif report.has_patterns:
-            logger.info(
-                "Memory guardian: pattern discovery found %d patterns (%.0fms)",
-                len(report.patterns),
-                report.duration_ms,
-            )
-        else:
-            logger.info("Memory guardian: pattern discovery found no patterns (%.0fms)", report.duration_ms)
-    except Exception as exc:
-        logger.warning("Memory guardian: pattern discovery failed (non-fatal): %s", exc)
+async def run_pattern_discovery_once() -> dict[str, object]:
+    """Delegate to pattern_discovery_trigger module."""
+    from app.lifecycle.pattern_discovery_trigger import run_pattern_discovery_once as _trigger
+
+    return await _trigger()
 
 
 async def start_memory_guardian_scheduler() -> None:

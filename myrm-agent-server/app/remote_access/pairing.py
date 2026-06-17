@@ -101,6 +101,15 @@ def parse_pairing_token(token: str | None) -> dict[str, object] | None:
     return body
 
 
+def rotate_pairing_key() -> None:
+    """Regenerate the HMAC signing key, invalidating all outstanding pair tokens."""
+    path = _pairing_key_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    key = secrets.token_bytes(32)
+    path.write_bytes(key)
+    path.chmod(0o600)
+
+
 def refresh_pairing_token(
     token: str | None,
     *,
@@ -127,4 +136,5 @@ __all__ = [
     "create_pairing_token",
     "parse_pairing_token",
     "refresh_pairing_token",
+    "rotate_pairing_key",
 ]

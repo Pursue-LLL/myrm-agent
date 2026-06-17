@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.config.settings import settings
-from app.remote_access.pairing import create_pairing_token, parse_pairing_token
+from app.remote_access.pairing import create_pairing_token, parse_pairing_token, rotate_pairing_key
 
 
 @pytest.fixture(autouse=True)
@@ -25,3 +25,11 @@ def test_pairing_token_rejects_tamper() -> None:
     token = create_pairing_token(purpose="mobile_hub_list")
     body, sig = token.rsplit(".", 1)
     assert parse_pairing_token(f"{body}.{'x' * len(sig)}") is None
+
+
+def test_rotate_pairing_key_invalidates_outstanding_tokens() -> None:
+    token = create_pairing_token(chat_id="chat-1", purpose="mobile_hub")
+    assert parse_pairing_token(token) is not None
+    rotate_pairing_key()
+    assert parse_pairing_token(token) is None
+    assert parse_pairing_token(create_pairing_token(chat_id="chat-1", purpose="mobile_hub")) is not None

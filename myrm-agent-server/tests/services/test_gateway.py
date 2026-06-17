@@ -189,6 +189,61 @@ class TestGatewayInterrupt:
         assert not gw.interrupt()
 
     @pytest.mark.asyncio
+    async def test_interrupt_session_single_agent(self) -> None:
+        gw = AgentGateway(_cfg())
+        interrupted = False
+
+        async def slow_stream():
+            for i in range(100):
+                await asyncio.sleep(0.01)
+                yield {"i": i}
+
+        async def run() -> None:
+            nonlocal interrupted
+            async for _ in gw.execute_stream(slow_stream(), agent_type="test", session_id="chat-a"):
+                pass
+            interrupted = True
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.1)
+
+        assert gw.interrupt_session("chat-a")
+        await asyncio.sleep(0.1)
+        assert interrupted
+        await task
+
+    @pytest.mark.asyncio
+    async def test_interrupt_session_unknown_chat_returns_false(self) -> None:
+        gw = AgentGateway(_cfg())
+        assert not gw.interrupt_session("missing-chat")
+
+    @pytest.mark.asyncio
+    async def test_get_active_message_id_tracks_stream(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        async def slow_stream():
+            for i in range(100):
+                await asyncio.sleep(0.01)
+                yield {"i": i}
+
+        async def run() -> None:
+            async for _ in gw.execute_stream(
+                slow_stream(),
+                agent_type="test",
+                session_id="chat-msg",
+                active_message_id="msg-42",
+            ):
+                pass
+
+        task = asyncio.create_task(run())
+        await asyncio.sleep(0.05)
+
+        assert gw.get_active_message_id("chat-msg") == "msg-42"
+        gw.interrupt_session("chat-msg")
+        await task
+        assert gw.get_active_message_id("chat-msg") is None
+
+    @pytest.mark.asyncio
     @pytest.mark.skip(reason="Gateway API changed")
     async def test_interrupt_all(self) -> None:
         gw = AgentGateway(_cfg())

@@ -150,6 +150,39 @@ async def test_session_rotation_on_password_change(tmp_path: Path) -> None:
         assert parse_session_value(cookie) is None
 
 
+@pytest.mark.asyncio
+async def test_password_change_rotates_pairing_key(tmp_path: Path) -> None:
+    from app.config.settings import settings
+    from app.remote_access.pairing import MOBILE_HUB_LIST_PURPOSE, create_pairing_token, parse_pairing_token
+
+    settings.database.state_dir = str(tmp_path)
+    pair_token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
+    assert parse_pairing_token(pair_token) is not None
+
+    token = temp_token_service.generate_token()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await client.post(
+            "/webui/auth/setup",
+            json={"temp_token": token, "username": "admin", "password": "Str0ng!Pass"},
+        )
+        login = await client.post(
+            "/webui/auth/login",
+            json={"username": "admin", "password": "Str0ng!Pass"},
+        )
+        cookie = login.cookies.get("myrm_webui_session")
+        assert cookie
+
+        change_pw = await client.post(
+            "/webui/auth/change-password",
+            json={"current_password": "Str0ng!Pass", "new_password": "NewStr0ng!Pass"},
+            cookies={"myrm_webui_session": cookie},
+        )
+        assert change_pw.status_code == 200
+
+    assert parse_pairing_token(pair_token) is None
+
+
 def test_https_secure_cookie() -> None:
     from fastapi import Response
 

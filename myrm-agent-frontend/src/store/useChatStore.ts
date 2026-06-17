@@ -29,7 +29,8 @@ import { loadMessages, loadOlderMessages, initializeChat, autoSaveChat } from '.
 import { processSuggestions, findAssistantMessageIndex } from './chat/messageUtils';
 import useQuoteStore from './useQuoteStore';
 import useWorkspaceStore from './useWorkspaceStore';
-import { getChatHistory, cancelAgentRequest } from '@/services/chat';
+import { getChatHistory, cancelAgentRequest, cancelActiveChatAgent } from '@/services/chat';
+import { showI18nToast } from '@/services/i18nToastService';
 import { fetchWithTimeout } from '@/lib/api';
 import { useProjectStore } from '@/store/useProjectStore';
 
@@ -280,28 +281,46 @@ const useChatStore = create<ChatState>()(
         }),
       clearEnvironmentAlerts: () => set({ environmentAlerts: new Set<string>() }),
       stopMessage: () => {
-        const { chatId } = get();
+        const { chatId, abortController: chatAbortController } = get();
         if (!chatId) return;
 
         const paneId = useWorkspaceStore.getState().panes.find((p: any) => p.chatId === chatId)?.id;
-        
-        if (!paneId) return;
 
-        const abortController = useWorkspaceStore.getState().getPaneAbortController(paneId);
-        const currentSessionMessageId = useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
+        if (paneId) {
+          const abortController = useWorkspaceStore.getState().getPaneAbortController(paneId);
+          const currentSessionMessageId = useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
 
-        if (abortController) {
-          if (currentSessionMessageId) {
-            cancelAgentRequest(currentSessionMessageId).catch(() => {});
+          if (abortController) {
+            if (currentSessionMessageId) {
+              cancelAgentRequest(currentSessionMessageId).catch(() => {});
+            }
+            abortController.abort();
+            useWorkspaceStore.getState().setPaneAbortController(paneId, null);
+            set((state) => {
+              state.loading = false;
+              state.abortController = null;
+              state.messageAppeared = true;
+            });
           }
-          abortController.abort();
-          useWorkspaceStore.getState().setPaneAbortController(paneId, null);
-          set((state) => {
-            state.loading = false;
-            state.abortController = null;
-            state.messageAppeared = true;
-          });
+          return;
         }
+
+        if (!chatAbortController) return;
+
+        void (async () => {
+          try {
+            await cancelActiveChatAgent(chatId);
+            showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+          } catch {
+            showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
+          }
+        })();
+        chatAbortController.abort();
+        set((state) => {
+          state.loading = false;
+          state.abortController = null;
+          state.messageAppeared = true;
+        });
       },
       steerMessage: async (message: string) => {
         const { chatId } = get();
