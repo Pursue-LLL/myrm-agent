@@ -6,7 +6,7 @@ Zustand 全局状态。`chat/` 承载会话、SSE 流式 reducer（`messageStrea
 
 ### OS 级上下文切换架构 (Context Switching Architecture)
 针对多标签页并行（Multi-tab Parallelism），本模块采用了类似操作系统的上下文切换设计：
-- **`useChatStore` (CPU 寄存器)**：作为全局单例，永远只服务于当前处于 Active 状态的标签页，保证 320 个业务组件的极速读取，0 侵入。
+- **`useChatStore` (CPU 寄存器)**：作为全局单例，永远只服务于当前处于 Active 状态的标签页，保证 320 个业务组件的极速读取，0 侵入。`stopMessage` 在 Multi-Pane（message cancel + abort）与 mobile 远程（chat cancel + abort）两条路径均通过 `showI18nToast` 反馈 Stop 结果。
 - **`useWorkspaceStore` (内存 RAM)**：负责持久化所有后台标签页的“现场快照（Snapshot）”和“控制句柄（AbortController）”。
 - **智能路由 (Smart Updater)**：在 `messageRequest.ts` 中拦截流式更新，若流属于后台 Tab，则直接写入 `WorkspaceStore` 快照，绝不污染当前 UI。
 - **快照直出 (Snapshot-First Rendering)**：切换标签页时，瞬间将 `WorkspaceStore` 中的快照恢复到 `useChatStore`，实现 0ms 极速切页。

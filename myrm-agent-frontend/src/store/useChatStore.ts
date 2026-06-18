@@ -291,9 +291,18 @@ const useChatStore = create<ChatState>()(
           const currentSessionMessageId = useWorkspaceStore.getState().getPaneCurrentSessionMessageId(paneId);
 
           if (abortController) {
-            if (currentSessionMessageId) {
-              cancelAgentRequest(currentSessionMessageId).catch(() => {});
-            }
+            void (async () => {
+              if (currentSessionMessageId) {
+                try {
+                  await cancelAgentRequest(currentSessionMessageId);
+                  showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+                } catch {
+                  showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
+                }
+              } else {
+                showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+              }
+            })();
             abortController.abort();
             useWorkspaceStore.getState().setPaneAbortController(paneId, null);
             set((state) => {
