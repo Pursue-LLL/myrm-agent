@@ -54,7 +54,7 @@ import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { generateCompanion, getEnhancedPersonality, getTitle } from '@/components/features/companion/companionGenerator';
 import useCompanionStore from '../useCompanionStore';
 import { API_BASE_URL, fetchWithTimeout } from '@/lib/api';
-import { withMobilePairHeaders } from '@/lib/mobileRemote';
+import { ensureMobileE2EE, withMobilePairHeaders } from '@/lib/mobileRemote';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { normalizeApiUrl } from '@/store/config/providerTypes';
 import type { ChatState } from './types';
@@ -905,6 +905,7 @@ export const attachToChat = async (
   });
 
   try {
+    await ensureMobileE2EE();
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     const headers = withMobilePairHeaders({
       Accept: 'text/event-stream',

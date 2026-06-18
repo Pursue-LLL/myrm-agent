@@ -414,6 +414,14 @@ class AgentGateway:
                 if not user_events:
                     del self._interrupt_events["sandbox"]
             if session_id:
+                desktop = self.get_active_desktop_session(session_id)
+                if desktop is not None:
+                    close_fn = getattr(desktop, "close", None)
+                    if close_fn is not None:
+                        try:
+                            await close_fn()
+                        except Exception as exc:
+                            logger.debug("Desktop session close error (non-fatal): %s", exc)
                 self._active_sessions.discard(session_id)
                 self._session_info.pop(session_id, None)
             user_sem.release()

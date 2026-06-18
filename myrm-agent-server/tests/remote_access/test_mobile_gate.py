@@ -11,6 +11,7 @@ from app.remote_access.mobile_gate import (
     pair_token_authorizes_path,
     pair_token_grants_access,
     requires_mobile_remote_gate,
+    resolve_request_pair_token,
 )
 from app.remote_access.pairing import (
     MOBILE_HUB_CONTROL_PURPOSE,
@@ -90,3 +91,20 @@ def test_scoped_control_token_rejects_message_cancel_path() -> None:
 def test_scoped_pair_authorizes_mobile_stt_ws() -> None:
     token = create_pairing_token(chat_id="chat-a", purpose=MOBILE_HUB_CONTROL_PURPOSE)
     assert pair_token_authorizes_path(token, "/ws/stt/stream")
+
+
+def test_resolve_request_pair_token_prefers_e2ee_override() -> None:
+    token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
+
+    class _State:
+        e2ee_pair_token = token
+
+    class _Url:
+        query = "pair=ignored"
+
+    class _Request:
+        state = _State()
+        url = _Url()
+        headers: dict[str, str] = {}
+
+    assert resolve_request_pair_token(_Request(), None) == token

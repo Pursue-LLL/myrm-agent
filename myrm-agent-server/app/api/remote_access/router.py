@@ -10,8 +10,17 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.config.settings import settings
+from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
-from app.remote_access.mobile_gate import PAIR_TOKEN_HEADER, extract_pair_token, pair_token_authorizes_path, requires_mobile_remote_gate
+from app.remote_access.e2ee_keystore import load_or_create_daemon_keypair
+from app.remote_access.e2ee_response import e2ee_success_response
+from app.remote_access.e2ee_session import get_e2ee_session_store
+from app.remote_access.mobile_gate import (
+    extract_pair_token,
+    pair_token_authorizes_path,
+    requires_mobile_remote_gate,
+    resolve_request_pair_token,
+)
 from app.remote_access.pairing import (
     MOBILE_HUB_CONTROL_PURPOSE,
     MOBILE_HUB_LIST_PURPOSE,
@@ -35,8 +44,43 @@ class PairingTokenResponse(BaseModel):
     mobile_path: str
 
 
+class E2EEHelloRequest(BaseModel):
+    type: str = Field(default="e2ee_hello", min_length=1, max_length=32)
+    key: str = Field(min_length=16, max_length=256)
+
+
 class TunnelStartRequest(BaseModel):
     local_port: int | None = Field(default=None, ge=1, le=65535)
+
+
+@router.get("/e2ee/public-key")
+async def e2ee_public_key() -> dict[str, object]:
+    keypair = load_or_create_daemon_keypair()
+    return success_response(
+        data={
+            "publicKeyB64": keypair.public_key_b64,
+            "algorithm": "nacl-box-curve25519",
+        }
+    )
+
+
+@router.post("/e2ee/handshake")
+@limiter.limit("30/minute")
+async def e2ee_handshake(body: E2EEHelloRequest, request: Request) -> dict[str, object]:
+    if body.type != "e2ee_hello":
+        raise HTTPException(status_code=400, detail="Expected e2ee_hello")
+    keypair = load_or_create_daemon_keypair()
+    session = await get_e2ee_session_store().create_from_hello(
+        client_public_key_b64=body.key,
+        daemon_secret_key=keypair.secret_key,
+    )
+    return success_response(
+        data={
+            "type": "e2ee_ready",
+            "sessionId": session.session_id,
+            "serverPublicKeyB64": keypair.public_key_b64,
+        }
+    )
 
 
 @router.get("/tunnel/status")
@@ -98,7 +142,7 @@ async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> di
             raise HTTPException(status_code=404, detail="No active session for this chat")
         token = create_pairing_token(chat_id=body.chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
         mobile_path = f"/mobile/status/{body.chat_id}?pair={token}"
-        return success_response(data={"token": token, "mobilePath": mobile_path})
+        return e2ee_success_response(request, data={"token": token, "mobilePath": mobile_path})
 
     if body.purpose == MOBILE_HUB_LIST_PURPOSE and body.chat_id:
         raise HTTPException(status_code=400, detail="mobile_hub_list tokens must not bind chat_id")
@@ -109,7 +153,7 @@ async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> di
         mobile_path = f"/mobile/status/{body.chat_id}?pair={token}"
     else:
         mobile_path = f"/mobile?pair={token}"
-    return success_response(data={"token": token, "mobilePath": mobile_path})
+    return e2ee_success_response(request, data={"token": token, "mobilePath": mobile_path})
 
 
 @router.post("/pairing-token/refresh", response_model=None)
@@ -126,7 +170,7 @@ async def refresh_pairing_token_route(request: Request) -> dict[str, object]:
         mobile_path = f"/mobile/status/{chat_id}?pair={refreshed}"
     else:
         mobile_path = f"/mobile?pair={refreshed}"
-    return success_response(data={"token": refreshed, "mobilePath": mobile_path})
+    return e2ee_success_response(request, data={"token": refreshed, "mobilePath": mobile_path})
 
 
 @router.get("/mobile/sessions")
@@ -136,21 +180,23 @@ async def mobile_sessions(
 ) -> dict[str, object]:
     trust_zone = getattr(request.state, "trust_zone", None)
     path = request.url.path
+    pair_token = resolve_request_pair_token(request, pair)
     if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
         session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair and pair_token_authorizes_path(pair, path))
+        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
         if not pair_ok and not session_user:
             raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
-    elif pair and not pair_token_authorizes_path(pair, path):
+    elif pair_token and not pair_token_authorizes_path(pair_token, path):
         raise HTTPException(status_code=401, detail="Invalid or expired pairing token")
 
     gateway = get_agent_gateway()
-    return success_response(
+    return e2ee_success_response(
+        request,
         data={
             "activeSessions": gateway.get_active_sessions(),
             "maxConcurrent": gateway.config.max_per_user,
             "availableSlots": gateway.get_available_slots(),
-        }
+        },
     )
 
 

@@ -35,10 +35,27 @@ def extract_pair_token(headers: Mapping[str, str], query_string: str = "") -> st
     return None
 
 
+def resolve_request_pair_token(request: object, pair_query: str | None = None) -> str | None:
+    """Resolve pair token from E2EE decrypt, query param, or plain header."""
+    state = getattr(request, "state", None)
+    if state is not None:
+        override = getattr(state, "e2ee_pair_token", None)
+        if isinstance(override, str) and override.strip():
+            return override.strip()
+    if isinstance(pair_query, str) and pair_query.strip():
+        return pair_query.strip()
+    url = getattr(request, "url", None)
+    query_string = str(getattr(url, "query", "")) if url is not None else ""
+    headers = getattr(request, "headers", {})
+    return extract_pair_token(headers, query_string)
+
+
 def is_mobile_remote_api_path(path: str) -> bool:
     """Return True when the path is used by the mobile Hub / Status control surface."""
     if path.startswith("/api/v1/remote-access/"):
         if path.startswith("/api/v1/remote-access/pairing-token"):
+            return False
+        if path.startswith("/api/v1/remote-access/e2ee/"):
             return False
         return True
     if path.startswith("/api/v1/agents/chat/") and path.endswith("/attach"):
@@ -84,7 +101,14 @@ def _chat_id_from_mobile_path(path: str) -> str | None:
 MOBILE_SESSIONS_PATH = "/api/v1/remote-access/mobile/sessions"
 MOBILE_PAIRING_ISSUE_PATH = "/api/v1/remote-access/pairing-token"
 MOBILE_PAIRING_REFRESH_PATH = "/api/v1/remote-access/pairing-token/refresh"
+E2EE_PUBLIC_KEY_PATH = "/api/v1/remote-access/e2ee/public-key"
+E2EE_HANDSHAKE_PATH = "/api/v1/remote-access/e2ee/handshake"
 _AGENT_STREAM_PATH = "/api/v1/agents/agent-stream"
+
+
+def is_e2ee_bootstrap_path(path: str) -> bool:
+    """E2EE key fetch and handshake are allowed before pair tokens on remote-exposed paths."""
+    return path in (E2EE_PUBLIC_KEY_PATH, E2EE_HANDSHAKE_PATH)
 
 
 def is_mobile_remote_pairing_path(path: str) -> bool:
@@ -156,11 +180,15 @@ def require_mobile_pair_chat_access(request: object, chat_id: str | None) -> Non
 
 
 __all__ = [
+    "E2EE_HANDSHAKE_PATH",
+    "E2EE_PUBLIC_KEY_PATH",
     "MOBILE_PAIRING_ISSUE_PATH",
     "MOBILE_PAIRING_REFRESH_PATH",
     "MOBILE_SESSIONS_PATH",
     "PAIR_TOKEN_HEADER",
     "extract_pair_token",
+    "resolve_request_pair_token",
+    "is_e2ee_bootstrap_path",
     "is_mobile_remote_api_path",
     "is_mobile_remote_control_path",
     "is_mobile_remote_pairing_path",

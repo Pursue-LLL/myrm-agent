@@ -44,6 +44,7 @@ dependencies = [
   "apscheduler>=4.0.0a6,<4.1.0",        # 后台任务调度器 (lifecycle/schedulers.py)
   "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)
   "cryptography>=48.0.1",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
+  "PyNaCl>=1.5.0,<1.6",                # Curve25519 + NaCl box (remote_access E2EE)
   "edge-tts>=7.2.8",                    # TTS 文本转语音 (voice/tts.py)
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)

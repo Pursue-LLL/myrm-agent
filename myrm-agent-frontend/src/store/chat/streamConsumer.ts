@@ -4,6 +4,7 @@ import { ChatActionsState, ChatActionsMethods, createMessageRequest } from './me
 import { type ArchiveRestoreAction, ModelSelection } from './types';
 import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
+import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
 
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
@@ -229,6 +230,7 @@ export async function consumeStream(
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
   const dataPrefix = 'data: ';
+  let currentSseEvent = '';
 
   let lastDataTime = Date.now();
   const DATA_TIMEOUT = 5 * 60 * 1000;
@@ -290,14 +292,38 @@ export async function consumeStream(
       while ((newlineIndex = buffer.indexOf('\n', startIndex)) !== -1) {
         const line = buffer.substring(startIndex, newlineIndex).trim();
 
+        if (line.startsWith('event:')) {
+          currentSseEvent = line.slice('event:'.length).trim();
+          startIndex = newlineIndex + 1;
+          continue;
+        }
+
         if (line.startsWith(dataPrefix)) {
           const jsonStr = line.substring(dataPrefix.length).trim();
+          if (jsonStr && currentSseEvent === 'e2ee_frame') {
+            const session = loadStoredE2EESession();
+            if (session) {
+              try {
+                const plainChunk = decryptSseFrame(session, jsonStr);
+                buffer = plainChunk + buffer.substring(newlineIndex + 1);
+                startIndex = 0;
+                currentSseEvent = '';
+                continue;
+              } catch (err) {
+                console.warn('E2EE SSE decrypt failed:', err);
+                startIndex = newlineIndex + 1;
+                currentSseEvent = '';
+                continue;
+              }
+            }
+          }
           if (jsonStr) {
             try {
               const rawJson = JSON.parse(jsonStr) as unknown;
               const event = parseSseEnvelope(rawJson);
               if (!event) {
                 console.warn('Unknown or malformed SSE payload dropped');
+                startIndex = newlineIndex + 1;
                 continue;
               }
               ({ added, recievedMessage } = await handleMessageStream(
@@ -311,10 +337,12 @@ export async function consumeStream(
                 state.files,
               ));
             } catch (err) {
-              // skip invalid JSON
               console.warn('Invalid JSON skipped:', err);
             }
           }
+          currentSseEvent = '';
+        } else if (line === '') {
+          currentSseEvent = '';
         }
 
         startIndex = newlineIndex + 1;

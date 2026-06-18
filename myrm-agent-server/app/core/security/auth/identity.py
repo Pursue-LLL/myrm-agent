@@ -132,6 +132,7 @@ def resolve_identity(
     trust_zone: str | None = None,
     local_trusted: bool | None = None,
     query_string: str = "",
+    pair_token_override: str | None = None,
 ) -> ResolvedIdentity:
     """Resolve user identity from HTTP or WebSocket request metadata."""
     from app.core.security.auth.public_paths import is_public_path
@@ -222,23 +223,28 @@ def resolve_identity(
         elif trust_zone == TrustZone.REMOTE_EXPOSED.value:
             from app.remote_access.mobile_gate import (
                 extract_pair_token,
+                is_e2ee_bootstrap_path,
                 is_mobile_remote_control_path,
                 is_mobile_remote_pairing_path,
                 pair_token_authorizes_path,
             )
 
-            pair_token = extract_pair_token(headers, query_string)
-            mobile_pair_path = is_mobile_remote_control_path(path) or is_mobile_remote_pairing_path(path)
-            if mobile_pair_path and pair_token_authorizes_path(pair_token, path):
+            if is_e2ee_bootstrap_path(path):
                 user_id = LOCAL_USER_ID
-                auth_source = "pair_token"
-                from app.remote_access.pairing import parse_pairing_token
+                auth_source = "e2ee_bootstrap"
+            else:
+                pair_token = pair_token_override or extract_pair_token(headers, query_string)
+                mobile_pair_path = is_mobile_remote_control_path(path) or is_mobile_remote_pairing_path(path)
+                if mobile_pair_path and pair_token_authorizes_path(pair_token, path):
+                    user_id = LOCAL_USER_ID
+                    auth_source = "pair_token"
+                    from app.remote_access.pairing import parse_pairing_token
 
-                parsed = parse_pairing_token(pair_token)
-                if parsed is not None:
-                    bound = parsed.get("chat_id")
-                    if isinstance(bound, str):
-                        pair_bound_chat_id = bound
+                    parsed = parse_pairing_token(pair_token)
+                    if parsed is not None:
+                        bound = parsed.get("chat_id")
+                        if isinstance(bound, str):
+                            pair_bound_chat_id = bound
         elif local_trusted and (loopback or (private_net and not protected)):
             user_id = LOCAL_USER_ID
             auth_source = "loopback"

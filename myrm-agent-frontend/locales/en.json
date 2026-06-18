@@ -3045,7 +3045,9 @@
           "pwaTitle": "Add to home screen",
           "pwaHint": "Install the Web app on your phone for one-tap remote control.",
           "pwaInstall": "Install app",
-          "pwaInstalled": "Installed on home screen"
+          "pwaInstalled": "Installed on home screen",
+          "e2eeBadge": "E2EE protected",
+          "e2eeHint": "Mobile links include end-to-end encryption when the tunnel is active. Pair tokens and live streams stay unreadable to the tunnel relay."
         }
       }
     },
@@ -11685,6 +11687,7 @@
     "loading": "Loading active sessions...",
     "empty": "No agents are running right now.",
     "loadFailed": "Failed to load active sessions.",
+    "e2eeHandshakeFailed": "Secure connection setup failed. Reload the link from Settings or check your network.",
     "openFailed": "Failed to open session control link.",
     "opening": "Opening…",
     "footer": "Links expire after 1 hour. Re-share from Settings if access is lost.",

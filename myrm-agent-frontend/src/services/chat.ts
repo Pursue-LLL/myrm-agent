@@ -524,6 +524,13 @@ export const cancelAgentRequest = async (messageId: string): Promise<{ cancelled
  * Cancel the active agent run for a chat (mobile remote / no workspace pane).
  */
 export const cancelActiveChatAgent = async (chatId: string): Promise<{ cancelled: boolean; chat_id: string }> => {
+  const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+  if (isMobileRemoteSurface()) {
+    return mobileRemotePost<{ cancelled: boolean; chat_id: string }>(
+      `/api/v1/agents/chats/${chatId}/cancel`,
+      {},
+    );
+  }
   return apiRequest(`/agents/chats/${chatId}/cancel`, {
     method: 'POST',
   });

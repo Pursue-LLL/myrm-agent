@@ -340,6 +340,11 @@ const useChatStore = create<ChatState>()(
         const { chatId } = get();
         if (!chatId) return false;
         try {
+          const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
+          if (isMobileRemoteSurface()) {
+            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/steer`, { message });
+            return true;
+          }
           const res = await fetchWithTimeout(`/agents/chats/${chatId}/steer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

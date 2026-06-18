@@ -192,8 +192,16 @@ export const AccessCard = memo<{
 
   const handleShareMobileLink = async () => {
     try {
-      const { mobilePath } = await remoteAccessService.createPairingToken();
-      const hubUrl = buildMobileHubUrl(mobilePath, tunnelStatus?.publicUrl ?? '', publicIngressBaseUrl ?? '');
+      const [{ mobilePath }, e2eeKey] = await Promise.all([
+        remoteAccessService.createPairingToken(),
+        tunnelStatus?.state === 'running' ? remoteAccessService.getE2EEPublicKey() : Promise.resolve(null),
+      ]);
+      const hubUrl = buildMobileHubUrl(
+        mobilePath,
+        tunnelStatus?.publicUrl ?? '',
+        publicIngressBaseUrl ?? '',
+        e2eeKey?.publicKeyB64,
+      );
       setMobileHubUrl(hubUrl);
       writeToClipboard(hubUrl);
       toast.success(t('access.tunnel.shareCopied'));
@@ -212,11 +220,22 @@ export const AccessCard = memo<{
       return;
     }
     let cancelled = false;
-    void remoteAccessService.createPairingToken().then(({ mobilePath }) => {
+    void remoteAccessService.createPairingToken().then(async ({ mobilePath }) => {
       if (cancelled) {
         return;
       }
-      setMobileHubUrl(buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? ''));
+      let serverKey: string | undefined;
+      if (tunnelStatus?.state === 'running') {
+        try {
+          const keyPayload = await remoteAccessService.getE2EEPublicKey();
+          serverKey = keyPayload.publicKeyB64;
+        } catch {
+          serverKey = undefined;
+        }
+      }
+      setMobileHubUrl(
+        buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? '', serverKey),
+      );
     });
     return () => {
       cancelled = true;
@@ -404,7 +423,13 @@ export const AccessCard = memo<{
                 </button>
               </div>
               {tunnelStatus?.publicUrl ? (
-                <p className="text-xs text-emerald-400 break-all">{tunnelStatus.publicUrl}</p>
+                <div className="space-y-2">
+                  <p className="text-xs text-emerald-400 break-all">{tunnelStatus.publicUrl}</p>
+                  <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                    {t('access.tunnel.e2eeBadge')}
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.e2eeHint')}</p>
+                </div>
               ) : null}
               {mobileHubQrSrc ? (
                 <div className="flex flex-col items-center gap-2 pt-2">

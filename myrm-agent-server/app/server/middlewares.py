@@ -7,6 +7,7 @@ from app.config.settings import settings
 from app.core.infra.cors_validator import CORS_ORIGINS_DEFAULT, parse_and_validate_cors_origins
 from app.middleware.auth import AuthMiddleware
 from app.middleware.cache import CacheControlMiddleware
+from app.middleware.e2ee import E2EEMiddleware
 from app.middleware.host_allowlist import HostAllowlistMiddleware
 from app.middleware.ingress import PublicIngressMiddleware
 from app.middleware.max_body_size import MaxBodySizeMiddleware
@@ -18,12 +19,13 @@ from app.middleware.ws_auth import WsAuthMiddleware
 
 def register_middlewares(app: FastAPI) -> None:
     """Register global middlewares."""
-    # 中间件注册顺序（LIFO）：CORS → MaxBodySize → RawBodyLimit → Cache → Auth → TextSanitizer
-    # 实际执行顺序：TextSanitizer → Auth → Cache → RawBodyLimit → MaxBodySize → CORS
+    # 中间件注册顺序（LIFO）：… → SessionIdle → Auth → E2EE → …
+    # 实际执行顺序：… → E2EE → Auth → …（E2EE 必须先于 Auth 解密 pair/body）
     app.add_middleware(TextSanitizerMiddleware)
     app.add_middleware(HostAllowlistMiddleware)
     app.add_middleware(SessionIdleMiddleware)
     app.add_middleware(AuthMiddleware)
+    app.add_middleware(E2EEMiddleware)
     app.add_middleware(WsAuthMiddleware)
     app.add_middleware(CacheControlMiddleware)
     app.add_middleware(RawBodyLimitMiddleware, max_size=1024 * 1024)

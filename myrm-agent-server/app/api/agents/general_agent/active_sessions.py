@@ -40,7 +40,9 @@ async def attach_to_chat(
     if multiplexed:
         # For multiplexed recovery, we just need the snapshot, no need to subscribe to the queue
         snapshot = collector.get_snapshot()
-        return success_response(data={"catchup_snapshot": snapshot})
+        from app.remote_access.e2ee_response import e2ee_success_response
+
+        return e2ee_success_response(request, data={"catchup_snapshot": snapshot})
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         snapshot, q = collector.subscribe()
@@ -68,8 +70,16 @@ async def attach_to_chat(
             collector.unsubscribe(q)
             logger.info(f"Client detached from chat {chat_id} real-time stream")
 
+    from app.remote_access.e2ee_response import get_request_e2ee_session
+    from app.remote_access.e2ee_sse import encrypt_sse_stream
+
+    e2ee_session = get_request_e2ee_session(request)
+    stream = sse_generator()
+    if e2ee_session is not None:
+        stream = encrypt_sse_stream(stream, e2ee_session)
+
     return StreamingResponse(
-        sse_generator(),
+        stream,
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )

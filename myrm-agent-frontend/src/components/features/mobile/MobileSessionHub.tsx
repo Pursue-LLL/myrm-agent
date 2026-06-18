@@ -4,7 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { IconActivity, IconArrowRight } from '@/components/features/icons/PremiumIcons';
-import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
+import { ensureMobileE2EE, scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
+import { E2EEHandshakeRequiredError } from '@/lib/e2ee/client';
 import type { ActiveSession } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 
@@ -25,7 +26,11 @@ export default function MobileSessionHub() {
       const data = await remoteAccessService.getMobileSessions(pairToken);
       setSessions(data.activeSessions ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('loadFailed'));
+      if (err instanceof E2EEHandshakeRequiredError) {
+        setError(t('e2eeHandshakeFailed'));
+      } else {
+        setError(err instanceof Error ? err.message : t('loadFailed'));
+      }
       setSessions([]);
     } finally {
       setLoading(false);
@@ -33,6 +38,7 @@ export default function MobileSessionHub() {
   }, [pairToken, t]);
 
   useEffect(() => {
+    void ensureMobileE2EE();
     return scheduleMobilePairRefresh();
   }, []);
 

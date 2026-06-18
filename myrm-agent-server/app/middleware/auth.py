@@ -93,6 +93,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             trust_zone=admission_path_to_trust_zone(resolved_admission).value,
             local_trusted=is_local_trusted_admission(resolved_admission),
             query_string=request.url.query,
+            pair_token_override=getattr(request.state, "e2ee_pair_token", None),
         )
 
         if identity.user_id:

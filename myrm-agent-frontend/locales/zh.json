@@ -3045,7 +3045,9 @@
           "pwaTitle": "添加到主屏幕",
           "pwaHint": "在手机上安装 Web 应用，一键远程控制。",
           "pwaInstall": "安装应用",
-          "pwaInstalled": "已添加到主屏幕"
+          "pwaInstalled": "已添加到主屏幕",
+          "e2eeBadge": "端到端加密",
+          "e2eeHint": "隧道开启时，移动端链接自动启用端到端加密；配对令牌与实时流对隧道中继不可读。"
         }
       }
     },
@@ -11685,6 +11687,7 @@
     "loading": "正在加载活跃会话...",
     "empty": "当前没有运行中的 Agent。",
     "loadFailed": "加载活跃会话失败。",
+    "e2eeHandshakeFailed": "安全连接建立失败，请从设置页重新获取链接或检查网络。",
     "openFailed": "打开会话控制链接失败。",
     "opening": "正在打开…",
     "footer": "链接 1 小时后过期；若无法访问，请从设置页重新分享。",
