@@ -709,3 +709,38 @@ class TestGetActiveDesktopSession:
 
         result = gw.get_active_desktop_session()
         assert result is agent._desktop_session
+
+
+class TestDesktopSessionCloseOnStreamEnd:
+    """Verify that gateway finally block calls desktop session close()."""
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_called_on_stream_end(self) -> None:
+        gw = AgentGateway(_cfg())
+        close_called = False
+
+        class FakeDesktopSession:
+            async def close(self) -> None:
+                nonlocal close_called
+                close_called = True
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = FakeDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-close",
+            agent_instance=agent,
+        ):
+            events.append(event)
+
+        assert close_called, "desktop session close() should be called on stream end"
+        assert len(events) == 1
