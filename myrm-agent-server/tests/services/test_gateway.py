@@ -744,3 +744,86 @@ class TestDesktopSessionCloseOnStreamEnd:
 
         assert close_called, "desktop session close() should be called on stream end"
         assert len(events) == 1
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_called_even_on_error(self) -> None:
+        """close() must fire in finally even when the stream raises."""
+        gw = AgentGateway(_cfg())
+        close_called = False
+
+        class FakeDesktopSession:
+            async def close(self) -> None:
+                nonlocal close_called
+                close_called = True
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = FakeDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _failing_stream():
+            yield {"type": "partial"}
+            raise RuntimeError("agent exploded")
+
+        with pytest.raises(RuntimeError, match="agent exploded"):
+            async for _ in gw.execute_stream(
+                _failing_stream(),
+                agent_type="general",
+                session_id="test-close-err",
+                agent_instance=agent,
+            ):
+                pass
+
+        assert close_called, "desktop session close() must fire even on error"
+
+    @pytest.mark.asyncio
+    async def test_no_desktop_session_no_error(self) -> None:
+        """Stream without desktop session should not raise on cleanup."""
+        gw = AgentGateway(_cfg())
+
+        class FakeAgent:
+            pass
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-no-desktop",
+            agent_instance=agent,
+        ):
+            events.append(event)
+        assert len(events) == 1
+
+    @pytest.mark.asyncio
+    async def test_desktop_close_error_is_non_fatal(self) -> None:
+        """A failing close() must not propagate to the caller."""
+        gw = AgentGateway(_cfg())
+
+        class BadDesktopSession:
+            async def close(self) -> None:
+                raise OSError("pipe broken")
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._desktop_session = BadDesktopSession()
+
+        agent = FakeAgent()
+
+        async def _stream():
+            yield {"type": "done"}
+
+        events: list[dict[str, object]] = []
+        async for event in gw.execute_stream(
+            _stream(),
+            agent_type="general",
+            session_id="test-close-fail",
+            agent_instance=agent,
+        ):
+            events.append(event)
+        assert len(events) == 1
