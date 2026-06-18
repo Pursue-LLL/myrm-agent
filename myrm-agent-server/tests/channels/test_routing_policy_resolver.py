@@ -450,7 +450,7 @@ class TestGroupFollowUpExemption:
         """Test GroupFollowUpTracker TTL expiration and LRU eviction limits."""
         import asyncio
 
-        from app.channels.routing.policy_resolver import GroupFollowUpTracker
+        from app.channels.routing.policy_resolver_support import GroupFollowUpTracker
 
         # 1. Verify strict TTL expiration
         tracker = GroupFollowUpTracker(ttl_seconds=0.1, max_size=3)
