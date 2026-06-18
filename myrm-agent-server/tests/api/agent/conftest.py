@@ -133,7 +133,17 @@ def _build_mock_user_configs() -> object:
         retrieval_dict=retrieval_dict,
         personal_settings_dict=None,
         mcp_dict=None,
-        providers_dict={"providers": providers},
+        providers_dict={
+            "providers": providers,
+            "defaultModelConfig": {
+                "baseModel": {
+                    "primary": {
+                        "providerId": basic_pid,
+                        "model": basic_stripped,
+                    }
+                }
+            },
+        },
         security_config_dict={"yoloModeEnabled": False, "autoModeEnabled": False},
     )
 

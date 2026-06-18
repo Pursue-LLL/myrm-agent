@@ -2,13 +2,16 @@
 
 Tests that ephemeralSubagents configuration is correctly accepted and parsed
 by the backend API without errors.
+
+Requires a live LLM endpoint (BASIC_API_KEY + BASIC_MODEL in .env.test).
 """
 
 import json
-import os
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.fixture
@@ -17,15 +20,11 @@ async def async_client(app):
         yield client
 
 
-@pytest.mark.asyncio
 class TestSubagentGUIConfigE2E:
     """Test Subagent GUI configuration end-to-end."""
 
     async def test_ephemeral_subagent_config_accepted(self, async_client: AsyncClient):
         """Test ephemeral subagent configuration is accepted without errors."""
-        if not os.getenv("BASIC_API_KEY"):
-            pytest.skip("BASIC_API_KEY not configured")
-
         # Simulate frontend payload with ephemeralSubagents
         payload = {
             "messageId": "test-message-id-1",
@@ -64,9 +63,6 @@ class TestSubagentGUIConfigE2E:
 
     async def test_multiple_ephemeral_subagents_accepted(self, async_client: AsyncClient):
         """Test multiple ephemeral subagents are accepted without errors."""
-        if not os.getenv("BASIC_API_KEY"):
-            pytest.skip("BASIC_API_KEY not configured")
-
         payload = {
             "messageId": "test-message-id-2",
             "query": "Hello, please respond.",
@@ -101,9 +97,6 @@ class TestSubagentGUIConfigE2E:
 
     async def test_ephemeral_subagent_missing_display_name_accepted(self, async_client: AsyncClient):
         """Test ephemeral subagent without display_name is accepted (uses default)."""
-        if not os.getenv("BASIC_API_KEY"):
-            pytest.skip("BASIC_API_KEY not configured")
-
         payload = {
             "messageId": "test-message-id-3",
             "query": "Hello, please respond.",
@@ -133,9 +126,6 @@ class TestSubagentGUIConfigE2E:
 
     async def test_ephemeral_subagent_empty_theme_color_accepted(self, async_client: AsyncClient):
         """Test ephemeral subagent with empty theme_color is accepted."""
-        if not os.getenv("BASIC_API_KEY"):
-            pytest.skip("BASIC_API_KEY not configured")
-
         payload = {
             "messageId": "test-message-id-4",
             "query": "Hello, please respond.",
