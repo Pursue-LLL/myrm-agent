@@ -6174,7 +6174,7 @@
     "autoExtraction": "自动提取记忆",
     "autoExtractionDesc": "开启后，使用轻量模型自动从会话内容中提取用户记忆。此功能可能消耗较多 token。",
     "incognitoMode": "无痕模式",
-    "incognitoModeDesc": "开启后，AI 将无法读取您的全局记忆，也不会自动提取新记忆。当前对话结束后记忆将销毁。",
+    "incognitoModeDesc": "开启后，AI 仍可回忆您的记忆，但不会保存新记忆。对话结束后不留任何痕迹。",
     "preCompactEnabled": "压缩前记忆召回",
     "preCompactEnabledDesc": "上下文压缩前，自动从持久记忆库召回相关约束并注入当前对话。",
     "preCompactBudget": "召回 token 预算",

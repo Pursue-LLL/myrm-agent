@@ -44,3 +44,24 @@ class TestCancelChatEndpoint:
         assert body["data"]["chat_id"] == "chat-active"
         gateway.interrupt_session.assert_called_once_with("chat-active")
         mock_cancel.assert_called_once_with("msg-active", CancelReason.USER_CANCELLED)
+
+    def test_cancel_interrupt_only_without_message_id(self, client: TestClient) -> None:
+        """Attach streams may have no registry message_id; interrupt alone must succeed."""
+        with patch(
+            "app.services.agent.gateway.get_agent_gateway",
+        ) as mock_get_gateway:
+            gateway = mock_get_gateway.return_value
+            gateway.get_active_message_id.return_value = None
+            gateway.interrupt_session.return_value = True
+            with patch(
+                "app.api.agents.general_agent.streaming.CancellationRegistry.cancel",
+            ) as mock_cancel:
+                resp = client.post("/api/v1/agents/chats/chat-attach/cancel")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is True
+        assert body["data"]["cancelled"] is True
+        assert body["data"]["message_id"] is None
+        gateway.interrupt_session.assert_called_once_with("chat-attach")
+        mock_cancel.assert_not_called()

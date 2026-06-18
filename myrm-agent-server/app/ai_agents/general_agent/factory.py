@@ -178,6 +178,15 @@ async def build_general_agent(
     memory_binding = context_assembly.binding
     if memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(tools, deferred_tools, memory_binding)
+
+    # Incognito mode: wrap memory with read-only view and remove write tools
+    if agent_wrapper.incognito_mode and memory_manager is not None:
+        from myrm_agent_harness.toolkits.memory.ephemeral import ReadOnlyMemoryView
+
+        memory_manager = ReadOnlyMemoryView(memory_manager)
+        tools[:] = [t for t in tools if getattr(t, "name", "") not in ("memory_save_tool", "memory_manage_tool")]
+        logger.info("Incognito mode: memory wrapped as read-only, write tools removed")
+
     if agent_wrapper.enable_memory:
         from app.ai_agents.general_agent.conversation_search_setup import (
             append_conversation_search_tool,
@@ -302,7 +311,7 @@ async def build_general_agent(
     pre_compact_cb = pre_compact_ext.build_pre_compact_callback()
 
     archive_checkpoint_ext = ArchiveCheckpointMemoryExtension(
-        enabled=agent_wrapper.enable_memory,
+        enabled=agent_wrapper.enable_memory and not agent_wrapper.incognito_mode,
         is_subagent=getattr(agent_wrapper, "is_subagent", False),
         channel_name=agent_wrapper.channel_name,
         memory_manager=memory_manager,
@@ -409,7 +418,7 @@ async def build_general_agent(
     system_prompt = get_core_system_prompt(
         mode=agent_wrapper.prompt_mode,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
-        enable_memory=agent_wrapper.enable_memory,
+        enable_memory=agent_wrapper.enable_memory and not agent_wrapper.incognito_mode,
     )
 
     if agent_wrapper.prompt_mode == "search" and getattr(agent_wrapper, "search_depth", "normal") == "deep":
@@ -852,7 +861,7 @@ def _build_session_cleanup_callback(
     user_id: str,
 ) -> "Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None":
     """Build a composite session cleanup callback (commitment + correction propagation)."""
-    if not agent_wrapper.enable_memory:
+    if not agent_wrapper.enable_memory or agent_wrapper.incognito_mode:
         return None
 
     lite_llm = agent_wrapper._lite_llm

@@ -83,16 +83,18 @@ export function useGlobalEvents(): void {
 
       if (payload.type === 'pairing_pending') {
         const channel = String(payload.data.channel ?? '');
+        const senderId = String(payload.data.sender_id ?? '');
         const displayName = payload.data.display_name ? String(payload.data.display_name) : '';
-        const sender = displayName || String(payload.data.sender_id ?? '');
+        const sender = displayName || senderId;
+        const toastId = `pairing-pending-${channel}-${senderId}`;
         toast.info(t('pairingPending', { channel, sender }), {
-          id: 'pairing-pending',
+          id: toastId,
           duration: 30_000,
           dismissible: true,
           action: {
             label: t('goToApproval'),
             onClick: () => {
-              toast.dismiss('pairing-pending');
+              toast.dismiss(toastId);
               router.push('/settings/channels');
             },
           },

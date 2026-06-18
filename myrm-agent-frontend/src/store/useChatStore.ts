@@ -300,7 +300,12 @@ const useChatStore = create<ChatState>()(
                   showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
                 }
               } else {
-                showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+                try {
+                  await cancelActiveChatAgent(chatId);
+                  showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+                } catch {
+                  showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
+                }
               }
             })();
             abortController.abort();

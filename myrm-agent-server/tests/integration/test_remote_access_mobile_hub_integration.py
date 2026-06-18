@@ -75,8 +75,9 @@ async def active_chat_with_collector() -> AsyncIterator[str]:
     gateway = get_agent_gateway()
 
     async def long_stream() -> AsyncIterator[dict[str, object]]:
-        await asyncio.sleep(120)
-        yield {"type": "message", "data": "ping"}
+        for _ in range(2400):
+            await asyncio.sleep(0.05)
+            yield {"type": "message", "data": "ping"}
 
     async def consume_gateway() -> None:
         async for _ in gateway.execute_stream(long_stream(), agent_type="general", session_id=chat_id):
@@ -273,3 +274,32 @@ class TestMobileHubIntegration:
             headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
         )
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_scoped_pair_cancel_interrupts_real_gateway_session(
+        self,
+        integration_client: TestClient,
+        active_chat_with_collector: str,
+    ) -> None:
+        """Full chain: scoped pair token → chat cancel → real gateway interrupt (no mocks)."""
+        chat_id = active_chat_with_collector
+        scoped_token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+        gateway = get_agent_gateway()
+
+        cancel_response = integration_client.post(
+            f"/api/v1/agents/chats/{chat_id}/cancel",
+            headers={**_REMOTE_HEADERS, "X-Pair-Token": scoped_token},
+        )
+        assert cancel_response.status_code == 200
+        body = cancel_response.json()
+        assert body["success"] is True
+        assert body["data"]["cancelled"] is True
+        assert body["data"]["chat_id"] == chat_id
+
+        for _ in range(50):
+            sessions = gateway.get_active_sessions()
+            if not any(str(item.get("chatId")) == chat_id for item in sessions):
+                break
+            await asyncio.sleep(0.02)
+        else:
+            raise AssertionError(f"Gateway session still active after cancel for {chat_id}")

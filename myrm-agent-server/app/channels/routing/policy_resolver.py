@@ -47,6 +47,30 @@ logger = logging.getLogger(__name__)
 ChannelLookup = Callable[[str], object | None]
 
 _PENDING_REPLY_COOLDOWN = 300.0  # seconds between repeated pending replies per sender
+_PENDING_REPLY_MAX_SIZE = 10000
+
+
+class _BoundedCooldownMap:
+    """Bounded map with TTL for rate-limiting, preventing unbounded memory growth under spam."""
+
+    __slots__ = ("_ttl", "_max_size", "_entries")
+
+    def __init__(self, ttl: float = _PENDING_REPLY_COOLDOWN, max_size: int = _PENDING_REPLY_MAX_SIZE) -> None:
+        self._ttl = ttl
+        self._max_size = max_size
+        self._entries: dict[str, float] = {}
+
+    def should_suppress(self, key: str) -> bool:
+        """Return True if the key is still within cooldown (suppress the action)."""
+        now = time.monotonic()
+        last = self._entries.get(key)
+        if last is not None and now - last < self._ttl:
+            return True
+        if len(self._entries) >= self._max_size:
+            oldest_key = min(self._entries, key=lambda k: self._entries[k])
+            self._entries.pop(oldest_key, None)
+        self._entries[key] = now
+        return False
 
 
 class GroupFollowUpTracker:
@@ -109,7 +133,7 @@ class PolicyResolver:
         self._context_buffer = context_buffer
         self._fx = fx
         self._get_channel = get_channel
-        self._pending_reply_at: dict[str, float] = {}
+        self._cooldown = _BoundedCooldownMap()
         # Thread-Aware active multiround follower-up tracker
         self._tracker = GroupFollowUpTracker(ttl_seconds=600.0, max_size=1000)
 
@@ -376,15 +400,12 @@ class PolicyResolver:
         )
         logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
         await self._fx.send_pairing_request_reply(msg)
-        self._pending_reply_at[f"{msg.channel}:{msg.sender_id}"] = time.monotonic()
+        self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
         return None
 
     async def _rate_limited_pending_reply(self, msg: InboundMessage) -> None:
         """Send pending reply at most once per _PENDING_REPLY_COOLDOWN per sender."""
         key = f"{msg.channel}:{msg.sender_id}"
-        now = time.monotonic()
-        last = self._pending_reply_at.get(key, 0.0)
-        if now - last < _PENDING_REPLY_COOLDOWN:
+        if self._cooldown.should_suppress(key):
             return
-        self._pending_reply_at[key] = now
         await self._fx.send_pending_reply(msg)

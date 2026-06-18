@@ -6171,7 +6171,7 @@
     "autoExtraction": "Auto-Extract Memories",
     "autoExtractionDesc": "When enabled, a lightweight model automatically extracts memories from conversations. This may consume additional tokens.",
     "incognitoMode": "Incognito Mode",
-    "incognitoModeDesc": "When enabled, AI cannot read your global memories, nor will it extract new ones. Memories are destroyed after the conversation.",
+    "incognitoModeDesc": "When enabled, AI can still recall your memories but will not save new ones. No traces are left after the conversation.",
     "preCompactEnabled": "Pre-Compaction Memory Recall",
     "preCompactEnabledDesc": "Before context compression, automatically recall relevant durable memories into the active conversation.",
     "preCompactBudget": "Recall token budget",

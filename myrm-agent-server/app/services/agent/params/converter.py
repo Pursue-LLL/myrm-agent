@@ -854,7 +854,7 @@ async def convert_to_general_agent_params(
         browser_source=browser_source,
         dialog_policy=dialog_policy,
         session_recording=session_recording,
-        enable_memory=False if request.incognito_mode else request.enable_memory,
+        enable_memory=request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
         enable_memory_auto_extraction=False
         if request.incognito_mode

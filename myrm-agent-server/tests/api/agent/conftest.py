@@ -366,5 +366,11 @@ def _clear_agent_test_process_state() -> None:
 def _reset_agent_test_singletons():
     """Reset process-level singletons that leak across agent API tests."""
     _clear_agent_test_process_state()
+
+    from langgraph.checkpoint.memory import MemorySaver
+
+    from app.platform_utils import set_checkpointer
+
+    set_checkpointer(MemorySaver())
     yield
     _clear_agent_test_process_state()
