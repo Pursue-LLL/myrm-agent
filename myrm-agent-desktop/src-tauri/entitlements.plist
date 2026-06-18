@@ -14,8 +14,9 @@
           - Cloudflared tunnel binary loading
 
         Keep this list minimal: each entitlement triggers Apple notary review.
-        TCC permissions (screen recording, accessibility, microphone) are
-        granted by users at first-use prompt, not via this plist.
+        TCC permissions (screen recording, accessibility) are granted by
+        users via System Settings, not via this plist. Microphone requires
+        the audio-input entitlement below to trigger the TCC prompt.
     -->
 
     <!-- WebView V8 engine -->
@@ -32,6 +33,10 @@
 
     <!-- osascript / System Events for Appshot window text extraction -->
     <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Microphone for voice input (pairs with NSMicrophoneUsageDescription) -->
+    <key>com.apple.security.device.audio-input</key>
     <true/>
 </dict>
 </plist>

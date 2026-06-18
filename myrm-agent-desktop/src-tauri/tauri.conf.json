@@ -33,7 +33,11 @@
       "hardenedRuntime": true,
       "entitlements": "entitlements.plist",
       "exceptionDomain": "",
-      "providerShortName": null
+      "providerShortName": null,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "MyrmAgent needs microphone access for voice input.",
+        "NSAppleEventsUsageDescription": "MyrmAgent uses Apple Events to extract window text for the Appshot feature."
+      }
     },
     "windows": {
       "digestAlgorithm": "sha256",

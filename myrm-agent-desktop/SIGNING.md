@@ -98,7 +98,7 @@ Without these entitlements, Apple Notary Service still signs successfully but **
 
 > Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. Python sidecar and Node Agent Runner are signed independently by `tauri-action` during bundling; the embedded binaries are co-signed using the same Developer ID so they pass Gatekeeper on launch.
 
-TCC permissions (screen recording, accessibility, microphone) are **not** declared here — they are granted by the user at first-use prompt.
+TCC permissions (screen recording, accessibility, microphone) are **not** declared here — they are granted by the user at first-use prompt. `tauri.conf.json#bundle.macOS.extendInfo` provides `NSMicrophoneUsageDescription` and `NSAppleEventsUsageDescription` so the macOS TCC dialog shows a clear usage reason when the permission prompt appears.
 
 ### Verify locally before pushing the tag
 
@@ -136,28 +136,31 @@ The step **fails the build** if any check fails. Verification log is uploaded as
 
 ## Windows — Authenticode (Azure Trusted Signing preferred)
 
-### Priority Order
+### How Windows Signing Works
 
-`tauri-action` evaluates Windows signing secrets in this order:
+Tauri v2 supports two mechanisms for Windows code signing. Neither is automatic — both require explicit CI workflow steps beyond setting environment variables.
 
-1. **Azure Trusted Signing** — used when `AZURE_TENANT_ID` + `AZURE_CLIENT_ID` + `AZURE_CLIENT_SECRET` + `AZURE_TRUSTED_SIGNING_ENDPOINT` + `AZURE_TRUSTED_SIGNING_ACCOUNT` + `AZURE_TRUSTED_SIGNING_CERT_PROFILE` are **all** present.
-2. **Authenticode PFX** — fallback when `WINDOWS_CERTIFICATE` + `WINDOWS_CERTIFICATE_PASSWORD` are present.
+1. **`signCommand`** — Tauri invokes a custom command for every binary and installer. Use this for Azure Trusted Signing or any HSM/cloud-based signing tool.
+2. **PFX certificate import** — Import a `.pfx` into the Windows certificate store, then configure `certificateThumbprint` in `tauri.conf.json`. Tauri's bundler uses `signtool.exe` with the installed certificate.
 3. **No signing** — workflow still builds an unsigned `.exe`/`.msi`.
 
-If both Azure and PFX secrets are set, Azure wins. Keep both available only during migration windows; remove unused secrets to avoid confusion.
+### Option A — Azure Trusted Signing (recommended)
 
-### Option A — Azure Trusted Signing (recommended, priority 1)
-
-Private key lives in Azure Key Vault HSM. Workflow obtains short-lived signing tokens via service principal.
+Private key lives in Azure Key Vault HSM. The workflow installs a signing CLI and configures Tauri's `signCommand`.
 
 1. Subscribe to [Azure Trusted Signing] (≈ $9.99/month base).
 2. Create an Azure AD service principal with `Trusted Signing Certificate Profile Signer` role.
-3. Set the six `AZURE_*` secrets above.
-4. `tauri-action` v0 detects them and signs `.exe`/`.msi` via `azuresigntool`.
+3. Set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` as repo secrets (the CLI reads these automatically).
+4. Add a CI step to install the signing CLI: `cargo install trusted-signing-cli`.
+5. Add a CI step to inject `signCommand` into `tauri.conf.json` before building:
+   ```json
+   { "bundle": { "windows": { "signCommand": "trusted-signing-cli -e <ENDPOINT> -a <ACCOUNT> -c <PROFILE> %1" } } }
+   ```
+6. The `tauri build` command invokes the `signCommand` for every `.exe` and `.msi` artifact.
 
 [Azure Trusted Signing]: https://learn.microsoft.com/en-us/azure/trusted-signing/
 
-### Option B — Authenticode PFX (fallback, priority 2)
+### Option B — Authenticode PFX (fallback)
 
 Order a **code signing certificate** from a CA Microsoft trusts (DigiCert, Sectigo, SSL.com, …). EV certs avoid SmartScreen reputation ramp; OV certs work but warn until enough installs build trust.
 
@@ -172,6 +175,25 @@ base64 -w0 myrmagent.pfx > myrmagent.pfx.b64
 ```
 
 Set `WINDOWS_CERTIFICATE` to the base64 contents and `WINDOWS_CERTIFICATE_PASSWORD` to the PFX passphrase.
+
+Add a CI step **before** `tauri-action` to import the certificate into the Windows certificate store:
+
+```yaml
+- name: Import Windows certificate
+  if: env.WINDOWS_CERTIFICATE != ''
+  env:
+    WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+    WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+  shell: pwsh
+  run: |
+    $cert = [IO.Path]::Combine($env:RUNNER_TEMP, 'myrmagent.pfx')
+    [IO.File]::WriteAllBytes($cert, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+    Import-PfxCertificate -FilePath $cert -CertStoreLocation Cert:\CurrentUser\My `
+      -Password (ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+    Remove-Item $cert
+```
+
+Then set `certificateThumbprint` in `tauri.conf.json` under `bundle.windows` to the SHA-1 thumbprint of the imported certificate.
 
 ### Timestamp Server (mandatory)
 
