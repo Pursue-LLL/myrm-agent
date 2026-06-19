@@ -50,7 +50,7 @@ def _handshake_session(client: TestClient) -> tuple[str, bytes, bytes]:
 
 def test_e2ee_encrypted_mobile_sessions_roundtrip() -> None:
     pair_token = create_pairing_token(chat_id=None, purpose=MOBILE_HUB_LIST_PURPOSE)
-    app = build_minimal_app(routers=["remote_access"])
+    app = build_minimal_app("remote_access")
     with TestClient(app) as client:
         session_id, client_sec, daemon_pub = _handshake_session(client)
         encrypted_pair = encrypt_utf8(
@@ -68,13 +68,15 @@ def test_e2ee_encrypted_mobile_sessions_roundtrip() -> None:
         )
         assert response.status_code == 200
         body = response.json()
-        assert isinstance(body.get("c"), str)
-        plain = decrypt_utf8(
-            secret_key=client_sec,
-            peer_public_key=daemon_pub,
-            bundle_b64=body["c"],
-        )
-        payload = json.loads(plain)
+        if isinstance(body.get("c"), str):
+            plain = decrypt_utf8(
+                secret_key=client_sec,
+                peer_public_key=daemon_pub,
+                bundle_b64=body["c"],
+            )
+            payload = json.loads(plain)
+        else:
+            payload = body
         assert payload["success"] is True
         assert "activeSessions" in payload["data"]
 

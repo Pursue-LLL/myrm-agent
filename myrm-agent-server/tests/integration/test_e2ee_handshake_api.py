@@ -10,7 +10,7 @@ from app.remote_access.e2ee_crypto import generate_keypair, public_key_b64
 
 
 def test_e2ee_public_key_and_handshake() -> None:
-    app = build_minimal_app(routers=["remote_access"])
+    app = build_minimal_app("remote_access")
     with TestClient(app) as client:
         pub_resp = client.get("/api/v1/remote-access/e2ee/public-key")
         assert pub_resp.status_code == 200
