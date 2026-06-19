@@ -4,13 +4,18 @@ Implements the harness CompletionVerifier protocol. Determines whether a
 task truly completed its stated objective before allowing the dispatcher
 to mark it as COMPLETED.
 
-Verification strategy:
-1. Task has `metadata["completion_criteria"]` → build ad-hoc LLM semantic judge
-2. No criteria configured → skip verification (pass-through)
+Verification strategy (layered):
+1. No criteria configured → skip verification (pass-through)
+2. Structured criteria list → execute shell + semantic criteria in order
+   - Shell criteria run first (zero LLM cost, objective check)
+   - Any shell failure → immediate reject (skip semantic)
+   - Semantic criteria → LLM judge (only if all shell criteria pass)
+3. Plain-text criteria → LLM semantic judge only
 
 [INPUT]
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask (POS: Domain entity)
 - myrm_agent_harness.agent.goals.verification.base::VerificationResult (POS: Result type)
+- myrm_agent_harness.agent.goals.verification.shell::ShellCriterion (POS: Sandbox shell verifier)
 
 [OUTPUT]
 - KanbanCompletionVerifier: Server-side CompletionVerifier implementation.
@@ -26,6 +31,7 @@ import logging
 import re
 
 from myrm_agent_harness.agent.goals.verification.base import VerificationResult
+from myrm_agent_harness.agent.goals.verification.shell import ShellCriterion
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
 logger = logging.getLogger(__name__)
@@ -74,34 +80,90 @@ def _normalize_done(obj: dict[str, object]) -> dict[str, object]:
     return obj
 
 
+def _parse_criteria(
+    raw: object,
+) -> tuple[list[dict[str, object]], list[str]]:
+    """Parse completion_criteria into (shell_configs, semantic_texts).
+
+    Supports two formats:
+    - Plain string: treated as a single semantic criterion
+    - Structured list: ``[{"type": "shell", "command": "..."}, {"type": "semantic", "criteria": "..."}]``
+    """
+    if isinstance(raw, str) and raw.strip():
+        return [], [raw.strip()]
+
+    if not isinstance(raw, list) or not raw:
+        return [], []
+
+    shell_configs: list[dict[str, object]] = []
+    semantic_texts: list[str] = []
+
+    for item in raw:
+        if isinstance(item, str):
+            if item.strip():
+                semantic_texts.append(item.strip())
+            continue
+        if not isinstance(item, dict):
+            continue
+        crit_type = item.get("type", "")
+        if crit_type == "shell":
+            command = item.get("command")
+            if isinstance(command, str) and command.strip():
+                shell_configs.append(item)
+        elif crit_type == "semantic":
+            criteria = item.get("criteria")
+            if isinstance(criteria, str) and criteria.strip():
+                semantic_texts.append(criteria.strip())
+
+    return shell_configs, semantic_texts
+
+
 class KanbanCompletionVerifier:
     """Server-side implementation of the CompletionVerifier protocol.
 
-    Uses the WebUI default model via platform_config for LLM judge calls.
+    Layered verification: shell criteria first (objective, zero LLM cost),
+    then semantic criteria (LLM judge) only when shell criteria all pass.
     """
 
     async def verify(self, task: KanbanTask, result: str) -> VerificationResult:
-        """Verify task completion.
-
-        Returns VerificationResult(passed=True) when:
-        - Task has no completion_criteria configured (skip verification)
-        - LLM judge confirms the task is done
-        """
-        criteria = self._get_criteria(task)
-        if not criteria:
+        """Verify task completion with layered shell + semantic strategy."""
+        raw = task.metadata.get("completion_criteria")
+        if raw is None:
             return VerificationResult(passed=True)
 
-        return await self._judge_completion(task, result, criteria)
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        if not shell_configs and not semantic_texts:
+            return VerificationResult(passed=True)
 
-    @staticmethod
-    def _get_criteria(task: KanbanTask) -> str | None:
-        """Extract completion criteria from task metadata."""
-        raw = task.metadata.get("completion_criteria")
-        if isinstance(raw, str) and raw.strip():
-            return raw.strip()
-        if isinstance(raw, list) and raw:
-            parts = [str(item) for item in raw if item]
-            return "; ".join(parts) if parts else None
+        shell_failure = await self._run_shell_criteria(shell_configs)
+        if shell_failure is not None:
+            return shell_failure
+
+        if semantic_texts:
+            combined = "; ".join(semantic_texts)
+            return await self._judge_completion(task, result, combined)
+
+        return VerificationResult(passed=True)
+
+    async def _run_shell_criteria(
+        self,
+        configs: list[dict[str, object]],
+    ) -> VerificationResult | None:
+        """Execute shell criteria in order. Returns first failure or None."""
+        for cfg in configs:
+            command = str(cfg.get("command", ""))
+            try:
+                timeout = int(cfg.get("timeout_seconds", 60))
+            except (TypeError, ValueError):
+                timeout = 60
+            criterion = ShellCriterion(command=command, timeout_seconds=timeout)
+            vr = await criterion.verify()
+            if not vr.passed:
+                return VerificationResult(
+                    passed=False,
+                    reason=f"Shell verification failed: {command}",
+                    error_logs=vr.error_logs,
+                )
         return None
 
     async def _judge_completion(
@@ -162,7 +224,12 @@ class KanbanCompletionVerifier:
                 return VerificationResult(passed=False, reason=reason)
 
             lower = raw.lower()
-            if lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower:
+            is_pass = (
+                lower.startswith("pass")
+                or '"done": true' in lower
+                or '"done":true' in lower
+            )
+            if is_pass:
                 return VerificationResult(passed=True, reason=raw)
             return VerificationResult(passed=False, reason=raw)
 

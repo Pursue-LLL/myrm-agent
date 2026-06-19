@@ -129,7 +129,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         max_retries: int = 3,
         depends_on: list[str] | None = None,
         extra_skill_ids: list[str] | None = None,
-        completion_criteria: str | None = None,
+        completion_criteria: str | list[dict[str, str | int]] | None = None,
         initial_status: TaskStatus | None = None,
         max_runtime_seconds: int | None = None,
         workspace_path: str | None = None,
@@ -166,7 +166,7 @@ class KanbanBoardTaskMixin(KanbanServiceCore):
         agent_id: str | None | Sentinel = UNSET,
         extra_skill_ids: list[str] | None | Sentinel = UNSET,
         max_runtime_seconds: int | None | Sentinel = UNSET,
-        completion_criteria: str | None = None,
+        completion_criteria: str | list[dict[str, str | int]] | None = None,
         result: str | None = None,
         metadata: dict[str, object] | None = None,
     ) -> KanbanTask | None:

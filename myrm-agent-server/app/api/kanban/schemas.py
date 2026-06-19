@@ -98,10 +98,14 @@ class TaskCreate(BaseModel):
         max_length=10,
         description="File IDs from /api/files/upload to attach to this task (max 10).",
     )
-    completion_criteria: str | None = Field(
+    completion_criteria: str | list[dict[str, str | int]] | None = Field(
         None,
-        max_length=2000,
-        description="Natural-language acceptance criteria for completion verification",
+        description=(
+            "Acceptance criteria for completion verification. "
+            "Plain string for semantic-only check, or structured list: "
+            '[{"type": "shell", "command": "test -f /output.csv"}, '
+            '{"type": "semantic", "criteria": "report includes all data"}]'
+        ),
     )
     max_runtime_seconds: int | None = Field(
         None,
@@ -135,10 +139,13 @@ class TaskUpdate(BaseModel):
         le=86400,
         description="Per-task timeout in seconds (10s–24h).",
     )
-    completion_criteria: str | None = Field(
+    completion_criteria: str | list[dict[str, str | int]] | None = Field(
         None,
-        max_length=2000,
-        description="Natural-language acceptance criteria for completion verification",
+        description=(
+            "Acceptance criteria for completion verification. "
+            "Plain string for semantic-only check, or structured list: "
+            '[{"type": "shell", "command": "..."}, {"type": "semantic", "criteria": "..."}]'
+        ),
     )
     result: str | None = Field(
         None,
@@ -323,7 +330,7 @@ class TaskResponse(BaseModel):
     attachment_ids: list[str] = []
     attachments: list[AttachmentInfo] = []
     max_runtime_seconds: int | None = None
-    completion_criteria: str | None = None
+    completion_criteria: str | list[dict[str, str | int]] | None = None
     dep_count: int = 0
     children_total: int = 0
     children_done: int = 0

@@ -46,6 +46,7 @@ myrm_agent_harness.agent.goals.steering_prompts
 myrm_agent_harness.agent.goals.storage
 myrm_agent_harness.agent.goals.types
 myrm_agent_harness.agent.goals.verification.base
+myrm_agent_harness.agent.goals.verification.shell
 myrm_agent_harness.agent.meta_tools.bash._background_registry
 myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service

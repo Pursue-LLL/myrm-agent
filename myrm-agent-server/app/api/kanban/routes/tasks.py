@@ -95,7 +95,7 @@ async def list_tasks(
             attachment_ids=att_ids,
             attachments=attachments,
             max_runtime_seconds=t.max_runtime_seconds,
-            completion_criteria=criteria if isinstance(criteria, str) else None,
+            completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
             created_at=t.created_at,
             updated_at=t.updated_at,
             completed_at=t.completed_at,

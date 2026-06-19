@@ -166,7 +166,7 @@ async def _task_to_response(
         attachment_ids=ids,
         attachments=attachments,
         max_runtime_seconds=task.max_runtime_seconds,
-        completion_criteria=criteria if isinstance(criteria, str) else None,
+        completion_criteria=criteria if isinstance(criteria, (str, list)) else None,
         created_at=task.created_at,
         updated_at=task.updated_at,
         completed_at=task.completed_at,

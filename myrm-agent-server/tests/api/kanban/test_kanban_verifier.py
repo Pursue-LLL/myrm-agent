@@ -15,6 +15,7 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskStatus
 from app.core.kanban.verifier import (
     KanbanCompletionVerifier,
     _normalize_done,
+    _parse_criteria,
     _parse_judge_json,
 )
 
@@ -77,7 +78,7 @@ class TestNormalizeDone:
 
 
 def _make_task(
-    criteria: str | None = None,
+    criteria: str | list[dict[str, str | int]] | None = None,
     title: str = "Test task",
     description: str = "",
 ) -> KanbanTask:
@@ -114,12 +115,103 @@ class TestKanbanCompletionVerifier:
         result = await verifier.verify(_make_task(criteria="  "), "done")
         assert result.passed is True
 
+    def test_list_string_criteria_parsed_as_semantic(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria(["step A done", "step B done"])
+        assert shell_configs == []
+        assert semantic_texts == ["step A done", "step B done"]
+
+    def test_structured_criteria_parsed(self) -> None:
+        raw = [
+            {"type": "shell", "command": "test -f /output.csv"},
+            {"type": "semantic", "criteria": "report is complete"},
+        ]
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        assert len(shell_configs) == 1
+        assert shell_configs[0]["command"] == "test -f /output.csv"
+        assert semantic_texts == ["report is complete"]
+
+    def test_plain_string_criteria_parsed(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria("must pass all tests")
+        assert shell_configs == []
+        assert semantic_texts == ["must pass all tests"]
+
+    def test_empty_criteria_parsed(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria("")
+        assert shell_configs == []
+        assert semantic_texts == []
+
+    def test_none_criteria_parsed(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria(None)
+        assert shell_configs == []
+        assert semantic_texts == []
+
+    def test_invalid_type_ignored(self) -> None:
+        raw = [{"type": "unknown", "command": "echo hi"}]
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        assert shell_configs == []
+        assert semantic_texts == []
+
+    def test_empty_command_shell_ignored(self) -> None:
+        raw = [{"type": "shell", "command": ""}]
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        assert shell_configs == []
+
+    def test_mixed_valid_and_invalid_items(self) -> None:
+        raw = [
+            {"type": "shell", "command": "ls"},
+            {"type": "invalid"},
+            42,
+            {"type": "semantic", "criteria": "ok"},
+            {"type": "shell", "command": "  "},
+        ]
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        assert len(shell_configs) == 1
+        assert shell_configs[0]["command"] == "ls"
+        assert semantic_texts == ["ok"]
+
+    def test_empty_list_criteria(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria([])
+        assert shell_configs == []
+        assert semantic_texts == []
+
+    def test_whitespace_only_string_criteria(self) -> None:
+        shell_configs, semantic_texts = _parse_criteria("   \n\t  ")
+        assert shell_configs == []
+        assert semantic_texts == []
+
+    def test_semantic_with_empty_criteria_ignored(self) -> None:
+        raw = [{"type": "semantic", "criteria": ""}]
+        shell_configs, semantic_texts = _parse_criteria(raw)
+        assert semantic_texts == []
+
     @pytest.mark.asyncio
-    async def test_list_criteria_joined(self) -> None:
+    @patch("app.core.kanban.verifier.ShellCriterion")
+    async def test_shell_timeout_non_numeric_defaults_to_60(self, mock_shell_cls: AsyncMock) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import VerificationResult as VR
+
+        mock_instance = AsyncMock()
+        mock_instance.verify.return_value = VR(passed=True)
+        mock_shell_cls.return_value = mock_instance
+
         task = _make_task()
-        task.metadata["completion_criteria"] = ["step A done", "step B done"]
-        criteria = KanbanCompletionVerifier._get_criteria(task)
-        assert criteria == "step A done; step B done"
+        task.metadata["completion_criteria"] = [
+            {"type": "shell", "command": "echo ok", "timeout_seconds": "not_a_number"},
+        ]
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "done")
+        assert result.passed is True
+        mock_shell_cls.assert_called_once_with(command="echo ok", timeout_seconds=60)
+
+    @pytest.mark.asyncio
+    @patch("app.services.agent.platform_config.build_platform_litellm_kwargs", new_callable=AsyncMock, return_value={})
+    @patch("litellm.acompletion", new_callable=AsyncMock)
+    async def test_empty_response_no_reasoning_fails(self, mock_llm: AsyncMock, _mock_cfg: AsyncMock) -> None:
+        mock_llm.return_value = SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content=""))],
+        )
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(_make_task(criteria="check"), "done")
+        assert result.passed is False
 
     @pytest.mark.asyncio
     @patch("app.services.agent.platform_config.build_platform_litellm_kwargs", new_callable=AsyncMock, return_value={})
@@ -226,3 +318,73 @@ class TestKanbanCompletionVerifier:
         call_args = mock_llm.call_args
         user_msg = call_args.kwargs["messages"][1]["content"]
         assert len(user_msg) < 3100
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.kanban.verifier.ShellCriterion",
+    )
+    async def test_shell_criteria_failure_skips_llm(self, mock_shell_cls: AsyncMock) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import VerificationResult
+
+        mock_instance = AsyncMock()
+        mock_instance.verify.return_value = VerificationResult(
+            passed=False,
+            reason="file not found",
+            error_logs="exit code 1",
+        )
+        mock_shell_cls.return_value = mock_instance
+
+        task = _make_task()
+        task.metadata["completion_criteria"] = [
+            {"type": "shell", "command": "test -f /missing.csv"},
+            {"type": "semantic", "criteria": "data is complete"},
+        ]
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "done")
+        assert result.passed is False
+        assert "Shell verification failed" in (result.reason or "")
+
+    @pytest.mark.asyncio
+    @patch("app.services.agent.platform_config.build_platform_litellm_kwargs", new_callable=AsyncMock, return_value={})
+    @patch("litellm.acompletion", new_callable=AsyncMock)
+    @patch("app.core.kanban.verifier.ShellCriterion")
+    async def test_shell_pass_then_semantic(
+        self,
+        mock_shell_cls: AsyncMock,
+        mock_llm: AsyncMock,
+        _mock_cfg: AsyncMock,
+    ) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import VerificationResult as VR
+
+        mock_instance = AsyncMock()
+        mock_instance.verify.return_value = VR(passed=True)
+        mock_shell_cls.return_value = mock_instance
+
+        mock_llm.return_value = _mock_llm_response('{"done": true, "reason": "all good"}')
+
+        task = _make_task()
+        task.metadata["completion_criteria"] = [
+            {"type": "shell", "command": "test -f /output.csv"},
+            {"type": "semantic", "criteria": "report is complete"},
+        ]
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "done")
+        assert result.passed is True
+        mock_llm.assert_called_once()
+
+    @pytest.mark.asyncio
+    @patch("app.core.kanban.verifier.ShellCriterion")
+    async def test_shell_only_criteria_passes(self, mock_shell_cls: AsyncMock) -> None:
+        from myrm_agent_harness.agent.goals.verification.base import VerificationResult as VR
+
+        mock_instance = AsyncMock()
+        mock_instance.verify.return_value = VR(passed=True)
+        mock_shell_cls.return_value = mock_instance
+
+        task = _make_task()
+        task.metadata["completion_criteria"] = [
+            {"type": "shell", "command": "test -f /output.csv"},
+        ]
+        verifier = KanbanCompletionVerifier()
+        result = await verifier.verify(task, "done")
+        assert result.passed is True
