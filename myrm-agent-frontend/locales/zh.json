@@ -65,7 +65,22 @@
     "statusConverged": "已收敛完成",
     "statusLoopRestart": "重启中",
     "queueTitle": "排队中的目标",
-    "cancelQueued": "取消此排队目标"
+    "cancelQueued": "取消此排队目标",
+    "budgetSection": "预算限制",
+    "maxUsdLabel": "最大花费 ($)",
+    "maxUsdPlaceholder": "如: 5.00",
+    "maxTimeLabel": "最长时间 (分钟)",
+    "maxTimePlaceholder": "如: 60",
+    "maxTurnsLabel": "最大轮次",
+    "maxTurnsPlaceholder": "如: 30",
+    "protectedPathsLabel": "受保护文件",
+    "addProtectedPath": "+ 添加路径",
+    "protectedPathPlaceholder": "如: .env, data/*.csv",
+    "noProtectedPathsHint": "（未设置保护 — Agent 可修改任何文件）",
+    "advancedSettings": "高级设置",
+    "loopOnPauseLabel": "上下文溢出后自动重启",
+    "convergenceWindowLabel": "收敛检测窗口 (轮次)",
+    "convergenceWindowPlaceholder": "如: 3"
   },
   "commands": {
     "palette": {

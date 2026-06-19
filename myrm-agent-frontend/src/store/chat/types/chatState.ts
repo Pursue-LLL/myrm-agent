@@ -56,6 +56,12 @@ export interface ChatState {
   incognitoMode: boolean;
   sandboxMode: boolean;
   goalBudgetTokens: number | null;
+  goalBudgetUsd: number | null;
+  goalMaxTimeSeconds: number | null;
+  goalMaxTurns: number | null;
+  goalProtectedPaths: string[] | null;
+  goalLoopOnPause: boolean;
+  goalConvergenceWindow: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
 
@@ -143,6 +149,12 @@ export interface ChatState {
   setIncognitoMode: (incognitoMode: boolean) => void;
   setSandboxMode: (sandboxMode: boolean) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
+  setGoalBudgetUsd: (usd: number | null) => void;
+  setGoalMaxTimeSeconds: (seconds: number | null) => void;
+  setGoalMaxTurns: (turns: number | null) => void;
+  setGoalProtectedPaths: (paths: string[] | null) => void;
+  setGoalLoopOnPause: (loop: boolean) => void;
+  setGoalConvergenceWindow: (window: number | null) => void;
   setGoalAcceptanceCriteria: (criteria: Array<Record<string, unknown>> | null) => void;
   setGoalConstraints: (constraints: string[] | null) => void;
   toggleBuiltinTool: (toolId: BuiltinToolId) => void;

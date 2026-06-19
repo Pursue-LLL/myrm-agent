@@ -228,6 +228,7 @@ async def run_agent_stream(
                 max_tokens=request.goal.max_tokens,
                 max_usd=request.goal.max_usd,
                 max_time_seconds=request.goal.max_time_seconds,
+                max_turns=request.goal.max_turns,
                 convergence_window=request.goal.convergence_window,
                 loop_on_pause=request.goal.loop_on_pause,
                 max_loop_restarts=request.goal.max_loop_restarts,
@@ -235,6 +236,7 @@ async def run_agent_stream(
             acceptance_criteria = request.goal.acceptance_criteria
             ui_summary = request.goal.ui_summary
             constraints = request.goal.constraints
+            protected_paths = request.goal.protected_paths
             active_goal = await goal_provider.get_active_goal(request.chat_id)
             if not active_goal:
                 await goal_provider.create_goal(
@@ -243,6 +245,7 @@ async def run_agent_stream(
                     budget=budget,
                     acceptance_criteria=acceptance_criteria,
                     constraints=constraints,
+                    protected_paths=protected_paths,
                     ui_summary=ui_summary,
                 )
             else:

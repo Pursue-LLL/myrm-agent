@@ -10024,7 +10024,22 @@
     "statusConverged": "Converged",
     "statusLoopRestart": "Restarting",
     "queueTitle": "Queued Goals",
-    "cancelQueued": "Cancel this queued goal"
+    "cancelQueued": "Cancel this queued goal",
+    "budgetSection": "Budget Limits",
+    "maxUsdLabel": "Max Cost ($)",
+    "maxUsdPlaceholder": "e.g. 5.00",
+    "maxTimeLabel": "Max Duration (minutes)",
+    "maxTimePlaceholder": "e.g. 60",
+    "maxTurnsLabel": "Max Turns",
+    "maxTurnsPlaceholder": "e.g. 30",
+    "protectedPathsLabel": "Protected Files",
+    "addProtectedPath": "+ Add Path",
+    "protectedPathPlaceholder": "e.g. .env, data/*.csv",
+    "noProtectedPathsHint": "(No protected files — Agent can modify any file)",
+    "advancedSettings": "Advanced",
+    "loopOnPauseLabel": "Auto-restart on context overflow",
+    "convergenceWindowLabel": "Convergence Window (turns)",
+    "convergenceWindowPlaceholder": "e.g. 3"
   },
   "health": {
     "title": "System Doctor",

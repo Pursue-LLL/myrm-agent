@@ -80,6 +80,12 @@ export interface ChatActionsState {
   hasUsedImagesInCurrentChat: boolean;
   isGoalMode: boolean;
   goalBudgetTokens: number | null;
+  goalBudgetUsd: number | null;
+  goalMaxTimeSeconds: number | null;
+  goalMaxTurns: number | null;
+  goalProtectedPaths: string[] | null;
+  goalLoopOnPause: boolean;
+  goalConvergenceWindow: number | null;
   goalAcceptanceCriteria: Array<Record<string, unknown>> | null;
   goalConstraints: string[] | null;
   currentSessionMessageId: string | null;
@@ -559,12 +565,21 @@ export const createMessageRequest = async (
     ...(state.regenerateInstruction ? { regenerate_instruction: state.regenerateInstruction } : {}),
     ...(state.isGoalMode && {
       goal: {
-        max_tokens: state.goalBudgetTokens,
+        ...(state.goalBudgetTokens != null && { max_tokens: state.goalBudgetTokens }),
+        ...(state.goalBudgetUsd != null && { max_usd: state.goalBudgetUsd }),
+        ...(state.goalMaxTimeSeconds != null && { max_time_seconds: state.goalMaxTimeSeconds }),
+        ...(state.goalMaxTurns != null && { max_turns: state.goalMaxTurns }),
+        ...(state.goalConvergenceWindow != null && { convergence_window: state.goalConvergenceWindow }),
+        ...(state.goalLoopOnPause && { loop_on_pause: true }),
         ...(state.goalAcceptanceCriteria &&
           state.goalAcceptanceCriteria.length > 0 && { acceptance_criteria: state.goalAcceptanceCriteria }),
         ...(() => {
           const filtered = state.goalConstraints?.filter((c) => c.trim().length > 0);
           return filtered && filtered.length > 0 ? { constraints: filtered } : {};
+        })(),
+        ...(() => {
+          const filtered = state.goalProtectedPaths?.filter((p) => p.trim().length > 0);
+          return filtered && filtered.length > 0 ? { protected_paths: filtered } : {};
         })(),
       },
     }),

@@ -105,11 +105,13 @@ class GoalBudgetRequest(BaseModel):
     max_tokens: int | None = None
     max_usd: float | None = None
     max_time_seconds: int | None = None
+    max_turns: int | None = None
     convergence_window: int | None = None
     loop_on_pause: bool = False
     max_loop_restarts: int = 10
     acceptance_criteria: list[dict[str, object]] | None = None
     constraints: list[str] | None = None
+    protected_paths: list[str] | None = None
     ui_summary: str = Field(default="", max_length=120)
 
     class Config:
