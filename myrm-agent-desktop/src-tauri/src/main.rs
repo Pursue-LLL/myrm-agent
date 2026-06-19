@@ -278,6 +278,7 @@ fn main() {
                 tokio::time::sleep(Duration::from_millis(500)).await;
 
                 let backend_state = app_handle.state::<PythonBackend>();
+                let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
                 match start_backend_with_config(
                     app_handle.clone(),
                     backend_state,
@@ -285,7 +286,11 @@ fn main() {
                 )
                 .await
                 {
-                    Ok(msg) => println!("✅ {}", msg),
+                    Ok(msg) => {
+                        println!("✅ {}", msg);
+                        let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
+                        app_handle.manage(handle);
+                    }
                     Err(e) => eprintln!("❌ Failed to auto-start backend: {}", e),
                 }
 

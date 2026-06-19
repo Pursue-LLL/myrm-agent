@@ -19,6 +19,7 @@ mod nextjs_frontend;
 mod port;
 mod python_backend;
 mod setup_token;
+pub mod watchdog;
 
 pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};
 pub use appshot::{

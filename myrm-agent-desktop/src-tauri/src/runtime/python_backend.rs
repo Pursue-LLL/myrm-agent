@@ -2,7 +2,6 @@
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
-use std::thread;
 use std::time::Duration;
 
 use tauri::{AppHandle, Manager, State};
@@ -162,7 +161,7 @@ pub async fn start_backend_with_config(
     println!("✅ Backend process started");
 
     for i in 0..20 {
-        thread::sleep(Duration::from_millis(500));
+        tokio::time::sleep(Duration::from_millis(500)).await;
 
         match check_health_with_port(config.port).await {
             Ok(true) => {

@@ -17,6 +17,7 @@ use tauri::{AppHandle, Manager};
 use tokio::time::timeout;
 
 use crate::{PythonBackend, NextJSFrontend, stop_backend, stop_frontend};
+use crate::runtime::watchdog::WatchdogHandle;
 static SHUTDOWN_INITIATED: AtomicBool = AtomicBool::new(false);
 
 /// 发送优雅停机信号给后端
@@ -46,6 +47,10 @@ pub async fn graceful_shutdown(app: AppHandle) {
         return;
     }
     println!("Initiating graceful shutdown...");
+
+    if let Some(watchdog) = app.try_state::<WatchdogHandle>() {
+        watchdog.cancel();
+    }
     
     let port = {
         let config_manager = app.state::<crate::config::ConfigManager>();
