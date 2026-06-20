@@ -97,19 +97,69 @@ async def sync_uploaded_files_to_workspace(
     return synced
 
 
+_RAG_DOC_EXTENSIONS = frozenset({".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"})
+_RAG_TEXT_THRESHOLD = 100 * 1024
+
+
+def _should_use_rag(original_name: str, rel_path: str, workspace_dir: str) -> bool:
+    """Determine if a synced file should be ingested into wiki for RAG retrieval."""
+    ext = os.path.splitext(original_name)[1].lower()
+    if ext not in _RAG_DOC_EXTENSIONS:
+        return False
+    full_path = os.path.join(workspace_dir, rel_path)
+    try:
+        return os.path.getsize(full_path) > _RAG_TEXT_THRESHOLD
+    except OSError:
+        return False
+
+
 def inject_uploaded_files_into_query(
     query: MultimodalQuery,
     synced_files: list[tuple[str, str]],
+    workspace_dir: str = "",
 ) -> MultimodalQuery:
-    """Append uploaded-file workspace paths to the user query."""
+    """Append uploaded-file workspace paths to the user query.
+
+    Large documents (PDF/DOCX >100KB) are tagged for wiki RAG ingestion
+    so the Agent uses ``wiki_ingest`` + ``wiki_query`` instead of reading
+    the entire file into the prompt.
+    """
     if not synced_files:
         return query
 
-    lines = ["<uploaded_files_in_workspace>"]
+    direct_lines: list[str] = []
+    rag_lines: list[str] = []
+
     for original_name, rel_path in synced_files:
-        lines.append(f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}/>")
-    lines.append("</uploaded_files_in_workspace>")
-    context = "\n".join(lines)
+        if workspace_dir and _should_use_rag(original_name, rel_path, workspace_dir):
+            rag_lines.append(
+                f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}"
+                f' action="wiki_ingest_then_query"/>'
+            )
+        else:
+            direct_lines.append(
+                f"  <file name={quoteattr(original_name)} workspace_path={quoteattr(rel_path)}/>"
+            )
+
+    parts: list[str] = []
+    if direct_lines:
+        parts.append("<uploaded_files_in_workspace>")
+        parts.extend(direct_lines)
+        parts.append("</uploaded_files_in_workspace>")
+    if rag_lines:
+        parts.append("<large_documents_for_knowledge_base>")
+        parts.extend(rag_lines)
+        parts.append(
+            "  Use wiki_ingest_tool to ingest these large documents, "
+            "then use wiki_query_tool to answer questions about them. "
+            "Do NOT read the entire file into the conversation."
+        )
+        parts.append("</large_documents_for_knowledge_base>")
+
+    if not parts:
+        return query
+
+    context = "\n".join(parts)
 
     if isinstance(query, str):
         return f"{query}\n\n{context}"

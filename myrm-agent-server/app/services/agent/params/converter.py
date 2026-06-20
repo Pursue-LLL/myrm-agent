@@ -561,13 +561,12 @@ async def convert_to_general_agent_params(
         session_recording = resolved.session_recording if resolved else None
         tool_gateway_config = resolved.tool_gateway_config if resolved else None
 
-    # Global PAT fallback logic
     if tool_gateway_config and isinstance(tool_gateway_config, dict):
         if tool_gateway_config.get("use_gateway") and not tool_gateway_config.get("auth_token"):
-            ps_dict = configs.personal_settings_dict if configs else None
-            if ps_dict and ps_dict.get("gateway_token"):
-                tool_gateway_config["auth_token"] = ps_dict["gateway_token"]
-                logger.info("Injected global gateway PAT into agent tool_gateway_config")
+            logger.warning(
+                "tool_gateway_config.use_gateway is true but auth_token is missing; disabling gateway routing"
+            )
+            tool_gateway_config["use_gateway"] = False
 
     if request.regenerate_instruction:
         regen_suffix = f"\n\n[Regeneration guidance: {request.regenerate_instruction}]"
@@ -758,7 +757,7 @@ async def convert_to_general_agent_params(
         try:
             synced = await sync_uploaded_files_to_workspace(request.uploaded_file_ids, chat_workspace_dir)
             if synced:
-                final_query = inject_uploaded_files_into_query(final_query, synced)
+                final_query = inject_uploaded_files_into_query(final_query, synced, workspace_dir=chat_workspace_dir)
                 logger.info("Synced %d uploaded files to workspace", len(synced))
         except Exception:
             logger.warning("Failed to sync uploaded files to workspace", exc_info=True)

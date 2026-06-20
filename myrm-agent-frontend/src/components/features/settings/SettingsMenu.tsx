@@ -56,7 +56,6 @@ export type SettingsTab =
   | 'search'
   | 'mcp'
   | 'skills'
-  | 'toolCapabilities'
   | 'skillQuality'
   | 'toolStability'
   | 'toolQuality'
@@ -112,7 +111,6 @@ const menuItems: MenuItem[] = [
 
   // 技能与插件
   { id: 'skills', icon: Wand2, labelKey: 'skills', group: 'ai-tools' },
-  { id: 'toolCapabilities', icon: Plug, labelKey: 'toolCapabilities', group: 'ai-tools' },
   { id: 'mcp', icon: Plug, labelKey: 'mcp', group: 'ai-tools' },
   { id: 'toolQuality', icon: Activity, labelKey: 'toolQuality', group: 'ai-tools' },
 

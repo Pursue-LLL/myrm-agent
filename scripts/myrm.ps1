@@ -40,6 +40,29 @@ function Show-Help {
     Write-Host "  searxng start | stop | status"
 }
 
+function Test-CnNetwork {
+    if ($env:MYRM_USE_CN_MIRROR -eq "1") { return $true }
+    if ($env:MYRM_NO_CN_MIRROR -eq "1") { return $false }
+    if ($env:UV_DEFAULT_INDEX) { return $false }
+    $tz = [System.TimeZoneInfo]::Local.Id
+    $cnZones = @("China Standard Time", "Asia/Shanghai", "Asia/Chongqing")
+    if ($cnZones -notcontains $tz) { return $false }
+    try {
+        $null = Invoke-WebRequest -Uri "https://pypi.org/simple/" -TimeoutSec 3 -UseBasicParsing -Method Head
+        return $false
+    }
+    catch {
+        return $true
+    }
+}
+
+function Set-CnMirrors {
+    $env:UV_DEFAULT_INDEX = "https://pypi.tuna.tsinghua.edu.cn/simple"
+    $env:BUN_CONFIG_REGISTRY = "https://registry.npmmirror.com"
+    $env:PLAYWRIGHT_DOWNLOAD_HOST = "https://cdn.npmmirror.com/binaries/playwright"
+    Write-Host "[CN] Using domestic mirrors for acceleration" -ForegroundColor Cyan
+}
+
 function Require-Docker {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
         Write-Error "Docker required"
@@ -120,15 +143,20 @@ switch ($Command) {
         }
     }
     "update" {
+        if (Test-CnNetwork) { Set-CnMirrors }
         Set-Location $ProjectRoot
         git pull --ff-only
+        if ($LASTEXITCODE -ne 0) { Write-Error "git pull failed"; exit 1 }
         Set-Location $ServerDir
         uv sync --all-extras
+        if ($LASTEXITCODE -ne 0) { Write-Error "Backend sync failed"; exit 1 }
         uv run patchright install chromium 2>$null
         Set-Location $FrontendDir
         bun install
+        if ($LASTEXITCODE -ne 0) { Write-Error "bun install failed"; exit 1 }
         bun run build
-        Write-Host "Update complete."
+        if ($LASTEXITCODE -ne 0) { Write-Error "Frontend build failed"; exit 1 }
+        Write-Host "Update complete." -ForegroundColor Green
     }
     "doctor" {
         $py = Join-Path $ServerDir ".venv\Scripts\python.exe"

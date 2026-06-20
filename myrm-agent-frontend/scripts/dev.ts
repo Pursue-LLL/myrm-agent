@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { acquireDevLock, assertDevLockAvailable, releaseDevLock } from './dev-lock';
 import { APP_DEV_PORT, killListenersOnPort } from './port-cleanup';
 
 const ENV_LOCAL = path.join(process.cwd(), '.env.local');
@@ -47,14 +48,17 @@ function setupSignalHandlers(child: ChildProcess) {
       }
       setTimeout(() => {
         killListenersOnPort(APP_DEV_PORT, true);
+        releaseDevLock();
         process.exit(0);
       }, 1000);
     });
   });
 }
 
+assertDevLockAvailable(APP_DEV_PORT);
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);
+acquireDevLock(APP_DEV_PORT);
 
 const bindLan =
   process.env.WEBUI_DEV_BIND_ALL === '1' || process.env.WEBUI_DEV_BIND_ALL === 'true' || args.includes('--lan');
@@ -75,11 +79,13 @@ setupSignalHandlers(child);
 child.on('exit', (code) => {
   console.log('🏁 Next.js exited with code:', code);
   killListenersOnPort(APP_DEV_PORT, true);
+  releaseDevLock();
   process.exit(code ?? 0);
 });
 
 child.on('error', (err) => {
   console.error('❌ Failed to start Next.js:', err);
   killListenersOnPort(APP_DEV_PORT, true);
+  releaseDevLock();
   process.exit(1);
 });

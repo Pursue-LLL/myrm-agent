@@ -67,9 +67,6 @@ const UnifiedSkillsSection = dynamic(() => import('./sections/ai-tools/UnifiedSk
 const ToolQualitySection = dynamic(() => import('./sections/ai-tools/ToolQualitySection'), {
   loading: () => <SettingsSkeleton />,
 });
-const ToolCapabilitiesSection = dynamic(() => import('./sections/ai-tools/ToolCapabilitiesSection'), {
-  loading: () => <SettingsSkeleton />,
-});
 const MemoryCenterSection = dynamic(() => import('./sections/knowledge/MemoryCenterSection'), {
   loading: () => <SettingsSkeleton />,
 });
@@ -106,7 +103,6 @@ const BASE_TABS: SettingsTab[] = [
   'search',
   'mcp',
   'skills',
-  'toolCapabilities',
   'skillQuality',
   'toolStability',
   'toolQuality',
@@ -172,7 +168,6 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   search: SearchSection,
   mcp: MCPSection,
   skills: UnifiedSkillsSection,
-  toolCapabilities: ToolCapabilitiesSection,
   skillQuality: ToolQualitySection,
   toolStability: ToolQualitySection,
   toolQuality: ToolQualitySection,

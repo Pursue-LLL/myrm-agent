@@ -8,6 +8,8 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 source "${SCRIPT_DIR}/lib/resolve_agent_root.sh"
 # shellcheck source=lib/start_server.sh
 source "${SCRIPT_DIR}/lib/start_server.sh"
+# shellcheck source=lib/cn_mirrors.sh
+source "${SCRIPT_DIR}/lib/cn_mirrors.sh"
 resolve_agent_paths "${PROJECT_ROOT}"
 
 COMPOSE_FILE="${SERVER_DIR}/docker-compose.yaml"
@@ -87,10 +89,12 @@ case "$COMMAND" in
         [[ -n "$pids" ]] && echo "Running: $pids" || echo "Not running"
         ;;
     update)
-        git pull --ff-only
-        (cd "$SERVER_DIR" && uv sync --all-extras)
+        apply_cn_mirrors_if_needed
+        git pull --ff-only || { echo -e "${RED}git pull failed${NC}"; exit 1; }
+        (cd "$SERVER_DIR" && uv sync --all-extras) || { echo -e "${RED}Backend sync failed${NC}"; exit 1; }
         (cd "$SERVER_DIR" && uv run patchright install chromium 2>/dev/null || true)
-        (cd "$FRONTEND_DIR" && bun install && bun run build)
+        (cd "$FRONTEND_DIR" && bun install && bun run build) || { echo -e "${RED}Frontend build failed${NC}"; exit 1; }
+        echo -e "${GREEN}Update complete.${NC}"
         ;;
     doctor)
         _py="${SERVER_DIR}/.venv/bin/python"

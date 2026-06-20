@@ -82,7 +82,6 @@
         "developer": "Entwickler",
         "system": "System"
       },
-      "toolCapabilities": "API & Gateway",
       "toolStability": "Tool Stability",
       "toolQuality": "Execution Quality",
       "eval": "Evaluation",
@@ -5129,10 +5128,6 @@
         "title": "Wiki-Wissensdatenbank",
         "description": "KI-gestützte strukturierte Wissensdatenbank, die mit Gesprächen wächst"
       },
-      "toolCapabilities": {
-        "title": "API & Gateway",
-        "description": "Configure LLM API keys and gateway settings"
-      },
       "channelRouting": {
         "title": "Channel Routing",
         "description": "Manage agent bindings for different channel groups",
@@ -5290,6 +5285,8 @@
     "uploadFailedRetry": "Datei-Upload fehlgeschlagen, bitte erneut versuchen",
     "videoTooLarge": "Videodatei zu groß (über 100MB Limit)",
     "videoTooLargeDesc": "Bitte wählen Sie ein kürzeres oder kleineres Video. Aktuell: {size}",
+    "largeDocIndexing": "Großes Dokument wird in die Wissensdatenbank indexiert",
+    "largeDocIndexingDesc": "{name} ({size}) — KI durchsucht die Wissensdatenbank anstatt das gesamte Dokument zu lesen",
     "tooManyFiles": "Too many files, maximum {max} files allowed",
     "invalidFileType": "Unsupported file type: {types}"
   },

@@ -97,7 +97,6 @@ const useConfigStore = create<ConfigState>()(
       enableEvalLab: DEFAULT_PERSONAL_SETTINGS.enableEvalLab ?? false,
       smoothStreamEnabled: DEFAULT_PERSONAL_SETTINGS.smoothStreamEnabled ?? true,
       publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
-      gateway_token: DEFAULT_PERSONAL_SETTINGS.gateway_token ?? '',
       searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
       mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
 
@@ -295,11 +294,6 @@ const useConfigStore = create<ConfigState>()(
             window.dispatchEvent(new CustomEvent('ingress-requirement-changed'));
           }
         }
-      },
-
-      setGatewayToken: (token) => {
-        set({ gateway_token: token });
-        syncPersonalSettings({ gateway_token: token });
       },
 
       setNotificationDeliveries: (deliveries) => {
@@ -531,9 +525,8 @@ const useConfigStore = create<ConfigState>()(
         codeExecutionAllowNetwork: state.codeExecutionAllowNetwork,
         enableEvalLab: state.enableEvalLab,
         publicIngressBaseUrl: state.publicIngressBaseUrl,
-        gateway_token: state.gateway_token,
       }),
-      version: 11,
+      version: 12,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>;
         if (version < 4) {
@@ -559,8 +552,8 @@ const useConfigStore = create<ConfigState>()(
         if (version < 9) {
           state.publicIngressBaseUrl = state.publicIngressBaseUrl ?? '';
         }
-        if (version < 11) {
-          state.gateway_token = state.gateway_token ?? '';
+        if (version < 12) {
+          delete state.gateway_token;
         }
         return state as unknown as ConfigState;
       },

@@ -172,9 +172,6 @@ export interface ConfigState {
   // 公网访问地址 (Public Ingress Base URL)
   publicIngressBaseUrl?: string;
 
-  // Unified Tool Gateway Token (PAT)
-  gateway_token?: string;
-
   // 媒体生成配置
   imageGeneration?: import('@/services/config/types').ImageGenerationConfig;
   videoGeneration?: import('@/services/config/types').VideoGenerationConfig;
@@ -224,7 +221,6 @@ export interface ConfigState {
   setEnableEvalLab: (enable: boolean) => void;
   setSmoothStreamEnabled: (enable: boolean) => void;
   setPublicIngressBaseUrl: (url: string | undefined) => void;
-  setGatewayToken: (token: string | undefined) => void;
 
   personalSettings?: import('@/services/config/types').PersonalSettingsConfigValue;
   _configStoreReady?: boolean;

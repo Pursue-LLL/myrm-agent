@@ -1,17 +1,15 @@
 """
-@input: 依赖 app.config.settings.settings 获取网关配置
-@output: 对外提供公网 ingress 获取、Gateway 健康探测代理与 Ingress 需求判定端点
+@input: 依赖 app.core.infra.ingress 与 entitlement 模块
+@output: 对外提供公网 ingress 获取与 Ingress 需求判定端点
 @pos: HTTP 入口层的 System API
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.utils import get_local_ip
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from app.config.settings import settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_public_ingress_entitlement
@@ -24,39 +22,6 @@ class IngressRequirementResponse(BaseModel):
     has_public_ingress: bool
     reasons: list[str]
     channels: dict[str, str]
-
-
-class GatewayHealthRequest(BaseModel):
-    gateway_token: str | None = Field(
-        None, min_length=1, max_length=512, pattern=r"^[A-Za-z0-9_\-\.\~]+$", description="Unified Tool Gateway Token (PAT)"
-    )
-
-
-@router.post("/gateway/health")
-async def get_gateway_health(
-    body: GatewayHealthRequest,
-) -> dict[str, object]:
-    """Check health of the Unified Tool Gateway and available platforms."""
-    gateway_token = body.gateway_token
-    # Control Plane URL is required
-    control_plane_url = settings.control_plane.effective_url()
-    if not control_plane_url:
-        return {"status": "error", "message": "Control Plane URL is not configured."}
-
-    if not gateway_token:
-        return {"status": "error", "message": "Gateway PAT token is required."}
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{control_plane_url}/v1/tool_relay/health", headers={"Authorization": f"Bearer {gateway_token}"}, timeout=10.0
-            )
-            response.raise_for_status()
-            return response.json()
-    except httpx.HTTPStatusError as e:
-        return {"status": "error", "message": f"Gateway returned error: {e.response.status_code}", "details": e.response.text}
-    except Exception as e:
-        return {"status": "error", "message": f"Failed to connect to Gateway: {str(e)}"}
 
 
 @router.get("/ingress-requirement", response_model=IngressRequirementResponse)

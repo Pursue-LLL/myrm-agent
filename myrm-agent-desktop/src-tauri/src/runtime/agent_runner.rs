@@ -29,7 +29,7 @@ pub fn resolve_agent_runner_path(app: &AppHandle) -> String {
             .map(|p| p.to_path_buf())
             .unwrap_or_default();
         return project_root
-            .join("myrm-agent-desktop/sidecar/agent-runner/dist/index.js")
+            .join("myrm-agent-desktop/sidecar/agent-runner/src/index.ts")
             .to_string_lossy()
             .to_string();
     }

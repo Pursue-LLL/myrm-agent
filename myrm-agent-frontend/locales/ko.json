@@ -82,7 +82,6 @@
         "developer": "개발자",
         "system": "시스템"
       },
-      "toolCapabilities": "API & Gateway",
       "toolStability": "Tool Stability",
       "toolQuality": "Execution Quality",
       "eval": "Evaluation",
@@ -5129,10 +5128,6 @@
         "title": "Wiki 지식 베이스",
         "description": "AI가 자동 관리하는 구조화된 지식 베이스, 대화와 함께 성장"
       },
-      "toolCapabilities": {
-        "title": "API & Gateway",
-        "description": "Configure LLM API keys and gateway settings"
-      },
       "channelRouting": {
         "title": "Channel Routing",
         "description": "Manage agent bindings for different channel groups",
@@ -5290,6 +5285,8 @@
     "uploadFailedRetry": "파일 업로드 실패, 다시 시도하세요",
     "videoTooLarge": "비디오 파일이 너무 큽니다 (100MB 제한 초과)",
     "videoTooLargeDesc": "더 짧거나 작은 비디오 파일을 선택하세요. 현재: {size}",
+    "largeDocIndexing": "대용량 문서가 지식 베이스에 자동 인덱싱됩니다",
+    "largeDocIndexingDesc": "{name} ({size}) — AI가 전체 문서 대신 지식 베이스를 검색합니다",
     "tooManyFiles": "Too many files, maximum {max} files allowed",
     "invalidFileType": "Unsupported file type: {types}"
   },

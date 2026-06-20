@@ -518,7 +518,6 @@ const CredentialsSection = memo(() => {
         </div>
       </div>
 
-      {/* SaaS / Enterprise Integrations Section was removed and migrated to ToolCapabilitiesSection */}
       <div className="mt-8 pt-8 border-t border-border">
         <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">{t('oauthTitle')}</h3>
         <p className="text-sm text-muted-foreground mt-1 mb-6 leading-relaxed">{t('oauthDescription')}</p>

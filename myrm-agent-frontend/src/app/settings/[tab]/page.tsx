@@ -23,7 +23,6 @@ const VALID_TABS = [
   'search',
   'mcp',
   'skills',
-  'toolCapabilities',
   'skillQuality',
   'toolStability',
   'toolQuality',
@@ -54,6 +53,7 @@ const VALID_TABS = [
 ] as const;
 
 const DEPRECATED_TAB_MAP: Record<string, { parent: string; sub?: string }> = {
+  toolCapabilities: { parent: 'models' },
   defaultModel: { parent: 'models', sub: 'default' },
   evolutionPending: { parent: 'skills', sub: 'pending' },
   evolutionRejection: { parent: 'skills', sub: 'rejections' },

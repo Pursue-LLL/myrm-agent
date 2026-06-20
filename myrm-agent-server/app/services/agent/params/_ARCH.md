@@ -7,7 +7,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、网关全局 PAT 降级与工具配置注入、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools`（含 `render_ui`→`enable_render_ui`）统一映射为布尔 flag；`action_mode='fast'` 时动态限制工具集、设置 `prompt_mode="search"` 并按 `search_depth` 配置迭代限制。 | — |
+| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、`tool_gateway_config` 组装（无 auth_token 时禁用 gateway）、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools`（含 `render_ui`→`enable_render_ui`）统一映射为布尔 flag；`action_mode='fast'` 时动态限制工具集、设置 `prompt_mode="search"` 并按 `search_depth` 配置迭代限制。 | — |
 | `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, MentionReferenceRequest, ArchiveRestoreActionRequest, AgentConfigRequest 等），声明前端记忆开关、`search_depth`、GUI @ 结构化引用、typed archive restore action 契约以及 `tool_gateway_config`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
 | `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |
@@ -15,13 +15,15 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 | `helpers.py` | 辅助 | 文本提取等辅助函数 | — |
 | `media.py` | 辅助 | 多模态媒体参数处理 | — |
 | `mention.py` | 辅助 | 上下文富引用预处理器。支持 workspace 文件/目录、上传/生成文件、@staged、@diff、@folder:path、@url:https://...，进行安全校验后注入用户查询 | ✅ |
-| `upload_sync.py` | 辅助 | 上传文件 workspace 同步。将用户拖拽上传的大文件（>100KB）从 StorageProvider 复制到 `{workspace}/_uploaded/`，使 agent 的 file_read_tool 和 bash_tool 可直接访问完整文件内容。注入文件路径到 user query context | ✅ |
+| `upload_sync.py` | 辅助 | 上传文件 workspace 同步与 RAG 智能路由。将用户拖拽上传的大文件（>100KB）从 StorageProvider 复制到 `{workspace}/_uploaded/`。大型文档（PDF/DOCX >100KB）自动标记 `action="wiki_ingest_then_query"`，引导 Agent 使用 wiki_ingest + wiki_query 进行 RAG 检索而非全文读取 | ✅ |
 
 ## Uploaded File Workspace Sync
 
 - 前端通过 `AgentRequest.uploaded_file_ids` 传递本次消息附带的文件 ID 列表。
 - `converter.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件从 StorageProvider 复制到 `{workspace}/_uploaded/`。
-- 文件路径以 XML 标签 `<uploaded_files_in_workspace>` 注入 user message 的 query context，不影响 system prompt 和 tool definitions 的 prompt cache 前缀。
+- 文件路径以 XML 标签注入 user message 的 query context，不影响 system prompt 和 tool definitions 的 prompt cache 前缀：
+  - 普通文件：`<uploaded_files_in_workspace>` 标签，Agent 可直接读取
+  - 大文档（PDF/DOCX >100KB）：`<large_documents_for_knowledge_base>` 标签，引导 Agent 使用 wiki_ingest_tool 入库后用 wiki_query_tool 检索
 - 安全保障：文件名清洗（去除路径分隔符和空字节）、50MB/chat 总量限制、10 文件/请求限制、同名文件自动编号。
 
 ## Typed Archive Restore

@@ -82,7 +82,6 @@
         "developer": "開発者",
         "system": "システム"
       },
-      "toolCapabilities": "API & Gateway",
       "toolStability": "Tool Stability",
       "toolQuality": "Execution Quality",
       "eval": "Evaluation",
@@ -5129,10 +5128,6 @@
         "title": "Wikiナレッジベース",
         "description": "AIが自動管理する構造化ナレッジベース、会話とともに成長"
       },
-      "toolCapabilities": {
-        "title": "API & Gateway",
-        "description": "Configure LLM API keys and gateway settings"
-      },
       "channelRouting": {
         "title": "Channel Routing",
         "description": "Manage agent bindings for different channel groups",
@@ -5290,6 +5285,8 @@
     "uploadFailedRetry": "ファイルのアップロードに失敗しました。もう一度お試しください",
     "videoTooLarge": "動画ファイルが大きすぎます（100MB制限超過）",
     "videoTooLargeDesc": "より短い、または小さい動画ファイルを選択してください。現在: {size}",
+    "largeDocIndexing": "大きなドキュメントはナレッジベースに自動インデックスされます",
+    "largeDocIndexingDesc": "{name}（{size}）— AIがドキュメント全体を読む代わりにナレッジベースを検索します",
     "tooManyFiles": "Too many files, maximum {max} files allowed",
     "invalidFileType": "Unsupported file type: {types}"
   },

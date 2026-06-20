@@ -69,50 +69,8 @@ detect_os() {
     log_success "Detected OS: $OS"
 }
 
-detect_cn_network() {
-    # Allow explicit override via environment
-    if [[ "${MYRM_USE_CN_MIRROR:-0}" == "1" ]]; then
-        return 0
-    fi
-    if [[ "${MYRM_NO_CN_MIRROR:-0}" == "1" ]]; then
-        return 1
-    fi
-    # Respect user's existing mirror config
-    if [[ -n "${UV_DEFAULT_INDEX:-}" ]]; then
-        return 1
-    fi
-    # Dual detection: timezone hint + network probe
-    local tz="${TZ:-}"
-    if [[ -z "$tz" ]]; then
-        if [[ -L /etc/localtime ]]; then
-            tz="$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"
-        else
-            tz="$(cat /etc/timezone 2>/dev/null || true)"
-        fi
-    fi
-    local tz_match=false
-    case "$tz" in
-        Asia/Shanghai|Asia/Chongqing|Asia/Harbin|CST-8) tz_match=true ;;
-    esac
-    if [[ "$tz_match" == "false" ]]; then
-        return 1
-    fi
-    # Confirm with network probe (PyPI unreachable → likely behind GFW)
-    if curl -fsS --connect-timeout 3 "https://pypi.org/simple/" -o /dev/null 2>/dev/null; then
-        return 1
-    fi
-    return 0
-}
-
-setup_cn_mirrors() {
-    export UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"
-    export BUN_CONFIG_REGISTRY="https://registry.npmmirror.com"
-    export PLAYWRIGHT_DOWNLOAD_HOST="https://cdn.npmmirror.com/binaries/playwright"
-    log_info "🇨🇳 检测到中国大陆网络，已自动切换至国内镜像加速"
-    log_info "   PyPI: pypi.tuna.tsinghua.edu.cn"
-    log_info "   npm:  registry.npmmirror.com"
-    log_info "   Browser: cdn.npmmirror.com"
-}
+# shellcheck source=lib/cn_mirrors.sh
+source "${SCRIPT_DIR}/lib/cn_mirrors.sh"
 
 install_package_managers() {
     log_info "Checking uv and bun ..."

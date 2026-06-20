@@ -1,7 +1,13 @@
 import { execSync } from 'child_process';
+import { clearDevLock, clearStaleDevLock } from './dev-lock';
 import { APP_DEV_PORT, killListenersOnPort, listPidsOnPort } from './port-cleanup';
 
 console.log(`🧹 Cleaning up myrm-agent-frontend dev port :${APP_DEV_PORT} only...\n`);
+
+if (clearStaleDevLock()) {
+  console.log('🗑️  Removed stale dev-server.lock\n');
+}
+clearDevLock();
 
 function showPortProcesses(port: number) {
   const pidList = listPidsOnPort(port);

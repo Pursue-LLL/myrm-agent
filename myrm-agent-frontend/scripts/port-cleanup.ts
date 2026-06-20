@@ -20,12 +20,19 @@ export function killListenersOnPort(port: number, force = false): number {
   const pidList = listPidsOnPort(port);
   if (pidList.length === 0) return 0;
 
-  const signal = force ? '-9' : '';
   const cmd = force ? `kill -9 ${pidList.join(' ')}` : `kill ${pidList.join(' ')}`;
   console.log(
     `🔪 Killing process(es) on port ${port}${force ? ' (force)' : ''}: ${pidList.join(', ')}`,
   );
-  execSync(cmd);
+  try {
+    execSync(cmd);
+  } catch {
+    if (!force) {
+      return killListenersOnPort(port, true);
+    }
+    console.warn(`⚠️  Could not terminate all listeners on port ${port}: ${pidList.join(', ')}`);
+    return 0;
+  }
   if (!force) {
     try {
       execSync('sleep 0.3');

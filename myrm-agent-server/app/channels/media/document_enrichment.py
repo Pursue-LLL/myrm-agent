@@ -132,14 +132,24 @@ async def enrich_document_inbound(
             continue
 
         if len(text) > MAX_DOCUMENT_TEXT_CHARS:
-            text = text[:MAX_DOCUMENT_TEXT_CHARS] + f"\n\n... [truncated at {MAX_DOCUMENT_TEXT_CHARS} chars]"
-
-        blocks.append(
-            {
-                "filename": label,
-                "text": f"## Attachment: {label}\n{text}",
-            }
-        )
+            preview = text[:MAX_DOCUMENT_TEXT_CHARS]
+            blocks.append(
+                {
+                    "filename": label,
+                    "text": (
+                        f"## Attachment: {label}\n{preview}\n\n"
+                        f"... [truncated at {MAX_DOCUMENT_TEXT_CHARS} chars — "
+                        f"full document is {len(text)} chars]"
+                    ),
+                }
+            )
+        else:
+            blocks.append(
+                {
+                    "filename": label,
+                    "text": f"## Attachment: {label}\n{text}",
+                }
+            )
 
     if not blocks:
         return msg

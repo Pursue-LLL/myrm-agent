@@ -355,25 +355,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
 
               <CommandBindingsEditor value={commandBindings} onChange={setCommandBindings} />
 
-              {/* Tool Gateway Policy */}
-              <div className="space-y-3 rounded-lg border border-border/60 p-4">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium">
-                    {t('form.toolGateway.title', { fallback: 'Unified Tool Gateway' })}
-                  </Label>
-                  <Switch
-                    checked={toolGatewayConfig.use_gateway}
-                    onCheckedChange={(v) => setToolGatewayConfig({ ...toolGatewayConfig, use_gateway: v })}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('form.toolGateway.description', {
-                    fallback:
-                      'Route third-party tool traffic (Search, Image Gen, TTS, Browser) through the unified gateway. Requires BYOK/PAT configuration in Settings for Local/Desktop environments.',
-                  })}
-                </p>
-              </div>
-
               {/* Session Policy */}
               <div className="space-y-3 rounded-lg border border-border/60 p-4">
                 <div className="space-y-2">

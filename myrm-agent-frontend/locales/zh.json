@@ -180,7 +180,6 @@
       "search": "搜索服务",
       "mcp": "MCP",
       "skills": "技能管理",
-      "toolCapabilities": "API 与网关",
       "skillQuality": "技能质量",
       "toolStability": "工具稳定性",
       "toolQuality": "运行质量",
@@ -5610,10 +5609,6 @@
         "title": "技能",
         "description": "浏览并管理 AI 技能"
       },
-      "toolCapabilities": {
-        "title": "API 与网关",
-        "description": "配置大模型 API 密钥与网关设置"
-      },
       "credentials": {
         "title": "凭据",
         "description": "管理技能所需的凭据文件"
@@ -5855,7 +5850,9 @@
     "unknownError": "未知错误",
     "uploadFailedRetry": "文件上传失败，请重试",
     "videoTooLarge": "视频文件过大（超过100MB限制）",
-    "videoTooLargeDesc": "请选择更短或更小的视频文件，当前文件 {size}"
+    "videoTooLargeDesc": "请选择更短或更小的视频文件，当前文件 {size}",
+    "largeDocIndexing": "大文档将自动入库知识库，AI 将智能检索而非全文读取",
+    "largeDocIndexingDesc": "{name}（{size}）— AI 将自动搜索知识库获取相关内容，而非读取整个文档"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid 语法错误",

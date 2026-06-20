@@ -179,7 +179,6 @@
       "retrieval": "Retrieval Service",
       "search": "Search Service",
       "mcp": "MCP",
-      "toolCapabilities": "API & Gateway",
       "skills": "Skills",
       "skillQuality": "Skill Quality",
       "toolStability": "Tool Stability",
@@ -5610,10 +5609,6 @@
         "title": "Skills",
         "description": "Browse and manage AI skills"
       },
-      "toolCapabilities": {
-        "title": "API & Gateway",
-        "description": "Configure LLM API keys and gateway settings"
-      },
       "credentials": {
         "title": "Credentials",
         "description": "Manage credential files for skills"
@@ -5855,7 +5850,9 @@
     "unknownError": "Unknown error",
     "uploadFailedRetry": "File upload failed, please try again",
     "videoTooLarge": "Video file too large (exceeds 100MB limit)",
-    "videoTooLargeDesc": "Please select a shorter or smaller video file. Current: {size}"
+    "videoTooLargeDesc": "Please select a shorter or smaller video file. Current: {size}",
+    "largeDocIndexing": "Large document will be indexed into knowledge base for intelligent retrieval",
+    "largeDocIndexingDesc": "{name} ({size}) — AI will automatically search the knowledge base instead of reading the entire document"
   },
   "mermaidChart": {
     "syntaxError": "Mermaid Syntax Error",
