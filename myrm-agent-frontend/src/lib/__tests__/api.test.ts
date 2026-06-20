@@ -10,32 +10,80 @@ vi.mock('@/lib/deploy-mode', () => ({
 describe('fetchWithTimeout Global Auth Interceptor', () => {
   const originalWindow = globalThis.window;
   const originalDocument = globalThis.document;
+  const originalLocalStorage = globalThis.localStorage;
+  const originalSessionStorage = globalThis.sessionStorage;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
-    const location = { href: '', pathname: '/test' } as Location;
-    globalThis.window = { location } as Window & typeof globalThis;
-    globalThis.document = { cookie: '' } as Document;
-
+    const location = { href: '', pathname: '/test', search: '', hash: '' } as Location;
     const store = new Map<string, string>();
-    globalThis.localStorage = {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        store.set(key, value);
-      },
-      removeItem: (key: string) => {
-        store.delete(key);
-      },
-      clear: () => {
-        store.clear();
-      },
-    } as Storage;
+    const sessionStore = new Map<string, string>();
 
-    globalThis.fetch = vi.fn() as typeof fetch;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { location } as Window & typeof globalThis,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: { cookie: '' } as Document,
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value);
+        },
+        removeItem: (key: string) => {
+          store.delete(key);
+        },
+        clear: () => {
+          store.clear();
+        },
+      } as Storage,
+    });
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => sessionStore.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          sessionStore.set(key, value);
+        },
+        removeItem: (key: string) => {
+          sessionStore.delete(key);
+        },
+        clear: () => {
+          sessionStore.clear();
+        },
+      } as Storage,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: vi.fn() as typeof fetch,
+    });
   });
 
   afterEach(() => {
-    globalThis.window = originalWindow;
-    globalThis.document = originalDocument;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: originalDocument,
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: originalLocalStorage,
+    });
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      configurable: true,
+      value: originalSessionStorage,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: originalFetch,
+    });
     vi.restoreAllMocks();
   });
 
