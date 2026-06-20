@@ -14,9 +14,6 @@ CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
 SQUIRCLE_EXPONENT = 5.0
-# Dock: neutral dark squircle face (Cursor-like) with full-color artwork inset.
-FACE_COLOR = (45, 45, 48)
-ARTWORK_SCALE = 0.78
 
 
 def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
@@ -55,11 +52,7 @@ def make_dock_icon(source: Path) -> Image.Image:
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    face = Image.new("RGBA", (FACE_SIZE, FACE_SIZE), FACE_COLOR + (255,))
-    artwork = fit_artwork(src, max(1, round(FACE_SIZE * ARTWORK_SCALE)))
-    offset = ((FACE_SIZE - artwork.width) // 2, (FACE_SIZE - artwork.height) // 2)
-    face.paste(artwork, offset, artwork)
-
+    face = fit_artwork(src, FACE_SIZE)
     mask = squircle_mask(FACE_SIZE)
     alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
     face.putalpha(alpha)
@@ -80,6 +73,23 @@ def export_png_sizes(master: Path, outputs: dict[int, Path]) -> None:
 def export_webp_from_image(img: Image.Image, dest: Path, quality: int = 86) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     img.convert("RGBA").save(dest, format="WEBP", quality=quality, method=6)
+
+
+def export_tray_icons(source: Path, icons_dir: Path) -> None:
+    """Monochrome transparent tray icons for macOS menu bar."""
+    src = Image.open(source).convert("RGBA")
+    bbox = src.getbbox() or (0, 0, src.width, src.height)
+    art = src.crop(bbox)
+    for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
+        pad = max(2, size // 8)
+        inner = size - 2 * pad
+        fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
+        alpha = fitted.split()[3]
+        icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        glyph = Image.new("RGBA", (inner, inner), (0, 0, 0, 255))
+        glyph.putalpha(alpha)
+        icon.paste(glyph, (pad, pad), glyph)
+        icon.save(icons_dir / name, optimize=True)
 
 
 def resolve_source(repo: Path) -> Path:
@@ -159,23 +169,6 @@ def main() -> int:
     git_src.unlink(missing_ok=True)
     print(f"OK: squircle icon from {source} face={FACE_SIZE}px gutter={GUTTER}px")
     return 0
-
-
-def export_tray_icons(source: Path, icons_dir: Path) -> None:
-    """Monochrome transparent tray icons for macOS menu bar (18–22px visual height)."""
-    src = Image.open(source).convert("RGBA")
-    bbox = src.getbbox() or (0, 0, src.width, src.height)
-    art = src.crop(bbox)
-    for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
-        pad = max(2, size // 8)
-        inner = size - 2 * pad
-        fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
-        alpha = fitted.split()[3]
-        icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        glyph = Image.new("RGBA", (inner, inner), (0, 0, 0, 255))
-        glyph.putalpha(alpha)
-        icon.paste(glyph, (pad, pad), glyph)
-        icon.save(icons_dir / name, optimize=True)
 
 
 if __name__ == "__main__":
