@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate macOS Dock-compliant app icons (Apple forum 824/1024 spec at 512 scale)."""
+"""Generate macOS Dock app icons: scale source artwork to Apple 824/1024 safe zone."""
 
 from __future__ import annotations
 
@@ -7,24 +7,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image
 
-# Apple Developer Forums #670578 (jaredsinclair): 824x824 face, 185.4 radius,
-# 100px gutter, drop shadow 28px blur / 12px Y / 50% black — halved for 512 master.
+# Apple Developer Forums #670578: 824x824 artwork on 1024 canvas → halved for 512 master.
 CANVAS = 512
 FACE_SIZE = 412
-FACE_RADIUS = 93
 GUTTER = 50
-SHADOW_BLUR = 14
-SHADOW_OFFSET_Y = 6
-SHADOW_ALPHA = 128
-
-
-def rounded_mask(size: int, radius: int) -> Image.Image:
-    mask = Image.new("L", (size, size), 0)
-    draw = ImageDraw.Draw(mask)
-    draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
-    return mask
 
 
 def make_macos_icon(source: Path) -> Image.Image:
@@ -36,16 +24,7 @@ def make_macos_icon(source: Path) -> Image.Image:
     art = src.crop(bbox)
     art = art.resize((FACE_SIZE, FACE_SIZE), Image.Resampling.LANCZOS)
 
-    face_mask = rounded_mask(FACE_SIZE, FACE_RADIUS)
-    alpha = Image.composite(art.split()[3], Image.new("L", art.size, 0), face_mask)
-    art.putalpha(alpha)
-
-    shadow_fill = Image.new("RGBA", (FACE_SIZE, FACE_SIZE), (0, 0, 0, SHADOW_ALPHA))
-    shadow_fill.putalpha(face_mask)
-    shadow = shadow_fill.filter(ImageFilter.GaussianBlur(SHADOW_BLUR))
-
     canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    canvas.paste(shadow, (GUTTER, GUTTER + SHADOW_OFFSET_Y), shadow)
     canvas.paste(art, (GUTTER, GUTTER), art)
     return canvas
 
@@ -137,7 +116,7 @@ def main() -> int:
     master.unlink(missing_ok=True)
     git_src = repo / "myrm-agent-frontend/public/brand/.logo-icon-source-512.png"
     git_src.unlink(missing_ok=True)
-    print(f"OK: macOS-spec icon from {source} face={FACE_SIZE}px gutter={GUTTER}px")
+    print(f"OK: macOS icon from {source} face={FACE_SIZE}px gutter={GUTTER}px (no shadow/mask)")
     return 0
 
 
