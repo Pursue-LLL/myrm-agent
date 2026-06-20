@@ -7,13 +7,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 # Apple Developer Forums #670578: 824x824 face on 1024 canvas → halved for 512 master.
 CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
 SQUIRCLE_EXPONENT = 5.0
+SATURATION_BOOST = 1.15
 
 
 def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
@@ -47,12 +48,19 @@ def fit_artwork(source: Image.Image, max_size: int) -> Image.Image:
     return canvas
 
 
+def boost_saturation(image: Image.Image, factor: float = SATURATION_BOOST) -> Image.Image:
+    rgb = ImageEnhance.Color(image.convert("RGB")).enhance(factor)
+    result = rgb.convert("RGBA")
+    result.putalpha(image.split()[3])
+    return result
+
+
 def make_dock_icon(source: Path) -> Image.Image:
     src = Image.open(source).convert("RGBA")
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    face = fit_artwork(src, FACE_SIZE)
+    face = boost_saturation(fit_artwork(src, FACE_SIZE))
     mask = squircle_mask(FACE_SIZE)
     alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
     face.putalpha(alpha)
