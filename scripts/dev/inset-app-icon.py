@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate macOS Dock app icons: scale source artwork to Apple 824/1024 safe zone."""
+"""Generate macOS Dock app icons with baked superellipse squircle (native macOS spec)."""
 
 from __future__ import annotations
 
@@ -9,10 +9,42 @@ from pathlib import Path
 
 from PIL import Image
 
-# Apple Developer Forums #670578: 824x824 artwork on 1024 canvas → halved for 512 master.
+# Apple Developer Forums #670578: 824x824 face on 1024 canvas → halved for 512 master.
 CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
+SQUIRCLE_EXPONENT = 5.0
+
+
+def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
+    """macOS continuous-curvature superellipse (|x|^n + |y|^n <= 1)."""
+    mask = Image.new("L", (size, size), 0)
+    pixels = mask.load()
+    center = (size - 1) / 2
+    radius = size / 2
+    for y in range(size):
+        ny = abs(y - center) / radius
+        ny_term = ny**exponent
+        for x in range(size):
+            nx = abs(x - center) / radius
+            if nx**exponent + ny_term <= 1.0:
+                pixels[x, y] = 255
+    return mask
+
+
+def fit_artwork(source: Image.Image, max_size: int) -> Image.Image:
+    bbox = source.getbbox() or (0, 0, source.width, source.height)
+    art = source.crop(bbox)
+    width, height = art.size
+    scale = min(max_size / width, max_size / height)
+    fitted = art.resize(
+        (max(1, round(width * scale)), max(1, round(height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    canvas = Image.new("RGBA", (max_size, max_size), (0, 0, 0, 0))
+    offset = ((max_size - fitted.width) // 2, (max_size - fitted.height) // 2)
+    canvas.paste(fitted, offset, fitted)
+    return canvas
 
 
 def make_macos_icon(source: Path) -> Image.Image:
@@ -20,12 +52,13 @@ def make_macos_icon(source: Path) -> Image.Image:
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    bbox = src.getbbox() or (0, 0, CANVAS, CANVAS)
-    art = src.crop(bbox)
-    art = art.resize((FACE_SIZE, FACE_SIZE), Image.Resampling.LANCZOS)
+    face = fit_artwork(src, FACE_SIZE)
+    mask = squircle_mask(FACE_SIZE)
+    alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
+    face.putalpha(alpha)
 
     canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    canvas.paste(art, (GUTTER, GUTTER), art)
+    canvas.paste(face, (GUTTER, GUTTER), face)
     return canvas
 
 
@@ -116,7 +149,7 @@ def main() -> int:
     master.unlink(missing_ok=True)
     git_src = repo / "myrm-agent-frontend/public/brand/.logo-icon-source-512.png"
     git_src.unlink(missing_ok=True)
-    print(f"OK: macOS icon from {source} face={FACE_SIZE}px gutter={GUTTER}px (no shadow/mask)")
+    print(f"OK: squircle icon from {source} face={FACE_SIZE}px gutter={GUTTER}px")
     return 0
 
 
