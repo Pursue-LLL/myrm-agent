@@ -12,13 +12,12 @@ interface BrandLogoProps {
   priority?: boolean;
 }
 
-const WORDMARK_LIGHT = '/brand/logo-wordmark-light-text.webp?v=20260620';
+const WORDMARK_LIGHT = '/brand/logo-wordmark-light-text.webp';
 
 function iconSrcForSize(displaySize: number): string {
-  const v = '?v=20260620';
-  if (displaySize <= 48) return `/brand/logo-icon-80.webp${v}`;
-  if (displaySize <= 96) return `/brand/logo-icon-128.webp${v}`;
-  return `/brand/logo-icon.webp${v}`;
+  if (displaySize <= 48) return '/brand/logo-icon-80.webp';
+  if (displaySize <= 96) return '/brand/logo-icon-128.webp';
+  return '/brand/logo-icon.webp';
 }
 
 export default function BrandLogo({
@@ -29,7 +28,7 @@ export default function BrandLogo({
   priority = false,
 }: BrandLogoProps) {
   if (variant === 'wordmark') {
-    const src = wordmarkTheme === 'light' ? WORDMARK_LIGHT : '/brand/logo-wordmark.webp?v=20260620';
+    const src = wordmarkTheme === 'light' ? WORDMARK_LIGHT : '/brand/logo-wordmark.webp';
     return (
       <Image
         src={src}

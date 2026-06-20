@@ -81,7 +81,7 @@ export default async function LocaleLayout({ children }: { children: React.React
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         {/* next/font self-hosts woff2 — no external preconnect needed */}
-        <link rel="preload" as="image" href="/brand/logo-icon.webp?v=20260620" type="image/webp" />
+        <link rel="preload" as="image" href="/brand/logo-icon.webp" type="image/webp" />
       </head>
       <body className={cn('min-h-full', fontSans.variable, fontMono.variable)}>
         <GlobalErrorBoundary>
