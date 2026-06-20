@@ -446,17 +446,19 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleSubmit();
-                    }}
-                    disabled={inputMessage.trim().length === 0 && files.length === 0}
-                    className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
-                    aria-label={commonT('send')}
-                  >
-                    <ArrowRight size={17} />
-                  </button>
+                  <span className="brand-elevation-slot">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void handleSubmit();
+                      }}
+                      disabled={inputMessage.trim().length === 0 && files.length === 0}
+                      className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
+                      aria-label={commonT('send')}
+                    >
+                      <ArrowRight size={17} />
+                    </button>
+                  </span>
                 )}
               </div>
             </div>

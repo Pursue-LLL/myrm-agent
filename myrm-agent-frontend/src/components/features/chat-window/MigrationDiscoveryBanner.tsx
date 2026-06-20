@@ -107,7 +107,7 @@ export default function MigrationDiscoveryBanner() {
         : t('descriptionGeneric');
 
   return (
-    <div className="w-full rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="w-full overflow-visible rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-primary/10 p-2">
@@ -119,7 +119,7 @@ export default function MigrationDiscoveryBanner() {
             {hasApiKeys && <span className="text-xs text-amber-600 dark:text-amber-400">{t('apiKeysHint')}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2 sm:shrink-0">
+        <div className="flex items-center gap-2 overflow-visible py-1 sm:shrink-0">
           <Button size="sm" className="h-8 text-xs" onClick={handleNavigate}>
             <IconArrowRight className="mr-1.5 h-3.5 w-3.5" />
             {t('importButton')}

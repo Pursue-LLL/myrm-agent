@@ -312,16 +312,14 @@
     inset 0 1px 0 0 color-mix(in srgb, white 52%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 8%, transparent),
     0 2px 4px color-mix(in srgb, var(--accent-warm) 14%, transparent),
-    0 8px 28px color-mix(in srgb, var(--accent-warm) 24%, transparent),
-    0 18px 52px color-mix(in srgb, var(--accent-warm) 16%, transparent),
-    0 32px 72px color-mix(in srgb, var(--primary) 10%, transparent);
+    0 6px 14px color-mix(in srgb, var(--accent-warm) 20%, transparent),
+    0 10px 20px color-mix(in srgb, var(--accent-warm) 12%, transparent);
   --shadow-brand-lg:
     inset 0 1px 0 0 color-mix(in srgb, white 58%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 6%, transparent),
     0 4px 8px color-mix(in srgb, var(--accent-warm) 16%, transparent),
-    0 14px 36px color-mix(in srgb, var(--accent-warm) 28%, transparent),
-    0 28px 64px color-mix(in srgb, var(--accent-warm) 20%, transparent),
-    0 44px 96px color-mix(in srgb, var(--primary) 12%, transparent);
+    0 8px 16px color-mix(in srgb, var(--accent-warm) 24%, transparent),
+    0 12px 24px color-mix(in srgb, var(--accent-warm) 14%, transparent);
   --shadow-brand-sm:
     inset 0 2px 6px 0 color-mix(in srgb, black 10%, transparent),
     inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
@@ -395,16 +393,14 @@
     inset 0 1px 0 0 color-mix(in srgb, white 22%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 22%, transparent),
     0 2px 4px color-mix(in srgb, var(--accent-warm) 18%, transparent),
-    0 8px 28px color-mix(in srgb, var(--accent-warm) 28%, transparent),
-    0 18px 52px color-mix(in srgb, var(--accent-warm) 20%, transparent),
-    0 32px 72px color-mix(in srgb, var(--primary) 14%, transparent);
+    0 6px 14px color-mix(in srgb, var(--accent-warm) 24%, transparent),
+    0 10px 20px color-mix(in srgb, var(--accent-warm) 14%, transparent);
   --shadow-brand-lg:
     inset 0 1px 0 0 color-mix(in srgb, white 26%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 18%, transparent),
     0 4px 8px color-mix(in srgb, var(--accent-warm) 20%, transparent),
-    0 14px 36px color-mix(in srgb, var(--accent-warm) 32%, transparent),
-    0 28px 64px color-mix(in srgb, var(--accent-warm) 24%, transparent),
-    0 44px 96px color-mix(in srgb, var(--primary) 16%, transparent);
+    0 8px 16px color-mix(in srgb, var(--accent-warm) 28%, transparent),
+    0 12px 24px color-mix(in srgb, var(--accent-warm) 16%, transparent);
   --shadow-brand-sm:
     inset 0 2px 6px 0 color-mix(in srgb, black 18%, transparent),
     inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
@@ -538,16 +534,14 @@
     inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 20%, transparent),
     0 2px 4px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 8px 28px color-mix(in srgb, var(--primary) 26%, transparent),
-    0 18px 52px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 32px 72px color-mix(in srgb, var(--primary) 12%, transparent);
+    0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent),
+    0 10px 20px color-mix(in srgb, var(--primary) 12%, transparent);
   --shadow-brand-lg:
     inset 0 1px 0 0 color-mix(in srgb, white 28%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 16%, transparent),
     0 4px 8px color-mix(in srgb, var(--primary) 20%, transparent),
-    0 14px 36px color-mix(in srgb, var(--primary) 30%, transparent),
-    0 28px 64px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 44px 96px color-mix(in srgb, var(--primary) 14%, transparent);
+    0 8px 16px color-mix(in srgb, var(--primary) 26%, transparent),
+    0 12px 24px color-mix(in srgb, var(--primary) 14%, transparent);
   --shadow-brand-sm:
     inset 0 2px 6px 0 color-mix(in srgb, black 16%, transparent),
     inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
@@ -579,16 +573,14 @@
     inset 0 1px 0 0 color-mix(in srgb, white 24%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 20%, transparent),
     0 2px 4px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 8px 28px color-mix(in srgb, var(--primary) 26%, transparent),
-    0 18px 52px color-mix(in srgb, var(--primary) 18%, transparent),
-    0 32px 72px color-mix(in srgb, var(--primary) 12%, transparent);
+    0 6px 14px color-mix(in srgb, var(--primary) 22%, transparent),
+    0 10px 20px color-mix(in srgb, var(--primary) 12%, transparent);
   --shadow-brand-lg:
     inset 0 1px 0 0 color-mix(in srgb, white 28%, transparent),
     inset 0 -2px 6px 0 color-mix(in srgb, black 16%, transparent),
     0 4px 8px color-mix(in srgb, var(--primary) 20%, transparent),
-    0 14px 36px color-mix(in srgb, var(--primary) 30%, transparent),
-    0 28px 64px color-mix(in srgb, var(--primary) 22%, transparent),
-    0 44px 96px color-mix(in srgb, var(--primary) 14%, transparent);
+    0 8px 16px color-mix(in srgb, var(--primary) 26%, transparent),
+    0 12px 24px color-mix(in srgb, var(--primary) 14%, transparent);
   --shadow-brand-sm:
     inset 0 2px 6px 0 color-mix(in srgb, black 16%, transparent),
     inset 0 1px 0 0 color-mix(in srgb, white 14%, transparent),
@@ -1073,10 +1065,21 @@ mark {
   background-image: var(--brand-gradient);
 }
 
+.brand-elevation-slot {
+  display: inline-flex;
+  overflow: visible;
+  padding: 8px;
+  margin: -8px;
+  position: relative;
+  z-index: 0;
+}
+
 .btn-brand-elevation,
 .brand-gradient-bg,
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation),
 button.bg-primary.text-white:not(.no-brand-elevation) {
+  position: relative;
+  z-index: 1;
   border: 0;
   box-shadow: var(--shadow-brand);
   animation:
@@ -1102,6 +1105,7 @@ button.bg-primary.text-white:not(.no-brand-elevation) {
 .brand-gradient-bg:hover,
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation):hover:not(:disabled),
 button.bg-primary.text-white:not(.no-brand-elevation):hover:not(:disabled) {
+  z-index: 2;
   animation-play-state: paused, paused;
   box-shadow: var(--shadow-brand-lg);
 }

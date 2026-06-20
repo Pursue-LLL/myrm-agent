@@ -80,7 +80,7 @@ export default function WorkspaceLayout() {
         {/* Pane Grid */}
         <div className="flex-1 p-6 overflow-auto">
           {panes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4 overflow-visible py-8">
               <Layout size={48} className="opacity-30" />
               <p className="text-sm">{t('noActiveSessions')}</p>
               <Button type="button" onClick={() => addPane()} className="gap-2 rounded-lg">
