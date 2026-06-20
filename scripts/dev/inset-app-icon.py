@@ -119,15 +119,22 @@ def export_webp_from_image(img: Image.Image, dest: Path, quality: int = 86) -> N
 
 
 def export_tray_icons(source: Path, icons_dir: Path) -> None:
-    """Monochrome transparent tray icons for macOS menu bar."""
+    """Pure black template glyph on fully transparent background for macOS menu bar."""
     src = Image.open(source).convert("RGBA")
-    bbox = src.getbbox() or (0, 0, src.width, src.height)
-    art = src.crop(bbox)
+    if src.size != (CANVAS, CANVAS):
+        src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
+
+    foreground = strip_background(src)
+    bbox = foreground.getbbox()
+    if bbox is None:
+        return
+
+    art = foreground.crop(bbox)
     for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
         pad = max(2, size // 8)
         inner = size - 2 * pad
         fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
-        alpha = fitted.split()[3]
+        alpha = fitted.split()[3].point(lambda value: 255 if value > 48 else 0)
         icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         glyph = Image.new("RGBA", (inner, inner), (0, 0, 0, 255))
         glyph.putalpha(alpha)
