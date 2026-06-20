@@ -154,10 +154,28 @@ def main() -> int:
     )
 
     master.unlink(missing_ok=True)
+    export_tray_icons(source, tauri_icons)
     git_src = repo / "myrm-agent-frontend/public/brand/.logo-icon-source-512.png"
     git_src.unlink(missing_ok=True)
     print(f"OK: squircle icon from {source} face={FACE_SIZE}px gutter={GUTTER}px")
     return 0
+
+
+def export_tray_icons(source: Path, icons_dir: Path) -> None:
+    """Monochrome transparent tray icons for macOS menu bar (18–22px visual height)."""
+    src = Image.open(source).convert("RGBA")
+    bbox = src.getbbox() or (0, 0, src.width, src.height)
+    art = src.crop(bbox)
+    for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
+        pad = max(2, size // 8)
+        inner = size - 2 * pad
+        fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
+        alpha = fitted.split()[3]
+        icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        glyph = Image.new("RGBA", (inner, inner), (0, 0, 0, 255))
+        glyph.putalpha(alpha)
+        icon.paste(glyph, (pad, pad), glyph)
+        icon.save(icons_dir / name, optimize=True)
 
 
 if __name__ == "__main__":

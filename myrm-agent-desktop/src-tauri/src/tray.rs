@@ -11,6 +11,7 @@
 //! [POS]
 //! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
 
+use tauri::image::Image;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -53,13 +54,26 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         &quit_i,
     ])?;
 
-    let icon = app.default_window_icon()
-        .ok_or("No default window icon found, skipping tray icon creation")?;
-
-    TrayIconBuilder::with_id("main")
-        .icon(icon.clone())
+    let mut builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(false);
+
+    #[cfg(target_os = "macos")]
+    {
+        let tray_image = Image::from_bytes(include_bytes!("../icons/tray_icon@2x.png"))?;
+        builder = builder.icon(tray_image).icon_as_template(true);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let window_icon = app
+            .default_window_icon()
+            .ok_or("No default window icon found, skipping tray icon creation")?
+            .clone();
+        builder = builder.icon(window_icon);
+    }
+
+    builder
         .on_menu_event(|app, event| match event.id.as_ref() {
             "quit" => {
                 let app_handle = app.clone();
