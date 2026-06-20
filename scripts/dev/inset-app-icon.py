@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inset app icon artwork to macOS HIG safe zone (~82% content area)."""
+"""Generate macOS Dock-compliant app icons (Apple forum 824/1024 spec at 512 scale)."""
 
 from __future__ import annotations
 
@@ -7,25 +7,47 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFilter
 
-CONTENT_SCALE = 0.82
+# Apple Developer Forums #670578 (jaredsinclair): 824x824 face, 185.4 radius,
+# 100px gutter, drop shadow 28px blur / 12px Y / 50% black — halved for 512 master.
 CANVAS = 512
+FACE_SIZE = 412
+FACE_RADIUS = 93
+GUTTER = 50
+SHADOW_BLUR = 14
+SHADOW_OFFSET_Y = 6
+SHADOW_ALPHA = 128
 
 
-def inset_icon(source: Path, dest: Path, scale: float = CONTENT_SCALE) -> None:
+def rounded_mask(size: int, radius: int) -> Image.Image:
+    mask = Image.new("L", (size, size), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
+    return mask
+
+
+def make_macos_icon(source: Path) -> Image.Image:
     src = Image.open(source).convert("RGBA")
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    content_size = max(1, round(CANVAS * scale))
-    resized = src.resize((content_size, content_size), Image.Resampling.LANCZOS)
-    offset = (CANVAS - content_size) // 2
+    bbox = src.getbbox() or (0, 0, CANVAS, CANVAS)
+    art = src.crop(bbox)
+    art = art.resize((FACE_SIZE, FACE_SIZE), Image.Resampling.LANCZOS)
+
+    face_mask = rounded_mask(FACE_SIZE, FACE_RADIUS)
+    alpha = Image.composite(art.split()[3], Image.new("L", art.size, 0), face_mask)
+    art.putalpha(alpha)
+
+    shadow_fill = Image.new("RGBA", (FACE_SIZE, FACE_SIZE), (0, 0, 0, SHADOW_ALPHA))
+    shadow_fill.putalpha(face_mask)
+    shadow = shadow_fill.filter(ImageFilter.GaussianBlur(SHADOW_BLUR))
 
     canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    canvas.paste(resized, (offset, offset), resized)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    canvas.save(dest, optimize=True)
+    canvas.paste(shadow, (GUTTER, GUTTER + SHADOW_OFFSET_Y), shadow)
+    canvas.paste(art, (GUTTER, GUTTER), art)
+    return canvas
 
 
 def export_png_sizes(master: Path, outputs: dict[int, Path]) -> None:
@@ -41,21 +63,39 @@ def export_webp_from_image(img: Image.Image, dest: Path, quality: int = 86) -> N
     img.convert("RGBA").save(dest, format="WEBP", quality=quality, method=6)
 
 
-def export_webp(master: Path, dest: Path, quality: int = 86) -> None:
-    export_webp_from_image(Image.open(master), dest, quality=quality)
+def resolve_source(repo: Path) -> Path:
+    git_src = repo / "myrm-agent-frontend/public/brand/.logo-icon-source-512.png"
+    if not git_src.exists():
+        result = subprocess.run(
+            [
+                "git",
+                "show",
+                "3cd833c:myrm-agent-frontend/public/brand/logo-icon-512.png",
+            ],
+            cwd=repo,
+            capture_output=True,
+        )
+        if result.returncode == 0 and result.stdout:
+            git_src.write_bytes(result.stdout)
+
+    candidates = [
+        git_src,
+        repo / "myrm-agent-frontend/public/brand/logo-icon-512.png",
+        repo / "myrm-agent-desktop/src-tauri/icons/icon.png",
+    ]
+    for path in candidates:
+        if path.exists() and path.stat().st_size > 0:
+            return path
+    raise FileNotFoundError("No source icon found")
 
 
 def main() -> int:
     repo = Path(__file__).resolve().parents[2]
-    source = repo / "myrm-agent-desktop/src-tauri/icons/icon.png"
-    if not source.exists():
-        source = repo / "myrm-agent-frontend/public/brand/logo-icon-512.png"
-    if not source.exists():
-        print(f"ERROR: source icon not found: {source}", file=sys.stderr)
-        return 1
-
-    master = repo / "myrm-agent-frontend/public/brand/logo-icon-512-inset.png"
-    inset_icon(source, master)
+    source = resolve_source(repo)
+    master = repo / "myrm-agent-frontend/public/brand/logo-icon-512-macos.png"
+    icon = make_macos_icon(source)
+    master.parent.mkdir(parents=True, exist_ok=True)
+    icon.save(master, optimize=True)
 
     brand = repo / "myrm-agent-frontend/public/brand"
     icons = repo / "myrm-agent-frontend/public/icons"
@@ -74,31 +114,30 @@ def main() -> int:
     }
 
     for size, paths in png_map.items():
-        if not paths:
-            continue
         export_png_sizes(master, {size: paths[0]})
         for extra in paths[1:]:
             extra.write_bytes(paths[0].read_bytes())
 
-    export_webp(master, brand / "logo-icon.webp")
+    export_webp_from_image(icon, brand / "logo-icon.webp")
     export_webp_from_image(
-        Image.open(master).resize((128, 128), Image.Resampling.LANCZOS),
+        icon.resize((128, 128), Image.Resampling.LANCZOS),
         brand / "logo-icon-128.webp",
     )
     export_webp_from_image(
-        Image.open(master).resize((80, 80), Image.Resampling.LANCZOS),
+        icon.resize((80, 80), Image.Resampling.LANCZOS),
         brand / "logo-icon-80.webp",
     )
 
-    desktop = repo / "myrm-agent-desktop"
     subprocess.run(
         ["cargo", "tauri", "icon", str(master)],
-        cwd=desktop,
+        cwd=repo / "myrm-agent-desktop",
         check=True,
     )
 
     master.unlink(missing_ok=True)
-    print(f"OK: inset icon generated from {source} at scale={CONTENT_SCALE}")
+    git_src = repo / "myrm-agent-frontend/public/brand/.logo-icon-source-512.png"
+    git_src.unlink(missing_ok=True)
+    print(f"OK: macOS-spec icon from {source} face={FACE_SIZE}px gutter={GUTTER}px")
     return 0
 
 
