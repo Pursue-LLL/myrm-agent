@@ -7,13 +7,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 # Apple Developer Forums #670578: 824x824 face on 1024 canvas → halved for 512 master.
 CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
 SQUIRCLE_EXPONENT = 5.0
+# Higher-contrast brand gradient (replaces low-contrast pastel wash).
+GRADIENT_TOP = (72, 138, 196)
+GRADIENT_BOTTOM = (242, 128, 72)
+BACKGROUND_TOLERANCE = 48
 
 
 def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
@@ -32,9 +36,45 @@ def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image
     return mask
 
 
-def fit_artwork(source: Image.Image, max_size: int) -> Image.Image:
-    bbox = source.getbbox() or (0, 0, source.width, source.height)
-    art = source.crop(bbox)
+def vertical_gradient(size: int, top: tuple[int, int, int], bottom: tuple[int, int, int]) -> Image.Image:
+    img = Image.new("RGB", (size, size))
+    draw = ImageDraw.Draw(img)
+    for y in range(size):
+        t = y / max(size - 1, 1)
+        color = tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
+        draw.line((0, y, size - 1, y), fill=color)
+    return img.convert("RGBA")
+
+
+def average_corner_rgb(image: Image.Image) -> tuple[int, int, int]:
+    px = image.load()
+    width, height = image.size
+    samples = [
+        px[0, 0][:3],
+        px[width - 1, 0][:3],
+        px[0, height - 1][:3],
+        px[width - 1, height - 1][:3],
+    ]
+    return tuple(sum(channel[i] for channel in samples) // 4 for i in range(3))
+
+
+def strip_background(art: Image.Image, tolerance: int = BACKGROUND_TOLERANCE) -> Image.Image:
+    bg = average_corner_rgb(art)
+    out = art.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            dist = (abs(r - bg[0]) + abs(g - bg[1]) + abs(b - bg[2])) // 3
+            if dist <= tolerance:
+                px[x, y] = (r, g, b, 0)
+    return out
+
+
+def fit_foreground(source: Image.Image, max_size: int) -> Image.Image:
+    foreground = strip_background(source)
+    bbox = foreground.getbbox() or (0, 0, source.width, source.height)
+    art = foreground.crop(bbox)
     width, height = art.size
     scale = min(max_size / width, max_size / height)
     fitted = art.resize(
@@ -52,7 +92,10 @@ def make_macos_icon(source: Path) -> Image.Image:
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    face = fit_artwork(src, FACE_SIZE)
+    face = vertical_gradient(FACE_SIZE, GRADIENT_TOP, GRADIENT_BOTTOM)
+    foreground = fit_foreground(src, FACE_SIZE)
+    face = Image.alpha_composite(face, foreground)
+
     mask = squircle_mask(FACE_SIZE)
     alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
     face.putalpha(alpha)
