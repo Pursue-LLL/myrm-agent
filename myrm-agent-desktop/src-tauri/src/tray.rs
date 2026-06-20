@@ -39,6 +39,10 @@ fn show_and_navigate(app: &AppHandle, event_name: &str) {
     }
 }
 
+fn load_tray_icon() -> Result<Image<'static>, Box<dyn std::error::Error>> {
+    Ok(Image::from_bytes(include_bytes!("../icons/tray_icon@2x.png"))?)
+}
+
 pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
     let new_chat_i = MenuItem::with_id(app, "new_chat", "New Chat", true, None::<&str>)?;
@@ -55,22 +59,13 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     ])?;
 
     let mut builder = TrayIconBuilder::with_id("main")
+        .icon(load_tray_icon()?)
         .menu(&menu)
         .show_menu_on_left_click(false);
 
     #[cfg(target_os = "macos")]
     {
-        let tray_image = Image::from_bytes(include_bytes!("../icons/tray_icon@2x.png"))?;
-        builder = builder.icon(tray_image).icon_as_template(true);
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let window_icon = app
-            .default_window_icon()
-            .ok_or("No default window icon found, skipping tray icon creation")?
-            .clone();
-        builder = builder.icon(window_icon);
+        builder = builder.icon_as_template(true);
     }
 
     builder
