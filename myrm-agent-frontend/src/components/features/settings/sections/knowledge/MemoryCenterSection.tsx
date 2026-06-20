@@ -13,6 +13,7 @@ import MemoryBackupSection from './MemoryBackupSection';
 import MemoryArchivalSection from './MemoryArchivalSection';
 import RemoteBackupSection from './RemoteBackupSection';
 import { SettingsSkeleton } from '../../common/SettingsSkeleton';
+import { Button } from '@/components/primitives/button';
 
 const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'), {
   loading: () => <SettingsSkeleton />,
@@ -89,14 +90,11 @@ const MemoryCenterSection = memo(() => {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {t('memoryCenter.migrationUnavailable.description')}
           </p>
-          <a
-            href={desktopDownloadHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-          >
-            {t('memoryCenter.migrationUnavailable.downloadCta')}
-          </a>
+          <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:opacity-90">
+            <a href={desktopDownloadHref} target="_blank" rel="noopener noreferrer">
+              {t('memoryCenter.migrationUnavailable.downloadCta')}
+            </a>
+          </Button>
         </div>
       )}
 

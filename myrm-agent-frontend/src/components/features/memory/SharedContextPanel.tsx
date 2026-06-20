@@ -18,6 +18,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils/classnameUtils';
+import { Button } from '@/components/primitives/button';
 import {
   IconArrowRight,
   IconAuto,
@@ -110,10 +111,11 @@ const SharedContextPanel = memo(() => {
             placeholder={t('create.descriptionPlaceholder')}
             className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
           />
-          <button
+          <Button
+            type="button"
             onClick={panel.handleCreateContext}
             disabled={!panel.newName.trim() || panel.actionId === 'create-context'}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+            className="gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {panel.actionId === 'create-context' ? (
               <IconLoader className="h-3.5 w-3.5 animate-spin" />
@@ -121,7 +123,7 @@ const SharedContextPanel = memo(() => {
               <IconArrowRight className="h-3.5 w-3.5" />
             )}
             {t('create.submit')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -256,16 +258,17 @@ const SharedContextPanel = memo(() => {
                     className="rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
                   />
                 )}
-                <button
+                <Button
+                  type="button"
                   onClick={panel.handleCreateBinding}
                   disabled={
                     !panel.selectedContextIsActive || !panel.targetId.trim() || panel.actionId === 'create-binding'
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+                  className="gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <IconArrowRight className="h-3.5 w-3.5" />
                   {t('bindings.bind')}
-                </button>
+                </Button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {panel.bindings.length === 0 ? (

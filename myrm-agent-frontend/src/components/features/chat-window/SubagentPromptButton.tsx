@@ -45,7 +45,7 @@ const SubagentPromptButton = () => {
     <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
       <Button
         onClick={handleClick}
-        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg rounded-full px-6 py-3 transition-all duration-200"
+        className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-6 py-3"
       >
         <ArrowDown className="w-4 h-4" />
         <span>

@@ -9,6 +9,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/primitives/switch';
+import { Button } from '@/components/primitives/button';
 import { MCPServiceConfig } from '@/store/useConfigStore';
 import {
   startMCPOAuth,
@@ -185,13 +186,10 @@ export function MCPConfigList({
             <IconUpload className="w-4 h-4" />
             <span>{t('mcpImportJson')}</span>
           </button>
-          <button
-            onClick={onAddConfig}
-            className="flex items-center space-x-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-          >
+          <Button type="button" size="sm" onClick={onAddConfig} className="gap-2 rounded-lg bg-primary text-white hover:bg-primary/90">
             <IconPlus className="w-4 h-4" />
             <span>{t('mcpAddService')}</span>
-          </button>
+          </Button>
         </div>
       </div>
 

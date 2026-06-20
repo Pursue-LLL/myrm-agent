@@ -1077,7 +1077,9 @@ mark {
 .btn-brand-elevation,
 .brand-gradient-bg,
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation),
-button.bg-primary.text-white:not(.no-brand-elevation) {
+button.bg-primary.text-white:not(.no-brand-elevation),
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation),
+a.bg-primary.text-white:not(.no-brand-elevation) {
   position: relative;
   z-index: 1;
   border: 0;
@@ -1096,7 +1098,9 @@ button.bg-primary.text-white:not(.no-brand-elevation) {
   .btn-brand-elevation,
   .brand-gradient-bg,
   button.bg-primary.text-primary-foreground:not(.no-brand-elevation),
-  button.bg-primary.text-white:not(.no-brand-elevation) {
+  button.bg-primary.text-white:not(.no-brand-elevation),
+  a.bg-primary.text-primary-foreground:not(.no-brand-elevation),
+  a.bg-primary.text-white:not(.no-brand-elevation) {
     animation: none;
   }
 }
@@ -1104,7 +1108,9 @@ button.bg-primary.text-white:not(.no-brand-elevation) {
 .btn-brand-elevation:hover,
 .brand-gradient-bg:hover,
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation):hover:not(:disabled),
-button.bg-primary.text-white:not(.no-brand-elevation):hover:not(:disabled) {
+button.bg-primary.text-white:not(.no-brand-elevation):hover:not(:disabled),
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation):hover,
+a.bg-primary.text-white:not(.no-brand-elevation):hover {
   z-index: 2;
   animation-play-state: paused, paused;
   box-shadow: var(--shadow-brand-lg);
@@ -1113,7 +1119,9 @@ button.bg-primary.text-white:not(.no-brand-elevation):hover:not(:disabled) {
 .btn-brand-elevation:active,
 .brand-gradient-bg:active,
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation):active:not(:disabled),
-button.bg-primary.text-white:not(.no-brand-elevation):active:not(:disabled) {
+button.bg-primary.text-white:not(.no-brand-elevation):active:not(:disabled),
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation):active,
+a.bg-primary.text-white:not(.no-brand-elevation):active {
   animation-play-state: paused, paused;
   transform: translate3d(0, 0, 0);
   box-shadow: var(--shadow-brand-sm);
@@ -1122,7 +1130,9 @@ button.bg-primary.text-white:not(.no-brand-elevation):active:not(:disabled) {
 .btn-brand-elevation:disabled,
 .btn-brand-elevation[disabled],
 button.bg-primary.text-primary-foreground:not(.no-brand-elevation):disabled,
-button.bg-primary.text-white:not(.no-brand-elevation):disabled {
+button.bg-primary.text-white:not(.no-brand-elevation):disabled,
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation)[aria-disabled='true'],
+a.bg-primary.text-white:not(.no-brand-elevation)[aria-disabled='true'] {
   animation: none;
   transform: none;
   box-shadow: none;

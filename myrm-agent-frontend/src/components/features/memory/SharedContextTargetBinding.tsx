@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl';
 
 import { toast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
+import { Button } from '@/components/primitives/button';
 import { IconArrowRight, IconAuto, IconBrain, IconLoader, IconX } from '@/components/features/icons/PremiumIcons';
 import {
   createSharedContextBinding,
@@ -212,11 +213,11 @@ export function SharedContextTargetBinding({
                 ))
               )}
             </select>
-            <button
+            <Button
               type="button"
               onClick={handleBind}
               disabled={!selectedContextId || actionId === 'bind'}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+              className="gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {actionId === 'bind' ? (
                 <IconLoader className="h-3.5 w-3.5 animate-spin" />
@@ -224,7 +225,7 @@ export function SharedContextTargetBinding({
                 <IconArrowRight className="h-3.5 w-3.5" />
               )}
               {t('bind')}
-            </button>
+            </Button>
           </div>
 
           <div className="space-y-2">
