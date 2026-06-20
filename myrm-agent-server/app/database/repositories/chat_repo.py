@@ -267,6 +267,12 @@ class ChatRepository:
         return MessageDTO.model_validate(msg) if msg else None
 
     @staticmethod
+    async def get_message_by_id(db: AsyncSession, chat_id: str, message_id: str) -> MessageDTO | None:
+        result = await db.execute(select(Message).where(Message.chat_id == chat_id, Message.id == message_id))
+        msg = result.scalar_one_or_none()
+        return MessageDTO.model_validate(msg) if msg else None
+
+    @staticmethod
     async def get_message_created_at(db: AsyncSession, message_id: str) -> datetime | None:
         result = await db.execute(select(Message.created_at).where(Message.id == message_id))
         value = result.scalar_one_or_none()

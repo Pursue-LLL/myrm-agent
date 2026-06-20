@@ -7,7 +7,7 @@ app.database.dto::MessageDTO (POS: 聊天与消息数据传输对象)
 [OUTPUT]
 filter_messages: Filter chat messages before model context construction.
 _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
-RetryResult, RegenerateResult, UndoResult, ChannelHistoryEntry: Chat service result DTOs.
+RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
 
 [POS]
 聊天服务辅助层。集中放置消息过滤、snippet 清理和轻量结果类型，避免 ChatService 门面承载通用细节。
@@ -88,6 +88,13 @@ class RegenerateResult(NamedTuple):
     success: bool
     query: str
     sibling_group_id: str
+
+
+class TruncateResult(NamedTuple):
+    """truncate_after_message 操作结果。"""
+
+    success: bool
+    deleted_count: int
 
 
 class ChannelHistoryEntry(NamedTuple):

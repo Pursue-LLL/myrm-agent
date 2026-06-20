@@ -185,6 +185,9 @@ class BoundChatRepository:
     async def get_latest_message(self, chat_id: str) -> MessageDTO | None:
         return await ChatRepository.get_latest_message(self.session, chat_id)
 
+    async def get_message_by_id(self, chat_id: str, message_id: str) -> MessageDTO | None:
+        return await ChatRepository.get_message_by_id(self.session, chat_id, message_id)
+
     async def get_message_created_at(self, message_id: str) -> datetime | None:
         return await ChatRepository.get_message_created_at(self.session, message_id)
 

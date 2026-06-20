@@ -124,9 +124,16 @@ switch ($Command) {
             if ($bp) { Stop-Process -Id $bp -Force -ErrorAction SilentlyContinue }
             Remove-Item $bpid -Force -ErrorAction SilentlyContinue
         }
+        $port = if ($env:PORT) { $env:PORT } else { "8080" }
+        try { Invoke-WebRequest -Uri "http://127.0.0.1:$port/api/v1/system/shutdown" -Method Post -TimeoutSec 3 -UseBasicParsing 2>$null; Start-Sleep -Seconds 3 } catch {}
         $procs = Get-MyrmProcesses
         if ($procs) {
-            $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
+            Start-Sleep -Seconds 2
+            $procs = Get-MyrmProcesses
+            if ($procs) {
+                $procs | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            }
             Write-Host "Stopped Myrm processes."
         }
         else {

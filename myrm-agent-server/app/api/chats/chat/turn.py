@@ -18,6 +18,10 @@ class RegenerateRequest(BaseModel):
     instruction: str | None = None
 
 
+class TruncateAfterRequest(BaseModel):
+    message_id: str
+
+
 class SwitchSiblingRequest(BaseModel):
     sibling_group_id: str
     target_message_id: str
@@ -127,6 +131,35 @@ async def get_siblings(
         raise
     except Exception as e:
         raise internal_error(operation="Get siblings", exception=e) from e
+
+
+@router.post("/{chat_id}/truncate-after", response_model=StandardSuccessResponse)
+async def truncate_after_message(
+    chat_id: str,
+    body: TruncateAfterRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Delete the specified message and all messages after it.
+
+    Used by edit-resend to keep backend state consistent with the
+    frontend before the user re-sends a modified message.
+    """
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        result = await ChatService.truncate_after_message(chat_id, body.message_id)
+        return success_response(
+            data={
+                "success": result.success,
+                "deleted_count": result.deleted_count,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Truncate after message", exception=e) from e
 
 
 @router.post("/{chat_id}/undo", response_model=StandardSuccessResponse)

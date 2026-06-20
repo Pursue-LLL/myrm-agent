@@ -1,15 +1,15 @@
-"""Retry, undo, sibling switching, and title generation mixin.
+"""Retry, undo, truncate, sibling switching, and title generation mixin.
 
 [INPUT]
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
-- chat_helpers::RetryResult, RegenerateResult, UndoResult (POS: 操作结果 DTO)
+- chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult (POS: 操作结果 DTO)
 - database.repositories.chat_repo::SiblingDetail (POS: 兄弟消息详情)
 
 [OUTPUT]
-- _ChatTurnMixin: 重试、撤销、重新生成、兄弟切换、标题生成
+- _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、标题生成
 
 [POS]
-对话轮次操作与标题生成编排层。提供消息重试、撤销、重新生成（含兄弟消息管理）
+对话轮次操作与标题生成编排层。提供消息重试、撤销、截断（编辑重发）、重新生成（含兄弟消息管理）
 和 LLM 驱动的聊天标题生成。
 """
 
@@ -22,7 +22,7 @@ from app.database.repositories.chat_repo import SiblingDetail
 from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
-from .chat_helpers import RegenerateResult, RetryResult, UndoResult
+from .chat_helpers import RegenerateResult, RetryResult, TruncateResult, UndoResult
 
 if TYPE_CHECKING:
     from app.database.dto import _TitleModelConfig
@@ -31,7 +31,21 @@ logger = logging.getLogger(__name__)
 
 
 class _ChatTurnMixin(_ChatServiceBase):
-    """Retry, undo, sibling, and title generation operations."""
+    """Retry, undo, truncate, sibling, and title generation operations."""
+
+    @staticmethod
+    async def _refresh_last_message(uow: UnitOfWork, chat_id: str) -> None:
+        """Update the chat's last_message preview after message deletion."""
+        remaining = await _ChatServiceBase._cr(uow).get_latest_message(chat_id)
+        new_last = ""
+        if remaining:
+            from myrm_agent_harness.utils.text_sanitizer import (
+                extract_and_strip_think_blocks,
+            )
+
+            clean_content, _ = extract_and_strip_think_blocks(remaining.content)
+            new_last = clean_content[:100]
+        await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"last_message": new_last})
 
     @staticmethod
     async def retry_last_turn(chat_id: str, user_id: str | None = None) -> RetryResult:
@@ -85,17 +99,27 @@ class _ChatTurnMixin(_ChatServiceBase):
                 return UndoResult(success=True, deleted_count=0)
             deleted = await _ChatServiceBase._cr(uow).delete_messages_after(chat_id, last_user, include_anchor=True)
             if deleted > 0:
-                remaining = await _ChatServiceBase._cr(uow).get_latest_message(chat_id)
-                new_last = ""
-                if remaining:
-                    from myrm_agent_harness.utils.text_sanitizer import (
-                        extract_and_strip_think_blocks,
-                    )
-
-                    clean_content, _ = extract_and_strip_think_blocks(remaining.content)
-                    new_last = clean_content[:100]
-                await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, {"last_message": new_last})
+                await _ChatTurnMixin._refresh_last_message(uow, chat_id)
             return UndoResult(success=True, deleted_count=deleted)
+
+    @staticmethod
+    async def truncate_after_message(chat_id: str, message_id: str) -> TruncateResult:
+        """Delete all messages after the specified message (inclusive).
+
+        Used by edit-resend: truncate old messages from the DB so agent
+        context stays clean when the user edits and re-sends a message.
+        """
+        async with UnitOfWork() as uow:
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+            if not chat:
+                return TruncateResult(success=False, deleted_count=0)
+            msg = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
+            if not msg:
+                return TruncateResult(success=False, deleted_count=0)
+            deleted = await _ChatServiceBase._cr(uow).delete_messages_after(chat_id, msg, include_anchor=True)
+            if deleted > 0:
+                await _ChatTurnMixin._refresh_last_message(uow, chat_id)
+            return TruncateResult(success=True, deleted_count=deleted)
 
     @staticmethod
     async def generate_chat_title(

@@ -742,6 +742,22 @@ export const undoLastTurn = async (chatId: string): Promise<UndoResult> => {
   })) as UndoResult;
 };
 
+export interface TruncateResult {
+  success: boolean;
+  deleted_count: number;
+}
+
+/**
+ * Truncate: delete a message and everything after it.
+ * Used by edit-resend to sync backend before re-sending the edited message.
+ */
+export const truncateAfterMessage = async (chatId: string, messageId: string): Promise<TruncateResult> => {
+  return (await apiRequest(`/chats/${chatId}/truncate-after`, {
+    method: 'POST',
+    body: JSON.stringify({ message_id: messageId }),
+  })) as TruncateResult;
+};
+
 /**
  * Submit user's answer to a Deep Research clarification question.
  */

@@ -81,6 +81,8 @@ class _ChatRepositoryPort(Protocol):
 
     async def get_latest_message(self, chat_id: str) -> MessageDTO | None: ...
 
+    async def get_message_by_id(self, chat_id: str, message_id: str) -> MessageDTO | None: ...
+
     async def cas_update_compaction(
         self,
         chat_id: str,

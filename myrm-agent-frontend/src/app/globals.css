@@ -1129,10 +1129,10 @@ a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):active {
 
 .btn-brand-elevation:disabled,
 .btn-brand-elevation[disabled],
-button.bg-primary.text-primary-foreground:not(.no-brand-elevation):disabled,
-button.bg-primary.text-white:not(.no-brand-elevation):disabled,
-a.bg-primary.text-primary-foreground:not(.no-brand-elevation)[aria-disabled='true'],
-a.bg-primary.text-white:not(.no-brand-elevation)[aria-disabled='true'] {
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs):disabled,
+button.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs):disabled,
+a.bg-primary.text-primary-foreground:not(.no-brand-elevation):not(.text-xs)[aria-disabled='true'],
+a.bg-primary.text-white:not(.no-brand-elevation):not(.text-xs)[aria-disabled='true'] {
   animation: none;
   transform: none;
   box-shadow: none;

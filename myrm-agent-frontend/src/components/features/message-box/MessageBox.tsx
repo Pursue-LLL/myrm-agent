@@ -24,7 +24,7 @@ import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import { Source } from '@/store/chat/types';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
-import { regenerateLastTurn, undoLastTurn, cancelAgentRequest } from '@/services/chat';
+import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import UserMessage from './UserMessage';
 import MarkdownContent from './MarkdownContent';
@@ -391,9 +391,16 @@ const MessageBox = ({
   if (message.role === 'user') {
     const handleEdit = () => setEditingMessageId(message.messageId);
 
-    const handleEditSubmit = (newContent: string) => {
-      if (loading) return;
+    const handleEditSubmit = async (newContent: string) => {
+      if (loading || !chatId) return;
       setEditingMessageId(null);
+
+      try {
+        await truncateAfterMessage(chatId, message.messageId);
+      } catch (error) {
+        console.error('Truncate failed:', error);
+      }
+
       useChatStore.setState((state) => ({
         messages: state.messages.slice(0, messageIndex),
       }));
