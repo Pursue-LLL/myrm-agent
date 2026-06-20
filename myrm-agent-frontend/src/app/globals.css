@@ -1036,11 +1036,45 @@ mark {
 
 .brand-gradient-bg {
   background-image: var(--brand-gradient);
-  box-shadow: var(--shadow-brand);
 }
 
+.btn-brand-elevation,
+.brand-gradient-bg {
+  border: 0;
+  box-shadow: var(--shadow-brand);
+  animation: button-glow-breathe 5s ease-in-out infinite;
+  transition:
+    box-shadow 1000ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brand-gradient-bg {
+  background-image: var(--brand-gradient);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-brand-elevation,
+  .brand-gradient-bg {
+    animation: none;
+  }
+}
+
+.btn-brand-elevation:hover,
 .brand-gradient-bg:hover {
+  animation: none;
   box-shadow: var(--shadow-brand-lg);
+}
+
+.btn-brand-elevation:active,
+.brand-gradient-bg:active {
+  animation: none;
+  box-shadow: var(--shadow-brand-sm);
+}
+
+.btn-brand-elevation:disabled,
+.btn-brand-elevation[disabled] {
+  animation: none;
+  box-shadow: none;
 }
 
 .brand-gradient-subtle-bg {

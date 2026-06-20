@@ -228,9 +228,8 @@ export function AgentPreviewCard({
               disabled={saving}
               onClick={onStartChat}
               className={cn(
-                'group w-full gap-2 rounded-xl h-11',
+                'btn-brand-elevation group w-full gap-2 rounded-xl h-11',
                 'bg-primary text-primary-foreground hover:bg-primary-hover',
-                'shadow-[var(--shadow-brand)] hover:shadow-[var(--shadow-brand-lg)]',
               )}
             >
               <IconChat className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />

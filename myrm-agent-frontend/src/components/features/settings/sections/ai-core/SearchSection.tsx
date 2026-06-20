@@ -191,7 +191,7 @@ const SearchSection = memo(() => {
                   type="button"
                   onClick={() => setSearxngConsentOpen(true)}
                   disabled={startingSearxng || quickEnabling}
-                  className="h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover shadow-[var(--shadow-brand)]"
+                  className="btn-brand-elevation h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover"
                 >
                   {startingSearxng ? (
                     <IconLoader className="h-4 w-4 animate-spin" />

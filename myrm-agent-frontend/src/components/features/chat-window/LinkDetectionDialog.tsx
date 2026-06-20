@@ -63,7 +63,7 @@ export const LinkDetectionDialog = ({
           </button>
           <button
             onClick={onAddAtSymbol}
-            className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full transition-colors"
+            className="btn-brand-elevation px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-hover rounded-full"
           >
             {commonT('yes')}
           </button>

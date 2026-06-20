@@ -169,8 +169,8 @@ export const ArchiveRestoreStepAction = ({ actions, block }: ArchiveRestoreStepA
           void handleClick();
         }}
         className={cn(
-          'inline-flex min-h-8 max-w-full items-center justify-center rounded-full border px-3 py-1.5',
-          'border-primary/30 bg-primary text-xs font-medium text-primary-foreground transition-colors',
+          'btn-brand-elevation inline-flex min-h-8 max-w-full items-center justify-center rounded-full px-3 py-1.5',
+          'border-0 bg-primary text-xs font-medium text-primary-foreground',
           'hover:bg-primary-hover disabled:cursor-wait disabled:opacity-70',
         )}
       >
