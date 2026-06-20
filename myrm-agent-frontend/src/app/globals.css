@@ -57,7 +57,7 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-rotate-step: rotate-step 1.5s ease-in-out infinite;
   --animate-node-pulse: node-pulse 2s ease-in-out infinite;
-  --animate-button-float: button-float 5s ease-in-out infinite;
+  --animate-button-float: button-glow-breathe 5s ease-in-out infinite;
 }
 
 /* PWA safe-area: iPhone 全面屏 standalone 模式下防止内容被圆角/Home Indicator 遮挡 */
@@ -99,18 +99,14 @@
   }
 }
 
-@keyframes button-float {
+@keyframes button-glow-breathe {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
+    box-shadow: var(--shadow-brand);
   }
 
-  33% {
-    transform: translate3d(1px, -4px, 0);
-  }
-
-  66% {
-    transform: translate3d(-1px, -2px, 0);
+  50% {
+    box-shadow: var(--shadow-brand-lg);
   }
 }
 
