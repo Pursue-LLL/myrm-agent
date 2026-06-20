@@ -14,9 +14,7 @@ CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
 SQUIRCLE_EXPONENT = 5.0
-# Dock face: neutral dark gray (Cursor-like) so colorful ant glyph pops.
-FACE_COLOR = (45, 45, 48)
-ARTWORK_SCALE = 0.78
+# Dock face: Apple 824/1024 safe zone — artwork only, no synthetic background layers.
 
 
 def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
@@ -50,16 +48,12 @@ def fit_artwork(source: Image.Image, max_size: int) -> Image.Image:
     return canvas
 
 
-def make_macos_icon(source: Path) -> Image.Image:
+def make_dock_icon(source: Path) -> Image.Image:
     src = Image.open(source).convert("RGBA")
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    face = Image.new("RGBA", (FACE_SIZE, FACE_SIZE), FACE_COLOR + (255,))
-    artwork = fit_artwork(src, max(1, round(FACE_SIZE * ARTWORK_SCALE)))
-    offset = ((FACE_SIZE - artwork.width) // 2, (FACE_SIZE - artwork.height) // 2)
-    face.paste(artwork, offset, artwork)
-
+    face = fit_artwork(src, FACE_SIZE)
     mask = squircle_mask(FACE_SIZE)
     alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
     face.putalpha(alpha)
@@ -112,7 +106,7 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[2]
     source = resolve_source(repo)
     master = repo / "myrm-agent-frontend/public/brand/logo-icon-512-macos.png"
-    icon = make_macos_icon(source)
+    icon = make_dock_icon(source)
     master.parent.mkdir(parents=True, exist_ok=True)
     icon.save(master, optimize=True)
 
