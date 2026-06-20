@@ -10,7 +10,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'btn-brand-elevation border-0 border-none bg-[var(--button-fill)] text-[var(--button-fill-foreground)] hover:bg-[var(--button-fill-hover)]',
+          'border-0 border-none bg-[var(--button-fill)] text-[var(--button-fill-foreground)] hover:bg-[var(--button-fill-hover)]',
         destructive: 'bg-destructive text-destructive-foreground shadow-none hover:bg-destructive/90',
         outline: 'border border-input bg-background shadow-none hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-none hover:bg-secondary/80',
@@ -24,6 +24,13 @@ const buttonVariants = cva(
         icon: 'h-9 w-9',
       },
     },
+    compoundVariants: [
+      {
+        variant: 'default',
+        size: ['default', 'lg'],
+        class: 'btn-brand-elevation',
+      },
+    ],
     defaultVariants: {
       variant: 'default',
       size: 'default',

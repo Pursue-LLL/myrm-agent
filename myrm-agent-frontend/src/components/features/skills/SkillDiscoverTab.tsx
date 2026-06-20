@@ -380,7 +380,7 @@ function TagButton({ active, onClick, children }: { active: boolean; onClick: ()
       type="button"
       onClick={onClick}
       className={cn(
-        'px-2.5 py-1 text-xs rounded-lg transition-colors',
+        'no-brand-elevation px-2.5 py-1 text-xs rounded-lg transition-colors',
         active
           ? 'bg-primary text-primary-foreground'
           : 'bg-muted text-muted-foreground hover:bg-accent border border-border',
