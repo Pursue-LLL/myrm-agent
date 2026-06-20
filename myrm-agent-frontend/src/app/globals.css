@@ -57,7 +57,7 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-rotate-step: rotate-step 1.5s ease-in-out infinite;
   --animate-node-pulse: node-pulse 2s ease-in-out infinite;
-  --animate-button-float: button-glow-breathe 5s ease-in-out infinite;
+  --animate-button-float: button-brand-float 5.5s ease-in-out infinite;
 }
 
 /* PWA safe-area: iPhone 全面屏 standalone 模式下防止内容被圆角/Home Indicator 遮挡 */
@@ -107,6 +107,25 @@
 
   50% {
     box-shadow: var(--shadow-brand-lg);
+  }
+}
+
+@keyframes button-brand-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  25% {
+    transform: translate3d(2px, -5px, 0);
+  }
+
+  50% {
+    transform: translate3d(-1px, -3px, 0);
+  }
+
+  75% {
+    transform: translate3d(-2px, -6px, 0);
   }
 }
 
@@ -1042,10 +1061,10 @@ mark {
 .brand-gradient-bg {
   border: 0;
   box-shadow: var(--shadow-brand);
-  animation: button-glow-breathe 5s ease-in-out infinite;
-  transition:
-    box-shadow 1000ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation:
+    button-brand-float 5.5s ease-in-out infinite,
+    button-glow-breathe 5.5s ease-in-out infinite;
+  transition: background-color 1000ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .brand-gradient-bg {
@@ -1061,19 +1080,21 @@ mark {
 
 .btn-brand-elevation:hover,
 .brand-gradient-bg:hover {
-  animation: none;
+  animation-play-state: paused, paused;
   box-shadow: var(--shadow-brand-lg);
 }
 
 .btn-brand-elevation:active,
 .brand-gradient-bg:active {
-  animation: none;
+  animation-play-state: paused, paused;
+  transform: translate3d(0, 0, 0);
   box-shadow: var(--shadow-brand-sm);
 }
 
 .btn-brand-elevation:disabled,
 .btn-brand-elevation[disabled] {
   animation: none;
+  transform: none;
   box-shadow: none;
 }
 
