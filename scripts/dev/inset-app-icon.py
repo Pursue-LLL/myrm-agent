@@ -14,7 +14,9 @@ CANVAS = 512
 FACE_SIZE = 412
 GUTTER = 50
 SQUIRCLE_EXPONENT = 5.0
-# Dock face: Apple 824/1024 safe zone — artwork only, no synthetic background layers.
+# Dock: neutral dark squircle face (Cursor-like) with full-color artwork inset.
+FACE_COLOR = (45, 45, 48)
+ARTWORK_SCALE = 0.78
 
 
 def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
@@ -53,7 +55,11 @@ def make_dock_icon(source: Path) -> Image.Image:
     if src.size != (CANVAS, CANVAS):
         src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
 
-    face = fit_artwork(src, FACE_SIZE)
+    face = Image.new("RGBA", (FACE_SIZE, FACE_SIZE), FACE_COLOR + (255,))
+    artwork = fit_artwork(src, max(1, round(FACE_SIZE * ARTWORK_SCALE)))
+    offset = ((FACE_SIZE - artwork.width) // 2, (FACE_SIZE - artwork.height) // 2)
+    face.paste(artwork, offset, artwork)
+
     mask = squircle_mask(FACE_SIZE)
     alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
     face.putalpha(alpha)
