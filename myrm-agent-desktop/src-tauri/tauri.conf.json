@@ -34,10 +34,7 @@
       "entitlements": "entitlements.plist",
       "exceptionDomain": "",
       "providerShortName": null,
-      "extendInfo": {
-        "NSMicrophoneUsageDescription": "MyrmAgent needs microphone access for voice input.",
-        "NSAppleEventsUsageDescription": "MyrmAgent uses Apple Events to extract window text for the Appshot feature."
-      }
+      "infoPlist": "Info.plist"
     },
     "windows": {
       "digestAlgorithm": "sha256",
@@ -95,9 +92,6 @@
     }
   },
   "plugins": {
-    "global-shortcut": {
-      "all": true
-    },
     "deep-link": {
       "desktop": {
         "schemes": [

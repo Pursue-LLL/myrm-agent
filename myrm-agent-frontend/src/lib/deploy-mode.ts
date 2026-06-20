@@ -51,6 +51,10 @@ export type DeployMode = 'tauri' | 'local' | 'sandbox';
 const LOCAL_MODES: ReadonlySet<DeployMode> = new Set(['tauri', 'local']);
 const FALLBACK_API_BASE_URL = 'http://127.0.0.1:8080/api/v1';
 const FALLBACK_BACKEND_BASE_URL = 'http://127.0.0.1:8080';
+/** Desktop sidecar default; mirrors BackendConfig when enable_webui_mode=false. */
+const TAURI_DESKTOP_API_PORT = 8080;
+/** WebUI sidecar default; mirrors SystemConfig.api_port when enable_webui_mode=true. */
+const TAURI_WEBUI_API_PORT = 25808;
 const INVALID_BASE_URL_VALUES = new Set(['undefined', 'null']);
 
 export function normalizeConfiguredBaseUrl(value: string | null | undefined, fallback: string): string {
@@ -189,14 +193,40 @@ export function getLocalUserId(): string {
 }
 
 /**
- * 获取 API 基础 URL
+ * Resolve Tauri backend port from persisted system config (if WebUI mode), else desktop default.
+ */
+function getTauriBackendPort(): number {
+  if (typeof window === 'undefined') {
+    return TAURI_DESKTOP_API_PORT;
+  }
+
+  try {
+    const storage = window.localStorage;
+    const raw = storage.getItem('myrm-tauri-system-config');
+    if (raw) {
+      const parsed = JSON.parse(raw) as { enableWebUIMode?: boolean; apiPort?: number };
+      if (parsed.enableWebUIMode) {
+        return parsed.apiPort ?? TAURI_WEBUI_API_PORT;
+      }
+    }
+  } catch {
+    // ignore malformed cache
+  }
+
+  return TAURI_DESKTOP_API_PORT;
+}
+
+/**
+ * Get API base URL
  *
  * 本地模式: 使用本地服务 (127.0.0.1:8080)
+ * Tauri Desktop: 8080（与 Rust BackendConfig 桌面模式一致）
+ * Tauri WebUI: apiPort（默认 25808）
  * Sandbox 模式: 使用环境变量配置的远程服务
  */
 export function getApiBaseUrl(): string {
   if (isTauriRuntime()) {
-    return 'http://127.0.0.1:25808/api/v1';
+    return `http://127.0.0.1:${getTauriBackendPort()}/api/v1`;
   }
   if (isLocalMode()) {
     return '/api/v1';
@@ -209,7 +239,7 @@ export function getApiBaseUrl(): string {
  */
 export function getBackendBaseUrl(): string {
   if (isTauriRuntime()) {
-    return 'http://127.0.0.1:25808';
+    return `http://127.0.0.1:${getTauriBackendPort()}`;
   }
   if (isLocalMode()) {
     return '';

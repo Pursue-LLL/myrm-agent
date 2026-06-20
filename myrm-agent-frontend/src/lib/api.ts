@@ -26,10 +26,17 @@ function redirectToLoginAfterAuthFailure(): void {
   }
 }
 
-export const API_BASE_URL = getApiBaseUrl();
+function createDynamicUrl(resolve: () => string): string {
+  return {
+    toString: () => resolve(),
+    valueOf: () => resolve(),
+  } as unknown as string;
+}
+
+export const API_BASE_URL = createDynamicUrl(getApiBaseUrl);
 
 // 后端服务基础 URL（不含 API 路径前缀）
-export const BACKEND_BASE_URL = getBackendBaseUrl();
+export const BACKEND_BASE_URL = createDynamicUrl(getBackendBaseUrl);
 
 /**
  * 获取完整的API地址

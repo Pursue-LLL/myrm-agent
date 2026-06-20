@@ -74,4 +74,50 @@ describe('deploy-mode base url resolution', () => {
     delete process.env.NEXT_PUBLIC_DOCS_URL;
     expect(getDocsUrl()).toBe('https://docs.myrm.ai');
   });
+
+  it('uses desktop backend port 8080 for tauri runtime without webui cache', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        ...originalWindow,
+        __TAURI__: {},
+        localStorage: {
+          getItem: () => null,
+          setItem: () => undefined,
+        },
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:8080/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:8080');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
+  it('uses webui api port for tauri runtime when webui mode cached', () => {
+    const originalWindow = globalThis.window;
+    const mockWindow = {
+      __TAURI__: {},
+      localStorage: {
+        getItem: () => JSON.stringify({ enableWebUIMode: true, apiPort: 25808 }),
+        setItem: () => undefined,
+      },
+    };
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: mockWindow,
+    });
+
+    expect(getApiBaseUrl()).toBe('http://127.0.0.1:25808/api/v1');
+    expect(getBackendBaseUrl()).toBe('http://127.0.0.1:25808');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
 });

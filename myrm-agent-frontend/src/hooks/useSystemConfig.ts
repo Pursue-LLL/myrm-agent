@@ -69,6 +69,12 @@ export function useSystemConfig() {
       setConfig(loadedConfig);
       setCurrentMode(mode as RunMode);
       setLocalIP(ip);
+
+      try {
+        localStorage.setItem('myrm-tauri-system-config', JSON.stringify(loadedConfig));
+      } catch {
+        // ignore quota / private mode
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(`Failed to load config: ${message}`);
@@ -102,6 +108,12 @@ export function useSystemConfig() {
 
       await invoke('save_system_config', { config: newConfig });
       setConfig(newConfig);
+
+      try {
+        localStorage.setItem('myrm-tauri-system-config', JSON.stringify(newConfig));
+      } catch {
+        // ignore quota / private mode
+      }
 
       return true;
     } catch (err) {

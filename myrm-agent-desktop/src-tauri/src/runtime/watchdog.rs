@@ -16,9 +16,8 @@
 
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{async_runtime::JoinHandle, AppHandle, Emitter, Manager};
 use tokio::sync::watch;
-use tokio::task::JoinHandle;
 
 use crate::config::{BackendConfig, ConfigManager};
 use crate::runtime::PythonBackend;

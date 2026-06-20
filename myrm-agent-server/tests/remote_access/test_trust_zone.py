@@ -77,6 +77,17 @@ def test_resolve_admission_path_public_ingress_via_tunnel_headers() -> None:
     assert path == AdmissionPath.PUBLIC_INGRESS
 
 
+def test_resolve_admission_path_loopback_with_nextjs_dev_proxy_headers() -> None:
+    path = resolve_admission_path(
+        path="/api/v1/config",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={"X-Forwarded-Host": "localhost:3000", "X-Forwarded-Proto": "http"},
+    )
+    assert path == AdmissionPath.LOOPBACK_DIRECT
+    assert admission_path_to_trust_zone(path) == TrustZone.LOCAL_TRUSTED
+
+
 def test_resolve_admission_path_public_ingress_matches_configured_url() -> None:
     path = resolve_admission_path(
         path="/api/v1/agents",

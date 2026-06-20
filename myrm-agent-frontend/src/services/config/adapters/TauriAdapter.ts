@@ -42,11 +42,8 @@ interface ApiSyncResponse {
  * Tauri 配置适配器
  */
 export class TauriConfigAdapter extends BaseConfigAdapter {
-  private baseUrl: string;
-
-  constructor() {
-    super();
-    this.baseUrl = getApiBaseUrl();
+  private get baseUrl(): string {
+    return getApiBaseUrl();
   }
 
   protected override initDeviceId(): string {

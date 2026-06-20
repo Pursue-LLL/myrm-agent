@@ -88,6 +88,22 @@ def has_tunnel_proxy_headers(headers: Mapping[str, str]) -> bool:
     return False
 
 
+def _is_nextjs_local_dev_proxy(headers: Mapping[str, str]) -> bool:
+    """Loopback requests with only local X-Forwarded-Host (Next.js dev rewrite)."""
+    forwarded_host_local = False
+    external_tunnel_marker = False
+    for key, value in headers.items():
+        if not value:
+            continue
+        lower_key = key.lower()
+        if lower_key == "x-forwarded-host":
+            if _host_only(value) in {"localhost", "127.0.0.1"}:
+                forwarded_host_local = True
+        elif lower_key in {"cf-connecting-ip", "cf-ray", "cf-visitor", "forwarded"}:
+            external_tunnel_marker = True
+    return forwarded_host_local and not external_tunnel_marker
+
+
 def resolve_admission_path(
     *,
     path: str,
@@ -111,7 +127,10 @@ def resolve_admission_path(
     ingress_match = _host_matches_ingress(host_header, public_ingress_base_url)
     tunnel_headers = has_tunnel_proxy_headers(headers)
 
-    if public_host or ingress_match or (loopback and tunnel_headers):
+    if public_host or ingress_match:
+        return AdmissionPath.PUBLIC_INGRESS
+
+    if loopback and tunnel_headers and not _is_nextjs_local_dev_proxy(headers):
         return AdmissionPath.PUBLIC_INGRESS
 
     if loopback:
