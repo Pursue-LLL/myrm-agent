@@ -9,6 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from myrm_agent_harness.utils import get_local_ip
 
 from app.api.webui.auth_routes import router as webui_auth_router
+from app.api.webui.vnc_routes import router as vnc_router
 from app.config.settings import settings
 from app.services.webui.qrcode import generate_qrcode_image
 
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webui", tags=["webui"])
 router.include_router(webui_auth_router)
+router.include_router(vnc_router)
 
 
 @router.get("/qrcode.png")

@@ -359,6 +359,7 @@ myrm_agent_harness.toolkits.vector.pool
 myrm_agent_harness.toolkits.vector.qdrant
 myrm_agent_harness.toolkits.vision.fallback_engine
 myrm_agent_harness.toolkits.vision.video_analysis_engine
+myrm_agent_harness.toolkits.vnc
 myrm_agent_harness.toolkits.web_fetch
 myrm_agent_harness.toolkits.web_fetch.engine
 myrm_agent_harness.toolkits.web_search

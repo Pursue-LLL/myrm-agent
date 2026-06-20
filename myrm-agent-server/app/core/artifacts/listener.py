@@ -29,6 +29,12 @@ from app.database.models.artifact import Artifact, ArtifactVersion
 
 logger = logging.getLogger(__name__)
 
+_WALK_SKIP_DIRS: frozenset[str] = frozenset({
+    ".git", "node_modules", "__pycache__", ".venv", "venv",
+    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "dist", "build", ".next", ".nuxt", "target", "out",
+})
+
 
 def resolve_sandbox_file_path(
     file_path: str,
@@ -66,7 +72,8 @@ def resolve_sandbox_file_path(
         return resolved
 
     basename = os.path.basename(file_path)
-    for root, _, filenames in os.walk(workspace_root):
+    for root, dirs, filenames in os.walk(workspace_root):
+        dirs[:] = [d for d in dirs if d not in _WALK_SKIP_DIRS]
         if basename in filenames:
             return os.path.join(root, basename)
     return None
