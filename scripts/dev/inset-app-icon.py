@@ -131,7 +131,7 @@ def export_tray_icons(source: Path, icons_dir: Path) -> None:
 
     art = foreground.crop(bbox)
     for size, name in ((22, "tray_icon.png"), (44, "tray_icon@2x.png")):
-        pad = max(2, size // 8)
+        pad = 1
         inner = size - 2 * pad
         fitted = art.resize((inner, inner), Image.Resampling.LANCZOS)
         alpha = fitted.split()[3].point(lambda value: 255 if value > 48 else 0)
