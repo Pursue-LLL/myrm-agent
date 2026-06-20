@@ -57,6 +57,7 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-rotate-step: rotate-step 1.5s ease-in-out infinite;
   --animate-node-pulse: node-pulse 2s ease-in-out infinite;
+  --animate-button-float: button-float 5s ease-in-out infinite;
 }
 
 /* PWA safe-area: iPhone 全面屏 standalone 模式下防止内容被圆角/Home Indicator 遮挡 */
@@ -95,6 +96,21 @@
 
   50% {
     transform: rotate(180deg);
+  }
+}
+
+@keyframes button-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  33% {
+    transform: translate3d(1px, -4px, 0);
+  }
+
+  66% {
+    transform: translate3d(-1px, -2px, 0);
   }
 }
 
