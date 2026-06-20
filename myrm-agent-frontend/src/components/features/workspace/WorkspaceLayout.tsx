@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useShallow } from 'zustand/react/shallow';
 import useChatStore from '@/store/useChatStore';
+import { Button } from '@/components/primitives/button';
 import PaneCard from './PaneCard';
 import ActiveSessionsBar from './ActiveSessionsBar';
 import ReviewPanel from './ReviewPanel';
@@ -62,16 +63,17 @@ export default function WorkspaceLayout() {
           </div>
           <div className="flex items-center gap-3">
             <ActiveSessionsBar />
-            <button
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => addPane()}
               disabled={!canAddPane}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg
-                bg-primary/10 text-primary hover:bg-primary/20 transition-colors
-                disabled:opacity-40 disabled:cursor-not-allowed"
+              className="gap-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 border-0 shadow-none animate-none"
             >
               <Plus size={16} />
               {t('addPane')}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -81,14 +83,10 @@ export default function WorkspaceLayout() {
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4">
               <Layout size={48} className="opacity-30" />
               <p className="text-sm">{t('noActiveSessions')}</p>
-              <button
-                onClick={() => addPane()}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg
-                  bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
+              <Button type="button" onClick={() => addPane()} className="gap-2 rounded-lg">
                 <Plus size={16} />
                 {t('addPane')}
-              </button>
+              </Button>
             </div>
           ) : (
             <div

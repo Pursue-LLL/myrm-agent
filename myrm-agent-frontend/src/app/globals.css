@@ -1074,12 +1074,14 @@ mark {
 }
 
 .btn-brand-elevation,
-.brand-gradient-bg {
+.brand-gradient-bg,
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation),
+button.bg-primary.text-white:not(.no-brand-elevation) {
   border: 0;
   box-shadow: var(--shadow-brand);
   animation:
-    button-float 5s ease-in-out infinite,
-    button-glow-breathe 5s ease-in-out infinite;
+    button-float 6.5s ease-in-out infinite,
+    button-glow-breathe 6.5s ease-in-out infinite;
   transition: background-color 1000ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1089,26 +1091,34 @@ mark {
 
 @media (prefers-reduced-motion: reduce) {
   .btn-brand-elevation,
-  .brand-gradient-bg {
+  .brand-gradient-bg,
+  button.bg-primary.text-primary-foreground:not(.no-brand-elevation),
+  button.bg-primary.text-white:not(.no-brand-elevation) {
     animation: none;
   }
 }
 
 .btn-brand-elevation:hover,
-.brand-gradient-bg:hover {
+.brand-gradient-bg:hover,
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):hover:not(:disabled),
+button.bg-primary.text-white:not(.no-brand-elevation):hover:not(:disabled) {
   animation-play-state: paused, paused;
   box-shadow: var(--shadow-brand-lg);
 }
 
 .btn-brand-elevation:active,
-.brand-gradient-bg:active {
+.brand-gradient-bg:active,
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):active:not(:disabled),
+button.bg-primary.text-white:not(.no-brand-elevation):active:not(:disabled) {
   animation-play-state: paused, paused;
   transform: translate3d(0, 0, 0);
   box-shadow: var(--shadow-brand-sm);
 }
 
 .btn-brand-elevation:disabled,
-.btn-brand-elevation[disabled] {
+.btn-brand-elevation[disabled],
+button.bg-primary.text-primary-foreground:not(.no-brand-elevation):disabled,
+button.bg-primary.text-white:not(.no-brand-elevation):disabled {
   animation: none;
   transform: none;
   box-shadow: none;
