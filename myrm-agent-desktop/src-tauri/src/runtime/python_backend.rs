@@ -1,4 +1,16 @@
 //! Python 后端 Sidecar 进程管理（开发态解释器 / 生产态 PyInstaller 二进制）
+//!
+//! [INPUT]
+//! - config::BackendConfig, ConfigManager (POS: 桌面端系统配置与后端绑定端口)
+//! - runtime::port::is_port_in_use (POS: 启动前端口冲突检测)
+//!
+//! [OUTPUT]
+//! - start_backend / stop_backend / check_backend_health IPC
+//! - PythonBackend: Sidecar 子进程句柄
+//!
+//! [POS]
+//! Desktop 模式 Python 后端生命周期。dev 走 venv `run.py`；release 走 bundled sidecar 二进制，
+//! 启动后最多 30s 轮询 `/health`，并在 release 侧校验 sidecar 非空。
 
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
@@ -11,6 +23,9 @@ use uuid::Uuid;
 
 use crate::runtime::port::is_port_in_use;
 use crate::runtime::setup_token::SetupTokenState;
+
+const BACKEND_HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const BACKEND_HEALTH_MAX_ATTEMPTS: u32 = 60;
 
 pub struct PythonBackend {
     pub process: Arc<Mutex<Option<Child>>>,
@@ -118,6 +133,17 @@ pub async fn start_backend_with_config(
 
         println!("📦 Sidecar path: {:?}", sidecar_path);
 
+        let sidecar_len = std::fs::metadata(&sidecar_path)
+            .map(|meta| meta.len())
+            .unwrap_or(0);
+        if sidecar_len == 0 {
+            return Err(format!(
+                "Backend sidecar binary is missing or empty at {:?}. \
+                 Build it with: python myrm-agent-desktop/sidecar/build.py",
+                sidecar_path
+            ));
+        }
+
         Command::new(sidecar_path)
     };
 
@@ -160,8 +186,8 @@ pub async fn start_backend_with_config(
 
     println!("✅ Backend process started");
 
-    for i in 0..20 {
-        tokio::time::sleep(Duration::from_millis(500)).await;
+    for i in 0..BACKEND_HEALTH_MAX_ATTEMPTS {
+        tokio::time::sleep(BACKEND_HEALTH_POLL_INTERVAL).await;
 
         match check_health_with_port(config.port).await {
             Ok(true) => {

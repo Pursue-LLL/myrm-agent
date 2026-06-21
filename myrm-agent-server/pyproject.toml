@@ -12,18 +12,18 @@ classifiers = [
 requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
 dependencies = [
   # --- Web 框架 ---
-  "fastapi>=0.136.3",         # Web API 框架 (54 文件)
+  "fastapi>=0.138.0",         # Web API 框架 (54 文件)
   "uvicorn>=0.49.0",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
-  "pydantic-settings>=2.14.1", # 统一配置管理 (BaseSettings + .env)
+  "pydantic-settings>=2.14.2", # 统一配置管理 (BaseSettings + .env)
   "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
-  "litellm>=1.88.1",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
-  "langchain>=1.3.6",      # Agent 工具/链定义 (70+ 文件)
-  "langchain-core>=1.4.3", # 消息类型/BaseTool (70+ 文件)
+  "litellm>=1.89.3",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "langchain>=1.3.10",      # Agent 工具/链定义 (70+ 文件)
+  "langchain-core>=1.4.8", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[file-parsers,web,fastapi,retrieval,qdrant,image-processing,compiled-core]==0.1.0rc2",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
@@ -33,18 +33,18 @@ dependencies = [
   # --- 图片处理 ---
   "pillow>=12.2.0",    # 图片处理/压缩 (qrcode + media/service)
   # --- 数据库 ---
-  "sqlalchemy>=2.0.50", # ORM 框架，SQLite (170+ 文件)
+  "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
-  "filelock>=3.29.1", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  "filelock>=3.29.4", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
   # --- 定时任务与加密 ---
   "apscheduler>=4.0.0a6,<4.1.0",        # 后台任务调度器 (lifecycle/schedulers.py)
   "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)
-  "cryptography>=48.0.1",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
-  "PyNaCl>=1.5.0,<1.6",                # Curve25519 + NaCl box (remote_access E2EE)
+  "cryptography>=49.0.0",               # AES-256-GCM 加密 (credentials_store + wecom/crypto)
+  "PyNaCl>=1.6.2",                # Curve25519 + NaCl box (remote_access E2EE)
   "edge-tts>=7.2.8",                    # TTS 文本转语音 (voice/tts.py)
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
@@ -75,7 +75,7 @@ matrix-e2ee = [
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [
-  "matplotlib>=3.10.9", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
+  "matplotlib>=3.11.0", # 数据图表渲染（只读 rootfs 下经 MATPLOTLIBRC 加载 CJK 默认字体）
   "pandas>=3.0.3",     # 表格/时间序列数据处理（numpy 为 matplotlib/pandas 的硬依赖，自动引入）
 ]
 
@@ -88,10 +88,11 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.1",
   "patchright>=1.60.1",
-  "openai>=2.41.0",
+  "openai>=2.43.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
+  "pynacl>=1.6.2",                # remote_access E2EE; override resolves discord-py[voice] upper bound
 ]
 
 # OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add
@@ -101,12 +102,12 @@ override-dependencies = [
 # (see scripts/ci/desktop-release/sync-server-venv.sh). Never include dev — pytest/ruff/mypy are not runtime.
 [dependency-groups]
 dev = [
-  "pytest>=9.0.3",
-  "ruff>=0.15.16",
+  "pytest>=9.1.1",
+  "ruff>=0.15.18",
   "pre-commit>=4.6.0",
   "pytest-asyncio>=1.4.0",
   "myrm-agent-harness[browser]", # 浏览器测试依赖
-  "langchain-openai>=1.3.0",     # LLM 集成测试依赖
+  "langchain-openai>=1.3.2",     # LLM 集成测试依赖
   "pytest-cov>=7.1.0",
   "pytest-benchmark>=5.2.3",
   "pytest-xdist>=3.8.0",         # 并行测试执行
@@ -120,7 +121,7 @@ sandbox = [
   # --- 系统监控 ---
   "prometheus-fastapi-instrumentator>=8.0.0", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
-  "granian>=2.7.5", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+  "granian>=2.7.6", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
 ]
 
 [tool.ruff]

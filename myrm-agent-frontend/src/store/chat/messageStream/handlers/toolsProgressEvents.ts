@@ -233,6 +233,16 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       }
     });
     actions.setLoading(false);
+
+    if (H.useConfigStore.getState().enableWebNotifications) {
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+      const title = lang.startsWith('zh') ? 'Agent 需要您的输入' : 'Agent needs your input';
+      const body = form?.title ?? undefined;
+      import('@/services/notification').then(({ notificationService }) => {
+        notificationService.notify(title, { body, fallbackToToast: false });
+      });
+    }
+
     if (typeof window !== 'undefined') {
       setTimeout(() => window.dispatchEvent(new CustomEvent('pet-status-event', { detail: { step_key: 'approval_waiting' } })), 0);
     }

@@ -9798,7 +9798,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
-    "reviewSharedContextProposal": "Review in Memory"
+    "reviewSharedContextProposal": "Review in Memory",
+    "streamCompleted": "Agent response completed",
+    "clarificationNeeded": "Agent needs your input"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

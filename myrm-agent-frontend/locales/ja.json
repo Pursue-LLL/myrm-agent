@@ -9172,7 +9172,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
-    "reviewSharedContextProposal": "Review in Memory"
+    "reviewSharedContextProposal": "Review in Memory",
+    "streamCompleted": "Agentの応答が完了しました",
+    "clarificationNeeded": "Agentがあなたの入力を必要としています"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

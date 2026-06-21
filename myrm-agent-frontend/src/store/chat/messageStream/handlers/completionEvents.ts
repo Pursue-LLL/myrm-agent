@@ -136,6 +136,14 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
       H.playCompletionSound();
     }
 
+    if (H.useConfigStore.getState().enableWebNotifications) {
+      const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+      const title = lang.startsWith('zh') ? 'Agent 回复已完成' : 'Agent response completed';
+      import('@/services/notification').then(({ notificationService }) => {
+        notificationService.notify(title, { fallbackToToast: false });
+      });
+    }
+
     // Release the processing lock when message ends successfully
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
   }

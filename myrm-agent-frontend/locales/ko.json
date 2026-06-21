@@ -9172,7 +9172,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
-    "reviewSharedContextProposal": "Review in Memory"
+    "reviewSharedContextProposal": "Review in Memory",
+    "streamCompleted": "Agent 응답이 완료되었습니다",
+    "clarificationNeeded": "Agent가 입력을 기다리고 있습니다"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

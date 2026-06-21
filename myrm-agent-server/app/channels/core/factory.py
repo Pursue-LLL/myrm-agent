@@ -14,8 +14,8 @@ channel instances. The business layer only needs to supply a
 
 [POS]
 Framework-level channel factory. Decouples credential resolution from
-channel instantiation. Business layer provides the data source; framework
-handles the rest.
+channel instantiation. Invalid provider credentials (`ValueError`) are skipped
+with a single warning; unexpected failures retain stack traces.
 """
 
 from __future__ import annotations
@@ -87,6 +87,8 @@ async def create_channels(
             instance = cls.from_credentials(creds)
             result[name] = instance
             logger.debug("Channel '%s': instance created", name)
+        except ValueError as exc:
+            logger.warning("Channel '%s': invalid credentials, skipping: %s", name, exc)
         except Exception:
             logger.warning("Channel '%s': failed to create instance", name, exc_info=True)
 

@@ -38,6 +38,47 @@ _mode_labels: dict[DistributionMode, str] = {
 }
 print(f"📦 Harness 安装形态: {_mode_labels.get(_mode, _mode.value)}")
 
+
+def _assert_harness_server_apis() -> None:
+    """Fail fast when the installed harness lacks APIs required by this server revision."""
+    import importlib
+    import sys
+
+    try:
+        module = importlib.import_module("myrm_agent_harness.agent.security.config")
+    except ImportError as exc:
+        print(
+            "ERROR: Installed myrm-agent-harness is missing agent.security.config.",
+            file=sys.stderr,
+        )
+        print(
+            "Monorepo: run ./myrm harness install from the open-perplexity root.",
+            file=sys.stderr,
+        )
+        print(
+            "OSS: upgrade to myrm-agent-harness>=0.1.0rc3 after it is published on PyPI.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+
+    if not hasattr(module, "remote_exposed_permissions"):
+        print(
+            "ERROR: Installed myrm-agent-harness is missing remote_exposed_permissions.",
+            file=sys.stderr,
+        )
+        print(
+            "Monorepo: run ./myrm harness install from the open-perplexity root.",
+            file=sys.stderr,
+        )
+        print(
+            "OSS: upgrade to myrm-agent-harness>=0.1.0rc3 after it is published on PyPI.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+
+_assert_harness_server_apis()
+
 # 配置校验与迁移
 run_config_check()
 

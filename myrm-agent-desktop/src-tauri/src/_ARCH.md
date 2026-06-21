@@ -23,7 +23,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 |------|------|------|-------|
 | `main.rs` | ✅ 核心 | Tauri 应用入口：插件注册、setup、invoke_handler、Agent Sidecar 事件转发 | ✅ |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
-| `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC | ✅ |
+| `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 校验 sidecar 非空；冷启动最多 30s `/health` 轮询 | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（WebUI 模式） | ✅ |
 | `runtime/appshot.rs` | ✅ 核心 | 全局快捷键处理中心：Appshot 截屏（macOS screencapture + AX 文本提取、Windows PrintWindow + UI Automation 文本提取、跨平台截图大小控制 1.5MB 阈值自动缩放）、隐私黑名单拦截与强制绕过（macOS + Windows）、Voice PTT（Pressed/Released 事件 emit）、窗口 toggle | ✅ |
