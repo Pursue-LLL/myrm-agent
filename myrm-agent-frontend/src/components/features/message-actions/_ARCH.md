@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-单条消息操作菜单（复制、分支、反馈等）。
+消息操作菜单（复制、分支、反馈等）与文件变更撤销。
 
 ## 文件清单
 
@@ -13,7 +13,8 @@
 | `MemoryFeedback.tsx` | 组件/模块 | — | — |
 | `ReadAloud.tsx` | 组件/模块 | — | — |
 | `RegenerateMenu.tsx` | 组件/模块 | — | — |
-| `RevertFiles.tsx` | 组件/模块 | — | — |
+| `RevertFiles.tsx` | 组件/模块 | 消息级文件变更撤销（每条 AI 回复旁） | — |
+| `SessionRevertButton.tsx` | 组件/模块 | 会话级一键撤销所有 AI 文件变更（调用 POST /files/revert/session） | — |
 | `SaveEvalCase.tsx` | 组件/模块 | — | — |
 | `SaveToWikiButton.tsx` | 组件/模块 | — | — |
 | `SiblingNav.tsx` | 组件/模块 | — | — |

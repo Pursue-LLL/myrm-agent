@@ -9,24 +9,29 @@
 from __future__ import annotations
 
 import subprocess
-import sys
+from colorsys import hls_to_rgb, rgb_to_hls
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter
 
-# Apple Developer Forums #670578: 824x824 face on 1024 canvas → halved for 512 master.
-CANVAS = 512
-FACE_SIZE = 412
-GUTTER = 50
+# Apple Icon Composer grid: 824×824 enclosure centered on 1024 (gutter 100px).
+MASTER_CANVAS = 1024
+ENCLOSURE_SIZE = 824
+GUTTER = (MASTER_CANVAS - ENCLOSURE_SIZE) // 2
 SQUIRCLE_EXPONENT = 5.0
+SQUIRCLE_SUPERSAMPLE = 4
+# ~80% safe-zone art inset inside enclosure (HIG / Icon Composer convention).
+ART_INSET_RATIO = 0.80
+ICON_MARK_SCALE = 1.12
+BRAND_CANVAS = 512
 # App icon squircle face: orange (left) → blue (right).
-FACE_GRADIENT_LEFT = (242, 128, 72)
-FACE_GRADIENT_RIGHT = (72, 138, 196)
+FACE_GRADIENT_BL = (242, 128, 72)
+FACE_GRADIENT_TR = (72, 138, 196)
 BACKGROUND_TOLERANCE = 48
 
 
-def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
-    """macOS continuous-curvature superellipse (|x|^n + |y|^n <= 1)."""
+def squircle_mask_pixel(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
+    """Raw superellipse raster (|x|^n + |y|^n <= 1) — quintic matches Apple Dock."""
     mask = Image.new("L", (size, size), 0)
     pixels = mask.load()
     center = (size - 1) / 2
@@ -41,7 +46,27 @@ def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image
     return mask
 
 
-def horizontal_gradient(size: int, left: tuple[int, int, int], right: tuple[int, int, int]) -> Image.Image:
+def squircle_mask(size: int, exponent: float = SQUIRCLE_EXPONENT) -> Image.Image:
+    """Supersampled squircle — anti-aliases edge to match native macOS icons."""
+    if SQUIRCLE_SUPERSAMPLE <= 1:
+        return squircle_mask_pixel(size, exponent)
+    big = squircle_mask_pixel(size * SQUIRCLE_SUPERSAMPLE, exponent)
+    return big.resize((size, size), Image.Resampling.LANCZOS)
+
+
+GRADIENT_SATURATION = 0.80
+GRADIENT_LIGHTNESS = 0.78
+
+
+def pastel_brand_color(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Light pastel: preserve orange/blue hue only (no white channel mix)."""
+    r, g, b = (ch / 255.0 for ch in rgb)
+    hue, _, _ = rgb_to_hls(r, g, b)
+    pr, pg, pb = hls_to_rgb(hue, GRADIENT_LIGHTNESS, GRADIENT_SATURATION)
+    return tuple(int(ch * 255) for ch in (pr, pg, pb))
+
+
+def raw_horizontal_gradient(size: int, left: tuple[int, int, int], right: tuple[int, int, int]) -> Image.Image:
     img = Image.new("RGB", (size, size))
     draw = ImageDraw.Draw(img)
     for x in range(size):
@@ -49,6 +74,43 @@ def horizontal_gradient(size: int, left: tuple[int, int, int], right: tuple[int,
         color = tuple(int(left[i] + (right[i] - left[i]) * t) for i in range(3))
         draw.line((x, 0, x, size - 1), fill=color)
     return img.convert("RGBA")
+
+
+def horizontal_gradient(size: int, left: tuple[int, int, int], right: tuple[int, int, int]) -> Image.Image:
+    left = pastel_brand_color(left)
+    right = pastel_brand_color(right)
+    img = Image.new("RGB", (size, size))
+    draw = ImageDraw.Draw(img)
+    for x in range(size):
+        t = x / max(size - 1, 1)
+        color = tuple(int(left[i] + (right[i] - left[i]) * t) for i in range(3))
+        draw.line((x, 0, x, size - 1), fill=color)
+    return img.convert("RGBA")
+
+
+def brand_face_gradient(size: int, bl: tuple[int, int, int], tr: tuple[int, int, int]) -> Image.Image:
+    """Bottom-left → top-right brand gradient with subtle vertical lighting."""
+    img = Image.new("RGB", (size, size))
+    px = img.load()
+    denom = max(size - 1, 1)
+    for y in range(size):
+        for x in range(size):
+            t = (x / denom + (1.0 - y / denom)) / 2.0
+            color = tuple(int(bl[i] + (tr[i] - bl[i]) * t) for i in range(3))
+            px[x, y] = color
+    rgba = img.convert("RGBA")
+    px_rgba = rgba.load()
+    for y in range(size):
+        vy = 1.0 - (y / denom) * 0.16 + 0.08
+        for x in range(size):
+            r, g, b, a = px_rgba[x, y]
+            px_rgba[x, y] = (
+                min(255, max(0, int(r * vy))),
+                min(255, max(0, int(g * vy))),
+                min(255, max(0, int(b * vy))),
+                a,
+            )
+    return rgba
 
 
 def vertical_gradient(size: int, top: tuple[int, int, int], bottom: tuple[int, int, int]) -> Image.Image:
@@ -122,8 +184,34 @@ def fit_foreground_layer(source: Image.Image, max_size: int) -> Image.Image:
     return canvas
 
 
+def deepen_top_right_corner(face: Image.Image, strength: float = 0.22, radius_ratio: float = 0.38) -> Image.Image:
+    """Only top-right corner — deeper blue for mark contrast; rest of gradient unchanged."""
+    out = face.copy()
+    px = out.load()
+    width, height = out.size
+    denom_x = max(width - 1, 1)
+    denom_y = max(height - 1, 1)
+    for y in range(height):
+        ty = y / denom_y
+        for x in range(width):
+            tx = x / denom_x
+            dx = 1.0 - tx
+            dy = ty
+            dist = (dx * dx + dy * dy) ** 0.5
+            weight = max(0.0, 1.0 - dist / radius_ratio) ** 1.8
+            factor = 1.0 - strength * weight
+            r, g, b, a = px[x, y]
+            px[x, y] = (
+                max(0, int(r * factor)),
+                max(0, int(g * factor)),
+                max(0, int(b * factor)),
+                a,
+            )
+    return out
+
+
 def add_macos_squircle_depth(face: Image.Image, size: int) -> Image.Image:
-    """Whole-icon depth: top gloss + bottom inner shade on the squircle face (not the mark)."""
+    """Squircle face depth: top specular + bottom inner shade + rim (mark untouched)."""
     mask = squircle_mask(size)
     mask_px = mask.load()
     out = face.copy()
@@ -137,68 +225,51 @@ def add_macos_squircle_depth(face: Image.Image, size: int) -> Image.Image:
             r, g, b, a = px[x, y]
             nx = x / max(size - 1, 1)
 
-            # Top gloss (whole face)
-            top = max(0.0, 1.0 - ny * 2.2)
-            gloss = int(52 * top * top)
-            r = min(255, r + gloss)
-            g = min(255, g + gloss)
-            b = min(255, b + gloss)
-
-            # Bottom-inner shade (whole face)
             bottom = max(0.0, (ny - 0.55) * 2.2)
-            shade = int(36 * bottom)
+            shade = int(40 * bottom)
             r = max(0, r - shade)
             g = max(0, g - shade)
             b = max(0, b - shade)
 
-            # Left-top rim catchlight / right-bottom rim shade
             rim_light = max(0.0, 1.0 - (nx * 0.4 + ny * 0.6)) * 0.35
             rim_dark = max(0.0, (nx * 0.35 + ny * 0.65) - 0.45) * 0.45
-            r = min(255, max(0, int(r + rim_light * 40 - rim_dark * 40)))
-            g = min(255, max(0, int(g + rim_light * 40 - rim_dark * 40)))
-            b = min(255, max(0, int(b + rim_light * 40 - rim_dark * 40)))
+            r = min(255, max(0, int(r + rim_light * 35 - rim_dark * 35)))
+            g = min(255, max(0, int(g + rim_light * 35 - rim_dark * 35)))
+            b = min(255, max(0, int(b + rim_light * 35 - rim_dark * 35)))
 
             px[x, y] = (r, g, b, a)
 
     return out
 
 
-def add_outer_icon_shadow(canvas: Image.Image, blur_radius: int = 14, y_offset: int = 10) -> Image.Image:
-    """Soft shadow under the full squircle — visible even when Dock shadow is weak (dev builds)."""
-    rgba = canvas.convert("RGBA")
-    alpha = rgba.split()[3]
-    shadow = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
-    shadow.putalpha(alpha.point(lambda value: min(255, int(value * 0.38))))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(blur_radius))
-    out = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
-    out.alpha_composite(shadow, (0, y_offset))
-    out.alpha_composite(rgba, (0, 0))
-    return out
-
-
 def make_dock_icon(source: Path) -> Image.Image:
     src = Image.open(source).convert("RGBA")
-    if src.size != (CANVAS, CANVAS):
-        src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
+    if src.size != (MASTER_CANVAS, MASTER_CANVAS):
+        src = src.resize((MASTER_CANVAS, MASTER_CANVAS), Image.Resampling.LANCZOS)
 
-    face = horizontal_gradient(FACE_SIZE, FACE_GRADIENT_LEFT, FACE_GRADIENT_RIGHT)
-    foreground = fit_foreground_layer(src, FACE_SIZE)
+    face = raw_horizontal_gradient(ENCLOSURE_SIZE, FACE_GRADIENT_BL, FACE_GRADIENT_TR)
+    face = deepen_top_right_corner(face)
+    face = add_macos_squircle_depth(face, ENCLOSURE_SIZE)
+    art_max = int(ENCLOSURE_SIZE * ART_INSET_RATIO * ICON_MARK_SCALE)
+    foreground_layer = fit_foreground_layer(src, art_max)
+    foreground = Image.new("RGBA", (ENCLOSURE_SIZE, ENCLOSURE_SIZE), (0, 0, 0, 0))
+    inset = (ENCLOSURE_SIZE - art_max) // 2
+    foreground.paste(foreground_layer, (inset, inset), foreground_layer)
     face = Image.alpha_composite(face, foreground)
-    face = add_macos_squircle_depth(face, FACE_SIZE)
 
-    mask = squircle_mask(FACE_SIZE)
-    alpha = Image.composite(face.split()[3], Image.new("L", (FACE_SIZE, FACE_SIZE), 0), mask)
+    mask = squircle_mask(ENCLOSURE_SIZE)
+    alpha = Image.composite(face.split()[3], Image.new("L", (ENCLOSURE_SIZE, ENCLOSURE_SIZE), 0), mask)
     face.putalpha(alpha)
 
-    canvas = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
+    canvas = Image.new("RGBA", (MASTER_CANVAS, MASTER_CANVAS), (0, 0, 0, 0))
     canvas.paste(face, (GUTTER, GUTTER), face)
-    return add_outer_icon_shadow(canvas)
+    return canvas
 
 
 def export_png_sizes(master: Path, outputs: dict[int, Path]) -> None:
     base = Image.open(master).convert("RGBA")
     for size, path in outputs.items():
-        img = base if size == CANVAS else base.resize((size, size), Image.Resampling.LANCZOS)
+        img = base if size == MASTER_CANVAS else base.resize((size, size), Image.Resampling.LANCZOS)
         path.parent.mkdir(parents=True, exist_ok=True)
         img.save(path, optimize=True)
 
@@ -253,8 +324,8 @@ def export_favicon(brand_dir: Path, public_dir: Path) -> None:
 def export_brand_mark(source: Path, brand: Path) -> None:
     """UI exports — preserve full source framing (no bbox crop)."""
     src = Image.open(source).convert("RGBA")
-    if src.size != (CANVAS, CANVAS):
-        src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
+    if src.size != (BRAND_CANVAS, BRAND_CANVAS):
+        src = src.resize((BRAND_CANVAS, BRAND_CANVAS), Image.Resampling.LANCZOS)
     for size, name in ((128, "brand-mark-128.webp"), (256, "brand-mark-256.webp")):
         export_webp_from_image(
             src.resize((size, size), Image.Resampling.LANCZOS),
@@ -266,10 +337,10 @@ def export_brand_mark(source: Path, brand: Path) -> None:
 def export_tray_icons(source: Path, icons_dir: Path) -> None:
     """Pure black template glyph on fully transparent background for macOS menu bar."""
     src = Image.open(source).convert("RGBA")
-    if src.size != (CANVAS, CANVAS):
-        src = src.resize((CANVAS, CANVAS), Image.Resampling.LANCZOS)
+    if src.size != (BRAND_CANVAS, BRAND_CANVAS):
+        src = src.resize((BRAND_CANVAS, BRAND_CANVAS), Image.Resampling.LANCZOS)
 
-    layer = fit_foreground_layer(src, CANVAS)
+    layer = fit_foreground_layer(src, BRAND_CANVAS)
     bbox = layer.getbbox()
     if bbox is None:
         return
@@ -303,7 +374,7 @@ def resolve_brand_mark_source(repo: Path) -> Path:
 def main() -> int:
     repo = Path(__file__).resolve().parents[2]
     mark_source = resolve_mark_source(repo)
-    master = repo / "myrm-agent-frontend/public/icons/.app-icon-master-512-macos.png"
+    master = repo / "myrm-agent-frontend/public/icons/.app-icon-master-1024-macos.png"
     icon = make_dock_icon(mark_source)
     master.parent.mkdir(parents=True, exist_ok=True)
     icon.save(master, optimize=True)
@@ -337,7 +408,7 @@ def main() -> int:
     export_tray_icons(mark_source, tauri_icons)
     print(
         f"OK: all icons from {mark_source.name}; "
-        f"app/PWA squircle + brand {{128,256}} webp + tray; face={FACE_SIZE}px gutter={GUTTER}px"
+        f"app/PWA squircle + brand {{128,256}} webp + tray; enclosure={ENCLOSURE_SIZE}px gutter={GUTTER}px"
     )
     return 0
 

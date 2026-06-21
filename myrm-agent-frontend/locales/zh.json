@@ -10064,7 +10064,13 @@
   "messageActions": {
     "revertFiles": "撤销文件变更",
     "revertConfirm": "撤销这些变更？",
-    "revertClickAgain": "再次点击确认"
+    "revertClickAgain": "再次点击确认",
+    "revertSession": "撤销所有文件变更",
+    "revertSessionConfirm": "撤销本次会话中 AI 的所有文件变更？",
+    "revertSessionDesc": "将恢复 {count} 个文件到原始状态。",
+    "revertSessionSuccess": "已撤销所有文件变更",
+    "revertSessionEmpty": "本次会话无文件变更",
+    "cancel": "取消"
   },
   "errors": {
     "configIncomplete": {

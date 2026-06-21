@@ -9434,8 +9434,8 @@
     }
   },
   "messageActions": {
-    "revertFiles": "Undo file changes",
-    "revertConfirm": "Undo these changes?",
+    "revertFiles": "파일 변경 취소",
+    "revertConfirm": "이 변경을 취소하시겠습니까?",
     "overloaded": {
       "message": "AI 서비스가 일시적으로 과부하 상태입니다. 잠시만 기다려주세요",
       "hint": "시스템이 자동으로 백업 모델로 전환됩니다(사용 가능한 경우)."
@@ -9472,7 +9472,13 @@
       "message": "대화가 너무 깁니다. 새 채팅을 시작해주세요",
       "hint": "시스템이 자동으로 컨텍스트를 압축할 때까지 기다릴 수도 있습니다."
     },
-    "revertClickAgain": "Click again to confirm"
+    "revertClickAgain": "다시 클릭하여 확인",
+    "revertSession": "모든 파일 변경 취소",
+    "revertSessionConfirm": "이 세션의 모든 AI 파일 변경을 취소하시겠습니까?",
+    "revertSessionDesc": "{count}개 파일이 원래 상태로 복원됩니다.",
+    "revertSessionSuccess": "모든 파일 변경이 취소되었습니다",
+    "revertSessionEmpty": "이 세션에 파일 변경이 없습니다",
+    "cancel": "취소"
   },
   "checkpoint": {
     "title": "Checkpoints",

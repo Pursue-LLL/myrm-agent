@@ -31,6 +31,7 @@ import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDeskt
 import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
 import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
 import { FileSnapshotPanel } from '@/components/features/checkpoint';
+import SessionRevertButton from '@/components/features/message-actions/SessionRevertButton';
 import { LifeStatusCapsule } from './LifeStatusCapsule';
 import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
@@ -387,8 +388,13 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <DesktopInspectorToggle />
         <DesktopLiveView onSendInstruction={handleDesktopInspectorInstruction} />
 
-        {/* File Snapshot Panel */}
+        {/* File Snapshot Panel + Session Revert */}
         <FileSnapshotPanel />
+        {id && (
+          <div className="fixed bottom-24 right-[4.5rem] z-50 max-sm:bottom-20 max-sm:right-16 bg-secondary rounded-full shadow-lg">
+            <SessionRevertButton sessionId={id} />
+          </div>
+        )}
 
         {/* Subagent 智能提示按钮 */}
         <SubagentPromptButton />

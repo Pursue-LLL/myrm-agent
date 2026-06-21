@@ -68,6 +68,13 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
       parts.push({ type: 'text', text: `[PDF: ${file.fileName}]\n${result.text}` });
     }
 
+    if (result.parsedPages > 0 && result.parsedPages < result.pageCount) {
+      toast.info(
+        `[PDF] ${file.fileName}：已解析 ${result.parsedPages}/${result.pageCount} 页`,
+        { duration: 5000 },
+      );
+    }
+
     if (result.images && result.images.length > 0) {
       for (const img of result.images) {
         const url = img.fileUrl || `data:${img.mimeType};base64,${img.data}`;

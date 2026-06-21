@@ -9434,8 +9434,8 @@
     }
   },
   "messageActions": {
-    "revertFiles": "Undo file changes",
-    "revertConfirm": "Undo these changes?",
+    "revertFiles": "Dateiänderungen rückgängig machen",
+    "revertConfirm": "Diese Änderungen rückgängig machen?",
     "overloaded": {
       "message": "KI-Dienst vorübergehend überlastet, bitte warten Sie einen Moment",
       "hint": "Das System wird automatisch auf ein Backup-Modell umschalten, falls verfügbar."
@@ -9472,7 +9472,13 @@
       "message": "Unterhaltung zu lang, bitte starten Sie einen neuen Chat",
       "hint": "Sie können auch warten, bis das System den Kontext automatisch komprimiert."
     },
-    "revertClickAgain": "Click again to confirm"
+    "revertClickAgain": "Erneut klicken zum Bestätigen",
+    "revertSession": "Alle Dateiänderungen rückgängig machen",
+    "revertSessionConfirm": "Alle KI-Dateiänderungen in dieser Sitzung rückgängig machen?",
+    "revertSessionDesc": "{count} Datei(en) werden in den ursprünglichen Zustand zurückversetzt.",
+    "revertSessionSuccess": "Alle Dateiänderungen wurden rückgängig gemacht",
+    "revertSessionEmpty": "Keine Dateiänderungen in dieser Sitzung",
+    "cancel": "Abbrechen"
   },
   "checkpoint": {
     "title": "Checkpoints",

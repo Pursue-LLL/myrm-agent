@@ -10064,7 +10064,13 @@
   "messageActions": {
     "revertFiles": "Undo file changes",
     "revertConfirm": "Undo these changes?",
-    "revertClickAgain": "Click again to confirm"
+    "revertClickAgain": "Click again to confirm",
+    "revertSession": "Undo all file changes",
+    "revertSessionConfirm": "Undo all AI file changes in this session?",
+    "revertSessionDesc": "{count} file(s) will be restored to their original state.",
+    "revertSessionSuccess": "All file changes reverted",
+    "revertSessionEmpty": "No file changes in this session",
+    "cancel": "Cancel"
   },
   "errors": {
     "configIncomplete": {

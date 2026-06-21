@@ -16,7 +16,7 @@
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file action endpoints. | ✅ |
 | `pdf_extract.py` | 模块 | PDF content extraction API endpoint | ✅ |
-| `revert.py` | 模块 | File revert & review API — undo AI file edits and review diffs. | ✅ |
+| `revert.py` | 模块 | File revert & review API — message-level / file-level / session-level undo of AI file edits and review diffs. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |
 | `suggest.py` | 模块 | File reference suggestion API. | ✅ |

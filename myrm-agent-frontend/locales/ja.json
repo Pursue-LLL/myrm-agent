@@ -9434,8 +9434,8 @@
     }
   },
   "messageActions": {
-    "revertFiles": "Undo file changes",
-    "revertConfirm": "Undo these changes?",
+    "revertFiles": "ファイル変更を元に戻す",
+    "revertConfirm": "これらの変更を元に戻しますか？",
     "overloaded": {
       "message": "AIサービスが一時的に過負荷状態です。しばらくお待ちください",
       "hint": "システムは自動的にバックアップモデルに切り替わります（利用可能な場合）。"
@@ -9472,7 +9472,13 @@
       "message": "会話が長すぎます。新しいチャットを開始してください",
       "hint": "システムが自動的にコンテキストを圧縮するまで待つこともできます。"
     },
-    "revertClickAgain": "Click again to confirm"
+    "revertClickAgain": "もう一度クリックして確認",
+    "revertSession": "すべてのファイル変更を元に戻す",
+    "revertSessionConfirm": "このセッションのAIによるすべてのファイル変更を元に戻しますか？",
+    "revertSessionDesc": "{count} 個のファイルが元の状態に復元されます。",
+    "revertSessionSuccess": "すべてのファイル変更が元に戻されました",
+    "revertSessionEmpty": "このセッションにファイル変更はありません",
+    "cancel": "キャンセル"
   },
   "checkpoint": {
     "title": "Checkpoints",

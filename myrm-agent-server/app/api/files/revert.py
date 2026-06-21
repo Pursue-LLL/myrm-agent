@@ -19,6 +19,10 @@ class RevertMessageRequest(BaseModel):
     message_id: str
 
 
+class RevertSessionRequest(BaseModel):
+    session_id: str
+
+
 class RevertFileRequest(BaseModel):
     session_id: str
     message_id: str
@@ -148,6 +152,18 @@ async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
 async def revert_message(req: RevertMessageRequest) -> RevertResponse:
     """Revert all file changes from a specific message."""
     result = await RevertService.revert_message(req.session_id, req.message_id)
+    return RevertResponse(
+        success=len(result.reverted_files) > 0,
+        reverted_files=result.reverted_files,
+        warnings=result.warnings,
+        skipped_files=result.skipped_files,
+    )
+
+
+@router.post("/session")
+async def revert_session(req: RevertSessionRequest) -> RevertResponse:
+    """Revert all file changes in an entire session (all messages)."""
+    result = await RevertService.revert_session(req.session_id)
     return RevertResponse(
         success=len(result.reverted_files) > 0,
         reverted_files=result.reverted_files,

@@ -34,6 +34,7 @@ export interface PDFExtractResult {
   text: string;
   images: PDFImageItem[];
   pageCount: number;
+  parsedPages: number;
   strategy: 'text' | 'image' | 'hybrid';
   tables: PDFTableItem[];
   imageTrace?: {

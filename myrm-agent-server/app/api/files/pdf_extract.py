@@ -54,6 +54,7 @@ class PDFExtractResponse(BaseModel):
     text: str = Field(default="", description="Extracted text (may be empty for scanned PDFs)")
     images: list[PDFImageItem] = Field(default=[], description="Rendered page images (only when text is sparse)")
     page_count: int = Field(default=0, description="Total pages in PDF")
+    parsed_pages: int = Field(default=0, description="Number of pages actually parsed (may be less than page_count)")
     strategy: str = Field(default="", description="Extraction strategy: 'text', 'image', or 'hybrid'")
     tables: list[PDFTableItem] = Field(default=[], description="Extracted table capsules with L0 summaries and L2 markdown")
     image_trace: dict[str, object] = Field(
@@ -72,7 +73,7 @@ class PDFExtractRequest(BaseModel):
 
     file_id: str | None = Field(default=None, description="File ID (sandbox mode)")
     file_path: str | None = Field(default=None, description="Local file path (local mode)")
-    max_pages: int = Field(default=20, ge=1, le=50, description="Max pages to process")
+    max_pages: int = Field(default=500, ge=1, le=2000, description="Max pages to process")
     min_text_chars: int = Field(default=200, ge=0, description="Min chars before image fallback")
     table_format: str = Field(default="placeholder", description="Table output: 'inline' or 'placeholder'")
 
@@ -183,6 +184,7 @@ async def extract_pdf(
         text=result.text,
         images=image_items,
         page_count=result.page_count,
+        parsed_pages=result.parsed_pages,
         strategy=result.strategy,
         tables=[
             PDFTableItem(
