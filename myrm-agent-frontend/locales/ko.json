@@ -10096,9 +10096,9 @@
     "dismiss": "Dismiss",
     "showMore": "Show more",
     "showLess": "Show less",
-    "pwaNewVersion": "New Version Available",
-    "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
-    "pwaRefresh": "Refresh Now",
+    "pwaNewVersion": "새 버전 사용 가능",
+    "pwaDescription": "앱이 백그라운드에서 업데이트되었습니다. 최신 기능을 사용하려면 새로고침하세요.",
+    "pwaRefresh": "지금 새로고침",
     "pwaInstallApp": "앱 설치",
     "pwaInstallTitle": "데스크톱 앱으로 설치"
   },

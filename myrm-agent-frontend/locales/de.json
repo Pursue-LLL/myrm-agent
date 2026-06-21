@@ -10096,9 +10096,9 @@
     "dismiss": "Dismiss",
     "showMore": "Show more",
     "showLess": "Show less",
-    "pwaNewVersion": "New Version Available",
-    "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
-    "pwaRefresh": "Refresh Now",
+    "pwaNewVersion": "Neue Version verfügbar",
+    "pwaDescription": "Die App wurde im Hintergrund aktualisiert. Aktualisieren Sie die Seite, um die neuesten Funktionen zu nutzen.",
+    "pwaRefresh": "Jetzt aktualisieren",
     "pwaInstallApp": "App installieren",
     "pwaInstallTitle": "Als Desktop-App installieren"
   },
