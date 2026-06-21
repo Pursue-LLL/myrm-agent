@@ -5541,7 +5541,9 @@
     "showLess": "收起",
     "pwaNewVersion": "发现新版本",
     "pwaDescription": "应用已在后台更新完毕，点击刷新以体验最新功能。",
-    "pwaRefresh": "立即刷新"
+    "pwaRefresh": "立即刷新",
+    "pwaInstallApp": "安装应用",
+    "pwaInstallTitle": "安装为桌面应用"
   },
   "metadata": {
     "appTitle": "Perplexica",

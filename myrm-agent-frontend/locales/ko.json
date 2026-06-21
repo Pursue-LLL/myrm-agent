@@ -10098,7 +10098,9 @@
     "showLess": "Show less",
     "pwaNewVersion": "New Version Available",
     "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
-    "pwaRefresh": "Refresh Now"
+    "pwaRefresh": "Refresh Now",
+    "pwaInstallApp": "앱 설치",
+    "pwaInstallTitle": "데스크톱 앱으로 설치"
   },
   "errors": {
     "configIncomplete": {

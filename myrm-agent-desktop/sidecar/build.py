@@ -87,11 +87,64 @@ def _install_harness_from_source_build() -> None:
     )
 
 
+def _resolve_harness_install_mode() -> str:
+    """Mirror maintainer install_harness.sh auto resolution for local monorepo builds."""
+    explicit = os.environ.get("MYRM_HARNESS_INSTALL_MODE", "auto")
+    if explicit != "auto":
+        return explicit
+    if HARNESS_ROOT.is_dir():
+        return "source"
+    return "pypi"
+
+
+def _install_editable_harness() -> None:
+    """Install editable harness from local clone (monorepo maintainer path)."""
+    if not HARNESS_ROOT.is_dir():
+        raise FileNotFoundError(
+            f"Harness source not found at {HARNESS_ROOT}. "
+            "Set MYRM_HARNESS_ROOT or run ./myrm harness install first."
+        )
+
+    print("\nInstalling editable harness from local clone...")
+    subprocess.run(
+        [
+            "uv",
+            "sync",
+            "--frozen",
+            "--no-install-package",
+            "myrm-agent-harness",
+            "--no-sources-package",
+            "myrm-agent-harness",
+            "--all-extras",
+            "--no-group",
+            "dev",
+            "--no-extra",
+            "matrix-e2ee",
+        ],
+        cwd=SERVER_ROOT,
+        check=True,
+    )
+    subprocess.run(
+        [
+            "uv",
+            "pip",
+            "install",
+            "-e",
+            f"{HARNESS_ROOT}[file-parsers,web,fastapi,retrieval,qdrant,image-processing,browser]",
+        ],
+        cwd=SERVER_ROOT,
+        check=True,
+    )
+
+
 def ensure_production_harness_wheels() -> None:
-    """Install harness into the server venv (PyPI by default)."""
-    install_mode = os.environ.get("MYRM_HARNESS_INSTALL_MODE", "pypi")
+    """Install harness into the server venv before PyInstaller bundling."""
+    install_mode = _resolve_harness_install_mode()
     if install_mode == "source":
         _install_harness_from_source_build()
+        return
+    if install_mode == "editable":
+        _install_editable_harness()
         return
 
     print("\nInstalling server + harness from PyPI (desktop production venv)...")
@@ -281,26 +334,48 @@ def build_agent_runner():
 
 
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Build Tauri desktop sidecar binaries")
+    parser.add_argument(
+        "--agent-runner-only",
+        action="store_true",
+        help="Build only the Bun agent-runner sidecar (fast dev check)",
+    )
+    parser.add_argument(
+        "--backend-only",
+        action="store_true",
+        help="Build only the PyInstaller Python backend sidecar",
+    )
+    args = parser.parse_args()
+
     print("MyrmAgent - Sidecar Builder")
     print(f"Platform: {SYSTEM}")
+    print(f"Harness install mode: {_resolve_harness_install_mode()}")
     print(f"Backend binary: {BINARY_NAME}")
     print(f"Agent runner binary: {_agent_runner_binary_name()}\n")
 
-    ensure_production_harness_wheels()
-    check_pyinstaller()
+    if args.agent_runner_only and args.backend_only:
+        print("[ERROR] Choose at most one of --agent-runner-only / --backend-only")
+        sys.exit(1)
 
-    build_backend(skip_harness_install=True)
+    if not args.agent_runner_only:
+        ensure_production_harness_wheels()
+        check_pyinstaller()
+        build_backend(skip_harness_install=True)
 
-    # 构建 Agent Runner
-    build_agent_runner()
+    if not args.backend_only:
+        build_agent_runner()
 
     print("\n" + "=" * 60)
-    print("[OK] All Sidecars Built!")
+    print("[OK] Sidecar build complete!")
     print("=" * 60)
-    print(f"\nNext steps:")
-    print(f"1. Test backend: {OUTPUT_DIR / BINARY_NAME}")
-    print(f"2. Test agent-runner: {OUTPUT_DIR / _agent_runner_binary_name()}")
-    print(f"3. Build Tauri app: cd myrm-agent-desktop && cargo tauri build")
+    if not args.agent_runner_only:
+        print(f"\nBackend: {OUTPUT_DIR / BINARY_NAME}")
+    if not args.backend_only:
+        print(f"Agent runner: {OUTPUT_DIR / _agent_runner_binary_name()}")
+    if not args.agent_runner_only and not args.backend_only:
+        print("\nNext: cd myrm-agent-desktop && cargo tauri build")
 
 
 if __name__ == "__main__":

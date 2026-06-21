@@ -120,7 +120,7 @@ export default function MigrationDiscoveryBanner() {
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-visible py-1 sm:shrink-0">
-          <Button size="sm" className="h-8 text-xs" onClick={handleNavigate}>
+          <Button className="btn-brand-elevation h-8 shrink-0 px-3 text-sm" onClick={handleNavigate}>
             <IconArrowRight className="mr-1.5 h-3.5 w-3.5" />
             {t('importButton')}
           </Button>

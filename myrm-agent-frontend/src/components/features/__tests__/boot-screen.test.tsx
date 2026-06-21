@@ -6,7 +6,28 @@ vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => <img {...props} />,
 }));
 
-const AUTO_FINISH_MS = 500 + 4 * 120 + 340 + 400;
+vi.mock('@/lib/backend-health', () => ({
+  waitForBackendReady: vi.fn(() => Promise.resolve(true)),
+}));
+
+const FADE_DURATION_MS = 400;
+const AUTO_FINISH_MS = 500 + 4 * 120 + 340 + FADE_DURATION_MS;
+
+async function finishBootSequence(onComplete: ReturnType<typeof vi.fn>) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(AUTO_FINISH_MS);
+  });
+  expect(onComplete).toHaveBeenCalledTimes(1);
+}
+
+async function skipBootSequence(onComplete: ReturnType<typeof vi.fn>) {
+  const container = screen.getByRole('presentation');
+  await act(async () => {
+    fireEvent.click(container);
+    await vi.advanceTimersByTimeAsync(FADE_DURATION_MS);
+  });
+  expect(onComplete).toHaveBeenCalledTimes(1);
+}
 
 describe('shouldShowBootScreen', () => {
   beforeEach(() => {
@@ -146,81 +167,55 @@ describe('BootScreen component', () => {
     expect(screen.getByText('step.ready').parentElement).toHaveClass('brand-gradient-text', 'font-medium');
   });
 
-  it('calls onComplete after animation completes', () => {
+  it('calls onComplete after animation completes', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
-
-    act(() => {
-      vi.advanceTimersByTime(AUTO_FINISH_MS);
-    });
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    await finishBootSequence(onComplete);
   });
 
-  it('calls onComplete on click (skip)', () => {
+  it('calls onComplete on click (skip)', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
-
-    const container = screen.getByRole('presentation');
-    act(() => {
-      fireEvent.click(container);
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(400);
-    });
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    await skipBootSequence(onComplete);
   });
 
-  it('marks sessionStorage on complete', () => {
+  it('marks sessionStorage on complete', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
-
-    act(() => {
-      vi.advanceTimersByTime(AUTO_FINISH_MS);
-    });
+    await finishBootSequence(onComplete);
     expect(sessionStorage.getItem('myrm_boot_shown')).toBe('1');
   });
 
-  it('does not call onComplete twice on click then auto-finish', () => {
+  it('does not call onComplete twice on click then auto-finish', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
 
-    const container = screen.getByRole('presentation');
-    act(() => {
-      fireEvent.click(container);
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(AUTO_FINISH_MS);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('presentation'));
+      await vi.advanceTimersByTimeAsync(AUTO_FINISH_MS);
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onComplete twice on double ESC', () => {
+  it('does not call onComplete twice on double ESC', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
 
-    act(() => {
+    await act(async () => {
       fireEvent.keyDown(window, { key: 'Escape' });
       fireEvent.keyDown(window, { key: 'Escape' });
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(400);
+      await vi.advanceTimersByTimeAsync(FADE_DURATION_MS);
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onComplete on ESC key press', () => {
+  it('calls onComplete on ESC key press', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
 
-    act(() => {
+    await act(async () => {
       fireEvent.keyDown(window, { key: 'Escape' });
-    });
-
-    act(() => {
-      vi.advanceTimersByTime(400);
+      await vi.advanceTimersByTimeAsync(FADE_DURATION_MS);
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem('myrm_boot_shown')).toBe('1');
@@ -237,7 +232,7 @@ describe('BootScreen component', () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it('applies fade-out class and transition duration after finish', () => {
+  it('applies fade-out class and transition duration after finish', async () => {
     const onComplete = vi.fn();
     render(<BootScreen onComplete={onComplete} />);
 
@@ -245,7 +240,7 @@ describe('BootScreen component', () => {
     expect(container).toHaveClass('opacity-100');
     expect(container).toHaveStyle({ transitionDuration: '400ms' });
 
-    act(() => {
+    await act(async () => {
       fireEvent.click(container);
     });
 

@@ -14,6 +14,24 @@ vi.mock('../AppLayout', () => ({
   ),
 }));
 
+vi.mock('@/services/onboarding', () => ({
+  getReadinessStatus: vi.fn(() =>
+    Promise.resolve({
+      onboarding_completed: true,
+      provider: { is_ready: true, missing_items: [], suggestions: [] },
+      search: { is_ready: true },
+    }),
+  ),
+}));
+
+vi.mock('@/lib/backend-health', () => ({
+  waitForBackendReady: vi.fn(() => Promise.resolve(true)),
+}));
+
+vi.mock('@/lib/tauri', () => ({
+  isTauriEnvironment: vi.fn(() => false),
+}));
+
 vi.mock('../../features/app-shell/boot-screen', () => ({
   __esModule: true,
   default: ({ onComplete }: { onComplete: () => void }) => (

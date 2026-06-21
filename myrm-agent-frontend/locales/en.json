@@ -5541,7 +5541,9 @@
     "showLess": "Show less",
     "pwaNewVersion": "New Version Available",
     "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
-    "pwaRefresh": "Refresh Now"
+    "pwaRefresh": "Refresh Now",
+    "pwaInstallApp": "Install App",
+    "pwaInstallTitle": "Install as desktop app"
   },
   "metadata": {
     "appTitle": "Perplexica",

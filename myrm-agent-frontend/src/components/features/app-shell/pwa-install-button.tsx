@@ -1,6 +1,7 @@
 'use client';
 
 import { Download } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { Button } from '@/components/primitives/button';
 
@@ -15,6 +16,7 @@ export function PWAInstallButton({
   variant?: 'default' | 'outline' | 'ghost';
   className?: string;
 }) {
+  const t = useTranslations('appUpdate');
   const { isInstallable, promptInstall } = usePWAInstall();
 
   if (!isInstallable) {
@@ -22,9 +24,9 @@ export function PWAInstallButton({
   }
 
   return (
-    <Button variant={variant} size="sm" onClick={promptInstall} className={className} title="安装为桌面应用">
+    <Button variant={variant} size="sm" onClick={promptInstall} className={className} title={t('pwaInstallTitle')}>
       <Download className="h-4 w-4 mr-2" />
-      <span>安装应用</span>
+      <span>{t('pwaInstallApp')}</span>
     </Button>
   );
 }

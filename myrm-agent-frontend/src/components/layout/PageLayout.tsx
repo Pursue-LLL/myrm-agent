@@ -4,6 +4,8 @@ import React, { memo, useState, useEffect, useCallback, lazy, Suspense } from 'r
 import { usePathname } from 'next/navigation';
 import AppLayout from './AppLayout';
 import { isStandalonePath } from '@/lib/marketing-paths';
+import { waitForBackendReady } from '@/lib/backend-health';
+import { isTauriEnvironment } from '@/lib/tauri';
 import { getReadinessStatus } from '@/services/onboarding';
 import { shouldShowBootScreen } from '../features/app-shell/boot-screen';
 import { useFocusedMode } from '@/hooks/useFocusedMode';
@@ -42,22 +44,26 @@ const PageLayout = memo<PageLayoutProps>(({ children }) => {
       return;
     }
 
-    getReadinessStatus()
-      .then((status) => {
+    void (async () => {
+      try {
+        if (isTauriEnvironment()) {
+          await waitForBackendReady();
+        }
+
+        const status = await getReadinessStatus();
         if (!status.onboarding_completed) {
           setNeedsOnboarding(true);
         } else if (shouldShowBootScreen()) {
           setShowNormalBoot(true);
         }
-      })
-      .catch(() => {
+      } catch {
         if (shouldShowBootScreen()) {
           setShowNormalBoot(true);
         }
-      })
-      .finally(() => {
+      } finally {
         setCheckingReadiness(false);
-      });
+      }
+    })();
   }, [isStandaloneRoute, isFocusedMode]);
 
   const handleOnboardingComplete = useCallback(() => {

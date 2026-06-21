@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
+import { waitForBackendReady } from '@/lib/backend-health';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const BOOT_SCREEN_STORAGE_KEY = 'myrm_boot_shown';
@@ -35,18 +36,39 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
   const [titleVisible, setTitleVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const completedRef = useRef(false);
+  const backendGateOpenRef = useRef(false);
+  const exitRequestedRef = useRef(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const steps = [t('step.loadingTheme'), t('step.syncingSettings'), t('step.initServices'), t('step.ready')];
 
-  const finish = useCallback(() => {
+  const tryFinish = useCallback(() => {
     if (completedRef.current) return;
+    if (!backendGateOpenRef.current || !exitRequestedRef.current) return;
     completedRef.current = true;
     markBootScreenShown();
     setFadeOut(true);
     const fadeTimer = setTimeout(onComplete, FADE_DURATION_MS);
     timersRef.current.push(fadeTimer);
   }, [onComplete]);
+
+  const requestExit = useCallback(() => {
+    exitRequestedRef.current = true;
+    tryFinish();
+  }, [tryFinish]);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    void waitForBackendReady({ signal: abortController.signal }).finally(() => {
+      backendGateOpenRef.current = true;
+      tryFinish();
+    });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [tryFinish]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -59,10 +81,10 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
     });
 
     const autoFinishDelay = 500 + steps.length * STEP_INTERVAL_MS + FADE_START_DELAY_MS;
-    timers.push(setTimeout(finish, autoFinishDelay));
+    timers.push(setTimeout(requestExit, autoFinishDelay));
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') finish();
+      if (e.key === 'Escape') requestExit();
     };
     window.addEventListener('keydown', handleKeyDown);
 
@@ -72,7 +94,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
       window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [requestExit]);
 
   return (
     <div
@@ -84,7 +106,7 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
         fadeOut ? 'opacity-0' : 'opacity-100',
       )}
       style={{ transitionDuration: `${FADE_DURATION_MS}ms` }}
-      onClick={finish}
+      onClick={requestExit}
       role="presentation"
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
