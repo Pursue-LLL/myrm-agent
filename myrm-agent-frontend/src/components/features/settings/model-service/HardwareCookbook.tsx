@@ -149,8 +149,8 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
       
       onApplyModel(modelId);
       
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         console.log('Download cancelled by user');
         setDownloadProgress(null);
         setDownloadingModel(null);
