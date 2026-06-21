@@ -1,6 +1,6 @@
 """Document content extraction API endpoint
 
-Extracts text from Office documents (.docx, .xlsx, .xls, .pptx, .ppt) using Harness file_parsers.
+Extracts text from documents (.docx, .xlsx, .xls, .pptx, .ppt, .ipynb) using Harness file_parsers.
 Returns AI-friendly Markdown text.
 
 Supports two resolution modes:
@@ -10,13 +10,14 @@ Supports two resolution modes:
 [INPUT]
 - myrm_agent_harness.toolkits.file_parsers::DocxParser (POS: Word document parser)
 - myrm_agent_harness.toolkits.file_parsers::ExcelParser (POS: Excel file parser)
+- myrm_agent_harness.toolkits.file_parsers::IpynbParser (POS: Jupyter Notebook parser)
 - app.core.storage::files_service (POS: File storage service)
 
 [OUTPUT]
-- POST /extract-document: Extract text from Office documents
+- POST /extract-document: Extract text from documents
 
 [POS]
-Document content extraction API. Converts .docx/.xlsx/.xls/.pptx/.ppt to Markdown via Harness parsers.
+Document content extraction API. Converts .docx/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via Harness parsers.
 """
 
 import logging
@@ -35,7 +36,7 @@ from app.core.storage import files_service
 from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
 from app.database.standard_responses import StandardSuccessResponse
-from app.services.files.content_extraction import SUPPORTED_OFFICE_EXTENSIONS
+from app.services.files.content_extraction import SUPPORTED_DOCUMENT_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class DocumentExtractRequest(BaseModel):
 
 class DocumentExtractResponse(BaseModel):
     text: str = Field(default="", description="Extracted Markdown text")
-    format: str = Field(default="", description="Source format (docx/xlsx/xls)")
+    format: str = Field(default="", description="Source format (docx/xlsx/xls/pptx/ppt/ipynb)")
     char_count: int = Field(default=0, description="Character count of extracted text")
 
     class Config:
@@ -68,8 +69,8 @@ class DocumentExtractResponse(BaseModel):
 def _validate_extension(filename: str) -> str:
     """Validate file extension and return it."""
     ext = Path(filename).suffix.lower()
-    if ext not in SUPPORTED_OFFICE_EXTENSIONS:
-        supported = ", ".join(sorted(SUPPORTED_OFFICE_EXTENSIONS))
+    if ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
+        supported = ", ".join(sorted(SUPPORTED_DOCUMENT_EXTENSIONS))
         raise validation_error(f"Unsupported format: {ext}. Supported: {supported}")
     return ext
 
@@ -110,7 +111,7 @@ async def extract_document(
     body: DocumentExtractRequest,
     request: Request,
 ) -> JSONResponse:
-    """Extract text from an Office document (.docx, .xlsx, .xls).
+    """Extract text from a document (.docx, .xlsx, .xls, .pptx, .ppt, .ipynb).
 
     Returns AI-friendly Markdown text.
     Auth: required (single-tenant request identity)

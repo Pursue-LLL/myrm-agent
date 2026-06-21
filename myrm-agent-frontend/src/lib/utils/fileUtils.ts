@@ -3,7 +3,7 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'];
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'wmv', 'm4v'];
-const DOCUMENT_EXTENSIONS = ['docx', 'xlsx', 'xls', 'pptx', 'ppt'];
+const DOCUMENT_EXTENSIONS = ['docx', 'xlsx', 'xls', 'pptx', 'ppt', 'ipynb'];
 const TEXT_EXTENSIONS = ['csv', 'txt', 'md', 'json'];
 
 const EXTENSION_TO_MIME: Record<string, string> = {

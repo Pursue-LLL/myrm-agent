@@ -1,13 +1,14 @@
 """File content extraction for service-layer callers (bytes in, text out).
 
 [INPUT]
-myrm_agent_harness.toolkits.file_parsers (POS: PDF/Office 解析)
+myrm_agent_harness.toolkits.file_parsers (POS: PDF/Office/Notebook 解析)
 
 [OUTPUT]
 extract_pdf_text_from_bytes / extract_pdf_from_path / extract_document_text_from_bytes / extract_document_from_path
 
 [POS]
 服务层文件内容提取，供 Kanban 附件与 api/files 提取端点共用。
+支持格式：.docx, .xlsx, .xls, .pptx, .ppt, .ipynb
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor import (
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_OFFICE_EXTENSIONS = frozenset({".docx", ".xlsx", ".xls", ".pptx", ".ppt"})
+SUPPORTED_DOCUMENT_EXTENSIONS = frozenset({".docx", ".xlsx", ".xls", ".pptx", ".ppt", ".ipynb"})
 
 
 async def extract_pdf_from_path(
@@ -56,11 +57,11 @@ async def extract_pdf_text_from_bytes(content: bytes) -> str:
 
 
 async def extract_document_text_from_bytes(content: bytes, *, filename: str) -> str:
-    """Extract Markdown text from Office document bytes."""
+    """Extract Markdown text from document bytes (.docx/.xlsx/.xls/.pptx/.ppt/.ipynb)."""
     if not content:
         return ""
     ext = Path(filename).suffix.lower()
-    if ext not in SUPPORTED_OFFICE_EXTENSIONS:
+    if ext not in SUPPORTED_DOCUMENT_EXTENSIONS:
         logger.warning("Unsupported document extension for extraction: %s", ext)
         return ""
 
@@ -79,7 +80,7 @@ async def extract_document_text_from_bytes(content: bytes, *, filename: str) -> 
 
 
 async def extract_document_from_path(file_path: Path, ext: str) -> str:
-    """Extract Markdown text from an Office document on disk."""
+    """Extract Markdown text from a document on disk (.docx/.xlsx/.xls/.pptx/.ppt/.ipynb)."""
     return await _parse_document(file_path, ext.lower())
 
 
@@ -96,6 +97,10 @@ async def _parse_document(file_path: Path, ext: str) -> str:
         from myrm_agent_harness.toolkits.file_parsers.pptx import PptxParser
 
         parser = PptxParser()
+    elif ext == ".ipynb":
+        from myrm_agent_harness.toolkits.file_parsers.ipynb import IpynbParser
+
+        parser = IpynbParser()
     else:
         return ""
     return await parser.parse(str(file_path))

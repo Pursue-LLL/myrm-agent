@@ -266,6 +266,7 @@ myrm_agent_harness.toolkits.deploy.deploy_agent_tools
 myrm_agent_harness.toolkits.file_parsers
 myrm_agent_harness.toolkits.file_parsers.docx
 myrm_agent_harness.toolkits.file_parsers.excel
+myrm_agent_harness.toolkits.file_parsers.ipynb
 myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor
 myrm_agent_harness.toolkits.file_parsers.pptx
 myrm_agent_harness.toolkits.interaction

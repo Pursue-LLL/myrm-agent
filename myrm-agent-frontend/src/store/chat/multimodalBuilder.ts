@@ -34,17 +34,17 @@ const buildExtractParams = (file: File): { fileId: string } | { filePath: string
   return { fileId: file.id || '' };
 };
 
+const attachmentReferencePart = (fileName: string): VisionContentPart => ({
+  type: 'text',
+  text: `[Attachment: ${fileName}]`,
+});
+
 /**
  * Process PDF files via backend extraction API (parallel).
  * Text-first; when text is sparse, backend renders pages as images.
  * Image parts are always included — the server-side VisionFallback
  * handles routing to a vision model when the primary model lacks vision.
  */
-const attachmentReferencePart = (fileName: string): VisionContentPart => ({
-  type: 'text',
-  text: `[Attachment: ${fileName}]`,
-});
-
 const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> => {
   const extractEnabled = useConfigStore.getState().extractDocumentText ?? true;
   if (!extractEnabled) {
@@ -94,7 +94,7 @@ const processPdfFiles = async (pdfFiles: File[]): Promise<VisionContentPart[]> =
 };
 
 /**
- * Process Office document files (.docx/.xlsx/.xls) via backend extraction API (parallel).
+ * Process document files (.docx/.xlsx/.xls/.pptx/.ppt/.ipynb) via backend extraction API (parallel).
  * Backend uses Harness parsers to convert to Markdown text.
  */
 const processDocumentFiles = async (docFiles: File[]): Promise<VisionContentPart[]> => {
@@ -207,8 +207,9 @@ const processTextFiles = async (textFiles: File[]): Promise<VisionContentPart[]>
  * - Images: passed as URL references (file:// or HTTP) for lazy resolution.
  * - Videos: passed as video_url parts for server-side analysis.
  * - PDFs: text-first extraction; sparse-text PDFs rendered as page images.
- * - Documents (.docx/.xlsx/.xls): extracted to Markdown text via backend.
+ * - Documents (.docx/.xlsx/.xls/.ipynb): extracted to Markdown text via backend.
  * - Text files (.csv/.txt/.md/.json): content fetched directly.
+ * - Other files: marked as [Attachment: filename] so the Agent is aware of them.
  * - If no multimodal content, returns plain text.
  */
 export const buildMultimodalQuery = async (
@@ -216,14 +217,16 @@ export const buildMultimodalQuery = async (
   files: File[],
   cameraFrames?: string[],
 ): Promise<string | VisionContentPart[]> => {
-  const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles } = partitionFilesByType(files);
+  const { imageFiles, videoFiles, pdfFiles, documentFiles, textFiles, otherFiles } =
+    partitionFilesByType(files);
   const hasCameraFrames = cameraFrames && cameraFrames.length > 0;
   const hasAttachments =
     imageFiles.length > 0 ||
     videoFiles.length > 0 ||
     pdfFiles.length > 0 ||
     documentFiles.length > 0 ||
-    textFiles.length > 0;
+    textFiles.length > 0 ||
+    otherFiles.length > 0;
 
   if (!hasAttachments && !hasCameraFrames) return textInput;
 
@@ -262,6 +265,12 @@ export const buildMultimodalQuery = async (
   if (textFiles.length > 0) {
     const txtParts = await processTextFiles(textFiles);
     contentParts.push(...txtParts);
+  }
+
+  if (otherFiles.length > 0) {
+    for (const file of otherFiles) {
+      contentParts.push(attachmentReferencePart(file.fileName));
+    }
   }
 
   return contentParts.length === 1 ? textInput : contentParts;

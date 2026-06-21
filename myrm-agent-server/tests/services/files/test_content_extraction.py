@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.files.content_extraction import (
-    SUPPORTED_OFFICE_EXTENSIONS,
+    SUPPORTED_DOCUMENT_EXTENSIONS,
     extract_document_text_from_bytes,
     extract_pdf_text_from_bytes,
 )
@@ -38,6 +38,20 @@ async def test_extract_document_unsupported_extension() -> None:
     assert text == ""
 
 
-def test_supported_office_extensions_stable() -> None:
-    assert ".docx" in SUPPORTED_OFFICE_EXTENSIONS
-    assert ".bin" not in SUPPORTED_OFFICE_EXTENSIONS
+@pytest.mark.asyncio
+async def test_extract_document_empty_ipynb() -> None:
+    assert await extract_document_text_from_bytes(b"", filename="notebook.ipynb") == ""
+
+
+@pytest.mark.asyncio
+async def test_extract_document_minimal_ipynb() -> None:
+    minimal_ipynb = b'{"cells":[{"cell_type":"code","source":["print(1)"],"metadata":{},"outputs":[]}],"metadata":{},"nbformat":4,"nbformat_minor":0}'
+    text = await extract_document_text_from_bytes(minimal_ipynb, filename="test.ipynb")
+    assert isinstance(text, str)
+    assert "print(1)" in text
+
+
+def test_supported_document_extensions_stable() -> None:
+    assert ".docx" in SUPPORTED_DOCUMENT_EXTENSIONS
+    assert ".ipynb" in SUPPORTED_DOCUMENT_EXTENSIONS
+    assert ".bin" not in SUPPORTED_DOCUMENT_EXTENSIONS
