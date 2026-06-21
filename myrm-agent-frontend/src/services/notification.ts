@@ -62,7 +62,7 @@ class SystemNotificationService {
       try {
         const notification = new Notification(title, {
           body: options?.body,
-          icon: options?.icon || '/favicon.ico', // Default icon if available
+          icon: options?.icon || '/favicon-32.png', // Default icon if available
         });
 
         notification.onclick = () => {

@@ -54,7 +54,10 @@ export default function SandboxAuthLayout({
           />
 
           <div className="relative z-10 flex flex-col gap-10 p-10 xl:p-14">
-            <BrandLogo variant="wordmark" wordmarkTheme="light" size={36} priority />
+            <div className="flex items-center gap-2">
+              <BrandLogo size={56} priority className="w-10 h-10" />
+              <span className="text-lg font-semibold brand-gradient-text">MyrmAgent</span>
+            </div>
             <div className="space-y-4 max-w-md">
               <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight text-foreground leading-[1.15]">
                 {t('brandHeadline')}
@@ -97,7 +100,7 @@ export default function SandboxAuthLayout({
 
           <div className="relative z-10 w-full space-y-8" style={{ maxWidth: contentMaxWidth }}>
             <div className="flex flex-col items-center gap-3 lg:hidden">
-              <BrandLogo variant="icon" size={44} priority />
+              <BrandLogo size={44} priority />
               <p className="text-center text-sm text-muted-foreground max-w-xs">{t('brandTagline')}</p>
             </div>
 

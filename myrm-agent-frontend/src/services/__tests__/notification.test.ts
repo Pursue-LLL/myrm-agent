@@ -95,7 +95,7 @@ describe('SystemNotificationService', () => {
 
       expect(mockNotification).toHaveBeenCalledWith('Hidden Title', {
         body: 'Hidden body',
-        icon: '/favicon.ico',
+        icon: '/favicon-32.png',
       });
       expect(mockToast).not.toHaveBeenCalled();
     });
