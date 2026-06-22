@@ -89,6 +89,22 @@ async def _register_db_pool_metrics_task() -> None:
     await register_db_pool_metrics()
 
 
+async def _dispatch_startup_event() -> None:
+    """Dispatch @startup system event so trigger-bound cron jobs can fire on boot."""
+    try:
+        from app.core.cron.adapters.setup import get_cron_scheduler
+
+        scheduler = get_cron_scheduler()
+        if scheduler:
+            count = await scheduler.dispatch_system_event(
+                source="app", event_type="startup", payload={}
+            )
+            if count:
+                logger.info("[Startup] @startup trigger fired %d job(s)", count)
+    except Exception as e:
+        logger.debug("[Startup] @startup event dispatch skipped: %s", e)
+
+
 @asynccontextmanager
 async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     """Application lifecycle manager with startup performance optimization.
@@ -179,6 +195,9 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.info("[Startup] Branch watcher started")
     except Exception as e:
         logger.error("[Startup] Branch watcher failed to start: %s", e)
+
+    # Dispatch @startup system event for trigger-based cron jobs
+    asyncio.create_task(_dispatch_startup_event())
 
     yield
 

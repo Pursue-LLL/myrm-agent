@@ -331,6 +331,35 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
               <Server className="h-3 w-3" />
               {t('triggerSystemEventLabel')}
             </div>
+            {/* Quick presets */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { label: '@startup', source: 'app', event_type: 'startup' },
+                { label: '@login', source: 'app', event_type: 'login' },
+              ].map((preset) => {
+                const exists = systemDrafts.some(
+                  (d) => d.source === preset.source && d.event_type === preset.event_type,
+                );
+                return (
+                  <Button
+                    key={preset.label}
+                    variant={exists ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-5 text-[10px] gap-0.5 px-1.5"
+                    disabled={exists}
+                    onClick={() =>
+                      setSystemDrafts([
+                        ...systemDrafts,
+                        { source: preset.source, event_type: preset.event_type, filters: '' },
+                      ])
+                    }
+                  >
+                    <Terminal className="h-2.5 w-2.5" />
+                    {preset.label}
+                  </Button>
+                );
+              })}
+            </div>
             {systemDrafts.map((draft, i) => (
               <div key={i} className="flex items-center gap-1.5 flex-wrap">
                 <Input
