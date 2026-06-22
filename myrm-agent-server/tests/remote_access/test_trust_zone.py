@@ -88,6 +88,50 @@ def test_resolve_admission_path_loopback_with_nextjs_dev_proxy_headers() -> None
     assert admission_path_to_trust_zone(path) == TrustZone.LOCAL_TRUSTED
 
 
+def test_resolve_admission_path_loopback_with_nextjs_rfc7239_forwarded_header() -> None:
+    path = resolve_admission_path(
+        path="/api/v1/config",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={
+            "X-Forwarded-Host": "127.0.0.1:3000",
+            "X-Forwarded-Proto": "http",
+            "Forwarded": "for=127.0.0.1;host=localhost:3000;proto=http",
+        },
+    )
+    assert path == AdmissionPath.LOOPBACK_DIRECT
+    assert admission_path_to_trust_zone(path) == TrustZone.LOCAL_TRUSTED
+
+
+def test_resolve_admission_path_public_ingress_with_external_forwarded_header() -> None:
+    path = resolve_admission_path(
+        path="/api/v1/config",
+        client_ip="127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={
+            "X-Forwarded-Host": "localhost:3000",
+            "Forwarded": "for=203.0.113.10;host=tunnel.example.com;proto=https",
+        },
+    )
+    assert path == AdmissionPath.PUBLIC_INGRESS
+
+
+def test_resolve_admission_path_nextjs_proxy_ipv4_mapped_loopback_client() -> None:
+    path = resolve_admission_path(
+        path="/api/v1/config",
+        client_ip="::ffff:127.0.0.1",
+        host_header="127.0.0.1:8080",
+        headers={
+            "x-forwarded-host": "127.0.0.1:3000",
+            "x-forwarded-port": "3000",
+            "x-forwarded-proto": "http",
+            "x-forwarded-for": "::ffff:127.0.0.1",
+        },
+    )
+    assert path == AdmissionPath.LOOPBACK_DIRECT
+    assert admission_path_to_trust_zone(path) == TrustZone.LOCAL_TRUSTED
+
+
 def test_resolve_admission_path_public_ingress_matches_configured_url() -> None:
     path = resolve_admission_path(
         path="/api/v1/agents",

@@ -57,14 +57,28 @@ class ResolvedIdentity:
     pair_bound_chat_id: str | None = None
 
 
+def _normalize_client_ip(ip_str: str) -> str:
+    """Unwrap IPv4-mapped IPv6 (e.g. Node.js ::ffff:127.0.0.1) for loopback checks."""
+    if not ip_str:
+        return ip_str
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return ip_str
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        return str(ip.ipv4_mapped)
+    return ip_str
+
+
 def _ip_in_networks(
     ip_str: str,
     networks: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...],
 ) -> bool:
-    if not ip_str:
+    normalized = _normalize_client_ip(ip_str)
+    if not normalized:
         return False
     try:
-        ip = ipaddress.ip_address(ip_str)
+        ip = ipaddress.ip_address(normalized)
     except ValueError:
         return False
     return any(ip in net for net in networks)

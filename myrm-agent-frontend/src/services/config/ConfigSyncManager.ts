@@ -10,6 +10,7 @@
  * - 冲突检测：版本号乐观锁
  */
 
+import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { cloneDeep } from 'lodash-es';
 import { threeWayMerge } from './mergeUtils';
@@ -19,6 +20,9 @@ import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS, createInitialVersion, incrementVersi
 
 // 防抖延迟（毫秒）
 const SYNC_DEBOUNCE_MS = 1000;
+
+const INIT_FETCH_MAX_ATTEMPTS = 3;
+const INIT_FETCH_RETRY_DELAY_MS = 500;
 
 // 离线队列存储键
 const OFFLINE_QUEUE_KEY = 'config-offline-queue';
@@ -107,11 +111,15 @@ class ConfigSyncManager {
     this._status = 'loading';
 
     try {
+      if (isLocalMode()) {
+        await ensureLocalBackendReady();
+      }
+
       const offlineChanges = this.loadOfflineQueue();
       const useProgressiveLoad = !isLocalMode() && this.adapter instanceof SandboxConfigAdapter;
 
       if (useProgressiveLoad) {
-        const coreConfigs = await this.adapter.getAll(CORE_CONFIG_KEYS);
+        const coreConfigs = await this.fetchAllWithRetry(() => this.adapter.getAll(CORE_CONFIG_KEYS));
         this.cache = coreConfigs;
         this.baseCache = cloneDeep(coreConfigs);
         this._isInitialized = true;
@@ -132,7 +140,7 @@ class ConfigSyncManager {
           );
         }
       } else {
-        const configs = await this.adapter.getAll();
+        const configs = await this.fetchAllWithRetry(() => this.adapter.getAll());
         this.cache = configs;
         this.baseCache = cloneDeep(configs);
         this._isInitialized = true;
@@ -153,6 +161,25 @@ class ConfigSyncManager {
       this._status = 'error';
       throw error;
     }
+  }
+
+  private async fetchAllWithRetry(
+    fetchFn: () => Promise<Map<ConfigKey, ConfigRecord>>,
+  ): Promise<Map<ConfigKey, ConfigRecord>> {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < INIT_FETCH_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await fetchFn();
+      } catch (error) {
+        lastError = error;
+        if (attempt < INIT_FETCH_MAX_ATTEMPTS - 1) {
+          await new Promise((resolve) => setTimeout(resolve, INIT_FETCH_RETRY_DELAY_MS));
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   /**

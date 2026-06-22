@@ -4523,8 +4523,6 @@
       "searchServiceNotConfigured": "Please configure and enable a search service first",
       "imageNotSupported": "Image processing is under development"
     },
-    "imageSearch": "Image Search",
-    "videoSearch": "Video Search",
     "webSearch": "Web Search",
     "academicSearch": "Academic Search",
     "writingAssistant": "Writing Assistant",

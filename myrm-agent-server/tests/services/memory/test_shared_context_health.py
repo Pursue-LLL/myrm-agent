@@ -47,7 +47,7 @@ async def test_shared_context_health_blocks_placeholder_cloud_key(monkeypatch: p
 @pytest.mark.asyncio
 async def test_shared_context_health_allows_config_only_local_base(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _cfg() -> EmbeddingConfig:
-        return EmbeddingConfig(model="openai/local-embedding", api_key="default", api_base="http://127.0.0.1:11434/v1")
+        return EmbeddingConfig(model="nomic-embed-text", api_key="default", api_base="http://127.0.0.1:11434/v1")
 
     monkeypatch.setattr(health_module, "require_platform_embedding_config", _cfg)
 

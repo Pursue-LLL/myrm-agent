@@ -36,7 +36,7 @@ def deploy_tauri(action: str = "dev") -> bool:
 
     # 安装依赖
     print_step(3, "安装依赖")
-    print_info("安装本地模式依赖（包含 FastEmbed、aiosqlite）...")
+    print_info("安装本地模式依赖（aiosqlite、retrieval、qdrant 等）...")
     try:
         run_command(["uv", "sync", "--all-extras"])
         print_success("依赖安装完成")

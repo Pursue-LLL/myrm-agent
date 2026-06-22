@@ -3,10 +3,14 @@
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
+import { ensureLocalBackendReady } from '@/lib/backend-health';
+import { isLocalMode } from '@/lib/deploy-mode';
 import { API_BASE_URL } from '@/lib/api';
 import useApprovalStore, { normalizeApprovalPayload, type ApprovalPayload } from '@/store/useApprovalStore';
 
 const STARTUP_DELAY_MS = 200;
+const STARTUP_RECOVERY_MAX_ATTEMPTS = 3;
+const STARTUP_RECOVERY_RETRY_DELAY_MS = 500;
 const DEBOUNCE_WINDOW_MS = 2_000;
 const FETCH_LIMIT = 100;
 
@@ -113,7 +117,31 @@ export function usePendingApprovalsRecovery(): void {
     };
 
     const startupTimer = setTimeout(() => {
-      void runRecovery(true);
+      void (async () => {
+        if (cancelled) return;
+
+        if (isLocalMode()) {
+          await ensureLocalBackendReady();
+        }
+        if (cancelled) return;
+
+        for (let attempt = 0; attempt < STARTUP_RECOVERY_MAX_ATTEMPTS; attempt += 1) {
+          if (cancelled) return;
+
+          const added = await recoverPendingApprovals();
+          if (added > 0) {
+            toast.info(t('approvalsRecovered', { count: added }), {
+              duration: 5_000,
+              dismissible: true,
+            });
+            return;
+          }
+
+          if (attempt < STARTUP_RECOVERY_MAX_ATTEMPTS - 1) {
+            await new Promise((resolve) => setTimeout(resolve, STARTUP_RECOVERY_RETRY_DELAY_MS));
+          }
+        }
+      })();
     }, STARTUP_DELAY_MS);
 
     const handleResync = () => {

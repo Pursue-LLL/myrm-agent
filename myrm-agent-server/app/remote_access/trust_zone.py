@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from enum import Enum
 from urllib.parse import urlparse
 
-from app.core.security.auth.identity import is_loopback_ip, is_private_network_ip
+from app.core.security.auth.identity import _normalize_client_ip, is_loopback_ip, is_private_network_ip
 
 
 class AdmissionPath(str, Enum):
@@ -88,6 +88,29 @@ def has_tunnel_proxy_headers(headers: Mapping[str, str]) -> bool:
     return False
 
 
+def _is_local_forwarded_header(value: str) -> bool:
+    """True when RFC 7239 Forwarded only references loopback/local hosts."""
+    for segment in value.split(","):
+        segment = segment.strip()
+        if not segment:
+            continue
+        for part in segment.split(";"):
+            part = part.strip()
+            if not part or "=" not in part:
+                continue
+            key, raw = part.split("=", 1)
+            if key.lower() not in {"for", "host"}:
+                continue
+            token = raw.strip().strip('"')
+            if key.lower() == "for":
+                host = _normalize_client_ip(token.strip("[]").split(":")[0])
+                if host not in {"127.0.0.1", "localhost", "::1"}:
+                    return False
+            elif _host_only(token) not in {"localhost", "127.0.0.1"}:
+                return False
+    return True
+
+
 def _is_nextjs_local_dev_proxy(headers: Mapping[str, str]) -> bool:
     """Loopback requests with only local X-Forwarded-Host (Next.js dev rewrite)."""
     forwarded_host_local = False
@@ -99,7 +122,16 @@ def _is_nextjs_local_dev_proxy(headers: Mapping[str, str]) -> bool:
         if lower_key == "x-forwarded-host":
             if _host_only(value) in {"localhost", "127.0.0.1"}:
                 forwarded_host_local = True
-        elif lower_key in {"cf-connecting-ip", "cf-ray", "cf-visitor", "forwarded"}:
+        elif lower_key == "forwarded":
+            if _is_local_forwarded_header(value):
+                forwarded_host_local = True
+            else:
+                external_tunnel_marker = True
+        elif lower_key == "x-forwarded-for":
+            first_hop = _normalize_client_ip(value.split(",")[0].strip().strip("[]").split(":")[0])
+            if first_hop in {"127.0.0.1", "localhost", "::1"}:
+                forwarded_host_local = True
+        elif lower_key in {"cf-connecting-ip", "cf-ray", "cf-visitor"}:
             external_tunnel_marker = True
     return forwarded_host_local and not external_tunnel_marker
 

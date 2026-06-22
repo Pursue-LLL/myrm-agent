@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { waitForBackendReady } from '@/lib/backend-health';
+import { waitForBackendReady, waitForTauriRuntime } from '@/lib/backend-health';
 import { tauriBackend } from '@/lib/tauri';
+
+vi.mock('@/lib/deploy-mode', () => ({
+  getDeployMode: vi.fn(() => 'tauri'),
+}));
 
 vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => true),
@@ -10,7 +14,33 @@ vi.mock('@/lib/tauri', () => ({
   },
 }));
 
+const { getDeployMode } = await import('@/lib/deploy-mode');
 const { isTauriEnvironment } = await import('@/lib/tauri');
+
+describe('waitForTauriRuntime', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns true immediately when deploy mode is not tauri', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('local');
+    vi.mocked(isTauriEnvironment).mockReturnValue(false);
+
+    await expect(waitForTauriRuntime()).resolves.toBe(true);
+    expect(isTauriEnvironment).not.toHaveBeenCalled();
+  });
+
+  it('polls until tauri runtime is injected', async () => {
+    vi.mocked(getDeployMode).mockReturnValue('tauri');
+    vi.mocked(isTauriEnvironment)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+
+    await expect(waitForTauriRuntime({ pollIntervalMs: 1, maxAttempts: 5 })).resolves.toBe(true);
+    expect(isTauriEnvironment).toHaveBeenCalledTimes(3);
+  });
+});
 
 describe('waitForBackendReady', () => {
   afterEach(() => {

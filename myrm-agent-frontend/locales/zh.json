@@ -5072,8 +5072,6 @@
       "searchServiceNotConfigured": "请先配置并启用搜索服务",
       "imageNotSupported": "图片处理功能正在开发中"
     },
-    "imageSearch": "图像搜索",
-    "videoSearch": "视频搜索",
     "webSearch": "网络搜索",
     "academicSearch": "学术搜索",
     "writingAssistant": "写作助手",

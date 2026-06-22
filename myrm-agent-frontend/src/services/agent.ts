@@ -688,7 +688,14 @@ export async function instantiateTemplate(templateId: string): Promise<Agent> {
     },
   });
   if (!response.ok) {
-    throw new Error(`Failed to instantiate template: ${response.statusText}`);
+    let message = response.statusText;
+    try {
+      const errorBody = (await response.json()) as { detail?: string; message?: string };
+      message = errorBody.detail || errorBody.message || message;
+    } catch {
+      // use statusText
+    }
+    throw new Error(`Failed to instantiate template: ${message}`);
   }
   const result = await response.json();
   return result.data;

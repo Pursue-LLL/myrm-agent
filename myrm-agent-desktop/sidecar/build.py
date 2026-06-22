@@ -205,7 +205,6 @@ def build_backend(*, skip_harness_install: bool = False):
         "--hidden-import", "fastapi",
         "--hidden-import", "sqlalchemy",
         "--hidden-import", "qdrant_client",
-        "--hidden-import", "fastembed",
         "--hidden-import", "myrm_agent_harness",
         "--hidden-import", "myrm_agent_harness.api",
         "--exclude-module", "matplotlib",

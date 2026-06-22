@@ -13,6 +13,10 @@ vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: vi.fn(() => 'http://localhost:8080/api/v1'),
 }));
 
+vi.mock('@/lib/backend-health', () => ({
+  ensureLocalBackendReady: vi.fn(() => Promise.resolve(true)),
+}));
+
 // Mock fetch
 const mockFetch = vi.fn();
 global.fetch = mockFetch;

@@ -12,7 +12,8 @@
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
-import { getApiBaseUrl, getBackendBaseUrl, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
+import { ensureLocalBackendReady } from '@/lib/backend-health';
+import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 
@@ -283,6 +284,10 @@ export const apiRequest = async <T = unknown>(
   lastRequestContext = { endpoint, options: fetchOptions };
 
   try {
+    if (typeof window !== 'undefined' && isLocalMode()) {
+      await ensureLocalBackendReady();
+    }
+
     // 获取认证 token
     const token = getAuthToken();
 

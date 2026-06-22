@@ -1,3 +1,4 @@
+import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
@@ -64,11 +65,51 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+const TAURI_RUNTIME_POLL_INTERVAL_MS = 50;
+const TAURI_RUNTIME_MAX_ATTEMPTS = 60;
+
+/**
+ * Wait until Tauri injects `window.__TAURI__` (desktop dev/prod WebView).
+ * No-op when deploy mode is not `tauri`.
+ */
+export async function waitForTauriRuntime(options: WaitForBackendReadyOptions = {}): Promise<boolean> {
+  if (typeof window === 'undefined' || getDeployMode() !== 'tauri') {
+    return true;
+  }
+
+  const pollIntervalMs = options.pollIntervalMs ?? TAURI_RUNTIME_POLL_INTERVAL_MS;
+  const maxAttempts = options.maxAttempts ?? TAURI_RUNTIME_MAX_ATTEMPTS;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (options.signal?.aborted) {
+      return false;
+    }
+
+    if (isTauriEnvironment()) {
+      return true;
+    }
+
+    if (attempt < maxAttempts - 1) {
+      try {
+        await sleep(pollIntervalMs, options.signal);
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  return isTauriEnvironment();
+}
+
 /**
  * Poll until backend responds healthy or attempts exhaust (~30s default).
  * Returns true when healthy; false on timeout or abort.
  */
 export async function waitForBackendReady(options: WaitForBackendReadyOptions = {}): Promise<boolean> {
+  if (getDeployMode() === 'tauri') {
+    await waitForTauriRuntime(options);
+  }
+
   const pollIntervalMs = options.pollIntervalMs ?? BACKEND_HEALTH_POLL_INTERVAL_MS;
   const maxAttempts = options.maxAttempts ?? BACKEND_HEALTH_MAX_ATTEMPTS;
 
@@ -91,4 +132,26 @@ export async function waitForBackendReady(options: WaitForBackendReadyOptions = 
   }
 
   return false;
+}
+
+let localBackendReadyGate: Promise<boolean> | null = null;
+
+/**
+ * Single-flight gate: local/Tauri clients await backend health once per page load.
+ */
+export function ensureLocalBackendReady(): Promise<boolean> {
+  if (typeof window === 'undefined' || !isLocalMode()) {
+    return Promise.resolve(true);
+  }
+
+  if (!localBackendReadyGate) {
+    localBackendReadyGate = waitForBackendReady();
+  }
+
+  return localBackendReadyGate;
+}
+
+/** @internal test helper */
+export function resetLocalBackendReadyGate(): void {
+  localBackendReadyGate = null;
 }

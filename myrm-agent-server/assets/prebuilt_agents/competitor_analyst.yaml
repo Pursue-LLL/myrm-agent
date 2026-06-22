@@ -30,5 +30,5 @@ suggestion_prompts:
   - "帮我追踪一下 OpenAI 最近一个月的核心动态，并生成周报。"
   - "对比一下 Claude 和 Gemini 最近发布的新模型，它们各自的优势是什么？"
 prebuilt_skill_ids:
-  - "web-research"
+  - "deep-research"
   - "blog-monitoring"

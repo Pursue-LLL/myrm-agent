@@ -75,7 +75,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _setup_search_and_basic_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up web search, web fetch, and basic utility tools."""
         from myrm_agent_harness.toolkits import (
-            create_image_search_tool,
             create_web_fetch_tool,
             create_web_search_tool,
         )
@@ -117,11 +116,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                 )
             )
-            try:
-                tools.append(create_image_search_tool())
-            except Exception:
-                logger.info("image_search_tool skipped (ddgs not installed)")
-
             # Optional: X/Twitter search via xAI Live Search API
             try:
                 from app.services.agent.platform_config import resolve_xai_search_config

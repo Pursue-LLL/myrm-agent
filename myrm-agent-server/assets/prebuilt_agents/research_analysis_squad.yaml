@@ -24,7 +24,7 @@ suggestion_prompts:
   - "Analyze the competitive landscape of AI coding assistants"
   - "调研东南亚电商市场的机会和风险"
 prebuilt_skill_ids:
-  - "web-research"
+  - "deep-research"
 members:
   - role: analyst
     name:
@@ -43,7 +43,7 @@ members:
       格式要求：使用表格展示关键数据，注明信息时效性。
     personality_style: professional
     prebuilt_skill_ids:
-      - "web-research"
+      - "deep-research"
   - role: strategist
     name:
       zh: "策略顾问"

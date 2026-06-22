@@ -342,7 +342,7 @@ function NavBarInner({
                   className={cn(
                     'relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
                     isActive
-                      ? 'bg-primary/10 text-primary shadow-[var(--shadow-brand)]'
+                      ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-[var(--shadow-brand)]',
                   )}
                   aria-label={item.label}
@@ -386,7 +386,7 @@ function NavBarInner({
                   className={cn(
                     'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
                     isActive
-                      ? 'bg-primary/10 text-primary shadow-[var(--shadow-brand)]'
+                      ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-primary/5 hover:text-accent-warm hover:shadow-[var(--shadow-brand)]',
                   )}
                   aria-label={item.label}
