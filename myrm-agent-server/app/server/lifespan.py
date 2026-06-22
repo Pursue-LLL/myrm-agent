@@ -161,6 +161,13 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
             logger.error("[Startup] Channel Gateway failed to start: %s", gw_result)
         if isinstance(cron_result, Exception):
             logger.error("[Startup] Cron scheduler failed to start: %s", cron_result)
+        else:
+            try:
+                from app.core.cron.adapters.setup import start_folder_watcher
+
+                start_folder_watcher()
+            except Exception as e:
+                logger.debug("[Startup] Folder watcher skipped: %s", e)
         if isinstance(kanban_result, Exception):
             logger.error("[Startup] Kanban dispatchers failed to start: %s", kanban_result)
         if isinstance(backup_result, Exception):
@@ -523,6 +530,13 @@ async def _shutdown(app_instance: FastAPI) -> None:
             logger.info("[Shutdown] SkillWatcher stopped")
         except Exception as e:
             logger.error("[Shutdown] SkillWatcher stop failed: %s", e)
+
+    try:
+        from app.core.cron.adapters.setup import stop_folder_watcher
+
+        stop_folder_watcher()
+    except Exception:
+        pass
 
     try:
         from app.services.agent.goal_registry import GoalRegistry
