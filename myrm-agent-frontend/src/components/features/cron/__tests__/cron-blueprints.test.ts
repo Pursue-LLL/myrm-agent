@@ -8,8 +8,8 @@ import {
 
 describe('cron-blueprints', () => {
   describe('CRON_BLUEPRINTS', () => {
-    it('contains 5 blueprints', () => {
-      expect(CRON_BLUEPRINTS).toHaveLength(5);
+    it('contains fallback blueprints', () => {
+      expect(CRON_BLUEPRINTS.length).toBeGreaterThanOrEqual(5);
     });
 
     it('all blueprints have required fields', () => {

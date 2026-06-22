@@ -255,6 +255,160 @@ BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         sort_order=4,
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="local_health_check",
+        icon="Activity",
+        title={"en": "Local Health Check", "zh": "本地健康巡检"},
+        description={
+            "en": "Monitor your system's CPU, memory, and disk status",
+            "zh": "监控系统 CPU、内存和磁盘状态",
+        },
+        prompt_template={
+            "en": (
+                "Check the current system health status. Report CPU usage, memory usage, "
+                "disk space remaining, and any services that appear to be down or unhealthy. "
+                "Only report issues that need attention — if everything is normal, keep it brief."
+            ),
+            "zh": (
+                "检查当前系统健康状态。报告 CPU 使用率、内存使用率、"
+                "剩余磁盘空间，以及任何似乎宕机或不健康的服务。"
+                "只报告需要关注的问题——如果一切正常，请保持简短。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="devops",
+        tags=("health", "monitoring", "system", "local"),
+        sort_order=5,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="competitor_watch",
+        icon="Eye",
+        title={"en": "Competitor Watch", "zh": "竞品动态监控"},
+        description={
+            "en": "Track competitor news and product updates weekly",
+            "zh": "每周追踪竞品新闻和产品更新",
+        },
+        prompt_template={
+            "en": (
+                "Search the web for the latest news, product updates, and announcements from: "
+                "{competitors}. Compile a concise competitive intelligence brief covering: "
+                "new features, pricing changes, partnerships, funding, and notable blog posts. "
+                "Highlight items that may impact our strategy."
+            ),
+            "zh": (
+                "搜索以下竞品的最新新闻、产品更新和公告：{competitors}。"
+                "编制一份简洁的竞争情报简报，涵盖：新功能、定价变化、合作伙伴关系、"
+                "融资动态和值得注意的博客文章。突出可能影响我们战略的条目。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="1",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+            BlueprintSlot(
+                name="competitors",
+                type="text",
+                label="competitors",
+                default="",
+            ),
+        ),
+        category="business",
+        tags=("competitor", "intelligence", "weekly", "research"),
+        sort_order=6,
+        _schedule_builder="time_weekday",
+    ),
+    CronBlueprint(
+        id="habit_checkin",
+        icon="CheckSquare",
+        title={"en": "Habit Check-in", "zh": "习惯打卡"},
+        description={
+            "en": "Daily reminder to track your habits and routines",
+            "zh": "每日提醒追踪你的习惯和日常",
+        },
+        prompt_template={
+            "en": (
+                "It's time for your daily habit check-in! Ask me about my progress on: "
+                "{habits}. Provide encouragement and track my streak. "
+                "If I've missed any, offer a gentle reminder without judgment."
+            ),
+            "zh": (
+                "是时候进行每日习惯打卡了！询问我在以下方面的进展：{habits}。"
+                "给予鼓励并追踪我的连续完成情况。"
+                "如果我遗漏了任何一项，请温和地提醒，不要评判。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="21:00"),
+            BlueprintSlot(
+                name="habits",
+                type="text",
+                label="habits",
+                default="exercise, reading, meditation",
+            ),
+        ),
+        category="personal",
+        tags=("habit", "tracking", "daily", "wellness"),
+        sort_order=7,
+        _schedule_builder="time_daily",
+    ),
+    CronBlueprint(
+        id="learn_daily",
+        icon="BookOpen",
+        title={"en": "Daily Learning", "zh": "每日学习"},
+        description={
+            "en": "Get a curated learning topic delivered daily",
+            "zh": "每天获得一个精选学习主题",
+        },
+        prompt_template={
+            "en": (
+                "Teach me something interesting and useful about: {subject}. "
+                "Explain one concept, technique, or recent development in 2-3 paragraphs. "
+                "Include a practical example or exercise I can try. "
+                "Make it accessible but not superficial."
+            ),
+            "zh": (
+                "教我一些关于以下主题的有趣且有用的知识：{subject}。"
+                "用 2-3 段解释一个概念、技术或近期发展。"
+                "包含一个我可以尝试的实际例子或练习。"
+                "内容要易懂但不肤浅。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="subject",
+                type="text",
+                label="subject",
+                default="programming and software architecture",
+            ),
+        ),
+        category="education",
+        tags=("learning", "education", "daily", "growth"),
+        sort_order=8,
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}
