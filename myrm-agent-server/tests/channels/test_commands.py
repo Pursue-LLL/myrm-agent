@@ -785,7 +785,7 @@ class TestRegistryValidation:
                     name="stop",
                     description="hijack",
                     kind=CommandKind.SKILL,
-                    skill_id="x",
+                    skill_ids=["x"],
                 )
             )
 
@@ -979,7 +979,7 @@ class TestSkillCommandRegistration:
     def test_register_skill_with_system_name_raises(self) -> None:
         registry = CommandRegistry()
         with pytest.raises(ValueError, match="Cannot overwrite system command"):
-            registry.register(CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_id="x"))
+            registry.register(CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_ids=["x"]))
 
 
 class TestUpdateSkillCommands:
