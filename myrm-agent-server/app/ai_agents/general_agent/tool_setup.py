@@ -138,6 +138,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 f"(advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})"
             )
 
+        try:
+            from myrm_agent_harness.toolkits.rss import create_rss_tool
+
+            tools.extend(create_rss_tool())
+            logger.info("📡 已加载 rss_fetch tool")
+        except Exception as e:
+            logger.debug("rss_fetch tool skipped: %s", e)
+
         if self.enable_render_ui:
             from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
                 render_ui_tool,
