@@ -340,3 +340,53 @@ export async function listAllCronRuns(params?: {
   if (params?.status) query.set('status', params.status);
   return apiRequest(`/cron/runs/all?${query.toString()}`);
 }
+
+// ==================== Blueprints ====================
+
+export interface BlueprintSlotDef {
+  name: string;
+  type: 'time' | 'text' | 'enum';
+  label: string;
+  default: string;
+  options: string[];
+}
+
+export interface BlueprintDef {
+  id: string;
+  icon: string;
+  title: Record<string, string>;
+  description: Record<string, string>;
+  prompt_template: Record<string, string>;
+  slots: BlueprintSlotDef[];
+  category: string;
+  tags: string[];
+  sort_order: number;
+}
+
+export interface BlueprintFillResponse {
+  schedule: CronSchedule;
+  prompt: string;
+  name: string;
+}
+
+export async function listBlueprints(): Promise<BlueprintDef[]> {
+  return apiRequest('/cron/blueprints');
+}
+
+export async function fillBlueprint(
+  blueprintId: string,
+  values: Record<string, string>,
+  locale?: string,
+  tz?: string,
+): Promise<BlueprintFillResponse> {
+  return apiRequest('/cron/blueprints/fill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      blueprint_id: blueprintId,
+      values,
+      locale: locale || 'en',
+      tz: tz || undefined,
+    }),
+  });
+}

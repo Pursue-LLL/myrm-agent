@@ -1,7 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { CRON_BLUEPRINTS, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
+import { getCachedBlueprints, humanizeSchedule, loadBlueprints, type CronBlueprint } from './cron-blueprints';
 
 interface BlueprintCatalogProps {
   onSelect: (blueprint: CronBlueprint) => void;
@@ -10,7 +11,13 @@ interface BlueprintCatalogProps {
 
 export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalogProps) {
   const t = useTranslations('cron');
-  const items = maxItems ? CRON_BLUEPRINTS.slice(0, maxItems) : CRON_BLUEPRINTS;
+  const [blueprints, setBlueprints] = useState<readonly CronBlueprint[]>(getCachedBlueprints());
+
+  useEffect(() => {
+    loadBlueprints().then(setBlueprints);
+  }, []);
+
+  const items = maxItems ? blueprints.slice(0, maxItems) : blueprints;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -32,10 +39,10 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground group-hover:text-primary truncate">
-                {t(bp.titleKey)}
+                {bp.title?.[document.documentElement.lang?.split('-')[0] || 'en'] || t(bp.titleKey)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                {t(bp.descKey)}
+                {bp.description?.[document.documentElement.lang?.split('-')[0] || 'en'] || t(bp.descKey)}
               </p>
               <p className="text-[11px] text-muted-foreground/70 mt-1">
                 {scheduleText}

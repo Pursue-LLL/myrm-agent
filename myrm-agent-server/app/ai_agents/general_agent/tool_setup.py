@@ -390,6 +390,22 @@ class ToolSetupMixin(ExternalAgentsMixin):
             from myrm_agent_harness.toolkits import create_cron_tools
 
             from app.core.cron.adapters.setup import get_cron_manager
+            from app.core.cron.blueprints import fill_blueprint, get_blueprints_for_tool_description
+
+            def _blueprint_filler(
+                bp_id: str, values: dict[str, str], tz: str | None
+            ) -> tuple[dict[str, str | int | None], str, str] | None:
+                result = fill_blueprint(bp_id, values, tz=tz)
+                if not result:
+                    return None
+                sched = result.schedule
+                sched_dict: dict[str, str | int | None] = {
+                    "kind": sched.kind,
+                    "expr": sched.expr,
+                    "tz": sched.tz,
+                    "interval_ms": sched.interval_ms,
+                }
+                return sched_dict, result.prompt, result.name
 
             cron_tools = create_cron_tools(
                 get_cron_manager(),
@@ -397,6 +413,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 current_model=self.model_cfg.model,
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
+                blueprint_catalog=get_blueprints_for_tool_description(),
+                blueprint_filler=_blueprint_filler,
             )
             deferred_tools.extend(cron_tools)
             logger.info(f"Loaded {len(cron_tools)} cron tools [Deferred]")

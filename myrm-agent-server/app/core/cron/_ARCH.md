@@ -30,6 +30,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
 | `push_store.py` | 核心 | 内存推送消息队列：有界（200 条 / 120s 过期），供前端 toast 轮询 | — |
+| `blueprints.py` | 核心 | 自动化蓝图单一数据源：定义 5 个内置蓝图（含多语言 title/desc/prompt_template、slots、schedule builder）。提供 `fill_blueprint()` 填槽和 `get_blueprints_for_tool_description()` 目录生成。前端和 Agent tool 共用 | — |
 
 ---
 

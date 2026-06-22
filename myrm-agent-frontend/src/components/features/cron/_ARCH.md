@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `cron-blueprints.ts` | 数据/逻辑 | 模板定义（含 promptKey i18n、weekdays slot）、buildJobPayload(t, delivery?)、humanizeSchedule、Cron Presets | — |
+| `cron-blueprints.ts` | 数据/逻辑 | 蓝图定义 (从 API `/cron/blueprints` 异步加载 + 离线 fallback)、loadBlueprints()、getCachedBlueprints()、fillBlueprintFromServer()、buildJobPayload(t, delivery?)、humanizeSchedule、Cron Presets | — |
 | `BlueprintCatalog.tsx` | 组件/模块 | 模板卡片网格，支持 maxItems 裁剪 | — |
 | `BlueprintInlineFill.tsx` | 组件/模块 | 内联模板填写表单（CronJobCreateDialog 内使用），含 delivery channel 选择 | — |
 | `BlueprintFillDialog.tsx` | 组件/模块 | 模板参数填写弹窗（typed slots + delivery channel），用于 CronJobList 空状态 | — |
