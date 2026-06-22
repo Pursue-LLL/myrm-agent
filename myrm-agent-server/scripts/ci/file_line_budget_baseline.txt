@@ -43,7 +43,7 @@ app/channels/providers/feishu/channel.py
 app/channels/providers/feishu/comment_handler.py
 app/channels/providers/feishu/parser.py
 app/channels/providers/feishu/sdk/_documents.py
-app/channels/providers/imessage.py
+app/channels/providers/imessage/channel.py
 app/channels/providers/line/channel.py
 app/channels/providers/matrix/channel.py
 app/channels/providers/mattermost/channel.py
