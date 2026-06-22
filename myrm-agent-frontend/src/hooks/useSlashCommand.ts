@@ -35,12 +35,12 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
       .map((id) => allSkills.find((s) => s.id === id))
       .filter((s): s is (typeof allSkills)[number] => s != null && s.user_invocable !== false);
 
-    return boundSkills.map(
+    const singleSkillActions: SlashAction[] = boundSkills.map(
       (skill): SlashAction => ({
         id: `skill:${skill.id}`,
         name: skill.name.replace(/_skill$/, ''),
         description: skill.description,
-        icon: '⚡',
+        icon: 'zap',
         type: 'action',
         execute: async (_input: string) => ({
           success: true,
@@ -48,7 +48,32 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
         }),
       }),
     );
-  }, [agentConfig?.selectedSkillIds, marketSkills, localSkills]);
+
+    const bundleActions: SlashAction[] = [];
+    const bindings = agentConfig.commandBindings ?? [];
+    for (const binding of bindings) {
+      const ids = binding.skill_ids ?? [];
+      if (ids.length <= 1) continue;
+      const names = ids
+        .map((id: string) => allSkills.find((s) => s.id === id)?.name || id)
+        .filter(Boolean);
+      if (!names.length) continue;
+      const instrPart = binding.instruction ? `[instruction: ${binding.instruction}] ` : '';
+      bundleActions.push({
+        id: `bundle:${binding.command_name}`,
+        name: binding.command_name,
+        description: binding.description || names.join(' + '),
+        icon: 'package',
+        type: 'action',
+        execute: async (_input: string) => ({
+          success: true,
+          newInputValue: `[use ${names.join(',')}] ${instrPart}`,
+        }),
+      });
+    }
+
+    return [...singleSkillActions, ...bundleActions];
+  }, [agentConfig?.selectedSkillIds, agentConfig?.commandBindings, marketSkills, localSkills]);
 
   // 检测是否应该显示命令面板
   const { shouldShow, query } = useMemo(() => {

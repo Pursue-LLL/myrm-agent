@@ -255,6 +255,7 @@ myrm_agent_harness.toolkits.cron.delivery
 myrm_agent_harness.toolkits.cron.engine.integrity
 myrm_agent_harness.toolkits.cron.engine.parser
 myrm_agent_harness.toolkits.cron.engine.scheduler
+myrm_agent_harness.toolkits.cron.folder_watcher
 myrm_agent_harness.toolkits.cron.heartbeat
 myrm_agent_harness.toolkits.cron.manager
 myrm_agent_harness.toolkits.cron.protocols
@@ -345,6 +346,7 @@ myrm_agent_harness.toolkits.retriever.reranker
 myrm_agent_harness.toolkits.retriever.reranker.cloud_reranker
 myrm_agent_harness.toolkits.retriever.reranker.factory
 myrm_agent_harness.toolkits.retriever.sufficiency
+myrm_agent_harness.toolkits.rss
 myrm_agent_harness.toolkits.security.credential_vault
 myrm_agent_harness.toolkits.storage.base
 myrm_agent_harness.toolkits.storage.cached

@@ -8,9 +8,9 @@
 
 [POS]
 Business-layer handler protocol for skill-bound slash commands. When a user
-sends a /command that is bound to a Skill (via AgentProfile.command_bindings),
-the framework delegates to this handler. The business layer loads the Skill
-content and injects it as the user message, bypassing LLM skill selection.
+sends a /command bound to one or more Skills (via AgentProfile.command_bindings),
+the framework delegates to this handler. Supports single skills and multi-skill
+bundles with optional instruction.
 """
 
 from __future__ import annotations
@@ -28,24 +28,29 @@ class SkillCommandHandler(Protocol):
     calls this when a user sends a /command that resolves to a Skill binding.
     The handler should load the Skill content and return a modified
     InboundMessage with the Skill invocation injected as the message content.
+
+    Supports both single-skill and multi-skill (bundle) invocation via
+    ``skill_ids``.
     """
 
     async def __call__(
         self,
         msg: InboundMessage,
-        skill_id: str,
+        skill_ids: tuple[str, ...],
         user_args: str,
+        instruction: str = "",
     ) -> InboundMessage | None:
         """Build an InboundMessage with Skill content injected.
 
         Args:
             msg: Original inbound message that triggered the command.
-            skill_id: The Skill ID to invoke (from CommandDef.skill_id).
+            skill_ids: Skill IDs to invoke (single or bundle).
             user_args: Trailing text the user typed after the command.
+            instruction: Ephemeral guidance for bundle execution.
 
         Returns:
             A new InboundMessage with Skill invocation content set as
             msg.content, ready for agent execution. Returns None if the
-            Skill could not be loaded (framework will send an error reply).
+            Skill(s) could not be loaded (framework will send an error reply).
         """
         ...

@@ -38,13 +38,27 @@ def _local_remote_webui(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WEBUI_MODE", "true")
     monkeypatch.setenv("WEBUI_REMOTE_MODE", "true")
     monkeypatch.setattr(settings.database, "state_dir", str(tmp_path))
+    monkeypatch.setattr(settings.database, "sqlite_path", str(tmp_path / "data.db"))
     get_deploy_mode.cache_clear()
     from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
 
     _reset_capabilities_cache_for_testing()
+
+    from app.database.models import Base
+    from app.platform_utils import get_database_engine, reset_database_engine
+
+    async def _init_isolated_db() -> None:
+        await reset_database_engine()
+        engine = get_database_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    asyncio.run(_init_isolated_db())
+
     yield
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
+    asyncio.run(reset_database_engine())
 
 
 @pytest.fixture

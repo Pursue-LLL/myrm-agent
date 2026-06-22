@@ -359,16 +359,28 @@ class SkillConfig(BaseModel):
 
 
 class CommandBindingConfig(BaseModel):
-    """Slash command binding to a Skill for IM channels."""
+    """Slash command binding to one or more Skills for IM channels."""
 
     command_name: str = Field(
         ...,
         description="Command name without slash (e.g. 'daily-report')",
         max_length=50,
     )
-    skill_id: str = Field(..., description="Target Skill ID to invoke")
+    skill_ids: list[str] = Field(default_factory=list, description="Target Skill IDs (single or bundle)")
     description: str = Field("", description="User-facing description shown in /help")
     aliases: list[str] = Field(default_factory=list, description="Alternative command names")
+    instruction: str = Field("", description="Ephemeral guidance for bundle execution")
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_legacy_skill_id(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Backward-compatible: convert legacy ``skill_id`` to ``skill_ids``."""
+        if not isinstance(data, dict):
+            return data
+        if "skill_id" in data and "skill_ids" not in data:
+            sid = data.pop("skill_id")
+            data["skill_ids"] = [sid] if sid else []
+        return data
 
 
 class ToolGatewayConfigDTO(BaseModel):

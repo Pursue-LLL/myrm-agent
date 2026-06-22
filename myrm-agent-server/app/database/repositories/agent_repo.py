@@ -43,12 +43,13 @@ class AgentRepository:
             bindings = [
                 CommandBinding(
                     command_name=b["command_name"],
-                    skill_id=b["skill_id"],
+                    skill_ids=tuple(b["skill_ids"]) if "skill_ids" in b else (b["skill_id"],) if "skill_id" in b else (),
                     description=b.get("description", ""),
                     aliases=tuple(b.get("aliases", ())),
+                    instruction=b.get("instruction", ""),
                 )
                 for b in agent.command_bindings
-                if isinstance(b, dict) and "command_name" in b and "skill_id" in b
+                if isinstance(b, dict) and "command_name" in b and ("skill_ids" in b or "skill_id" in b)
             ]
             if not bindings:
                 bindings = None
@@ -208,9 +209,10 @@ class AgentRepository:
                 [
                     {
                         "command_name": b.command_name,
-                        "skill_id": b.skill_id,
+                        "skill_ids": list(b.skill_ids),
                         "description": b.description,
                         "aliases": list(b.aliases),
+                        "instruction": b.instruction,
                     }
                     for b in profile.command_bindings
                 ]
@@ -295,9 +297,10 @@ class AgentRepository:
                 agent.command_bindings = [
                     {
                         "command_name": b.command_name,
-                        "skill_id": b.skill_id,
+                        "skill_ids": list(b.skill_ids),
                         "description": b.description,
                         "aliases": list(b.aliases),
+                        "instruction": b.instruction,
                     }
                     if isinstance(b, CommandBinding)
                     else b

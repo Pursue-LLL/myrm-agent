@@ -4,470 +4,49 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Myrm Agent</title>
-  <style>
-    :root {
-      --bg-primary: #1a1a2e;
-      --bg-secondary: #16213e;
-      --bg-tertiary: #0f3460;
-      --text-primary: #e0e0e0;
-      --text-secondary: #a0a0b0;
-      --text-muted: #666;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --accent-dim: rgba(99, 102, 241, 0.15);
-      --border: #2a2a4a;
-      --success: #4CAF50;
-      --warning: #F59E0B;
-      --error: #ef4444;
-      --user-bubble: #6366f1;
-      --assistant-bubble: #1e1e3e;
-      --tool-bg: rgba(99, 102, 241, 0.08);
-      --scrollbar-thumb: #333;
-      --radius: 10px;
-    }
-
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-secondary);
-      flex-shrink: 0;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .header h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .connection-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      transition: background 0.3s;
-    }
-
-    .connection-dot.connected { background: var(--success); }
-    .connection-dot.connecting { background: var(--warning); animation: pulse 1.5s infinite; }
-    .connection-dot.error { background: var(--error); }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 6px;
-    }
-
-    .icon-btn {
-      background: none;
-      border: none;
-      color: var(--text-secondary);
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      font-size: 16px;
-      line-height: 1;
-      transition: color 0.2s, background 0.2s;
-    }
-
-    .icon-btn:hover {
-      color: var(--text-primary);
-      background: var(--accent-dim);
-    }
-
-    /* Context Bar */
-    .context-bar {
-      display: none;
-      padding: 8px 14px;
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-secondary);
-      flex-shrink: 0;
-    }
-
-    .context-bar.visible { display: block; }
-
-    .context-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: var(--accent-dim);
-      color: var(--accent);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      max-width: 100%;
-    }
-
-    .context-tag .label { font-weight: 500; }
-
-    .context-tag .value {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .context-tag .dismiss {
-      cursor: pointer;
-      opacity: 0.6;
-      margin-left: 2px;
-    }
-
-    .context-tag .dismiss:hover { opacity: 1; }
-
-    /* Selected text context */
-    .selection-context {
-      display: none;
-      padding: 6px 14px;
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .selection-context.visible { display: block; }
-
-    .selection-quote {
-      font-size: 12px;
-      color: var(--text-secondary);
-      padding: 4px 8px;
-      border-left: 2px solid var(--accent);
-      background: var(--accent-dim);
-      border-radius: 0 4px 4px 0;
-      max-height: 60px;
-      overflow-y: auto;
-      word-break: break-word;
-    }
-
-    /* Messages Area */
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .messages::-webkit-scrollbar { width: 4px; }
-    .messages::-webkit-scrollbar-track { background: transparent; }
-    .messages::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-
-    .message {
-      display: flex;
-      flex-direction: column;
-      max-width: 92%;
-      animation: fadeIn 0.2s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .message.user { align-self: flex-end; }
-    .message.assistant { align-self: flex-start; }
-
-    .message-bubble {
-      padding: 8px 12px;
-      border-radius: var(--radius);
-      word-break: break-word;
-      white-space: pre-wrap;
-    }
-
-    .message.user .message-bubble {
-      background: var(--user-bubble);
-      color: #fff;
-      border-bottom-right-radius: 3px;
-    }
-
-    .message.assistant .message-bubble {
-      background: var(--assistant-bubble);
-      border-bottom-left-radius: 3px;
-    }
-
-    /* Tool Progress */
-    .tool-progress {
-      font-size: 12px;
-      padding: 6px 10px;
-      margin-top: 4px;
-      background: var(--tool-bg);
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
-
-    .tool-step {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 0;
-      color: var(--text-secondary);
-    }
-
-    .tool-step .icon {
-      font-size: 11px;
-      width: 14px;
-      text-align: center;
-    }
-
-    .tool-step.running .icon { color: var(--accent); animation: pulse 1s infinite; }
-    .tool-step.done .icon { color: var(--success); }
-    .tool-step.error .icon { color: var(--error); }
-
-    .tool-step .name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    /* Approval Dialog */
-    .approval-overlay {
-      display: none;
-      position: fixed;
-      bottom: 60px;
-      left: 10px;
-      right: 10px;
-      background: var(--bg-secondary);
-      border: 1px solid var(--warning);
-      border-radius: var(--radius);
-      padding: 12px;
-      z-index: 100;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    }
-
-    .approval-overlay.visible { display: block; }
-
-    .approval-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--warning);
-      margin-bottom: 6px;
-    }
-
-    .approval-detail {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 10px;
-      max-height: 100px;
-      overflow-y: auto;
-      word-break: break-word;
-    }
-
-    .approval-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .approval-actions button {
-      flex: 1;
-      padding: 6px 12px;
-      border: none;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .btn-approve { background: var(--success); color: #fff; }
-    .btn-reject { background: var(--error); color: #fff; }
-
-    /* Empty State */
-    .empty-state {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      gap: 8px;
-      padding: 20px;
-      text-align: center;
-    }
-
-    .empty-state .icon { font-size: 32px; opacity: 0.5; }
-    .empty-state .title { font-size: 15px; font-weight: 500; color: var(--text-secondary); }
-    .empty-state .hint { font-size: 12px; }
-
-    /* Streaming indicator */
-    .streaming-indicator {
-      display: none;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 14px;
-      font-size: 11px;
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-
-    .streaming-indicator.visible { display: flex; }
-
-    .streaming-dots span {
-      display: inline-block;
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--accent);
-      animation: dotBounce 1.2s infinite;
-    }
-
-    .streaming-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .streaming-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-    @keyframes dotBounce {
-      0%, 80%, 100% { opacity: 0.3; }
-      40% { opacity: 1; }
-    }
-
-    /* Input Area */
-    .input-area {
-      padding: 10px 14px;
-      border-top: 1px solid var(--border);
-      background: var(--bg-secondary);
-      flex-shrink: 0;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
-
-    .input-wrapper {
-      flex: 1;
-      position: relative;
-    }
-
-    #chat-input {
-      width: 100%;
-      min-height: 36px;
-      max-height: 120px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      font-size: 13px;
-      font-family: inherit;
-      line-height: 1.4;
-      resize: none;
-      outline: none;
-      overflow-y: auto;
-      transition: border-color 0.2s;
-    }
-
-    #chat-input:focus { border-color: var(--accent); }
-
-    #chat-input::placeholder { color: var(--text-muted); }
-
-    .send-btn {
-      width: 36px;
-      height: 36px;
-      border: none;
-      border-radius: var(--radius);
-      background: var(--accent);
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      transition: background 0.2s, opacity 0.2s;
-      flex-shrink: 0;
-    }
-
-    .send-btn:hover { background: var(--accent-hover); }
-    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* Not connected overlay */
-    .not-connected {
-      display: none;
-      padding: 12px 14px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-muted);
-      background: var(--bg-secondary);
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-
-    .not-connected.visible { display: block; }
-    .not-connected a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .not-connected a:hover { text-decoration: underline; }
-  </style>
+  <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <!-- Header -->
   <div class="header">
     <div class="header-left">
       <span class="connection-dot" id="conn-dot"></span>
       <h1>Myrm Agent</h1>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" id="btn-new-chat" title="New chat">＋</button>
-      <button class="icon-btn" id="btn-settings" title="Open settings popup">⚙</button>
+      <button class="icon-btn" id="btn-new-chat" title="New chat">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-settings" title="Open settings popup">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M8 1v2m0 10v2m-7-7h2m10 0h2M3.05 3.05l1.41 1.41m7.08 7.08l1.41 1.41M3.05 12.95l1.41-1.41m7.08-7.08l1.41-1.41" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      </button>
     </div>
   </div>
 
-  <!-- Active tab context -->
   <div class="context-bar" id="context-bar">
     <div class="context-tag">
-      <span class="label">📄</span>
+      <span class="label"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 1h4l3 3v7H3V1z" stroke="currentColor" stroke-width="1"/><path d="M7 1v3h3" stroke="currentColor" stroke-width="1"/></svg></span>
       <span class="value" id="context-value"></span>
-      <span class="dismiss" id="context-dismiss">✕</span>
+      <span class="dismiss" id="context-dismiss">&times;</span>
     </div>
   </div>
 
-  <!-- Selected text context -->
   <div class="selection-context" id="selection-ctx">
     <div class="selection-quote" id="selection-text"></div>
   </div>
 
-  <!-- Messages -->
   <div class="messages" id="messages">
     <div class="empty-state" id="empty-state">
-      <div class="icon">🤖</div>
+      <div class="icon"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="6" y="10" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="17" r="2" fill="currentColor"/><circle cx="20" cy="17" r="2" fill="currentColor"/><path d="M10 10V8a6 6 0 0112 0v2" stroke="currentColor" stroke-width="1.5"/><path d="M4 16h2m20 0h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
       <div class="title">Ask anything</div>
       <div class="hint">Select text on any page, right-click "Ask Myrm Agent", or type below.</div>
     </div>
   </div>
 
-  <!-- Streaming indicator -->
   <div class="streaming-indicator" id="streaming-indicator">
     <div class="streaming-dots"><span></span><span></span><span></span></div>
-    <span id="streaming-label">Thinking…</span>
+    <span id="streaming-label">Thinking&hellip;</span>
   </div>
 
-  <!-- Tool Approval Overlay -->
   <div class="approval-overlay" id="approval-overlay">
     <div class="approval-title" id="approval-title">Tool requires approval</div>
     <div class="approval-detail" id="approval-detail"></div>
@@ -477,18 +56,18 @@
     </div>
   </div>
 
-  <!-- Not connected message -->
   <div class="not-connected" id="not-connected">
     Not connected to server. <a href="#" id="open-popup-link">Open settings</a> to configure.
   </div>
 
-  <!-- Input Area -->
   <div class="input-area" id="input-area">
     <div class="input-row">
       <div class="input-wrapper">
-        <textarea id="chat-input" rows="1" placeholder="Ask anything…"></textarea>
+        <textarea id="chat-input" rows="1" placeholder="Ask anything&hellip;"></textarea>
       </div>
-      <button class="send-btn" id="btn-send" disabled>▶</button>
+      <button class="send-btn" id="btn-send" disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8l12-5-5 12-2-5-5-2z" fill="currentColor"/></svg>
+      </button>
     </div>
   </div>
 

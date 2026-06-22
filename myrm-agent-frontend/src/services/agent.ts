@@ -15,9 +15,10 @@ export interface AgentModelSelection {
 
 export interface CommandBindingConfig {
   command_name: string;
-  skill_id: string;
+  skill_ids: string[];
   description?: string;
   aliases?: string[];
+  instruction?: string;
 }
 
 export type OpenAPIAuthType = 'none' | 'api_key' | 'bearer' | 'basic' | 'oauth2_client_credentials';

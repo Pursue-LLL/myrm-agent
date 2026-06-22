@@ -256,9 +256,10 @@ def _to_agent_response(
             [
                 CommandBindingConfig(
                     command_name=b.command_name,
-                    skill_id=b.skill_id,
+                    skill_ids=list(b.skill_ids),
                     description=b.description,
                     aliases=list(b.aliases),
+                    instruction=b.instruction,
                 )
                 for b in agent.command_bindings
             ]

@@ -203,15 +203,16 @@ async def test_agent_command_bindings_crud(async_client: AsyncClient, test_user_
     bindings_payload = [
         {
             "command_name": "daily-report",
-            "skill_id": "report_generator",
+            "skill_ids": ["report_generator"],
             "description": "Generate daily summary",
             "aliases": ["dr"],
         },
         {
             "command_name": "search-kb",
-            "skill_id": "kb_search",
+            "skill_ids": ["kb_search", "summarizer"],
             "description": "Search knowledge base",
             "aliases": ["kb", "skb"],
+            "instruction": "Search then summarize results",
         },
     ]
 
@@ -231,8 +232,11 @@ async def test_agent_command_bindings_crud(async_client: AsyncClient, test_user_
     names = {b["command_name"] for b in created["command_bindings"]}
     assert names == {"daily-report", "search-kb"}
     dr_binding = next(b for b in created["command_bindings"] if b["command_name"] == "daily-report")
-    assert dr_binding["skill_id"] == "report_generator"
+    assert dr_binding["skill_ids"] == ["report_generator"]
     assert dr_binding["aliases"] == ["dr"]
+    skb_binding = next(b for b in created["command_bindings"] if b["command_name"] == "search-kb")
+    assert skb_binding["skill_ids"] == ["kb_search", "summarizer"]
+    assert skb_binding["instruction"] == "Search then summarize results"
 
     response = await async_client.get(f"/api/agents/{agent_id}")
     assert response.status_code == 200
@@ -242,7 +246,7 @@ async def test_agent_command_bindings_crud(async_client: AsyncClient, test_user_
     updated_bindings = [
         {
             "command_name": "weekly-summary",
-            "skill_id": "weekly_gen",
+            "skill_ids": ["weekly_gen"],
             "description": "Weekly summary",
             "aliases": ["ws"],
         },
@@ -263,6 +267,79 @@ async def test_agent_command_bindings_crud(async_client: AsyncClient, test_user_
     assert response.status_code == 200
     cleared = response.json()["data"]
     assert cleared["command_bindings"] is None or len(cleared["command_bindings"]) == 0
+
+    await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_agent_command_bindings_legacy_skill_id(async_client: AsyncClient, test_user_id: str):
+    """Legacy ``skill_id`` format should be auto-migrated to ``skill_ids``."""
+
+    legacy_payload = [
+        {
+            "command_name": "legacy-cmd",
+            "skill_id": "old_skill",
+            "description": "Legacy format binding",
+        },
+    ]
+
+    response = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "Legacy Binding Agent",
+            "description": "Testing backward compat",
+            "command_bindings": legacy_payload,
+        },
+    )
+    assert response.status_code == 200
+    created = response.json()["data"]
+    agent_id = created["id"]
+    assert len(created["command_bindings"]) == 1
+    binding = created["command_bindings"][0]
+    assert binding["skill_ids"] == ["old_skill"]
+    assert "skill_id" not in binding
+
+    await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_agent_command_bindings_empty_list(async_client: AsyncClient, test_user_id: str):
+    """Creating an agent with empty command_bindings should succeed."""
+
+    response = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "No Bindings Agent",
+            "command_bindings": [],
+        },
+    )
+    assert response.status_code == 200
+    created = response.json()["data"]
+    agent_id = created["id"]
+    assert created["command_bindings"] is None or len(created["command_bindings"]) == 0
+
+    await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_agent_command_bindings_single_skill_no_instruction(async_client: AsyncClient, test_user_id: str):
+    """Single skill binding without instruction — instruction should default to empty."""
+
+    response = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "Single Skill Agent",
+            "command_bindings": [
+                {"command_name": "search", "skill_ids": ["web_search"]},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    created = response.json()["data"]
+    agent_id = created["id"]
+    binding = created["command_bindings"][0]
+    assert binding["skill_ids"] == ["web_search"]
+    assert binding.get("instruction", "") == ""
 
     await async_client.delete(f"/api/agents/{agent_id}")
 

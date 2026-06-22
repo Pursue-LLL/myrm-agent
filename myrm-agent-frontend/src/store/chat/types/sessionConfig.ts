@@ -58,6 +58,7 @@ export interface AgentConfig {
   taskAdaptiveDigest?: Record<string, unknown>;
   memoryDecayProfile?: 'permanent' | 'normal' | 'fast';
   mcpToolSelections?: Record<string, string[]>;
+  commandBindings?: { command_name: string; skill_ids: string[]; description?: string; instruction?: string }[];
 }
 
 // 已选模型配置

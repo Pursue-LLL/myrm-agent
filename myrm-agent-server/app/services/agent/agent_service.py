@@ -74,9 +74,10 @@ def _command_bindings_from_request(
     return [
         CommandBinding(
             command_name=b.command_name,
-            skill_id=b.skill_id,
+            skill_ids=tuple(b.skill_ids),
             description=b.description,
             aliases=tuple(b.aliases),
+            instruction=b.instruction,
         )
         for b in raw
     ] or None

@@ -69,7 +69,8 @@ class CommandDef:
         aliases: Alternative names that resolve to this command.
         args_pattern: Argument placeholder for help text (e.g. "<prompt>", "[name]").
         category: Grouping label for /help display.
-        skill_id: Bound skill ID (only for CommandKind.SKILL).
+        skill_ids: Bound skill IDs — single or bundle (only for CommandKind.SKILL).
+        instruction: Ephemeral guidance for bundles.
         agent_id: Target agent ID (only for CommandKind.AGENT_ROUTE).
         parse_args: Whether the command accepts trailing text as arguments.
     """
@@ -81,7 +82,10 @@ class CommandDef:
     aliases: tuple[str, ...] = ()
     args_pattern: str = ""
     category: str = "General"
-    skill_id: str | None = None
+    skill_ids: tuple[str, ...] = ()
+    """Bound skill IDs (single or bundle)."""
+    instruction: str = ""
+    """Ephemeral guidance text injected alongside the SOP(s) for bundles."""
     agent_id: str | None = None
     parse_args: bool = False
     requires_admin: bool = False

@@ -62,9 +62,10 @@ def _command_bindings_from_request(
     return [
         CommandBinding(
             command_name=b.command_name,
-            skill_id=b.skill_id,
+            skill_ids=tuple(b.skill_ids),
             description=b.description,
             aliases=tuple(b.aliases),
+            instruction=b.instruction,
         )
         for b in raw
     ] or None
@@ -83,9 +84,10 @@ def mutable_snapshot_data(profile: AgentProfile) -> dict[str, object]:
         command_bindings_raw = [
             {
                 "command_name": b.command_name,
-                "skill_id": b.skill_id,
+                "skill_ids": list(b.skill_ids),
                 "description": b.description,
                 "aliases": list(b.aliases),
+                "instruction": b.instruction,
             }
             for b in profile.command_bindings
         ]
@@ -157,9 +159,10 @@ def project_mutable_after_update(existing: AgentProfile, updates: dict[str, obje
                 (
                     {
                         "command_name": b.command_name,
-                        "skill_id": b.skill_id,
+                        "skill_ids": list(b.skill_ids),
                         "description": b.description,
                         "aliases": list(b.aliases),
+                        "instruction": b.instruction,
                     }
                     if isinstance(b, CommandBinding)
                     else b

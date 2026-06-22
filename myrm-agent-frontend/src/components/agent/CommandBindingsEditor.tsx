@@ -25,9 +25,10 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
   const addBinding = useCallback(() => {
     const newBinding: CommandBindingConfig = {
       command_name: '',
-      skill_id: '',
+      skill_ids: [],
       description: '',
       aliases: [],
+      instruction: '',
     };
     onChange([...value, newBinding]);
     setExpandedIndex(value.length);
@@ -49,6 +50,23 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
     },
     [value, onChange],
   );
+
+  const toggleSkill = useCallback(
+    (index: number, skillId: string) => {
+      const binding = value[index];
+      const current = binding.skill_ids || [];
+      const next = current.includes(skillId) ? current.filter((id) => id !== skillId) : [...current, skillId];
+      updateBinding(index, 'skill_ids', next);
+    },
+    [value, updateBinding],
+  );
+
+  const getSkillNames = (ids: string[]): string => {
+    if (!ids.length) return '';
+    return ids
+      .map((id) => skills.find((s) => s.id === id)?.name || id)
+      .join(', ');
+  };
 
   return (
     <div className="space-y-3">
@@ -85,6 +103,8 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
         <div className="space-y-2">
           {value.map((binding, index) => {
             const isExpanded = expandedIndex === index;
+            const skillIds = binding.skill_ids || [];
+            const isBundle = skillIds.length > 1;
             return (
               <div
                 key={index}
@@ -98,8 +118,10 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                   onClick={() => setExpandedIndex(isExpanded ? null : index)}
                 >
                   <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="text-xs font-mono text-primary shrink-0">/{binding.command_name || '...'}</span>
-                    {binding.skill_id && (
+                    <span className="text-xs font-mono text-primary shrink-0">
+                      /{binding.command_name || '...'}
+                    </span>
+                    {skillIds.length > 0 && (
                       <>
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -117,7 +139,12 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                           <path d="m12 5 7 7-7 7" />
                         </svg>
                         <span className="text-xs text-muted-foreground truncate">
-                          {skills.find((s) => s.id === binding.skill_id)?.name || binding.skill_id}
+                          {isBundle && (
+                            <span className="inline-flex items-center rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary mr-1">
+                              Bundle
+                            </span>
+                          )}
+                          {getSkillNames(skillIds)}
                         </span>
                       </>
                     )}
@@ -151,33 +178,49 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
 
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 border-t space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t('commandName')}</Label>
-                        <Input
-                          value={binding.command_name}
-                          onChange={(e) => {
-                            const sanitized = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
-                            updateBinding(index, 'command_name', sanitized);
-                          }}
-                          placeholder={t('commandNamePlaceholder')}
-                          className="h-8 text-sm font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">{t('commandSkillId')}</Label>
-                        <select
-                          value={binding.skill_id}
-                          onChange={(e) => updateBinding(index, 'skill_id', e.target.value)}
-                          className="flex h-8 w-full rounded-full border border-input bg-transparent px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                          <option value="">{t('commandSkillIdPlaceholder')}</option>
-                          {skills.map((skill) => (
-                            <option key={skill.id} value={skill.id}>
+                    <div className="space-y-1">
+                      <Label className="text-xs">{t('commandName')}</Label>
+                      <Input
+                        value={binding.command_name}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^a-zA-Z0-9_-]/g, '');
+                          updateBinding(index, 'command_name', sanitized);
+                        }}
+                        placeholder={t('commandNamePlaceholder')}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {t('commandSkillId')}
+                        {skillIds.length > 1 && (
+                          <span className="ml-1 text-[10px] text-primary font-normal">
+                            ({skillIds.length} skills)
+                          </span>
+                        )}
+                      </Label>
+                      <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border bg-background min-h-[36px]">
+                        {skills.map((skill) => {
+                          const isSelected = skillIds.includes(skill.id);
+                          return (
+                            <button
+                              key={skill.id}
+                              type="button"
+                              onClick={() => toggleSkill(index, skill.id)}
+                              className={cn(
+                                'inline-flex items-center rounded-md px-2 py-0.5 text-xs transition-colors',
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                              )}
+                            >
                               {skill.name}
-                            </option>
-                          ))}
-                        </select>
+                            </button>
+                          );
+                        })}
+                        {skills.length === 0 && (
+                          <span className="text-xs text-muted-foreground">{t('commandSkillIdPlaceholder')}</span>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-1">
@@ -189,6 +232,17 @@ export function CommandBindingsEditor({ value, onChange }: CommandBindingsEditor
                         className="h-8 text-sm"
                       />
                     </div>
+                    {skillIds.length > 1 && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t('commandInstruction') || 'Bundle Instruction'}</Label>
+                        <Input
+                          value={binding.instruction || ''}
+                          onChange={(e) => updateBinding(index, 'instruction', e.target.value)}
+                          placeholder={t('commandInstructionPlaceholder') || 'Optional guidance for combined skills...'}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <Label className="text-xs">{t('commandAliases')}</Label>
                       <Input

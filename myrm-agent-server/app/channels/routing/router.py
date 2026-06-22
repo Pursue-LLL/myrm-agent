@@ -642,10 +642,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         cmd: CommandDef,
         raw_args: str,
     ) -> None:
-        """Handle a skill-bound slash command."""
+        """Handle a skill-bound slash command (single or bundle)."""
         chat_id = msg.chat_id or msg.sender_id
 
-        if not self._skill_command_handler or not cmd.skill_id:
+        if not self._skill_command_handler or not cmd.skill_ids:
             reply = OutboundMessage(
                 channel=msg.channel,
                 recipient_id=chat_id,
@@ -657,7 +657,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             await self._bus.publish_outbound(reply)
             return
 
-        skill_msg = await self._skill_command_handler(msg, cmd.skill_id, raw_args)
+        skill_msg = await self._skill_command_handler(msg, cmd.skill_ids, raw_args, cmd.instruction)
         if skill_msg is None:
             reply = OutboundMessage(
                 channel=msg.channel,

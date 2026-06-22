@@ -2,13 +2,15 @@
  * Myrm Agent Extension — Background Service Worker (MV3)
  *
  * Maintains a persistent WebSocket connection to the Myrm Agent Server,
- * handles CDP proxy requests, and manages tab lifecycle events.
+ * handles CDP proxy requests, manages tab lifecycle, context menus,
+ * keyboard shortcuts, and Side Panel ↔ content script communication.
  *
  * Architecture:
- * - Extension connects to server via WebSocket
- * - Server sends "request" messages (attach_debugger, list_tabs, etc.)
- * - Extension executes chrome.debugger operations and sends responses
- * - Heartbeat via chrome.alarms ensures Service Worker stays alive
+ * - WebSocket: Extension ↔ server for CDP proxy and tab management
+ * - Side Panel: Communicates directly with server via HTTP+SSE (not through this worker)
+ * - Context Menu: "Ask Myrm Agent" right-click opens Side Panel with selected text
+ * - Glow: Forwards glow state from Side Panel to content script on active tab
+ * - Heartbeat: chrome.alarms ensures Service Worker stays alive
  */
 
 const ALARM_NAME = "myrm-keepalive";
@@ -39,6 +41,7 @@ function restoreState() {
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 0.4 });
+  setupContextMenu();
   restoreState();
 });
 
@@ -436,7 +439,49 @@ function updateBadge(status) {
   chrome.action.setBadgeText({ text: texts[status] || "" });
 }
 
-// --- External Message API (for popup) ---
+// --- Context Menu + Keyboard Shortcut + Glow ---
+
+function setupContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: "ask-myrm-agent", title: "Ask Myrm Agent", contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "ask-myrm-agent-page", title: "Ask Myrm Agent about this page", contexts: ["page"] });
+  });
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "ask-myrm-agent" && info.selectionText) {
+    chrome.sidePanel.open({ tabId: tab.id }).then(() => {
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: "context_menu_query", text: info.selectionText,
+          prompt: "", url: tab.url, title: tab.title,
+        }).catch(() => {});
+      }, 300);
+    }).catch(() => {});
+  }
+  if (info.menuItemId === "ask-myrm-agent-page") {
+    chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+  }
+});
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command === "toggle-sidepanel") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) chrome.sidePanel.open({ tabId: tabs[0].id }).catch(() => {});
+    });
+  }
+});
+
+function sendGlowToTab(tabId, active) {
+  chrome.tabs.sendMessage(tabId, { type: "glow", active }).catch(() => {
+    if (active) {
+      chrome.scripting.executeScript({ target: { tabId }, files: ["src/content/glow.js"] }).catch(() => {});
+      setTimeout(() => chrome.tabs.sendMessage(tabId, { type: "glow", active }).catch(() => {}), 200);
+    }
+  });
+}
+
+// --- External Message API (for popup and side panel) ---
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === "get_status") {
@@ -474,5 +519,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }
     sendResponse({ ok: true });
     return true;
+  }
+
+  if (msg.type === "glow_control") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) sendGlowToTab(tabs[0].id, msg.active);
+    });
+    return false;
   }
 });

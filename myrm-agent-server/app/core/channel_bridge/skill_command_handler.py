@@ -1,9 +1,9 @@
 """SkillCommandHandler — business-layer handler for skill-bound /commands.
 
-When a user sends a slash command bound to a Skill (e.g. /daily-report),
+When a user sends a slash command bound to one or more Skills (e.g. /daily-report),
 the router delegates here. This handler rewrites the message content to
-`[use skill_name] user_args`, matching the format used by the frontend
-command palette.
+`[use s1,s2,...] [instruction: ...] user_args`, matching the multi-skill bundle
+format consumed by the harness `_preload_explicit_skill()`.
 
 [INPUT]
 - app.channels.types::InboundMessage (POS: inbound message)
@@ -30,26 +30,35 @@ logger = logging.getLogger(__name__)
 class ChannelSkillCommandHandler:
     """Resolves skill-bound slash commands by injecting `[use skill_name]` prefix.
 
-    The agent execution pipeline already recognizes `[use skill_name]` as a Skill
-    invocation trigger (same format the frontend uses). This handler simply rewrites
-    the message content to match that convention.
+    The agent execution pipeline recognizes `[use skill_name]` (single) and
+    `[use s1,s2,s3]` (bundle) as Skill invocation triggers. This handler
+    rewrites the message content to match that convention.
     """
 
     async def __call__(
         self,
         msg: InboundMessage,
-        skill_id: str,
+        skill_ids: tuple[str, ...],
         user_args: str,
+        instruction: str = "",
     ) -> InboundMessage | None:
         """Build a message with Skill invocation injected.
 
-        Returns a modified InboundMessage with `[use skill_id] user_args` as content,
-        or None if the skill_id is invalid.
+        Returns a modified InboundMessage with `[use skill_id(s)] user_args` as content,
+        or None if no valid skill_ids are provided.
         """
-        if not skill_id:
-            logger.warning("SkillCommandHandler: empty skill_id for /%s", msg.content)
+        if not skill_ids:
+            logger.warning("SkillCommandHandler: empty skill_ids for /%s", msg.content)
             return None
 
-        content = f"[use {skill_id}] {user_args}".strip() if user_args else f"[use {skill_id}]"
+        names_part = ",".join(skill_ids)
+        parts: list[str] = [f"[use {names_part}]"]
 
+        if instruction:
+            parts.append(f"[instruction: {instruction}]")
+
+        if user_args:
+            parts.append(user_args)
+
+        content = " ".join(parts).strip()
         return dataclasses.replace(msg, content=content)

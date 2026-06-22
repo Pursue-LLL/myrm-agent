@@ -468,13 +468,15 @@ async def _load_skill_command_bindings() -> tuple[CommandDef, ...]:
             if not profile.command_bindings:
                 continue
             for binding in profile.command_bindings:
+                skill_label = ",".join(binding.skill_ids) if binding.skill_ids else "?"
                 commands.append(
                     CommandDef(
                         name=binding.command_name,
-                        description=binding.description or f"Invoke skill: {binding.skill_id}",
+                        description=binding.description or f"Invoke skill: {skill_label}",
                         kind=CommandKind.SKILL,
                         aliases=binding.aliases,
-                        skill_id=binding.skill_id,
+                        skill_ids=binding.skill_ids,
+                        instruction=binding.instruction,
                         parse_args=True,
                         category="Skill",
                     )

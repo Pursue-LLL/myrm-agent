@@ -57,5 +57,11 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     suggestionPrompts: agent.suggestion_prompts ?? undefined,
     memoryDecayProfile: agent.memory_decay_profile,
     mcpToolSelections: agent.mcp_tool_selections,
+    commandBindings: agent.command_bindings?.map((b) => ({
+      command_name: b.command_name,
+      skill_ids: b.skill_ids ?? [],
+      description: b.description,
+      instruction: b.instruction,
+    })),
   };
 }
