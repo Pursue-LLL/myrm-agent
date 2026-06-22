@@ -255,7 +255,6 @@ myrm_agent_harness.toolkits.cron.delivery
 myrm_agent_harness.toolkits.cron.engine.integrity
 myrm_agent_harness.toolkits.cron.engine.parser
 myrm_agent_harness.toolkits.cron.engine.scheduler
-myrm_agent_harness.toolkits.cron.folder_watcher
 myrm_agent_harness.toolkits.cron.heartbeat
 myrm_agent_harness.toolkits.cron.manager
 myrm_agent_harness.toolkits.cron.protocols

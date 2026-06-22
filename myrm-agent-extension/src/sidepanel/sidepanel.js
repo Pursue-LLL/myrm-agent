@@ -51,6 +51,7 @@ const dom = {
   inputArea: $("input-area"),
   chatInput: $("chat-input"),
   btnSend: $("btn-send"),
+  btnCancel: $("btn-cancel"),
   btnNewChat: $("btn-new-chat"),
   btnSettings: $("btn-settings"),
   openPopupLink: $("open-popup-link"),
@@ -162,7 +163,7 @@ async function sendMessage() {
         chat_id: state.chatId,
         query: contextPrefix + input,
         action_mode: "agent",
-        multiplexed: true,
+        multiplexed: false,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         timestamp: Date.now() / 1000,
       }),
@@ -229,35 +230,50 @@ async function consumeSSE(body, contentEl, getToolEl) {
 }
 
 function handleSSEEvent(event, getToolEl, appendText) {
-  const type = event.type || event.event;
-  switch (type) {
-    case "text": case "content": case "answer":
-      if (event.text || event.content || event.data) appendText(event.text || event.content || event.data);
+  switch (event.type) {
+    case "message":
+      if (event.data) appendText(typeof event.data === "string" ? event.data : "");
       break;
-    case "message_start": case "message_id": break;
-    case "tool_start": case "tool_call": {
-      const name = event.tool || event.name || event.tool_name || "tool";
+    case "message_end":
+    case "agent_cancelled":
+      notifyGlow(false);
+      break;
+    case "tool_start": {
+      const name = event.tool_name || "tool";
       addToolStep(getToolEl(), name, "running");
-      dom.streamingLabel.textContent = `Using ${name}…`;
+      dom.streamingLabel.textContent = `Using ${name}\u2026`;
       notifyGlow(true);
       break;
     }
-    case "tool_end": case "tool_result": {
-      const name = event.tool || event.name || event.tool_name || "tool";
+    case "tool_end": {
+      const name = event.tool_name || "tool";
       updateLastToolStep(getToolEl(), name, "done");
-      dom.streamingLabel.textContent = "Thinking…";
+      dom.streamingLabel.textContent = "Thinking\u2026";
       break;
     }
-    case "tool_error":
-      updateLastToolStep(getToolEl(), event.tool || event.name || event.tool_name || "tool", "error");
+    case "tool_failure": {
+      const name = event.tool_name || "tool";
+      updateLastToolStep(getToolEl(), name, "error");
       break;
-    case "approval_required": case "tool_approval": showApproval(event); break;
-    case "approval_response": hideApproval(); break;
+    }
+    case "tool_approval_request":
+    case "approval_required":
+      showApproval(event);
+      break;
+    case "approval_processed":
+      hideApproval();
+      break;
     case "error":
-      if (event.message || event.error) appendText(`\n\nError: ${event.message || event.error}`);
+      if (event.error || event.data) appendText(`\n\nError: ${event.error || event.data}`);
       break;
-    case "done": case "end": notifyGlow(false); break;
-    default: if (event.text) appendText(event.text); break;
+    case "tasks_steps":
+    case "tool_heartbeat":
+    case "sources":
+    case "reasoning":
+    case "token_usage":
+    case "status":
+      break;
+    default: break;
   }
 }
 
@@ -289,8 +305,17 @@ function updateLastToolStep(container, name, status) {
 
 function showApproval(event) {
   state.pendingApproval = event;
-  dom.approvalTitle.textContent = `Approve: ${event.tool || event.name || "action"}`;
-  dom.approvalDetail.textContent = event.description || event.detail || JSON.stringify(event.args || event.input || {}, null, 2);
+  if (event.type === "tool_approval_request" && event.data) {
+    const action = event.data.actionRequests?.[0];
+    const requestId = event.data.extensions?.approval?.requestId;
+    state.pendingApproval._requestId = requestId;
+    dom.approvalTitle.textContent = `Approve: ${action?.action || "action"}`;
+    dom.approvalDetail.textContent = action?.description || JSON.stringify(action?.args || {}, null, 2);
+  } else {
+    const payload = event.data || {};
+    dom.approvalTitle.textContent = `Approval required`;
+    dom.approvalDetail.textContent = payload.message || JSON.stringify(payload, null, 2);
+  }
   dom.approvalOverlay.classList.add("visible");
 }
 
@@ -301,14 +326,13 @@ function hideApproval() {
 
 async function respondApproval(approved) {
   if (!state.pendingApproval) return;
-  const { approval_id, id } = state.pendingApproval;
+  const approvalId = state.pendingApproval._requestId;
   hideApproval();
-  const approvalId = approval_id || id;
   if (!approvalId) return;
   try {
-    await apiFetch(`/api/v1/approvals/${approvalId}/respond`, {
+    await apiFetch(`/api/v1/approvals/${approvalId}/resolve`, {
       method: "POST",
-      body: JSON.stringify({ approved, chat_id: state.chatId, message_id: state.currentMessageId }),
+      body: JSON.stringify({ decision: approved ? "approve" : "deny" }),
     });
   } catch (err) {
     console.error("[SidePanel] Approval response failed:", err);
@@ -349,6 +373,14 @@ function setStreaming(active) {
   dom.chatInput.disabled = active;
   dom.streamingLabel.textContent = "Thinking…";
   if (!active) notifyGlow(false);
+}
+
+async function cancelStream() {
+  if (state.abortController) state.abortController.abort();
+  if (state.currentMessageId) {
+    apiFetch(`/api/v1/agents/agent/${state.currentMessageId}/cancel`, { method: "POST" }).catch(() => {});
+  }
+  setStreaming(false);
 }
 
 // --- Tab context ---
@@ -439,6 +471,7 @@ function setupEventListeners() {
   });
   dom.btnSettings.addEventListener("click", () => chrome.action.openPopup());
   dom.openPopupLink.addEventListener("click", (e) => { e.preventDefault(); chrome.action.openPopup(); });
+  dom.btnCancel.addEventListener("click", cancelStream);
   dom.btnApprove.addEventListener("click", () => respondApproval(true));
   dom.btnReject.addEventListener("click", () => respondApproval(false));
 }

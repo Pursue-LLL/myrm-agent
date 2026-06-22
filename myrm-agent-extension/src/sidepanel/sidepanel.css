@@ -172,6 +172,14 @@ body {
 .streaming-dots span:nth-child(2) { animation-delay: 0.2s; }
 .streaming-dots span:nth-child(3) { animation-delay: 0.4s; }
 
+.cancel-btn {
+  margin-left: auto; background: none; border: 1px solid var(--text-muted);
+  color: var(--text-muted); border-radius: 4px; padding: 2px 6px;
+  cursor: pointer; line-height: 0; display: flex; align-items: center;
+  transition: color 0.2s, border-color 0.2s;
+}
+.cancel-btn:hover { color: var(--error); border-color: var(--error); }
+
 /* --- Input Area --- */
 
 .input-area { padding: 10px 14px; border-top: 1px solid var(--border); background: var(--bg-secondary); flex-shrink: 0; }

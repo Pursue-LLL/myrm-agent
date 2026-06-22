@@ -18,11 +18,6 @@ Usage::
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.cron.folder_watcher import FolderWatchService
-
 from myrm_agent_harness.toolkits.cron import (
     CronConfig,
     CronManager,
@@ -127,43 +122,3 @@ def _build_runners() -> dict[JobType, JobRunner]:
     return runners
 
 
-# ---------------------------------------------------------------------------
-# Folder Watcher (local/desktop only)
-# ---------------------------------------------------------------------------
-
-_folder_watcher_service: "FolderWatchService | None" = None
-
-
-def get_folder_watcher() -> "FolderWatchService | None":
-    """Get the folder watcher service (None in cloud-hosted mode)."""
-    return _folder_watcher_service
-
-
-def start_folder_watcher() -> None:
-    """Initialize and start folder watcher if in local/desktop mode.
-
-    Reads watch configurations from user settings and starts monitoring.
-    Dispatches file system events to the cron scheduler's system event handler.
-    """
-    global _folder_watcher_service
-    if not is_local_mode():
-        return
-
-    from myrm_agent_harness.toolkits.cron.folder_watcher import (
-        FolderWatchConfig,
-        FolderWatchService,
-    )
-
-    scheduler = get_cron_scheduler()
-    _folder_watcher_service = FolderWatchService(
-        dispatch_fn=scheduler.dispatch_system_event,
-    )
-    logger.info("Folder watcher service initialized (local mode)")
-
-
-def stop_folder_watcher() -> None:
-    """Stop the folder watcher service."""
-    global _folder_watcher_service
-    if _folder_watcher_service:
-        _folder_watcher_service.stop()
-        _folder_watcher_service = None
