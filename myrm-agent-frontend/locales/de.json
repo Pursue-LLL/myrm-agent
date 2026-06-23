@@ -2487,6 +2487,7 @@
       "copied": "Copied",
       "saved": "Saved successfully",
       "saveFailed": "Save failed",
+      "shortcutConflict": "Tastenkombination wird von einer anderen App verwendet. Bitte wählen Sie eine andere.",
       "saving": "Saving...",
       "save": "Save",
       "restart": "Restart",

@@ -302,8 +302,9 @@ const SystemSection = memo(() => {
             appshotShortcut: localConfig.appshotShortcut,
             voicePttShortcut: localConfig.voicePttShortcut ?? '',
           });
-        } catch (e) {
-          console.error('Failed to update shortcuts:', e);
+        } catch {
+          toast.error(t('shortcutConflict'));
+          return;
         }
       }
 

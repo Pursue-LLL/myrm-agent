@@ -60,8 +60,8 @@ class TestGoalSubcommand:
     """Tests for GoalSubcommand enum."""
 
     def test_all_subcommands_exist(self) -> None:
-        assert len(GoalSubcommand) == 6
-        for name in ("SET", "STATUS", "PAUSE", "RESUME", "CLEAR", "BUDGET"):
+        assert len(GoalSubcommand) == 7
+        for name in ("SET", "STATUS", "PAUSE", "RESUME", "CLEAR", "BUDGET", "CONSTRAINT"):
             assert hasattr(GoalSubcommand, name)
 
     def test_subcommand_values(self) -> None:

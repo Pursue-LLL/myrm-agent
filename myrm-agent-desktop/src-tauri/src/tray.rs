@@ -22,6 +22,9 @@ fn show_main_window(app: &AppHandle) {
         {
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
         }
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+        }
         let _ = window.show();
         let _ = window.set_focus();
     }
@@ -32,6 +35,9 @@ fn show_and_navigate(app: &AppHandle, event_name: &str) {
         #[cfg(target_os = "macos")]
         {
             let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
         }
         let _ = window.show();
         let _ = window.set_focus();

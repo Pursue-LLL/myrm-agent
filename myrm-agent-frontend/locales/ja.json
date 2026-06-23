@@ -2487,6 +2487,7 @@
       "copied": "Copied",
       "saved": "Saved successfully",
       "saveFailed": "Save failed",
+      "shortcutConflict": "ショートカットキーが他のアプリに使用されています。別のキーを選択してください。",
       "saving": "Saving...",
       "save": "Save",
       "restart": "Restart",

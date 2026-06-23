@@ -30,6 +30,7 @@ class GoalSubcommand(StrEnum):
     RESUME = "resume"
     CLEAR = "clear"
     BUDGET = "budget"
+    CONSTRAINT = "constraint"
 
 
 @unique

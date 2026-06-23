@@ -2487,6 +2487,7 @@
       "copied": "Copied",
       "saved": "Saved successfully",
       "saveFailed": "Save failed",
+      "shortcutConflict": "단축키가 다른 앱에서 사용 중입니다. 다른 키를 선택해 주세요.",
       "saving": "Saving...",
       "save": "Save",
       "restart": "Restart",

@@ -98,7 +98,8 @@ pub async fn force_appshot_capture(app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
-/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT）
+/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT）。
+/// 注册失败时自动回滚到旧配置，保证原子性。
 #[tauri::command]
 pub fn update_global_shortcut(
     app: tauri::AppHandle,
@@ -106,15 +107,42 @@ pub fn update_global_shortcut(
     appshot_shortcut: Option<String>,
     voice_ptt_shortcut: Option<String>,
 ) -> Result<(), String> {
+    use tauri::Manager;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    use std::str::FromStr;
+
+    let old_config = app.state::<ConfigManager>().load();
 
     if let Err(e) = app.global_shortcut().unregister_all() {
         eprintln!("Failed to unregister old shortcuts: {}", e);
     }
 
+    let result = register_shortcuts(&app, &shortcut, &appshot_shortcut, &voice_ptt_shortcut);
+
+    if let Err(ref err_msg) = result {
+        eprintln!("Shortcut registration failed: {err_msg}, rolling back to old config");
+        let _ = app.global_shortcut().unregister_all();
+        let _ = register_shortcuts(
+            &app,
+            &old_config.global_shortcut,
+            &Some(old_config.appshot_shortcut),
+            &Some(old_config.voice_ptt_shortcut),
+        );
+    }
+
+    result
+}
+
+fn register_shortcuts(
+    app: &tauri::AppHandle,
+    shortcut: &str,
+    appshot_shortcut: &Option<String>,
+    voice_ptt_shortcut: &Option<String>,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    use std::str::FromStr;
+
     if !shortcut.is_empty() {
-        if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(&shortcut) {
+        if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(shortcut) {
             if let Err(e) = app.global_shortcut().register(s) {
                 return Err(format!("Failed to register global shortcut: {}", e));
             }
@@ -126,11 +154,11 @@ pub fn update_global_shortcut(
     if let Some(ref appshot) = appshot_shortcut {
         if !appshot.is_empty() {
             if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(appshot) {
-                if let Ok(mut guard) = crate::runtime::APPSHOT_SHORTCUT_STR.lock() {
-                    *guard = format!("{s}");
-                }
                 if let Err(e) = app.global_shortcut().register(s) {
                     return Err(format!("Failed to register appshot shortcut: {}", e));
+                }
+                if let Ok(mut guard) = crate::runtime::APPSHOT_SHORTCUT_STR.lock() {
+                    *guard = format!("{s}");
                 }
             } else {
                 return Err(format!("Invalid appshot shortcut format: {}", appshot));
@@ -141,11 +169,11 @@ pub fn update_global_shortcut(
     if let Some(ref voice_ptt) = voice_ptt_shortcut {
         if !voice_ptt.is_empty() {
             if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(voice_ptt) {
-                if let Ok(mut guard) = crate::runtime::VOICE_PTT_SHORTCUT_STR.lock() {
-                    *guard = format!("{s}");
-                }
                 if let Err(e) = app.global_shortcut().register(s) {
                     return Err(format!("Failed to register voice PTT shortcut: {}", e));
+                }
+                if let Ok(mut guard) = crate::runtime::VOICE_PTT_SHORTCUT_STR.lock() {
+                    *guard = format!("{s}");
                 }
             } else {
                 return Err(format!("Invalid voice PTT shortcut format: {}", voice_ptt));

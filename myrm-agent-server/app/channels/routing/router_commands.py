@@ -567,6 +567,9 @@ class RouterCommandsMixin:
         elif lower == "budget" or lower.startswith("budget "):
             subcommand = GoalSubcommand.BUDGET
             sub_args = args[6:].strip()
+        elif lower == "constraint" or lower.startswith("constraint "):
+            subcommand = GoalSubcommand.CONSTRAINT
+            sub_args = args[10:].strip()
         else:
             subcommand = GoalSubcommand.SET
             sub_args = args

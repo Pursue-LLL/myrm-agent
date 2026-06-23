@@ -2948,6 +2948,7 @@
       "copied": "Copied",
       "saved": "Saved successfully",
       "saveFailed": "Save failed",
+      "shortcutConflict": "Shortcut is occupied by another app. Please choose a different one.",
       "saving": "Saving...",
       "save": "Save",
       "restart": "Restart",

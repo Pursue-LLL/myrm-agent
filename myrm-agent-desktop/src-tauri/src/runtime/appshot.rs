@@ -42,7 +42,10 @@ pub fn handle_voice_ptt_stop(app: &AppHandle) {
 /// 切换主窗口显示/隐藏
 pub fn handle_toggle_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        if window.is_visible().unwrap_or(false) {
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        } else if window.is_visible().unwrap_or(false) {
             let _ = window.hide();
             #[cfg(target_os = "macos")]
             {
