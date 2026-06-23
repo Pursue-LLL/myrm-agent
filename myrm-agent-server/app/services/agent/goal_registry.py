@@ -356,10 +356,12 @@ class ServerGoalManager(GoalManager):
                     return VerificationResult(passed=True, reason=reason)
                 return VerificationResult(passed=False, reason=reason)
 
+            # Judge output was not parseable as JSON — signal parse_failed
+            # so the harness can track consecutive failures and auto-pause.
             lower = raw.lower()
             if lower.startswith("pass") or '"done": true' in lower or '"done":true' in lower:
                 return VerificationResult(passed=True, reason=raw)
-            return VerificationResult(passed=False, reason=raw)
+            return VerificationResult(passed=False, reason=raw, parse_failed=True)
 
         except Exception as e:
             logger.error("Semantic evaluation failed: %s", e)

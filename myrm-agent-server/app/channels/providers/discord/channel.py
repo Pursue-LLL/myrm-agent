@@ -184,6 +184,7 @@ class DiscordChannel(BaseChannel):
         delete=True,
         reactions=True,
         typing_indicator=True,
+        typing_keepalive_interval=8.0,
         max_text_length=MAX_TEXT_LENGTH,
     )
 

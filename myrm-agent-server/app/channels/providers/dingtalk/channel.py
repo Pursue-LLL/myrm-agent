@@ -95,6 +95,7 @@ class DingTalkChannel(BaseChannel):
         buttons=False,
         edit=True,
         reactions=True,
+        typing_indicator=False,
         max_text_length=_MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(

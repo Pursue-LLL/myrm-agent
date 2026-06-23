@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import base64 as b64
 import logging
+import mimetypes
 import os
 import tempfile
 from collections.abc import AsyncGenerator
@@ -55,6 +56,7 @@ from app.channels.types import (
     StreamingText,
     ToolStep,
     TopicContext,
+    guess_media_type,
 )
 from app.channels.types.thread_sharing import ThreadSharingMode
 from app.core.channel_bridge.config_loader import load_user_configs
@@ -528,6 +530,62 @@ class ChannelAgentExecutor:
             agent = AgentFactory.create_general_agent(params)
             approval_peer = msg.chat_id or msg.sender_id
             agent.approval_session_key = f"{msg.channel}:{approval_peer}"
+
+            # Bridge harness artifacts → IM channel file delivery
+            acc_ref: list[StreamAccumulator] = []  # populated after acc creation
+
+            async def _channel_artifacts_handler(event: dict[str, object]) -> None:
+                """Collect deliverable file artifacts for IM channel outbound."""
+                from collections.abc import Awaitable, Callable
+                from typing import cast
+
+                read_content = cast(
+                    Callable[[str], Awaitable[bytes]] | None,
+                    event.get("read_content"),
+                )
+                if read_content is None:
+                    return None
+
+                for item in event.get("data", []):
+                    if not isinstance(item, dict):
+                        continue
+                    filename = str(item.get("filename", ""))
+                    path = str(item.get("path", ""))
+                    if not filename or not path:
+                        continue
+                    try:
+                        content = await read_content(path)
+                        if content is None or len(content) == 0:
+                            continue
+                        if len(content) > _MAX_CHANNEL_ARTIFACT_BYTES:
+                            logger.info(
+                                "Skipping oversized artifact for channel: %s (%d bytes)",
+                                filename,
+                                len(content),
+                            )
+                            continue
+                        ext = os.path.splitext(filename)[1]
+                        tmp = tempfile.NamedTemporaryFile(
+                            suffix=ext,
+                            prefix="artifact_",
+                            delete=False,
+                        )
+                        tmp.write(content)
+                        tmp.close()
+                        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+                        attachment = MediaAttachment(
+                            media_type=guess_media_type(filename, mime),
+                            path=tmp.name,
+                            filename=filename,
+                            mime_type=mime,
+                        )
+                        if acc_ref:
+                            acc_ref[0].file_attachments.append(attachment)
+                    except Exception as e:
+                        logger.warning("Failed to collect artifact %s for channel: %s", filename, e)
+                return None
+
+            agent.on_artifacts_ready = _channel_artifacts_handler
 
             from langgraph.types import Command
 

@@ -39,6 +39,7 @@ from myrm_agent_harness.utils.coercion import parse_float
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
 from app.channels.types import (
+    MediaAttachment,
     OutboundMessage,
     QuickReply,
     ToolStep,
@@ -383,6 +384,7 @@ class StreamAccumulator:
     last_image_base64: str | None = None
     last_image_mime: str = "image/jpeg"
     last_image_tool: str = ""
+    file_attachments: list[MediaAttachment] = field(default_factory=list)
     _seen: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:

@@ -121,6 +121,7 @@ class TelegramChannel(TelegramInboundMixin, BaseChannel):
         delete=True,
         reactions=True,
         typing_indicator=True,
+        typing_keepalive_interval=4.0,
         max_text_length=MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(

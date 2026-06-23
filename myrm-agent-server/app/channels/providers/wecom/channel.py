@@ -85,6 +85,7 @@ class WeComChannel(BaseChannel):
         markdown=True,
         media=True,
         file_upload=True,
+        typing_indicator=False,
         max_text_length=_MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(

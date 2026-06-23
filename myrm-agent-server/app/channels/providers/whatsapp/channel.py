@@ -86,6 +86,7 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
         delete=True,
         reactions=True,
         typing_indicator=True,
+        typing_keepalive_interval=20.0,
         max_text_length=_MAX_TEXT_LENGTH,
     )
     render_style = RenderStyle(

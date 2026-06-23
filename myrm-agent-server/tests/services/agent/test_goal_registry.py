@@ -152,6 +152,29 @@ class TestEvaluateSemantic:
             assert "FAIL: Too short" in result.reason
 
     @pytest.mark.asyncio
+    async def test_unparseable_output_sets_parse_failed(self, mock_storage):
+        """Completely unparseable judge output signals parse_failed for circuit breaker."""
+        manager = ServerGoalManager(mock_storage)
+        with patch("litellm.acompletion") as mock:
+            mock.return_value = AsyncMock(
+                choices=[AsyncMock(message=AsyncMock(content="I cannot evaluate this in JSON format sorry"))]
+            )
+            result = await manager.evaluate_semantic("criteria", "content")
+            assert result.passed is False
+            assert result.parse_failed is True
+            assert "I cannot evaluate" in result.reason
+
+    @pytest.mark.asyncio
+    async def test_prefix_fallback_pass_no_parse_failed(self, mock_storage):
+        """PASS-prefix fallback is a valid signal, not a parse failure."""
+        manager = ServerGoalManager(mock_storage)
+        with patch("litellm.acompletion") as mock:
+            mock.return_value = AsyncMock(choices=[AsyncMock(message=AsyncMock(content="PASS: all good"))])
+            result = await manager.evaluate_semantic("criteria", "content")
+            assert result.passed is True
+            assert result.parse_failed is False
+
+    @pytest.mark.asyncio
     async def test_llm_error_failopen(self, mock_storage):
         manager = ServerGoalManager(mock_storage)
         with patch("litellm.acompletion", side_effect=RuntimeError("API timeout")):
@@ -159,6 +182,7 @@ class TestEvaluateSemantic:
             assert result.passed is False
             assert "Server evaluation failed" in result.reason
             assert "API timeout" in (result.error_logs or "")
+            assert result.parse_failed is False
 
     @pytest.mark.asyncio
     async def test_system_user_prompt_separation(self, mock_storage):
