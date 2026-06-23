@@ -97,6 +97,8 @@ from .session import resolve_session_key
 
 logger = logging.getLogger(__name__)
 
+_MAX_CHANNEL_ARTIFACT_BYTES = 5 * 1024 * 1024  # 5MB, matches BaseArtifactProcessor limit
+
 # Initialize and register the snapshot interceptor
 set_execution_interceptor(SnapshotInterceptor())
 
@@ -643,6 +645,7 @@ class ChannelAgentExecutor:
             token_ctx = user_credentials_ctx.set(tuple(credentials_list))
 
             acc = StreamAccumulator()
+            acc_ref.append(acc)
             first_message_seen = False
 
             async def _open_channel_stream(
@@ -815,8 +818,8 @@ class ChannelAgentExecutor:
 
             quick_replies = suggest_quick_replies(is_first_message=not chat_history)
 
-            media: tuple[MediaAttachment, ...] = ()
-            screenshot_tmp_path: str | None = None
+            media_list: list[MediaAttachment] = []
+            tmp_paths: list[str] = []
             if acc.last_image_base64:
                 ext = "jpg" if "jpeg" in acc.last_image_mime else "png"
                 try:
@@ -828,8 +831,8 @@ class ChannelAgentExecutor:
                     )
                     tmp.write(img_bytes)
                     tmp.close()
-                    screenshot_tmp_path = tmp.name
-                    media = (
+                    tmp_paths.append(tmp.name)
+                    media_list.append(
                         MediaAttachment(
                             media_type=MediaType.IMAGE,
                             path=tmp.name,
@@ -839,6 +842,13 @@ class ChannelAgentExecutor:
                     )
                 except Exception:
                     logger.warning("Failed to save screenshot image for channel reply")
+
+            for att in acc.file_attachments:
+                media_list.append(att)
+                if att.path:
+                    tmp_paths.append(att.path)
+
+            media = tuple(media_list)
 
             try:
                 yield msg.get_or_create_correlation_context().create_reply(
@@ -850,9 +860,9 @@ class ChannelAgentExecutor:
                     quick_replies=quick_replies,
                 )
             finally:
-                if screenshot_tmp_path:
+                for p in tmp_paths:
                     try:
-                        os.unlink(screenshot_tmp_path)
+                        os.unlink(p)
                     except OSError:
                         pass
         except ConfigIncompleteError as exc:
