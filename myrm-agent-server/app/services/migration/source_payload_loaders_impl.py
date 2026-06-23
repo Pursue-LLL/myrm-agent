@@ -19,6 +19,7 @@ from ._loader_utils import (
     extract_env_key_names,
     find_file,
     load_skill_directories,
+    load_usage_sidecar,
     path_by_kind,
     read_text,
     read_yaml,
@@ -61,6 +62,12 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if skills_dir.is_dir():
         skills = load_skill_directories(skills_dir, source="hermes")
         if skills:
+            usage_map = load_usage_sidecar(skills_dir)
+            if usage_map:
+                for skill_item in skills:
+                    usage_record = usage_map.get(str(skill_item.get("name", "")))
+                    if usage_record:
+                        skill_item["usage_stats"] = usage_record
             result["skills"] = skills
 
     return result

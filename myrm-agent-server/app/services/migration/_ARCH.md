@@ -28,9 +28,9 @@
 | `source_discovery.py` | 核心 | 数据类定义、工具函数、discover_external_sources 编排入口 | ✅ |
 | `source_probes.py` | 核心 | 4 源 filesystem probe（hermes/claude/openclaw/codex） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills / supported_source_ids | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude）+ re-export openclaw | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude）+ re-export openclaw；Hermes loader 含 .usage.json 导入 | ✅ |
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
-| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数 | ✅ |
+| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（含 load_usage_sidecar 读取 Hermes .usage.json） | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
 | `source_model_migrator.py` | 辅助 | Hermes auxiliary model → Myrm 模型槽（与 Wizard 数据迁移正交） | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO | ✅ |

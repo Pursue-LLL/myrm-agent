@@ -100,6 +100,22 @@ def load_skill_directories(skills_dir: Path, *, source: str) -> list[dict[str, o
     return skills
 
 
+def load_usage_sidecar(skills_dir: Path) -> dict[str, dict[str, object]]:
+    """Read Hermes-style .usage.json sidecar from a skills directory.
+
+    Returns a mapping of {skill_name: usage_record} where usage_record
+    contains use_count, last_used_at, created_at, state, pinned, etc.
+    Best-effort: returns empty dict on missing or corrupt file.
+    """
+    usage_path = skills_dir / ".usage.json"
+    if not usage_path.is_file():
+        return {}
+    data = read_json(usage_path)
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): v for k, v in data.items() if isinstance(v, dict)}
+
+
 def markdown_bullets_to_memory(content: str, *, category: str) -> list[dict[str, object]]:
     entries: list[dict[str, object]] = []
     for match in _MEMORY_BULLET_PATTERN.finditer(content):
