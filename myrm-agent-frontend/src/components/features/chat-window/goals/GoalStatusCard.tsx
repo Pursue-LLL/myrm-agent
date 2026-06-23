@@ -586,7 +586,7 @@ export function GoalStatusCard() {
               {/* Acceptance Criteria Section */}
               {goal.acceptanceCriteria && goal.acceptanceCriteria.length > 0 && (
                 <div className="mt-3 border-t border-border/50 pt-3">
-                  <span className="text-xs font-medium text-primary/80">{t('acceptanceCriteriaLabel') || 'Acceptance Criteria'}</span>
+                  <span className="text-xs font-medium text-primary/80">{t('acceptanceCriteria')}</span>
                   <ul className="mt-1.5 space-y-1">
                     {goal.acceptanceCriteria.map((ac, idx) => (
                       <li
@@ -594,7 +594,7 @@ export function GoalStatusCard() {
                         className="flex items-start gap-2 text-xs bg-primary/5 p-1.5 rounded-lg border border-primary/10"
                       >
                         <span className="flex-shrink-0 mt-0.5 text-primary/60 font-mono text-[10px]">
-                          {ac.type === 'shell' ? '$ ' : '✓ '}
+                          {ac.type === 'shell' ? '$' : '>'}
                         </span>
                         <span className="text-foreground/80 break-words leading-relaxed">
                           {ac.type === 'shell' ? ac.command : ac.criteria}
