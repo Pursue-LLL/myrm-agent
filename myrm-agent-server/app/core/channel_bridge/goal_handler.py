@@ -1,24 +1,14 @@
-"""ChannelGoalCommandHandler — business-layer handler for /goal slash commands.
-
-Delegates parsed /goal subcommands to the GoalProvider (via GoalRegistry)
-for the current session. Returns human-readable status strings back to the
-channel user.
+"""ChannelGoalCommandHandler — /goal slash command handler.
 
 [INPUT]
-- app.channels.types::InboundMessage (POS: inbound message)
-- app.channels.protocols.goal_command (POS: handler protocol)
-- app.services.agent.goal_registry::GoalRegistry (POS: per-session GoalProvider lookup)
-- app.services.chat.chat_service::ChatService (POS: channel_session_key -> chat_id resolution)
+- app.channels.types::InboundMessage, app.channels.protocols.goal_command (POS)
+- app.services.agent.goal_registry::GoalRegistry, app.services.chat.chat_service::ChatService (POS)
 
 [OUTPUT]
 - ChannelGoalCommandHandler: GoalCommandHandler protocol implementation
 
 [POS]
-Business-layer adapter that connects /goal slash commands from channels
-to the Goal engine. The framework calls `handle_goal` with parsed subcommand;
-this handler resolves the GoalProvider via GoalRegistry and executes the
-requested lifecycle operation. Uses ChatService to map channel session keys
-to DB chat_ids, ensuring consistency with the agent executor's GoalProvider.
+Connects /goal slash commands from IM channels to the Goal engine via GoalRegistry.
 """
 
 from __future__ import annotations
