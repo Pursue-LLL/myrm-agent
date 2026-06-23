@@ -386,3 +386,75 @@ async def test_update_objective_max_boundary(client: TestClient):
     assert response.status_code == 200
 
     GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_get_goal_status_includes_pause_reason(client: TestClient):
+    """GET /goals/status should include reason when pause_reason is in metadata."""
+    session_id = f"test_session_reason_{uuid.uuid4().hex}"
+
+    provider = GoalRegistry.get_or_create_provider(session_id)
+    goal = await provider.create_goal(session_id, "Orphaned Goal")
+
+    # Simulate server restart: manually set PAUSED with reason
+    goal.status = GoalStatus.PAUSED
+    goal.metadata["pause_reason"] = "Server restarted — resume when ready"
+    await provider._storage.save_goal(goal)
+
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["goal"] is not None
+    assert data["goal"]["status"] == "paused"
+    assert data["goal"]["reason"] == "Server restarted — resume when ready"
+
+    GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_get_goal_status_no_reason_when_active(client: TestClient):
+    """Active goals should not have a reason field."""
+    session_id = f"test_session_no_reason_{uuid.uuid4().hex}"
+
+    provider = GoalRegistry.get_or_create_provider(session_id)
+    await provider.create_goal(session_id, "Active Goal")
+
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["goal"] is not None
+    assert data["goal"]["status"] == "active"
+    assert "reason" not in data["goal"]
+
+    GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_resume_clears_pause_reason(client: TestClient):
+    """After resume, pause_reason should be cleared from metadata."""
+    session_id = f"test_session_resume_clear_{uuid.uuid4().hex}"
+
+    provider = GoalRegistry.get_or_create_provider(session_id)
+    goal = await provider.create_goal(session_id, "Resumable Goal")
+
+    # Simulate orphan pause
+    goal.status = GoalStatus.PAUSED
+    goal.metadata["pause_reason"] = "Server restarted — resume when ready"
+    await provider._storage.save_goal(goal)
+
+    # Verify reason is present
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    assert response.json()["goal"]["reason"] == "Server restarted — resume when ready"
+
+    # Resume
+    response = client.post(f"/api/v1/goals/{session_id}/status", json={"action": "resume"})
+    assert response.status_code == 200
+    assert response.json()["new_status"] == "active"
+
+    # Verify reason is cleared
+    response = client.get(f"/api/v1/goals/{session_id}/status")
+    data = response.json()
+    assert data["goal"]["status"] == "active"
+    assert "reason" not in data["goal"]
+
+    GoalRegistry.unregister(session_id)
