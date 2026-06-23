@@ -12,7 +12,7 @@ export enum LoginMethod {
 export enum LoginStatus {
   IDLE = 'idle',
   GENERATING = 'generating',
-  WAITING_USER_ACTION = 'waiting_user_action',
+  WAITING_USER_ACTION = 'waiting',
   VALIDATING = 'validating',
   SUCCESS = 'success',
   FAILED = 'failed',
