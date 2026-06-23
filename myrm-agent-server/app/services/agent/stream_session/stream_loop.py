@@ -146,6 +146,7 @@ async def iter_agent_stream_chunks(
                         "time_used_seconds": active_goal.time_used_seconds,
                         "turns_used": active_goal.turns_used,
                         "constraints": active_goal.constraints or [],
+                        "acceptance_criteria": active_goal.acceptance_criteria or [],
                         "budget": {
                             "max_tokens": active_goal.budget.max_tokens,
                             "max_usd": active_goal.budget.max_usd,
@@ -241,6 +242,7 @@ async def iter_agent_stream_chunks(
                                     "time_used_seconds": latest.time_used_seconds,
                                     "turns_used": latest.turns_used,
                                     "constraints": latest.constraints or [],
+                                    "acceptance_criteria": latest.acceptance_criteria or [],
                                     "reason": latest.metadata.get("pause_reason"),
                                     "budget": (
                                         {

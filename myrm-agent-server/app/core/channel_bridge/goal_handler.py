@@ -50,6 +50,22 @@ _STATUS_KEYS: dict[GoalStatus, str] = {
 }
 
 
+def _parse_im_goal_text(raw: str) -> tuple[str, list[dict[str, object]]]:
+    """Parse IM goal text with optional ``||`` acceptance criteria separator.
+
+    Format: ``objective || criteria1 || criteria2``
+    The first segment is the objective; subsequent segments become semantic criteria.
+    If no ``||`` is present, the entire string is the objective with no criteria.
+    """
+    parts = [p.strip() for p in raw.split("||")]
+    objective = parts[0]
+    criteria: list[dict[str, object]] = []
+    for part in parts[1:]:
+        if part:
+            criteria.append({"type": "semantic", "criteria": part})
+    return objective, criteria
+
+
 async def _resolve_chat_id(msg: InboundMessage) -> str | None:
     """Resolve channel message to DB chat_id via ChatService.
 
@@ -115,6 +131,8 @@ class ChannelGoalCommandHandler:
                 return await self._clear_goal(msg, chat_id)
             case GoalSubcommand.BUDGET:
                 return await self._set_budget(msg, chat_id, args)
+            case GoalSubcommand.CONSTRAINT:
+                return await self._manage_constraint(msg, chat_id, args)
 
     async def get_kickoff_message(
         self,
@@ -133,14 +151,20 @@ class ChannelGoalCommandHandler:
         if not objective.strip():
             return get_text(msg, "usage_goal")
 
+        parsed_objective, acceptance_criteria = _parse_im_goal_text(objective)
+
         if not chat_id:
-            return get_text(msg, "goal_set", goal=objective)
+            return get_text(msg, "goal_set", goal=parsed_objective)
 
         from app.services.agent.goal_registry import check_and_handle_branch_stash
 
         await check_and_handle_branch_stash(chat_id)
         provider = GoalRegistry.get_or_create_provider(chat_id)
-        goal = await provider.create_goal(session_id=chat_id, objective=objective)
+        goal = await provider.create_goal(
+            session_id=chat_id,
+            objective=parsed_objective,
+            acceptance_criteria=acceptance_criteria or None,
+        )
 
         from myrm_agent_harness.agent.goals.types import GoalStatus
 
@@ -192,6 +216,22 @@ class ChannelGoalCommandHandler:
                 )
             if parts:
                 lines.append(get_text(msg, "goal_budget_header", parts=" | ".join(parts)))
+
+        if goal.constraints:
+            lines.append(get_text(msg, "goal_status_constraints", items=" | ".join(goal.constraints)))
+
+        if goal.acceptance_criteria:
+            criteria_items: list[str] = []
+            for ac in goal.acceptance_criteria:
+                if ac.get("type") == "shell":
+                    criteria_items.append(f"[shell] {ac.get('command', '')}")
+                else:
+                    criteria_items.append(f"[semantic] {ac.get('criteria', '')}")
+            lines.append(get_text(msg, "goal_status_criteria", items=" | ".join(criteria_items)))
+
+        if goal.subgoals:
+            items = " | ".join(sg.get("text", "") for sg in goal.subgoals)
+            lines.append(get_text(msg, "goal_status_subgoals", items=items))
 
         return "\n".join(lines)
 
@@ -338,3 +378,30 @@ class ChannelGoalCommandHandler:
             GoalBudget(max_turns=max_turns),
         )
         return get_text(msg, "goal_budget_set", max_turns=max_turns)
+
+    async def _manage_constraint(self, msg: InboundMessage, chat_id: str | None, args: str) -> str:
+        if not chat_id:
+            return get_text(msg, "no_active_goal_set_first")
+
+        from app.services.agent.goal_registry import GoalRegistry
+
+        provider = GoalRegistry.get_provider(chat_id)
+        if not provider:
+            return get_text(msg, "no_active_goal_set_first")
+
+        goal = await provider.get_latest_goal(chat_id)
+        if not goal:
+            return get_text(msg, "no_active_goal_constraint")
+
+        if args.strip().lower() == "clear":
+            await provider.update_constraints(goal.goal_id, [])
+            return get_text(msg, "goal_constraints_cleared")
+
+        if not args.strip():
+            if not goal.constraints:
+                return get_text(msg, "no_constraints_set")
+            return get_text(msg, "goal_status_constraints", items=" | ".join(goal.constraints))
+
+        updated = (goal.constraints or []) + [args.strip()]
+        await provider.update_constraints(goal.goal_id, updated)
+        return get_text(msg, "goal_constraint_added", constraint=args.strip())

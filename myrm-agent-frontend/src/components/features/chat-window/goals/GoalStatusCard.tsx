@@ -43,6 +43,7 @@ export interface GoalState {
   verdict?: string;
   reason?: string;
   constraints?: string[];
+  acceptanceCriteria?: { type: string; command?: string; criteria?: string }[];
   subgoals?: { text: string }[];
   executionSummary?: {
     files_modified: string[];
@@ -576,6 +577,28 @@ export function GoalStatusCard() {
                           </svg>
                         </span>
                         <span className="text-destructive/80 break-words leading-relaxed">{c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Acceptance Criteria Section */}
+              {goal.acceptanceCriteria && goal.acceptanceCriteria.length > 0 && (
+                <div className="mt-3 border-t border-border/50 pt-3">
+                  <span className="text-xs font-medium text-primary/80">{t('acceptanceCriteriaLabel') || 'Acceptance Criteria'}</span>
+                  <ul className="mt-1.5 space-y-1">
+                    {goal.acceptanceCriteria.map((ac, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start gap-2 text-xs bg-primary/5 p-1.5 rounded-lg border border-primary/10"
+                      >
+                        <span className="flex-shrink-0 mt-0.5 text-primary/60 font-mono text-[10px]">
+                          {ac.type === 'shell' ? '$ ' : '✓ '}
+                        </span>
+                        <span className="text-foreground/80 break-words leading-relaxed">
+                          {ac.type === 'shell' ? ac.command : ac.criteria}
+                        </span>
                       </li>
                     ))}
                   </ul>
