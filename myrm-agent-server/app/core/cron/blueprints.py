@@ -409,6 +409,64 @@ BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         sort_order=8,
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="social_media_watch",
+        icon="Radio",
+        title={"en": "Social Media Watch", "zh": "社媒舆情监控"},
+        description={
+            "en": "Monitor social media for brand mentions, sentiment shifts, and trending topics",
+            "zh": "监控社交媒体上的品牌提及、情感变化和热门话题",
+        },
+        prompt_template={
+            "en": (
+                "Monitor the following social media platforms for mentions of: {brand}. "
+                "Search using keywords: {keywords}. "
+                "Platforms to check: {platforms}. "
+                "Collect recent posts (last 24 hours), classify sentiment, identify notable "
+                "positive and negative mentions, detect trends, and produce a structured report. "
+                "Flag any strongly negative posts that require immediate attention."
+            ),
+            "zh": (
+                "监控以下社交媒体平台上关于 {brand} 的提及。"
+                "使用关键词搜索：{keywords}。"
+                "需要检查的平台：{platforms}。"
+                "收集最近的帖子（过去24小时），分类情感倾向，识别值得关注的正面和负面提及，"
+                "检测趋势，并生成结构化报告。标记需要立即关注的强负面帖子。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="weekdays",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+            BlueprintSlot(
+                name="brand",
+                type="text",
+                label="brand",
+                default="",
+            ),
+            BlueprintSlot(
+                name="platforms",
+                type="text",
+                label="platforms",
+                default="Xiaohongshu, Weibo",
+            ),
+            BlueprintSlot(
+                name="keywords",
+                type="text",
+                label="keywords",
+                default="",
+            ),
+        ),
+        category="business",
+        tags=("social-media", "monitoring", "sentiment", "brand"),
+        sort_order=9,
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}

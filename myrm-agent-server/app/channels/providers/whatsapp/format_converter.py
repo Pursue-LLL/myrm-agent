@@ -27,6 +27,8 @@ _INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 _BOLD_DOUBLE_STAR_RE = re.compile(r"\*\*(.+?)\*\*")
 _BOLD_DOUBLE_UNDERSCORE_RE = re.compile(r"__(.+?)__")
 _STRIKE_RE = re.compile(r"~~(.+?)~~")
+_HEADER_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
+_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 
 
 def md_to_whatsapp(text: str) -> str:
@@ -75,6 +77,16 @@ def md_to_whatsapp(text: str) -> str:
     result = _BOLD_DOUBLE_STAR_RE.sub(r"*\1*", result)
     result = _BOLD_DOUBLE_UNDERSCORE_RE.sub(r"*\1*", result)
     result = _STRIKE_RE.sub(r"~\1~", result)
+
+    # Step 3b: Convert headers to bold and links to readable format
+    def _header_to_bold(m: re.Match[str]) -> str:
+        inner = m.group(1).strip()
+        while len(inner) > 1 and inner.startswith("*") and inner.endswith("*"):
+            inner = inner[1:-1].strip()
+        return f"*{inner}*"
+
+    result = _HEADER_RE.sub(_header_to_bold, result)
+    result = _LINK_RE.sub(r"\1 (\2)", result)
 
     # Step 4: Restore inline code
     def restore_inline_code(match: re.Match[str]) -> str:

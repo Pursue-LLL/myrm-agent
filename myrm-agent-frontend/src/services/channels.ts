@@ -1,4 +1,4 @@
-import { apiRequest, BACKEND_BASE_URL } from '@/lib/api';
+import { apiRequest, BACKEND_BASE_URL, getApiUrl } from '@/lib/api';
 import { isSandbox } from '@/lib/deploy-mode';
 
 // ==================== Channel Service Factory ====================
@@ -802,6 +802,7 @@ export async function testLINEConnection(channelAccessToken: string): Promise<Ch
 export interface IMessageCredentials {
   apiUrl: string;
   password: string;
+  webhookUrl?: string;
 }
 
 const imessageService = createChannelCredentialService<IMessageCredentials>(
@@ -888,8 +889,7 @@ export function subscribeLoginStream(
   onEvent: (event: LoginEvent) => void,
   onError?: (error: Event) => void,
 ): EventSource {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
-  const url = `${apiBase}/channels/login/${sessionId}/stream`;
+  const url = getApiUrl(`/channels/login/${sessionId}/stream`);
   const eventSource = new EventSource(url);
 
   eventSource.addEventListener('login_state', (e: MessageEvent) => {

@@ -77,7 +77,11 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
 
   if (data.type === H.AgentEventType.AGENT_CANCELLED) {
     const reason = data.data?.reason || 'user_cancelled';
-    const cancelText = reason === 'user_cancelled' ? '已取消' : '已终止';
+    const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
+    const isZh = lang?.startsWith('zh');
+    const cancelText = reason === 'user_cancelled'
+      ? (isZh ? '已取消' : 'Cancelled')
+      : (isZh ? '已终止' : 'Terminated');
 
     actions.setMessages((state) => {
       const cancelStep = {

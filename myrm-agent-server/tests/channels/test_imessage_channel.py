@@ -9,11 +9,8 @@ import pytest
 
 from app.channels.core.base import BaseChannel
 from app.channels.media.downloader import MediaDownloadResult
-from app.channels.providers.imessage import (
-    IMessageChannel,
-    _filename_from_url,
-    _mime_to_media_type,
-)
+from app.channels.providers.imessage import IMessageChannel
+from app.channels.providers.imessage.helpers import filename_from_url, mime_to_media_type
 from app.channels.types import (
     ChannelStatus,
     InboundMessage,
@@ -716,19 +713,19 @@ class TestIMessageReactions:
 
 class TestIMessageHelpers:
     def test_mime_to_media_type_image(self) -> None:
-        assert _mime_to_media_type("image/jpeg") == MediaType.IMAGE
+        assert mime_to_media_type("image/jpeg") == MediaType.IMAGE
 
     def test_mime_to_media_type_audio(self) -> None:
-        assert _mime_to_media_type("audio/mp4") == MediaType.AUDIO
+        assert mime_to_media_type("audio/mp4") == MediaType.AUDIO
 
     def test_mime_to_media_type_video(self) -> None:
-        assert _mime_to_media_type("video/mp4") == MediaType.VIDEO
+        assert mime_to_media_type("video/mp4") == MediaType.VIDEO
 
     def test_mime_to_media_type_document(self) -> None:
-        assert _mime_to_media_type("application/pdf") == MediaType.DOCUMENT
+        assert mime_to_media_type("application/pdf") == MediaType.DOCUMENT
 
     def test_filename_from_url(self) -> None:
-        assert _filename_from_url("https://example.com/path/photo.jpg") == "photo.jpg"
+        assert filename_from_url("https://example.com/path/photo.jpg") == "photo.jpg"
 
     def test_filename_from_url_no_path(self) -> None:
-        assert _filename_from_url("https://example.com/") == "download.bin"
+        assert filename_from_url("https://example.com/") == "download.bin"

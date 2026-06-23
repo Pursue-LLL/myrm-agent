@@ -268,6 +268,7 @@ memory_not_found = ℹ 未找到匹配 `{ $id }` 的待审批记忆。
 memory_error = ❌ 记忆命令执行失败，请重试。
 cmd_memory = 查看并审批待确认的记忆写入
 cat_Memory = 记忆
+reassurance_still_running = ⚓ 仍在处理中（已完成 { $steps } 个步骤{ $stage }）—— 请稍等
 agent_picker_no_agents = 未配置任何智能体。
 agent_picker_select = 选择一个智能体：
 agent_picker_switched = 已切换至：{ $name }

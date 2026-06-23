@@ -486,7 +486,11 @@ rl.on("line", async (line) => {
 
     if (cmd.type === "send" && sock) {
       const jid = cmd.to.includes("@") ? cmd.to : `${cmd.to}@s.whatsapp.net`;
-      const sent = await sock.sendMessage(jid, { text: cmd.text });
+      const msgContent = { text: cmd.text };
+      if (cmd.quoted_key) {
+        msgContent.quoted = { key: cmd.quoted_key };
+      }
+      const sent = await sock.sendMessage(jid, msgContent);
       if (cmd.nonce && sent?.key) {
         emit({ type: "sent", nonce: cmd.nonce, key: sent.key });
       }

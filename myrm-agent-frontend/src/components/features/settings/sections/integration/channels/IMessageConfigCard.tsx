@@ -11,7 +11,7 @@ import { getIMessageCredentials, saveIMessageCredentials, testIMessageConnection
 import { ConnectionBadge } from './ConnectionBadge';
 import { useChannelConfig } from './useChannelConfig';
 
-const EMPTY_CREDS: IMessageCredentials = { apiUrl: '', password: '' };
+const EMPTY_CREDS: IMessageCredentials = { apiUrl: '', password: '', webhookUrl: '' };
 
 export function IMessageConfigCard() {
   const t = useTranslations('channels');
@@ -69,6 +69,17 @@ export function IMessageConfigCard() {
             {showPassword ? <IconEyeOff className="h-4 w-4" /> : <IconEye className="h-4 w-4" />}
           </button>
         </div>
+      </div>
+
+      <div className="space-y-2 max-w-md">
+        <Label htmlFor="imessage-webhook-url">{t('imessageWebhookUrl')}</Label>
+        <Input
+          id="imessage-webhook-url"
+          placeholder="http://your-server:8000/api/channels/imessage/webhook"
+          value={creds.webhookUrl ?? ''}
+          onChange={(e) => handleChange('webhookUrl', e.target.value)}
+        />
+        <p className="text-xs text-muted-foreground">{t('imessageWebhookUrlHint')}</p>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

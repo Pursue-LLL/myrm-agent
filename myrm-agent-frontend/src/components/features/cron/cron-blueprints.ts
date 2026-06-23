@@ -1,7 +1,7 @@
 import type { BlueprintDef, CreateCronJobRequest, CronSchedule } from '@/services/cron';
 import { fillBlueprint, listBlueprints } from '@/services/cron';
 import type { LucideIcon } from 'lucide-react';
-import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen } from 'lucide-react';
+import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
 
 // ==================== Types ====================
 
@@ -39,6 +39,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Eye,
   CheckSquare,
   BookOpen,
+  Radio,
 };
 
 function resolveIcon(iconName: string): LucideIcon {

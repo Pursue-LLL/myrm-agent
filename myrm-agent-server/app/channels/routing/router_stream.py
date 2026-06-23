@@ -1,13 +1,16 @@
-"""Consume AgentExecutor event streams: progress, streaming text, interactive approvals.
+"""Consume AgentExecutor event streams: progress, streaming text, interactive approvals, silence reassurance.
 
 [POS]
 RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance;
-methods constrain self via RouterStreamHost. Placeholder throttle interval logic in
+methods constrain self via RouterStreamHost. Includes parallel reassurance loop for
+long-task silence detection. Placeholder throttle interval logic in
 router_stream_throttle.py (pure function, unit-testable). Logger name consistent with router package.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import dataclasses
 import logging
 import time
@@ -19,7 +22,9 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.channels.i18n import channel_t, get_text
 from app.channels.routing.placeholder_strategy import DeferredPlaceholder
 from app.channels.routing.router_constants import (
+    _MAX_REASSURANCE_COUNT,
     _MIN_PROGRESS_INTERVAL,
+    _SILENCE_REASSURANCE_THRESHOLD,
 )
 from app.channels.routing.router_host import RouterStreamHost
 from app.channels.routing.router_keys import routing_session_key
@@ -87,137 +92,155 @@ class RouterStreamMixin:
         self._stream_metrics.start_session(metrics_key, trace_id)
         self._progress_estimator.start_session(metrics_key, msg.content)
 
-        async for event in self._executor.execute_stream(
-            msg,
-            user_id,
-            cancel_token=cancel_token,
-            steering_token=steering_token,
-            topic_context=topic_context,
-        ):
-            if isinstance(event, ProgressUpdate):
-                await self._mark_deferred_placeholder_activity(stream_state_key)
-                if event.quick_replies:
-                    approval_mid = await self._send_interactive_progress(msg, chat_id, event)
-                    if approval_mid:
-                        session_key = routing_session_key(msg.channel, chat_id)
-                        self._approval_msg_ids[session_key] = approval_mid
-                    has_pending_approval = True
-                    last_progress_at = time.monotonic()
-                    continue
+        reassurance_state: dict[str, float | int | str] = {
+            "last_activity": time.monotonic(),
+            "step_count": 0,
+            "current_stage": "",
+        }
+        reassurance_task = asyncio.create_task(
+            self._reassurance_loop(msg, chat_id, reassurance_state),
+        )
 
-                new_ts = await self._try_throttled_edit(
-                    self._resolve_live_placeholder_id(state_key),
-                    event.label,
-                    last_progress_at,
-                    _MIN_PROGRESS_INTERVAL,
-                    msg.channel,
-                    chat_id,
-                )
-                if new_ts is not None:
-                    last_progress_at = new_ts
+        try:
+            async for event in self._executor.execute_stream(
+                msg,
+                user_id,
+                cancel_token=cancel_token,
+                steering_token=steering_token,
+                topic_context=topic_context,
+            ):
+                reassurance_state["last_activity"] = time.monotonic()
 
-            elif isinstance(event, StreamingText):
-                await self._mark_deferred_placeholder_activity(stream_state_key)
-                if should_fallback_to_new_message:
-                    continue
-
-                with trace_context(
-                    "myrm.channels.stream",
-                    "stream_update",
-                    {
-                        "session_key": metrics_key,
-                        "trace_id": trace_id,
-                        "content_length": len(event.text),
-                    },
-                ) as span:
-                    decision = self._stream_coordinator.should_send_update(metrics_key, event.text, is_final=False)
-                    self._stream_metrics.record_decision(metrics_key, decision.reason)
-                    span.set_attribute("decision.should_send", decision.should_send)
-                    span.set_attribute("decision.reason", decision.reason)
-
-                    if not decision.should_send:
-                        logger.debug(
-                            "skip_stream_update session_key=%s reason=%s trace_id=%s",
-                            metrics_key,
-                            decision.reason,
-                            trace_id,
-                        )
-                        span.add_event("update_skipped", {"reason": decision.reason})
+                if isinstance(event, ProgressUpdate):
+                    reassurance_state["step_count"] = int(reassurance_state["step_count"]) + 1
+                    reassurance_state["current_stage"] = event.label
+                    await self._mark_deferred_placeholder_activity(stream_state_key)
+                    if event.quick_replies:
+                        approval_mid = await self._send_interactive_progress(msg, chat_id, event)
+                        if approval_mid:
+                            session_key = routing_session_key(msg.channel, chat_id)
+                            self._approval_msg_ids[session_key] = approval_mid
+                        has_pending_approval = True
+                        last_progress_at = time.monotonic()
                         continue
 
-                    if not self._session_rate_limiter.can_update(metrics_key):
-                        logger.warning(
-                            "session_rate_limit_exceeded session_key=%s trace_id=%s update_count=%d",
-                            metrics_key,
-                            trace_id,
-                            self._session_rate_limiter.get_update_count(metrics_key),
-                        )
-                        span.add_event("rate_limit_exceeded")
-                        continue
-
-                    self._session_rate_limiter.record_update(metrics_key)
-
-                    progress_info = self._progress_estimator.estimate_progress(metrics_key, len(event.text))
-                    display_text = event.text
-                    if progress_info and progress_info.percentage < 95:
-                        remaining_str = f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
-                        display_text = f"{event.text}\n\n[{progress_info.percentage}%{remaining_str}]"
-                        span.set_attribute("progress.percentage", progress_info.percentage)
-
-                    span.add_event("api_call_start")
-                    live_placeholder = self._resolve_live_placeholder_id(state_key)
-                    success = await self._try_edit_with_retry(
+                    new_ts = await self._try_throttled_edit(
+                        self._resolve_live_placeholder_id(state_key),
+                        event.label,
+                        last_progress_at,
+                        _MIN_PROGRESS_INTERVAL,
                         msg.channel,
                         chat_id,
-                        live_placeholder,
-                        display_text,
-                        metrics_key,
-                        len(event.text),
-                        msg=msg,
                     )
-                    span.add_event("api_call_end", {"success": success})
-                    span.set_attribute("api.success", success)
+                    if new_ts is not None:
+                        last_progress_at = new_ts
 
-                    is_first = last_stream_at == 0.0
-                    self._stream_metrics.record_edit(metrics_key, len(event.text), success, is_first=is_first)
+                elif isinstance(event, StreamingText):
+                    await self._mark_deferred_placeholder_activity(stream_state_key)
+                    if should_fallback_to_new_message:
+                        continue
 
-                    if success:
-                        last_stream_at = time.monotonic()
-                        edit_failures = 0
-                    else:
-                        edit_failures += 1
-                        if edit_failures >= 3:
-                            should_fallback_to_new_message = True
+                    with trace_context(
+                        "myrm.channels.stream",
+                        "stream_update",
+                        {
+                            "session_key": metrics_key,
+                            "trace_id": trace_id,
+                            "content_length": len(event.text),
+                        },
+                    ) as span:
+                        decision = self._stream_coordinator.should_send_update(metrics_key, event.text, is_final=False)
+                        self._stream_metrics.record_decision(metrics_key, decision.reason)
+                        span.set_attribute("decision.should_send", decision.should_send)
+                        span.set_attribute("decision.reason", decision.reason)
+
+                        if not decision.should_send:
+                            logger.debug(
+                                "skip_stream_update session_key=%s reason=%s trace_id=%s",
+                                metrics_key,
+                                decision.reason,
+                                trace_id,
+                            )
+                            span.add_event("update_skipped", {"reason": decision.reason})
+                            continue
+
+                        if not self._session_rate_limiter.can_update(metrics_key):
                             logger.warning(
-                                "stream_edit_failed_fallback session_key=%s trace_id=%s consecutive_failures=%d",
+                                "session_rate_limit_exceeded session_key=%s trace_id=%s update_count=%d",
                                 metrics_key,
                                 trace_id,
-                                edit_failures,
+                                self._session_rate_limiter.get_update_count(metrics_key),
                             )
-                            span.add_event(
-                                "fallback_to_new_message",
-                                {"consecutive_failures": edit_failures},
-                            )
+                            span.add_event("rate_limit_exceeded")
+                            continue
 
-            elif isinstance(event, OutboundMessage):
-                result = dataclasses.replace(
-                    event,
-                    thread_id=msg.thread_id,
-                    reply_to_id=(
-                        (msg.message_id or str(msg.metadata["message_id"]))
-                        if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
-                        else event.reply_to_id
-                    ),
-                )
-                if should_fallback_to_new_message:
-                    live_placeholder = self._resolve_live_placeholder_id(state_key)
-                    if live_placeholder:
-                        await self._fx.cleanup_placeholder(
+                        self._session_rate_limiter.record_update(metrics_key)
+
+                        progress_info = self._progress_estimator.estimate_progress(metrics_key, len(event.text))
+                        display_text = event.text
+                        if progress_info and progress_info.percentage < 95:
+                            remaining_str = f" (~{progress_info.remaining_seconds}s left)" if progress_info.remaining_seconds else ""
+                            display_text = f"{event.text}\n\n[{progress_info.percentage}%{remaining_str}]"
+                            span.set_attribute("progress.percentage", progress_info.percentage)
+
+                        span.add_event("api_call_start")
+                        live_placeholder = self._resolve_live_placeholder_id(state_key)
+                        success = await self._try_edit_with_retry(
                             msg.channel,
                             chat_id,
                             live_placeholder,
-                            " [Streaming interrupted]",
+                            display_text,
+                            metrics_key,
+                            len(event.text),
+                            msg=msg,
                         )
+                        span.add_event("api_call_end", {"success": success})
+                        span.set_attribute("api.success", success)
+
+                        is_first = last_stream_at == 0.0
+                        self._stream_metrics.record_edit(metrics_key, len(event.text), success, is_first=is_first)
+
+                        if success:
+                            last_stream_at = time.monotonic()
+                            edit_failures = 0
+                        else:
+                            edit_failures += 1
+                            if edit_failures >= 3:
+                                should_fallback_to_new_message = True
+                                logger.warning(
+                                    "stream_edit_failed_fallback session_key=%s trace_id=%s consecutive_failures=%d",
+                                    metrics_key,
+                                    trace_id,
+                                    edit_failures,
+                                )
+                                span.add_event(
+                                    "fallback_to_new_message",
+                                    {"consecutive_failures": edit_failures},
+                                )
+
+                elif isinstance(event, OutboundMessage):
+                    result = dataclasses.replace(
+                        event,
+                        thread_id=msg.thread_id,
+                        reply_to_id=(
+                            (msg.message_id or str(msg.metadata["message_id"]))
+                            if msg.is_group and (msg.message_id or msg.metadata.get("message_id"))
+                            else event.reply_to_id
+                        ),
+                    )
+                    if should_fallback_to_new_message:
+                        live_placeholder = self._resolve_live_placeholder_id(state_key)
+                        if live_placeholder:
+                            await self._fx.cleanup_placeholder(
+                                msg.channel,
+                                chat_id,
+                                live_placeholder,
+                                " [Streaming interrupted]",
+                            )
+        finally:
+            reassurance_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await reassurance_task
 
         self._stream_metrics.end_session(metrics_key)
         self._stream_coordinator.cleanup(metrics_key)
@@ -440,3 +463,50 @@ class RouterStreamMixin:
             span.set_attribute("total_delay_s", result.total_delay)
 
             return result.success
+
+    async def _reassurance_loop(
+        self: RouterStreamHost,
+        msg: InboundMessage,
+        chat_id: str,
+        state: dict[str, float | int | str],
+    ) -> None:
+        """Send periodic reassurance messages during long silent periods.
+
+        Runs as a parallel asyncio.Task alongside the executor stream consumption.
+        Monitors `state["last_activity"]` timestamp; when silence exceeds
+        _SILENCE_REASSURANCE_THRESHOLD, sends an i18n reassurance message via MessageBus.
+        """
+        sent_count = 0
+        while sent_count < _MAX_REASSURANCE_COUNT:
+            await asyncio.sleep(_SILENCE_REASSURANCE_THRESHOLD)
+            elapsed = time.monotonic() - float(state["last_activity"])
+            if elapsed < _SILENCE_REASSURANCE_THRESHOLD:
+                continue
+            sent_count += 1
+            steps = int(state["step_count"])
+            stage = str(state["current_stage"])
+            stage_suffix = f", {stage}" if stage else ""
+            text = get_text(
+                msg, "reassurance_still_running", steps=steps, stage=stage_suffix,
+            )
+            reply = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=text,
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                priority=MessagePriority.SYSTEM,
+            )
+            try:
+                await self._bus.send_tracked(reply)
+                logger.info(
+                    "reassurance_sent channel=%s chat=%s count=%d steps=%d",
+                    msg.channel, chat_id, sent_count, steps,
+                )
+            except Exception:
+                logger.warning(
+                    "reassurance_send_failed channel=%s chat=%s count=%d",
+                    msg.channel, chat_id, sent_count,
+                    exc_info=True,
+                )
+            state["last_activity"] = time.monotonic()

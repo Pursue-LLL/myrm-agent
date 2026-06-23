@@ -268,6 +268,7 @@ memory_not_found = ℹ No pending memory matching `{ $id }`.
 memory_error = ❌ Memory command failed. Please try again.
 cmd_memory = Review pending memory writes (approve/reject)
 cat_Memory = Memory
+reassurance_still_running = ⚓ Still working… ({ $steps } steps done{ $stage }) — hang tight!
 agent_picker_no_agents = No agents configured.
 agent_picker_select = Select an agent:
 agent_picker_switched = Switched to: { $name }

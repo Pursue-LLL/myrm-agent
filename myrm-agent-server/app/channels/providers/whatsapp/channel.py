@@ -195,12 +195,16 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
 
         if msg.content:
             chunks = list(render(msg, self.render_style))
-            for chunk in chunks:
+            quoted_key = self._parse_quoted_key(msg.reply_to_id) if msg.reply_to_id else None
+            for idx, chunk in enumerate(chunks):
                 nonce = uuid.uuid4().hex[:12]
                 loop = asyncio.get_running_loop()
                 fut: asyncio.Future[dict[str, object]] = loop.create_future()
                 self._sent_futures[nonce] = fut
-                self._write_cmd({"type": "send", "to": jid, "text": chunk, "nonce": nonce})
+                cmd: dict[str, object] = {"type": "send", "to": jid, "text": chunk, "nonce": nonce}
+                if quoted_key and idx == 0:
+                    cmd["quoted_key"] = quoted_key
+                self._write_cmd(cmd)
                 try:
                     key = await asyncio.wait_for(fut, timeout=10.0)
                     last_key = json.dumps(key)
@@ -209,6 +213,23 @@ class WhatsAppChannel(BaseChannel, CachedGroupMixin, BridgeProcessMixin):
 
         logger.warning("WhatsAppChannel: sent to %s (media=%d)", jid, len(msg.media))
         return last_key
+
+    @staticmethod
+    def _parse_quoted_key(reply_to_id: str) -> dict[str, object] | None:
+        """Parse a reply_to_id into a Baileys message key for quoting.
+
+        reply_to_id can be a JSON-serialized Baileys key (from send_placeholder)
+        or a raw message ID string. Returns the key dict if valid, None otherwise.
+        """
+        if not reply_to_id:
+            return None
+        try:
+            key = json.loads(reply_to_id)
+            if isinstance(key, dict) and "id" in key:
+                return key
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return None
 
     def _send_media(self, jid: str, attachment: MediaAttachment) -> None:
         """Write a send_media command to the bridge for a single attachment."""

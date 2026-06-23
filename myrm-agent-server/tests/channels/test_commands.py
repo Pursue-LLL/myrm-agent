@@ -853,7 +853,7 @@ class TestRegistryEdgeCases:
             name="report",
             description="Generate report",
             kind=CommandKind.SKILL,
-            skill_id="s1",
+            skill_ids=("s1",),
             aliases=("rpt",),
             category="Skill",
         )
@@ -868,7 +868,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_unregister_existing(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(name="custom", description="test", kind=CommandKind.SKILL, skill_id="s1")
+        cmd = CommandDef(name="custom", description="test", kind=CommandKind.SKILL, skill_ids=("s1",))
         registry.register(cmd)
         assert registry.unregister("custom") is True
         assert registry.get("custom") is None
@@ -879,7 +879,7 @@ class TestRegistryUnregisterAndFilter:
             name="report",
             description="test",
             kind=CommandKind.SKILL,
-            skill_id="s1",
+            skill_ids=("s1",),
             aliases=("rpt", "rp"),
         )
         registry.register(cmd)
@@ -899,7 +899,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_commands_by_kind_skill(self) -> None:
         registry = CommandRegistry()
-        cmd = CommandDef(name="daily", description="test", kind=CommandKind.SKILL, skill_id="s1")
+        cmd = CommandDef(name="daily", description="test", kind=CommandKind.SKILL, skill_ids=("s1",))
         registry.register(cmd)
         skill_cmds = registry.commands_by_kind(CommandKind.SKILL)
         assert len(skill_cmds) == 1
@@ -915,7 +915,7 @@ class TestRegistryUnregisterAndFilter:
             name="daily",
             description="Daily report",
             kind=CommandKind.SKILL,
-            skill_id="s1",
+            skill_ids=("s1",),
             category="Skill",
         )
         registry.register(cmd)
@@ -934,7 +934,7 @@ class TestSkillCommandRegistration:
             name="daily-report",
             description="Generate daily report",
             kind=CommandKind.SKILL,
-            skill_id="daily_report_skill",
+            skill_ids=("daily_report_skill",),
             aliases=("dr",),
             parse_args=True,
             category="Skill",
@@ -943,7 +943,7 @@ class TestSkillCommandRegistration:
         resolved = registry.resolve("/daily-report some args")
         assert resolved is not None
         assert resolved.command_def.kind == CommandKind.SKILL
-        assert resolved.command_def.skill_id == "daily_report_skill"
+        assert resolved.command_def.skill_ids == ("daily_report_skill",)
         assert resolved.raw_args == "some args"
 
     def test_skill_command_resolve_via_alias(self) -> None:
@@ -952,7 +952,7 @@ class TestSkillCommandRegistration:
             name="daily-report",
             description="test",
             kind=CommandKind.SKILL,
-            skill_id="s1",
+            skill_ids=("s1",),
             aliases=("dr",),
             parse_args=True,
         )
@@ -968,7 +968,7 @@ class TestSkillCommandRegistration:
             name="daily-report",
             description="test",
             kind=CommandKind.SKILL,
-            skill_id="s1",
+            skill_ids=("s1",),
             parse_args=True,
         )
         registry.register(cmd)
@@ -998,12 +998,12 @@ class TestUpdateSkillCommands:
     def test_add_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
         cmds = (
-            CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"),
+            CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)),
             CommandDef(
                 name="analyze",
                 description="test",
                 kind=CommandKind.SKILL,
-                skill_id="s2",
+                skill_ids=("s2",),
             ),
         )
         gw.update_skill_commands(cmds)
@@ -1013,11 +1013,11 @@ class TestUpdateSkillCommands:
 
     def test_replace_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
-        old_cmds = (CommandDef(name="old-cmd", description="old", kind=CommandKind.SKILL, skill_id="s1"),)
+        old_cmds = (CommandDef(name="old-cmd", description="old", kind=CommandKind.SKILL, skill_ids=("s1",)),)
         gw.update_skill_commands(old_cmds)
         assert registry.get("old-cmd") is not None
 
-        new_cmds = (CommandDef(name="new-cmd", description="new", kind=CommandKind.SKILL, skill_id="s2"),)
+        new_cmds = (CommandDef(name="new-cmd", description="new", kind=CommandKind.SKILL, skill_ids=("s2",)),)
         gw.update_skill_commands(new_cmds)
         assert registry.get("old-cmd") is None
         assert registry.get("new-cmd") is not None
@@ -1025,7 +1025,7 @@ class TestUpdateSkillCommands:
 
     def test_clear_all_skill_commands(self) -> None:
         gw, registry = self._make_gateway_with_registry()
-        cmds = (CommandDef(name="cmd1", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
+        cmds = (CommandDef(name="cmd1", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)),)
         gw.update_skill_commands(cmds)
         assert len(registry.commands_by_kind(CommandKind.SKILL)) == 1
 
@@ -1035,7 +1035,7 @@ class TestUpdateSkillCommands:
     def test_system_commands_preserved(self) -> None:
         gw, registry = self._make_gateway_with_registry()
         system_count_before = len(registry.commands_by_kind(CommandKind.SYSTEM))
-        cmds = (CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
+        cmds = (CommandDef(name="report", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)),)
         gw.update_skill_commands(cmds)
         system_count_after = len(registry.commands_by_kind(CommandKind.SYSTEM))
         assert system_count_before == system_count_after
@@ -1048,14 +1048,14 @@ class TestUpdateSkillCommands:
                 name="valid-cmd",
                 description="ok",
                 kind=CommandKind.SKILL,
-                skill_id="s1",
+                skill_ids=("s1",),
             ),
-            CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_id="s2"),
+            CommandDef(name="stop", description="bad", kind=CommandKind.SKILL, skill_ids=("s2",)),
             CommandDef(
                 name="another-valid",
                 description="ok",
                 kind=CommandKind.SKILL,
-                skill_id="s3",
+                skill_ids=("s3",),
             ),
         )
         gw.update_skill_commands(cmds)
@@ -1067,5 +1067,5 @@ class TestUpdateSkillCommands:
         from app.channels.core.gateway import ChannelGateway
 
         gw = ChannelGateway()
-        cmds = (CommandDef(name="cmd", description="test", kind=CommandKind.SKILL, skill_id="s1"),)
+        cmds = (CommandDef(name="cmd", description="test", kind=CommandKind.SKILL, skill_ids=("s1",)),)
         gw.update_skill_commands(cmds)  # should not raise
