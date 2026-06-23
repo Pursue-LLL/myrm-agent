@@ -433,7 +433,7 @@ async def test_send_to_regular_channel(channel):
     )
     result = await channel.send(msg)
 
-    mock_ch.send.assert_called_once_with(content="Regular message")
+    mock_ch.send.assert_called_once_with(content="Regular message", files=discord.utils.MISSING)
     assert result == "55555"
 
 

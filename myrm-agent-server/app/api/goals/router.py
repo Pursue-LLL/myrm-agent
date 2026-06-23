@@ -128,9 +128,6 @@ async def get_goal_status(session_id: str) -> dict[str, object]:
 
         provider = GoalManager(get_storage_provider())
 
-    # We need to get the "current" goal for the session, even if paused.
-    # The GoalManager currently only has get_active_goal, which returns None if paused.
-    # We need a get_latest_goal method.
     goal = await provider.get_latest_goal(session_id)
     if not goal:
         return {"goal": None}

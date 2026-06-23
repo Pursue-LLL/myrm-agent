@@ -69,7 +69,18 @@ export function GoalStatusCard() {
 
   useEffect(() => {
     setNotificationPermission(notificationService.permission);
-    if (chatId) useGoalStore.getState().fetchQueue(chatId);
+    if (chatId) {
+      useGoalStore.getState().fetchQueue(chatId);
+      fetchWithTimeout(`/goals/${chatId}/status`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then(async (data) => {
+          if (data?.goal) {
+            const { normalizeGoalState } = await import('@/store/chat/messageStream/streamHelpers');
+            useGoalStore.getState().setActiveGoal(normalizeGoalState(data.goal));
+          }
+        })
+        .catch(() => {});
+    }
   }, [chatId]);
 
   useEffect(() => {

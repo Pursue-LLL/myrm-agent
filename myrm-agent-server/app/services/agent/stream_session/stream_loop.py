@@ -241,6 +241,7 @@ async def iter_agent_stream_chunks(
                                     "time_used_seconds": latest.time_used_seconds,
                                     "turns_used": latest.turns_used,
                                     "constraints": latest.constraints or [],
+                                    "reason": latest.metadata.get("pause_reason"),
                                     "budget": (
                                         {
                                             "max_tokens": latest.budget.max_tokens,
