@@ -330,6 +330,12 @@ export function GoalStatusCard() {
                 <span className={goal.status === 'budget_limited' ? 'text-red-500 font-semibold' : ''}>
                   {getStatusText()}
                 </span>
+                {goal.reason && goal.status === 'paused' && (
+                  <>
+                    <span>•</span>
+                    <span className="text-yellow-600 dark:text-yellow-400 italic">{goal.reason}</span>
+                  </>
+                )}
                 {queueCount > 0 && (
                   <>
                     <span>•</span>

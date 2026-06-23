@@ -135,7 +135,11 @@ async def get_goal_status(session_id: str) -> dict[str, object]:
     if not goal:
         return {"goal": None}
 
-    return {"goal": goal.to_dict()}
+    result = goal.to_dict()
+    pause_reason = goal.metadata.get("pause_reason")
+    if pause_reason:
+        result["reason"] = pause_reason
+    return {"goal": result}
 
 
 @router.post("/{session_id}/status")

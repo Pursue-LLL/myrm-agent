@@ -103,6 +103,42 @@ _MAX_CHANNEL_ARTIFACT_BYTES = 5 * 1024 * 1024  # 5MB, matches BaseArtifactProces
 set_execution_interceptor(SnapshotInterceptor())
 
 
+def _collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) -> None:
+    """Extract deliverable file artifacts from an 'artifacts' event into the accumulator.
+
+    The stream_pipeline's LocalArtifactProcessor already resolved local file paths.
+    We convert those into MediaAttachments for IM channel outbound delivery.
+    """
+    artifacts_data = event.get("data")
+    if not isinstance(artifacts_data, list):
+        return
+    for item in artifacts_data:
+        if not isinstance(item, dict):
+            continue
+        file_path = item.get("file_path")
+        filename = item.get("filename", "")
+        content_type = item.get("content_type", "")
+        if not file_path or not isinstance(file_path, str):
+            continue
+        if not os.path.isfile(file_path):
+            continue
+        try:
+            file_size = os.path.getsize(file_path)
+        except OSError:
+            continue
+        if file_size > _MAX_CHANNEL_ARTIFACT_BYTES or file_size == 0:
+            continue
+        mime = str(content_type) if content_type else (mimetypes.guess_type(str(filename))[0] or "application/octet-stream")
+        acc.file_attachments.append(
+            MediaAttachment(
+                media_type=guess_media_type(str(filename), mime),
+                path=file_path,
+                filename=str(filename),
+                mime_type=mime,
+            )
+        )
+
+
 class ChannelAgentExecutor:
     """Executes Agent tasks for inbound channel messages.
 
@@ -533,62 +569,6 @@ class ChannelAgentExecutor:
             approval_peer = msg.chat_id or msg.sender_id
             agent.approval_session_key = f"{msg.channel}:{approval_peer}"
 
-            # Bridge harness artifacts → IM channel file delivery
-            acc_ref: list[StreamAccumulator] = []  # populated after acc creation
-
-            async def _channel_artifacts_handler(event: dict[str, object]) -> None:
-                """Collect deliverable file artifacts for IM channel outbound."""
-                from collections.abc import Awaitable, Callable
-                from typing import cast
-
-                read_content = cast(
-                    Callable[[str], Awaitable[bytes]] | None,
-                    event.get("read_content"),
-                )
-                if read_content is None:
-                    return None
-
-                for item in event.get("data", []):
-                    if not isinstance(item, dict):
-                        continue
-                    filename = str(item.get("filename", ""))
-                    path = str(item.get("path", ""))
-                    if not filename or not path:
-                        continue
-                    try:
-                        content = await read_content(path)
-                        if content is None or len(content) == 0:
-                            continue
-                        if len(content) > _MAX_CHANNEL_ARTIFACT_BYTES:
-                            logger.info(
-                                "Skipping oversized artifact for channel: %s (%d bytes)",
-                                filename,
-                                len(content),
-                            )
-                            continue
-                        ext = os.path.splitext(filename)[1]
-                        tmp = tempfile.NamedTemporaryFile(
-                            suffix=ext,
-                            prefix="artifact_",
-                            delete=False,
-                        )
-                        tmp.write(content)
-                        tmp.close()
-                        mime = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-                        attachment = MediaAttachment(
-                            media_type=guess_media_type(filename, mime),
-                            path=tmp.name,
-                            filename=filename,
-                            mime_type=mime,
-                        )
-                        if acc_ref:
-                            acc_ref[0].file_attachments.append(attachment)
-                    except Exception as e:
-                        logger.warning("Failed to collect artifact %s for channel: %s", filename, e)
-                return None
-
-            agent.on_artifacts_ready = _channel_artifacts_handler
-
             from langgraph.types import Command
 
             query_input: str | Command[object]
@@ -645,7 +625,6 @@ class ChannelAgentExecutor:
             token_ctx = user_credentials_ctx.set(tuple(credentials_list))
 
             acc = StreamAccumulator()
-            acc_ref.append(acc)
             first_message_seen = False
 
             async def _open_channel_stream(
@@ -765,6 +744,9 @@ class ChannelAgentExecutor:
                         acc.last_image_mime = str(img_data.get("mime_type", "image/jpeg"))
                         acc.last_image_tool = str(event.get("tool_name", ""))
 
+                elif event_type == "artifacts":
+                    _collect_channel_artifacts(event, acc)
+
                 elif event_type == "error":
                     error_msg = str(event.get("error", "Unknown error"))
                     error_type = str(event.get("error_type", ""))
@@ -843,10 +825,7 @@ class ChannelAgentExecutor:
                 except Exception:
                     logger.warning("Failed to save screenshot image for channel reply")
 
-            for att in acc.file_attachments:
-                media_list.append(att)
-                if att.path:
-                    tmp_paths.append(att.path)
+            media_list.extend(acc.file_attachments)
 
             media = tuple(media_list)
 

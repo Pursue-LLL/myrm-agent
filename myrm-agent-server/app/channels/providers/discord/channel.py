@@ -42,6 +42,7 @@ from app.channels.core.credentials import (
 from app.channels.providers.discord.config import (
     DiscordChannelConfig,
 )
+from app.channels.providers.discord.helpers import build_discord_files
 from app.channels.types import (
     ChannelCapabilities,
     ChannelStatus,
@@ -183,6 +184,8 @@ class DiscordChannel(BaseChannel):
         edit=True,
         delete=True,
         reactions=True,
+        media=True,
+        file_upload=True,
         typing_indicator=True,
         typing_keepalive_interval=8.0,
         max_text_length=MAX_TEXT_LENGTH,
@@ -382,7 +385,8 @@ class DiscordChannel(BaseChannel):
         if self._is_forum_channel(channel):
             return await self._create_forum_thread(channel, message.content)
         try:
-            sent = await channel.send(content=message.content)
+            files = build_discord_files(message.media) if message.media else []
+            sent = await channel.send(content=message.content, files=files or discord.utils.MISSING)
             return str(sent.id)
         except Exception as exc:
             logger.error("Failed to send Discord message: %s", exc)

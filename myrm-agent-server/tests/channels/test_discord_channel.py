@@ -487,27 +487,100 @@ class TestDiscordLifecycle:
 
 
 class TestDiscordSendMedia:
-    """Tests for media attachment handling."""
+    """Tests for media attachment handling in send()."""
 
     @pytest.mark.asyncio
     async def test_send_with_media(self) -> None:
-        pass
+        """send() passes files from message.media to channel.send()."""
+        import tempfile, os
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        ch, client = _make_mock_channel()
+        mock_ch = _make_mock_messageable()
+        mock_ch.type = discord.ChannelType.text
+        client.get_channel = MagicMock(return_value=mock_ch)
+
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            f.write(b"test content")
+            tmp_path = f.name
+        try:
+            msg = OutboundMessage(
+                channel="discord",
+                recipient_id="123",
+                content="Here is the file",
+                user_id="u1",
+                media=(MediaAttachment(media_type=MediaType.DOCUMENT, path=tmp_path, filename="test.txt"),),
+            )
+            result = await ch.send(msg)
+            assert result == "42"
+            call_kwargs = mock_ch.send.call_args
+            assert "files" in call_kwargs.kwargs or (len(call_kwargs.args) > 1)
+            files_arg = call_kwargs.kwargs.get("files", call_kwargs.args[1] if len(call_kwargs.args) > 1 else None)
+            assert isinstance(files_arg, list)
+            assert len(files_arg) == 1
+            assert isinstance(files_arg[0], discord.File)
+        finally:
+            os.unlink(tmp_path)
+
+    @pytest.mark.asyncio
+    async def test_send_without_media(self) -> None:
+        """send() without media uses MISSING for files (no files sent)."""
+        ch, client = _make_mock_channel()
+        mock_ch = _make_mock_messageable()
+        mock_ch.type = discord.ChannelType.text
+        client.get_channel = MagicMock(return_value=mock_ch)
+
+        msg = _make_msg(content="No media")
+        result = await ch.send(msg)
+        assert result == "42"
+        call_kwargs = mock_ch.send.call_args
+        files_arg = call_kwargs.kwargs.get("files", discord.utils.MISSING)
+        assert files_arg is discord.utils.MISSING
 
     @pytest.mark.asyncio
     async def test_make_discord_file_from_path(self) -> None:
-        pass
+        """build_discord_files creates discord.File from local path."""
+        import tempfile, os
+        from app.channels.providers.discord.helpers import build_discord_files
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+            f.write(b"a,b,c")
+            tmp_path = f.name
+        try:
+            files = build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, path=tmp_path, filename="data.csv"),))
+            assert len(files) == 1
+            assert isinstance(files[0], discord.File)
+            assert files[0].filename == "data.csv"
+        finally:
+            os.unlink(tmp_path)
 
     @pytest.mark.asyncio
     async def test_make_discord_file_from_url(self) -> None:
-        pass
+        """build_discord_files skips URL-only attachments (no download)."""
+        from app.channels.providers.discord.helpers import build_discord_files
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        files = build_discord_files((MediaAttachment(media_type=MediaType.IMAGE, url="https://example.com/img.png", filename="img.png"),))
+        assert files == []
 
     @pytest.mark.asyncio
-    async def test_make_discord_file_download_failure(self) -> None:
-        pass
+    async def test_make_discord_file_nonexistent_path(self) -> None:
+        """build_discord_files with non-existent path raises FileNotFoundError at discord.File creation."""
+        from app.channels.providers.discord.helpers import build_discord_files
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        with pytest.raises(FileNotFoundError):
+            build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, path="/nonexistent/file.txt", filename="file.txt"),))
 
     @pytest.mark.asyncio
     async def test_make_discord_file_no_source(self) -> None:
-        pass
+        """build_discord_files with no path or url returns empty."""
+        from app.channels.providers.discord.helpers import build_discord_files
+        from app.channels.types.messages import MediaAttachment, MediaType
+
+        files = build_discord_files((MediaAttachment(media_type=MediaType.DOCUMENT, filename="orphan.txt"),))
+        assert files == []
 
 
 class TestDiscordInboundBranches:

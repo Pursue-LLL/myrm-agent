@@ -191,6 +191,56 @@ async def resume_durable_offline_tasks() -> None:
         logger.error(f"Failed to initialize durable offline tasks: {e}", exc_info=True)
 
 
+async def pause_orphaned_active_goals() -> None:
+    """Detect ACTIVE goals orphaned by a server restart and mark them PAUSED.
+
+    On startup, any Goal still in ACTIVE state has no execution engine driving
+    it (the async task died with the previous process). We transition them to
+    PAUSED with a clear reason so the user can one-click Resume from the GUI.
+    """
+    try:
+        from myrm_agent_harness.agent.goals.storage import GoalStorage
+        from myrm_agent_harness.agent.goals.types import GoalStatus
+        from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
+
+        storage = GoalStorage(get_storage_provider())
+        active_sessions = await storage.list_active_sessions()
+
+        if not active_sessions:
+            return
+
+        paused_count = 0
+        for session_id in active_sessions:
+            goal_id = await storage.get_active_goal_id(session_id)
+            if not goal_id:
+                continue
+
+            goal = await storage.get_goal(goal_id)
+            if not goal or goal.status != GoalStatus.ACTIVE:
+                continue
+
+            goal.status = GoalStatus.PAUSED
+            goal.metadata["pause_reason"] = "Server restarted — resume when ready"
+            await storage.save_goal(goal)
+            paused_count += 1
+            logger.info("Orphaned goal %s (session %s) paused after restart", goal_id, session_id)
+
+        if paused_count:
+            logger.info("Paused %d orphaned active goal(s) after server restart", paused_count)
+
+            from app.services.infra.system_notification import SystemNotificationService
+
+            await SystemNotificationService.create_notification(
+                title="Goals Paused After Restart",
+                message=f"{paused_count} goal(s) paused due to server restart. Resume from the chat.",
+                type="warning",
+                source="goal_recovery",
+                meta_data={"paused_count": paused_count},
+            )
+    except Exception as e:
+        logger.error("Failed to pause orphaned active goals: %s", e, exc_info=True)
+
+
 async def start_idle_task_listeners() -> None:
     """Forward IdleTaskProgressEvent from Harness to Server EventBus."""
     try:

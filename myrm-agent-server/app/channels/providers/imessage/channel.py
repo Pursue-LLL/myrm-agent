@@ -73,6 +73,7 @@ class IMessageChannel(BaseChannel):
     capabilities = ChannelCapabilities(
         text=True,
         media=True,
+        file_upload=True,
         reactions=True,
         typing_keepalive_interval=55.0,
         max_text_length=MAX_TEXT_LENGTH,

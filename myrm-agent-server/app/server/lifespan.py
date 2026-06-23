@@ -36,6 +36,7 @@ from app.core.memory.adapters.setup import shutdown_cached_memory_managers
 from app.database.connection import init_database
 from app.lifecycle import (
     init_allowlist_store,
+    pause_orphaned_active_goals,
     shutdown_global_browser_pool,
     shutdown_skill_optimization_listeners,
     start_channel_gateway,
@@ -195,6 +196,8 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         logger.info("[Startup] Branch watcher started")
     except Exception as e:
         logger.error("[Startup] Branch watcher failed to start: %s", e)
+
+    asyncio.create_task(pause_orphaned_active_goals())
 
     # Dispatch @startup system event for trigger-based cron jobs
     asyncio.create_task(_dispatch_startup_event())
