@@ -69,6 +69,9 @@ if TYPE_CHECKING:
     from app.channels.protocols.kanban_command import (
         KanbanCommandHandler,
     )
+    from app.channels.protocols.learn_command import (
+        LearnCommandHandler,
+    )
     from app.channels.protocols.locale import LocaleProvider
     from app.channels.protocols.pairing import (
         ChannelPolicyProvider,
@@ -203,6 +206,7 @@ class ChannelGateway:
         goal_handler: GoalCommandHandler | None = None,
         background_handler: BackgroundTaskHandler | None = None,
         kanban_handler: KanbanCommandHandler | None = None,
+        learn_handler: LearnCommandHandler | None = None,
         status_provider: StatusProvider | None = None,
         locale_provider: LocaleProvider | None = None,
         admin_checker: Callable[[InboundMessage], bool] | None = None,
@@ -219,6 +223,7 @@ class ChannelGateway:
         goal_handler: Optional handler for /goal command (persistent cross-turn goals).
         background_handler: Optional handler for /background (/btw /bg) commands.
         kanban_handler: Optional handler for /kanban command (task board management).
+        learn_handler: Optional handler for /learn command (directed skill learning).
         status_provider: Optional handler for /status command (session status query).
         """
         from app.channels.routing.router import AgentRouter
@@ -241,6 +246,7 @@ class ChannelGateway:
             goal_handler=goal_handler,
             background_handler=background_handler,
             kanban_handler=kanban_handler,
+            learn_handler=learn_handler,
             status_provider=status_provider,
             locale_provider=locale_provider,
             admin_checker=admin_checker,

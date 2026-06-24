@@ -114,6 +114,7 @@ async def _enable_core_router() -> None:
     from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
     from app.core.channel_bridge.compact_handler import ChannelCompactHandler
     from app.core.channel_bridge.goal_handler import ChannelGoalCommandHandler
+    from app.core.channel_bridge.learn_handler import ChannelLearnCommandHandler
     from app.core.channel_bridge.locale_provider import UserConfigLocaleProvider
     from app.core.channel_bridge.pairing_store import SqlPairingStore
     from app.core.channel_bridge.personality_adapter import AppPersonalityProvider
@@ -152,6 +153,7 @@ async def _enable_core_router() -> None:
         goal_handler=ChannelGoalCommandHandler(),
         background_handler=_background_task_handler,
         kanban_handler=_kanban_command_handler,
+        learn_handler=ChannelLearnCommandHandler(),
         status_provider=ChannelStatusProvider(),
         locale_provider=UserConfigLocaleProvider(),
     )

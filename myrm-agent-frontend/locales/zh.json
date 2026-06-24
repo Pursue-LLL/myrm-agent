@@ -117,7 +117,8 @@
       "stop": "停止当前 Agent 回复",
       "stopped": "Agent 回复已停止",
       "model": "切换 AI 模型",
-      "modelHint": "请使用输入框上方的模型选择器切换模型"
+      "modelHint": "请使用输入框上方的模型选择器切换模型",
+      "learn": "从 URL、文件或对话中教 Agent 学习新技能"
     }
   },
   "settings": {

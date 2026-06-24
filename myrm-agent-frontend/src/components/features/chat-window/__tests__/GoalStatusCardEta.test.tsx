@@ -64,7 +64,8 @@ vi.mock('@/services/notification', () => ({
 }));
 
 vi.mock('@/lib/api', () => ({
-  fetchWithTimeout: vi.fn(),
+  fetchWithTimeout: vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }),
+  apiRequest: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('sonner', () => ({

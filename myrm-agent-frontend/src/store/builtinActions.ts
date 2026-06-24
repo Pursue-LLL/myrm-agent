@@ -226,5 +226,15 @@ export function buildBuiltinActions(): SlashAction[] {
         return { success: true, newInputValue: '' };
       },
     },
+    {
+      id: 'builtin:learn',
+      name: 'learn',
+      description: 'commands.builtin.learn',
+      argsHint: '<URL|path|description>',
+      type: 'action',
+      execute: async (inputValue: string) => {
+        return { success: true, newInputValue: inputValue || '/learn' };
+      },
+    },
   ];
 }

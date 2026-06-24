@@ -1,4 +1,4 @@
-"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, topic commands.
+"""Inbound control commands: /stop, approvals, /new, /compact, /retry, /undo, /goal, /steer, /queue, /memory, /learn, topic commands.
 
 [INPUT]
 - channels.protocols.goal_command::GoalSubcommand (POS: parsed /goal subcommand actions)
@@ -930,6 +930,49 @@ class RouterCommandsMixin:
             reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
         )
         await self._bus.publish_outbound(reply)
+
+    # ── /learn: directed skill learning ─────────────────────────────
+
+    async def _handle_learn_command(
+        self: RouterCommandsHost,
+        msg: InboundMessage,
+        raw_args: str,
+    ) -> None:
+        """Handle /learn command: teach the agent a new skill from URL/path/description.
+
+        Empty args are valid — the handler falls back to learning from the
+        current conversation history.
+        """
+        chat_id = msg.chat_id or msg.sender_id
+        user_args = raw_args.strip()
+
+        handler = self._learn_handler
+        if not handler:
+            reply = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=get_text(msg, "learn_not_configured"),
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            )
+            await self._bus.publish_outbound(reply)
+            return
+
+        learn_msg = await handler(msg, user_args)
+        if learn_msg is None:
+            reply = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content=get_text(msg, "learn_failed"),
+                user_id=msg.user_id or "",
+                thread_id=msg.thread_id,
+                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            )
+            await self._bus.publish_outbound(reply)
+            return
+
+        self._gate.submit(learn_msg)
 
     # ── /memory: pending memory approval flow ──────────────────────
 

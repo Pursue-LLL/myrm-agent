@@ -44,6 +44,7 @@ class CommandAction(Enum):
     HANDOFF = "handoff"
     KANBAN = "kanban"
     MEMORY = "memory"
+    LEARN = "learn"
     STATUS = "status"
     HELP = "help"
 
@@ -227,6 +228,14 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         category="Memory",
         parse_args=True,
         args_pattern="[pending|approve <id>|reject <id>|approve all]",
+    ),
+    CommandDef(
+        name="learn",
+        description="Teach the agent a new skill from a URL, file, or conversation",
+        action=CommandAction.LEARN,
+        category="Skills",
+        parse_args=True,
+        args_pattern="<URL|path|description>",
     ),
     CommandDef(
         name="status",

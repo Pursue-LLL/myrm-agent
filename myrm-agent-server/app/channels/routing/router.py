@@ -4,7 +4,7 @@ Consumes InboundMessage from the MessageBus, applies DM/group policy,
 resolves the sender's identity, executes the Agent via AgentExecutor,
 and publishes the result as an OutboundMessage.
 
-Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue, /kanban)
+Supports slash commands (/stop, /new, /compact, /retry, /undo, /bind, /unbind, /topic, /goal, /steer, /queue, /kanban, /learn)
 and voice STT/TTS via voice_handler module.
 
 
@@ -30,6 +30,7 @@ and voice STT/TTS via voice_handler module.
 - channels.protocols.compact::CompactHandler (POS: /compact business-layer handling protocol)
 - channels.protocols.goal_command::GoalCommandHandler (POS: business-layer handler protocol for /goal slash commands)
 - channels.protocols.skill_command::SkillCommandHandler (POS: business-layer handler for skill-bound slash commands)
+- channels.protocols.learn_command::LearnCommandHandler (POS: business-layer handler for /learn slash command)
 - channels.protocols.turn_management::RetryHandler, UndoHandler (POS: /retry, /undo protocols)
 - channels.protocols.pairing::PairingStore, ChannelPolicyProvider (POS: identity binding and policy protocols)
 - channels.protocols.topic::TopicManager (POS: topic management protocol)
@@ -118,6 +119,9 @@ from app.channels.protocols.goal_command import (
 )
 from app.channels.protocols.kanban_command import (
     KanbanCommandHandler,
+)
+from app.channels.protocols.learn_command import (
+    LearnCommandHandler,
 )
 from app.channels.protocols.locale import LocaleProvider
 from app.channels.protocols.pairing import (
@@ -248,6 +252,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         goal_handler: GoalCommandHandler | None = None,
         background_handler: BackgroundTaskHandler | None = None,
         kanban_handler: KanbanCommandHandler | None = None,
+        learn_handler: LearnCommandHandler | None = None,
         status_provider: StatusProvider | None = None,
         extra_commands: tuple[CommandDef, ...] = (),
         admin_checker: Callable[[InboundMessage], bool] | None = None,
@@ -265,6 +270,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._goal_handler = goal_handler
         self._background_handler = background_handler
         self._kanban_handler = kanban_handler
+        self._learn_handler = learn_handler
         self._status_provider = status_provider
         self._reaction_policy = reaction_policy or ReactionPolicy()
         self._topic_resolver = topic_resolver
@@ -620,6 +626,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if action == CommandAction.MEMORY:
             asyncio.create_task(self._handle_memory_command(msg, raw_args))
+            return True
+
+        if action == CommandAction.LEARN:
+            asyncio.create_task(self._handle_learn_command(msg, raw_args))
             return True
 
         if action == CommandAction.HANDOFF:
