@@ -70,9 +70,30 @@ def _share_path(token: str) -> str:
     return f"/api/v1/public/artifact-share/{token}"
 
 
+_HTML_MEDIA_TYPES = frozenset({"text/html", "text/html; charset=utf-8", "application/xhtml+xml"})
+
+_SHARE_SECURITY_HEADERS: dict[str, str] = {
+    "Content-Security-Policy": (
+        "default-src 'none'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "font-src 'self' data:; "
+        "media-src 'self' data: blob:; "
+        "connect-src 'none'; "
+        "frame-src 'none'; "
+        "object-src 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+}
+
+
 def _file_response(path: str, media_type: str, filename: str) -> FileResponse:
+    headers = _SHARE_SECURITY_HEADERS if media_type in _HTML_MEDIA_TYPES else None
     return FileResponse(
         path=path,
+        headers=headers,
         media_type=media_type,
         filename=filename,
         content_disposition_type="inline",
