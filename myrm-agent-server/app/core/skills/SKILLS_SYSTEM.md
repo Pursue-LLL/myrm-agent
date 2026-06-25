@@ -93,6 +93,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Seed 同步 | `prebuilt_sync._sync_skill_bundle_files` 将 `scripts/` 等写入 storage |
 | SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
 | Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage → cwd + token inject |
+| OAuth scope | 集成 skill 的 SKILL.md frontmatter `oauth_issuer`（如 `google_workspace`）→ harness 解析为 `SkillMetadata.oauth_issuer` → bash 检测到 skill 路径时 `ExecutionContext.allowed_credential_issuers` 仅注入对应 issuer；generic bash（无 skill 路径）仍注入全部 session 凭证 |
 
 ### 3.7 Integration OAuth availability
 
@@ -102,7 +103,8 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 判定 | `is_oauth_issuer_connected(db, issuer)` |
 | Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
-| 映射 | `INTEGRATION_SKILL_ISSUERS`: `google-workspace` → `google_workspace` |
+| 映射 | `INTEGRATION_SKILL_ISSUERS`: `google-workspace` → `google_workspace`（Catalog 连通性；bash scope 用 seed SKILL 的 `oauth_issuer`） |
+| Bash 注入 | `stream_chunks` → `user_credentials_ctx` → `LocalExecutor._build_bash_env` + `credential_env_overrides(allowed_issuers=…)`；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
 | GUI | Settings → Integrations → Credentials OAuth 卡；Skills Catalog 黄标 + 深链 `/settings/credentials` |
 
 ---
