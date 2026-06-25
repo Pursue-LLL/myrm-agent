@@ -80,6 +80,24 @@ class TestGroupIsolation:
         assert len(buf.drain("g2")) == 1
 
 
+class TestSenderName:
+    def test_sender_name_preserved_through_buffer(self) -> None:
+        buf = GroupContextBuffer()
+        e = ContextEntry(sender_id="u1", content="hi", timestamp=time.monotonic(), sender_name="Alice")
+        buf.append("g", e)
+        result = buf.drain("g")
+        assert result == (e,)
+        assert result[0].sender_name == "Alice"
+
+    def test_sender_name_none_by_default(self) -> None:
+        e = _entry("u1", "msg")
+        assert e.sender_name is None
+
+    def test_sender_name_empty_string_treated_as_absent(self) -> None:
+        e = ContextEntry(sender_id="u1", content="hi", timestamp=time.monotonic(), sender_name="")
+        assert e.sender_name == ""
+
+
 class TestClearAll:
     def test_clear_all_empties_everything(self) -> None:
         buf = GroupContextBuffer()

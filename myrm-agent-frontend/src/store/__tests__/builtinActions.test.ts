@@ -4,8 +4,8 @@ import { buildBuiltinActions } from '@/store/builtinActions';
 describe('buildBuiltinActions', () => {
   const actions = buildBuiltinActions();
 
-  it('returns 7 builtin actions', () => {
-    expect(actions).toHaveLength(7);
+  it('returns 8 builtin actions', () => {
+    expect(actions).toHaveLength(8);
   });
 
   it('all actions have required fields', () => {
@@ -64,7 +64,7 @@ describe('buildBuiltinActions', () => {
   it('expected action names exist', () => {
     const names = actions.map((a) => a.name);
     expect(names).toEqual(expect.arrayContaining([
-      'compact', 'focus', 'yolo', 'freeze', 'new', 'stop', 'model',
+      'compact', 'focus', 'yolo', 'freeze', 'new', 'stop', 'model', 'learn',
     ]));
   });
 });

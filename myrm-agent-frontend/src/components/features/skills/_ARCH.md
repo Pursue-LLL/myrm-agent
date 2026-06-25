@@ -15,7 +15,10 @@
 | `SkillBatchImportDialog.tsx` | 组件/模块 | — | — |
 | `SkillCard.tsx` | 组件/模块 | — | — |
 | `SkillDetailDialog.tsx` | 组件/模块 | — | — |
-| `SkillDetailSheet.tsx` | 组件/模块 | — | — |
+| `SkillDetailSheet.tsx` | 核心 | 技能详情侧边栏入口（编排 hook 与内容组件、信任/删除确认对话框） | ✅ |
+| `useSkillDetailSheet.ts` | 辅助 | 技能详情状态管理 hook（内容加载/信任/env/进化锁/优化） | ✅ |
+| `SkillDetailSheetContent.tsx` | 辅助 | 技能详情滚动内容区（元信息/安全扫描/存储路径/生命周期/SKILL.md 渲染） | ✅ |
+| `SkillDetailHelpers.tsx` | 辅助 | 技能详情辅助组件（RequirementRow/SecurityScan/KnownPitfalls） | ✅ |
 | `SkillDiscoverTab.tsx` | 组件/模块 | — | — |
 | `SkillDraftReviewPanel.tsx` | 组件/模块 | — | — |
 | `SkillEmptyState.tsx` | 组件/模块 | — | — |

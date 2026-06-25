@@ -13,7 +13,13 @@
 | `SystemCenterSection.tsx` | 系统 Tab 容器 |
 | `BrowserPoolCard.tsx` / `CloudBrowserCard.tsx` / `LockedUseCard.tsx` / `WebuiAccessSecurityPanel.tsx` | 子功能卡片 |
 | `DeveloperSection.tsx` / `DeveloperCenterSection.tsx` | 开发者工具 |
-| `SecurityPolicySection.tsx` / `HeartbeatSection.tsx` | 安全与心跳 |
+| `SecurityPolicySection.tsx` | 安全策略 UI 渲染（权限规则/超时/域名白名单/YOLO/Smart Intent Guard） |
+| `useSecurityPolicy.ts` | 安全策略状态管理 hook（配置加载/保存/Profile/NL策略生成） |
+| `securityPolicyUtils.ts` | 安全策略工具函数（常量/权限扁平化/构建/默认配置） |
+| `SecurityPrivacyPanel.tsx` | PII 隐私保护面板 |
+| `SecurityProfileSelector.tsx` | 安全配置模板选择器 |
+| `NLPolicyGenerator.tsx` | AI 自然语言策略生成器 |
+| `HeartbeatSection.tsx` | 心跳监控 |
 
 ## 连通性 UX
 

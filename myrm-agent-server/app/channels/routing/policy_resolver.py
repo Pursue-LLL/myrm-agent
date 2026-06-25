@@ -104,7 +104,12 @@ class PolicyResolver:
         if not should_respond:
             self._context_buffer.append(
                 chat_id,
-                ContextEntry(sender_id=msg.sender_id, content=msg.content, timestamp=time.monotonic()),
+                ContextEntry(
+                    sender_id=msg.sender_id,
+                    content=msg.content,
+                    timestamp=time.monotonic(),
+                    sender_name=msg.sender_name,
+                ),
             )
             return None
 

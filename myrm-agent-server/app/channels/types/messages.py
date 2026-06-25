@@ -395,6 +395,7 @@ class ContextEntry:
     sender_id: str
     content: str
     timestamp: float
+    sender_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

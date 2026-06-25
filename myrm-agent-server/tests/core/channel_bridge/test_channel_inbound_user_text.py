@@ -352,3 +352,96 @@ def test_build_channel_inbound_query_reply_to_with_images() -> None:
     assert "[Replying to Analyst]" in text_part
     assert '"see this chart"' in text_part
     assert "Explain this" in text_part
+
+
+# ---------- Group Context sender_name Tests ----------
+
+
+def test_group_context_uses_sender_name_when_available() -> None:
+    """When sender_name is set, context formatting uses it instead of sender_id."""
+    ctx = (ContextEntry(sender_id="ou_xxxx", content="use Redis", timestamp=1.0, sender_name="Alice"),)
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="what do you think?",
+        sent_at=2.0,
+        sent_timezone="UTC",
+        chat_id="group-1",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "Alice: " in out
+    assert "ou_xxxx" not in out
+
+
+def test_group_context_falls_back_to_sender_id() -> None:
+    """When sender_name is None, falls back to sender_id."""
+    ctx = (ContextEntry(sender_id="U0ABC", content="hello", timestamp=1.0),)
+    msg = InboundMessage(
+        channel="slack",
+        sender_id="u1",
+        content="reply",
+        sent_at=2.0,
+        sent_timezone="UTC",
+        chat_id="group-2",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "U0ABC: " in out
+
+
+def test_group_context_empty_sender_name_falls_back() -> None:
+    """Empty string sender_name falls back to sender_id (falsy in Python)."""
+    ctx = (ContextEntry(sender_id="U999", content="test", timestamp=1.0, sender_name=""),)
+    msg = InboundMessage(
+        channel="telegram",
+        sender_id="u1",
+        content="go",
+        sent_at=2.0,
+        sent_timezone="UTC",
+        chat_id="group-3",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "U999: " in out
+    assert ": test" in out
+
+
+def test_group_context_mixed_sender_names() -> None:
+    """Mixed: some entries have sender_name, some don't."""
+    ctx = (
+        ContextEntry(sender_id="ou_aaa", content="idea A", timestamp=1.0, sender_name="Alice"),
+        ContextEntry(sender_id="ou_bbb", content="idea B", timestamp=2.0),
+        ContextEntry(sender_id="ou_ccc", content="idea C", timestamp=3.0, sender_name="Charlie"),
+    )
+    msg = InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="summarize",
+        sent_at=4.0,
+        sent_timezone="UTC",
+        chat_id="group-4",
+        user_id="u1",
+        is_group=True,
+        mentioned=True,
+        context_messages=ctx,
+        metadata={},
+    )
+    out = build_channel_inbound_query(msg)
+    assert "Alice: " in out
+    assert "ou_bbb: " in out
+    assert "Charlie: " in out
+    assert "ou_aaa" not in out
+    assert "ou_ccc" not in out
