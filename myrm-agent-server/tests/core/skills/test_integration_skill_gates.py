@@ -108,3 +108,24 @@ async def test_xurl_marked_unavailable_without_cli() -> None:
 
     assert skill.available is False
     assert skill.unavailable_reason == XURL_BIN_UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_xurl_available_when_cli_on_path() -> None:
+    skill = Skill(
+        id=XURL_SKILL_ID,
+        type=SkillType.PREBUILT,
+        name="xurl",
+        description="test",
+        storage_path="skills/prebuilt/xurl",
+        available=True,
+    )
+    db = AsyncMock()
+
+    with patch(
+        "app.core.skills.oauth_availability._are_skill_bins_available",
+        return_value=True,
+    ):
+        await apply_integration_oauth_availability([skill], db)
+
+    assert skill.available is True

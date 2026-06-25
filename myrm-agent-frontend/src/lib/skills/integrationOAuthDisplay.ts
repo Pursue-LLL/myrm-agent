@@ -4,6 +4,7 @@ export const GOOGLE_WORKSPACE_SKILL_ID = 'google-workspace';
 export const X_LIVE_SEARCH_SKILL_ID = 'x-live-search';
 export const NOTION_WORKSPACE_SKILL_ID = 'notion-workspace';
 export const LINEAR_PROJECT_SKILL_ID = 'linear-project';
+export const XURL_SKILL_ID = 'xurl';
 
 export const SETTINGS_GOOGLE_OAUTH_PATH = '/settings/credentials';
 export const SETTINGS_PROVIDERS_PATH = '/settings/models';
@@ -17,6 +18,7 @@ type SkillsCardTranslator = (
     | 'card.integrationOAuth.xLiveSearch.connectInSettings'
     | 'card.integrationOAuth.envSkill.unavailable'
     | 'card.integrationOAuth.envSkill.configureInSettings'
+    | 'card.integrationOAuth.xurl.unavailable'
     | 'card.unavailable',
 ) => string;
 
@@ -32,6 +34,10 @@ export function isEnvGatedSkillUnavailable(skill: Skill): boolean {
   return (
     (skill.id === NOTION_WORKSPACE_SKILL_ID || skill.id === LINEAR_PROJECT_SKILL_ID) && !skill.available
   );
+}
+
+export function isXurlBinUnavailable(skill: Skill): boolean {
+  return skill.id === XURL_SKILL_ID && !skill.available;
 }
 
 export function hasIntegrationSettingsLink(skill: Skill): boolean {
@@ -71,6 +77,9 @@ export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTra
   }
   if (isEnvGatedSkillUnavailable(skill)) {
     return t('card.integrationOAuth.envSkill.unavailable');
+  }
+  if (isXurlBinUnavailable(skill)) {
+    return t('card.integrationOAuth.xurl.unavailable');
   }
   return skill.unavailable_reason || t('card.unavailable');
 }

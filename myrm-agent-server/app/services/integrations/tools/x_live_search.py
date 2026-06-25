@@ -9,7 +9,7 @@
 
 [POS]
 Server integration tool for x-live-search prebuilt skill. Credentials are injected by
-SessionCredentialAssembler, not baked into tool construction.
+session_credential_assembler into user_credentials_ctx, not baked into tool construction.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from langchain.tools import tool
+from langchain_core.tools import BaseTool
 
 from app.ai_agents.general_agent.tools.x_search_provider import (
     XSearchInput,
@@ -40,7 +41,7 @@ def _resolve_xai_config_from_ctx() -> XSearchProviderConfig | None:
     return None
 
 
-def create_x_live_search_tool():
+def create_x_live_search_tool() -> BaseTool:
     """Create deferred x_search_tool that resolves xAI credentials at execution time."""
 
     @tool("x_search_tool", description=_X_SEARCH_DESCRIPTION, args_schema=XSearchInput)

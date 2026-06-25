@@ -9,13 +9,14 @@
 [OUTPUT]
 - INTEGRATION_SKILL_ISSUERS: OAuth-gated prebuilt skills
 - INTEGRATION_SKILL_ENV_VARS: env-var-gated prebuilt skills
-- INTEGRATION_SKILL_BINS: CLI binary-gated prebuilt skills
+- INTEGRATION_SKILL_BINS: CLI binary-gated prebuilt skills (server PATH via shutil.which)
 - apply_integration_oauth_availability: mutates Catalog Skill entries
 - apply_integration_oauth_to_metadata: mutates Agent SkillMetadata entries
 
 [POS]
 Server business-layer guard — marks integration-backed prebuilt skills unavailable when
-required credentials are missing. Shared by Skills HTTP API and loader.create_skill_backend().
+required credentials, env vars, or CLI binaries are missing. Shared by Skills HTTP API
+and loader.create_skill_backend().
 """
 
 from __future__ import annotations

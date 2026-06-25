@@ -2217,6 +2217,9 @@
           "envSkill": {
             "unavailable": "Required API key is not configured for this skill",
             "configureInSettings": "Configure Keys"
+          },
+          "xurl": {
+            "unavailable": "Install the xurl CLI and ensure it is on the server PATH"
           }
         },
         "envConfig": "Environment Configuration",

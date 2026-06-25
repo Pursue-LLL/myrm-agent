@@ -108,6 +108,8 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill |
 | Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
 | Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
+| Bin gate scope | `INTEGRATION_SKILL_BINS` 使用 server 进程 `PATH`（与 harness `check_requirements` 一致）；sandbox 内 CLI 可用性以运行时 bash 错误为准 |
+| Env gate scope | `INTEGRATION_SKILL_ENV_VARS` 读取进程 env + `UserSkillConfig.skill_env_vars`（优于 harness 仅读 os.environ） |
 
 ---
 
