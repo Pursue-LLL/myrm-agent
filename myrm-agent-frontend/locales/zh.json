@@ -2200,6 +2200,12 @@
         "noRequirements": "无依赖",
         "available": "可用",
         "unavailable": "不可用",
+        "integrationOAuth": {
+          "googleWorkspace": {
+            "unavailable": "请先在 设置 → 集成 → 凭证 中连接 Google Workspace",
+            "connectInSettings": "前往设置连接"
+          }
+        },
         "envConfig": "环境配置",
         "enterApiKey": "输入 API Key...",
         "saveKeys": "保存密钥",

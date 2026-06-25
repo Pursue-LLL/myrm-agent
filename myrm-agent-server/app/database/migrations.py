@@ -483,7 +483,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE projects ADD COLUMN workspace_path VARCHAR(1024)",
     # Sandbox worktree: stores original workspace path when sandbox is active
     "ALTER TABLE chats ADD COLUMN sandbox_base_dir VARCHAR(1024)",
-    # Legacy calendar_events table (no ORM/API); Google Calendar via integrations OAuth + skills.
+    # Drop calendar_events table; calendar reads use Google Workspace OAuth + prebuilt skills.
     "DROP TABLE IF EXISTS calendar_events",
 ]
 

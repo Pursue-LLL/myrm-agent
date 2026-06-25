@@ -83,6 +83,8 @@ python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today
 
 ## Gmail
 
+Returns recent INBOX messages with `subject`, `from`, `snippet`, and `internalDate` (one Gmail API call per message for metadata).
+
 ```bash
 python3 .claude/skills/google-workspace/scripts/google_api.py gmail-inbox
 ```

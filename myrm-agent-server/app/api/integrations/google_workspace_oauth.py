@@ -33,11 +33,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.settings import settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.limiter import limiter
+from app.core.skills.oauth_availability import GOOGLE_WORKSPACE_SKILL_ID
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
+from app.services.agent.oauth_refresher import GOOGLE_WORKSPACE_ISSUER
 from app.services.integrations.oauth_store import (
     delete_oauth_credential,
     decrypt_oauth_credentials,
+    is_oauth_issuer_connected,
     load_oauth_credentials_row,
     upsert_oauth_credential,
 )
@@ -46,8 +49,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-GOOGLE_WORKSPACE_ISSUER = "google_workspace"
-GOOGLE_WORKSPACE_SKILL_ID = "google-workspace"
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v2/userinfo"

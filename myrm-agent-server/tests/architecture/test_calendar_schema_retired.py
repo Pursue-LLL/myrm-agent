@@ -1,4 +1,4 @@
-"""Architecture: legacy calendar_events schema must stay dropped with no ORM surface."""
+"""Architecture: calendar_events schema must stay dropped with no ORM surface."""
 
 from __future__ import annotations
 

@@ -36,6 +36,12 @@ import remarkGfm from 'remark-gfm';
 import CodeBlock from '@/components/features/markdown-render-tools/CodeBlock';
 import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import type { Skill, SkillLifecycleAction } from '@/store/skill/types';
+import Link from 'next/link';
+import {
+  getSkillUnavailableDisplayMessage,
+  isGoogleWorkspaceOAuthUnavailable,
+  SETTINGS_GOOGLE_OAUTH_PATH,
+} from '@/lib/skills/integrationOAuthDisplay';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { getCategoryIcon, getCategoryColor } from './skillCategories';
@@ -119,11 +125,21 @@ export function SkillDetailSheetContent({
 
       {/* Availability warning */}
       {!skill.available && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-          <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <span className="text-sm text-amber-700 dark:text-amber-300">
-            {skill.unavailable_reason || t('card.unavailable')}
-          </span>
+        <div className="flex flex-col gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-2 min-w-0">
+            <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <span className="text-sm text-amber-700 dark:text-amber-300">
+              {getSkillUnavailableDisplayMessage(skill, t)}
+            </span>
+          </div>
+          {isGoogleWorkspaceOAuthUnavailable(skill) && (
+            <Link
+              href={SETTINGS_GOOGLE_OAUTH_PATH}
+              className="shrink-0 text-sm font-medium text-amber-800 dark:text-amber-200 underline underline-offset-2 hover:opacity-90"
+            >
+              {t('card.integrationOAuth.googleWorkspace.connectInSettings')}
+            </Link>
+          )}
         </div>
       )}
 

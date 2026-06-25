@@ -19,6 +19,7 @@
 | `skill-optimization.ts` | `/skill-optimization/*` 质量历史、版本列表/对比/回滚、Shadow A/B 启动；另封装 `/batch-optimization/tasks/{id}/cancel` 与 `rollback` |
 | `memory*.ts` / `memoryArchive.ts` | 记忆、Shared Context、导入 dry-run |
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex） |
+| `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |
 | `deploy*.ts` / `artifact*.ts` | 工件与部署 |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |

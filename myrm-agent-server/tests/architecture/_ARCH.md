@@ -20,7 +20,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_no_app_main_in_tests.py` | `tests/**` 禁止 AST 级 `import app.main`（须用 `build_minimal_app`） |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_api_services_vocabulary.py` | `app/api/` 与 `app/services/` 顶域分区 + 别名表与 `CONTRIBUTING.md` 同步 |
-| `test_calendar_schema_retired.py` | 本地 calendar ORM/API 已移除；`migrations.py` 尾部 DROP + 磁盘无 `api/core/calendar` |
+| `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |
 | `test_migration_source_closure.py` | Wizard 封闭 4 源：probe 导出 ≡ `supported_source_ids()` ≡ loader 注册 |
 | `test_cookbook_specs_asset.py` | `assets/cookbook_specs.json` bundled 结构校验 |
 | `data/server_harness_import_baseline.txt` | harness import 允许 baseline |

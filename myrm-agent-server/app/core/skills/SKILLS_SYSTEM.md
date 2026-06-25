@@ -94,6 +94,17 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
 | Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage → cwd + token inject |
 
+### 3.7 Integration OAuth availability
+
+| 步骤 | 说明 |
+|------|------|
+| OAuth 存储 | `app/services/integrations/oauth_store.py` — `oauthCredentials` 加密 blob |
+| 判定 | `is_oauth_issuer_connected(db, issuer)` |
+| Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/config/available` |
+| Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
+| 映射 | `INTEGRATION_SKILL_ISSUERS`: `google-workspace` → `google_workspace` |
+| GUI | Settings → Integrations → Credentials OAuth 卡；Skills Catalog 黄标 + 深链 `/settings/credentials` |
+
 ---
 
 ## 四、依赖关系

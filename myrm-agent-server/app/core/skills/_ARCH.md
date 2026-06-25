@@ -9,7 +9,7 @@
 
 详细设计请参考 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)
 
-**Catalog vs Runtime（已知差距）**：`enabled_prebuilt_ids` / Agent `skill_ids` 当前主要管 GUI 与 user skill 路由；`loader.create_skill_backend()` 仍将全量 prebuilt 暴露给 Agent `list_skills()`。目标：Catalog → Bound → Runtime 三层一致（实现细节见 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)）。
+**Catalog vs Runtime（OAuth 集成技能）**：`oauth_availability.py` 在 Skills HTTP API 与 `loader.create_skill_backend()` 外包 `IntegrationOAuthSkillBackend`，使 `google-workspace` 等在 OAuth 未连接时 Catalog 与 Agent preload WARNING 一致。`enabled_prebuilt_ids` 白名单过滤仍见 loader；全量 prebuilt 暴露给 Agent `list_skills()` 的 broader gap 见 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)。
 
 ---
 
@@ -21,6 +21,7 @@
 | `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | — |
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理 | ✅ |
+| `oauth_availability.py` | 核心 | Integration OAuth → prebuilt skill `available` / `unavailable_reason`（Catalog API + loader runtime wrapper） | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询） | ✅ |
 | `storage_adapters.py` | 核心 | SnapshotStore/ABTestStore 协议适配器 | ✅ |
@@ -35,6 +36,7 @@
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
 | `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation (Umbrella Merge) 集成与 agent 引用重写 | ✅ |
+| `oauth_availability.py` | 核心 | 集成 OAuth 连通性探测；未连接时标记 google-workspace prebuilt skill 为 unavailable | ✅ |
 
 ---
 

@@ -35,6 +35,12 @@ import {
 } from '@/components/primitives/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { Skill, SecurityScanSummary, SkillLifecycleAction } from '@/store/skill/types';
+import Link from 'next/link';
+import {
+  getSkillUnavailableDisplayMessage,
+  isGoogleWorkspaceOAuthUnavailable,
+  SETTINGS_GOOGLE_OAUTH_PATH,
+} from '@/lib/skills/integrationOAuthDisplay';
 
 function getSecurityBadgeProps(security: SecurityScanSummary): {
   icon: React.ElementType;
@@ -277,10 +283,21 @@ const SkillCard = memo(
                   </span>
                 </div>
               )}
-              {!skill.available && skill.unavailable_reason && (
-                <div className="flex items-center gap-1 mt-1 text-xs text-amber-600 dark:text-amber-400">
-                  <AlertTriangle size={12} />
-                  <span className="truncate">{skill.unavailable_reason}</span>
+              {!skill.available && (skill.unavailable_reason || isGoogleWorkspaceOAuthUnavailable(skill)) && (
+                <div className="flex flex-col gap-1 mt-1 text-xs text-amber-600 dark:text-amber-400 sm:flex-row sm:items-center sm:gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <AlertTriangle size={12} className="shrink-0" />
+                    <span className="truncate">{getSkillUnavailableDisplayMessage(skill, t)}</span>
+                  </div>
+                  {isGoogleWorkspaceOAuthUnavailable(skill) && (
+                    <Link
+                      href={SETTINGS_GOOGLE_OAUTH_PATH}
+                      className="shrink-0 text-xs font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {t('card.integrationOAuth.googleWorkspace.connectInSettings')}
+                    </Link>
+                  )}
                 </div>
               )}
               {skill.required_permissions && skill.required_permissions.length > 0 && (

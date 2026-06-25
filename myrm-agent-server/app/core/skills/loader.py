@@ -8,7 +8,6 @@ prebuilt/user/workspace 组合）全部在此处理。
 
 import logging
 from pathlib import Path
-from typing import cast
 
 from myrm_agent_harness.backends.skills import (
     CompositeSkillBackend,
@@ -152,6 +151,10 @@ async def create_skill_backend(
     state_reader = SQLiteSkillStateReader()
     quarantine_backend = QuarantineAwareSkillBackend(base_backend=final_backend, state_reader=state_reader)
 
+    from app.core.skills.oauth_availability import wrap_integration_oauth_backend
+
+    runtime_backend: SkillBackend = quarantine_backend
+
     # Version awareness: A/B testing and snapshot routing via storage protocols
     try:
         from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
@@ -162,17 +165,17 @@ async def create_skill_backend(
         session = session_factory()
         db_storage = SQLAlchemyStorage(session)
 
-        return VersionAwareSkillBackend(
+        runtime_backend = VersionAwareSkillBackend(
             base_backend=quarantine_backend,
             snapshot_store=SnapshotStoreAdapter(db_storage),
             ab_test_store=ABTestStoreAdapter(db_storage),
         )
     except ImportError:
         logger.warning("Skill optimization storage not available, disabled version awareness")
-        return cast(SkillBackend, quarantine_backend)
     except Exception as e:
         logger.error("Failed to initialize VersionAwareSkillBackend: %s", e)
-        return cast(SkillBackend, quarantine_backend)
+
+    return wrap_integration_oauth_backend(runtime_backend)
 
 
 def _load_workspace_skill_backend(

@@ -2200,6 +2200,12 @@
         "noRequirements": "No dependencies",
         "available": "Available",
         "unavailable": "Unavailable",
+        "integrationOAuth": {
+          "googleWorkspace": {
+            "unavailable": "Connect Google Workspace in Settings → Integrations → Credentials",
+            "connectInSettings": "Connect in Settings"
+          }
+        },
         "envConfig": "Environment Configuration",
         "enterApiKey": "Enter API Key...",
         "saveKeys": "Save Keys",

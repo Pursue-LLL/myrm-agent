@@ -6,6 +6,7 @@
 
 [OUTPUT]
 load/upsert/delete helpers for oauthCredentials UserConfig blob
+is_oauth_issuer_connected: probe whether an issuer has a stored access token
 
 [POS]
 Shared persistence layer for integrations/oauth CRUD and google_workspace_oauth callback.
@@ -64,6 +65,16 @@ def encrypt_oauth_credentials(
 
 async def load_oauth_credentials_row(db: AsyncSession) -> UserConfig | None:
     return (await db.execute(select(UserConfig).where(UserConfig.config_key == CONFIG_KEY))).scalars().first()
+
+
+async def is_oauth_issuer_connected(db: AsyncSession, issuer: str) -> bool:
+    """Return True when oauthCredentials contains a non-empty token for issuer."""
+    row = await load_oauth_credentials_row(db)
+    if not row:
+        return False
+    credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
+    cred_val = credentials.get(issuer)
+    return isinstance(cred_val, dict) and bool(cred_val.get("token"))
 
 
 async def upsert_oauth_credential(
