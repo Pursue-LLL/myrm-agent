@@ -6,6 +6,7 @@ description: >-
   auto-injected tokens (never expose secrets to chat).
 version: 1.0.0
 category: productivity
+oauth_issuer: google_workspace
 tags:
   - google
   - calendar

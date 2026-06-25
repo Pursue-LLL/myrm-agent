@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """Readonly Google Workspace API helper for the google-workspace prebuilt skill.
 
-Uses GOOGLE_WORKSPACE_TOKEN from the environment (injected by bash/safe_exec).
-MYRM_USER_TIMEZONE (or TZ) selects the calendar day boundary; defaults to UTC.
-Stdlib only — no extra dependencies in agent bash sessions.
+[INPUT]
+- Process env GOOGLE_WORKSPACE_TOKEN (injected by LocalExecutor/safe_exec after sanitize)
+- Process env MYRM_USER_TIMEZONE or TZ (user-local calendar day boundary)
+
+[OUTPUT]
+- JSON on stdout for calendar-today, gmail-inbox, drive-recent CLI subcommands
+
+[POS]
+Vendor skill script staged into workspace by bash_executor; stdlib-only Google REST client.
 """
 
 from __future__ import annotations
