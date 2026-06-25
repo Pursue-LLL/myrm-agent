@@ -93,6 +93,7 @@ override-dependencies = [
   "opentelemetry-semantic-conventions>=0.61b0",
   "websockets>=16.0",
   "pynacl>=1.6.2",                # remote_access E2EE; override resolves discord-py[voice] upper bound
+  "mcp>=1.28.0,<2",               # langchain-mcp-adapters needs RequestContext (removed in mcp 2.0 alpha)
 ]
 
 # OSS CI consumes harness from PyPI via uv.lock (--frozen). Local monorepo dev may add

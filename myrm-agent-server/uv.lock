@@ -16,6 +16,7 @@ prerelease-mode = "allow"
 overrides = [
     { name = "aiohttp", specifier = ">=3.13.5" },
     { name = "click", specifier = ">=8.4.1" },
+    { name = "mcp", specifier = ">=1.28.0,<2" },
     { name = "openai", specifier = ">=2.43.0" },
     { name = "opentelemetry-semantic-conventions", specifier = ">=0.61b0" },
     { name = "patchright", specifier = ">=1.60.1" },
@@ -1774,14 +1775,13 @@ encryption = [
 
 [[package]]
 name = "mcp"
-version = "2.0.0a2"
+version = "1.28.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "httpx" },
     { name = "httpx-sse" },
     { name = "jsonschema" },
-    { name = "opentelemetry-api" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt", extra = ["crypto"] },
@@ -1793,9 +1793,9 @@ dependencies = [
     { name = "typing-inspection" },
     { name = "uvicorn", marker = "sys_platform != 'emscripten'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/82/dd/b67a1bbcbb6bc4acf7b338ba721f1df9035a8091c3e5db90fc328ac170fd/mcp-2.0.0a2.tar.gz", hash = "sha256:6b1b594c7f714b36e73e8fa01c4e124fd122653d6cd71aae3610438d124d870a", size = 933507, upload-time = "2026-06-16T22:01:37.533Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/ee/94c6c50ffc5b5cf4737052275d11b57367f32d1a8516e31dcd60591b3916/mcp-1.28.0.tar.gz", hash = "sha256:559d3f9943674cafbe5744c5d3794f3237e8b47f9bbc58e20c0fad680d8487c2", size = 636040, upload-time = "2026-06-16T21:37:17.996Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/47/85/b1d60d818d46dfc20da642fc95b067c507c6eed59d77ad74b05c098060be/mcp-2.0.0a2-py3-none-any.whl", hash = "sha256:1d8a24e450300b2e671b53b051354c9964fdf0be85f3fdca0fe1733325136b5c", size = 286138, upload-time = "2026-06-16T22:01:35.592Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/e1/4c1dc1fbb688641a712d34650c3d58bbbdcb314ddb75bc5817bbf33515a4/mcp-1.28.0-py3-none-any.whl", hash = "sha256:9c1e7cf3a9125557e418ecd4fed8e9adddce81b0dfdae4d6601d700f5beb71a4", size = 221959, upload-time = "2026-06-16T21:37:16.579Z" },
 ]
 
 [[package]]
