@@ -11,6 +11,7 @@
 | `oauth_store.py` | 核心 | oauthCredentials 加密读写；`is_oauth_issuer_connected`；`google_workspace_write_enabled` | ✅ |
 | `mcp_posture.py` | 核心 | MCP 静态/运行时安全姿态编排；posture block 抛结构化 `validation_error`（findings 在 error.details） |
 | `mcp_registry.py` | 核心 | MCP 注册中心代理服务；搜索/详情代理 Smithery Registry，LRU 缓存，异步 httpx |
+| `tools/` | 子目录 | Skill-gated integration tool factories（见 [tools/_ARCH.md](tools/_ARCH.md)） |
 
 ## 依赖关系
 

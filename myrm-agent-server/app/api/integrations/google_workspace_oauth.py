@@ -1,19 +1,17 @@
 """Google Workspace OAuth 2.0 + PKCE authorization flow.
 
 [INPUT]
-- app.config.settings::settings (POS: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)
-- app.core.infra.ingress::get_public_ingress_base_url (POS: public OAuth redirect base)
-- app.core.skills.store.service::skills_service (POS: prebuilt skill enablement)
+- app.api.integrations.google_workspace_oauth_flow (POS: PKCE state, scopes, redirect URI, skill enablement)
 - app.services.integrations.oauth_store (POS: encrypted oauthCredentials persistence)
-- myrm_agent_harness.toolkits.mcp.oauth::generate_pkce_pair (POS: PKCE pair generation)
+- myrm_agent_harness.toolkits.mcp.oauth::generate_pkce_pair (POS: PKCE pair for /start)
 
 [OUTPUT]
 Google Workspace OAuth API under /integrations/google-workspace/oauth
 
 [POS]
-Product-layer OAuth connect flow for Calendar/Gmail/Drive. Persists issuer
-google_workspace into UserConfig oauthCredentials (token + refresh metadata only;
-client_id/secret stay in server settings). Enables prebuilt google-workspace skill.
+HTTP routes for Calendar/Gmail/Drive OAuth connect. Delegates flow helpers to
+google_workspace_oauth_flow; persists issuer google_workspace into UserConfig
+oauthCredentials (tokens only; client_id/secret stay in server settings).
 """
 
 from __future__ import annotations
