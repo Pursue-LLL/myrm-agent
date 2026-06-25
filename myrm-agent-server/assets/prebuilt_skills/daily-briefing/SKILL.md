@@ -80,7 +80,7 @@ If preferences aren't found in memory, use sensible defaults and note the gap in
 
 If `$GOOGLE_WORKSPACE_TOKEN` is available (user connected Google Workspace OAuth):
 
-1. Use `bash_code_execute_tool` with `allowed_issuers: ["google_workspace"]` to run `python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today`.
+1. Use `bash_code_execute_tool` to run `python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today` (token and timezone are injected automatically when OAuth is connected).
 2. Merge calendar events with kanban time-bound items in the Schedule section.
 3. Sort combined schedule by start time; deduplicate overlapping titles.
 4. If OAuth is not connected or the API fails, skip silently — kanban-only schedule is acceptable.

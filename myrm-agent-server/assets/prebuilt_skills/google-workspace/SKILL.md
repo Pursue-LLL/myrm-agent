@@ -25,7 +25,7 @@ contract:
       mitigation: "Ask user to connect Google Workspace in Settings → Integrations → Credentials before proceeding"
       severity: high
     - description: "Exposing OAuth tokens in LLM context or logs"
-      mitigation: "Never print $GOOGLE_WORKSPACE_TOKEN. Use bash with allowed_issuers google_workspace only."
+      mitigation: "Never print $GOOGLE_WORKSPACE_TOKEN. Runtime injects it into bash env from the OAuth session — do not echo or log it."
       severity: critical
     - description: "Destructive Gmail/Drive/Calendar mutations without confirmation"
       mitigation: "Default to read-only endpoints; confirm before create/update/delete"
@@ -33,7 +33,7 @@ contract:
   verification_steps:
     - step_id: oauth_connected
       description: "Google Workspace OAuth credential is available for this session"
-      validation_method: "bash test -n \"$GOOGLE_WORKSPACE_TOKEN\" succeeds with allowed_issuers google_workspace"
+      validation_method: "bash test -n \"$GOOGLE_WORKSPACE_TOKEN\" succeeds when OAuth is connected"
       is_required: true
   success_criteria: "Requested Google Workspace operation completed with user-visible summary"
   estimated_duration_seconds: 180
@@ -64,13 +64,13 @@ python3 .claude/skills/google-workspace/scripts/google_api.py drive-recent
 
 The bash executor stages the skill into the workspace and rewrites these to relative `scripts/` paths automatically.
 
-Always run via `bash_code_execute_tool` with `allowed_issuers: ["google_workspace"]`.
+Run via `bash_code_execute_tool`. The harness injects `GOOGLE_WORKSPACE_TOKEN` and `MYRM_USER_TIMEZONE` into the bash process environment from the active OAuth session (after env sanitization).
 
 ## Secret Safety (MANDATORY)
 
 - **Never** print, log, or echo `$GOOGLE_WORKSPACE_TOKEN`
 - **Never** read credential files from disk
-- Use `bash_code_execute_tool` with `allowed_issuers: ["google_workspace"]` so the token is injected securely
+- Tokens are injected at runtime — do not ask the user to paste secrets
 - Prefer read-only API calls unless the user explicitly requests a write action
 
 - Prefer the helper script over hand-written curl
