@@ -4,6 +4,7 @@ Routes cron job results through the application's existing
 ``ChannelGateway`` infrastructure as ``OutboundMessage`` objects.
 
 Webhook delivery is delegated to the framework's ``WebhookDelivery``.
+Feishu/Lark custom bot hook URLs use ``feishu_bot_webhook`` (``msg_type=text`` JSON).
 Channel delivery uses the channel's own ``send_with_retry`` for
 synchronous error propagation (delivery_status=FAILED on failure).
 """
@@ -20,6 +21,8 @@ from app.channels import OutboundMessage
 from app.channels.core.bus import downgrade_components
 from app.channels.reliability.retry import send_with_retry
 from app.channels.types.status import ChannelStatus
+
+from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +42,17 @@ class ChannelResultDelivery:
         if job.delivery.channel == "silent":
             return
 
+        target = (job.delivery.target or "").strip()
+
         if job.delivery.channel == "webhook":
-            await _webhook_delivery.deliver(job, result)
+            if is_feishu_bot_hook_url(target):
+                await deliver_feishu_bot_webhook(job, result)
+            else:
+                await _webhook_delivery.deliver(job, result)
+            return
+
+        if job.delivery.channel == "feishu" and is_feishu_bot_hook_url(target):
+            await deliver_feishu_bot_webhook(job, result)
             return
 
         await self._deliver_channel(job, result)

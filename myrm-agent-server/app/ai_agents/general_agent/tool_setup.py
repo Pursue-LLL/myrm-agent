@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
+- _setup_x_live_search_tool: skill-gated deferred x_search_tool（独立于 enable_web_search）
 
 [POS]
 GeneralAgent 的工具初始化混入。将搜索、图片/视频生成、
@@ -46,6 +47,43 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _configured_media_api_key(api_key: str | None) -> bool:
+    return bool((api_key or "").strip())
+
+
+def _media_gateway_configured(gateway_config: dict[str, object] | None) -> bool:
+    if not gateway_config:
+        return False
+    use_gateway = bool(gateway_config.get("use_gateway") or gateway_config.get("useGateway"))
+    if not use_gateway:
+        return False
+    auth_token = gateway_config.get("auth_token") or gateway_config.get("authToken")
+    gateway_url = gateway_config.get("gateway_url") or gateway_config.get("gatewayUrl")
+    return bool(
+        auth_token
+        and str(auth_token).strip()
+        and gateway_url
+        and str(gateway_url).strip()
+    )
+
+
+def _is_media_credential_configured(
+    api_key: str | None,
+    gateway_config: dict[str, object] | None,
+) -> bool:
+    return _configured_media_api_key(api_key) or _media_gateway_configured(gateway_config)
+
+
+def _video_generation_credential_configured(params: VideoGenerationParams) -> bool:
+    if _is_media_credential_configured(params.api_key, params.gateway_config):
+        return True
+    return any(
+        _configured_media_api_key(str(fb.get("api_key")) if fb.get("api_key") is not None else None)
+        for fb in params.fallback_providers
+        if isinstance(fb, dict)
+    )
+
+
 class ToolSetupMixin(ExternalAgentsMixin):
     """Mixin providing all tool initialization methods for GeneralAgent."""
 
@@ -73,6 +111,22 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _desktop_session: object | None
         _current_thread_id: str | None
         _current_chat_id: str | None
+        skill_ids: list[str]
+
+    def _setup_x_live_search_tool(self, deferred_tools: list[object]) -> None:
+        """Register deferred x_search_tool when x-live-search skill is enabled.
+
+        Independent of enable_web_search — xAI Live Search does not require Tavily/Brave.
+        """
+        if X_LIVE_SEARCH_SKILL_ID not in (self.skill_ids or []):
+            return
+        try:
+            from app.services.integrations.tools.x_live_search import create_x_live_search_tool
+
+            deferred_tools.append(create_x_live_search_tool())
+            logger.info("Loaded x_search_tool (%s skill) [Deferred]", X_LIVE_SEARCH_SKILL_ID)
+        except Exception as e:
+            logger.debug("x_search_tool skipped: %s", e)
 
     def _setup_search_and_basic_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up web search, web fetch, and basic utility tools."""
@@ -118,19 +172,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                 )
             )
-            if X_LIVE_SEARCH_SKILL_ID in (self.skill_ids or []):
-                try:
-                    from app.services.integrations.tools.x_live_search import create_x_live_search_tool
-
-                    deferred_tools.append(create_x_live_search_tool())
-                    logger.info("Loaded x_search_tool (%s skill) [Deferred]", X_LIVE_SEARCH_SKILL_ID)
-                except Exception as e:
-                    logger.debug("x_search_tool skipped: %s", e)
 
             logger.info(
                 f"🔍 已加载 web_search_tool 和 web_fetch_tool "
                 f"(advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})"
             )
+
+        self._setup_x_live_search_tool(deferred_tools)
 
         if self.enable_render_ui:
             from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
@@ -190,13 +238,21 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if not self.image_generation_params:
             return
 
+        params = self.image_generation_params
+        if not _is_media_credential_configured(params.api_key, params.gateway_config):
+            logger.debug("Image generation tool skipped: no API key or gateway configured")
+            return
+
         try:
+            from app.config.deploy_mode import is_local_mode
             from myrm_agent_harness.toolkits.llms.image import (
                 ImageGenerationConfig,
                 ImageGenerationTools,
             )
+            from myrm_agent_harness.toolkits.llms.image.image_langchain_tool import (
+                create_image_generation_tool,
+            )
 
-            params = self.image_generation_params
             config = ImageGenerationConfig(
                 model=params.model,
                 api_key=params.api_key,
@@ -208,13 +264,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 gateway_config=params.gateway_config,
                 media_callback=self._create_media_library_callback(),
             )
-            img_tools = ImageGenerationTools(
+            img_engine = ImageGenerationTools(
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            deferred_tools.append(img_tools)
+            deferred_tools.append(
+                create_image_generation_tool(img_engine, allow_private_networks=is_local_mode())
+            )
             logger.warning(
-                "🖼️ Image generation tools loaded (model=%s, fallbacks=%s) [Deferred]",
+                "🖼️ Image generation tool loaded (model=%s, fallbacks=%s) [Deferred]",
                 params.model,
                 params.fallback_models,
             )
@@ -233,13 +291,20 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if not self.video_generation_params:
             return
 
+        params = self.video_generation_params
+        if not _video_generation_credential_configured(params):
+            logger.debug("Video generation tool skipped: no API key or gateway configured")
+            return
+
         try:
             from myrm_agent_harness.toolkits.llms.video import (
                 VideoGenerationConfig,
                 VideoGenerationTools,
             )
+            from myrm_agent_harness.toolkits.llms.video.video_langchain_tool import (
+                create_video_generation_tool,
+            )
 
-            params = self.video_generation_params
             fallback_configs = []
             for fb in params.fallback_providers:
                 fallback_configs.append(
@@ -264,13 +329,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 gateway_config=params.gateway_config,
                 media_callback=self._create_video_media_callback(),
             )
-            video_tools = VideoGenerationTools(
+            video_engine = VideoGenerationTools(
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            deferred_tools.append(video_tools)
+            deferred_tools.append(create_video_generation_tool(video_engine))
             logger.warning(
-                "🎬 Video generation tools loaded (provider=%s, model=%s) [Deferred]",
+                "🎬 Video generation tool loaded (provider=%s, model=%s) [Deferred]",
                 params.provider,
                 params.model,
             )
@@ -289,10 +354,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
         if not self.tts_params:
             return
 
+        params = self.tts_params
+        if not _is_media_credential_configured(params.api_key, params.gateway_config):
+            logger.debug("TTS tool skipped: no API key or gateway configured")
+            return
+
         try:
             from myrm_agent_harness.toolkits.tts import TTSConfig, TTSTool
 
-            params = self.tts_params
             config = TTSConfig(
                 provider=params.provider,
                 model=params.model,
@@ -383,6 +452,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from myrm_agent_harness.toolkits import create_cron_tools
 
+            from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
             from app.core.cron.adapters.setup import get_cron_manager
             from app.core.cron.blueprints import fill_blueprint, get_blueprints_for_tool_description
 
@@ -409,6 +479,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 agent_id=self.agent_id,
                 blueprint_catalog=get_blueprints_for_tool_description(),
                 blueprint_filler=_blueprint_filler,
+                delivery_resolver=resolve_cron_delivery,
             )
             deferred_tools.extend(cron_tools)
             logger.info(f"Loaded {len(cron_tools)} cron tools [Deferred]")
@@ -605,7 +676,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     def _setup_local_browser_data_tool(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""
         try:
-            from myrm_agent_harness.toolkits import create_local_browser_data_tool
+            from app.services.local_browser import create_local_browser_data_tool
 
             local_browser_tool = create_local_browser_data_tool()
             deferred_tools.append(local_browser_tool)

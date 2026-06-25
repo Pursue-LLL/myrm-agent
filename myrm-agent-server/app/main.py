@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from app.ai_agents.general_agent.tools import (
     _tool_layer_bootstrap,  # noqa: F401 — side-effect import: registers server-layer tools into harness _TOOL_LAYERS
 )
+from app.core.security.integration_write_patterns import register_server_integration_write_patterns
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router
 from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
@@ -40,6 +41,7 @@ from app.server.middlewares import register_middlewares
 logger = logging.getLogger(__name__)
 
 configure_logging()
+register_server_integration_write_patterns()
 
 app = FastAPI(
     title=settings.app_name,

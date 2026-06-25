@@ -44,6 +44,7 @@ Dedicated X/Twitter search via xAI's Live Search API (`x_search_tool`). Use for 
 
 1. Add an xAI provider in **Settings → Models & Providers** (API key + `https://api.x.ai/v1` base URL).
 2. Enable this skill on the agent profile.
+3. `x_search_tool` loads when this skill is enabled — **Web Search (Tavily/Brave) is not required**. Optional `web_fetch_tool` needs agent Web Search enabled.
 
 ## Tool Usage
 

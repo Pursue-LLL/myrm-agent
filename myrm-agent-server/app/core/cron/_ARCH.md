@@ -25,6 +25,8 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/agent_runner.py` | 核心 | JobRunner 实现：从 ConfigService 实时加载配置，通过 AgentFactory 执行，周期任务注入 [SILENT] 指令，heartbeat 任务自动注入 SituationReport | — |
 | `adapters/situation_sections.py` | 核心 | SituationSection 具体实现（PendingReminders、SystemHealth），及 builder 工厂函数 | ✅ |
 | `adapters/channel_delivery.py` | 核心 | ResultDelivery 实现：IM 渠道通过 `send_with_retry` 同步投递，Webhook 委托给框架的 `WebhookDelivery` | — |
+| `adapters/delivery_resolver.py` | 核心 | Cron 工具 webhook URL → `DeliveryConfig`（非空 → `webhook`；格式化在投递层） | — |
+| `adapters/feishu_bot_webhook.py` | 核心 | Feishu/Lark bot v2 hook 专用 POST（`msg_type=text`） | — |
 | `adapters/sqlalchemy_trigger_provider.py` | 核心 | TriggerProvider 实现：从数据库查询带 triggers 的活跃任务，执行 event regex / system_event / webhook 匹配 | ✅ |
 | `adapters/memory_lock.py` | 核心 | ConcurrencyLock 实现：基于 OS 级文件锁的跨进程协作 | ✅ |
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
@@ -55,6 +57,8 @@ app.core.cron.adapters.setup (组装入口)
     │                         → app.ai_agents (AgentFactory, GeneralAgent)
     ├── ChannelResultDelivery → app.core.channel_bridge (channel_gateway)
     │                         → WebhookDelivery (框架内置，webhook 投递委托)
+    ├── delivery_resolver     → tool_setup.create_cron_tools(delivery_resolver=...) webhook URL 映射
+    ├── feishu_bot_webhook    → channel_delivery 检测 hook URL 时 Feishu 文本格式投递
     ├── SqlAlchemyTriggerProvider → TriggerProvider (事件/Webhook/系统事件触发匹配)
     │                              → app.database.models (CronJobModel)
     └── CrossProcessCronLock   → ConcurrencyLock (OS File Lock)

@@ -96,6 +96,14 @@ def init_test_database():
         print(f"Warning: init_database failed: {e}")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _register_server_integration_write_patterns_for_tests() -> None:
+    """Mirror main.py startup: register shell integration write patterns for tests."""
+    from app.core.security.integration_write_patterns import register_server_integration_write_patterns
+
+    register_server_integration_write_patterns()
+
+
 # ---------------------------------------------------------------------------
 # Blocking-IO runtime detection (blockbuster)
 # ---------------------------------------------------------------------------

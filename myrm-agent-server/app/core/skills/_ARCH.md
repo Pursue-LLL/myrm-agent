@@ -21,7 +21,7 @@
 | `models.py` | 核心 | Skill、UserSkillConfig、SkillType 等数据模型 | — |
 | `loader.py` | 核心 | 技能后端工厂，组装 SkillBackend。支持 `allowed_prebuilt_ids` 白名单过滤 prebuilt 技能（Action Space Opt-In）。 | ✅ |
 | `prebuilt_sync.py` | 核心 | 预置技能种子同步（SKILL.md 三方哈希保护用户修改、upstream 更新检测；`scripts/` 等 bundle 文件始终跟随上游）与幽灵清理 | ✅ |
-| `oauth_availability.py` | 核心 | Integration 凭证 gate：OAuth / xAI provider / skill env / CLI bins → `available` / `unavailable_reason`（Catalog + loader wrapper） | ✅ |
+| `oauth_availability.py` | 核心 | Integration 凭证 gate：OAuth / xAI provider / skill env / CLI bins → `available` / `unavailable_reason`（Catalog + loader wrapper）。x-live-search 仅 gate xAI，不要求 Agent Web Search | ✅ |
 | `x_live_search_skill_enable.py` | 核心 | xAI provider 保存后 auto-enable `x-live-search` prebuilt skill（respect disabled_prebuilt_ids） | ✅ |
 | `assets/prebuilt_skills/` | 内容 | 官方 SKILL.md 种子库（见仓库根 `assets/prebuilt_skills/`）。边界见 [SKILLS_SYSTEM.md §3.5](SKILLS_SYSTEM.md) | ✅ |
 | `state_reader.py` | 核心 | SkillStateReader 实现（SQLite 隔离状态查询） | ✅ |

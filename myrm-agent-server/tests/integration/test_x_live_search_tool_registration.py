@@ -1,7 +1,7 @@
 """Integration test: x-live-search skill-gated deferred tool registration.
 
-Verifies _setup_search_and_basic_tools() only loads x_search_tool when the
-x-live-search prebuilt skill is enabled on the agent profile.
+Verifies _setup_x_live_search_tool() loads x_search_tool into deferred_tools when the
+x-live-search prebuilt skill is enabled, independent of enable_web_search.
 """
 
 from __future__ import annotations
@@ -57,8 +57,8 @@ def test_x_search_tool_skipped_without_skill() -> None:
     assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
 
 
-def test_x_search_tool_skipped_when_web_search_disabled() -> None:
-    """Skill alone is insufficient — web search must also be enabled."""
+def test_x_search_tool_registers_when_web_search_disabled() -> None:
+    """x_search_tool must register from skill alone — no Tavily/Brave web search required."""
     mixin = _make_search_mixin(skill_ids=[X_LIVE_SEARCH_SKILL_ID])
     mixin.enable_web_search = False
     mixin.search_service_cfg = None
@@ -67,4 +67,6 @@ def test_x_search_tool_skipped_when_web_search_disabled() -> None:
 
     mixin._setup_search_and_basic_tools(tools, deferred_tools)
 
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
+    assert any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+    assert not any(getattr(t, "name", None) == "web_search_tool" for t in tools)

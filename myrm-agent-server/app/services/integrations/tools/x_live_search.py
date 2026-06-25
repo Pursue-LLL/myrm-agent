@@ -8,8 +8,10 @@
 - create_x_live_search_tool: deferred LangChain tool factory
 
 [POS]
-Server integration tool for x-live-search prebuilt skill. Credentials are injected by
-session_credential_assembler into user_credentials_ctx, not baked into tool construction.
+Server integration tool for x-live-search prebuilt skill. Registered by
+tool_setup._setup_x_live_search_tool when skill_ids contains x-live-search (not gated on
+enable_web_search). Credentials are injected by session_credential_assembler into
+user_credentials_ctx, not baked into tool construction.
 """
 
 from __future__ import annotations

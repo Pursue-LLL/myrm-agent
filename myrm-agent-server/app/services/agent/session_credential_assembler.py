@@ -7,6 +7,8 @@
 
 [OUTPUT]
 - assemble_session_credentials: build EphemeralUserCredential tuple for user_credentials_ctx
+- session_credentials_scope: inject credentials for a context block
+- user_config_session_credentials_scope: load WebUI user configs then inject credentials
 - XAI_ISSUER: canonical issuer key for xAI provider API keys
 
 [POS]

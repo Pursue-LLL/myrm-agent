@@ -48,7 +48,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 |
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置；`build_platform_litellm_kwargs()`、`webui_model_preflight_warning()`、`resolve_xai_search_config()`；业务禁止读进程 env |
-| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume |
+| `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume |
 | `notification_sender.py` | ✅ 辅助 | Agent 通知投递 — `ChannelNotificationSender` 实现 harness `NotificationSender` Protocol，通过 `ChannelGateway.publish()` 将 Agent 主动通知路由到外部渠道。`create_notification_sender` 工厂从 `notify_targets` 构建 sender + config。 |
 
 ---
