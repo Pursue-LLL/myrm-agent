@@ -38,8 +38,9 @@ import type { Skill, SecurityScanSummary, SkillLifecycleAction } from '@/store/s
 import Link from 'next/link';
 import {
   getSkillUnavailableDisplayMessage,
-  isGoogleWorkspaceOAuthUnavailable,
-  SETTINGS_GOOGLE_OAUTH_PATH,
+  getIntegrationSkillSettingsLinkLabel,
+  getIntegrationSkillSettingsPath,
+  hasIntegrationSettingsLink,
 } from '@/lib/skills/integrationOAuthDisplay';
 
 function getSecurityBadgeProps(security: SecurityScanSummary): {
@@ -283,19 +284,19 @@ const SkillCard = memo(
                   </span>
                 </div>
               )}
-              {!skill.available && (skill.unavailable_reason || isGoogleWorkspaceOAuthUnavailable(skill)) && (
+              {!skill.available && (skill.unavailable_reason || hasIntegrationSettingsLink(skill)) && (
                 <div className="flex flex-col gap-1 mt-1 text-xs text-amber-600 dark:text-amber-400 sm:flex-row sm:items-center sm:gap-2">
                   <div className="flex items-center gap-1 min-w-0">
                     <AlertTriangle size={12} className="shrink-0" />
                     <span className="truncate">{getSkillUnavailableDisplayMessage(skill, t)}</span>
                   </div>
-                  {isGoogleWorkspaceOAuthUnavailable(skill) && (
+                  {hasIntegrationSettingsLink(skill) && (
                     <Link
-                      href={SETTINGS_GOOGLE_OAUTH_PATH}
+                      href={getIntegrationSkillSettingsPath(skill)}
                       className="shrink-0 text-xs font-medium underline underline-offset-2 hover:text-amber-700 dark:hover:text-amber-300"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {t('card.integrationOAuth.googleWorkspace.connectInSettings')}
+                      {getIntegrationSkillSettingsLinkLabel(skill, t)}
                     </Link>
                   )}
                 </div>

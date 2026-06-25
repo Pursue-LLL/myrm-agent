@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-通用 Agent 业务层专属工具。提供回答用户、X 搜索能力，以及向 harness `_TOOL_LAYERS` 注册 server 层工具名的启动钩子。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时经 `resolve_builtin_tool_flags` → `enable_render_ui` → `tool_setup.py` 延迟加载。
+通用 Agent 业务层专属工具。`x_search_provider.py` 提供 xAI API 客户端；`x_live_search` deferred tool 工厂在 `app/services/integrations/tools/`。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时经 `tool_setup.py` 延迟加载。
 
 ---
 
@@ -13,6 +13,6 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `_tool_layer_bootstrap.py` | ✅ 核心 | Server 层 tool layer 注册引导：在 `main.py` 启动时把 server 层依赖第三方 SDK 的业务 tool（x_search）写入 harness `_TOOL_LAYERS`，保持"harness 不预登记业务 tool 名"的架构边界。 |
+| `_tool_layer_bootstrap.py` | ✅ 核心 | Server 层 tool layer 注册：`x_search_tool` → EXTENDED（skill-gated deferred 加载，见 `tool_setup.py` + `x-live-search` prebuilt skill） |
 | `answer_user_tool.py` | ✅ 核心 | 回答用户工具（结构化回复生成）。 |
-| `x_search_provider.py` | ✅ 核心 | X (Twitter) 搜索工具。 |
+| `x_search_provider.py` | ✅ 核心 | xAI Live Search API 客户端与 `XSearchProvider`；供 `integrations/tools/x_live_search.py` 调用 |

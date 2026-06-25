@@ -2209,6 +2209,14 @@
           "googleWorkspace": {
             "unavailable": "请先在 设置 → 集成 → 凭证 中连接 Google Workspace",
             "connectInSettings": "前往设置连接"
+          },
+          "xLiveSearch": {
+            "unavailable": "请在 设置 → 模型与提供商 中添加 xAI 提供商",
+            "connectInSettings": "配置提供商"
+          },
+          "envSkill": {
+            "unavailable": "该技能所需的 API Key 尚未配置",
+            "configureInSettings": "配置密钥"
           }
         },
         "envConfig": "环境配置",

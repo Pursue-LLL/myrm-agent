@@ -3,21 +3,18 @@
 Provides dedicated X/Twitter search capability via xAI's Responses API,
 returning structured results with inline citations for precise source attribution.
 
-Authentication supports:
-- Explicit config.api_key from WebUI providers
-- OAuth access token (from frontend config)
+Authentication: xAI API key is read from session context (issuer=xai) at tool execution time.
 
 [INPUT]
 - httpx (POS: async HTTP client)
 - myrm_agent_harness.toolkits.web_search.common::SearchResult, Citation (POS: search result types)
 
 [OUTPUT]
-- XSearchProvider: xAI Live Search implementation
-- create_x_search_tool: factory function for LangChain tool registration
+- XSearchProvider: xAI Live Search API client
+- XSearchProviderConfig, XSearchInput: configuration and tool input schema
 
 [POS]
-Server-layer X/Twitter search provider. Implements xAI Responses API integration
-as an optional skill, not a built-in tool. Follows harness SearchResult contract.
+Server-layer X/Twitter search provider. API client used by integrations/tools/x_live_search.py.
 """
 
 from __future__ import annotations
@@ -26,7 +23,6 @@ import logging
 from typing import Any
 
 import httpx
-from langchain.tools import tool
 from myrm_agent_harness.toolkits.web_search.common import Citation, SearchResult
 from pydantic import BaseModel, Field
 
@@ -266,55 +262,3 @@ class XSearchInput(BaseModel):
         default="",
         description="Optional end date in YYYY-MM-DD format",
     )
-
-
-def create_x_search_tool(config: XSearchProviderConfig | None = None):
-    """Create an X/Twitter search tool backed by xAI Live Search API.
-
-    Args:
-        config: Optional provider configuration from WebUI Settings. If None, uses empty defaults.
-
-    Returns:
-        LangChain tool function for X/Twitter search
-    """
-    provider = XSearchProvider(config or XSearchProviderConfig())
-
-    @tool("x_search_tool", description=_X_SEARCH_DESCRIPTION, args_schema=XSearchInput)
-    async def x_search_func(
-        query: str,
-        allowed_handles: list[str] | None = None,
-        excluded_handles: list[str] | None = None,
-        from_date: str = "",
-        to_date: str = "",
-    ) -> dict[str, Any]:
-        """Search X/Twitter content via xAI Live Search API."""
-        result = await provider.search(
-            query=query,
-            allowed_handles=allowed_handles,
-            excluded_handles=excluded_handles,
-            from_date=from_date,
-            to_date=to_date,
-        )
-
-        if result.is_error:
-            return {
-                "content": result.snippet,
-                "metadata": {"error": True, "query": query},
-            }
-
-        # Format citations for display
-        citations_text = ""
-        if result.citations:
-            citations_text = "\n\nSources:\n" + "\n".join(f"- [{c.title or c.url}]({c.url})" for c in result.citations)
-
-        return {
-            "content": result.snippet + citations_text,
-            "metadata": {
-                "query": query,
-                "source": "x_search",
-                "citations": [{"url": c.url, "title": c.title} for c in result.citations],
-                "total_citations": len(result.citations),
-            },
-        }
-
-    return x_search_func

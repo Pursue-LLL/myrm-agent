@@ -36,35 +36,22 @@ logger = logging.getLogger(__name__)
 
 
 async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGenerator[str, None]:
-    from myrm_agent_harness.agent.security import (
-        EphemeralUserCredential,
-        user_credentials_ctx,
-    )
+    from myrm_agent_harness.agent.security import EphemeralUserCredential, user_credentials_ctx
 
     from app.core.channel_bridge.config_loader import load_user_configs
+    from app.services.agent.session_credential_assembler import assemble_session_credentials
 
-    credentials_list: list[EphemeralUserCredential] = []
+    credentials_list: tuple[EphemeralUserCredential, ...] = ()
     try:
         configs = await load_user_configs()
-        if configs and configs.oauth_credentials_dict:
-            from app.services.agent.oauth_refresher import refresh_oauth_token
-
-            for issuer, cred_val in configs.oauth_credentials_dict.items():
-                if isinstance(cred_val, dict) and "token" in cred_val:
-                    credentials_list.append(
-                        EphemeralUserCredential(
-                            issuer=issuer,
-                            token=str(cred_val["token"]),
-                            scope=str(cred_val.get("scope", "")),
-                            user_id=str(cred_val.get("user_id", "")),
-                            expires_at=cred_val.get("expires_at"),
-                            refresh_callback=lambda i=issuer: refresh_oauth_token(i),
-                        )
-                    )
+        credentials_list = await assemble_session_credentials(
+            oauth_credentials_dict=configs.oauth_credentials_dict if configs else None,
+            providers_dict=configs.providers_dict if configs else None,
+        )
     except Exception as e:
         logger.warning("Failed to resolve user configs/credentials in web stream: %s", e)
 
-    token_ctx = user_credentials_ctx.set(tuple(credentials_list))
+    token_ctx = user_credentials_ctx.set(credentials_list)
     approval = ApprovalTimeoutHolder()
 
     from myrm_agent_harness.core.config import ModelTier, infer_model_tier

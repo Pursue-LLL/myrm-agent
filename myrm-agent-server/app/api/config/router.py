@@ -314,6 +314,14 @@ async def set_config(
         invalidate_user_configs_cache()
         invalidate_search_health_cache()
         invalidate_ingress_requirement_cache()
+        if config_key == "providers":
+            try:
+                from app.core.skills.x_live_search_skill_enable import maybe_enable_x_live_search_skill
+
+                providers_value = request.value if isinstance(request.value, dict) else None
+                await maybe_enable_x_live_search_skill(providers_value)
+            except Exception as exc:
+                logger.warning("x-live-search skill auto-enable skipped: %s", exc)
         if config_key == "channels":
             from app.core.channel_bridge.channel_policy import SqlChannelPolicyProvider
             from app.core.channel_bridge.setup import refresh_reaction_policy
@@ -393,6 +401,14 @@ async def rollback_config(config_key: str, version: str, device_id: str = Query(
         # Invalidate caches
         invalidate_user_configs_cache()
         invalidate_ingress_requirement_cache()
+        if config_key == "providers":
+            try:
+                from app.core.skills.x_live_search_skill_enable import maybe_enable_x_live_search_skill
+
+                providers_value = new_value if isinstance(new_value, dict) else None
+                await maybe_enable_x_live_search_skill(providers_value)
+            except Exception as exc:
+                logger.warning("x-live-search skill auto-enable skipped on rollback: %s", exc)
         if config_key == "searchServices":
             invalidate_search_health_cache()
 

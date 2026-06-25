@@ -298,29 +298,35 @@ class KanbanTaskRunner:
         agent = AgentFactory.create_general_agent(params)
         agent.approval_session_key = f"kanban:{task.task_id}"
 
-        try:
-            acc = _StreamAccumulator()
+        from app.services.agent.session_credential_assembler import session_credentials_scope
 
-            async def _open_stream(query_input: object):
-                async for event in agent.process_stream(
-                    query=query_input,
-                    chat_history=None,
-                    chat_id=task.task_id,
+        async with session_credentials_scope(
+            oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
+            providers_dict=user_cfgs.providers_dict,
+        ):
+            try:
+                acc = _StreamAccumulator()
+
+                async def _open_stream(query_input: object):
+                    async for event in agent.process_stream(
+                        query=query_input,
+                        chat_history=None,
+                        chat_id=task.task_id,
+                    ):
+                        if isinstance(event, dict):
+                            yield event
+
+                from app.services.agent.fission_config import max_parallel_from_engine_params
+                from app.services.agent.swarm_fission_resume import stream_with_swarm_fission_resume
+
+                async for event in stream_with_swarm_fission_resume(
+                    agent,
+                    context,
+                    _open_stream,
+                    max_concurrent=max_parallel_from_engine_params(profile.engine_params if profile else None),
                 ):
-                    if isinstance(event, dict):
-                        yield event
+                    acc.add(event)
 
-            from app.services.agent.fission_config import max_parallel_from_engine_params
-            from app.services.agent.swarm_fission_resume import stream_with_swarm_fission_resume
-
-            async for event in stream_with_swarm_fission_resume(
-                agent,
-                context,
-                _open_stream,
-                max_concurrent=max_parallel_from_engine_params(profile.engine_params if profile else None),
-            ):
-                acc.add(event)
-
-            return acc.to_result()
-        finally:
-            await agent.close()
+                return acc.to_result()
+            finally:
+                await agent.close()

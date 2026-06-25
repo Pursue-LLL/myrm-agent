@@ -579,50 +579,16 @@ class ChannelAgentExecutor:
             else:
                 query_input = query
 
-            from myrm_agent_harness.agent.security import (
-                EphemeralUserCredential,
-                user_credentials_ctx,
+            from myrm_agent_harness.agent.security import user_credentials_ctx
+
+            from app.services.agent.session_credential_assembler import assemble_session_credentials
+
+            credentials_list = await assemble_session_credentials(
+                oauth_credentials_dict=configs.oauth_credentials_dict,
+                providers_dict=configs.providers_dict,
+                channel=msg.channel,
             )
-
-            from app.channels.storage import CredentialsStore
-
-            credentials_list: list[EphemeralUserCredential] = []
-            try:
-                store = CredentialsStore()
-                creds_dict = await store.get(msg.channel)
-                if creds_dict:
-                    token = creds_dict.get("user_access_token") or creds_dict.get("access_token")
-                    if token:
-
-                        async def _channel_token_refresher() -> EphemeralUserCredential | None:
-                            logger.info(
-                                "Channel token refresher callback triggered for '%s'",
-                                msg.channel,
-                            )
-                            fresh_creds = await store.get(msg.channel)
-                            if fresh_creds:
-                                fresh_token = fresh_creds.get("user_access_token") or fresh_creds.get("access_token")
-                                if fresh_token:
-                                    return EphemeralUserCredential(
-                                        issuer=msg.channel,
-                                        token=fresh_token,
-                                        user_id=fresh_creds.get("user_id", ""),
-                                        refresh_callback=_channel_token_refresher,
-                                    )
-                            return None
-
-                        credentials_list.append(
-                            EphemeralUserCredential(
-                                issuer=msg.channel,
-                                token=token,
-                                user_id=creds_dict.get("user_id", ""),
-                                refresh_callback=_channel_token_refresher,
-                            )
-                        )
-            except Exception as e:
-                logger.warning("Failed to resolve channel credentials for session: %s", e)
-
-            token_ctx = user_credentials_ctx.set(tuple(credentials_list))
+            token_ctx = user_credentials_ctx.set(credentials_list)
 
             acc = StreamAccumulator()
             first_message_seen = False

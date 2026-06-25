@@ -39,8 +39,9 @@ import type { Skill, SkillLifecycleAction } from '@/store/skill/types';
 import Link from 'next/link';
 import {
   getSkillUnavailableDisplayMessage,
-  isGoogleWorkspaceOAuthUnavailable,
-  SETTINGS_GOOGLE_OAUTH_PATH,
+  getIntegrationSkillSettingsLinkLabel,
+  getIntegrationSkillSettingsPath,
+  hasIntegrationSettingsLink,
 } from '@/lib/skills/integrationOAuthDisplay';
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
@@ -132,12 +133,12 @@ export function SkillDetailSheetContent({
               {getSkillUnavailableDisplayMessage(skill, t)}
             </span>
           </div>
-          {isGoogleWorkspaceOAuthUnavailable(skill) && (
+          {hasIntegrationSettingsLink(skill) && (
             <Link
-              href={SETTINGS_GOOGLE_OAUTH_PATH}
+              href={getIntegrationSkillSettingsPath(skill)}
               className="shrink-0 text-sm font-medium text-amber-800 dark:text-amber-200 underline underline-offset-2 hover:opacity-90"
             >
-              {t('card.integrationOAuth.googleWorkspace.connectInSettings')}
+              {getIntegrationSkillSettingsLinkLabel(skill, t)}
             </Link>
           )}
         </div>

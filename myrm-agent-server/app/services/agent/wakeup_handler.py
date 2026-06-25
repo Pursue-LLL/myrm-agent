@@ -158,83 +158,95 @@ class ServerWakeupHandler:
 
                 bus = get_event_bus()
                 gateway = get_agent_gateway()
-                try:
-                    converted_history = await convert_chat_history(params.chat_history)
+                from app.core.channel_bridge.config_loader import load_user_configs
+                from app.services.agent.session_credential_assembler import session_credentials_scope
 
-                    max_retries = 3
-                    for attempt in range(max_retries):
-                        collector = StreamContentCollector()
-                        try:
-                            raw_stream = agent.process_stream(
-                                query=cast(str | list[dict[str, object]], params.query),
-                                chat_history=converted_history,
-                                message_id=params.message_id,
-                                chat_id=params.chat_id,
-                                cancel_token=None,
-                                timezone=params.timezone,
-                                force_delegate_agent=params.force_delegate_agent,
-                            )
+                user_cfgs = await load_user_configs()
+                async with session_credentials_scope(
+                    oauth_credentials_dict=user_cfgs.oauth_credentials_dict if user_cfgs else None,
+                    providers_dict=user_cfgs.providers_dict if user_cfgs else None,
+                ):
+                    try:
+                        converted_history = await convert_chat_history(params.chat_history)
 
-                            # 使用 gateway.execute_stream 包装流，进行并发控制和超时保护
-                            # 注意：为了让同一 session 能被唤醒，我们需要在 session_id 上加上后缀以绕过 ActiveSessionInfo 冲突，
-                            # 这样同一个 session 的后台任务会互相排斥，但不会和前台活跃会话冲突。
-                            headless_stream = gateway.execute_stream(
-                                raw_stream,
-                                agent_type="headless_wakeup",
-                                session_id=(f"{session_id}_headless" if session_id else None),
-                                agent_instance=agent,
-                            )
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            collector = StreamContentCollector()
+                            try:
+                                raw_stream = agent.process_stream(
+                                    query=cast(str | list[dict[str, object]], params.query),
+                                    chat_history=converted_history,
+                                    message_id=params.message_id,
+                                    chat_id=params.chat_id,
+                                    cancel_token=None,
+                                    timezone=params.timezone,
+                                    force_delegate_agent=params.force_delegate_agent,
+                                )
 
-                            async for chunk in headless_stream:
-                                if isinstance(chunk, dict):
-                                    payload = chunk
-                                elif hasattr(chunk, "model_dump"):
-                                    payload = chunk.model_dump()
-                                elif hasattr(chunk, "to_dict"):
-                                    payload = chunk.to_dict()
-                                elif isinstance(chunk, str) and chunk.startswith("data: "):
-                                    try:
-                                        payload = json.loads(chunk[6:].strip())
-                                    except Exception:
-                                        continue
-                                else:
-                                    import dataclasses
+                                headless_stream = gateway.execute_stream(
+                                    raw_stream,
+                                    agent_type="headless_wakeup",
+                                    session_id=(f"{session_id}_headless" if session_id else None),
+                                    agent_instance=agent,
+                                )
 
-                                    if dataclasses.is_dataclass(chunk):
-                                        payload = dataclasses.asdict(chunk)
+                                async for chunk in headless_stream:
+                                    if isinstance(chunk, dict):
+                                        payload = chunk
+                                    elif hasattr(chunk, "model_dump"):
+                                        payload = chunk.model_dump()
+                                    elif hasattr(chunk, "to_dict"):
+                                        payload = chunk.to_dict()
+                                    elif isinstance(chunk, str) and chunk.startswith("data: "):
+                                        try:
+                                            payload = json.loads(chunk[6:].strip())
+                                        except Exception:
+                                            continue
                                     else:
-                                        continue
+                                        import dataclasses
 
-                                collector.feed_event(payload)
+                                        if dataclasses.is_dataclass(chunk):
+                                            payload = dataclasses.asdict(chunk)
+                                        else:
+                                            continue
 
-                                bus.publish(
-                                    AppEvent(
-                                        event_type=AppEventType.ASYNC_AGENT_STREAM_CHUNK,
-                                        data={
-                                            "session_id": session_id,
-                                            "chunk": payload,
-                                        },
+                                    collector.feed_event(payload)
+
+                                    bus.publish(
+                                        AppEvent(
+                                            event_type=AppEventType.ASYNC_AGENT_STREAM_CHUNK,
+                                            data={
+                                                "session_id": session_id,
+                                                "chunk": payload,
+                                            },
+                                        )
                                     )
-                                )
-                            logger.info(f"✅ Headless wakeup agent run completed for session {session_id}")
-                            break  # Success, exit retry loop
-                        except Exception as e:
-                            logger.error(f"Headless wakeup stream error on attempt {attempt + 1}/{max_retries}: {e}")
-                            if attempt < max_retries - 1:
-                                await asyncio.sleep(2**attempt)  # Exponential backoff: 1s, 2s
-                            else:
+                                logger.info("Headless wakeup agent run completed for session %s", session_id)
+                                break
+                            except Exception as e:
                                 logger.error(
-                                    f"❌ Headless wakeup failed permanently for session {session_id} after {max_retries} attempts."
+                                    "Headless wakeup stream error on attempt %d/%d: %s",
+                                    attempt + 1,
+                                    max_retries,
+                                    e,
                                 )
-                finally:
-                    if "collector" in locals() and collector.has_content and session_id:
-                        await ChatService.persist_assistant_message_safe(
-                            session_id,
-                            collector.content,
-                            extra_data=collector.extra_data,
-                            timezone=params.timezone,
-                        )
-                    await agent.close()
+                                if attempt < max_retries - 1:
+                                    await asyncio.sleep(2**attempt)
+                                else:
+                                    logger.error(
+                                        "Headless wakeup failed permanently for session %s after %d attempts.",
+                                        session_id,
+                                        max_retries,
+                                    )
+                    finally:
+                        if "collector" in locals() and collector.has_content and session_id:
+                            await ChatService.persist_assistant_message_safe(
+                                session_id,
+                                collector.content,
+                                extra_data=collector.extra_data,
+                                timezone=params.timezone,
+                            )
+                        await agent.close()
 
             asyncio.create_task(consume_stream())
 

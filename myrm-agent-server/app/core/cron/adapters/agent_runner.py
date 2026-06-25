@@ -337,15 +337,28 @@ class AgentJobRunner:
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
             timeout = job.timeout_seconds or 300
-            try:
-                result = await asyncio.wait_for(
-                    _consume_stream(agent, job, effective_prompt),
-                    timeout=timeout,
-                )
-            finally:
-                await agent.close()
 
-            return result
+            from myrm_agent_harness.agent.security import user_credentials_ctx
+
+            from app.services.agent.session_credential_assembler import assemble_session_credentials
+
+            session_credentials = await assemble_session_credentials(
+                oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
+                providers_dict=user_cfgs.providers_dict,
+            )
+            cred_ctx = user_credentials_ctx.set(session_credentials)
+            try:
+                try:
+                    result = await asyncio.wait_for(
+                        _consume_stream(agent, job, effective_prompt),
+                        timeout=timeout,
+                    )
+                finally:
+                    await agent.close()
+
+                return result
+            finally:
+                user_credentials_ctx.reset(cred_ctx)
 
         except asyncio.TimeoutError:
             logger.warning("Cron agent job %s timed out after %ds", job.id, job.timeout_seconds or 300)

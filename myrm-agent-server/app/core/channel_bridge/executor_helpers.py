@@ -233,28 +233,44 @@ def schedule_channel_approval_timeout(
         resume_params.query = Command(resume=resume_value)
 
         agent = AgentFactory.create_general_agent(resume_params)
+
+        from myrm_agent_harness.agent.security import user_credentials_ctx
+
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.services.agent.session_credential_assembler import assemble_session_credentials
+
+        user_cfgs = await load_user_configs()
+        session_credentials = await assemble_session_credentials(
+            oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
+            providers_dict=user_cfgs.providers_dict,
+            channel=channel,
+        )
+        cred_ctx = user_credentials_ctx.set(session_credentials)
         try:
             chat_history = build_chat_history_with_metadata((await load_history_without_persist(f"{channel}:{peer}"))[1])
             chunks: list[str] = []
             next_timeout: dict[str, object] | None = None
-            async for event in agent.process_stream(
-                query=resume_params.query,
-                chat_history=chat_history or None,
-                chat_id=chat_id,
-            ):
-                event_type = event.get("type", "")
-                if event_type == "message" and isinstance(event.get("data"), str):
-                    chunks.append(str(event["data"]))
-                elif event_type == "tool_approval_request":
-                    data = event.get("data", {})
-                    if isinstance(data, dict):
-                        extensions = data.get("extensions", {})
-                        timeout_ext = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
-                        if isinstance(timeout_ext, dict):
-                            next_timeout = {
-                                "seconds": timeout_ext.get("seconds", 300),
-                                "behavior": timeout_ext.get("behavior", "deny"),
-                            }
+            try:
+                async for event in agent.process_stream(
+                    query=resume_params.query,
+                    chat_history=chat_history or None,
+                    chat_id=chat_id,
+                ):
+                    event_type = event.get("type", "")
+                    if event_type == "message" and isinstance(event.get("data"), str):
+                        chunks.append(str(event["data"]))
+                    elif event_type == "tool_approval_request":
+                        data = event.get("data", {})
+                        if isinstance(data, dict):
+                            extensions = data.get("extensions", {})
+                            timeout_ext = extensions.get("timeout", {}) if isinstance(extensions, dict) else {}
+                            if isinstance(timeout_ext, dict):
+                                next_timeout = {
+                                    "seconds": timeout_ext.get("seconds", 300),
+                                    "behavior": timeout_ext.get("behavior", "deny"),
+                                }
+            finally:
+                await agent.close()
 
             content = strip_internal_markers("".join(chunks))
             if content.strip():
@@ -284,7 +300,7 @@ def schedule_channel_approval_timeout(
                     chat_id,
                 )
         finally:
-            await agent.close()
+            user_credentials_ctx.reset(cred_ctx)
 
     ApprovalTimeoutScheduler.get().schedule(
         key=scheduler_key,

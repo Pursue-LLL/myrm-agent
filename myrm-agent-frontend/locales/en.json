@@ -2209,6 +2209,14 @@
           "googleWorkspace": {
             "unavailable": "Connect Google Workspace in Settings → Integrations → Credentials",
             "connectInSettings": "Connect in Settings"
+          },
+          "xLiveSearch": {
+            "unavailable": "Add an xAI provider in Settings → Models & Providers",
+            "connectInSettings": "Configure Provider"
+          },
+          "envSkill": {
+            "unavailable": "Required API key is not configured for this skill",
+            "configureInSettings": "Configure Keys"
           }
         },
         "envConfig": "Environment Configuration",

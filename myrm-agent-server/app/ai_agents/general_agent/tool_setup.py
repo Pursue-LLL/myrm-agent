@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.artifacts.constants import ArtifactType
 
+from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+
 from .external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
@@ -116,22 +118,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                 )
             )
-            # Optional: X/Twitter search via xAI Live Search API
-            try:
-                from app.services.agent.platform_config import resolve_xai_search_config
+            if X_LIVE_SEARCH_SKILL_ID in (self.skill_ids or []):
+                try:
+                    from app.services.integrations.tools.x_live_search import create_x_live_search_tool
 
-                from .tools.x_search_provider import (
-                    XSearchProviderConfig,
-                    create_x_search_tool,
-                )
-
-                xai_creds = resolve_xai_search_config(self.providers_dict)
-                if xai_creds:
-                    api_key, base_url = xai_creds
-                    tools.append(create_x_search_tool(XSearchProviderConfig(api_key=api_key, base_url=base_url)))
-                    logger.info("🐦 已加载 x_search_tool (xAI Live Search)")
-            except Exception as e:
-                logger.debug("x_search_tool skipped: %s", e)
+                    deferred_tools.append(create_x_live_search_tool())
+                    logger.info("Loaded x_search_tool (%s skill) [Deferred]", X_LIVE_SEARCH_SKILL_ID)
+                except Exception as e:
+                    logger.debug("x_search_tool skipped: %s", e)
 
             logger.info(
                 f"🔍 已加载 web_search_tool 和 web_fetch_tool "

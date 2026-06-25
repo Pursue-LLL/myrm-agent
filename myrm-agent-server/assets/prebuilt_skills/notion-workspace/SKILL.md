@@ -12,6 +12,8 @@ tags:
   - notes
   - database
 allowed-tools: web_fetch_tool bash_code_execute_tool file_write_tool
+requires:
+  env: [NOTION_API_KEY]
 contract:
   steps:
     - "Phase 1: Connect — verify Notion API token and workspace access"
