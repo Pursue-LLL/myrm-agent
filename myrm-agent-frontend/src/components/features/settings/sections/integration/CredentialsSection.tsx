@@ -15,6 +15,7 @@ import { countProviderTrees } from '@/services/integrationMemory';
 import {
   disconnectGoogleWorkspaceOAuth,
   fetchGoogleWorkspaceOAuthConfig,
+  fetchGoogleWorkspaceOAuthStatus,
   openGoogleAuthorizationUrl,
   pollGoogleWorkspaceOAuthState,
   startGoogleWorkspaceOAuth,
@@ -132,6 +133,7 @@ const CredentialsSection = memo(() => {
   const [scopeInput, setScopeInput] = useState('');
   const [googleOauthPolling, setGoogleOauthPolling] = useState(false);
   const [googleOauthConfigured, setGoogleOauthConfigured] = useState<boolean | null>(null);
+  const [googleWorkspaceWriteEnabled, setGoogleWorkspaceWriteEnabled] = useState(false);
   const googlePollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -153,6 +155,12 @@ const CredentialsSection = memo(() => {
         }>
       >('/integrations/oauth', { silent: true });
       setOauthCreds(data || []);
+      try {
+        const gwStatus = await fetchGoogleWorkspaceOAuthStatus();
+        setGoogleWorkspaceWriteEnabled(Boolean(gwStatus.connected && gwStatus.write_enabled));
+      } catch {
+        setGoogleWorkspaceWriteEnabled(false);
+      }
     } catch (e) {
       console.error('Failed to load OAuth integrations:', e);
     } finally {
@@ -210,7 +218,7 @@ const CredentialsSection = memo(() => {
     }
   }, [disconnectConfirmTarget, clearSyncedMemory, t, fetchOauthCreds]);
 
-  const handleGoogleWorkspaceConnect = useCallback(async () => {
+  const handleGoogleWorkspaceConnect = useCallback(async (tier: 'readonly' | 'write' = 'readonly') => {
     setGoogleOauthPolling(true);
     try {
       const config = await fetchGoogleWorkspaceOAuthConfig();
@@ -224,7 +232,7 @@ const CredentialsSection = memo(() => {
         return;
       }
 
-      const startRes = await startGoogleWorkspaceOAuth();
+      const startRes = await startGoogleWorkspaceOAuth(tier);
       await openGoogleAuthorizationUrl(startRes.authorization_url);
 
       if (googlePollRef.current) clearInterval(googlePollRef.current);
@@ -245,9 +253,19 @@ const CredentialsSection = memo(() => {
             if (statusRes.skill_was_user_disabled) {
               toast({ title: t('googleOauthConnectedSkillDisabled') });
             } else if (statusRes.skill_auto_enabled) {
-              toast({ title: t('googleOauthConnectedSkillEnabled') });
+              toast({
+                title:
+                  tier === 'write'
+                    ? t('googleOauthWriteConnectedSkillEnabled')
+                    : t('googleOauthConnectedSkillEnabled'),
+              });
             } else {
-              toast({ title: t('connectSuccess', { name: 'Google Workspace' }) });
+              toast({
+                title:
+                  tier === 'write'
+                    ? t('googleOauthWriteConnected')
+                    : t('connectSuccess', { name: 'Google Workspace' }),
+              });
             }
             fetchOauthCreds();
           } else if (statusRes.status === 'expired_or_invalid') {
@@ -764,6 +782,33 @@ const CredentialsSection = memo(() => {
                       </div>
                     )}
 
+                    {plat.oauthFlow === 'google_workspace' && active && state !== 'missing' && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-xs font-medium',
+                            googleWorkspaceWriteEnabled
+                              ? 'border-violet-500/40 text-violet-600 dark:text-violet-300 bg-violet-500/10'
+                              : 'border-border text-muted-foreground',
+                          )}
+                        >
+                          {googleWorkspaceWriteEnabled ? t('googleOauthWriteTierOn') : t('googleOauthReadonlyTier')}
+                        </Badge>
+                        {!googleWorkspaceWriteEnabled && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 text-xs"
+                            disabled={googleOauthPolling}
+                            onClick={() => void handleGoogleWorkspaceConnect('write')}
+                          >
+                            {googleOauthPolling ? t('googleOauthPolling') : t('googleOauthEnableWrite')}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
                     {active && state !== 'expired' && (
                       <div className="mt-4 space-y-1.5 bg-muted/30 rounded-lg p-3 text-xs border border-border/50">
                         {active.user_id && (
@@ -1100,7 +1145,7 @@ const CredentialsSection = memo(() => {
               </Button>
               {connectModalTarget.oauthFlow === 'google_workspace' ? (
                 <Button
-                  onClick={() => void handleGoogleWorkspaceConnect()}
+                  onClick={() => void handleGoogleWorkspaceConnect('readonly')}
                   disabled={googleOauthPolling || googleOauthConfigured === false}
                 >
                   {googleOauthPolling ? t('googleOauthPolling') : t('googleOauthConnectBtn')}

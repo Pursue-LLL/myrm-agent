@@ -145,6 +145,28 @@ class TestGoogleApiGmailInbox:
         assert messages[0]["from"] == "team@example.com"
         assert messages[0]["snippet"] == "Hello there"
 
+
+class TestGoogleApiWriteCommands:
+    def test_gmail_send_posts_to_api(self, google_api_module) -> None:
+        send_response = MagicMock()
+        send_response.read.return_value = json.dumps({"id": "sent-1", "threadId": "thread-1"}).encode()
+        send_response.__enter__ = MagicMock(return_value=send_response)
+        send_response.__exit__ = MagicMock(return_value=None)
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=send_response) as mock_open:
+            result = google_api_module.gmail_send(
+                "token",
+                to="user@example.com",
+                subject="Hello",
+                body="Body",
+            )
+
+        assert result["status"] == "sent"
+        assert result["id"] == "sent-1"
+        request = mock_open.call_args[0][0]
+        assert request.full_url.endswith("/messages/send")
+        assert request.method == "POST"
+
     def test_gmail_inbox_empty_inbox_returns_empty_messages(self, google_api_module) -> None:
         list_response = MagicMock()
         list_response.read.return_value = json.dumps({"messages": [], "resultSizeEstimate": 0}).encode()

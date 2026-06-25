@@ -30,6 +30,18 @@ logger = logging.getLogger(__name__)
 
 CONFIG_KEY = "oauthCredentials"
 
+GOOGLE_WORKSPACE_WRITE_SCOPE_MARKERS: tuple[str, ...] = (
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/calendar.events",
+)
+
+
+def google_workspace_write_enabled(scope: object) -> bool:
+    """Return True when stored scope string includes all Google Workspace write scopes."""
+    if not isinstance(scope, str) or not scope.strip():
+        return False
+    return all(marker in scope for marker in GOOGLE_WORKSPACE_WRITE_SCOPE_MARKERS)
+
 
 def decrypt_oauth_credentials(
     raw_value: object,

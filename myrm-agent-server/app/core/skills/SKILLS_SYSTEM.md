@@ -105,7 +105,9 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
 | 映射 | `INTEGRATION_SKILL_ISSUERS`: `google-workspace` → `google_workspace`（Catalog 连通性；bash scope 用 seed SKILL 的 `oauth_issuer`） |
 | Bash 注入 | `stream_chunks` → `user_credentials_ctx` → `LocalExecutor._build_bash_env` + `credential_env_overrides(allowed_issuers=…)`；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
-| GUI | Settings → Integrations → Credentials OAuth 卡；Skills Catalog 黄标 + 深链 `/settings/credentials` |
+| GUI | Settings → Integrations → Credentials OAuth 卡（readonly / write tier）；Skills Catalog 黄标 + 深链 `/settings/credentials` |
+| Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |
+| Fail-closed | DB enrich 异常时 integration skill 标记 unavailable |
 
 ---
 

@@ -59,8 +59,19 @@ Bundled readonly CLI (stdlib Python). Run from the staged skill path in the sand
 
 ```bash
 python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today
+python3 .claude/skills/google-workspace/scripts/google_api.py calendar-range --time-min RFC3339 --time-max RFC3339
 python3 .claude/skills/google-workspace/scripts/google_api.py gmail-inbox
+python3 .claude/skills/google-workspace/scripts/google_api.py gmail-get MESSAGE_ID
 python3 .claude/skills/google-workspace/scripts/google_api.py drive-recent
+```
+
+Write commands require **Settings → Enable write access** (incremental OAuth consent). Each write triggers harness HITL approval.
+
+```bash
+python3 .claude/skills/google-workspace/scripts/google_api.py gmail-send --to user@example.com --subject "Subject" --body "Body text"
+python3 .claude/skills/google-workspace/scripts/google_api.py gmail-reply --message-id MSG_ID --body "Reply text"
+python3 .claude/skills/google-workspace/scripts/google_api.py calendar-create --summary "Meeting" --start RFC3339 --end RFC3339
+python3 .claude/skills/google-workspace/scripts/google_api.py calendar-delete --event-id EVENT_ID
 ```
 
 The bash executor stages the skill into the workspace and rewrites these to relative `scripts/` paths automatically.
@@ -101,9 +112,9 @@ python3 .claude/skills/google-workspace/scripts/google_api.py drive-recent
 | HTTP | Meaning | Action |
 |------|---------|--------|
 | 401 | Token invalid/expired | Ask user to reconnect Google Workspace in Settings |
-| 403 | Insufficient scope | Reconnect OAuth to grant Calendar/Gmail/Drive scopes |
+| 403 | Insufficient scope | Read: reconnect OAuth. Write: enable write access in Settings |
 | 429 | Rate limited | Back off and retry once |
 
 ## Write Operations
 
-Only perform create/update/delete when the user explicitly requests it. Show a draft summary and get confirmation before mutating data.
+Requires write OAuth tier in Settings. Only run when the user explicitly requests send/create/delete. Summarize the draft in chat; harness HITL will prompt the user before execution.

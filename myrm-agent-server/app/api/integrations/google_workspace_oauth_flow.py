@@ -9,8 +9,8 @@
 PKCE pending/success state, scope tiers, redirect URI builders, Google userinfo fetch
 
 [POS]
-Helper module extracted from google_workspace_oauth.py to keep route handlers under
-the 400-line CI budget without changing OAuth behavior.
+Shared OAuth flow state, scope tiers, redirect URI resolution, and Google userinfo
+helpers for the Google Workspace integrations API routes.
 """
 
 from __future__ import annotations

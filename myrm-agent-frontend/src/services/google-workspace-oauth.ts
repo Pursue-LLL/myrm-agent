@@ -12,6 +12,7 @@ export interface GoogleWorkspaceOAuthConfig {
 export interface GoogleWorkspaceOAuthStatus {
   issuer: string;
   connected: boolean;
+  write_enabled: boolean;
   user_id: string | null;
   scope: string | null;
   expires_at: number | null;
@@ -23,10 +24,12 @@ export async function fetchGoogleWorkspaceOAuthConfig(): Promise<GoogleWorkspace
   });
 }
 
-export async function startGoogleWorkspaceOAuth(): Promise<{ authorization_url: string; state: string }> {
-  return apiRequest<{ authorization_url: string; state: string }>(
+export async function startGoogleWorkspaceOAuth(
+  tier: 'readonly' | 'write' = 'readonly',
+): Promise<{ authorization_url: string; state: string; tier?: string }> {
+  return apiRequest<{ authorization_url: string; state: string; tier?: string }>(
     '/integrations/google-workspace/oauth/start',
-    { method: 'POST', body: JSON.stringify({}) },
+    { method: 'POST', body: JSON.stringify({ tier }) },
   );
 }
 

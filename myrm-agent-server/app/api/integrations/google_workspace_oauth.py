@@ -29,6 +29,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from myrm_agent_harness.toolkits.mcp.oauth import generate_pkce_pair
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.integrations import google_workspace_oauth_flow as flow
 from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
@@ -41,7 +42,6 @@ from app.services.integrations.oauth_store import (
     load_oauth_credentials_row,
     upsert_oauth_credential,
 )
-from app.api.integrations import google_workspace_oauth_flow as flow
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ async def handle_google_workspace_oauth_callback(
             },
         )
 
-        skill_auto_enabled, skill_was_user_disabled = await flow.maybe_enable_google_workspace_skill()
+        skill_auto_enabled, skill_was_user_disabled = await _maybe_enable_google_workspace_skill()
 
         _successful_auth[state] = time.time()
         _successful_auth_meta[state] = {

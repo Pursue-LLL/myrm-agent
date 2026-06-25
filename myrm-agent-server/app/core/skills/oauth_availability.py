@@ -110,6 +110,11 @@ async def enrich_skill_metadata_integration_oauth(skills: list[SkillMetadata]) -
             await apply_integration_oauth_to_metadata(skills, db)
     except Exception as exc:
         logger.warning("Failed to enrich skill OAuth availability: %s", exc)
+        for meta in skills:
+            skill_id = _metadata_skill_id(meta)
+            if skill_id in INTEGRATION_SKILL_ISSUERS:
+                meta.available = False
+                meta.unavailable_reason = GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE
 
 
 class IntegrationOAuthSkillBackend:

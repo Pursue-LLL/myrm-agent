@@ -146,7 +146,7 @@ async def test_enrich_skill_metadata_integration_oauth_uses_db_session() -> None
 
 
 @pytest.mark.asyncio
-async def test_enrich_skill_metadata_integration_oauth_swallows_db_errors() -> None:
+async def test_enrich_skill_metadata_integration_oauth_fail_closed_on_db_errors() -> None:
     meta = _google_workspace_metadata()
 
     with patch(
@@ -155,7 +155,8 @@ async def test_enrich_skill_metadata_integration_oauth_swallows_db_errors() -> N
     ):
         await enrich_skill_metadata_integration_oauth([meta])
 
-    assert meta.available is True
+    assert meta.available is False
+    assert meta.unavailable_reason == GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE
 
 
 @pytest.mark.asyncio
