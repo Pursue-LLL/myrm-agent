@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.api.integrations import (
     catalog,
+    google_workspace_oauth,
     hardware,
     im_contacts,
     integration_memory,
@@ -35,5 +36,10 @@ router.include_router(mcp_oauth.router, prefix="/mcp/oauth", tags=["integrations
 router.include_router(retrieval.router, prefix="/retrieval", tags=["integrations-retrieval"])
 router.include_router(catalog.router, prefix="/catalog", tags=["integrations-catalog"])
 router.include_router(oauth.router, prefix="/oauth", tags=["integrations-oauth"])
+router.include_router(
+    google_workspace_oauth.router,
+    prefix="/google-workspace/oauth",
+    tags=["integrations-google-workspace-oauth"],
+)
 router.include_router(im_contacts.router, prefix="/contacts", tags=["integrations-contacts"])
 router.include_router(integration_memory.router, prefix="/memory", tags=["integrations-memory"])

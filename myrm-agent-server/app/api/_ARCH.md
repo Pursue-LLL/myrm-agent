@@ -31,7 +31,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 定时/任务 | [cron/](cron/_ARCH.md) · [tasks/](tasks/_ARCH.md) · [background_tasks/](background_tasks/_ARCH.md) | Cron、异步任务、后台 worker |
 | 语音/媒体 | [voice/](voice/_ARCH.md) · [stt/](stt/_ARCH.md) · [tts/](tts/_ARCH.md) · [media/](media/_ARCH.md) | 实时语音、STT/TTS、媒体生成 |
 | 运维 | [health/](health/_ARCH.md) · [system/](system/_ARCH.md) · [statistics/](statistics/_ARCH.md) | 健康检查、关机、统计 |
-| 其他 | [wiki/](wiki/_ARCH.md) · [eval/](eval/_ARCH.md) · [migration/](migration/_ARCH.md) · [goals/](goals/_ARCH.md) · [calendar/](calendar/_ARCH.md) · [commitment/](commitment/_ARCH.md) · [companion/](companion/_ARCH.md) · [budget/](budget/_ARCH.md) · [risk/](risk/_ARCH.md) · [audit/](audit/_ARCH.md) · [internal/](internal/_ARCH.md) · [webui/](webui/_ARCH.md) · [openai_compat/](openai_compat/_ARCH.md) · [mem0_compat/](mem0_compat/_ARCH.md) · [widget_storage/](widget_storage/_ARCH.md) | 各产品子功能 HTTP 薄层 |
+| 其他 | [wiki/](wiki/_ARCH.md) · [eval/](eval/_ARCH.md) · [migration/](migration/_ARCH.md) · [goals/](goals/_ARCH.md) · [commitment/](commitment/_ARCH.md) · [companion/](companion/_ARCH.md) · [budget/](budget/_ARCH.md) · [risk/](risk/_ARCH.md) · [audit/](audit/_ARCH.md) · [internal/](internal/_ARCH.md) · [webui/](webui/_ARCH.md) · [openai_compat/](openai_compat/_ARCH.md) · [mem0_compat/](mem0_compat/_ARCH.md) · [widget_storage/](widget_storage/_ARCH.md) | 各产品子功能 HTTP 薄层 |
 
 ## 约束
 

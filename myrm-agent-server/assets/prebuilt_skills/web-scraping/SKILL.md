@@ -10,7 +10,7 @@ tags:
   - browser
   - data-extraction
   - automation
-allowed-tools: browser_navigate browser_interact browser_snapshot browser_extract web_fetch_tool bash_code_execute_tool file_write_tool
+allowed-tools: browser_navigate_tool browser_interact_tool browser_snapshot_tool browser_extract_tool web_fetch_tool bash_code_execute_tool file_write_tool
 contract:
   steps:
     - "Phase 1: Recon — analyze target page structure and data layout"
@@ -48,7 +48,7 @@ Web scraping requires careful planning to extract data reliably. Jumping straigh
 
 Before writing any extraction code:
 
-1. **Visit the target page** using `browser_navigate`
+1. **Visit the target page** using `browser_navigate_tool`
 2. **Take a snapshot** using `browser_snapshot` to understand the DOM structure
 3. **Identify the data** — Where is the data? Tables? Lists? Cards? API responses?
 4. **Check for pagination** — How many pages? URL pattern? "Load more" button?
@@ -68,7 +68,7 @@ Choose the right approach:
 | Scenario | Method |
 |----------|--------|
 | Static HTML, simple structure | `web_fetch_tool` + parse HTML |
-| JavaScript-rendered content | Browser automation (`browser_navigate` + `browser_action`) |
+| JavaScript-rendered content | Browser automation (`browser_navigate_tool` + `browser_interact_tool`) |
 | Paginated results | Loop with URL pattern or "next" button |
 | Data behind login | Browser automation with cookie handling |
 | API available | Direct API calls (preferred — most reliable) |
@@ -95,7 +95,7 @@ from html.parser import HTMLParser
 
 ### Using Browser Automation (Dynamic Pages)
 
-1. **Navigate:** `browser_navigate` to the target URL
+1. **Navigate:** `browser_navigate_tool` to the target URL
 2. **Wait:** Allow dynamic content to load
 3. **Snapshot:** `browser_snapshot` to get current DOM state
 4. **Interact:** Click pagination, expand sections, scroll for lazy loading

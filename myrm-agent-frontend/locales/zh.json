@@ -1599,6 +1599,13 @@
       "disconnectError": "断开 {name} 失败",
       "disconnectConfirmTitle": "断开 {name} 授权",
       "disconnectConfirmDesc": "您确定要断开 {name} 服务的集成授权吗？断开后智能体将无法代表您执行相关协同任务。",
+      "googleOauthConnectDesc": "使用 Google 账号登录，授权只读访问日历、Gmail 与云端硬盘。令牌加密存储，仅在智能体会话中临时注入。",
+      "googleOauthConnectBtn": "使用 Google 登录",
+      "googleOauthPolling": "等待授权完成…",
+      "googleOauthNotConfigured": "服务端 OAuth 未配置。请联系管理员设置 GOOGLE_CLIENT_ID 与 GOOGLE_CLIENT_SECRET。",
+      "googleOauthTimeout": "授权超时，请关闭对话框后重试。",
+      "googleOauthConnectedSkillEnabled": "Google Workspace 已连接，google-workspace 技能已自动启用。",
+      "googleOauthConnectedSkillDisabled": "Google 已连接。若您曾禁用该技能，请在 Skills 页手动启用 google-workspace。",
       "vaultTitle": "表单凭证金库",
       "vaultDescription": "安全存储密码和 TOTP 种子，用于浏览器/桌面自动化。密钥已加密，且不会暴露给 LLM 上下文。",
       "vaultAdd": "添加凭证",
@@ -8334,8 +8341,8 @@
       "daySun": "周日",
       "morningBriefing": {
         "title": "每日简报",
-        "desc": "每日新闻、天气和日程摘要",
-        "prompt": "给我一份简洁的晨间简报：今日5条科技要闻、天气概况和我的日程重点。"
+        "desc": "每日新闻、天气和待办摘要",
+        "prompt": "给我一份简洁的晨间简报：今日5条科技要闻、天气概况和最紧急的待办事项。"
       },
       "weeklyReview": {
         "title": "每周回顾",

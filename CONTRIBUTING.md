@@ -96,6 +96,27 @@ See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
 
 **Dependency direction:** `api → services → ai_agents → core`. Never import `app.api` from `services/`.
 
+## Harness vs product boundaries (read before adding tools or skills)
+
+Myrm splits **Agent framework** (`myrm-agent-harness` on PyPI) from **product** (`myrm-agent-server`).
+
+| Want to add… | Put it here | Do **not** put it here |
+|--------------|-------------|-------------------------|
+| Generic fetch/search/sandbox/MCP client | `harness/toolkits/` | `app/services/` as a fake "tool" |
+| Session-bound tool wrapper | `harness/agent/meta_tools/` | `toolkits/` |
+| Vendor workflow (Linear, Notion, Google Workspace, briefing) | `assets/prebuilt_skills/` | New harness toolkit module |
+| OAuth / channel credentials | `app/api/integrations/` (e.g. `google_workspace_oauth.py`, `oauth.py`), `app/channels/` | Harness |
+| Product HTTP API | `app/api/` + `app/services/` | Harness default tools |
+
+**Gate questions** (all must pass for a new harness toolkit):
+
+1. Works without Myrm-specific business logic?
+2. Zero imports from `agent/`?
+3. Not a single-vendor SaaS wrapper?
+4. Registered in `tool_layers.py` and `validate_tool_registry.py` PASS?
+
+Forbidden patterns (see `myrm-agent-harness/.../toolkits/_ARCH.md` and `TOOL_DESIGN_STRATEGY.md` §1.2): vendor SaaS in `toolkits/`. Prebuilt vendor skills require productized OAuth (`integrations/google-workspace/oauth`) or MCP — not harness calendar/rss modules.
+
 ## API ↔ Services domain vocabulary
 
 `api/` and `services/` are **not** a 1:1 mirror. Folder names differ on purpose (HTTP resource plural vs service singular) or because logic lives in harness / `core/` / `database/` instead of `services/`.
@@ -131,7 +152,6 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 |--------|-------------------|
 | `agents/` · `goals/` | `services/agent/` |
 | `chats/` · `projects/` | `services/chat/` · `services/project/` |
-| `calendar/` | `database/models` (+ optional `core/calendar/`) |
 | `workspace/` | harness workspace rules scanner (see `api/workspace/_ARCH.md`) |
 | `datasets/` | harness event-log export pipeline |
 | `eval/` | `core/eval/` (+ harness eval executors) |

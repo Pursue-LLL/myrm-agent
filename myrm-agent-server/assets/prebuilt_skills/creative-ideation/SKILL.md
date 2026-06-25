@@ -12,7 +12,7 @@ tags:
   - creativity
   - strategy
   - innovation
-allowed-tools: file_write_tool memory_save
+allowed-tools: file_write_tool memory_save_tool
 contract:
   steps:
     - "Phase 1: Frame — define the creative challenge and constraints"

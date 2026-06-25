@@ -5,7 +5,7 @@ arrives, the buffer is drained and injected into InboundMessage.context_messages
 giving the Agent conversational context from the group chat.
 
 [INPUT]
-- channels.types::ContextEntry (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- channels.types::ContextEntry (POS: Non-trigger message metadata with sender/content/timestamp.)
 
 [OUTPUT]
 - GroupContextBuffer: per-group ring buffer with time-based expiry

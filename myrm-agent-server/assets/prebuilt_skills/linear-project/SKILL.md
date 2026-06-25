@@ -11,7 +11,7 @@ tags:
   - issues
   - agile
   - team
-allowed-tools: web_fetch_tool bash_tool file_write_tool
+allowed-tools: web_fetch_tool bash_code_execute_tool file_write_tool
 requires:
   env: [LINEAR_API_KEY]
 contract:

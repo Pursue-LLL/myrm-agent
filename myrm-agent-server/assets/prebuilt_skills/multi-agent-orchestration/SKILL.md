@@ -12,7 +12,7 @@ tags:
   - delegation
   - parallel-execution
   - synthesis
-allowed-tools: delegate_task file_write_tool file_read_tool memory_save memory_recall
+allowed-tools: delegate_task_tool file_write_tool file_read_tool memory_save_tool memory_recall_tool
 contract:
   steps:
     - "Phase 1: Task Analysis — decompose the problem into expert-level subtasks"
@@ -93,7 +93,7 @@ Constraints: {Quality requirements, format, boundaries}
 
 ## Phase 3: Parallel Execution
 
-Use `delegate_task` to assign subtasks to sub-agents:
+Use `delegate_task_tool` to assign subtasks to sub-agents:
 
 ### Delegation Specification
 

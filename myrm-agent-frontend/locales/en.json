@@ -1599,6 +1599,13 @@
       "disconnectError": "Failed to disconnect {name}",
       "disconnectConfirmTitle": "Disconnect {name}",
       "disconnectConfirmDesc": "Are you sure you want to disconnect your {name} integration? This will revoke the agent's permission to run tasks on your behalf.",
+      "googleOauthConnectDesc": "Sign in with your Google account to grant read access to Calendar, Gmail, and Drive. Tokens are stored encrypted and injected only during agent sessions.",
+      "googleOauthConnectBtn": "Sign in with Google",
+      "googleOauthPolling": "Waiting for authorization…",
+      "googleOauthNotConfigured": "Server OAuth is not configured. Ask your administrator to set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.",
+      "googleOauthTimeout": "Authorization timed out. Close this dialog and try again.",
+      "googleOauthConnectedSkillEnabled": "Google Workspace connected. The google-workspace skill is enabled.",
+      "googleOauthConnectedSkillDisabled": "Google connected. Enable the google-workspace skill in Skills if you previously disabled it.",
       "vaultTitle": "Form Credentials Vault",
       "vaultDescription": "Securely store passwords and TOTP seeds for browser/desktop automation. Secrets are encrypted and never exposed to the LLM context.",
       "vaultAdd": "Add Credential",
@@ -8334,8 +8341,8 @@
       "daySun": "Sunday",
       "morningBriefing": {
         "title": "Morning Briefing",
-        "desc": "Daily digest of news, weather, and calendar highlights",
-        "prompt": "Give me a concise morning briefing: top 5 tech news, weather summary, and my calendar highlights for today."
+        "desc": "Daily digest of news, weather, and task highlights",
+        "prompt": "Give me a concise morning briefing: top 5 tech news, weather summary, and my most urgent tasks for today."
       },
       "weeklyReview": {
         "title": "Weekly Review",

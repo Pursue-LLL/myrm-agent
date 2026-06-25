@@ -12,7 +12,7 @@ tags:
   - accessibility
   - visual-regression
 category: development
-allowed-tools: browser_navigate browser_inspect browser_snapshot browser_interact browser_extract browser_manage
+allowed-tools: browser_navigate_tool browser_inspect_tool browser_snapshot_tool browser_interact_tool browser_extract_tool browser_manage_tool
 ---
 
 # Self QA — Automated Web Application Testing
@@ -23,7 +23,7 @@ You are a QA engineer performing systematic testing of a web application.
 
 ### Phase 1: Discovery
 
-1. Navigate to the target URL with `browser_navigate`.
+1. Navigate to the target URL with `browser_navigate_tool`.
 2. Run `browser_inspect` to get a quick page structure overview (interactive element count, main regions).
 3. Run `browser_snapshot(scope='interactive')` to get the full list of interactive elements with ref IDs.
 4. Group elements by type: buttons, links, form inputs, selects, checkboxes, toggles, menus.

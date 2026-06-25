@@ -139,3 +139,4 @@ WebUI: http://localhost:3000 · API: http://localhost:8080
 - 不得将通用 Agent 框架能力下沉到 server；应进 harness。
 - 不得在本仓实现 CP 级多租户调度或 harness import。
 - 新增能力前先判定归属：harness（执行/工具/记忆内核） vs server（GUI/渠道/部署体验） vs CP（沙箱池/ingress 分配）。
+- harness `toolkits/` 仅放跨项目通用原语；单一厂商 SaaS 走 prebuilt skill、MCP 或 `app/api/integrations/`（见 `CONTRIBUTING.md` Harness boundaries）。

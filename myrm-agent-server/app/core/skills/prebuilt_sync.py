@@ -115,6 +115,33 @@ async def _write_skill_to_storage(
     await storage.write_text(metadata_path, json.dumps(skill.to_dict(), indent=2))
 
 
+async def _sync_skill_bundle_files(
+    storage: StorageProvider,
+    skill_id: str,
+    skill_dir: Path,
+) -> None:
+    """Sync bundled seed files (e.g. scripts/) alongside SKILL.md.
+
+    Auxiliary bundle files always follow upstream seeds and are not part of the
+    SKILL.md three-way hash protection (users edit prose, not bundled tooling).
+    """
+    for path in skill_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(skill_dir)
+        if relative.name == SKILL_MD_FILE or relative.name.startswith("."):
+            continue
+        if any(part.startswith("_") for part in relative.parts):
+            continue
+
+        rel_posix = relative.as_posix()
+        storage_path = get_skill_file_path(SkillType.PREBUILT, skill_id, rel_posix)
+        if path.suffix in {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".sh"}:
+            await storage.write_text(storage_path, path.read_text(encoding="utf-8"))
+        else:
+            await storage.write_bytes(storage_path, path.read_bytes())
+
+
 async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
     """Sync prebuilt skill seeds to storage. Runs at most once per process."""
     global _synced  # noqa: PLW0603
@@ -184,6 +211,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             # First-time sync: write content, metadata, and record origin_hash
             skill.origin_hash = source_hash
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
+            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
             synced += 1
             logger.info("Synced new prebuilt skill: %s", skill_id)
             continue
@@ -197,6 +225,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             if current_hash == source_hash:
                 # Content matches upstream — normal write to add origin_hash
                 await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
+                await _sync_skill_bundle_files(storage, skill_id, skill_dir)
                 synced += 1
                 logger.info("Synced prebuilt skill (migration baseline): %s", skill_id)
             else:
@@ -206,6 +235,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
                 logger.info("Preserved user copy of prebuilt skill %s (migration, marked upstream update)", skill_id)
+            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
             continue
 
         if current_hash != origin_hash:
@@ -217,6 +247,7 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
                 meta_json = json.dumps(skill.to_dict(), indent=2)
                 await storage.write_text(metadata_storage, meta_json)
                 logger.info("Prebuilt skill %s: user-modified, upstream update available", skill_id)
+            await _sync_skill_bundle_files(storage, skill_id, skill_dir)
             continue
 
         # User hasn't modified — check if upstream has a newer version
@@ -226,6 +257,8 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             await _write_skill_to_storage(storage, skill, skill_md_storage, metadata_storage, source_content)
             synced += 1
             logger.info("Updated prebuilt skill: %s (upstream changed)", skill_id)
+
+        await _sync_skill_bundle_files(storage, skill_id, skill_dir)
 
     if synced:
         logger.info("Synced %d prebuilt skill(s) to storage", synced)

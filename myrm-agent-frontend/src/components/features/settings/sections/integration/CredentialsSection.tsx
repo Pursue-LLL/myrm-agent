@@ -12,6 +12,13 @@ import { cn } from '@/lib/utils';
 import { localizeReactNode } from '@/lib/utils/localeText';
 import { uploadCredential, listCredentials, deleteCredential, type CredentialFile, listVaultCredentials, createVaultCredential, updateVaultCredential, deleteVaultCredential, type VaultCredential } from '@/services/credentials';
 import { countProviderTrees } from '@/services/integrationMemory';
+import {
+  disconnectGoogleWorkspaceOAuth,
+  fetchGoogleWorkspaceOAuthConfig,
+  openGoogleAuthorizationUrl,
+  pollGoogleWorkspaceOAuthState,
+  startGoogleWorkspaceOAuth,
+} from '@/services/google-workspace-oauth';
 import { useSkillStore } from '@/store/skill';
 import { apiRequest } from '@/lib/api';
 import {
@@ -25,7 +32,27 @@ import {
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Checkbox } from '@/components/primitives/checkbox';
-const SUPPORTED_INTEGRATIONS = [
+const OAUTH_POLL_INTERVAL_MS = 2000;
+const OAUTH_POLL_TIMEOUT_MS = 600_000;
+
+type OauthIntegration = {
+  id: string;
+  name: string;
+  desc: string;
+  descZh: string;
+  category: string;
+  oauthFlow?: 'google_workspace';
+};
+
+const SUPPORTED_INTEGRATIONS: OauthIntegration[] = [
+  {
+    id: 'google_workspace',
+    name: 'Google Workspace',
+    desc: 'Calendar, Gmail, and Drive via OAuth',
+    descZh: '通过 OAuth 连接 Google 日历、Gmail 与云端硬盘',
+    category: 'productivity',
+    oauthFlow: 'google_workspace' as const,
+  },
   {
     id: 'feishu',
     name: 'Feishu / 飞书',
@@ -85,21 +112,46 @@ const CredentialsSection = memo(() => {
   const [uploadingFilename, setUploadingFilename] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const [oauthCreds, setOauthCreds] = useState<any[]>([]);
+  const [oauthCreds, setOauthCreds] = useState<
+    Array<{
+      issuer: string;
+      user_id?: string;
+      scope?: string;
+      expires_at?: number;
+      connected?: boolean;
+    }>
+  >([]);
   const [isOauthLoading, setIsOauthLoading] = useState(false);
-  const [connectModalTarget, setConnectModalTarget] = useState<any | null>(null);
-  const [disconnectConfirmTarget, setDisconnectConfirmTarget] = useState<any | null>(null);
+  const [connectModalTarget, setConnectModalTarget] = useState<OauthIntegration | null>(null);
+  const [disconnectConfirmTarget, setDisconnectConfirmTarget] = useState<OauthIntegration | null>(null);
   const [clearSyncedMemory, setClearSyncedMemory] = useState(false);
   const [providerTreeCount, setProviderTreeCount] = useState(0);
 
   const [tokenInput, setTokenInput] = useState('');
   const [userIdInput, setUserIdInput] = useState('');
   const [scopeInput, setScopeInput] = useState('');
+  const [googleOauthPolling, setGoogleOauthPolling] = useState(false);
+  const [googleOauthConfigured, setGoogleOauthConfigured] = useState<boolean | null>(null);
+  const googlePollRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (googlePollRef.current) clearInterval(googlePollRef.current);
+    };
+  }, []);
 
   const fetchOauthCreds = useCallback(async () => {
     try {
       setIsOauthLoading(true);
-      const data = await apiRequest<any[]>('/oauth', { silent: true });
+      const data = await apiRequest<
+        Array<{
+          issuer: string;
+          user_id?: string;
+          scope?: string;
+          expires_at?: number;
+          connected?: boolean;
+        }>
+      >('/integrations/oauth', { silent: true });
       setOauthCreds(data || []);
     } catch (e) {
       console.error('Failed to load OAuth integrations:', e);
@@ -116,7 +168,7 @@ const CredentialsSection = memo(() => {
     }
 
     try {
-      await apiRequest(`/oauth/${connectModalTarget.id}`, {
+      await apiRequest(`/integrations/oauth/${connectModalTarget.id}`, {
         method: 'POST',
         body: JSON.stringify({
           token: tokenInput.trim(),
@@ -141,9 +193,13 @@ const CredentialsSection = memo(() => {
 
     try {
       const params = clearSyncedMemory ? '?clear_synced_memory=true' : '';
-      await apiRequest(`/oauth/${disconnectConfirmTarget.id}${params}`, {
-        method: 'DELETE',
-      });
+      if (disconnectConfirmTarget.oauthFlow === 'google_workspace') {
+        await disconnectGoogleWorkspaceOAuth();
+      } else {
+        await apiRequest(`/integrations/oauth/${disconnectConfirmTarget.id}${params}`, {
+          method: 'DELETE',
+        });
+      }
       toast({ title: t('disconnectSuccess', { name: disconnectConfirmTarget.name }) });
       setDisconnectConfirmTarget(null);
       setClearSyncedMemory(false);
@@ -153,6 +209,82 @@ const CredentialsSection = memo(() => {
       toast({ title: t('disconnectError', { name: disconnectConfirmTarget.name }), variant: 'destructive' });
     }
   }, [disconnectConfirmTarget, clearSyncedMemory, t, fetchOauthCreds]);
+
+  const handleGoogleWorkspaceConnect = useCallback(async () => {
+    setGoogleOauthPolling(true);
+    try {
+      const config = await fetchGoogleWorkspaceOAuthConfig();
+      setGoogleOauthConfigured(config.configured);
+      if (!config.configured) {
+        toast({
+          title: t('googleOauthNotConfigured'),
+          variant: 'destructive',
+        });
+        setGoogleOauthPolling(false);
+        return;
+      }
+
+      const startRes = await startGoogleWorkspaceOAuth();
+      await openGoogleAuthorizationUrl(startRes.authorization_url);
+
+      if (googlePollRef.current) clearInterval(googlePollRef.current);
+      const pollStartedAt = Date.now();
+      googlePollRef.current = setInterval(async () => {
+        if (Date.now() - pollStartedAt > OAUTH_POLL_TIMEOUT_MS) {
+          if (googlePollRef.current) clearInterval(googlePollRef.current);
+          setGoogleOauthPolling(false);
+          toast({ title: t('googleOauthTimeout'), variant: 'destructive' });
+          return;
+        }
+        try {
+          const statusRes = await pollGoogleWorkspaceOAuthState(startRes.state);
+          if (statusRes.status === 'success') {
+            if (googlePollRef.current) clearInterval(googlePollRef.current);
+            setGoogleOauthPolling(false);
+            setConnectModalTarget(null);
+            if (statusRes.skill_was_user_disabled) {
+              toast({ title: t('googleOauthConnectedSkillDisabled') });
+            } else if (statusRes.skill_auto_enabled) {
+              toast({ title: t('googleOauthConnectedSkillEnabled') });
+            } else {
+              toast({ title: t('connectSuccess', { name: 'Google Workspace' }) });
+            }
+            fetchOauthCreds();
+          } else if (statusRes.status === 'expired_or_invalid') {
+            if (googlePollRef.current) clearInterval(googlePollRef.current);
+            setGoogleOauthPolling(false);
+            toast({ title: t('connectError', { name: 'Google Workspace' }), variant: 'destructive' });
+          }
+        } catch {
+          // ignore polling errors
+        }
+      }, OAUTH_POLL_INTERVAL_MS);
+    } catch (e) {
+      setGoogleOauthPolling(false);
+      toast({
+        title: t('connectError', { name: 'Google Workspace' }),
+        description: String(e),
+        variant: 'destructive',
+      });
+    }
+  }, [fetchOauthCreds, t]);
+
+  const openConnectModal = useCallback(async (plat: OauthIntegration) => {
+    setConnectModalTarget(plat);
+    setTokenInput('');
+    setUserIdInput('');
+    setScopeInput('');
+    if (plat.oauthFlow === 'google_workspace') {
+      try {
+        const config = await fetchGoogleWorkspaceOAuthConfig();
+        setGoogleOauthConfigured(config.configured);
+      } catch {
+        setGoogleOauthConfigured(false);
+      }
+    } else {
+      setGoogleOauthConfigured(null);
+    }
+  }, []);
 
   const loadCredentials = useCallback(async () => {
     try {
@@ -624,7 +756,7 @@ const CredentialsSection = memo(() => {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => setConnectModalTarget(plat)}
+                          onClick={() => void openConnectModal(plat)}
                           className="h-7 px-2.5 text-xs font-semibold whitespace-nowrap bg-red-500 hover:bg-red-600 text-white flex-shrink-0 shadow-red-500/20"
                         >
                           {locale === 'zh' ? '一键修复' : 'Fix Now'}
@@ -677,7 +809,7 @@ const CredentialsSection = memo(() => {
                         {t('disconnect')}
                       </Button>
                     ) : (
-                      <Button size="sm" variant="default" onClick={() => setConnectModalTarget(plat)}>
+                      <Button size="sm" variant="default" onClick={() => void openConnectModal(plat)}>
                         {t('connect')}
                       </Button>
                     )}
@@ -890,53 +1022,74 @@ const CredentialsSection = memo(() => {
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="token" className="text-foreground">
-                  {t('tokenLabel')}
-                </Label>
-                <Input
-                  id="token"
-                  type="password"
-                  placeholder={t('tokenPlaceholder')}
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:ring-primary focus:border-primary"
-                />
-              </div>
+              {connectModalTarget.oauthFlow === 'google_workspace' ? (
+                <>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {t('googleOauthConnectDesc')}
+                  </p>
+                  {googleOauthConfigured === false && (
+                    <div className="flex items-start gap-2.5 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-xs text-amber-700 dark:text-amber-400">
+                      <IconAlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{t('googleOauthNotConfigured')}</span>
+                    </div>
+                  )}
+                  {googleOauthPolling && (
+                    <p className="text-xs text-muted-foreground">{t('googleOauthPolling')}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="token" className="text-foreground">
+                      {t('tokenLabel')}
+                    </Label>
+                    <Input
+                      id="token"
+                      type="password"
+                      placeholder={t('tokenPlaceholder')}
+                      value={tokenInput}
+                      onChange={(e) => setTokenInput(e.target.value)}
+                      className="bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:ring-primary focus:border-primary"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="userId" className="text-foreground">
-                  {t('userIdLabel')}
-                </Label>
-                <Input
-                  id="userId"
-                  type="text"
-                  placeholder={t('userIdPlaceholder')}
-                  value={userIdInput}
-                  onChange={(e) => setUserIdInput(e.target.value)}
-                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="userId" className="text-foreground">
+                      {t('userIdLabel')}
+                    </Label>
+                    <Input
+                      id="userId"
+                      type="text"
+                      placeholder={t('userIdPlaceholder')}
+                      value={userIdInput}
+                      onChange={(e) => setUserIdInput(e.target.value)}
+                      className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="scope" className="text-foreground">
-                  {t('scopeLabel')}
-                </Label>
-                <Input
-                  id="scope"
-                  type="text"
-                  placeholder={t('scopePlaceholder')}
-                  value={scopeInput}
-                  onChange={(e) => setScopeInput(e.target.value)}
-                  className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="scope" className="text-foreground">
+                      {t('scopeLabel')}
+                    </Label>
+                    <Input
+                      id="scope"
+                      type="text"
+                      placeholder={t('scopePlaceholder')}
+                      value={scopeInput}
+                      onChange={(e) => setScopeInput(e.target.value)}
+                      className="bg-muted border border-border text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             <DialogFooter>
               <Button
                 variant="outline"
                 onClick={() => {
+                  if (googlePollRef.current) clearInterval(googlePollRef.current);
+                  setGoogleOauthPolling(false);
                   setConnectModalTarget(null);
                   setTokenInput('');
                   setUserIdInput('');
@@ -945,7 +1098,16 @@ const CredentialsSection = memo(() => {
               >
                 {t('deleteCancel')}
               </Button>
-              <Button onClick={handleConnectOauth}>{t('saveBtn')}</Button>
+              {connectModalTarget.oauthFlow === 'google_workspace' ? (
+                <Button
+                  onClick={() => void handleGoogleWorkspaceConnect()}
+                  disabled={googleOauthPolling || googleOauthConfigured === false}
+                >
+                  {googleOauthPolling ? t('googleOauthPolling') : t('googleOauthConnectBtn')}
+                </Button>
+              ) : (
+                <Button onClick={handleConnectOauth}>{t('saveBtn')}</Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

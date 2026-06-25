@@ -12,7 +12,7 @@ tags:
   - papers
   - literature-review
   - science
-allowed-tools: web_search_tool web_fetch_tool file_write_tool memory_save
+allowed-tools: web_search_tool web_fetch_tool file_write_tool memory_save_tool
 contract:
   steps:
     - "Phase 1: Query — formulate effective arXiv search queries"

@@ -14,7 +14,33 @@ from app.services.config.encryption import get_encryption_service
 
 logger = logging.getLogger(__name__)
 
+GOOGLE_WORKSPACE_ISSUER = "google_workspace"
+
 _refresh_locks: dict[str, asyncio.Lock] = {}
+
+
+def _resolve_oauth_client_credentials(
+    issuer: str,
+    cred_val: dict[str, object],
+) -> tuple[str | None, str | None]:
+    """Resolve OAuth client_id/secret for token refresh.
+
+    Server-owned integrations (google_workspace) read from settings; user/MCP
+    issuers keep credentials stored in the encrypted oauthCredentials blob.
+    """
+    if issuer == GOOGLE_WORKSPACE_ISSUER:
+        from app.config.settings import settings
+
+        client_id = settings.google_client_id.strip()
+        client_secret = settings.google_client_secret.get_secret_value().strip()
+        return (client_id or None, client_secret or None)
+
+    client_id = cred_val.get("client_id")
+    client_secret = cred_val.get("client_secret")
+    return (
+        str(client_id) if client_id else None,
+        str(client_secret) if client_secret else None,
+    )
 
 
 async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
@@ -79,8 +105,7 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
 
             refresh_token = cred_val.get("refresh_token")
             token_url = cred_val.get("token_url")
-            client_id = cred_val.get("client_id")
-            client_secret = cred_val.get("client_secret")
+            client_id, client_secret = _resolve_oauth_client_credentials(issuer, cred_val)
 
             if not refresh_token or not token_url:
                 logger.warning(
@@ -121,6 +146,9 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                         updated_cred["token"] = new_token
                         updated_cred["refresh_token"] = new_refresh
                         updated_cred["expires_at"] = time.time() + expires_in
+                        if issuer == GOOGLE_WORKSPACE_ISSUER:
+                            updated_cred.pop("client_id", None)
+                            updated_cred.pop("client_secret", None)
 
                         credentials_dict[issuer] = updated_cred
 

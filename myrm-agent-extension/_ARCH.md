@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Chrome/Edge MV3 浏览器扩展。通过 WebSocket 连接本机 `myrm-agent-server`，代理 `chrome.debugger` CDP 操作，使 Agent 浏览器自动化可使用用户真实登录会话。同时提供 **Side Panel Chat UI**，让用户在浏览网页时可直接与 Agent 对话，无需切换窗口。
+Chrome/Edge MV3 浏览器扩展。通过 WebSocket 连接本机 `myrm-agent-server`，代理 `chrome.debugger` 操作实现标签页管理与控制，使 Agent 可读取用户已授权标签页状态。同时提供 **Side Panel Chat UI**，让用户在浏览网页时可直接与 Agent 对话，无需切换窗口。
 
 Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension/`；WebUI 管理见 Settings → `extensionBridge` Tab。
 
@@ -11,7 +11,7 @@ Server 侧见 `myrm-agent-server/app/api/extension/` 与 `app/services/extension
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `manifest.json` | 核心 | MV3 清单：权限（debugger/tabs/storage/alarms/sidePanel/contextMenus/scripting）、Service Worker、popup、side_panel、content_scripts、keyboard commands | — |
-| `src/background.js` | 核心 | Service Worker：WebSocket 连接（四态 badge：ON/…/空/!）、心跳保活、CDP 请求分发、标签页生命周期、智能 Tab 选择（同 domain 多 tab 优先 active + tabId 直传）、断线原因追踪、后台窗口隔离（`ensureBackgroundWindow` 非聚焦窗口管理、持久化/复用/自动清理）、**右键菜单注册与处理**、**Glow 消息转发**、**键盘快捷键处理** | ✅ |
+| `src/background.js` | 核心 | Service Worker：WebSocket 连接（四态 badge：ON/…/空/!）、心跳保活、debugger attach/detach 管理、标签页生命周期、智能 Tab 选择（同 domain 多 tab 优先 active + tabId 直传）、断线原因追踪、后台窗口隔离（`ensureBackgroundWindow` 非聚焦窗口管理、持久化/复用/自动清理）、**右键菜单注册与处理**、**Glow 消息转发**、**键盘快捷键处理** | ✅ |
 | `src/popup.html` | 辅助 | Popup 页面结构（服务器 URL、Token、域名列表） | — |
 | `src/popup.js` | 辅助 | Popup 控制器：读写 `chrome.storage.local`、连接/断开、状态展示 | ✅ |
 | `src/sidepanel/sidepanel.html` | 核心 | Side Panel 入口页面：Chat UI 结构（SVG 图标、语义化 HTML） | — |

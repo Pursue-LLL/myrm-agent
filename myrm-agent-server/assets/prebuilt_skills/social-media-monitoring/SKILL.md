@@ -12,7 +12,7 @@ tags:
   - sentiment-analysis
   - brand-tracking
   - competitive-intelligence
-allowed-tools: browser_navigate browser_interact browser_snapshot browser_extract memory_save file_write_tool
+allowed-tools: browser_navigate_tool browser_interact_tool browser_snapshot_tool browser_extract_tool memory_save_tool file_write_tool
 contract:
   steps:
     - "Phase 1: Configure — define target brand, platforms, keywords, and monitoring scope"
@@ -59,7 +59,7 @@ Track brand reputation, competitor moves, and trending topics across social medi
 | LinkedIn | linkedin.com | Yes | en |
 
 Before collecting, verify login status:
-1. Use `browser_navigate` to open the platform
+1. Use `browser_navigate_tool` to open the platform
 2. Use `browser_snapshot` to check if login prompt appears
 3. If not logged in, inform the user and stop — do NOT attempt automated login
 
@@ -70,7 +70,7 @@ Before collecting, verify login status:
 For each platform and keyword:
 
 1. **Navigate to search**
-   - Use `browser_navigate` to open the platform's search page
+   - Use `browser_navigate_tool` to open the platform's search page
    - Use `browser_interact` to enter keywords and submit search
 
 2. **Wait and scroll**

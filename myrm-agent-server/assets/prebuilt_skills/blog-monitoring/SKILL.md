@@ -11,7 +11,7 @@ tags:
   - news
   - blogs
   - content-curation
-allowed-tools: web_search_tool web_fetch_tool file_write_tool memory_save
+allowed-tools: web_search_tool web_fetch_tool bash_code_execute_tool file_write_tool memory_save_tool
 contract:
   steps:
     - "Phase 1: Configure — define monitoring targets (keywords, sources, frequency)"
@@ -74,13 +74,14 @@ Use `web_search_tool` with time-filtered queries:
 - `"keyword" after:YYYY-MM-DD` — recent content only
 - Hacker News: `site:news.ycombinator.com "keyword"`
 
-### RSS Parsing
+### RSS / Atom feeds (known feed URLs)
 
-Fetch RSS/Atom feeds via `web_fetch_tool` and extract:
-- Item title and link
-- Publication date
-- Author
-- Summary/description
+When the source URL is a known RSS/Atom feed, use `web_fetch_tool` to retrieve it,
+then extract from the response: title, link, publication date, and summary/description
+for each `<item>` or `<entry>`. Prefer fetching only the feed URL (not individual articles)
+in this phase to conserve tokens.
+
+For unknown sites, use Phase 1 feed discovery patterns first.
 
 ### Filtering Rules
 

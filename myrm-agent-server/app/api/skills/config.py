@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.skills.audit import _audit_skill_action
 from app.api.skills.schemas import (
@@ -17,7 +18,9 @@ from app.api.skills.schemas import (
     skill_to_response,
 )
 from app.core.skills.config_version import bump_skill_config_version, get_skill_config_version
+from app.core.skills.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
+from app.database.session import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -307,9 +310,10 @@ async def get_config_version() -> SkillConfigVersionResponse:
 
 
 @router.get("/available", response_model=SkillListResponse)
-async def get_user_available_skills() -> SkillListResponse:
+async def get_user_available_skills(db: AsyncSession = Depends(get_db)) -> SkillListResponse:
     """Get user's available skills (enabled prebuilt + local skills)."""
     skills = await skills_service.get_user_available_skills()
+    await apply_integration_oauth_availability(skills, db)
     return SkillListResponse(
         skills=[skill_to_response(s) for s in skills],
         total=len(skills),

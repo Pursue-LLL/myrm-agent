@@ -16,25 +16,24 @@ OAuth 凭证管理 API。提供个人 SaaS 集成凭证的加密存储、查询�
 
 from __future__ import annotations
 
-import json
 import logging
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.connection import get_db
-from app.database.models import UserConfig
-from app.services.config.encryption import ConfigEncryptionService, get_encryption_service
+from app.services.config.encryption import get_encryption_service
+from app.services.integrations.oauth_store import (
+    decrypt_oauth_credentials,
+    delete_oauth_credential as remove_oauth_credential,
+    load_oauth_credentials_row,
+    upsert_oauth_credential,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_CONFIG_KEY = "oauthCredentials"
 
 
 class OAuthCredentialItem(BaseModel):
@@ -52,50 +51,16 @@ class SaveOAuthCredentialPayload(BaseModel):
     expires_at: float | None = None
 
 
-def _decrypt_credentials(
-    raw_value: object,
-    is_encrypted: bool,
-    service: ConfigEncryptionService,
-) -> dict[str, object]:
-    """Decrypt and normalize stored credentials dict."""
-    value = raw_value
-    if is_encrypted:
-        if isinstance(value, str):
-            value = service.decrypt(value)
-        elif isinstance(value, dict) and "_cipher" in value:
-            value = service.decrypt(value["_cipher"])
-
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except (json.JSONDecodeError, TypeError):
-            return {}
-
-    return value if isinstance(value, dict) else {}
-
-
-def _encrypt_credentials(
-    credentials: dict[str, object],
-    service: ConfigEncryptionService,
-) -> tuple[dict[str, object] | str, bool]:
-    """Encrypt credentials dict using the standard encrypt_if_needed API."""
-    return service.encrypt_if_needed(_CONFIG_KEY, credentials)
-
-
-async def _load_row(db: AsyncSession) -> UserConfig | None:
-    return (await db.execute(select(UserConfig).where(UserConfig.config_key == _CONFIG_KEY))).scalars().first()
-
-
 @router.get("", response_model=list[OAuthCredentialItem])
 async def list_oauth_credentials(
     db: AsyncSession = Depends(get_db),
 ) -> list[OAuthCredentialItem]:
     """List all active personal OAuth / SaaS integrations."""
-    row = await _load_row(db)
+    row = await load_oauth_credentials_row(db)
     if not row:
         return []
 
-    credentials = _decrypt_credentials(row.config_value, row.is_encrypted, get_encryption_service())
+    credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted, get_encryption_service())
 
     return [
         OAuthCredentialItem(
@@ -111,7 +76,7 @@ async def list_oauth_credentials(
 
 
 @router.delete("/{issuer}")
-async def delete_oauth_credential(
+async def delete_oauth_credential_endpoint(
     issuer: str,
     clear_synced_memory: bool = False,
     db: AsyncSession = Depends(get_db),
@@ -122,26 +87,9 @@ async def delete_oauth_credential(
         clear_synced_memory: If True, also removes all integration memory trees
                             synced from this provider.
     """
-    row = await _load_row(db)
-    if not row:
-        raise HTTPException(status_code=404, detail="OAuth credentials not found")
-
-    service = get_encryption_service()
-    credentials = _decrypt_credentials(row.config_value, row.is_encrypted, service)
-
-    if issuer not in credentials:
+    deleted = await remove_oauth_credential(db, issuer)
+    if not deleted:
         raise HTTPException(status_code=404, detail=f"Integration '{issuer}' is not connected")
-
-    del credentials[issuer]
-
-    final_value, is_encrypted = _encrypt_credentials(credentials, service)
-    if is_encrypted and isinstance(final_value, str):
-        final_value = {"_cipher": final_value}
-
-    row.config_value = final_value
-    row.is_encrypted = is_encrypted
-    flag_modified(row, "config_value")
-    await db.commit()
 
     trees_removed = 0
     if clear_synced_memory:
@@ -166,40 +114,15 @@ async def save_oauth_credential(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """Manually add or connect personal token (PAT/OAuth token) for an integration."""
-    row = await _load_row(db)
-    service = get_encryption_service()
-
-    credentials: dict[str, object] = {}
-    if row:
-        credentials = _decrypt_credentials(row.config_value, row.is_encrypted, service)
-
-    credentials[issuer] = {
-        "token": payload.token,
-        "user_id": payload.user_id or "",
-        "scope": payload.scope or "",
-        "expires_at": payload.expires_at,
-    }
-
-    final_value, is_encrypted = _encrypt_credentials(credentials, service)
-    if is_encrypted and isinstance(final_value, str):
-        final_value = {"_cipher": final_value}
-
-    if row:
-        row.config_value = final_value
-        row.is_encrypted = is_encrypted
-        flag_modified(row, "config_value")
-    else:
-        db.add(
-            UserConfig(
-                id=str(uuid.uuid4()),
-                config_key=_CONFIG_KEY,
-                config_value=final_value,
-                version="1.0.0",
-                last_device_id="sandbox",
-                is_encrypted=is_encrypted,
-            )
-        )
-
-    await db.commit()
+    await upsert_oauth_credential(
+        db,
+        issuer,
+        {
+            "token": payload.token,
+            "user_id": payload.user_id or "",
+            "scope": payload.scope or "",
+            "expires_at": payload.expires_at,
+        },
+    )
     logger.info("Successfully saved OAuth integration credentials for '%s'", issuer)
     return {"status": "success", "message": f"Successfully saved integration '{issuer}'"}

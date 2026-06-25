@@ -335,14 +335,12 @@ chrome.windows.onRemoved.addListener((windowId) => {
 async function attachDebugger(tabId) {
   const target = { tabId };
 
-  if (attachedTabs.has(tabId)) {
-    return { cdp_ws_url: buildCdpProxyUrl(tabId) };
+  if (!attachedTabs.has(tabId)) {
+    await chrome.debugger.attach(target, "1.3");
+    attachedTabs.set(tabId, target);
   }
 
-  await chrome.debugger.attach(target, "1.3");
-  attachedTabs.set(tabId, target);
-
-  return { cdp_ws_url: buildCdpProxyUrl(tabId) };
+  return { attached: true, tabId };
 }
 
 async function detachDebugger(tabId) {
@@ -392,13 +390,6 @@ async function sendCdpCommand(tabId, method, params) {
     throw new Error(`Debugger not attached to tab ${tabId}`);
   }
   return await chrome.debugger.sendCommand({ tabId }, method, params || {});
-}
-
-function buildCdpProxyUrl(tabId) {
-  // The CDP proxy URL points back to the server's extension bridge endpoint
-  // which will route CDP commands through the WebSocket to this extension
-  const base = serverUrl.replace(/^ws/, "http").replace(/\/ws\/extension$/, "");
-  return `${base}/api/extension/cdp/${tabId}`;
 }
 
 // --- Chrome Debugger Events ---

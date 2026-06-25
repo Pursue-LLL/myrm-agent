@@ -12,7 +12,7 @@ tags:
   - knowledge-management
   - zettelkasten
   - markdown
-allowed-tools: file_write_tool file_read_tool bash_tool
+allowed-tools: file_write_tool file_read_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Locate — find the Obsidian vault directory"
@@ -182,7 +182,7 @@ Brief description of this knowledge area.
 ### Batch Operations
 
 For bulk note management:
-- Use `bash_tool` with `find` to locate files by pattern
+- Use `bash_code_execute_tool` with `find` to locate files by pattern
 - Use `file_read_tool` to scan content for broken links
 - Use `file_write_tool` to update frontmatter across multiple notes
 

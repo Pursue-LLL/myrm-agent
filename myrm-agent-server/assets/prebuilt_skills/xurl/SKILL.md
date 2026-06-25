@@ -11,7 +11,7 @@ tags:
   - social-media
   - xurl
   - content-publishing
-allowed-tools: bash_tool file_write_tool file_read_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool
 requires:
   bins: [xurl]
 contract:

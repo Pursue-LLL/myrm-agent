@@ -1,165 +1,106 @@
 ---
 name: google-workspace
 description: >-
-  Interact with Google Workspace services (Gmail, Calendar, Drive, Docs) via
-  Google APIs. Manage emails, schedule events, create documents, and organize
-  files programmatically.
+  Google Workspace integration for Calendar, Gmail, and Drive via OAuth-connected
+  user credentials. Uses Google REST APIs through bash_code_execute_tool with
+  auto-injected tokens (never expose secrets to chat).
 version: 1.0.0
 category: productivity
 tags:
   - google
-  - gmail
   - calendar
+  - gmail
   - drive
-  - docs
+  - workspace
   - productivity
-allowed-tools: web_fetch_tool bash_tool file_write_tool
-requires:
-  env: [GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET]
+allowed-tools: bash_code_execute_tool web_fetch_tool file_write_tool
 contract:
   steps:
-    - "Phase 1: Authenticate — verify Google API credentials and scopes"
-    - "Phase 2: Discover — identify target service and resource"
-    - "Phase 3: Execute — perform the requested operations"
-    - "Phase 4: Verify — confirm results and handle errors"
+    - "Phase 1: Verify — confirm Google Workspace OAuth is connected in Settings"
+    - "Phase 2: Discover — identify target API (Calendar / Gmail / Drive) and scope"
+    - "Phase 3: Execute — call Google REST API with injected bearer token"
+    - "Phase 4: Confirm — summarize results; confirm destructive actions with user"
   potential_traps:
-    - description: "OAuth token expired or insufficient scopes"
-      mitigation: "Check token validity before operations; guide user through re-auth if needed"
+    - description: "OAuth not connected or token expired without refresh"
+      mitigation: "Ask user to connect Google Workspace in Settings → Integrations → Credentials before proceeding"
       severity: high
-    - description: "Deleting or overwriting important data"
-      mitigation: "Always confirm destructive operations; prefer creating new versions over overwriting"
+    - description: "Exposing OAuth tokens in LLM context or logs"
+      mitigation: "Never print $GOOGLE_WORKSPACE_TOKEN. Use bash with allowed_issuers google_workspace only."
       severity: critical
-  success_criteria: "Requested Google Workspace operations completed and verified"
-  estimated_duration_seconds: 300
+    - description: "Destructive Gmail/Drive/Calendar mutations without confirmation"
+      mitigation: "Default to read-only endpoints; confirm before create/update/delete"
+      severity: high
+  verification_steps:
+    - step_id: oauth_connected
+      description: "Google Workspace OAuth credential is available for this session"
+      validation_method: "bash test -n \"$GOOGLE_WORKSPACE_TOKEN\" succeeds with allowed_issuers google_workspace"
+      is_required: true
+  success_criteria: "Requested Google Workspace operation completed with user-visible summary"
+  estimated_duration_seconds: 180
 ---
 
 # Google Workspace
 
 ## Overview
 
-Google Workspace (Gmail, Calendar, Drive, Docs, Sheets) is the most widely used productivity suite. This skill provides structured workflows for interacting with Google services via their REST APIs.
+Access the user's Google Calendar, Gmail, and Drive through official Google REST APIs. Tokens are injected at runtime from the user's OAuth connection — **never** ask the user to paste tokens into chat.
 
 ## Prerequisites
 
-The user needs Google API credentials:
+1. User connects **Google Workspace** in **Settings → Integrations → Credentials** (OAuth flow auto-enables this skill unless previously disabled).
+2. Server must have `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` configured.
 
-1. Go to https://console.cloud.google.com/
-2. Create or select a project
-3. Enable required APIs (Gmail, Calendar, Drive, etc.)
-4. Create OAuth 2.0 credentials or API key
-5. Set credentials in environment
+If OAuth is missing, stop and instruct the user to connect first.
 
-## Gmail Operations
+## Helper Script
 
-### List Recent Emails
+Bundled readonly CLI (stdlib Python). Run from the staged skill path in the sandbox:
 
-```
-GET https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&q=QUERY
-```
-
-Query syntax: `from:sender@example.com`, `subject:meeting`, `is:unread`, `after:2024/01/01`
-
-### Read Email
-
-```
-GET https://gmail.googleapis.com/gmail/v1/users/me/messages/MESSAGE_ID?format=full
+```bash
+python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today
+python3 .claude/skills/google-workspace/scripts/google_api.py gmail-inbox
+python3 .claude/skills/google-workspace/scripts/google_api.py drive-recent
 ```
 
-### Send Email
+The bash executor stages the skill into the workspace and rewrites these to relative `scripts/` paths automatically.
 
-```
-POST https://gmail.googleapis.com/gmail/v1/users/me/messages/send
-Body: {"raw": "BASE64_ENCODED_RFC2822_MESSAGE"}
-```
+Always run via `bash_code_execute_tool` with `allowed_issuers: ["google_workspace"]`.
 
-### Search Patterns
+## Secret Safety (MANDATORY)
 
-| Goal | Query |
-|------|-------|
-| Unread from person | `from:name@example.com is:unread` |
-| Recent with attachment | `has:attachment newer_than:7d` |
-| Specific subject | `subject:"weekly report"` |
-| In a label | `label:important` |
+- **Never** print, log, or echo `$GOOGLE_WORKSPACE_TOKEN`
+- **Never** read credential files from disk
+- Use `bash_code_execute_tool` with `allowed_issuers: ["google_workspace"]` so the token is injected securely
+- Prefer read-only API calls unless the user explicitly requests a write action
 
-## Calendar Operations
+- Prefer the helper script over hand-written curl
 
-### List Upcoming Events
+## Calendar
 
-```
-GET https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=NOW&maxResults=10&singleEvents=true&orderBy=startTime
+```bash
+python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today
 ```
 
-### Create Event
+## Gmail
 
-```
-POST https://www.googleapis.com/calendar/v3/calendars/primary/events
-{
-  "summary": "Meeting Title",
-  "start": {"dateTime": "2024-01-15T10:00:00-07:00"},
-  "end": {"dateTime": "2024-01-15T11:00:00-07:00"},
-  "attendees": [{"email": "attendee@example.com"}],
-  "description": "Meeting agenda..."
-}
+```bash
+python3 .claude/skills/google-workspace/scripts/google_api.py gmail-inbox
 ```
 
-### Update Event
+## Drive
 
+```bash
+python3 .claude/skills/google-workspace/scripts/google_api.py drive-recent
 ```
-PATCH https://www.googleapis.com/calendar/v3/calendars/primary/events/EVENT_ID
-```
-
-## Drive Operations
-
-### List Files
-
-```
-GET https://www.googleapis.com/drive/v3/files?q=QUERY&pageSize=20
-```
-
-Query: `name contains 'report'`, `mimeType='application/pdf'`, `'FOLDER_ID' in parents`
-
-### Upload File
-
-```
-POST https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart
-```
-
-### Create Folder
-
-```
-POST https://www.googleapis.com/drive/v3/files
-{"name": "New Folder", "mimeType": "application/vnd.google-apps.folder"}
-```
-
-## Workflow Patterns
-
-### Morning Briefing
-1. Check unread emails (last 12 hours, high priority)
-2. List today's calendar events
-3. Compile into a structured summary
-
-### Meeting Preparation
-1. Find the calendar event details
-2. Search emails related to the topic
-3. Locate relevant Drive documents
-4. Create a preparation brief
-
-### Email Triage
-1. List unread emails grouped by sender/topic
-2. Categorize: urgent / needs-reply / FYI / archive
-3. Draft replies for urgent items (user confirms before sending)
-
-### Weekly Report
-1. Gather completed calendar events (past week)
-2. Search for relevant email threads
-3. Create a structured summary document
-4. Upload to Drive in the appropriate folder
 
 ## Error Handling
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| 401 Unauthorized | Token expired | Refresh OAuth token |
-| 403 Forbidden | Insufficient scopes | Re-authorize with required scopes |
-| 404 Not Found | Wrong resource ID | Verify the ID via list endpoints |
-| 429 Rate Limit | Too many requests | Back off and retry with exponential delay |
+| HTTP | Meaning | Action |
+|------|---------|--------|
+| 401 | Token invalid/expired | Ask user to reconnect Google Workspace in Settings |
+| 403 | Insufficient scope | Reconnect OAuth to grant Calendar/Gmail/Drive scopes |
+| 429 | Rate limited | Back off and retry once |
+
+## Write Operations
+
+Only perform create/update/delete when the user explicitly requests it. Show a draft summary and get confirmation before mutating data.

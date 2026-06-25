@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +19,30 @@ from app.core.skills import prebuilt_sync
 from app.core.skills.models import UserSkillConfig
 from app.core.skills.store.reader import list_prebuilt_skills
 from app.core.skills.store.user_config import UserSkillConfigManager
+
+
+def _load_registered_tool_names() -> set[str]:
+    harness_root = Path(__file__).resolve().parents[3].parent.parent / "myrm-agent-harness"
+    harness_src = str(harness_root)
+    if harness_src not in sys.path:
+        sys.path.insert(0, harness_src)
+    from scripts.tool_registry_engine import load_registered_names
+
+    return load_registered_names()
+
+
+def _iter_prebuilt_seed_allowed_tools() -> list[tuple[str, list[str]]]:
+    seeds_dir = Path(prebuilt_sync.__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
+    entries: list[tuple[str, list[str]]] = []
+    for skill_dir in sorted(seeds_dir.iterdir()):
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_dir.is_dir() or not skill_md.exists():
+            continue
+        match = re.search(r"^allowed-tools:\s*(.+)$", skill_md.read_text(encoding="utf-8"), re.MULTILINE)
+        if match is None:
+            continue
+        entries.append((skill_dir.name, match.group(1).split()))
+    return entries
 
 
 @pytest.fixture
@@ -79,6 +105,23 @@ async def test_ensure_prebuilt_enabled_new_user(storage: LocalStorageBackend) ->
 
 
 @pytest.mark.asyncio
+async def test_ensure_prebuilt_prunes_removed_skill_ids(storage: LocalStorageBackend) -> None:
+    manager = UserSkillConfigManager(storage)
+    await manager.save_config(
+        UserSkillConfig(
+            user_id="sandbox",
+            enabled_prebuilt_ids=["self-qa", "removed-vendor-skill"],
+            disabled_prebuilt_ids=["another-removed-skill"],
+        )
+    )
+
+    config = await manager.ensure_prebuilt_enabled_after_sync(["self-qa", "code-review"])
+
+    assert config.enabled_prebuilt_ids == ["code-review", "self-qa"]
+    assert config.disabled_prebuilt_ids == []
+
+
+@pytest.mark.asyncio
 async def test_ensure_prebuilt_respects_disabled_list(storage: LocalStorageBackend) -> None:
     manager = UserSkillConfigManager(storage)
     await manager.save_config(
@@ -115,6 +158,21 @@ async def test_all_prebuilt_seeds_parse_and_sync(storage: LocalStorageBackend) -
     for skill in skills:
         assert skill.description, f"Skill {skill.id} has empty description"
         assert skill.storage_path, f"Skill {skill.id} has empty storage_path"
+
+
+def test_prebuilt_allowed_tools_match_tool_registry() -> None:
+    """Every prebuilt allowed-tools entry must match a registered harness/server tool name."""
+    registered = _load_registered_tool_names()
+    violations: list[str] = []
+    for skill_id, tools in _iter_prebuilt_seed_allowed_tools():
+        for tool_name in tools:
+            if tool_name not in registered:
+                violations.append(f"{skill_id}: {tool_name}")
+    assert not violations, (
+        "Prebuilt SKILL.md allowed-tools must use registered tool names "
+        "(see tool_layers.py + _tool_layer_bootstrap.py):\n"
+        + "\n".join(f"  - {item}" for item in violations)
+    )
 
 
 @pytest.mark.asyncio
@@ -236,6 +294,31 @@ async def test_sync_migration_no_origin_hash(storage: LocalStorageBackend) -> No
     new_meta = json.loads(await storage.read_text(meta_path))
     assert new_meta.get("origin_hash") is not None, "origin_hash should be set after migration"
     assert new_meta["origin_hash"].startswith("sha256:")
+
+
+@pytest.mark.asyncio
+async def test_sync_copies_skill_bundle_scripts(storage: LocalStorageBackend) -> None:
+    """Bundled seed files (e.g. google-workspace/scripts/google_api.py) must sync to storage."""
+    from myrm_agent_harness.toolkits.storage.paths import get_skill_file_path
+
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    assert "google-workspace" in result.skill_ids
+
+    script_storage_path = get_skill_file_path(
+        SkillType.PREBUILT, "google-workspace", "scripts/google_api.py"
+    )
+    stored = await storage.read_text(script_storage_path)
+
+    seed_script = (
+        Path(prebuilt_sync.__file__).resolve().parents[3]
+        / "assets"
+        / "prebuilt_skills"
+        / "google-workspace"
+        / "scripts"
+        / "google_api.py"
+    )
+    assert stored == seed_script.read_text(encoding="utf-8")
+    assert "calendar-today" in stored
 
 
 @pytest.mark.asyncio

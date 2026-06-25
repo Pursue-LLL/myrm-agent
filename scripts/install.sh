@@ -110,6 +110,32 @@ verify_harness_install() {
     log_success "Harness distribution OK."
 }
 
+is_musl_linux() {
+    [[ "${OS}" == "linux" ]] && ldd /bin/sh 2>&1 | grep -qi musl
+}
+
+reinstall_harness_musl_core() {
+    if ! is_musl_linux; then
+        return 0
+    fi
+    local py="${SERVER_DIR}/.venv/bin/python"
+    if [[ ! -x "${py}" ]]; then
+        return 0
+    fi
+    local machine platform_key harness_version
+    machine="$(uname -m)"
+    platform_key="linux-x64-musl"
+    if [[ "${machine}" == "aarch64" || "${machine}" == "arm64" ]]; then
+        platform_key="linux-arm64-musl"
+    fi
+    harness_version="$("${py}" -c "from importlib.metadata import version; print(version('myrm-agent-harness'))")"
+    log_info "Musl Linux detected; installing myrm-agent-harness-core-${platform_key}==${harness_version} ..."
+    if ! uv pip install --python "${py}" --reinstall "myrm-agent-harness-core-${platform_key}==${harness_version}"; then
+        log_error "Musl platform core wheel install failed for ${platform_key}==${harness_version}."
+        exit 1
+    fi
+}
+
 setup_backend() {
     log_info "Backend (${SERVER_DIR}) ..."
     cd "${SERVER_DIR}"
@@ -119,6 +145,7 @@ setup_backend() {
         log_error "Backend dependency sync failed."
         exit 1
     fi
+    reinstall_harness_musl_core
     verify_harness_install
     log_info "Installing browser runtime (patchright) ..."
     uv run patchright install chromium 2>/dev/null || log_warn "Browser install skipped (non-fatal)."

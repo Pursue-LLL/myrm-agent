@@ -10,7 +10,6 @@ from .api_key import APIKey
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .base import Base
-from .calendar_event import CalendarEventModel
 from .channel import ChannelPairingModel
 from .chat import Chat, ConversationFork, Message, OfflineDurableTask
 from .commitment import CommitmentModel
@@ -128,8 +127,6 @@ __all__ = [
     "ExperienceLedgerEvent",
     # Approval
     "ApprovalRecord",
-    # Calendar
-    "CalendarEventModel",
     # Commitment
     "CommitmentModel",
     # Project

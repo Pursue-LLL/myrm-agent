@@ -12,7 +12,7 @@ tags:
   - report
   - investigation
   - literature-review
-allowed-tools: web_search_tool web_fetch_tool file_write_tool file_read_tool memory_recall memory_save bash_code_execute_tool
+allowed-tools: web_search_tool web_fetch_tool file_write_tool file_read_tool memory_recall_tool memory_save_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Scope Definition — clarify research question, boundaries, deliverables"
@@ -94,7 +94,7 @@ For each important source:
 2. **Identify key claims and data points**
 3. **Note the evidence quality** — Is it opinion, anecdote, or data-backed?
 4. **Extract quotable passages** with source attribution
-5. **Save important findings** using `memory_save` for later synthesis
+5. **Save important findings** using `memory_save_tool` for later synthesis
 
 ### Reading Strategy
 

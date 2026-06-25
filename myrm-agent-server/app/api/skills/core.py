@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 from myrm_agent_harness.toolkits.storage.types import SkillType
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.skills.schemas import SkillListResponse, SkillResponse, skill_to_response
+from app.core.skills.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
+from app.database.session import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -19,6 +22,7 @@ async def list_skills(
     sort_by: str = "name",
     order: str = "asc",
     workspace_root: str | None = None,
+    db: AsyncSession = Depends(get_db),
 ) -> SkillListResponse:
     """List skills filtered by type, sorted by the given field.
 
@@ -43,6 +47,7 @@ async def list_skills(
         order=order,
         workspace_root=workspace_root,
     )
+    await apply_integration_oauth_availability(skills, db)
 
     return SkillListResponse(
         skills=[skill_to_response(s) for s in skills],
@@ -67,12 +72,13 @@ async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
 
 
 @router.get("/{skill_id}", response_model=SkillResponse)
-async def get_skill(skill_id: str) -> SkillResponse:
+async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)) -> SkillResponse:
     """Get skill details by ID."""
     skill = await skills_service.get_skill(skill_id)
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
 
+    await apply_integration_oauth_availability([skill], db)
     return skill_to_response(skill)
 
 

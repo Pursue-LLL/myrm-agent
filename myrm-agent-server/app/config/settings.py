@@ -527,6 +527,10 @@ class AppSettings(BaseSettings):
     # --- [O] Harness event log line limit ---
     event_log_max_jsonl_line_bytes: int = 100 * 1024  # EVENT_LOG_MAX_JSONL_LINE_BYTES
 
+    # --- [O] Google Workspace OAuth (GUI integration connect flow) ---
+    google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
+    google_client_secret: SecretStr = Field(default=SecretStr(""), validation_alias="GOOGLE_CLIENT_SECRET")
+
     # --- Grouped sub-settings (see classes above for env var names) ---
     cache: CacheSettings = CacheSettings()
     message_filter: MessageFilterSettings = MessageFilterSettings()

@@ -23,7 +23,6 @@
 | `MessageToc.tsx` | 组件/模块 | — | — |
 | `QuoteToolbar.tsx` | 组件/模块 | — | — |
 | `Suggestions.tsx` | 组件/模块 | — | — |
-| `TimeSlotPicker.tsx` | 组件/模块 | — | — |
 | `TokenUsageDisplay.tsx` | 组件/模块 | — | — |
 | `ToolCallApproval.tsx` | 组件/模块 | — | — |
 | `ToolImageGallery.tsx` | 组件/模块 | — | — |

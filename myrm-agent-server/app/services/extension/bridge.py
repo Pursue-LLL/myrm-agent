@@ -7,12 +7,13 @@
 - myrm_agent_harness.toolkits.browser.pool.browser_launcher::BrowserInstance
 
 [OUTPUT]
-- ExtensionBridgeService: Singleton managing extension WebSocket connection and CDP routing
+- ExtensionBridgeService: Singleton managing extension WebSocket connection and tab control
 
 [POS]
 Business layer bridge connecting the browser extension (MV3 WebSocket) to the harness
 BrowserLauncher. Implements the ExtensionBridge Protocol defined in the harness layer.
-Handles: connection lifecycle, heartbeat, domain authorization, tab listing, and CDP proxy.
+Handles: connection lifecycle, heartbeat, domain authorization, tab listing, and CDP
+command forwarding via WebSocket relay (chrome.debugger API in extension).
 """
 
 from __future__ import annotations
@@ -131,10 +132,18 @@ class ExtensionBridgeService:
                 "Browser extension is not connected. Please install and connect the extension."
             )
 
-        cdp_ws_url = await self._request_cdp_target(timeout=timeout)
+        tab_id = await self._request_debugger_attach(timeout=timeout)
         pw = await self._ensure_playwright()
-        browser = await pw.chromium.connect_over_cdp(cdp_ws_url, timeout=timeout * 1000)
 
+        cdp_endpoint = self._cdp_endpoint
+        if not cdp_endpoint:
+            raise ExtensionBridgeNotAvailable(
+                "Extension bridge does not expose a direct CDP endpoint. "
+                "For full browser control, launch Chrome with --remote-debugging-port "
+                "and use LaunchMode.CONNECT_OVER_CDP instead."
+            )
+
+        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -152,10 +161,18 @@ class ExtensionBridgeService:
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable("Browser extension is not connected.")
 
-        cdp_ws_url = await self._request_cdp_target(domain=domain, timeout=timeout)
+        tab_id = await self._request_debugger_attach(domain=domain, timeout=timeout)
         pw = await self._ensure_playwright()
-        browser = await pw.chromium.connect_over_cdp(cdp_ws_url, timeout=timeout * 1000)
 
+        cdp_endpoint = self._cdp_endpoint
+        if not cdp_endpoint:
+            raise ExtensionBridgeNotAvailable(
+                f"Extension bridge does not expose a direct CDP endpoint for domain '{domain}'. "
+                "For full browser control, launch Chrome with --remote-debugging-port "
+                "and use LaunchMode.CONNECT_OVER_CDP instead."
+            )
+
+        browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
         return BrowserInstance(
             browser=browser,
             engine="chromium-patchright",
@@ -335,20 +352,20 @@ class ExtensionBridgeService:
             self._pending_requests.pop(req_id, None)
             raise ExtensionBridgeNotAvailable(f"Extension request '{action}' timed out")
 
-    async def _request_cdp_target(
+    async def _request_debugger_attach(
         self,
         domain: str | None = None,
         tab_id: int | None = None,
         *,
         background: bool = True,
         timeout: float = 10.0,
-    ) -> str:
-        """Request the extension to attach debugger and return CDP WebSocket URL.
+    ) -> int:
+        """Request the extension to attach chrome.debugger to a tab.
 
-        When *tab_id* is provided the extension attaches directly to that tab,
-        bypassing domain-based tab selection.  This enables precise tab targeting
-        when the caller already knows which tab to control.
+        Returns the tab ID that was attached. The extension uses its privileged
+        chrome.debugger API to control the tab — no external CDP endpoint needed.
 
+        When *tab_id* is provided the extension attaches directly to that tab.
         When *background* is True (default), the extension creates an isolated
         non-focused window for automation, preventing user disruption.
         """
@@ -361,10 +378,13 @@ class ExtensionBridgeService:
         payload["background"] = background
 
         result = await self._send_request("attach_debugger", payload, timeout=timeout)
-        cdp_ws_url = result.get("cdp_ws_url") if isinstance(result, dict) else None
-        if not cdp_ws_url:
-            raise ExtensionBridgeNotAvailable("Extension did not return CDP WebSocket URL")
-        return cdp_ws_url
+        if not isinstance(result, dict):
+            raise ExtensionBridgeNotAvailable("Extension returned invalid attach_debugger response")
+
+        attached_tab_id = result.get("tabId") or result.get("tab_id")
+        if not attached_tab_id:
+            raise ExtensionBridgeNotAvailable("Extension did not return attached tab ID")
+        return int(attached_tab_id)
 
     async def _refresh_tabs(self) -> None:
         """Request fresh tab list from extension."""

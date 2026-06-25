@@ -22,6 +22,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
 | `services/deploy/_ARCH.md` | 模块 | 部署打包业务层测试清单 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
+| `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist 单测（16 文件） |
 
 ---
 

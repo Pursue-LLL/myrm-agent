@@ -22,7 +22,6 @@ from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_optimization import router as batch_optimization_router
 from app.api.budget import budget_router
-from app.api.calendar.router import router as calendar_router
 from app.api.chats import router as chat_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
@@ -138,7 +137,6 @@ api_router.include_router(context_bundle_router, tags=["context-bundle"])
 api_router.include_router(wiki_router, prefix="/wiki", tags=["wiki"])
 api_router.include_router(widget_storage_router, tags=["widget-storage"])
 api_router.include_router(cron_router, prefix="/cron", tags=["cron"])
-api_router.include_router(calendar_router)
 api_router.include_router(commitment_router)
 api_router.include_router(kanban_router)
 api_router.include_router(kanban_pipeline_router)

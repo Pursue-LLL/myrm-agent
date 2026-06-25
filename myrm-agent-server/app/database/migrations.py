@@ -483,6 +483,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE projects ADD COLUMN workspace_path VARCHAR(1024)",
     # Sandbox worktree: stores original workspace path when sandbox is active
     "ALTER TABLE chats ADD COLUMN sandbox_base_dir VARCHAR(1024)",
+    # Legacy calendar_events table (no ORM/API); Google Calendar via integrations OAuth + skills.
+    "DROP TABLE IF EXISTS calendar_events",
 ]
 
 # 创建索引的SQL语句列表
@@ -712,6 +714,9 @@ INDEX_STATEMENTS = [
         PRIMARY KEY (namespace, key)
     )""",
     "CREATE INDEX IF NOT EXISTS ix_widget_kv_chat_id ON widget_kv(chat_id)",
+    "DROP INDEX IF EXISTS idx_calendar_events_start_at",
+    "DROP INDEX IF EXISTS idx_calendar_events_agent_id",
+    "DROP INDEX IF EXISTS idx_calendar_events_status",
 ]
 
 

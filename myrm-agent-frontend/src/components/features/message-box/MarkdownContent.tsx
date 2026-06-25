@@ -32,7 +32,6 @@ import MarkdownImage from '../markdown-render-tools/MarkdownImage';
 import { getChildrenAsText } from '@/lib/utils/reactUtils';
 import VaultArtifactCard from '../artifacts/VaultArtifactCard';
 import InlineDiffViewer from '../markdown-render-tools/InlineDiffViewer';
-import TimeSlotPicker from './TimeSlotPicker';
 
 const INLINE_RENDER_LANGUAGES = new Set(['html', 'svg']);
 
@@ -112,10 +111,6 @@ const MarkdownContent = React.memo(
         vault: ({ id }: { id?: string }) => {
           if (!id) return null;
           return <VaultArtifactCard id={id} />;
-        },
-        timeslotpicker: ({ data }: { data?: string }) => {
-          if (!data) return null;
-          return <TimeSlotPicker data={data} />;
         },
         think: ThinkTagProcessor,
         thinking: ThinkTagProcessor,
@@ -298,7 +293,6 @@ const MarkdownContent = React.memo(
             'reasoning',
             'citation',
             'vault',
-            'timeslotpicker',
           ]}
           unwrapDisallowed={true} // 如果某个元素被禁止，该元素本身会被移除，但它的 子内容会被保留并提升到父级
         >

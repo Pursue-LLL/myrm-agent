@@ -20,7 +20,7 @@
 | `connection.py` | ✅ 核心 | 数据库连接管理（异步会话工厂）；`get_db` 提供的会话生命周期与单次 HTTP 请求一致；`init_database` 在 `run_migrations` 前通过 `get_sqlite_backup_manager()` 执行完整性验证的 pre-migration safety snapshot，防止多步表重建迁移中断导致数据不一致 |
 | `recovery.py` | ✅ 核心 | 数据库容灾层。提供 dump-based `rescue_database()` 用于严重损坏时的数据抢救（.iterdump 逐行导出）；常规热备份与快照恢复由 `SQLiteBackupManager` 负责（通过 `backup.py` 工厂获取） |
 | `factory.py` | ✅ 核心 | SQLite 数据库引擎和会话工厂创建。`PRAGMA foreign_keys=ON` + WAL + 异步连接池（`SQLITE_POOL_SIZE` 默认 5，`max_overflow=0`）+ `PRAGMA busy_timeout`（`get_sqlite_busy_timeout_ms()` / `SQLITE_BUSY_TIMEOUT_MS`）+ mmap。Sandbox 模式下 `settings.database.sqlite_path` 指向 CP 挂载卷 |
-| `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。包含记忆导入 dry-run 审查会话表、导入批次账本表和导入条目账本表，支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
+| `migrations.py` | ✅ 核心 | 数据库迁移引擎集成。使用 Harness 层的 `StatefulMigrationEngine` 执行版本化 SQL 迁移。尾部含 `calendar_events` 表/索引清理（无 ORM；日历能力经 Google Workspace OAuth + skills）。包含记忆导入 dry-run 审查会话表、导入批次账本表和导入条目账本表，支持精准计时 (`duration_ms`)、基线平滑升级 (Baseline)、慢查询捕获和结构化失败报告。状态持久化在 `_schema_migrations` 和 `_schema_indexes` 表中 |
 | `allowlist_store.py` | ✅ 核心 | DBAllowlistStore — allowlist database persistence (AllowlistStore Protocol). All methods accept `user_id` param per protocol. Provides load/save/remove operations with UUID primary keys |
 | `standard_responses.py` | ✅ 辅助 | 标准化响应模型；业务码含 `DB_STORAGE_BUSY`（51005）等 |
 | `sqlite_storage_busy.py` | ✅ 辅助 | 识别 SQLite 忙/锁异常；`sqlite_busy_retry_after_seconds()` 基于 `get_sqlite_busy_timeout_ms()` |

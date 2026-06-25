@@ -27,10 +27,10 @@ from app.channels.types import (
     ToolStep,
 )
 
-from .channel_test_base import ChannelTestBase
+from ...channel_test_base import ChannelTestBase
 
 
-class TestDiscordChannel(ChannelTestBase):
+class TestDiscordChannelContract(ChannelTestBase):
     def create_channel(self) -> BaseChannel:
         return DiscordChannel(
             config=DiscordChannelConfig(
@@ -174,23 +174,11 @@ class TestBuildView:
 
 
 class TestDiscordEmbedRenderStyle:
-    """Verify _embed_render_style is correctly configured."""
+    """Verify embed render style configuration."""
 
-    @pytest.mark.skip(reason="DiscordChannel refactored: edit_message not overridden yet")
+    @pytest.mark.skip(reason="DiscordChannel.edit_message override not implemented")
     def test_edit_placeholder_message_override(self) -> None:
-        """DiscordChannel overrides edit_placeholder_message."""
         assert DiscordChannel.edit_message is not BaseChannel.edit_message
-
-
-# ---------------------------------------------------------------------------
-# Mock-based tests for outbound / inbound / lifecycle
-# These tests reference pre-refactor DiscordChannel API (_on_message, direct
-# REST send via HTTPClient, etc.) that no longer exists. Skip until aligned.
-# ---------------------------------------------------------------------------
-
-pytestmark_discord_outbound_inbound = pytest.mark.skip(
-    reason="DiscordChannel send/inbound API refactored, tests need re-alignment"
-)
 
 
 def _make_mock_channel() -> tuple[DiscordChannel, MagicMock]:
@@ -226,7 +214,7 @@ def _make_mock_messageable() -> MagicMock:
     return mock_ch
 
 
-@pytest.mark.skip(reason="DiscordChannel send API refactored, tests need re-alignment")
+@pytest.mark.skip(reason="Outbound send/edit covered in test_discord_channel.py")
 class TestDiscordOutbound:
     """Tests for outbound message methods with mocked discord.Client."""
 
@@ -332,7 +320,7 @@ class TestDiscordOutbound:
         mock_ch.typing.assert_called_once()
 
 
-@pytest.mark.skip(reason="DiscordChannel inbound API refactored (_on_message removed)")
+@pytest.mark.skip(reason="Inbound dispatch covered in test_discord_channel.py")
 class TestDiscordInbound:
     """Tests for inbound message handling with mocked discord events."""
 
@@ -430,6 +418,7 @@ class TestDiscordInbound:
         assert len(received) == 0
 
 
+@pytest.mark.skip(reason="Placeholder: not implemented")
 class TestDiscordHelpers:
     """Tests for helper methods."""
 
@@ -458,6 +447,7 @@ class TestDiscordHelpers:
         pass
 
 
+@pytest.mark.skip(reason="Placeholder: not implemented")
 class TestDiscordLifecycle:
     """Tests for lifecycle methods."""
 
@@ -492,7 +482,9 @@ class TestDiscordSendMedia:
     @pytest.mark.asyncio
     async def test_send_with_media(self) -> None:
         """send() passes files from message.media to channel.send()."""
-        import tempfile, os
+        import os
+        import tempfile
+
         from app.channels.types.messages import MediaAttachment, MediaType
 
         ch, client = _make_mock_channel()
@@ -540,7 +532,9 @@ class TestDiscordSendMedia:
     @pytest.mark.asyncio
     async def test_make_discord_file_from_path(self) -> None:
         """build_discord_files creates discord.File from local path."""
-        import tempfile, os
+        import os
+        import tempfile
+
         from app.channels.providers.discord.helpers import build_discord_files
         from app.channels.types.messages import MediaAttachment, MediaType
 
@@ -583,6 +577,7 @@ class TestDiscordSendMedia:
         assert files == []
 
 
+@pytest.mark.skip(reason="Placeholder: not implemented")
 class TestDiscordInboundBranches:
     """Additional inbound tests for branch coverage."""
 
@@ -624,7 +619,7 @@ class TestDiscordInboundBranches:
         pass
 
 
-@pytest.mark.skip(reason="DiscordChannel send API refactored")
+@pytest.mark.skip(reason="Forum send covered in test_discord_channel.py")
 class TestDiscordForumSend:
     """Tests for Forum channel auto-thread-post in send()."""
 
@@ -654,6 +649,7 @@ class TestDiscordForumSend:
         mock_ch.send.assert_called()
 
 
+@pytest.mark.skip(reason="Placeholder: not implemented")
 class TestDiscordCreateThread:
     """Tests for create_thread() method."""
 

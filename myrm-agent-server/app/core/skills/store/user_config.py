@@ -54,13 +54,24 @@ class UserSkillConfigManager:
 
         - New install (no config file): enable all seeded prebuilt skills.
         - Existing install: append newly seeded skills unless user disabled them.
+        - Always prune enabled/disabled IDs that no longer exist in seeds.
         """
         if not prebuilt_skill_ids:
             return await self.get_config()
 
+        valid_ids = set(prebuilt_skill_ids)
         config_exists = await self._config_file_exists()
         config = await self.get_config()
         changed = False
+
+        pruned_enabled = sorted(sid for sid in config.enabled_prebuilt_ids if sid in valid_ids)
+        pruned_disabled = sorted(sid for sid in config.disabled_prebuilt_ids if sid in valid_ids)
+        if pruned_enabled != config.enabled_prebuilt_ids:
+            config.enabled_prebuilt_ids = pruned_enabled
+            changed = True
+        if pruned_disabled != config.disabled_prebuilt_ids:
+            config.disabled_prebuilt_ids = pruned_disabled
+            changed = True
 
         if not config_exists:
             config.enabled_prebuilt_ids = sorted(prebuilt_skill_ids)

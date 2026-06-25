@@ -69,11 +69,30 @@ prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
     → 清理 storage 中已无对应 seed 目录的孤儿 SKILL.md 与 _metadata.json
 user_config.ensure_prebuilt_enabled_after_sync()
     → 新用户：Catalog 默认空（enabled_prebuilt_ids = []）
-    → 老用户：增量启用新种子（尊重 disabled_prebuilt_ids）
+    → 老用户：增量启用新种子（尊重 disabled_prebuilt_ids）；从 enabled/disabled 列表移除已无 seed 的 skill ID
 builtin_initializer                  BuiltIn Agent 预绑定 default_skill_ids（is_core=false）
 ```
 
 存储路径约定见 `myrm_agent_harness.toolkits.storage.paths`（`SKILL_METADATA_FILE = _metadata.json`）。
+
+### 3.5 预置技能 vs Harness 工具（边界）
+
+| 问题 | 答案 |
+|------|------|
+| 第三方 SaaS（Google/Notion/Linear）怎么用？ | **Skill** 编排 `web_fetch_tool` / `bash_code_execute_tool` / `http_request_tool`；或用户配置 **MCP** |
+| 何时新增 harness `@tool()`？ | 仅当能力是**跨项目通用框架原语**（见 `toolkits/_ARCH.md`） |
+| 预置 skill 上架条件 | `allowed-tools` 工具名正确（CI：`test_prebuilt_allowed_tools_match_tool_registry`）+ 依赖 OAuth/MCP **已在产品中可用** |
+| 正例 | Google Workspace prebuilt skill + Settings OAuth GUI（`integrations/google-workspace/oauth`） |
+
+Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harness 工具实现单一厂商集成。
+
+### 3.6 预置 skill  bundled scripts（bash 可执行）
+
+| 步骤 | 说明 |
+|------|------|
+| Seed 同步 | `prebuilt_sync._sync_skill_bundle_files` 将 `scripts/` 等写入 storage |
+| SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
+| Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage → cwd + token inject |
 
 ---
 
