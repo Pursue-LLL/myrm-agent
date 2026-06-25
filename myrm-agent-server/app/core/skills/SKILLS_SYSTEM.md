@@ -100,7 +100,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 |------|------|
 | OAuth 存储 | `app/services/integrations/oauth_store.py` — `oauthCredentials` 加密 blob |
 | 判定 | `is_oauth_issuer_connected(db, issuer)` |
-| Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/config/available` |
+| Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
 | 映射 | `INTEGRATION_SKILL_ISSUERS`: `google-workspace` → `google_workspace` |
 | GUI | Settings → Integrations → Credentials OAuth 卡；Skills Catalog 黄标 + 深链 `/settings/credentials` |

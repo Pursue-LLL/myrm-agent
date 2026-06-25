@@ -144,3 +144,16 @@ class TestGoogleApiGmailInbox:
         assert messages[0]["subject"] == "Weekly update"
         assert messages[0]["from"] == "team@example.com"
         assert messages[0]["snippet"] == "Hello there"
+
+    def test_gmail_inbox_empty_inbox_returns_empty_messages(self, google_api_module) -> None:
+        list_response = MagicMock()
+        list_response.read.return_value = json.dumps({"messages": [], "resultSizeEstimate": 0}).encode()
+        list_response.__enter__ = MagicMock(return_value=list_response)
+        list_response.__exit__ = MagicMock(return_value=None)
+
+        with patch.object(google_api_module.urllib.request, "urlopen", return_value=list_response):
+            result = google_api_module.gmail_inbox("test-access-token")
+
+        messages = result["messages"]
+        assert isinstance(messages, list)
+        assert messages == []

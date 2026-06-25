@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.skills.schemas import SkillListResponse, SkillResponse, skill_to_response
 from app.core.skills.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
-from app.database.session import get_db
+from app.database.connection import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

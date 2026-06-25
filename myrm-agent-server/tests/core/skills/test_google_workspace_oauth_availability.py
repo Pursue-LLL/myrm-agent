@@ -15,6 +15,8 @@ from app.core.skills.oauth_availability import (
     IntegrationOAuthSkillBackend,
     apply_integration_oauth_availability,
     apply_integration_oauth_to_metadata,
+    enrich_skill_metadata_integration_oauth,
+    wrap_integration_oauth_backend,
 )
 
 
@@ -102,6 +104,124 @@ async def test_apply_oauth_to_metadata_marks_google_workspace_unavailable() -> N
 
     assert meta.available is False
     assert meta.unavailable_reason == GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_apply_oauth_to_metadata_leaves_connected_skill_available() -> None:
+    meta = _google_workspace_metadata()
+    db = AsyncMock()
+
+    with patch(
+        "app.core.skills.oauth_availability.is_oauth_issuer_connected",
+        AsyncMock(return_value=True),
+    ):
+        await apply_integration_oauth_to_metadata([meta], db)
+
+    assert meta.available is True
+    assert meta.unavailable_reason is None
+
+
+@pytest.mark.asyncio
+async def test_enrich_skill_metadata_integration_oauth_uses_db_session() -> None:
+    meta = _google_workspace_metadata()
+    session = AsyncMock()
+
+    class _SessionCtx:
+        async def __aenter__(self) -> AsyncMock:
+            return session
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    with (
+        patch("app.database.connection.get_session", return_value=_SessionCtx()),
+        patch(
+            "app.core.skills.oauth_availability.apply_integration_oauth_to_metadata",
+            AsyncMock(),
+        ) as apply_mock,
+    ):
+        await enrich_skill_metadata_integration_oauth([meta])
+
+    apply_mock.assert_awaited_once_with([meta], session)
+
+
+@pytest.mark.asyncio
+async def test_enrich_skill_metadata_integration_oauth_swallows_db_errors() -> None:
+    meta = _google_workspace_metadata()
+
+    with patch(
+        "app.database.connection.get_session",
+        side_effect=RuntimeError("db unavailable"),
+    ):
+        await enrich_skill_metadata_integration_oauth([meta])
+
+    assert meta.available is True
+
+
+@pytest.mark.asyncio
+async def test_integration_oauth_backend_enriches_load_skills() -> None:
+    meta = _google_workspace_metadata()
+    base = MagicMock()
+    base.load_skills = AsyncMock(return_value=[meta])
+
+    backend = IntegrationOAuthSkillBackend(base)
+
+    with patch(
+        "app.core.skills.oauth_availability.enrich_skill_metadata_integration_oauth",
+        AsyncMock(),
+    ) as enrich_mock:
+        result = await backend.load_skills(["google-workspace"])
+
+    assert result == [meta]
+    enrich_mock.assert_awaited_once_with([meta])
+
+
+@pytest.mark.asyncio
+async def test_enrich_skill_metadata_skips_unrelated_skills() -> None:
+    meta = SkillMetadata(
+        name="daily-briefing",
+        description="Briefing",
+        storage_skill_id="daily-briefing",
+        storage_path="skills/prebuilt/daily-briefing",
+        trust=SkillTrust.TRUSTED,
+    )
+
+    with patch("app.database.connection.get_session") as get_session_mock:
+        await enrich_skill_metadata_integration_oauth([meta])
+
+    get_session_mock.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_integration_oauth_backend_delegates_resource_methods() -> None:
+    base = MagicMock()
+    base.get_skill_resources = AsyncMock(return_value=b"data")
+    base.list_skill_resources = AsyncMock(return_value=["scripts/a.py"])
+    backend = IntegrationOAuthSkillBackend(base)
+
+    data = await backend.get_skill_resources("google-workspace", "scripts/a.py")
+    files = await backend.list_skill_resources("google-workspace")
+
+    assert data == b"data"
+    assert files == ["scripts/a.py"]
+
+
+@pytest.mark.asyncio
+async def test_integration_oauth_backend_delegates_get_skill_content() -> None:
+    base = MagicMock()
+    base.get_skill_content = AsyncMock(return_value="# Skill")
+    backend = IntegrationOAuthSkillBackend(base)
+
+    content = await backend.get_skill_content("google-workspace")
+
+    assert content == "# Skill"
+    base.get_skill_content.assert_awaited_once_with("google-workspace")
+
+
+def test_wrap_integration_oauth_backend_returns_wrapper() -> None:
+    base = MagicMock()
+    wrapped = wrap_integration_oauth_backend(base)
+    assert isinstance(wrapped, IntegrationOAuthSkillBackend)
 
 
 @pytest.mark.asyncio
