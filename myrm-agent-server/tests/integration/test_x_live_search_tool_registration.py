@@ -1,0 +1,70 @@
+"""Integration test: x-live-search skill-gated deferred tool registration.
+
+Verifies _setup_search_and_basic_tools() only loads x_search_tool when the
+x-live-search prebuilt skill is enabled on the agent profile.
+"""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
+
+
+def _make_search_mixin(*, skill_ids: list[str] | None) -> object:
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.enable_web_search = True
+    mixin.search_service_cfg = MagicMock()
+    mixin.reranker_config = None
+    mixin.enable_advanced_retrieval = False
+    mixin.embedding_config = None
+    mixin.fetch_raw_webpage = False
+    mixin.enable_render_ui = False
+    mixin.image_generation_params = None
+    mixin.video_generation_params = None
+    mixin.tts_params = None
+    mixin.search_depth = "normal"
+    mixin.model_cfg = MagicMock(model="test-model", api_key="k", base_url="http://localhost")
+    mixin.skill_ids = skill_ids or []
+    return mixin
+
+
+def test_x_search_tool_registers_when_skill_enabled() -> None:
+    """x_search_tool must land in deferred_tools, not eager tools, when skill is enabled."""
+    mixin = _make_search_mixin(skill_ids=[X_LIVE_SEARCH_SKILL_ID])
+    tools: list[object] = []
+    deferred_tools: list[object] = []
+
+    with patch("app.config.deploy_mode.is_local_mode", return_value=True):
+        mixin._setup_search_and_basic_tools(tools, deferred_tools)
+
+    assert any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+
+
+def test_x_search_tool_skipped_without_skill() -> None:
+    """Without x-live-search skill, x_search_tool must not register at all."""
+    mixin = _make_search_mixin(skill_ids=[])
+    tools: list[object] = []
+    deferred_tools: list[object] = []
+
+    with patch("app.config.deploy_mode.is_local_mode", return_value=True):
+        mixin._setup_search_and_basic_tools(tools, deferred_tools)
+
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+
+
+def test_x_search_tool_skipped_when_web_search_disabled() -> None:
+    """Skill alone is insufficient — web search must also be enabled."""
+    mixin = _make_search_mixin(skill_ids=[X_LIVE_SEARCH_SKILL_ID])
+    mixin.enable_web_search = False
+    mixin.search_service_cfg = None
+    tools: list[object] = []
+    deferred_tools: list[object] = []
+
+    mixin._setup_search_and_basic_tools(tools, deferred_tools)
+
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
