@@ -92,6 +92,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "deploy",
         "event",
         "infra",
+        "local_browser",
         "locked_use",
         "mascot",
         "power",

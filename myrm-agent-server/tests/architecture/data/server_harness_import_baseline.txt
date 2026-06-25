@@ -403,3 +403,6 @@ myrm_agent_harness.utils.token_economics.tracker
 myrm_agent_harness.utils.token_estimation
 myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
+myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
+myrm_agent_harness.toolkits.llms.image.image_langchain_tool
+myrm_agent_harness.toolkits.llms.video.video_langchain_tool
