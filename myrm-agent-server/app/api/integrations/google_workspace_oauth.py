@@ -344,8 +344,7 @@ async def check_google_workspace_oauth_state_status(state: str) -> JSONResponse:
 @router.get("/status")
 async def get_google_workspace_oauth_status(db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Return connection status for Google Workspace OAuth."""
-    row = await load_oauth_credentials_row(db)
-    if not row:
+    if not await is_oauth_issuer_connected(db, GOOGLE_WORKSPACE_ISSUER):
         return success_response(
             data={
                 "issuer": GOOGLE_WORKSPACE_ISSUER,
@@ -356,9 +355,13 @@ async def get_google_workspace_oauth_status(db: AsyncSession = Depends(get_db)) 
             }
         )
 
+    row = await load_oauth_credentials_row(db)
+    if row is None:
+        raise HTTPException(status_code=503, detail="Google Workspace OAuth state inconsistent")
+
     credentials = decrypt_oauth_credentials(row.config_value, row.is_encrypted)
     cred_val = credentials.get(GOOGLE_WORKSPACE_ISSUER)
-    if not isinstance(cred_val, dict) or not cred_val.get("token"):
+    if not isinstance(cred_val, dict):
         return success_response(
             data={
                 "issuer": GOOGLE_WORKSPACE_ISSUER,

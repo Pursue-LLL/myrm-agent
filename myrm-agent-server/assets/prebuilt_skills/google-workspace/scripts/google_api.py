@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Readonly Google Workspace API helper for the google-workspace prebuilt skill.
 
-Uses GOOGLE_WORKSPACE_TOKEN from the environment (injected by safe_exec).
+Uses GOOGLE_WORKSPACE_TOKEN from the environment (injected by bash/safe_exec).
+MYRM_USER_TIMEZONE (or TZ) selects the calendar day boundary; defaults to UTC.
 Stdlib only — no extra dependencies in agent bash sessions.
 """
 
@@ -15,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 
 def _require_token() -> str:
@@ -43,18 +45,34 @@ def _http_get(url: str, token: str) -> dict[str, object]:
         _fail(f"Network error: {exc.reason}")
 
 
-def _utc_day_bounds() -> tuple[str, str]:
-    now = datetime.now(UTC)
+def _resolve_timezone() -> ZoneInfo:
+    for key in ("MYRM_USER_TIMEZONE", "TZ"):
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            continue
+        try:
+            return ZoneInfo(raw)
+        except Exception:
+            continue
+    return ZoneInfo("UTC")
+
+
+def _format_rfc3339(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.isoformat()
+
+
+def _local_day_bounds(tz: ZoneInfo | None = None) -> tuple[str, str]:
+    zone = tz or _resolve_timezone()
+    now = datetime.now(zone)
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + timedelta(days=1) - timedelta(seconds=1)
-    return (
-        start.isoformat().replace("+00:00", "Z"),
-        end.isoformat().replace("+00:00", "Z"),
-    )
+    end = start + timedelta(days=1) - timedelta(microseconds=1)
+    return _format_rfc3339(start), _format_rfc3339(end)
 
 
-def calendar_today(token: str) -> dict[str, object]:
-    time_min, time_max = _utc_day_bounds()
+def calendar_today(token: str, *, tz: ZoneInfo | None = None) -> dict[str, object]:
+    time_min, time_max = _local_day_bounds(tz)
     params = urllib.parse.urlencode(
         {
             "singleEvents": "true",
@@ -146,7 +164,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Google Workspace readonly API helper")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("calendar-today", help="List primary calendar events for today (UTC)")
+    sub.add_parser("calendar-today", help="List primary calendar events for today (user timezone)")
     sub.add_parser("gmail-inbox", help="List recent INBOX messages with subject, from, snippet")
     sub.add_parser("drive-recent", help="List recently modified Drive files")
 

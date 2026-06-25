@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -70,6 +72,33 @@ class TestGoogleApiCalendarToday:
             google_api_module.calendar_today("bad-token")
 
         assert exc.value.code == 1
+
+    def test_calendar_today_uses_user_timezone_day_bounds(self, google_api_module, monkeypatch) -> None:
+        fixed_now = datetime(2026, 6, 25, 10, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
+        monkeypatch.setenv("MYRM_USER_TIMEZONE", "Asia/Shanghai")
+
+        captured_url: list[str] = []
+
+        def fake_urlopen(request: object, timeout: int = 30) -> MagicMock:
+            _ = timeout
+            captured_url.append(getattr(request, "full_url", str(request)))
+            mock_response = MagicMock()
+            mock_response.read.return_value = json.dumps({"items": []}).encode()
+            mock_response.__enter__ = MagicMock(return_value=mock_response)
+            mock_response.__exit__ = MagicMock(return_value=None)
+            return mock_response
+
+        with (
+            patch.object(google_api_module, "datetime") as mock_datetime,
+            patch.object(google_api_module.urllib.request, "urlopen", side_effect=fake_urlopen),
+        ):
+            mock_datetime.now.return_value = fixed_now
+            google_api_module.calendar_today("test-access-token")
+
+        assert captured_url
+        url = captured_url[0]
+        assert "timeMin=2026-06-25T00%3A00%3A00%2B08%3A00" in url
+        assert "timeMax=2026-06-25T23%3A59%3A59.999999%2B08%3A00" in url
 
 
 class TestGoogleApiGmailInbox:
