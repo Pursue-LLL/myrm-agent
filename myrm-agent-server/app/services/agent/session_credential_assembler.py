@@ -146,3 +146,20 @@ async def session_credentials_scope(
         yield
     finally:
         user_credentials_ctx.reset(token_ctx)
+
+
+@asynccontextmanager
+async def user_config_session_credentials_scope(
+    *,
+    channel: str | None = None,
+) -> AsyncIterator[None]:
+    """Load WebUI user configs and inject session credentials for the block."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+
+    configs = await load_user_configs()
+    async with session_credentials_scope(
+        oauth_credentials_dict=configs.oauth_credentials_dict if configs else None,
+        providers_dict=configs.providers_dict if configs else None,
+        channel=channel,
+    ):
+        yield

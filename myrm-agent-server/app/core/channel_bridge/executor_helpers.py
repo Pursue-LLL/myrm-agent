@@ -234,19 +234,9 @@ def schedule_channel_approval_timeout(
 
         agent = AgentFactory.create_general_agent(resume_params)
 
-        from myrm_agent_harness.agent.security import user_credentials_ctx
+        from app.services.agent.session_credential_assembler import user_config_session_credentials_scope
 
-        from app.core.channel_bridge.config_loader import load_user_configs
-        from app.services.agent.session_credential_assembler import assemble_session_credentials
-
-        user_cfgs = await load_user_configs()
-        session_credentials = await assemble_session_credentials(
-            oauth_credentials_dict=user_cfgs.oauth_credentials_dict,
-            providers_dict=user_cfgs.providers_dict,
-            channel=channel,
-        )
-        cred_ctx = user_credentials_ctx.set(session_credentials)
-        try:
+        async with user_config_session_credentials_scope(channel=channel):
             chat_history = build_chat_history_with_metadata((await load_history_without_persist(f"{channel}:{peer}"))[1])
             chunks: list[str] = []
             next_timeout: dict[str, object] | None = None
@@ -299,8 +289,6 @@ def schedule_channel_approval_timeout(
                     scheduler_key,
                     chat_id,
                 )
-        finally:
-            user_credentials_ctx.reset(cred_ctx)
 
     ApprovalTimeoutScheduler.get().schedule(
         key=scheduler_key,
