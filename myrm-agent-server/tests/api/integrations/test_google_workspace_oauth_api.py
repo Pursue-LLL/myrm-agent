@@ -46,9 +46,9 @@ def _clean_oauth_state() -> Iterator[None]:
 @pytest.fixture
 def google_oauth_configured() -> Iterator[None]:
     with (
-        patch("app.api.integrations.google_workspace_oauth.settings.google_client_id", "test-client-id"),
+        patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", "test-client-id"),
         patch(
-            "app.api.integrations.google_workspace_oauth.settings.google_client_secret",
+            "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
             SecretStr("test-client-secret"),
         ),
     ):
@@ -58,9 +58,9 @@ def google_oauth_configured() -> Iterator[None]:
 class TestGoogleWorkspaceOAuthConfig:
     def test_config_reports_not_configured(self, client: TestClient) -> None:
         with (
-            patch("app.api.integrations.google_workspace_oauth.settings.google_client_id", ""),
+            patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", ""),
             patch(
-                "app.api.integrations.google_workspace_oauth.settings.google_client_secret",
+                "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
                 SecretStr(""),
             ),
         ):
@@ -79,9 +79,9 @@ class TestGoogleWorkspaceOAuthConfig:
 class TestGoogleWorkspaceOAuthStart:
     def test_start_requires_server_config(self, client: TestClient) -> None:
         with (
-            patch("app.api.integrations.google_workspace_oauth.settings.google_client_id", ""),
+            patch("app.api.integrations.google_workspace_oauth_flow.settings.google_client_id", ""),
             patch(
-                "app.api.integrations.google_workspace_oauth.settings.google_client_secret",
+                "app.api.integrations.google_workspace_oauth_flow.settings.google_client_secret",
                 SecretStr(""),
             ),
         ):
@@ -103,10 +103,19 @@ class TestGoogleWorkspaceOAuthStart:
         assert params["prompt"] == ["consent"]
         assert params["code_challenge_method"] == ["S256"]
 
+    def test_start_write_tier_includes_write_scopes(self, client: TestClient, google_oauth_configured: None) -> None:
+        resp = client.post(f"{API_PREFIX}/start", json={"tier": "write"})
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data.get("tier") == "write"
 
-    def test_start_uses_public_ingress_redirect(self, client: TestClient, google_oauth_configured: None) -> None:
+        parsed = urlparse(data["authorization_url"])
+        params = parse_qs(parsed.query)
+        scope = params["scope"][0]
+        assert "https://www.googleapis.com/auth/gmail.send" in scope
+        assert "https://www.googleapis.com/auth/calendar.events" in scope
         with patch(
-            "app.api.integrations.google_workspace_oauth.get_public_ingress_base_url",
+            "app.api.integrations.google_workspace_oauth_flow.get_public_ingress_base_url",
             new=AsyncMock(return_value="https://tenant.example.com"),
         ):
             resp = client.post(f"{API_PREFIX}/start")
