@@ -1911,7 +1911,7 @@ wheels = [
 
 [[package]]
 name = "myrm-agent-harness"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "agent-client-protocol" },
@@ -1944,7 +1944,7 @@ dependencies = [
     { name = "watchdog" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/56/58dbe3d348fb55fa5dca73568d9fb6abf6ff835e3099b5841012c8a87e84/myrm_agent_harness-0.1.0rc3-py3-none-any.whl", hash = "sha256:6d2ab3c62f982faee5e751877a65b1fdac2430cf44086799ef29956f39d05cfb", size = 3962873, upload-time = "2026-06-25T08:32:04.056Z" },
+    { url = "https://files.pythonhosted.org/packages/03/44/7c5ac93a3823662e6c01856115a741490b3308064b2d779462ba59fcdb73/myrm_agent_harness-0.1.0rc4-py3-none-any.whl", hash = "sha256:7a6ce9e7295b96c7f6ead54d9ca2815f61db11f7e72f62f00ebf322731fe3237", size = 3963299, upload-time = "2026-06-25T08:59:39.744Z" },
 ]
 
 [package.optional-dependencies]
@@ -1989,68 +1989,68 @@ web = [
 
 [[package]]
 name = "myrm-agent-harness-core-darwin-arm64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/51/ad4c419ed9ad1353d226a6aa8c9b4d3a3e479a254b78ef23e95b3a7c8787/myrm_agent_harness_core_darwin_arm64-0.1.0rc3-py3-none-any.whl", hash = "sha256:1f73de6a0f14a4e6e0b13bb2a5297c519710ee2e4ac181359e2e6a3b05c3a098", size = 9836272, upload-time = "2026-06-25T08:32:03.723Z" },
+    { url = "https://files.pythonhosted.org/packages/40/4d/7978591014080aa89a7b6a0131344e86b87c1203d032dff447f53601f21b/myrm_agent_harness_core_darwin_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:2634ac43a4c8fcce0c0fa01548fa152ce7a44b377192e9eeef3228086aa63dbe", size = 9836271, upload-time = "2026-06-25T08:59:36.498Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-darwin-x64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/6e/41d8122d987a45dced9376a57e02cc7c166d0047631ddd8818807443c517/myrm_agent_harness_core_darwin_x64-0.1.0rc3-py3-none-any.whl", hash = "sha256:95da4e3a4fd460ccfe87e284704ec86e5310c7e72cef4eabb240cbfdbb229faf", size = 9836102, upload-time = "2026-06-25T08:31:59.166Z" },
+    { url = "https://files.pythonhosted.org/packages/16/70/668bc39126fc0e365375c082d08e6da870d2c829f5619fdcdb60fa6995bd/myrm_agent_harness_core_darwin_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:668a520e7b9adf6d3832e1b4b56564faaff219a3d1c1e4c89237a7f8c4286160", size = 9836100, upload-time = "2026-06-25T08:59:36.186Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-linux-arm64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/28/38f680eb1c953f61fa43c3f30126b5aef3f171afd4a8805a515294a4d712/myrm_agent_harness_core_linux_arm64-0.1.0rc3-py3-none-any.whl", hash = "sha256:1b9e473fc5a24fdd942bf4ad795ec459a930aa9589cef04f0ad8a0309775e99c", size = 23022589, upload-time = "2026-06-25T08:31:58.709Z" },
+    { url = "https://files.pythonhosted.org/packages/90/52/bfd828d5521cc1c06c5278e3d2374c238b56b83cb3e7c42b6d5d230abbc9/myrm_agent_harness_core_linux_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:1b91b2ac768e65ca6e4b30bb7172b8e9993e0dce54cde4b5e53c0e0403317b28", size = 23022590, upload-time = "2026-06-25T08:59:36.252Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-linux-x64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/a3/69e6adb0b01fbdf6c54800576f8d9c34b66d8676be834cbb8455ff453906/myrm_agent_harness_core_linux_x64-0.1.0rc3-py3-none-any.whl", hash = "sha256:306c433acc316e176a9863d87cfb343aab7736157044e858eb949cf0af3a389d", size = 25177727, upload-time = "2026-06-25T08:31:59.143Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/8c/6b9de3df2e9c045c0f0c57cb3ad45f988d31f172f4449dc4ae2f45891de2/myrm_agent_harness_core_linux_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:53cf9aafbc6e8d7e791dcfd0eee009dba2ec4b7d55080177d8b5a02338edebe7", size = 25177727, upload-time = "2026-06-25T08:59:44.253Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-win32-arm64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/a7/9dbeb9ff47d5ad15d2b656551312a80bc51c55fcde5424536a9a4308c9da/myrm_agent_harness_core_win32_arm64-0.1.0rc3-py3-none-any.whl", hash = "sha256:2720d570506088fa18472c7d67069da9531ab1b9c7b491b76d8f211ca32db7e9", size = 10086156, upload-time = "2026-06-25T08:31:57.764Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/11/96d84234d77c25a50fb85267ec9217851f64aaef276d578eab1a1bc7ebde/myrm_agent_harness_core_win32_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:51bf35898bd6407581570fdb399a81db5c22c9abeda914b8ff050a7ed377c4c1", size = 10086142, upload-time = "2026-06-25T08:59:36.59Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-win32-x64"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/76/ca3d4e8f77add34313d98acbbc6ccc4cd87e95c70903efdc06c318842160/myrm_agent_harness_core_win32_x64-0.1.0rc3-py3-none-any.whl", hash = "sha256:8610a92ef621f15337d289bf65be07ca1ebb75735c09abf63b4b5fe9e1ad17e1", size = 10075590, upload-time = "2026-06-25T08:32:03.425Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/1c/d064749ce36f3c0420dc8ae345c6b8dc76aef2c64f6c20e98198d104bdfd/myrm_agent_harness_core_win32_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:d5fe2ff3ae75ae55ad4c5bd6d3156603d305b5f90ebc8d9eb255992cb6fb1c49", size = 10075565, upload-time = "2026-06-25T08:59:41.123Z" },
 ]
 
 [[package]]
@@ -2152,7 +2152,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'data-viz'", specifier = ">=3.11.0" },
     { name = "mautrix", marker = "extra == 'matrix'", specifier = ">=0.21.0" },
     { name = "mautrix", extras = ["encryption"], marker = "extra == 'matrix-e2ee'", specifier = ">=0.21.0" },
-    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc3" },
+    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc4" },
     { name = "nanoid", specifier = ">=2.0.0" },
     { name = "orjson", specifier = ">=3.11.9" },
     { name = "pandas", marker = "extra == 'data-viz'", specifier = ">=3.0.3" },
