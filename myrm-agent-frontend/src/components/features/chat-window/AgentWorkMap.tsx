@@ -8,57 +8,56 @@ import {
   useEdgesState,
   Handle,
   Position,
-  Node,
-  Edge,
+  type Node,
+  type Edge,
+  type NodeProps,
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { useSubagentStore } from '@/store/chat/useSubagentStore';
+import { useSubagentStore, type FissionTopologyNode } from '@/store/chat/useSubagentStore';
 import useChatStore from '@/store/useChatStore';
 import { Bot, CheckCircle2, CircleDashed, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/primitives/badge';
 import { Card } from '@/components/primitives/card';
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
+const NODE_WIDTH = 280;
+const NODE_HEIGHT = 120;
 
-const nodeWidth = 280;
-const nodeHeight = 120;
-
-const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
+function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: direction });
   const isHorizontal = direction === 'LR';
-  dagreGraph.setGraph({ rankdir: direction });
 
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-  });
+  for (const node of nodes) {
+    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  }
+  for (const edge of edges) {
+    g.setEdge(edge.source, edge.target);
+  }
 
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
+  dagre.layout(g);
 
   const layoutedNodes = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    const newNode = {
+    const pos = g.node(node.id);
+    return {
       ...node,
       targetPosition: isHorizontal ? Position.Left : Position.Top,
       sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
-      position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
-      },
+      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
     };
-    return newNode;
   });
 
   return { nodes: layoutedNodes, edges };
-};
+}
 
-const CustomNode = ({ data }: { data: any }) => {
+interface SubagentNodeData extends FissionTopologyNode {
+  [key: string]: unknown;
+}
+
+function CustomNode({ data }: NodeProps<Node<SubagentNodeData>>) {
   const { objective, status, agent_type, cost_usd, error } = data;
 
   const StatusIcon = {
@@ -114,7 +113,7 @@ const CustomNode = ({ data }: { data: any }) => {
       <Handle type="source" position={Position.Bottom} className="w-2 h-2" />
     </Card>
   );
-};
+}
 
 const nodeTypes = {
   custom: CustomNode,

@@ -13,7 +13,6 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactCard.tsx` | 核心 | 聊天卡片；Link 只读分享；Globe 部署（preflight 通过才可部署）；BookOpen 写入 Wiki 知识库；MessageSquarePlus 插入当前对话 |
-| `ArtifactPreview.tsx` | 核心 | 全屏预览；与卡片相同的分享/部署入口（`flex-wrap` 响应式） |
 | `DeployModal.tsx` | 核心 | Vercel 部署；打开时拉取 preflight |
 | `artifactUtils.ts` | 辅助 | preflight/share API 客户端、`isDeploymentStale`、图标 |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由（code/document/html/pdf/svg/mermaid/image/video/audio/spreadsheet） |
