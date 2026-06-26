@@ -72,6 +72,7 @@ app/channels/types/messages.py
 app/channels/voice/stt.py
 app/config/settings.py
 app/core/channel_bridge/agent_executor/executor.py
+app/core/channel_bridge/executor_helpers.py
 app/core/channel_bridge/config_parsers.py
 app/core/channel_bridge/model_resolver.py
 app/core/channel_bridge/setup.py
