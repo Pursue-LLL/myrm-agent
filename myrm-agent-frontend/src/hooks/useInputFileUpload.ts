@@ -15,13 +15,14 @@ import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { uploadFiles } from '@/services/file';
 import { toast } from '@/lib/utils/toast';
-import { computeFileHash, isImageFile, isVideoFile, getFileExtension } from '@/lib/utils/fileUtils';
+import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const RAG_DOC_THRESHOLD = 100 * 1024;
 const RAG_DOC_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'ipynb']);
 
@@ -150,14 +151,17 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
 
       const oversized = droppedFiles.find((f) => {
         const ext = getFileExtension(f.name);
-        const limit = isVideoFile(ext) ? MAX_VIDEO_BYTES : MAX_FILE_BYTES;
-        return f.size > limit;
+        if (isVideoFile(ext)) return f.size > MAX_VIDEO_BYTES;
+        if (isAudioFile(ext)) return f.size > MAX_AUDIO_BYTES;
+        return f.size > MAX_FILE_BYTES;
       });
       if (oversized) {
         const sizeMB = `${(oversized.size / 1024 / 1024).toFixed(1)}MB`;
         const ext = getFileExtension(oversized.name);
         if (isVideoFile(ext)) {
           toast.error(tFiles('videoTooLarge'), { description: tFiles('videoTooLargeDesc', { size: sizeMB }) });
+        } else if (isAudioFile(ext)) {
+          toast.error(tFiles('audioTooLarge'), { description: tFiles('audioTooLargeDesc', { size: sizeMB }) });
         } else {
           toast.error(tFiles('uploadError'), { description: `${oversized.name} (${sizeMB}) exceeds 10MB limit` });
         }

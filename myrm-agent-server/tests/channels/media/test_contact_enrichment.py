@@ -196,6 +196,45 @@ class TestGuessMediaTypeVcard:
         assert guess_media_type("file.pdf", "application/pdf") == MediaType.DOCUMENT
 
 
+class TestGuessMediaTypeAudioVideo:
+    """Test guess_media_type for audio and video MIME types and extensions."""
+
+    def test_audio_mime_types(self) -> None:
+        assert guess_media_type("file.bin", "audio/mpeg") == MediaType.AUDIO
+        assert guess_media_type("file.bin", "audio/wav") == MediaType.AUDIO
+        assert guess_media_type("file.bin", "audio/ogg") == MediaType.AUDIO
+        assert guess_media_type("file.bin", "audio/opus") == MediaType.AUDIO
+        assert guess_media_type("file.bin", "audio/aac") == MediaType.AUDIO
+
+    def test_audio_extensions(self) -> None:
+        for ext in ("mp3", "wav", "ogg", "flac", "m4a", "aac", "wma", "opus"):
+            assert guess_media_type(f"recording.{ext}") == MediaType.AUDIO, ext
+
+    def test_audio_extensions_uppercase(self) -> None:
+        assert guess_media_type("SONG.MP3") == MediaType.AUDIO
+        assert guess_media_type("VOICE.OPUS") == MediaType.AUDIO
+
+    def test_video_mime_types(self) -> None:
+        assert guess_media_type("file.bin", "video/mp4") == MediaType.VIDEO
+        assert guess_media_type("file.bin", "video/webm") == MediaType.VIDEO
+        assert guess_media_type("file.bin", "video/quicktime") == MediaType.VIDEO
+
+    def test_video_extensions(self) -> None:
+        for ext in ("mp4", "webm", "mov", "avi", "mkv", "flv", "wmv", "m4v"):
+            assert guess_media_type(f"clip.{ext}") == MediaType.VIDEO, ext
+
+    def test_video_extensions_uppercase(self) -> None:
+        assert guess_media_type("CLIP.WMV") == MediaType.VIDEO
+        assert guess_media_type("MOVIE.M4V") == MediaType.VIDEO
+
+    def test_mime_takes_precedence_over_extension(self) -> None:
+        assert guess_media_type("fake.pdf", "audio/mpeg") == MediaType.AUDIO
+        assert guess_media_type("fake.jpg", "video/mp4") == MediaType.VIDEO
+
+    def test_unknown_extension_becomes_document(self) -> None:
+        assert guess_media_type("file.xyz") == MediaType.DOCUMENT
+
+
 class TestHasContactAttachment:
     def test_no_media(self) -> None:
         msg = _make_msg()

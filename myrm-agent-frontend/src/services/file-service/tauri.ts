@@ -15,7 +15,13 @@ import { FileReference, FileService } from './types';
 /**
  * 支持的文件扩展名
  */
-const SUPPORTED_EXTENSIONS = ['png', 'jpeg', 'jpg', 'gif', 'webp', 'bmp', 'pdf'];
+const SUPPORTED_EXTENSIONS = [
+  'png', 'jpeg', 'jpg', 'gif', 'webp', 'bmp', 'svg', 'avif',
+  'pdf',
+  'docx', 'xlsx', 'xls', 'pptx', 'ppt', 'csv', 'txt', 'md', 'json', 'ipynb',
+  'mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'wmv', 'm4v',
+  'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'opus',
+];
 
 /**
  * MIME 类型映射
@@ -27,7 +33,34 @@ const MIME_TYPES: Record<string, string> = {
   gif: 'image/gif',
   webp: 'image/webp',
   bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+  avif: 'image/avif',
   pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ppt: 'application/vnd.ms-powerpoint',
+  csv: 'text/csv',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  json: 'application/json',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  avi: 'video/x-msvideo',
+  mkv: 'video/x-matroska',
+  flv: 'video/x-flv',
+  wmv: 'video/x-ms-wmv',
+  m4v: 'video/x-m4v',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  wma: 'audio/x-ms-wma',
+  opus: 'audio/opus',
 };
 
 /**

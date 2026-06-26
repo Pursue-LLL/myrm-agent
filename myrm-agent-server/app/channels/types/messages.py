@@ -67,8 +67,8 @@ class MediaAttachment:
 
 
 _IMAGE_EXTS = frozenset((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".ico"))
-_AUDIO_EXTS = frozenset((".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma"))
-_VIDEO_EXTS = frozenset((".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv"))
+_AUDIO_EXTS = frozenset((".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".wma", ".opus"))
+_VIDEO_EXTS = frozenset((".mp4", ".webm", ".mov", ".avi", ".mkv", ".flv", ".wmv", ".m4v"))
 _VCARD_MIMES = frozenset(("text/vcard", "text/x-vcard", "text/directory", "application/vcard", "application/x-vcard"))
 
 

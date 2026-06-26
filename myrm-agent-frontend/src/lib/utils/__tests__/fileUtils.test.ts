@@ -2,6 +2,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   isImageFile,
+  isVideoFile,
+  isAudioFile,
   isPdfFile,
   isDocumentFile,
   isTextFile,
@@ -32,6 +34,46 @@ describe('fileUtils', () => {
       expect(isImageFile('pdf')).toBe(false);
       expect(isImageFile('txt')).toBe(false);
       expect(isImageFile('doc')).toBe(false);
+    });
+  });
+
+  describe('isVideoFile', () => {
+    it('should return true for video extensions', () => {
+      for (const ext of ['mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'wmv', 'm4v']) {
+        expect(isVideoFile(ext)).toBe(true);
+      }
+    });
+
+    it('should handle uppercase extensions', () => {
+      expect(isVideoFile('MP4')).toBe(true);
+      expect(isVideoFile('MOV')).toBe(true);
+    });
+
+    it('should return false for non-video extensions', () => {
+      expect(isVideoFile('mp3')).toBe(false);
+      expect(isVideoFile('jpg')).toBe(false);
+      expect(isVideoFile('pdf')).toBe(false);
+    });
+  });
+
+  describe('isAudioFile', () => {
+    it('should return true for all supported audio extensions', () => {
+      for (const ext of ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'opus']) {
+        expect(isAudioFile(ext)).toBe(true);
+      }
+    });
+
+    it('should handle uppercase extensions', () => {
+      expect(isAudioFile('MP3')).toBe(true);
+      expect(isAudioFile('WAV')).toBe(true);
+      expect(isAudioFile('OPUS')).toBe(true);
+    });
+
+    it('should return false for non-audio extensions', () => {
+      expect(isAudioFile('mp4')).toBe(false);
+      expect(isAudioFile('jpg')).toBe(false);
+      expect(isAudioFile('pdf')).toBe(false);
+      expect(isAudioFile('webm')).toBe(false);
     });
   });
 
@@ -111,6 +153,27 @@ describe('fileUtils', () => {
       expect(getMimeType('txt')).toBe('text/plain');
       expect(getMimeType('md')).toBe('text/markdown');
       expect(getMimeType('json')).toBe('application/json');
+    });
+
+    it('should return correct MIME types for audio formats', () => {
+      expect(getMimeType('mp3')).toBe('audio/mpeg');
+      expect(getMimeType('wav')).toBe('audio/wav');
+      expect(getMimeType('ogg')).toBe('audio/ogg');
+      expect(getMimeType('flac')).toBe('audio/flac');
+      expect(getMimeType('m4a')).toBe('audio/mp4');
+      expect(getMimeType('aac')).toBe('audio/aac');
+      expect(getMimeType('wma')).toBe('audio/x-ms-wma');
+      expect(getMimeType('opus')).toBe('audio/opus');
+    });
+
+    it('should return correct MIME types for video formats', () => {
+      expect(getMimeType('mp4')).toBe('video/mp4');
+      expect(getMimeType('mov')).toBe('video/quicktime');
+      expect(getMimeType('webm')).toBe('video/webm');
+      expect(getMimeType('avi')).toBe('video/x-msvideo');
+      expect(getMimeType('mkv')).toBe('video/x-matroska');
+      expect(getMimeType('wmv')).toBe('video/x-ms-wmv');
+      expect(getMimeType('m4v')).toBe('video/x-m4v');
     });
 
     it('should return octet-stream for unknown extensions', () => {
@@ -219,6 +282,37 @@ describe('fileUtils', () => {
       expect(result.pdfFiles).toHaveLength(0);
       expect(result.textFiles).toHaveLength(0);
       expect(result.otherFiles).toHaveLength(0);
+    });
+
+    it('should categorize audio files into otherFiles bucket', () => {
+      const audioFiles: File[] = [
+        createMockFile('song.mp3', 'mp3'),
+        createMockFile('recording.wav', 'wav'),
+        createMockFile('voice.opus', 'opus'),
+      ];
+
+      const result = partitionFilesByType(audioFiles);
+
+      expect(result.otherFiles).toHaveLength(3);
+      expect(result.imageFiles).toHaveLength(0);
+      expect(result.videoFiles).toHaveLength(0);
+    });
+
+    it('should handle mixed file types including audio', () => {
+      const mixedFiles: File[] = [
+        createMockFile('photo.jpg', 'jpg'),
+        createMockFile('video.mp4', 'mp4'),
+        createMockFile('song.mp3', 'mp3'),
+        createMockFile('doc.pdf', 'pdf'),
+      ];
+
+      const result = partitionFilesByType(mixedFiles);
+
+      expect(result.imageFiles).toHaveLength(1);
+      expect(result.videoFiles).toHaveLength(1);
+      expect(result.pdfFiles).toHaveLength(1);
+      expect(result.otherFiles).toHaveLength(1);
+      expect(result.otherFiles[0].fileName).toBe('song.mp3');
     });
 
     it('should categorize all text types correctly', () => {

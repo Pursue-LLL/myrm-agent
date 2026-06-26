@@ -5902,6 +5902,8 @@
     "uploadFailedRetry": "File upload failed, please try again",
     "videoTooLarge": "Video file too large (exceeds 100MB limit)",
     "videoTooLargeDesc": "Please select a shorter or smaller video file. Current: {size}",
+    "audioTooLarge": "Audio file too large (exceeds 25MB limit)",
+    "audioTooLargeDesc": "Please select a smaller audio file. Current: {size}",
     "largeDocIndexing": "Large document will be indexed into knowledge base for intelligent retrieval",
     "largeDocIndexingDesc": "{name} ({size}) — AI will automatically search the knowledge base instead of reading the entire document"
   },

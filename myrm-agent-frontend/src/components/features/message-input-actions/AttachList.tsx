@@ -1,6 +1,6 @@
-import { FileText, FileSpreadsheet, Trash2, X, ImageOff, Play, Pencil } from 'lucide-react';
+import { FileText, FileSpreadsheet, Trash2, X, ImageOff, Play, Pencil, Music } from 'lucide-react';
 import { File as FileType } from '@/store/useChatStore';
-import { isImageFile, isVideoFile, isPdfFile, getDisplayUrl } from '@/lib/utils/fileUtils';
+import { isImageFile, isVideoFile, isAudioFile, isPdfFile, getDisplayUrl } from '@/lib/utils/fileUtils';
 import { useMemo, useRef, useState, useEffect, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from './ImageLightbox';
@@ -147,6 +147,9 @@ const getFileIcon = (ext: string) => {
   }
   if (isPdfFile(lower)) {
     return <FileText size={12} className="text-red-600 dark:text-red-400" />;
+  }
+  if (isAudioFile(lower)) {
+    return <Music size={12} className="text-purple-600 dark:text-purple-400" />;
   }
   return <FileText size={12} className="text-muted-foreground" />;
 };

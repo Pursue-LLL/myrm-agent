@@ -5902,6 +5902,8 @@
     "uploadFailedRetry": "文件上传失败，请重试",
     "videoTooLarge": "视频文件过大（超过100MB限制）",
     "videoTooLargeDesc": "请选择更短或更小的视频文件，当前文件 {size}",
+    "audioTooLarge": "音频文件过大（超过25MB限制）",
+    "audioTooLargeDesc": "请选择更小的音频文件，当前文件 {size}",
     "largeDocIndexing": "大文档将自动入库知识库，AI 将智能检索而非全文读取",
     "largeDocIndexingDesc": "{name}（{size}）— AI 将自动搜索知识库获取相关内容，而非读取整个文档"
   },

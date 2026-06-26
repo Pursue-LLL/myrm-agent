@@ -5304,6 +5304,8 @@
     "uploadFailedRetry": "Datei-Upload fehlgeschlagen, bitte erneut versuchen",
     "videoTooLarge": "Videodatei zu groß (über 100MB Limit)",
     "videoTooLargeDesc": "Bitte wählen Sie ein kürzeres oder kleineres Video. Aktuell: {size}",
+    "audioTooLarge": "Audiodatei zu groß (über 25MB Limit)",
+    "audioTooLargeDesc": "Bitte wählen Sie eine kleinere Audiodatei. Aktuell: {size}",
     "largeDocIndexing": "Großes Dokument wird in die Wissensdatenbank indexiert",
     "largeDocIndexingDesc": "{name} ({size}) — KI durchsucht die Wissensdatenbank anstatt das gesamte Dokument zu lesen",
     "tooManyFiles": "Too many files, maximum {max} files allowed",

@@ -192,6 +192,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     accept: [
       'image/*',
       'video/*',
+      'audio/*',
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

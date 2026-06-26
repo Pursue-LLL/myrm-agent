@@ -7,11 +7,12 @@ import Tooltip from '@/components/features/settings/Tooltip';
 import { toast } from '@/hooks/useToast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { selectFiles, toStoreFile, getFileService } from '@/services/file-service';
-import { computeFileHash, isImageFile, isVideoFile, getFileExtension } from '@/lib/utils/fileUtils';
+import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB — aligned with backend VideoAnalysisEngine limit
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25MB — aligned with STT provider limits (Whisper/Groq/Deepgram)
 
 const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files: FileType[]) => void }) => {
   const t = useTranslations('files');
@@ -116,6 +117,13 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
     if (oversizedVideo) {
       const sizeMB = `${(oversizedVideo.size / 1024 / 1024).toFixed(1)}MB`;
       toast({ title: t('videoTooLarge'), description: t('videoTooLargeDesc', { size: sizeMB }), duration: 5000 });
+      return;
+    }
+
+    const oversizedAudio = selectedFiles.find((f) => isAudioFile(getFileExtension(f.name)) && f.size > MAX_AUDIO_BYTES);
+    if (oversizedAudio) {
+      const sizeMB = `${(oversizedAudio.size / 1024 / 1024).toFixed(1)}MB`;
+      toast({ title: t('audioTooLarge'), description: t('audioTooLargeDesc', { size: sizeMB }), duration: 5000 });
       return;
     }
 
@@ -233,7 +241,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
                 type="file"
                 onChange={handleChange}
                 ref={fileInputRef}
-                accept=".png,.jpeg,.jpg,.gif,.webp,.bmp,.pdf,.docx,.xlsx,.xls,.pptx,.ppt,.csv,.txt,.md,.json,.mp4,.mov,.webm,.avi,.mkv,.flv,.wmv,.m4v"
+                accept=".png,.jpeg,.jpg,.gif,.webp,.bmp,.pdf,.docx,.xlsx,.xls,.pptx,.ppt,.csv,.txt,.md,.json,.mp4,.mov,.webm,.avi,.mkv,.flv,.wmv,.m4v,.mp3,.wav,.ogg,.flac,.m4a,.aac,.wma,.opus"
                 multiple
                 className="hidden"
               />

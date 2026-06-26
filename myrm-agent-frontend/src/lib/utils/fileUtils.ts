@@ -3,6 +3,7 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif', 'ico'];
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'avi', 'mkv', 'flv', 'wmv', 'm4v'];
+const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma', 'opus'];
 const DOCUMENT_EXTENSIONS = ['docx', 'xlsx', 'xls', 'pptx', 'ppt', 'ipynb'];
 const TEXT_EXTENSIONS = ['csv', 'txt', 'md', 'json'];
 
@@ -31,6 +32,14 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   flv: 'video/x-flv',
   wmv: 'video/x-ms-wmv',
   m4v: 'video/x-m4v',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  wma: 'audio/x-ms-wma',
+  opus: 'audio/opus',
 };
 
 export const isImageFile = (fileExtension: string): boolean => {
@@ -39,6 +48,10 @@ export const isImageFile = (fileExtension: string): boolean => {
 
 export const isVideoFile = (fileExtension: string): boolean => {
   return VIDEO_EXTENSIONS.includes(fileExtension.toLowerCase());
+};
+
+export const isAudioFile = (fileExtension: string): boolean => {
+  return AUDIO_EXTENSIONS.includes(fileExtension.toLowerCase());
 };
 
 /**
