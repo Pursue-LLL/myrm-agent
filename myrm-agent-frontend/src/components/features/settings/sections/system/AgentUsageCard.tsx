@@ -34,7 +34,7 @@ const MiniSparkline = memo<{ data: number[]; className?: string }>(({ data, clas
 MiniSparkline.displayName = 'MiniSparkline';
 
 const AgentUsageCard = memo(() => {
-  const t = useTranslations('settings.usage');
+  const t = useTranslations('settings.usageStatistics');
   const [agents, setAgents] = useState<AgentUsageItem[]>([]);
   const [loading, setLoading] = useState(true);
 

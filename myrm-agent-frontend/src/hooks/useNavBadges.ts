@@ -19,6 +19,7 @@ interface NavBadges {
   cronFailures: number;
   pendingApprovals: number;
   unreadNotifications: number;
+  activeGoals: number;
   total: number;
   extensionConnected: boolean;
 }
@@ -27,6 +28,7 @@ const EMPTY_BADGES: NavBadges = {
   cronFailures: 0,
   pendingApprovals: 0,
   unreadNotifications: 0,
+  activeGoals: 0,
   total: 0,
   extensionConnected: false,
 };
@@ -65,6 +67,8 @@ export function useNavBadges(): NavBadges {
       'skill-growth-updated',
       'cron_updated',
       'extension-status-changed',
+      'goal_terminal',
+      'goal_dequeued',
     ];
     for (const evt of events) {
       window.addEventListener(evt, refresh);

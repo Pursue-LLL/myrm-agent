@@ -14,6 +14,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
+import ChannelBudgetSection from './ChannelBudgetSection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
 import AgentUsageCard from './AgentUsageCard';
 import RoutingAnalyticsPanel, { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
@@ -125,6 +126,7 @@ function UsageStatisticsSection() {
   return localizeReactNode(
     <div className="space-y-6">
       <BudgetPolicySection />
+      <ChannelBudgetSection />
       <MemoryGuardianCard />
       <SettingsSection
         title={t('title')}

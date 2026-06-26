@@ -184,6 +184,7 @@ mute_confirm = 已闭嘴，接下来我只会在被 @ 时回应。
 search_not_configured = 当前智能体需要网络搜索能力，但搜索服务尚未配置。请先在设置中添加并启用搜索服务。
 search_unreachable = 搜索服务已配置但当前无法连接。请检查搜索服务是否正常运行后重试。
 daily_budget_blocked = 已达每日预算上限，执行被拦截。请在 Web 设置中调整预算限额后继续使用。
+channel_budget_blocked = 此频道的每日预算已用完。其他频道和 Web 会话不受影响。频道所有者可在设置 > 预算中调整限额。
 cooldown_retry =
     
     

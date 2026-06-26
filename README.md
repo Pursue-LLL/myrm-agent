@@ -81,7 +81,7 @@ Download the latest release for your platform from [Releases](https://github.com
 
 **100+ LLM models** — OpenAI · Anthropic · Google Gemini · DeepSeek · Qwen · Local models via Ollama
 
-**Built-in tools** — MCP Protocol · Browser · File System · Terminal · Code Execution · @codebase Search · Web Search · Database · Cron Jobs
+**Built-in tools** — MCP Protocol · Browser · File System · Terminal · Code Execution · @codebase Overview · Web Search · Database · Cron Jobs
 
 ## Documentation
 

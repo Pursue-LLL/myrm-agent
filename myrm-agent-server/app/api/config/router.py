@@ -332,6 +332,10 @@ async def set_config(
             await _try_hot_register_channel(config_key)
         if config_key == "browserCloudProvider":
             await _hot_reload_cloud_browser(request.value)
+        if config_key == "personalSettings" and isinstance(request.value, dict):
+            from app.core.infra.tls_config import sync_tls_env_from_config
+
+            sync_tls_env_from_config(request.value)
         return record
     except VersionConflictError as e:
         raise HTTPException(

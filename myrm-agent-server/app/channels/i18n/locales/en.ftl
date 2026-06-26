@@ -184,6 +184,7 @@ mute_confirm = Muted. I will only respond when mentioned now.
 search_not_configured = This agent requires web search, but no search service is configured. Please set up a search service in Settings first.
 search_unreachable = Search service is configured but currently unreachable. Please check your search service and ensure it is running, then try again.
 daily_budget_blocked = Daily budget limit reached. Execution was blocked. Adjust your budget limit in the Web Settings app, then try again.
+channel_budget_blocked = This channel's daily budget has been reached. Other channels and Web sessions are not affected. The channel owner can adjust the limit in Settings > Budget.
 cooldown_retry =
     
     

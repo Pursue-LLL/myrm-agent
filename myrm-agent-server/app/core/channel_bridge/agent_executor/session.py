@@ -10,6 +10,32 @@ from app.channels.types import (
 from app.channels.types.thread_sharing import ThreadSharingMode
 
 
+def _resolve_peer(msg: InboundMessage) -> tuple[str, str]:
+    """Derive (peer_kind, peer_id) from an inbound message.
+
+    Single source of truth for session key and channel budget key construction.
+    Groups use chat_id; DMs use sender_id.
+    """
+    peer_kind = "group" if msg.is_group else "dm"
+    peer_id = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+    if not peer_id:
+        peer_id = f"channel-{msg.channel}"
+    return peer_kind, peer_id
+
+
+def build_channel_budget_key(msg: InboundMessage) -> str:
+    """Build the channel budget key prefix for budget guard lookup.
+
+    Returns empty string for non-group messages (DM / WebUI).
+    Format matches SessionKey.to_str() prefix: ``{channel}:{peer_kind}:{peer_id}``.
+    Lowercased to match SessionKey.to_str() which applies .lower().
+    """
+    if not msg.is_group:
+        return ""
+    peer_kind, peer_id = _resolve_peer(msg)
+    return f"{msg.channel}:{peer_kind}:{peer_id}".lower()
+
+
 def _build_session_key(
     msg: InboundMessage,
     *,
@@ -24,12 +50,7 @@ def _build_session_key(
     When thread_sharing_mode is SHARED, user identifier is removed from the key
     to enable all users in the same thread to share the conversation history.
     """
-    peer_kind = "group" if msg.is_group else "dm"
-    peer_id = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
-    if not peer_id:
-        peer_id = f"channel-{msg.channel}"
-
-    # Shared thread mode: remove user identifier to enable collaborative conversation history
+    peer_kind, peer_id = _resolve_peer(msg)
 
     sk = SessionKey(
         channel=msg.channel,

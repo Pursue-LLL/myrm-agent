@@ -16,4 +16,5 @@
 | `ingress_requirement.py` | 模块 | 汇总已配置渠道与 Cron Webhook，判定是否需公网 Ingress；供 `/system/ingress-requirement` 与渠道 issues 补充。 | ✅ |
 | `limiter.py` | 模块 | limiter 模块实现 | — |
 | `server_globals.py` | 模块 | Server Global State Management | ✅ |
+| `tls_config.py` | 模块 | Enterprise TLS configuration bridge (DB→env var sync for MYRM_TLS_STRICT). | ✅ |
 | `ws_origin_guard.py` | 模块 | WebSocket Origin guard. | ✅ |

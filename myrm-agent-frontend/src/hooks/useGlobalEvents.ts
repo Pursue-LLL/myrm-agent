@@ -467,6 +467,7 @@ export function useGlobalEvents(): void {
         }
         const navigateToGoal = sessionId ? () => router.push(`/chat/${sessionId}`) : undefined;
         notifyIfLeader(statusLabel, objective, navigateToGoal);
+        window.dispatchEvent(new CustomEvent('goal_terminal', { detail: payload.data }));
       } else if (payload.type === 'goal_dequeued') {
         const objective = String(payload.data.objective ?? '').slice(0, 100);
         const dqSessionId = String(payload.data.session_id ?? '');
@@ -479,6 +480,7 @@ export function useGlobalEvents(): void {
             useGoalStore.getState().fetchQueue(dqSessionId);
           });
         }
+        window.dispatchEvent(new CustomEvent('goal_dequeued', { detail: payload.data }));
       } else if (payload.type === 'extension_status_changed') {
         window.dispatchEvent(
           new CustomEvent('extension-status-changed', { detail: payload.data }),

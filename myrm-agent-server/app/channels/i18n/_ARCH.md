@@ -9,7 +9,7 @@ Internationalization for channel static messages and shared JSON/Fluent catalogs
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports `channel_t`, `add_locale_root`, locale resolution helpers. | — |
 | engine.py | Core | Fluent + JSON dual engine: `SafeDict` formatting, deep flatten, locale roots. | ✅ |
-| locales/ | Data | Harness default `.ftl` and LLM error diagnostic `.json` catalogs. Channel static keys include slash commands, search gate messages, and `daily_budget_blocked` (en/zh-CN `.ftl`; other locales fall back to en). | — |
+| locales/ | Data | Harness default `.ftl` and LLM error diagnostic `.json` catalogs. Channel static keys include slash commands, search gate messages, `daily_budget_blocked`, and `channel_budget_blocked` (en/zh-CN `.ftl`; other locales fall back to en). | — |
 
 ## Locale Roots (priority: first registered wins)
 

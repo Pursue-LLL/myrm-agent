@@ -14,7 +14,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 | `mcp_selection.py` | 核心 | Per-agent MCP server+tool 过滤。`apply_agent_mcp_selection()` 按 `mcp_ids` 过滤服务器、按 `mcp_tool_selections` 注入 `tool_include`；`coerce_tool_selections()` 规范化原始元数据。被 converter/executor/agent_bridge/eval/custom_agent_factory 五个入口统一调用 | ✅ |
 | `helpers.py` | 辅助 | 文本提取等辅助函数 | — |
 | `media.py` | 辅助 | 多模态媒体参数处理 | — |
-| `mention.py` | 辅助 | 上下文富引用预处理器。支持 workspace 文件/目录、上传/生成文件、@staged、@diff、@folder:path、@url:https://...，进行安全校验后注入用户查询 | ✅ |
+| `mention.py` | 辅助 | 上下文富引用预处理器。支持 workspace 文件/目录、上传/生成文件、@staged、@diff、@codebase（轻量文件统计 + grep/glob 引导）、@folder:path、@url:https://...，进行安全校验后注入用户查询 | ✅ |
 | `upload_sync.py` | 辅助 | 上传文件 workspace 同步与 RAG 智能路由。将用户拖拽上传的大文件（>100KB）从 StorageProvider 复制到 `{workspace}/_uploaded/`。大型文档（PDF/DOCX >100KB）自动标记 `action="wiki_ingest_then_query"`，引导 Agent 使用 wiki_ingest + wiki_query 进行 RAG 检索而非全文读取 | ✅ |
 
 ## Uploaded File Workspace Sync
@@ -25,6 +25,13 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
   - 普通文件：`<uploaded_files_in_workspace>` 标签，Agent 可直接读取
   - 大文档（PDF/DOCX >100KB）：`<large_documents_for_knowledge_base>` 标签，引导 Agent 使用 wiki_ingest_tool 入库后用 wiki_query_tool 检索
 - 安全保障：文件名清洗（去除路径分隔符和空字节）、50MB/chat 总量限制、10 文件/请求限制、同名文件自动编号。
+
+## @codebase Mention
+
+- 前端 `@codebase` 经 `MentionReferenceRequest(type="codebase")` 进入 `mention.py::_codebase_overview_part`。
+- Server 侧 **轻量 os.walk 扫描**（无 SQLite/FTS/向量索引），输出文件数与扩展名分布，并提示 Agent 使用 `grep_tool` / `glob_tool` 探索代码。
+- 注入 XML 类型为 `codebase-overview`；扫描上限 10,000 文件，排除 `.git`、`node_modules`、`.myrm` 等目录。
+- 工作区代码探索 SSOT 仍为 harness `FilesystemFileSearchMiddleware`（grep/glob），见 `app/services/context/_ARCH.md`。
 
 ## Typed Archive Restore
 

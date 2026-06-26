@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { IconLoader, IconCheckCircle, IconXCircle, IconBan, IconStop, IconClock } from '@/components/features/icons/PremiumIcons';
-import { Navigation } from 'lucide-react';
+import { Navigation, Target } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
+import { fetchWithTimeout } from '@/lib/api';
 import {
   listBackgroundTasks,
   cancelBackgroundTask,
@@ -16,6 +18,15 @@ import {
   type BackgroundTask,
 } from '@/services/background-tasks';
 import { formatDistanceToNow } from 'date-fns';
+
+interface ActiveGoal {
+  goal_id: string;
+  session_id: string;
+  objective: string;
+  status: string;
+  tokens_used: number;
+  created_at: string;
+}
 
 interface BackgroundTasksPanelProps {
   trigger: React.ReactNode;
@@ -53,9 +64,20 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+const GOAL_STATUS_STYLES: Record<string, { dotColor: string; i18nKey: string }> = {
+  active: { dotColor: 'bg-primary', i18nKey: 'goalStatusActive' },
+  paused: { dotColor: 'bg-amber-500', i18nKey: 'goalStatusPaused' },
+  pending_approval: { dotColor: 'bg-violet-500', i18nKey: 'goalStatusPendingApproval' },
+  budget_limited: { dotColor: 'bg-orange-500', i18nKey: 'goalStatusBudgetLimited' },
+  needs_human_review: { dotColor: 'bg-rose-500', i18nKey: 'goalStatusNeedsReview' },
+  queued: { dotColor: 'bg-muted-foreground', i18nKey: 'goalStatusQueued' },
+};
+
 export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelProps) {
   const t = useTranslations('backgroundTasks');
+  const router = useRouter();
   const [tasks, setTasks] = useState<BackgroundTask[]>([]);
+  const [activeGoals, setActiveGoals] = useState<ActiveGoal[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [steerTaskId, setSteerTaskId] = useState<string | null>(null);
   const [steerInput, setSteerInput] = useState('');
@@ -72,29 +94,58 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     }
   }, []);
 
+  const fetchActiveGoals = useCallback(async () => {
+    try {
+      const res = await fetchWithTimeout('/goals/active');
+      if (!res.ok) return;
+      const data = await res.json();
+      setActiveGoals(data.goals || []);
+    } catch {
+      // silent - non-critical
+    }
+  }, []);
+
   // Panel open: fast polling (3s)
   useEffect(() => {
     if (!isOpen) return;
     idleCountRef.current = 0;
     fetchTasks();
-    const interval = setInterval(fetchTasks, POLL_FAST_MS);
+    fetchActiveGoals();
+    const interval = setInterval(() => { fetchTasks(); fetchActiveGoals(); }, POLL_FAST_MS);
     return () => clearInterval(interval);
-  }, [isOpen, fetchTasks]);
+  }, [isOpen, fetchTasks, fetchActiveGoals]);
 
   // Panel closed: slow polling for badge accuracy (30s, stops after consecutive idle)
   useEffect(() => {
     if (isOpen) return;
 
     fetchTasks();
+    fetchActiveGoals();
 
     const interval = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       if (idleCountRef.current >= IDLE_STOP_THRESHOLD) return;
       fetchTasks();
+      fetchActiveGoals();
     }, POLL_SLOW_MS);
 
     return () => clearInterval(interval);
-  }, [isOpen, fetchTasks]);
+  }, [isOpen, fetchTasks, fetchActiveGoals]);
+
+  const handleGoalAction = async (sessionId: string, action: string) => {
+    try {
+      const res = await fetchWithTimeout(`/goals/${sessionId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      toast.success(t('goalActionSuccess'));
+      fetchActiveGoals();
+    } catch {
+      toast.error(t('cancelFailed'));
+    }
+  };
 
   const handleCancel = async (taskId: string) => {
     try {
@@ -119,15 +170,16 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   };
 
   const runningCount = tasks.filter((task) => task.status === 'running').length;
+  const totalBadge = runningCount + activeGoals.length;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <div className="relative">
           {trigger}
-          {runningCount > 0 && (
+          {totalBadge > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-              {runningCount}
+              {totalBadge}
             </span>
           )}
         </div>
@@ -142,7 +194,85 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
         </div>
 
         <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">
-          {tasks.length === 0 ? (
+          {/* Active Goals Section */}
+          {activeGoals.length > 0 && (
+            <div className="border-b border-border/30">
+              <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
+                <Target className="mr-1 inline h-3 w-3" />
+                {t('goalsSection')} ({activeGoals.length})
+              </div>
+              <div className="divide-y divide-border/20">
+                {activeGoals.map((goal) => {
+                  const style = GOAL_STATUS_STYLES[goal.status] ?? GOAL_STATUS_STYLES.active;
+                  return (
+                    <div key={goal.goal_id} className="px-4 py-2.5 transition-colors hover:bg-muted/30">
+                      <div className="flex items-start gap-2.5">
+                        <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-sm leading-snug text-foreground">{goal.objective}</p>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className={cn('h-1.5 w-1.5 rounded-full', style.dotColor)} />
+                            <span>{t(style.i18nKey)}</span>
+                            <span className="text-border">·</span>
+                            <span>{formatDistanceToNow(new Date(goal.created_at), { addSuffix: true })}</span>
+                            {goal.tokens_used > 0 && (
+                              <>
+                                <span className="text-border">·</span>
+                                <span>{goal.tokens_used >= 1000 ? `${(goal.tokens_used / 1000).toFixed(1)}k` : goal.tokens_used} tokens</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => router.push(`/chat/${goal.session_id}`)}
+                            >
+                              <Navigation className="mr-1 h-3 w-3" />
+                              {t('navigate')}
+                            </Button>
+                            {goal.status === 'active' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-amber-600 dark:text-amber-400"
+                                onClick={() => handleGoalAction(goal.session_id, 'pause')}
+                              >
+                                {t('goalPause')}
+                              </Button>
+                            )}
+                            {goal.status === 'paused' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-emerald-600 dark:text-emerald-400"
+                                onClick={() => handleGoalAction(goal.session_id, 'resume')}
+                              >
+                                {t('goalResume')}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleGoalAction(goal.session_id, 'cancel')}
+                            >
+                              <IconStop className="mr-1 h-3 w-3" />
+                              {t('cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Background Tasks Section */}
+          {tasks.length === 0 && activeGoals.length === 0 ? (
             <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>
           ) : (
             <div className="divide-y divide-border/30">

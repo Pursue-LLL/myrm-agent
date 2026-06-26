@@ -314,8 +314,6 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "client_logs"
     if path.startswith("tests/api/features/"):
         return "features"
-    if path.startswith("tests/integration/test_network_security"):
-        return "agent_with_skills"
     if path.startswith("tests/api/eval/test_workspace_isolation"):
         return "agent_with_skills"
     if path.startswith("tests/api/eval/"):

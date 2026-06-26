@@ -147,12 +147,13 @@ async def load_history_without_persist(
         return chat.id, history
 
 
-async def persist_assistant_message(chat_id: str, content: str, timezone: str | None = None) -> None:
-    """Persist the assistant's response after Agent completes.
-
-    Args:
-        timezone: User timezone (optional, defaults to UTC).
-    """
+async def persist_assistant_message(
+    chat_id: str,
+    content: str,
+    timezone: str | None = None,
+    extra_data: dict[str, object] | None = None,
+) -> None:
+    """Persist the assistant's response after Agent completes."""
     from datetime import datetime
     from datetime import timezone as tz_module
 
@@ -162,7 +163,9 @@ async def persist_assistant_message(chat_id: str, content: str, timezone: str | 
     async with get_session() as session:
         sent_at = datetime.now(tz=tz_module.utc)
         sent_timezone = timezone or "UTC"
-        await ChatService.append_message(chat_id, "assistant", content, sent_at, sent_timezone)
+        await ChatService.append_message(
+            chat_id, "assistant", content, sent_at, sent_timezone, extra_data=extra_data,
+        )
         await session.commit()
 
 
@@ -389,6 +392,7 @@ class StreamAccumulator:
     last_image_mime: str = "image/jpeg"
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)
+    cost_usd: float = 0.0
     _seen: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:

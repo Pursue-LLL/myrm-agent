@@ -47,3 +47,70 @@ export async function updateBudgetPolicy(policy: BudgetPolicy): Promise<BudgetPo
 export async function getBudgetStatus(): Promise<BudgetStatus> {
   return apiRequest<BudgetStatus>('/budget/status', { silent: true });
 }
+
+// --- Per-channel budget ---
+
+export interface ChannelBudgetPolicy {
+  channel_key: string;
+  daily_limit_usd: number;
+  warning_threshold: number;
+  enabled: boolean;
+  label: string;
+}
+
+export interface ChannelBudgetStatus {
+  channel_key: string;
+  label: string;
+  enabled: boolean;
+  daily_limit_usd: number;
+  today_cost_usd: number;
+  remaining_usd: number;
+  usage_pct: number;
+  status: 'ok' | 'warning' | 'exceeded' | 'disabled';
+}
+
+export interface ChannelBudgetsResponse {
+  policies: ChannelBudgetPolicy[];
+  statuses: ChannelBudgetStatus[];
+}
+
+export interface ChannelAuditEntry {
+  sender_id: string;
+  message_count: number;
+  total_cost_usd: number;
+}
+
+export interface ChannelAuditResponse {
+  channel_key: string;
+  period_days: number;
+  entries: ChannelAuditEntry[];
+  total_cost_usd: number;
+}
+
+export async function getChannelBudgets(): Promise<ChannelBudgetsResponse> {
+  return apiRequest<ChannelBudgetsResponse>('/budget/channels', { silent: true });
+}
+
+export async function updateChannelBudget(
+  channelKey: string,
+  policy: Omit<ChannelBudgetPolicy, 'channel_key'>,
+): Promise<ChannelBudgetPolicy> {
+  return apiRequest<ChannelBudgetPolicy>(`/budget/channels/${encodeURIComponent(channelKey)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(policy),
+  });
+}
+
+export async function deleteChannelBudget(channelKey: string): Promise<void> {
+  await apiRequest(`/budget/channels/${encodeURIComponent(channelKey)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getChannelAudit(channelKey: string, days = 7): Promise<ChannelAuditResponse> {
+  return apiRequest<ChannelAuditResponse>(
+    `/budget/channels/${encodeURIComponent(channelKey)}/audit?days=${days}`,
+    { silent: true },
+  );
+}

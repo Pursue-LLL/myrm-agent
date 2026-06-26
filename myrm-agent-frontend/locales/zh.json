@@ -2863,6 +2863,8 @@
     "timezoneDesc": "设置您的时区，用于定时任务调度和时间相关回答",
     "smoothStreamEnabled": "平滑流式输出",
     "smoothStreamEnabledDesc": "启用更自然的流式文字显示效果",
+    "enterpriseTlsCompat": "企业网络兼容模式",
+    "enterpriseTlsCompatDesc": "放宽严格的 TLS 证书校验，适配企业代理环境（Zscaler、Netskope 等）。仍保留证书链和主机名验证。",
     "publicIngressBaseUrl": "公网访问地址",
     "publicIngressBaseUrlDesc": "用于外部回调的公网 Ingress 基础 URL",
     "customPrimaryColor": "自定义主色",
@@ -3320,6 +3322,7 @@
       "noData": "暂无用量数据",
       "refresh": "刷新",
       "retry": "重试",
+      "agentUsageTitle": "智能体用量分布",
       "routingTitle": "智能路由分析",
       "routingDistribution": "路由层级分布",
       "tierSimple": "轻量",
@@ -3758,6 +3761,23 @@
       "actionWarn": "仅警告",
       "actionBlock": "阻止请求",
       "optional": "可选"
+    },
+    "channelBudget": {
+      "title": "频道预算配额",
+      "description": "为每个聊天频道设置每日花费上限，防止单个群聊耗尽全部预算",
+      "add": "添加频道",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "empty": "暂无频道预算配置。添加频道以设置花费限额。",
+      "channelKeyPlaceholder": "频道标识 (如 telegram:group:chat_123)",
+      "labelPlaceholder": "标签（可选）",
+      "dailyLimit": "每日限额",
+      "enabled": "启用",
+      "auditDetails": "按发送者统计花费（7天）",
+      "auditLoading": "加载审计数据...",
+      "auditEmpty": "该时段暂无花费数据",
+      "auditMessages": "条"
     },
     "about": {
       "title": "关于",
@@ -5337,7 +5357,7 @@
       "navigate": "导航",
       "select": "选择",
       "dismiss": "关闭",
-      "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @folder:路径 目录 / @url:链接 网页 / file:10-20 行范围",
+      "specialReferencesHint": "试试特殊引用：@staged 暂存区 / @diff 工作区 / @codebase 概览 / @folder:路径 目录 / @url:链接 网页 / file:10-20 行范围",
       "removeReference": "移除 {label}"
     },
     "message": {
@@ -10896,7 +10916,7 @@
   },
   "backgroundTasks": {
     "title": "后台任务",
-    "empty": "暂无后台任务",
+    "empty": "暂无活跃任务或目标",
     "running": "运行中",
     "completed": "已完成",
     "failed": "失败",
@@ -10911,7 +10931,18 @@
     "steerPlaceholder": "输入调整指令...",
     "taskStarted": "后台任务已启动",
     "elapsed": "已耗时",
-    "resultPreview": "结果预览"
+    "resultPreview": "结果预览",
+    "navigate": "前往",
+    "goalsSection": "目标",
+    "goalPause": "暂停",
+    "goalResume": "恢复",
+    "goalStatusActive": "执行中",
+    "goalStatusPaused": "已暂停",
+    "goalStatusPendingApproval": "待审批",
+    "goalStatusBudgetLimited": "预算受限",
+    "goalStatusNeedsReview": "待人工审查",
+    "goalStatusQueued": "排队中",
+    "goalActionSuccess": "操作成功"
   },
   "boot": {
     "title": "Perplexica",

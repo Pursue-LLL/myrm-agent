@@ -7,6 +7,8 @@ myrm_agent_harness.toolkits.web_fetch.engine::CrawlEngine (POS: 分层爬虫引�
 [OUTPUT]
 _build_mention_reference_context: 读取结构化 @ 引用并构建注入上下文
 _inject_mentioned_files_into_query: 将上下文追加到用户查询
+_build_codebase_overview: 轻量扫描工作区文件统计（@codebase）
+_codebase_overview_part: 构建 @codebase XML 注入片段
 _read_file_lines: 读取文件的指定行范围
 _get_git_staged_diff: 获取 Git staged diff
 _get_folder_tree: 获取文件夹树结构
@@ -19,6 +21,7 @@ _fetch_url_content: 获取 URL 内容
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -59,6 +62,8 @@ _BINARY_EXTENSIONS = {
 }
 _FOLDER_TREE_MAX_ENTRIES = 200
 _FOLDER_TREE_EXCLUDED_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".pytest_cache", ".mypy_cache"}
+_CODEBASE_SCAN_EXCLUDED_DIRS = _FOLDER_TREE_EXCLUDED_DIRS | {".myrm", "dist", "build", ".next", "target", "coverage"}
+_CODEBASE_SCAN_MAX_FILES = 10_000
 _URL_FETCH_TIMEOUT = 30
 
 
@@ -344,7 +349,7 @@ async def _build_mention_reference_context(
             continue
 
         if ref.type == "codebase":
-            codebase_part, codebase_bytes = await _codebase_search_part(workspace_real, total_bytes)
+            codebase_part, codebase_bytes = await _codebase_overview_part(workspace_real, total_bytes)
             parts.append(codebase_part)
             total_bytes += codebase_bytes
             continue
@@ -510,37 +515,53 @@ def _parse_document(path: str, ext: str) -> str | None:
     return None
 
 
-async def _codebase_search_part(workspace_dir: str, current_total_bytes: int) -> tuple[str, int]:
-    """Build context from code index for @codebase mention.
+def _build_codebase_overview(workspace_path: Path) -> str:
+    """Lightweight workspace scan for @codebase mention (no index DB)."""
+    file_count = 0
+    ext_counts: dict[str, int] = {}
+    truncated = False
 
-    Uses the CodeIndexer to provide a codebase overview with indexed symbols
-    and file structure when the user references @codebase.
-    """
-    try:
-        from pathlib import Path as _Path
-
-        from myrm_agent_harness.toolkits.code_index import CodeIndexConfig, CodeIndexer
-
-        workspace_path = _Path(workspace_dir)
-        indexer = CodeIndexer(workspace_path, CodeIndexConfig(enable_vector_search=False))
-        stats = await indexer.ensure_indexed()
-
-        index_stats = indexer.get_stats()
-        overview_parts: list[str] = [
-            f"Codebase Index: {index_stats['indexed_files']} files, {index_stats['indexed_symbols']} symbols",
+    for dirpath, dirnames, filenames in os.walk(workspace_path):
+        dirnames[:] = [
+            name
+            for name in dirnames
+            if name not in _CODEBASE_SCAN_EXCLUDED_DIRS and not name.startswith(".")
         ]
-        if index_stats.get("languages"):
-            lang_summary = ", ".join(f"{lang}: {cnt}" for lang, cnt in list(index_stats["languages"].items())[:10])
-            overview_parts.append(f"Languages: {lang_summary}")
+        for filename in filenames:
+            if filename.startswith("."):
+                continue
+            file_count += 1
+            ext = Path(filename).suffix.lower() or "(no ext)"
+            ext_counts[ext] = ext_counts.get(ext, 0) + 1
+            if file_count >= _CODEBASE_SCAN_MAX_FILES:
+                truncated = True
+                break
+        if truncated:
+            break
 
-        overview = "\n".join(overview_parts)
-        overview_bytes = len(overview.encode("utf-8"))
-        if _can_inline(overview_bytes, current_total_bytes):
-            return _xml_part("@codebase", "codebase-index", overview), overview_bytes
-        return _xml_metadata("@codebase", "codebase-index", f"Index available ({index_stats['indexed_files']} files)"), 0
-    except Exception as e:
-        logger.debug("@codebase indexing unavailable: %s", e)
-        return _xml_metadata("@codebase", "codebase-index", "Code indexing unavailable — use grep_tool for code search"), 0
+    overview_parts = [f"Codebase Overview: {file_count} files"]
+    if truncated:
+        overview_parts.append(f"(scan capped at {_CODEBASE_SCAN_MAX_FILES} files)")
+    if ext_counts:
+        ext_summary = ", ".join(
+            f"{ext}: {count}" for ext, count in sorted(ext_counts.items(), key=lambda item: (-item[1], item[0]))[:10]
+        )
+        overview_parts.append(f"Extensions: {ext_summary}")
+    overview_parts.append("Use grep_tool / glob_tool for code exploration.")
+    return "\n".join(overview_parts)
+
+
+async def _codebase_overview_part(workspace_dir: str, current_total_bytes: int) -> tuple[str, int]:
+    """Build a lightweight codebase overview for @codebase mention."""
+    workspace_path = Path(workspace_dir)
+    if not workspace_path.is_dir():
+        return _xml_metadata("@codebase", "codebase-overview", "Workspace unavailable"), 0
+
+    overview = await asyncio.to_thread(_build_codebase_overview, workspace_path)
+    overview_bytes = len(overview.encode("utf-8"))
+    if _can_inline(overview_bytes, current_total_bytes):
+        return _xml_part("@codebase", "codebase-overview", overview), overview_bytes
+    return _xml_metadata("@codebase", "codebase-overview", overview.split("\n", maxsplit=1)[0]), 0
 
 
 def _format_size(size_bytes: int) -> str:

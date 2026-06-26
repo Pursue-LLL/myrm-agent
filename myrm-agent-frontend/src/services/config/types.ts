@@ -223,6 +223,7 @@ export interface PersonalSettingsConfigValue {
   enableEvalLab?: boolean;
   smoothStreamEnabled?: boolean;
   publicIngressBaseUrl?: string;
+  enterpriseTlsCompat?: boolean;
 }
 
 /**

@@ -185,6 +185,7 @@ myrm_agent_harness.infra.health.health_checker
 myrm_agent_harness.infra.incremental.types
 myrm_agent_harness.infra.security
 myrm_agent_harness.infra.sqlite_backup
+myrm_agent_harness.infra.tls_compat
 myrm_agent_harness.infra.tracing
 myrm_agent_harness.infra.tracing.metrics
 myrm_agent_harness.observability.diagnostics.manager
@@ -237,6 +238,7 @@ myrm_agent_harness.toolkits.code_execution.executors.local
 myrm_agent_harness.toolkits.code_execution.executors.models
 myrm_agent_harness.toolkits.code_execution.factory
 myrm_agent_harness.toolkits.code_execution.interceptor
+myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.code_index
@@ -288,6 +290,7 @@ myrm_agent_harness.toolkits.llms.errors.resilient
 myrm_agent_harness.toolkits.llms.fallback
 myrm_agent_harness.toolkits.llms.fallback.health_check
 myrm_agent_harness.toolkits.llms.image
+myrm_agent_harness.toolkits.llms.image.image_langchain_tool
 myrm_agent_harness.toolkits.llms.image.models
 myrm_agent_harness.toolkits.llms.image.types
 myrm_agent_harness.toolkits.llms.rate_limit
@@ -296,6 +299,7 @@ myrm_agent_harness.toolkits.llms.routing.complexity_router
 myrm_agent_harness.toolkits.llms.utils.model_utils
 myrm_agent_harness.toolkits.llms.video
 myrm_agent_harness.toolkits.llms.video.providers
+myrm_agent_harness.toolkits.llms.video.video_langchain_tool
 myrm_agent_harness.toolkits.local_file_search
 myrm_agent_harness.toolkits.mcp
 myrm_agent_harness.toolkits.mcp.config
@@ -403,6 +407,3 @@ myrm_agent_harness.utils.token_economics.tracker
 myrm_agent_harness.utils.token_estimation
 myrm_agent_harness.utils.url_utils
 myrm_agent_harness.utils.workspace_indexer
-myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
-myrm_agent_harness.toolkits.llms.image.image_langchain_tool
-myrm_agent_harness.toolkits.llms.video.video_langchain_tool

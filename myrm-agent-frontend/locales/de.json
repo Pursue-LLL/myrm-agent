@@ -2676,6 +2676,7 @@
       "noData": "No usage data available",
       "refresh": "Refresh",
       "retry": "Retry",
+      "agentUsageTitle": "Agentennutzung nach Aufschlüsselung",
       "routingTitle": "Smart Routing Analytics",
       "routingDistribution": "Routing Tier Distribution",
       "tierSimple": "Light",
@@ -3176,6 +3177,8 @@
     "timezoneDesc": "Set your timezone for scheduled tasks and time-related responses",
     "smoothStreamEnabled": "Smooth Streaming",
     "smoothStreamEnabledDesc": "Enable smoother streaming text display",
+    "enterpriseTlsCompat": "Enterprise Network Compatibility",
+    "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
     "customPrimaryColor": "Custom Primary Color",
@@ -3589,6 +3592,23 @@
       "actionWarn": "Warn only",
       "actionBlock": "Block requests",
       "optional": "Optional"
+    },
+    "channelBudget": {
+      "title": "Kanal-Budgetlimits",
+      "description": "Tägliche Ausgabenlimits pro Kanal festlegen, um zu verhindern, dass ein einzelner Gruppenchat das gesamte Budget aufbraucht",
+      "add": "Kanal hinzufügen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "empty": "Keine Kanal-Budgets konfiguriert. Fügen Sie einen Kanal hinzu, um Ausgabenlimits festzulegen.",
+      "channelKeyPlaceholder": "Kanalschlüssel (z.B. telegram:group:chat_123)",
+      "labelPlaceholder": "Label (optional)",
+      "dailyLimit": "Tageslimit",
+      "enabled": "Aktiviert",
+      "auditDetails": "Ausgaben nach Absender (7 Tage)",
+      "auditLoading": "Audit-Daten werden geladen...",
+      "auditEmpty": "Keine Ausgabendaten für diesen Zeitraum",
+      "auditMessages": "Nachr."
     },
     "dlq": {
       "title": "Dead Letter Queue",
@@ -4721,7 +4741,7 @@
       "navigate": "Navigieren",
       "select": "Auswählen",
       "dismiss": "Schließen",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
       "removeReference": "Remove {label}"
     },
     "message": {
@@ -10459,7 +10479,7 @@
   },
   "backgroundTasks": {
     "title": "Background Tasks",
-    "empty": "No background tasks",
+    "empty": "No active tasks or goals",
     "running": "Running",
     "completed": "Completed",
     "failed": "Failed",
@@ -10474,7 +10494,18 @@
     "steerPlaceholder": "Enter steering instruction...",
     "taskStarted": "Background task started",
     "elapsed": "Elapsed",
-    "resultPreview": "Result Preview"
+    "resultPreview": "Result Preview",
+    "navigate": "Go to",
+    "goalsSection": "Goals",
+    "goalPause": "Pause",
+    "goalResume": "Resume",
+    "goalStatusActive": "Active",
+    "goalStatusPaused": "Paused",
+    "goalStatusPendingApproval": "Pending Approval",
+    "goalStatusBudgetLimited": "Budget Limited",
+    "goalStatusNeedsReview": "Needs Review",
+    "goalStatusQueued": "Queued",
+    "goalActionSuccess": "Action completed"
   },
   "boot": {
     "title": "Perplexica",

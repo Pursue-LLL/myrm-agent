@@ -2676,6 +2676,7 @@
       "noData": "No usage data available",
       "refresh": "Refresh",
       "retry": "Retry",
+      "agentUsageTitle": "에이전트 사용량 분포",
       "routingTitle": "Smart Routing Analytics",
       "routingDistribution": "Routing Tier Distribution",
       "tierSimple": "Light",
@@ -3176,6 +3177,8 @@
     "timezoneDesc": "Set your timezone for scheduled tasks and time-related responses",
     "smoothStreamEnabled": "Smooth Streaming",
     "smoothStreamEnabledDesc": "Enable smoother streaming text display",
+    "enterpriseTlsCompat": "Enterprise Network Compatibility",
+    "enterpriseTlsCompatDesc": "Relax strict TLS certificate validation for corporate proxy environments (Zscaler, Netskope, etc.). Maintains certificate chain and hostname verification.",
     "publicIngressBaseUrl": "Public Ingress URL",
     "publicIngressBaseUrlDesc": "Base URL for external callbacks via public ingress",
     "customPrimaryColor": "Custom Primary Color",
@@ -3589,6 +3592,23 @@
       "actionWarn": "Warn only",
       "actionBlock": "Block requests",
       "optional": "Optional"
+    },
+    "channelBudget": {
+      "title": "채널 예산 할당",
+      "description": "채널별 일일 지출 한도를 설정하여 단일 그룹 채팅이 전체 예산을 소진하는 것을 방지",
+      "add": "채널 추가",
+      "save": "저장",
+      "cancel": "취소",
+      "delete": "삭제",
+      "empty": "채널 예산이 설정되지 않았습니다. 채널을 추가하여 지출 한도를 설정하세요.",
+      "channelKeyPlaceholder": "채널 키 (예: telegram:group:chat_123)",
+      "labelPlaceholder": "라벨 (선택사항)",
+      "dailyLimit": "일일 한도",
+      "enabled": "활성화",
+      "auditDetails": "발신자별 지출 (7일)",
+      "auditLoading": "감사 데이터 로딩 중...",
+      "auditEmpty": "해당 기간 지출 데이터 없음",
+      "auditMessages": "건"
     },
     "dlq": {
       "title": "Dead Letter Queue",
@@ -4721,7 +4741,7 @@
       "navigate": "이동",
       "select": "선택",
       "dismiss": "닫기",
-      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
+      "specialReferencesHint": "Try: @staged (staged) / @diff (working dir) / @codebase (overview) / @folder:path (directory) / @url:link (webpage) / file:10-20 (line range)",
       "removeReference": "Remove {label}"
     },
     "message": {
@@ -10459,7 +10479,7 @@
   },
   "backgroundTasks": {
     "title": "Background Tasks",
-    "empty": "No background tasks",
+    "empty": "No active tasks or goals",
     "running": "Running",
     "completed": "Completed",
     "failed": "Failed",
@@ -10474,7 +10494,18 @@
     "steerPlaceholder": "Enter steering instruction...",
     "taskStarted": "Background task started",
     "elapsed": "Elapsed",
-    "resultPreview": "Result Preview"
+    "resultPreview": "Result Preview",
+    "navigate": "Go to",
+    "goalsSection": "Goals",
+    "goalPause": "Pause",
+    "goalResume": "Resume",
+    "goalStatusActive": "Active",
+    "goalStatusPaused": "Paused",
+    "goalStatusPendingApproval": "Pending Approval",
+    "goalStatusBudgetLimited": "Budget Limited",
+    "goalStatusNeedsReview": "Needs Review",
+    "goalStatusQueued": "Queued",
+    "goalActionSuccess": "Action completed"
   },
   "boot": {
     "title": "Perplexica",

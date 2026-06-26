@@ -109,6 +109,7 @@ const PreferencesSection = memo(() => {
     enableCacheBreakNotification: IconAlertCircle,
     showContextUsage: CircleIcon,
     codeExecutionAllowNetwork: Wifi01Icon,
+    enterpriseTlsCompat: Wifi01Icon,
     enableEvalLab: IconFlask,
     webTtsProvider: VoiceIcon,
     enableCompletionSound: VoiceIcon,

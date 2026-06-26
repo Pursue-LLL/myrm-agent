@@ -216,6 +216,23 @@ class ChannelAgentExecutor:
                 )
                 return
 
+            from app.services.budget.channel_budget import should_block_channel
+
+            from .session import build_channel_budget_key
+
+            channel_budget_key = build_channel_budget_key(msg)
+            if channel_budget_key and should_block_channel(channel_budget_key):
+                logger.warning(
+                    "Channel execution blocked: channel budget exceeded, channel=%s chat_id=%s sender=%s",
+                    msg.channel,
+                    msg.chat_id,
+                    msg.sender_id,
+                )
+                yield msg.get_or_create_correlation_context().create_reply(
+                    content=get_text(msg, "channel_budget_blocked"),
+                )
+                return
+
             configs = await load_user_configs()
 
             query = build_channel_inbound_query(msg)
@@ -718,6 +735,11 @@ class ChannelAgentExecutor:
                     error_type = str(event.get("error_type", ""))
                     acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
 
+                elif event_type == "token_economics":
+                    cost = event.get("cost_usd")
+                    if isinstance(cost, (int, float)):
+                        acc.cost_usd += float(cost)
+
             content = strip_internal_markers("".join(acc.chunks))
 
             if not content.strip():
@@ -732,7 +754,21 @@ class ChannelAgentExecutor:
                     logger.warning("ChannelAgentExecutor: empty LLM response for %s", msg.sender_id)
                     content = "[No response generated]"
 
-            await persist_assistant_message(chat_id, content, timezone=msg.sent_timezone)
+            await persist_assistant_message(
+                chat_id,
+                content,
+                timezone=msg.sent_timezone,
+                extra_data={
+                    "costUsd": acc.cost_usd,
+                    "channelSenderId": msg.sender_id,
+                } if acc.cost_usd > 0 else None,
+            )
+
+            if channel_budget_key and acc.cost_usd > 0:
+                from app.services.budget.channel_budget import record_channel_cost
+
+                record_channel_cost(channel_budget_key, acc.cost_usd)
+
             if not chat_history:
                 auto_title = bool(memory_settings.get("enableAutoTitleGeneration", True))
                 asyncio.create_task(

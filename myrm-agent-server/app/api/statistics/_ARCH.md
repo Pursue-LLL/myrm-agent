@@ -16,6 +16,6 @@
 | `daily_journal.py` | 模块 | Daily journal API. | ✅ |
 | `growth_dashboard.py` | 模块 | Growth Dashboard API — aggregated view of agent growth metrics + cost/savings summary. | ✅ |
 | `rate_limits.py` | 模块 | API endpoints for fetching real-time rate limit statistics | ✅ |
-| `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges. | ✅ |
+| `router.py` | 路由 | Base statistics routes: usage, daily, sessions, activity, tool-stability, badges（含 activeGoals 计数）. | ✅ |
 | `session_analytics.py` | 模块 | 会话级分析 API。提供单个会话的详细统计（token、工具、事件时间线、任务指标）和执行追踪。 | ✅ |
 | `usage_aggregation.py` | 模块 | Coerce SQLAlchemy Row / tuple results into aggregate_usage inputs. | ✅ |

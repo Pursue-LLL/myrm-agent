@@ -81,7 +81,7 @@ myrm start
 
 **100+ LLM 模型** — OpenAI · Anthropic · Google Gemini · DeepSeek · 通义千问 · 本地模型（Ollama）
 
-**内置工具** — MCP 协议 · 浏览器 · 文件系统 · 终端 · 代码执行 · @codebase 搜索 · 网络搜索 · 数据库 · 定时任务
+**内置工具** — MCP 协议 · 浏览器 · 文件系统 · 终端 · 代码执行 · @codebase 概览 · 网络搜索 · 数据库 · 定时任务
 
 ## 文档
 

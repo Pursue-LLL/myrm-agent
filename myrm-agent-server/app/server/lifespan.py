@@ -125,6 +125,11 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
     print(f"🐍 Python {sys.version.split()[0]}")
 
+    from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation
+
+    if apply_global_tls_relaxation():
+        logger.info("[Startup] Enterprise TLS compatibility enabled (MYRM_TLS_STRICT=0)")
+
     timer = StartupTimer()
     logger.info("[Startup] Application starting...")
 
@@ -201,6 +206,15 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
     # Dispatch @startup system event for trigger-based cron jobs
     asyncio.create_task(_dispatch_startup_event())
+
+    # Initialize per-channel budget guards from persisted policies
+    try:
+        from app.services.budget.channel_budget import initialize_channel_budgets
+
+        await initialize_channel_budgets()
+        logger.info("[Startup] Channel budget guards initialized")
+    except Exception as e:
+        logger.debug("[Startup] Channel budget init skipped: %s", e)
 
     yield
 
@@ -296,6 +310,13 @@ async def _phase_1a_sequential() -> None:
                     logger.debug(f"[Startup] No configs to migrate: {stats}")
         except Exception as e:
             logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
+
+    try:
+        from app.core.infra.tls_config import apply_tls_config_from_db
+
+        await apply_tls_config_from_db()
+    except Exception as e:
+        logger.debug("[Startup] TLS config from DB skipped: %s", e)
 
 
 async def _phase_1b_parallel() -> None:

@@ -168,6 +168,12 @@ class PersonalSettingsConfigValue(BaseModel):
     smoothStreamEnabled: bool = _personal_settings_field(
         "preferences", default=True, description="启用平滑流输出", group="advanced"
     )
+    enterpriseTlsCompat: bool = _personal_settings_field(
+        "preferences",
+        default=False,
+        description="Enterprise network compatibility (relaxes strict TLS for corporate proxies)",
+        group="advanced",
+    )
     publicIngressBaseUrl: str = _personal_settings_field("system", default="", description="公网 Ingress 地址")
 
 

@@ -12,6 +12,7 @@ Provides HTTP endpoints for the frontend to pause, resume, and clear goals.
 """
 
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
 from myrm_agent_harness.agent.goals.types import GoalStatus
@@ -19,6 +20,9 @@ from myrm_agent_harness.core.features import get_features
 from pydantic import BaseModel
 
 from app.services.agent.goal_registry import GoalRegistry
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.goals.types import Goal
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,49 @@ def verify_goals_enabled() -> None:
 
 
 router = APIRouter(prefix="/goals", tags=["goals"], dependencies=[Depends(verify_goals_enabled)])
+
+
+_NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset({
+    GoalStatus.ACTIVE,
+    GoalStatus.PAUSED,
+    GoalStatus.PENDING_APPROVAL,
+    GoalStatus.BUDGET_LIMITED,
+    GoalStatus.NEEDS_HUMAN_REVIEW,
+    GoalStatus.QUEUED,
+})
+
+
+def _serialize_goal(goal: "Goal") -> dict[str, object]:
+    return {
+        "goal_id": goal.goal_id,
+        "session_id": goal.session_id,
+        "objective": goal.objective,
+        "status": goal.status.value,
+        "tokens_used": goal.tokens_used,
+        "created_at": goal.created_at.isoformat(),
+    }
+
+
+@router.get("/active")
+async def list_active_goals() -> dict[str, object]:
+    """List all non-terminal goals across all sessions from in-memory GoalRegistry."""
+    results: list[dict[str, object]] = []
+
+    with GoalRegistry._lock:
+        session_ids = list(GoalRegistry._providers.keys())
+
+    for sid in session_ids:
+        provider = GoalRegistry.get_provider(sid)
+        if not provider:
+            continue
+        try:
+            goal = await provider.get_latest_goal(sid)
+            if goal and goal.status in _NON_TERMINAL_STATUSES:
+                results.append(_serialize_goal(goal))
+        except Exception as e:
+            logger.debug("Failed to get goal for session %s: %s", sid, e)
+
+    return {"goals": results, "count": len(results)}
 
 
 class GoalStatusUpdateRequest(BaseModel):

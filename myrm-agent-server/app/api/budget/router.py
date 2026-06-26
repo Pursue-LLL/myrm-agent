@@ -2,14 +2,20 @@
 
 [INPUT]
 - app.services.budget.enforcer (POS: Budget enforcement service)
+- app.services.budget.channel_budget (POS: Per-channel budget enforcement)
 
 [OUTPUT]
 - GET /policy: Current budget policy
 - PUT /policy: Update budget policy
 - GET /status: Current day's budget usage status (multi-dimensional)
+- GET /channels: All channel budget policies and statuses
+- PUT /channels/{channel_key}: Create/update a channel budget policy
+- DELETE /channels/{channel_key}: Remove a channel budget policy
+- GET /channels/{channel_key}/audit: Audit log for a channel's spending
 
 [POS]
-Budget management API. Exposes policy CRUD and real-time spend status.
+Budget management API. Exposes global and per-channel policy CRUD, real-time spend status,
+and channel audit attribution queries.
 """
 
 from __future__ import annotations
@@ -141,3 +147,132 @@ async def get_budget_status() -> JSONResponse:
         )
     except Exception as e:
         raise internal_error(operation="Get budget status", exception=e) from e
+
+
+# --- Per-channel budget endpoints ---
+
+
+class ChannelBudgetPolicyRequest(BaseModel):
+    daily_limit_usd: float = Field(default=2.0, ge=0.01, le=10000.0)
+    warning_threshold: float = Field(default=0.8, ge=0.1, le=1.0)
+    enabled: bool = True
+    label: str = ""
+
+
+@router.get("/channels")
+async def get_channel_budgets() -> JSONResponse:
+    """Get all channel budget policies and current statuses."""
+    try:
+        from app.services.budget.channel_budget import (
+            get_channel_budget_registry,
+            load_channel_budget_policies,
+        )
+
+        config = await load_channel_budget_policies()
+        registry = get_channel_budget_registry()
+        statuses = registry.get_all_statuses()
+        return success_response(
+            data={
+                "policies": [p.model_dump() for p in config.policies],
+                "statuses": statuses,
+            }
+        )
+    except Exception as e:
+        raise internal_error(operation="Get channel budgets", exception=e) from e
+
+
+@router.put("/channels/{channel_key:path}")
+async def update_channel_budget(channel_key: str, req: ChannelBudgetPolicyRequest) -> JSONResponse:
+    """Create or update a channel budget policy."""
+    try:
+        from app.services.budget.channel_budget import (
+            ChannelBudgetPolicy,
+            save_channel_budget_policy,
+        )
+
+        policy = ChannelBudgetPolicy(
+            channel_key=channel_key,
+            daily_limit_usd=req.daily_limit_usd,
+            warning_threshold=req.warning_threshold,
+            enabled=req.enabled,
+            label=req.label,
+        )
+        await save_channel_budget_policy(policy)
+        return success_response(data=policy.model_dump())
+    except ValueError as e:
+        raise validation_error(str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Update channel budget", exception=e) from e
+
+
+@router.delete("/channels/{channel_key:path}")
+async def delete_channel_budget(channel_key: str) -> JSONResponse:
+    """Remove a channel budget policy."""
+    try:
+        from app.services.budget.channel_budget import delete_channel_budget_policy
+
+        deleted = await delete_channel_budget_policy(channel_key)
+    except Exception as e:
+        raise internal_error(operation="Delete channel budget", exception=e) from e
+    if not deleted:
+        raise validation_error(f"Channel budget policy not found: {channel_key}")
+    return success_response(data={"deleted": channel_key})
+
+
+@router.get("/channels/{channel_key:path}/audit")
+async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
+    """Get spending audit for a channel grouped by sender."""
+    try:
+        from datetime import date, datetime, timedelta
+
+        from sqlalchemy import and_, func, select
+
+        from app.database.models.chat import Chat, Message
+        from app.platform_utils import get_session_factory
+
+        session_factory = get_session_factory()
+        since = datetime.combine(date.today() - timedelta(days=days), datetime.min.time())
+        cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
+        sender_expr = func.json_extract(Message.extra_data, "$.channelSenderId")
+
+        async with session_factory() as session:
+            result = await session.execute(
+                select(
+                    sender_expr.label("sender_id"),
+                    func.count(Message.id).label("message_count"),
+                    func.coalesce(func.sum(cost_expr), 0.0).label("total_cost"),
+                )
+                .join(Chat, Message.chat_id == Chat.id)
+                .where(
+                    and_(
+                        Chat.channel_session_key.like(f"{channel_key}%"),
+                        Message.role == "assistant",
+                        Message.extra_data.isnot(None),
+                        Message.created_at >= since,
+                        cost_expr.isnot(None),
+                    )
+                )
+                .group_by(sender_expr)
+                .order_by(func.sum(cost_expr).desc())
+            )
+            rows = result.all()
+
+        audit_entries = [
+            {
+                "sender_id": row.sender_id or "unknown",
+                "message_count": row.message_count,
+                "total_cost_usd": round(float(row.total_cost), 6),
+            }
+            for row in rows
+        ]
+
+        return success_response(
+            data={
+                "channel_key": channel_key,
+                "period_days": days,
+                "entries": audit_entries,
+                "total_cost_usd": round(sum(e["total_cost_usd"] for e in audit_entries), 6),
+            }
+        )
+    except Exception as e:
+        raise internal_error(operation="Get channel audit", exception=e) from e

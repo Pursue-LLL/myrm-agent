@@ -451,19 +451,41 @@ async def get_nav_badges() -> JSONResponse:
             )
             return result or 0
 
+    async def count_active_goals() -> int:
+        from app.services.agent.goal_registry import GoalRegistry
+
+        from app.api.goals.router import _NON_TERMINAL_STATUSES
+
+        count = 0
+        with GoalRegistry._lock:
+            session_ids = list(GoalRegistry._providers.keys())
+        for sid in session_ids:
+            provider = GoalRegistry.get_provider(sid)
+            if not provider:
+                continue
+            try:
+                goal = await provider.get_latest_goal(sid)
+                if goal and goal.status in _NON_TERMINAL_STATUSES:
+                    count += 1
+            except Exception:
+                pass
+        return count
+
     try:
         from app.services.extension.bridge import get_extension_bridge
 
-        cron_failures, pending_approvals, unread_notifications = await asyncio.gather(
+        cron_failures, pending_approvals, unread_notifications, active_goals = await asyncio.gather(
             count_cron_failures(),
             count_pending_approvals(),
             count_unread_notifications(),
+            count_active_goals(),
         )
         return success_response(
             data={
                 "cronFailures": cron_failures,
                 "pendingApprovals": pending_approvals,
                 "unreadNotifications": unread_notifications,
+                "activeGoals": active_goals,
                 "total": cron_failures + pending_approvals + unread_notifications,
                 "extensionConnected": get_extension_bridge().is_connected(),
             }

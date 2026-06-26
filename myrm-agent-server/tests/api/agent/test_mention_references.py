@@ -61,7 +61,7 @@ async def test_git_diff_reference_is_structured() -> None:
 
 @pytest.mark.asyncio
 async def test_codebase_reference_returns_index_or_unavailable() -> None:
-    """@codebase mention returns either index overview or graceful unavailable message."""
+    """@codebase mention returns a lightweight workspace overview."""
     from app.services.agent.params.mention import _build_mention_reference_context
 
     workspace = Path(tempfile.mkdtemp())
@@ -73,7 +73,10 @@ async def test_codebase_reference_returns_index_or_unavailable() -> None:
     )
 
     assert "@codebase" in context
-    assert "codebase-index" in context
+    assert "codebase-overview" in context
+    assert "Codebase Overview:" in context
+    assert "grep_tool" in context
+    assert "Code indexing unavailable" not in context
     assert warnings == []
     assert tokens >= 0
 
@@ -104,8 +107,22 @@ def test_text_reference_diff_parsed() -> None:
 
 
 @pytest.mark.asyncio
+async def test_codebase_reference_invalid_workspace() -> None:
+    """@codebase with missing workspace dir returns metadata error."""
+    from app.services.agent.params.mention import _build_mention_reference_context
+
+    context, warnings, tokens = await _build_mention_reference_context(
+        [MentionReferenceRequest(type="codebase", label="@codebase")],
+        "/nonexistent/workspace/path",
+    )
+
+    assert "Workspace unavailable" in context
+    assert warnings == []
+
+
+@pytest.mark.asyncio
 async def test_codebase_reference_empty_workspace() -> None:
-    """@codebase on empty workspace returns graceful response (no crash)."""
+    """@codebase on empty workspace returns zero-file overview."""
     from app.services.agent.params.mention import _build_mention_reference_context
 
     workspace = Path(tempfile.mkdtemp())
@@ -115,12 +132,13 @@ async def test_codebase_reference_empty_workspace() -> None:
     )
 
     assert "@codebase" in context
+    assert "Codebase Overview: 0 files" in context
     assert warnings == []
 
 
 @pytest.mark.asyncio
 async def test_codebase_reference_with_multiple_languages() -> None:
-    """@codebase indexes Python + TypeScript files correctly."""
+    """@codebase reports Python + TypeScript extension counts."""
     from app.services.agent.params.mention import _build_mention_reference_context
 
     workspace = Path(tempfile.mkdtemp())
@@ -133,7 +151,9 @@ async def test_codebase_reference_with_multiple_languages() -> None:
     )
 
     assert "@codebase" in context
-    assert "codebase-index" in context
+    assert "codebase-overview" in context
+    assert "Codebase Overview:" in context
+    assert ".py:" in context
     assert warnings == []
 
 
