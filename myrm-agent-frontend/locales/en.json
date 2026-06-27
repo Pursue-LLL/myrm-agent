@@ -11018,7 +11018,15 @@
     "submitFailed": "Failed to send, please retry",
     "toSend": "send",
     "toCancel": "cancel",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "quickReply": "Reply",
+    "quickSummarize": "Summarize",
+    "quickTranslate": "Translate",
+    "quickExplain": "Explain",
+    "replyPrompt": "Based on the conversation in this screenshot, compose a polite and appropriate reply.",
+    "summarizePrompt": "Summarize the key points from this screenshot.",
+    "translatePrompt": "Translate the content in this screenshot into my language.",
+    "explainPrompt": "Explain what is shown in this screenshot."
   },
   "annotationEditor": {
     "arrow": "Arrow",

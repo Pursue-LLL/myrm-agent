@@ -407,4 +407,149 @@ describe('FlowPadModal', () => {
     expect(mockSendMessage).toHaveBeenCalledTimes(2);
     expect(useFlowPadStore.getState().isOpen).toBe(false);
   });
+
+  describe('Quick Actions', () => {
+    it('shows quick action buttons when captures exist', () => {
+      useFlowPadStore.getState().addCapture(makeCapture());
+      render(<FlowPadModal />);
+      expect(screen.getByText('quickReply')).toBeInTheDocument();
+      expect(screen.getByText('quickSummarize')).toBeInTheDocument();
+      expect(screen.getByText('quickTranslate')).toBeInTheDocument();
+      expect(screen.getByText('quickExplain')).toBeInTheDocument();
+    });
+
+    it('does not show quick action buttons when no captures', () => {
+      useFlowPadStore.getState().open();
+      render(<FlowPadModal />);
+      expect(screen.queryByText('quickReply')).not.toBeInTheDocument();
+    });
+
+    it('sends message with preset prompt on quick action click', async () => {
+      useFlowPadStore.getState().addCapture(
+        makeCapture({ windowTitle: 'Gmail', extractedText: 'Hello from sender' }),
+      );
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('[Appshot Context]'),
+      );
+      expect(mockSendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('replyPrompt'),
+      );
+      expect(useFlowPadStore.getState().isOpen).toBe(false);
+    });
+
+    it('prevents double click on quick action', async () => {
+      let resolveFirst: () => void;
+      const firstCallPromise = new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      });
+      mockSendMessage.mockImplementationOnce(() => firstCallPromise);
+
+      useFlowPadStore.getState().addCapture(makeCapture());
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      await act(async () => {
+        resolveFirst!();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps modal open and re-enables on quick action failure', async () => {
+      mockSendMessage.mockRejectedValueOnce(new Error('Service down'));
+
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Slack' }));
+      render(<FlowPadModal />);
+
+      const replyBtn = screen.getByText('quickReply');
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(useFlowPadStore.getState().isOpen).toBe(true);
+      expect(useFlowPadStore.getState().captures).toHaveLength(1);
+
+      mockSendMessage.mockResolvedValueOnce(undefined);
+      await act(async () => {
+        replyBtn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(2);
+      expect(useFlowPadStore.getState().isOpen).toBe(false);
+    });
+
+    it('each quick action sends correct prompt key', async () => {
+      const actions = ['quickSummarize', 'quickTranslate', 'quickExplain'] as const;
+      const prompts = ['summarizePrompt', 'translatePrompt', 'explainPrompt'] as const;
+
+      for (let i = 0; i < actions.length; i++) {
+        mockSendMessage.mockClear();
+        useFlowPadStore.getState().close();
+        useFlowPadStore.getState().addCapture(makeCapture());
+        const { unmount } = render(<FlowPadModal />);
+
+        const btn = screen.getByText(actions[i]);
+        await act(async () => {
+          btn.click();
+        });
+
+        expect(mockSendMessage).toHaveBeenCalledTimes(1);
+        expect(mockSendMessage).toHaveBeenCalledWith(
+          expect.stringContaining(prompts[i]),
+        );
+        unmount();
+      }
+    });
+
+    it('attaches screenshot files on quick action', async () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ screenshot: 'quick_shot_data' }));
+      render(<FlowPadModal />);
+
+      const btn = screen.getByText('quickSummarize');
+      await act(async () => {
+        btn.click();
+      });
+
+      expect(mockSetFiles).toHaveBeenCalledTimes(1);
+      const filesArg = mockSetFiles.mock.calls[0][0];
+      expect(filesArg).toHaveLength(1);
+      expect(filesArg[0].fileUrl).toContain('quick_shot_data');
+    });
+
+    it('handles multiple captures in quick action message', async () => {
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window1', extractedText: 'Text1' }));
+      useFlowPadStore.getState().addCapture(makeCapture({ windowTitle: 'Window2', extractedText: 'Text2' }));
+      render(<FlowPadModal />);
+
+      const btn = screen.getByText('quickTranslate');
+      await act(async () => {
+        btn.click();
+      });
+
+      expect(mockSendMessage).toHaveBeenCalledTimes(1);
+      const msg = mockSendMessage.mock.calls[0][0] as string;
+      expect(msg).toContain('**Window1**');
+      expect(msg).toContain('**Window2**');
+      expect(msg).toContain('Text1');
+      expect(msg).toContain('Text2');
+      expect(msg).toContain('translatePrompt');
+    });
+  });
 });

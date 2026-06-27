@@ -10989,7 +10989,15 @@
     "submitFailed": "发送失败，请重试",
     "toSend": "发送",
     "toCancel": "取消",
-    "collapse": "收起"
+    "collapse": "收起",
+    "quickReply": "回复",
+    "quickSummarize": "总结",
+    "quickTranslate": "翻译",
+    "quickExplain": "解释",
+    "replyPrompt": "根据截图中的对话内容，帮我生成一个得体的回复。",
+    "summarizePrompt": "总结截图中的内容要点。",
+    "translatePrompt": "将截图中的内容翻译成中文。",
+    "explainPrompt": "解释截图中的内容。"
   },
   "annotationEditor": {
     "arrow": "箭头",

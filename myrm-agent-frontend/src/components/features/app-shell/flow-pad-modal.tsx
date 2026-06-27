@@ -21,7 +21,7 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Send, X, ChevronDown, ChevronUp, Monitor } from 'lucide-react';
+import { Send, X, ChevronDown, ChevronUp, Monitor, MessageSquareReply, FileText, Languages, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
@@ -185,6 +185,22 @@ export function FlowPadModal() {
     autoResizeTextarea();
   }, [text, autoResizeTextarea]);
 
+  const attachScreenshots = useCallback(() => {
+    const screenshotFiles = captures
+      .filter((c) => c.screenshot)
+      .map((c, idx) => ({
+        fileName: `appshot_${idx + 1}.jpg`,
+        fileExtension: 'jpg',
+        fileUrl: `data:image/jpeg;base64,${c.screenshot}`,
+        fileType: 'uploaded' as const,
+      }));
+
+    if (screenshotFiles.length > 0) {
+      const currentFiles = useChatStore.getState().files;
+      setFiles([...currentFiles, ...screenshotFiles]);
+    }
+  }, [captures, setFiles]);
+
   const handleSubmit = useCallback(async () => {
     const hasCaptures = captures.length > 0;
     const hasText = text.trim().length > 0;
@@ -195,19 +211,7 @@ export function FlowPadModal() {
     setIsSubmitting(true);
     try {
       if (hasCaptures) {
-        const screenshotFiles = captures
-          .filter((c) => c.screenshot)
-          .map((c, idx) => ({
-            fileName: `appshot_${idx + 1}.jpg`,
-            fileExtension: 'jpg',
-            fileUrl: `data:image/jpeg;base64,${c.screenshot}`,
-            fileType: 'uploaded' as const,
-          }));
-
-        if (screenshotFiles.length > 0) {
-          const currentFiles = useChatStore.getState().files;
-          setFiles([...currentFiles, ...screenshotFiles]);
-        }
+        attachScreenshots();
       }
 
       const parts: string[] = [];
@@ -232,7 +236,7 @@ export function FlowPadModal() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [captures, text, setFiles, sendMessage, close, agentConfig, t, isSubmitting]);
+  }, [captures, text, attachScreenshots, sendMessage, close, agentConfig, t, isSubmitting]);
 
   const handleSpeechTranscript = useCallback(
     (transcript: string) => {
@@ -240,6 +244,31 @@ export function FlowPadModal() {
       inputRef.current?.focus();
     },
     [],
+  );
+
+  const handleQuickAction = useCallback(
+    async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
+      if (isSubmitting || captures.length === 0) return;
+
+      setIsSubmitting(true);
+      try {
+        attachScreenshots();
+
+        const prompt = t(promptKey);
+        const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
+        await sendMessage(message);
+
+        const agentLabel = agentConfig?.name || t('defaultAgent');
+        toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
+        close();
+      } catch (err) {
+        console.error('FlowPad quick action failed:', err);
+        toast.error(t('submitFailed'), { duration: 3000 });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [isSubmitting, captures, attachScreenshots, sendMessage, close, agentConfig, t],
   );
 
   const handleKeyDown = useCallback(
@@ -303,6 +332,48 @@ export function FlowPadModal() {
                 {t('sendTo')}{' '}
                 <span className="font-medium text-muted-foreground">{agentConfig.name}</span>
               </span>
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          {hasCaptures && (
+            <div className="px-4 py-2 border-b border-border/20 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleQuickAction('replyPrompt')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <MessageSquareReply className="w-3 h-3" />
+                {t('quickReply')}
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleQuickAction('summarizePrompt')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <FileText className="w-3 h-3" />
+                {t('quickSummarize')}
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleQuickAction('translatePrompt')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Languages className="w-3 h-3" />
+                {t('quickTranslate')}
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => handleQuickAction('explainPrompt')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              >
+                <Lightbulb className="w-3 h-3" />
+                {t('quickExplain')}
+              </button>
             </div>
           )}
 
