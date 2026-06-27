@@ -39,6 +39,8 @@ import { ParentChatLink } from './ParentChatLink';
 import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
+import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/memory';
+import { useMemoryStore } from '@/store/memory';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 
@@ -336,6 +338,32 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     [sendMessage],
   );
 
+  const pendingMemories = useMemoryStore((s) => s.pendingMemories);
+  const pendingCount = useMemoryStore((s) => s.pendingCount);
+  const openConfirmDialog = useMemoryStore((s) => s.openConfirmDialog);
+  const memoryT = useTranslations('memory');
+
+  const prevPendingCountRef = useRef(-1);
+  useEffect(() => {
+    const prev = prevPendingCountRef.current;
+    prevPendingCountRef.current = pendingCount;
+    // prev === -1 表示首次加载，不触发 toast（避免页面刷新时已有 pending 也弹 toast）
+    if (prev >= 0 && pendingCount > prev) {
+      const added = pendingCount - prev;
+      toast({
+        title: memoryT('pendingToast.title'),
+        description: memoryT('pendingToast.description', { count: added }),
+        duration: 4000,
+      });
+    }
+  }, [pendingCount, memoryT]);
+
+  const handlePendingMemoryClick = useCallback(() => {
+    if (pendingMemories.length > 0) {
+      openConfirmDialog(pendingMemories[0]);
+    }
+  }, [pendingMemories, openConfirmDialog]);
+
   if (!isMessagesLoaded) {
     return <MessageListSkeleton />;
   }
@@ -355,6 +383,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         <PermissionDialog />
         <ToolApprovalDialog />
         <ToolApprovalExpiryWatcher />
+        <PendingMemoryDialog />
 
         <div className="flex h-full w-full">
           {/* 主内容区域 - 工件弹窗采用 overlay 模式，不挤压聊天空间 */}
@@ -366,6 +395,12 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <YoloModeBanner />
             <EStopBanner />
             <ExtensionDisconnectedBanner />
+
+            {/* 待审批记忆徽章 */}
+            <PendingMemoryBadge
+              onClick={handlePendingMemoryClick}
+              className="fixed top-3 right-14 z-40 max-sm:top-2 max-sm:right-12"
+            />
 
             {/* 聊天内容 */}
             <div className="flex-1 min-h-0">

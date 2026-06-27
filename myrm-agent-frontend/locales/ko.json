@@ -5809,6 +5809,10 @@
       }
     },
     "viewSourceChat": "View Source Chat",
+    "pendingToast": {
+      "title": "새 메모리 대기 중",
+      "description": "{count, plural, =1 {1개의 새 메모리} other {#개의 새 메모리}}가 검토를 기다리고 있습니다"
+    },
     "disabled": "Disabled",
     "enable": "Enable",
     "disable": "Disable",

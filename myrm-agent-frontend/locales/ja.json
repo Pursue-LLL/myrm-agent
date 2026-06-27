@@ -5809,6 +5809,10 @@
       }
     },
     "viewSourceChat": "View Source Chat",
+    "pendingToast": {
+      "title": "新しいメモリが保留中",
+      "description": "{count, plural, =1 {1件の新しいメモリ} other {#件の新しいメモリ}}がレビュー待ちです"
+    },
     "disabled": "Disabled",
     "enable": "Enable",
     "disable": "Disable",

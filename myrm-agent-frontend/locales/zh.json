@@ -6126,6 +6126,10 @@
     "selectedCount": "已选择 {count} 条",
     "sourceChat": "来源对话",
     "viewSourceChat": "查看来源对话",
+    "pendingToast": {
+      "title": "新记忆待审批",
+      "description": "{count, plural, =1 {1 条新记忆} other {# 条新记忆}}等待你的审核"
+    },
     "types": {
       "profile": "用户画像",
       "semantic": "知识",

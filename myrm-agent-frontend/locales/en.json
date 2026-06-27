@@ -6126,6 +6126,10 @@
     "selectedCount": "{count} selected",
     "sourceChat": "Source Chat",
     "viewSourceChat": "View Source Chat",
+    "pendingToast": {
+      "title": "New Memories Pending",
+      "description": "{count, plural, =1 {1 new memory} other {# new memories}} awaiting your review"
+    },
     "types": {
       "profile": "Profile",
       "semantic": "Knowledge",

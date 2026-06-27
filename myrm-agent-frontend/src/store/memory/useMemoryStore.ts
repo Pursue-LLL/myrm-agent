@@ -83,8 +83,9 @@ const useMemoryStore = create<MemoryState>()(
           state.pendingCount = Math.max(0, state.pendingCount - 1);
           state.selectedPendingIds.delete(id);
           if (state.currentPendingMemory?.id === id) {
-            state.currentPendingMemory = null;
-            state.isConfirmDialogOpen = false;
+            const next = state.pendingMemories[0] ?? null;
+            state.currentPendingMemory = next;
+            state.isConfirmDialogOpen = next !== null;
           }
         });
         get().fetchPendingMemories(true);
@@ -101,8 +102,9 @@ const useMemoryStore = create<MemoryState>()(
           state.pendingCount = Math.max(0, state.pendingCount - 1);
           state.selectedPendingIds.delete(id);
           if (state.currentPendingMemory?.id === id) {
-            state.currentPendingMemory = null;
-            state.isConfirmDialogOpen = false;
+            const next = state.pendingMemories[0] ?? null;
+            state.currentPendingMemory = next;
+            state.isConfirmDialogOpen = next !== null;
           }
         });
         get().fetchPendingMemories(true);

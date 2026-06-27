@@ -5809,6 +5809,10 @@
       }
     },
     "viewSourceChat": "View Source Chat",
+    "pendingToast": {
+      "title": "Neue Erinnerungen ausstehend",
+      "description": "{count, plural, =1 {1 neue Erinnerung} other {# neue Erinnerungen}} warten auf Ihre Überprüfung"
+    },
     "disabled": "Disabled",
     "enable": "Enable",
     "disable": "Disable",

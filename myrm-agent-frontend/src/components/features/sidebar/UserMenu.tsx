@@ -44,9 +44,10 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
     }
   }, [isLocal, initAuth]);
 
-  // 用户登录后获取一次待审批记忆（不轮询）
+  // 获取一次待审批记忆（不轮询）
+  // Local 模式无需 user 条件；Sandbox 模式需等登录后再获取
   useEffect(() => {
-    if (user && !isLocal) {
+    if (isLocal || user) {
       fetchPendingMemories();
     }
   }, [user, isLocal, fetchPendingMemories]);

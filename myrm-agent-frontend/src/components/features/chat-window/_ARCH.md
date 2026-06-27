@@ -12,7 +12,7 @@
 | `AgentWorkMap.tsx` | 组件/模块 | — | — |
 | `BudgetBadge.tsx` | 组件/模块 | — | — |
 | `Chat.tsx` | 组件/模块 | — | — |
-| `ChatWindow.tsx` | 核心 | 主对话窗口入口：消息列表 + 输入框 + Banner 集成（含 ParentChatLink） | — |
+| `ChatWindow.tsx` | 核心 | 主对话窗口入口：消息列表 + 输入框 + Banner 集成（含 ParentChatLink、PendingMemoryBadge、PendingMemoryDialog） | — |
 | `CompactedSummaryView.tsx` | 组件/模块 | — | — |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
 | `ConversationJumpBar.tsx` | 组件/模块 | — | — |
