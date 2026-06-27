@@ -38,19 +38,88 @@ logger = logging.getLogger(__name__)
 async def get_taste_summary(
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> TasteSummaryResponse:
-    """Get aggregated user preference summary from profile entries."""
+    """Get aggregated user preference summary from profile + active facets."""
+    reply_style: str | None = None
+    technical_depth: str | None = None
+    proactivity: str | None = None
+
     try:
         reply_style = await manager.get_profile_attribute("reply_style")
-        cognitive_depth = await manager.get_profile_attribute("cognitive_depth")
+        technical_depth = await manager.get_profile_attribute("cognitive_depth")
         proactivity = await manager.get_profile_attribute("proactivity")
-
-        return TasteSummaryResponse(
-            reply_style=reply_style, technical_depth=cognitive_depth, proactivity=proactivity, memory_count=0
-        )
     except Exception as e:
-        logger.warning("Failed to read taste summary from profile: %s", e)
+        logger.warning("Failed to read profile attributes: %s", e)
 
-    return TasteSummaryResponse(memory_count=0)
+    style_keywords: list[str] = []
+    preference_keywords: list[str] = []
+    avoid_keywords: list[str] = []
+    current_goals: list[str] = []
+    memory_count = 0
+
+    strategy = manager._preference_strategy
+    if strategy is not None:
+        try:
+            from myrm_agent_harness.toolkits.memory.strategies.preference_stability import (
+                PreferenceCategory,
+                PreferenceLifecycle,
+            )
+
+            all_facets = await strategy._store.list_all()
+            active_facets = [
+                f
+                for f in all_facets
+                if f.lifecycle in (PreferenceLifecycle.ACTIVE, PreferenceLifecycle.PROVISIONAL)
+                and not f.user_forgotten
+            ]
+            memory_count = len(active_facets)
+
+            for f in active_facets:
+                label = f.value or f.key
+                if not label:
+                    continue
+                if f.category == PreferenceCategory.STYLE:
+                    style_keywords.append(label)
+                elif f.category == PreferenceCategory.VETO:
+                    avoid_keywords.append(label)
+                elif f.category == PreferenceCategory.GOAL:
+                    current_goals.append(label)
+                else:
+                    preference_keywords.append(label)
+        except Exception as e:
+            logger.warning("Failed to aggregate preference facets: %s", e)
+
+    summary = _build_taste_summary(style_keywords, preference_keywords, avoid_keywords, current_goals)
+
+    return TasteSummaryResponse(
+        reply_style=reply_style,
+        technical_depth=technical_depth,
+        proactivity=proactivity,
+        style_keywords=style_keywords,
+        preference_keywords=preference_keywords,
+        avoid_keywords=avoid_keywords,
+        current_goals=current_goals,
+        summary=summary,
+        memory_count=memory_count,
+    )
+
+
+def _build_taste_summary(
+    style: list[str],
+    preferences: list[str],
+    avoid: list[str],
+    goals: list[str],
+) -> str:
+    """Build a concise natural-language summary from keyword lists."""
+    parts: list[str] = []
+    if style:
+        parts.append(f"Style: {', '.join(style[:5])}")
+    if preferences:
+        parts.append(f"Prefers: {', '.join(preferences[:5])}")
+    if avoid:
+        parts.append(f"Avoids: {', '.join(avoid[:5])}")
+    if goals:
+        parts.append(f"Goals: {', '.join(goals[:5])}")
+    return ". ".join(parts)
 
 
 # ── Preference Stability Endpoints ──────────────────────────────────
