@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/primitive
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDailyJournal, type DailyJournalData, type DailyJournalTimelineItem } from '@/services/statistics';
 import { showApiError } from '@/lib/api';
+import DailyWrapCard from './DailyWrapCard';
 
 function formatDateISO(d: Date): string {
   const y = d.getFullYear();
@@ -132,6 +133,9 @@ export default function DailyJournal() {
 
       {!loading && !error && data && (
         <>
+          {/* AI Daily Wrap Summary */}
+          <DailyWrapCard date={date} />
+
           {/* Overview KPI cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <KpiMini label={t('sessions')} value={data.overview.total_sessions} />

@@ -581,3 +581,25 @@ export interface AgentUsageResponse {
 export async function getAgentUsage(days = 7): Promise<AgentUsageResponse> {
   return apiRequest<AgentUsageResponse>(`/statistics/usage/by-agent?days=${days}`);
 }
+
+// ── Daily Wrap (AI Summary) ─────────────────────────────────────────
+
+export interface DailyWrapData {
+  date: string;
+  summary: string | null;
+  keywords: string[];
+  suggestions: string[];
+  generated_at: string | null;
+  cached?: boolean;
+  reason?: 'no_activity' | 'lite_model_not_configured';
+}
+
+export async function getDailyWrap(date: string): Promise<DailyWrapData> {
+  return apiRequest<DailyWrapData>(`/statistics/daily-wrap?date=${encodeURIComponent(date)}`);
+}
+
+export async function regenerateDailyWrap(date: string): Promise<DailyWrapData> {
+  return apiRequest<DailyWrapData>(`/statistics/daily-wrap/regenerate?date=${encodeURIComponent(date)}`, {
+    method: 'POST',
+  });
+}

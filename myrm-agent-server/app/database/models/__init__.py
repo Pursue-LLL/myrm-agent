@@ -65,6 +65,8 @@ from .skill_optimization import (
 from .vault_credential import VaultCredential
 from .widget_kv import WidgetKVEntry
 
+from .daily_wrap import DailyWrapCache
+
 __all__ = [
     "Base",
     # API Key
@@ -157,4 +159,6 @@ __all__ = [
     "FissionTaskRecord",
     # Widget KV Storage
     "WidgetKVEntry",
+    # Daily Wrap Cache
+    "DailyWrapCache",
 ]

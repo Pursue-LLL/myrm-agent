@@ -10584,6 +10584,18 @@
       "error": "加载每日日志失败",
       "retry": "重试"
     },
+    "dailyWrap": {
+      "title": "今日战报",
+      "loading": "正在生成总结...",
+      "regenerate": "重新生成",
+      "noActivity": "当天无活动可总结",
+      "noModel": "请在设置中配置轻量模型以启用 AI 总结",
+      "goToSettings": "前往设置",
+      "error": "生成总结失败",
+      "keywords": "关键词",
+      "suggestions": "明日建议",
+      "generatedAt": "生成于"
+    },
     "timeRange": {
       "7d": "7天",
       "30d": "30天",

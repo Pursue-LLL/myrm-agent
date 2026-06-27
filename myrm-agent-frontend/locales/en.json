@@ -10613,6 +10613,18 @@
       "error": "Failed to load daily journal",
       "retry": "Retry"
     },
+    "dailyWrap": {
+      "title": "Daily Wrap",
+      "loading": "Generating summary...",
+      "regenerate": "Regenerate",
+      "noActivity": "No activity to summarize",
+      "noModel": "Configure a Lite Model in settings to enable AI summaries",
+      "goToSettings": "Go to Settings",
+      "error": "Failed to generate summary",
+      "keywords": "Keywords",
+      "suggestions": "Next Steps",
+      "generatedAt": "Generated"
+    },
     "timeRange": {
       "7d": "7D",
       "30d": "30D",
