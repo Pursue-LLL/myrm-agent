@@ -16,7 +16,8 @@
 | `VaultUnlockModal.tsx` | 组件/模块 | — | — |
 | `VisualDesktop.tsx` | 组件/模块 | — | — |
 | `VisualDesktopToggle.tsx` | 组件/模块 | — | — |
-| `app-update-prompt.tsx` | 组件/模块 | — | — |
+| `app-update-prompt.tsx` | 组件/模块 | Tauri 桌面端更新提示浮层（静默下载，ready/error 时展示；dismissed 持久化到 localStorage） | `useAppUpdate` |
+| `whats-new-modal.tsx` | 组件/模块 | 版本更新后 What's New 弹窗（从 GitHub Release API 拉取完整 Release Notes，Markdown 渲染） | `useWhatsNew` |
 | `appshot-initializer.tsx` | 组件/模块 | — | — |
 | `voice-ptt-initializer.tsx` | 组件/模块 | — | — |
 | `auth-callback.tsx` | 组件/模块 | — | — |

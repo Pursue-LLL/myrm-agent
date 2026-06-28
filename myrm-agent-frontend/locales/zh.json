@@ -11827,5 +11827,11 @@
     "opening": "正在打开…",
     "footer": "链接 1 小时后过期；若无法访问，请从设置页重新分享。",
     "elapsed": "已运行 {seconds} 秒"
+  },
+  "whatsNew": {
+    "title": "v{version} 新功能",
+    "description": "以下是本次更新的内容。",
+    "gotIt": "知道了",
+    "viewOnGitHub": "在 GitHub 上查看"
   }
 }

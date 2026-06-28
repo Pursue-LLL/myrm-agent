@@ -11279,5 +11279,11 @@
     "modeAgent": "AI Agent",
     "sidecarFailedTitle": "CLI runner unavailable",
     "sidecarUnavailable": "CLI unavailable"
+  },
+  "whatsNew": {
+    "title": "v{version} の新機能",
+    "description": "このリリースの変更点です。",
+    "gotIt": "了解",
+    "viewOnGitHub": "GitHub で表示"
   }
 }

@@ -11827,5 +11827,11 @@
     "opening": "Opening…",
     "footer": "Links expire after 1 hour. Re-share from Settings if access is lost.",
     "elapsed": "{seconds}s running"
+  },
+  "whatsNew": {
+    "title": "What's New in v{version}",
+    "description": "Here's what changed in this release.",
+    "gotIt": "Got It",
+    "viewOnGitHub": "View on GitHub"
   }
 }

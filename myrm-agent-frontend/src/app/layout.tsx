@@ -22,6 +22,7 @@ import DeepLinkListener from '@/components/features/app-shell/deep-link-listener
 import { FlowPadModal } from '@/components/features/app-shell/flow-pad-modal';
 import { PWAUpdater } from '@/components/features/app-shell/pwa-updater';
 import { AppUpdatePrompt } from '@/components/features/app-shell/app-update-prompt';
+import { WhatsNewModal } from '@/components/features/app-shell/whats-new-modal';
 import AppshotInitializer from '@/components/features/app-shell/appshot-initializer';
 import VoicePttInitializer from '@/components/features/app-shell/voice-ptt-initializer';
 import { WebVitals } from './web-vitals';
@@ -105,6 +106,7 @@ export default async function LocaleLayout({ children }: { children: React.React
                 <FlowPadModal />
                 <PWAUpdater />
                 <AppUpdatePrompt />
+                <WhatsNewModal />
                 <AppshotInitializer />
                 <VoicePttInitializer />
                 <PageLayout>{children}</PageLayout>

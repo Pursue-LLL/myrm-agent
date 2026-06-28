@@ -11279,5 +11279,11 @@
     "modeAgent": "AI Agent",
     "sidecarFailedTitle": "CLI runner unavailable",
     "sidecarUnavailable": "CLI unavailable"
+  },
+  "whatsNew": {
+    "title": "Neuigkeiten in v{version}",
+    "description": "Das hat sich in dieser Version geändert.",
+    "gotIt": "Verstanden",
+    "viewOnGitHub": "Auf GitHub ansehen"
   }
 }

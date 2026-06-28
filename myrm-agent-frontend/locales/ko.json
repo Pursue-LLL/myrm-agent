@@ -11279,5 +11279,11 @@
     "modeAgent": "AI Agent",
     "sidecarFailedTitle": "CLI runner unavailable",
     "sidecarUnavailable": "CLI unavailable"
+  },
+  "whatsNew": {
+    "title": "v{version} 새로운 기능",
+    "description": "이번 릴리스의 변경 사항입니다.",
+    "gotIt": "확인",
+    "viewOnGitHub": "GitHub에서 보기"
   }
 }

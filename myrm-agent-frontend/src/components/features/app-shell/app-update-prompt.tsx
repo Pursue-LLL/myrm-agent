@@ -20,6 +20,17 @@ function shouldShow(phase: AppUpdatePhase): boolean {
   return phase === 'ready' || phase === 'installing' || phase === 'restarting' || phase === 'error';
 }
 
+const DISMISSED_VERSION_KEY = 'myrm-update-dismissed-version';
+
+function isDismissedForVersion(version: string | undefined): boolean {
+  if (!version) return false;
+  try {
+    return localStorage.getItem(DISMISSED_VERSION_KEY) === version;
+  } catch {
+    return false;
+  }
+}
+
 const UpdateIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
     <path d="M10 2a8 8 0 015.292 13.97v1.78a.75.75 0 01-1.5 0v-1.06a.75.75 0 01.22-.53A6.5 6.5 0 1010 16.5a.75.75 0 010 1.5A8 8 0 1110 2z" />
@@ -31,7 +42,7 @@ export function AppUpdatePrompt() {
   const t = useTranslations('appUpdate');
   const { phase, info, error, install, check, reset } = useAppUpdate();
 
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => isDismissedForVersion(info?.version));
   const [prevPhase, setPrevPhase] = useState(phase);
   const dismissedErrorRef = useRef<string | null>(null);
   const currentErrorKey = error ?? 'unknown';
@@ -39,7 +50,11 @@ export function AppUpdatePrompt() {
   if (phase !== prevPhase) {
     setPrevPhase(phase);
     if (shouldShow(phase) && !shouldShow(prevPhase)) {
-      setDismissed(phase === 'error' && dismissedErrorRef.current === currentErrorKey);
+      if (phase === 'error') {
+        setDismissed(dismissedErrorRef.current === currentErrorKey);
+      } else {
+        setDismissed(isDismissedForVersion(info?.version));
+      }
     }
   }
 
@@ -49,7 +64,12 @@ export function AppUpdatePrompt() {
 
   const handleLater = useCallback(() => {
     setDismissed(true);
-  }, []);
+    if (info?.version) {
+      try {
+        localStorage.setItem(DISMISSED_VERSION_KEY, info.version);
+      } catch { /* quota exceeded — graceful degrade */ }
+    }
+  }, [info?.version]);
 
   const handleRetry = useCallback(() => {
     dismissedErrorRef.current = null;
