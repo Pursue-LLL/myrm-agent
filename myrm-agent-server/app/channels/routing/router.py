@@ -452,6 +452,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
             msg = await self._enrich_message_locale(msg)
 
+            if (
+                msg.metadata.get("callback_prefix") == "act"
+                and isinstance(msg.content, str)
+                and msg.content.startswith("approval:")
+            ):
+                asyncio.create_task(self._handle_action_button_approval(msg))
+                continue
+
             is_reaction = bool(msg.metadata.get("reaction"))
             if is_reaction:
                 approval_cmd = parse_approval_command(msg.content)

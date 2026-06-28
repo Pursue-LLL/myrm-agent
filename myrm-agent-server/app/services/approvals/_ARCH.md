@@ -4,7 +4,7 @@
 
 本模块实现跨端的统一拦截与审批决策业务层（Approval Registry）。
 基于 Harness 层抛出的 `ApprovalContract` 中断原语，将审批请求落库至 `approvals` 表（ORM：`ApprovalRecord`），并广播 SSE 事件至 Web 前端，同时支持拦截并转化成 `OutboundMessage` 发送至原生 IM 渠道（如 Slack/Feishu）。
-IM/渠道调用相关 API 后由 server 下发 `Command(resume=...)`（见 `channels/routing/router_commands.py`）。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
+IM/渠道 ActionButton 回调由 `channels/routing/router_commands.py::_handle_action_button_approval` 处理：解析 `approval:{action}:{id}` → 权限校验 → `resolve_approval` 落库 → 编辑原 IM 消息 → `SessionGate.submit(resume_msg)` 恢复 Agent。Web Drawer 对 `subagent_approval` 由前端 `resumeApprovalStream` 先 resume，再由本模块 `resolve_approval` 落库；growth/无 thread_id 项仅落库不 resume。
 支持通过 `expires_at` 和 Cron 定时任务进行超时审批 (TTL) 的自动降级与自动清理。
 
 Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储于 `ApprovalRecord`，但 **无 `thread_id` 的后台 growth 项不进 `GET /approvals` 全局 recovery 列表**（走 `/skills/drafts` + Agent 洞察 tab）；**有 `thread_id` 的 inline HITL** 仍走本模块与全局 Drawer。

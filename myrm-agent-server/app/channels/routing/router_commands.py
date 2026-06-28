@@ -213,6 +213,116 @@ class RouterCommandsMixin:
 
         self._gate.submit(resume_msg)
 
+    async def _handle_action_button_approval(
+        self: RouterCommandsHost,
+        msg: InboundMessage,
+    ) -> None:
+        """Handle an ActionButton callback for approval (``act:approval:{action}:{id}``).
+
+        Closes the loop between ``ApprovalRegistry.create_approval()`` (which
+        pushes ActionButtons to IM channels) and the actual resolution. The
+        ``msg.content`` arriving here has the format ``approval:{action}:{id}``
+        (the ``act:`` transport prefix is stripped by each channel's inbound parser).
+
+        Steps:
+          1. Parse action ("approve" / "deny") and approval_id from content.
+          2. Authorise the clicker — only the task's original requester (or a
+             co-approver) may resolve; bystanders in group chats get a toast.
+          3. Resolve via ``ApprovalRegistry`` (idempotent DB update).
+          4. Edit the original IM message to show the outcome and prevent
+             further button clicks from appearing actionable.
+          5. Convert the decision into a ``resume_value`` and submit to
+             ``SessionGate`` so the interrupted LangGraph agent resumes.
+        """
+        content = msg.content or ""
+        parts = content.split(":", 2)
+        if len(parts) != 3 or parts[0] != "approval":
+            logger.warning("Malformed action button approval content: %r", content)
+            return
+
+        action_raw, approval_id = parts[1], parts[2]
+        if action_raw not in ("approve", "deny"):
+            logger.warning("Unknown action button approval action: %r", action_raw)
+            return
+
+        chat_id = msg.chat_id or msg.sender_id
+        session_key = routing_session_key(msg.channel, chat_id)
+
+        # --- Authorisation (group bystander protection) ---
+        active = self._active_tasks.get(session_key)
+        if active and msg.is_group:
+            actor = msg.sender_id or ""
+            requester = active.requester_id or ""
+            if actor and requester and actor != requester and actor not in self._approval_co_approvers:
+                logger.info(
+                    "Action button approval denied: actor=%s requester=%s channel=%s",
+                    actor, requester, msg.channel,
+                )
+                return
+
+        # --- Resolve in DB ---
+        from app.services.approvals.registry import ApprovalRegistry
+
+        record = await ApprovalRegistry.resolve_approval(
+            approval_id=approval_id,
+            decision=action_raw,
+        )
+
+        if record is None:
+            logger.warning("Action button approval: record not found id=%s", approval_id[:12])
+            return
+
+        logger.info(
+            "Action button approval resolved: id=%s action=%s channel=%s sender=%s",
+            approval_id[:12], action_raw, msg.channel, msg.sender_id,
+        )
+
+        # --- Edit original IM message to show result ---
+        origin_message_id = msg.metadata.get("origin_message_id")
+        if origin_message_id and chat_id:
+            status_icon = "✅" if action_raw == "approve" else "🚫"
+            sender_display = msg.metadata.get("username") or msg.sender_id or ""
+            status_text = f"{status_icon} {action_raw.title()}d by {sender_display}"
+            await self._bus.edit_channel_message(
+                msg.channel, chat_id, str(origin_message_id), status_text,
+            )
+
+        # --- Resume the interrupted Agent ---
+        if active is not None:
+            decision: ApprovalDecision = "allow_once" if action_raw == "approve" else "deny"
+            entry = self._build_decision_entry(decision, msg.channel)
+            resume_value: dict[str, object] = {"decisions": [entry]}
+            resume_msg = dataclasses.replace(
+                msg,
+                resume_value=resume_value,
+                metadata={**msg.metadata, "is_resume": True},
+            )
+            self._gate.submit(resume_msg)
+        else:
+            # No active task in router (e.g. Agent resumed via WebUI concurrently).
+            # DB is already resolved; publish event for any SSE listeners.
+            if record.thread_id:
+                from app.services.event.app_event_bus import (
+                    AppEvent,
+                    AppEventType,
+                    get_event_bus,
+                )
+
+                bus = get_event_bus()
+                bus.publish(
+                    AppEvent(
+                        event_type=AppEventType.APPROVAL_RESOLVED,
+                        data={
+                            "action": "resume_agent",
+                            "approval_id": record.id,
+                            "thread_id": record.thread_id,
+                            "chat_id": record.chat_id,
+                            "agent_id": record.agent_id,
+                            "decision": action_raw,
+                        },
+                    )
+                )
+
     @staticmethod
     def _build_decision_entry(decision: ApprovalDecision, channel: str, *, batch: bool = False) -> dict[str, object]:
         """Translate the three-tier decision into the harness decision dict.

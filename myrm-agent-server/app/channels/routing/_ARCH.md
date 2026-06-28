@@ -43,6 +43,37 @@ exact payload `myrm-agent-harness.apply_approval_decisions` expects:
   bound the user via `set_approval_user_id`.
 - `deny`         → `{"type": "reject", "feedback": "..."}`
 
+## ActionButton Callback Approval
+
+`ApprovalRegistry.create_approval()` pushes `ActionButton`s (✅ Approve / ❌ Deny)
+to IM channels when `chat.source != "web"`. Each channel encodes the
+`action_id` (`approval:{approve|deny}:{record_id}`) into its native callback
+format (Telegram `act:...`, Slack `block_actions`, Discord `custom_id`, etc.).
+
+When the user clicks a button, the channel's inbound parser strips the
+transport prefix and delivers `InboundMessage(content="approval:approve:{id}",
+metadata={"callback_prefix": "act", "origin_message_id": ...})`.
+
+`_consume_loop` in `router.py` intercepts this **before** `parse_approval_command`
+(which only handles text/emoji input) with a dedicated guard:
+
+```python
+if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("approval:"):
+    asyncio.create_task(self._handle_action_button_approval(msg))
+```
+
+`_handle_action_button_approval` in `router_commands.py` then:
+
+1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
+2. **Authorises** — in group chats, only the original requester or a
+   co-approver may resolve (same policy as reaction approval).
+3. **Resolves** via `ApprovalRegistry.resolve_approval()` (idempotent DB update).
+4. **Edits** the original IM message to show `✅ Approved by @user` and
+   prevent further confusion from stale buttons.
+5. **Resumes** the interrupted LangGraph agent via `SessionGate.submit()`
+   with a `resume_value` payload, or publishes `APPROVAL_RESOLVED` event
+   if no active task exists in the router (e.g. WebUI concurrent resolve).
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
