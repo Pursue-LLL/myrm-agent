@@ -228,7 +228,8 @@ class RouterCommandsMixin:
           1. Parse action ("approve" / "deny") and approval_id from content.
           2. Authorise the clicker — only the task's original requester (or a
              co-approver) may resolve; bystanders in group chats get a toast.
-          3. Resolve via ``ApprovalRegistry`` (idempotent DB update).
+          3. Resolve via ``ApprovalRegistry`` (only PENDING records; already-
+             resolved approvals return ``None`` and the handler exits).
           4. Edit the original IM message to show the outcome and prevent
              further button clicks from appearing actionable.
           5. Convert the decision into a ``resume_value`` and submit to
@@ -269,7 +270,7 @@ class RouterCommandsMixin:
         )
 
         if record is None:
-            logger.warning("Action button approval: record not found id=%s", approval_id[:12])
+            logger.warning("Action button approval: not found or already resolved id=%s", approval_id[:12])
             return
 
         logger.info(

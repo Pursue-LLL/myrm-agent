@@ -67,7 +67,9 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 1. **Parses** action (`approve`/`deny`) and `approval_id` from content.
 2. **Authorises** — in group chats, only the original requester or a
    co-approver may resolve (same policy as reaction approval).
-3. **Resolves** via `ApprovalRegistry.resolve_approval()` (idempotent DB update).
+3. **Resolves** via `ApprovalRegistry.resolve_approval()` — only PENDING
+   records are updated; already-resolved approvals return `None` and the
+   handler exits (prevents status flip on duplicate button clicks).
 4. **Edits** the original IM message to show `✅ Approved by @user` and
    prevent further confusion from stale buttons.
 5. **Resumes** the interrupted LangGraph agent via `SessionGate.submit()`

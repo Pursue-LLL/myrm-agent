@@ -214,6 +214,9 @@ class ApprovalRegistry:
             if not record:
                 return None
 
+            if record.status != "PENDING":
+                return None
+
             record.status = "APPROVED" if decision == "approve" else "REJECTED"
             record.resolved_at = datetime.now(timezone.utc)
 
