@@ -107,7 +107,7 @@ async def _build_daily_context(job: CronJob) -> str:
     from .setup import get_cron_store
 
     store = get_cron_store()
-    today = date.today()
+    today_utc = datetime.now(timezone.utc).date()
 
     runs = await store.list_runs(
         job_id=job.id,
@@ -117,9 +117,14 @@ async def _build_daily_context(job: CronJob) -> str:
     if not runs:
         return ""
 
-    today_runs = [r for r in runs if r.finished_at.date() == today]
-    yesterday = today - _ONE_DAY
-    yesterday_runs = [r for r in runs if r.finished_at.date() == yesterday]
+    def _utc_date(dt: datetime) -> date:
+        if dt.tzinfo is None:
+            return dt.date()
+        return dt.astimezone(timezone.utc).date()
+
+    today_runs = [r for r in runs if _utc_date(r.finished_at) == today_utc]
+    yesterday_utc = today_utc - _ONE_DAY
+    yesterday_runs = [r for r in runs if _utc_date(r.finished_at) == yesterday_utc]
 
     fragments: list[str] = []
 
@@ -129,7 +134,7 @@ async def _build_daily_context(job: CronJob) -> str:
         if output:
             fragments.append(f"[Yesterday's last output]\n{output}")
 
-    for run in today_runs[:_DAILY_MAX_HISTORY_ENTRIES]:
+    for run in reversed(today_runs[:_DAILY_MAX_HISTORY_ENTRIES]):
         time_label = run.finished_at.strftime("%H:%M")
         output = (run.output or "")[:_DAILY_OUTPUT_TRUNCATE_CHARS]
         if output:
@@ -138,6 +143,7 @@ async def _build_daily_context(job: CronJob) -> str:
     if not fragments:
         return ""
 
+    logger.debug("Daily context for job %s: %d fragments injected", job.id, len(fragments))
     return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
 
 
