@@ -24,6 +24,7 @@
 //! （shell、dialog、autostart、global-shortcut 等）、注册 IPC 命令、
 //! 管理 Python/Agent Sidecar 进程生命周期。支持 CLI 可视化工具、
 //! WebUI 远程访问模式和开机自启（tray-only daemon）。
+//! Linux 平台下自动检测 NVIDIA GPU + Wayland 并应用 WebKitGTK 兼容性修复。
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
