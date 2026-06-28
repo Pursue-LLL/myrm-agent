@@ -64,6 +64,64 @@ export function WhatsNewModal() {
   );
 }
 
+function renderInline(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const pattern = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`|\*\*(.+?)\*\*|\*(.+?)\*/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[2] !== undefined && match[1] !== undefined) {
+      nodes.push(
+        <img
+          key={`img-${match.index}`}
+          src={match[2]}
+          alt={match[1] || ''}
+          loading="lazy"
+          className="max-w-full rounded-md mt-1"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />,
+      );
+    } else if (match[3] !== undefined) {
+      nodes.push(
+        <a
+          key={`a-${match.index}`}
+          href={match[4]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:text-primary/80 underline underline-offset-2"
+        >
+          {match[3]}
+        </a>,
+      );
+    } else if (match[5] !== undefined) {
+      nodes.push(
+        <code key={`c-${match.index}`} className="px-1 py-0.5 rounded bg-muted text-[0.85em] font-mono">
+          {match[5]}
+        </code>,
+      );
+    } else if (match[6] !== undefined) {
+      nodes.push(<strong key={`b-${match.index}`}>{match[6]}</strong>);
+    } else if (match[7] !== undefined) {
+      nodes.push(<em key={`i-${match.index}`}>{match[7]}</em>);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
 function MarkdownBody({ body }: { body: string }) {
   const lines = body.trim().split('\n');
   const elements: React.ReactElement[] = [];
@@ -75,7 +133,7 @@ function MarkdownBody({ body }: { body: string }) {
     elements.push(
       <ul key={`list-${listKey++}`} className="list-disc pl-5 space-y-1 text-sm text-foreground/90">
         {listItems.map((item, i) => (
-          <li key={i}>{item}</li>
+          <li key={i}>{renderInline(item)}</li>
         ))}
       </ul>,
     );
@@ -85,12 +143,29 @@ function MarkdownBody({ body }: { body: string }) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (/^#{1,3}\s/.test(line)) {
+    if (/^!\[/.test(line)) {
+      flushList();
+      const imgMatch = /^!\[([^\]]*)\]\(([^)]+)\)/.exec(line);
+      if (imgMatch) {
+        elements.push(
+          <img
+            key={`img-${i}`}
+            src={imgMatch[2]}
+            alt={imgMatch[1] || ''}
+            loading="lazy"
+            className="max-w-full rounded-md"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />,
+        );
+      }
+    } else if (/^#{1,3}\s/.test(line)) {
       flushList();
       const text = line.replace(/^#+\s*/, '');
       elements.push(
         <h3 key={`h-${i}`} className="text-sm font-semibold text-foreground mt-3 first:mt-0">
-          {text}
+          {renderInline(text)}
         </h3>,
       );
     } else if (/^[-*]\s/.test(line)) {
@@ -101,7 +176,7 @@ function MarkdownBody({ body }: { body: string }) {
       flushList();
       elements.push(
         <p key={`p-${i}`} className="text-sm text-foreground/80 leading-relaxed">
-          {line}
+          {renderInline(line)}
         </p>,
       );
     }

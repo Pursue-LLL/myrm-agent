@@ -40,10 +40,15 @@ async function getCurrentVersion(): Promise<string | null> {
   }
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 async function fetchRelease(version: string): Promise<ReleaseInfo | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const res = await fetch(`${RELEASE_API_BASE}/v${version}`, {
       headers: { Accept: 'application/vnd.github+json' },
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -55,6 +60,8 @@ async function fetchRelease(version: string): Promise<ReleaseInfo | null> {
     };
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
