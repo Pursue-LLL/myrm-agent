@@ -48,6 +48,7 @@ ConfigKey = Literal[
     "proxySettings",
     "securityDashboardSettings",
     "browserCloudProvider",
+    "browserProxy",
 ]
 
 # ============================================================================
@@ -233,12 +234,23 @@ class BrowserCloudProviderConfigValue(BaseModel):
         return None
 
 
+class BrowserProxyConfigValue(BaseModel):
+    """Browser proxy configuration for anti-detection browsing via residential/rotating proxies."""
+
+    enabled: bool = Field(default=False, description="Whether browser proxy is enabled")
+    proxies: list[str] = Field(
+        default_factory=list,
+        description="Proxy URL list (e.g. http://user:pass@host:port)",
+    )
+
+
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
     "proxySettings": ProxySettingsConfigValue,
     "securityDashboardSettings": SecurityDashboardSettingsConfigValue,
     "browserCloudProvider": BrowserCloudProviderConfigValue,
+    "browserProxy": BrowserProxyConfigValue,
 }
 
 # ============================================================================

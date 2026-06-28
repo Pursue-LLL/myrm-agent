@@ -11,6 +11,7 @@ import { API_BASE_URL } from '@/lib/api';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
 import { shouldResumeDrawerApproval } from '@/lib/approval/buildDrawerResumeValue';
 import { resumeDrawerApprovalStream } from '@/lib/approval/resumeDrawerApprovalStream';
+import { ApprovalExpiredError } from '@/lib/approval/resumeApprovalStream';
 
 export function ApprovalDrawer() {
   const tNotifications = useTranslations('notifications');
@@ -60,7 +61,12 @@ export function ApprovalDrawer() {
       closeApproval(approvalId);
     } catch (error) {
       console.error('Error resolving approval:', error);
-      toast.error(tToolApproval('resolveError'));
+      if (error instanceof ApprovalExpiredError) {
+        toast.warning(tToolApproval('approvalExpired'));
+        closeApproval(approvalId);
+      } else {
+        toast.error(tToolApproval('resolveError'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +100,13 @@ export function ApprovalDrawer() {
       closeApprovals(approvalIds);
     } catch (error) {
       console.error('Error batch resolving approvals:', error);
-      toast.error(tToolApproval('resolveError'));
+      if (error instanceof ApprovalExpiredError) {
+        toast.warning(tToolApproval('approvalExpired'));
+        const approvalIds = queue.map((a) => a.approval_id);
+        closeApprovals(approvalIds);
+      } else {
+        toast.error(tToolApproval('resolveError'));
+      }
     } finally {
       setIsSubmitting(false);
     }

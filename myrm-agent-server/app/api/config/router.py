@@ -332,6 +332,8 @@ async def set_config(
             await _try_hot_register_channel(config_key)
         if config_key == "browserCloudProvider":
             await _hot_reload_cloud_browser(request.value)
+        if config_key == "browserProxy":
+            await _hot_reload_browser_proxy(request.value)
         if config_key == "personalSettings" and isinstance(request.value, dict):
             from app.core.infra.tls_config import sync_tls_env_from_config
 
@@ -500,6 +502,10 @@ async def sync_configs(
                 browser_change = next((c for c in changes if c.key == "browserCloudProvider"), None)
                 if browser_change:
                     await _hot_reload_cloud_browser(browser_change.value)
+            if "browserProxy" in result.new_versions:
+                proxy_change = next((c for c in changes if c.key == "browserProxy"), None)
+                if proxy_change:
+                    await _hot_reload_browser_proxy(proxy_change.value)
         return result
     except HTTPException:
         raise
@@ -637,3 +643,21 @@ async def _hot_reload_cloud_browser(value: dict[str, object]) -> None:
         await pool.update_remote_endpoint(endpoint)
     except Exception:
         logger.debug("Hot-reload cloud browser endpoint failed (non-critical)", exc_info=True)
+
+
+async def _hot_reload_browser_proxy(value: dict[str, object]) -> None:
+    """Hot-reload the browser pool's proxy pool after browser proxy config changes."""
+    try:
+        from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
+        from myrm_agent_harness.toolkits.browser.pool.proxy import RoundRobinProxyPool
+
+        from app.schemas.config import BrowserProxyConfigValue
+
+        config = BrowserProxyConfigValue.model_validate(value)
+        proxy_pool = None
+        if config.enabled and config.proxies:
+            proxy_pool = RoundRobinProxyPool.from_urls(config.proxies)
+        pool = get_global_browser_pool()
+        await pool.update_proxy_pool(proxy_pool)
+    except Exception:
+        logger.debug("Hot-reload browser proxy failed (non-critical)", exc_info=True)

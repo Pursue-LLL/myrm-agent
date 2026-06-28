@@ -14,6 +14,7 @@
 - GET /api/v1/health/browser/orphans - 列出孤儿自动化进程
 - DELETE /api/v1/health/browser/orphans - 清理孤儿进程（需要 confirm 参数）
 - POST /api/v1/health/browser/test-cloud-connection - 测试云浏览器连接
+- POST /api/v1/health/browser/test-proxy-connection - 测试浏览器代理连接
 """
 
 import logging
@@ -431,6 +432,61 @@ async def test_cloud_browser_connection() -> dict[str, object]:
             return {"status": "failed", "provider": config.provider, "error": str(exc)}
     except Exception as exc:
         return {"status": "failed", "provider": config.provider, "error": str(exc)}
+
+
+@router.post("/browser/test-proxy-connection")
+async def test_browser_proxy_connection() -> dict[str, object]:
+    """Test connectivity through the configured browser proxy.
+
+    Reads the current browserProxy config, picks the first proxy URL,
+    and attempts an HTTP request through it to verify connectivity.
+
+    Returns:
+        Connection test result with status, latency, and proxy count
+    """
+    import time as _time
+
+    import httpx
+
+    from app.schemas.config import BrowserProxyConfigValue
+    from app.services.config.service import config_service
+
+    record = await config_service.get("browserProxy")
+    if not record:
+        return {"status": "not_configured", "message": "No browser proxy configured"}
+
+    config = BrowserProxyConfigValue.model_validate(record.value)
+    if not config.enabled:
+        return {"status": "disabled", "message": "Browser proxy is disabled"}
+
+    if not config.proxies:
+        return {"status": "invalid", "message": "No proxy URLs configured"}
+
+    proxy_url = config.proxies[0]
+    try:
+        start = _time.perf_counter()
+        async with httpx.AsyncClient(proxy=proxy_url, timeout=10.0, verify=False) as client:
+            resp = await client.get("https://httpbin.org/ip")
+            latency_ms = round((_time.perf_counter() - start) * 1000)
+            if resp.status_code == 200:
+                return {
+                    "status": "connected",
+                    "proxy_count": len(config.proxies),
+                    "latency_ms": latency_ms,
+                    "egress_ip": resp.json().get("origin", "unknown"),
+                    "message": f"Proxy working ({latency_ms}ms, {len(config.proxies)} proxies configured)",
+                }
+            return {
+                "status": "failed",
+                "proxy_count": len(config.proxies),
+                "error": f"HTTP {resp.status_code}",
+            }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "proxy_count": len(config.proxies),
+            "error": str(exc),
+        }
 
 
 @router.get("/doctor")

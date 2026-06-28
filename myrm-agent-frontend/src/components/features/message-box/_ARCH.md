@@ -23,13 +23,13 @@
 | `MessageToc.tsx` | 组件/模块 | — | — |
 | `QuoteToolbar.tsx` | 组件/模块 | — | — |
 | `Suggestions.tsx` | 组件/模块 | — | — |
-| `TokenUsageDisplay.tsx` | 组件/模块 | — | — |
+| `TokenUsageDisplay.tsx` | 组件 | Token 用量详情 tooltip：5 类 token 分类、费用、缓存命中率与节省、cache break 归因、模型/工具分解、TTFT/P95/TPS、会话基线对比、View Trace | ✅ |
 | `ToolCallApproval.tsx` | 组件/模块 | — | — |
 | `ToolImageGallery.tsx` | 组件/模块 | — | — |
 | `SessionRecordingCard.tsx` | 组件/模块 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件/模块 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | — |
 | `UserMessage.tsx` | 组件/模块 | — | — |
-| `WaterDropCostView.tsx` | 组件/模块 | — | — |
+| `WaterDropCostView.tsx` | 组件 | 消息内缓存节省 banner：cache hit ≥ 5% 时显示水滴图标 + 命中率 + 新 token 数 + 节省金额 | ✅ |
 | `progress-steps/` | 目录 | 子模块 | — |
 | `subagent/` | 目录 | 子模块 | — |
 

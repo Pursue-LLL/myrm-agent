@@ -16,6 +16,7 @@ SENSITIVE_KEYS: set[str] = {
 # Config keys that contain credentials but don't match keyword patterns
 SENSITIVE_CONFIG_KEY_EXACT: set[str] = {
     "browserCloudProvider",
+    "browserProxy",
 }
 
 

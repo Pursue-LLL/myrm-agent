@@ -227,6 +227,7 @@ myrm_agent_harness.toolkits.browser.pool.browser_launcher
 myrm_agent_harness.toolkits.browser.pool.browser_pool
 myrm_agent_harness.toolkits.browser.pool.config
 myrm_agent_harness.toolkits.browser.pool.extension_bridge
+myrm_agent_harness.toolkits.browser.pool.proxy
 myrm_agent_harness.toolkits.browser.session
 myrm_agent_harness.toolkits.browser.session.snapshot_result
 myrm_agent_harness.toolkits.calendar.types

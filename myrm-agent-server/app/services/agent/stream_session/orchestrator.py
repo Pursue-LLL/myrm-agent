@@ -160,7 +160,15 @@ async def run_agent_stream(
             from langgraph.types import Command
 
             if request.chat_id:
-                ApprovalTimeoutScheduler.get().cancel(request.chat_id)
+                if not ApprovalTimeoutScheduler.get().resolve_if_first(request.chat_id):
+                    logger.warning(
+                        "Resume rejected (timeout already resolved): chat_id=%s",
+                        request.chat_id,
+                    )
+                    return JSONResponse(
+                        status_code=409,
+                        content={"detail": "This approval has already been resolved by timeout."},
+                    )
 
             logger.info(f"🔄 Resume 模式: chat_id={request.chat_id}, decision={request.resume_value.get('decision')}")
             params, routing_tier, context_warnings, archive_restore_results = await convert_to_general_agent_params(

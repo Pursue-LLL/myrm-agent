@@ -62,6 +62,14 @@ export async function resumeApprovalStream(
   };
 
   const response = await createAISearchStream(requestBody, chatState.abortController || undefined);
+
+  if (!response.ok) {
+    if (response.status === 409) {
+      throw new ApprovalExpiredError();
+    }
+    throw new Error(`Approval resume failed: HTTP ${response.status}`);
+  }
+
   const { handleMessageStream } = await import('@/store/chat/messageStreamHandler');
   const reader = response.body?.getReader();
   const decoder = new TextDecoder();
@@ -115,4 +123,11 @@ export async function resumeApprovalStream(
 
   scheduler.flush();
   scheduler.cancel();
+}
+
+export class ApprovalExpiredError extends Error {
+  constructor() {
+    super('Approval has already been resolved by timeout');
+    this.name = 'ApprovalExpiredError';
+  }
 }

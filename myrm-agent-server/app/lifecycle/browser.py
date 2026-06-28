@@ -3,9 +3,41 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 
 logger = logging.getLogger(__name__)
+
+
+async def _resolve_browser_proxy_pool() -> RoundRobinProxyPool | None:
+    """Resolve browser proxy pool from DB config or MYRM_PROXIES env var.
+
+    Priority: DB config (GUI) > MYRM_PROXIES environment variable.
+    """
+    from myrm_agent_harness.toolkits.browser.pool.proxy import RoundRobinProxyPool
+
+    try:
+        from app.schemas.config import BrowserProxyConfigValue
+        from app.services.config.service import config_service
+
+        record = await config_service.get("browserProxy")
+        if record:
+            proxy_config = BrowserProxyConfigValue.model_validate(record.value)
+            if proxy_config.enabled and proxy_config.proxies:
+                pool = RoundRobinProxyPool.from_urls(proxy_config.proxies)
+                logger.info("Browser proxy pool loaded from config: %d proxies", len(proxy_config.proxies))
+                return pool
+    except Exception:
+        logger.debug("Browser proxy config not available (first run or no config)")
+
+    proxy_csv = os.getenv("MYRM_PROXIES", "")
+    if proxy_csv:
+        pool = RoundRobinProxyPool.from_csv(proxy_csv)
+        if pool:
+            logger.info("Browser proxy pool loaded from MYRM_PROXIES env var")
+            return pool
+
+    return None
 
 
 async def warmup_global_browser_pool() -> None:
@@ -23,17 +55,19 @@ async def warmup_global_browser_pool() -> None:
     cloud_endpoint = await resolve_cloud_browser_endpoint()
     config = get_browser_pool_config(remote_ws_endpoint=cloud_endpoint)
     launch_options = get_browser_launch_options()
+    proxy_pool = await _resolve_browser_proxy_pool()
     pool = get_global_browser_pool(
         max_browsers=settings.browser_pool.max_browsers,
         config=config,
         launch_options=launch_options,
         extension_bridge=get_extension_bridge(),
+        proxy_pool=proxy_pool,
     )
     await pool.warmup(
         browsers=settings.browser_pool.warmup_browsers,
         pages_per_context=settings.browser_pool.warmup_pages,
     )
-    logger.info("GlobalBrowserPool warmup completed")
+    logger.info("GlobalBrowserPool warmup completed (proxy=%s)", "enabled" if proxy_pool else "disabled")
 
 
 async def shutdown_global_browser_pool() -> None:

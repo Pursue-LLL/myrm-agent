@@ -71,7 +71,8 @@ export type ConfigKey =
   | 'backupSync'
   | 'proxySettings'
   | 'securityDashboardSettings'
-  | 'browserCloudProvider';
+  | 'browserCloudProvider'
+  | 'browserProxy';
 
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
@@ -103,6 +104,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'proxySettings',
   'securityDashboardSettings',
   'browserCloudProvider',
+  'browserProxy',
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
@@ -437,6 +439,11 @@ export interface BrowserCloudProviderConfigValue {
   custom_ws_url: string;
 }
 
+export interface BrowserProxyConfigValue {
+  enabled: boolean;
+  proxies: string[];
+}
+
 /**
  * 配置键到值类型的映射
  */
@@ -469,6 +476,7 @@ export interface ConfigValueMap {
   proxySettings: ProxySettingsConfigValue;
   securityDashboardSettings: SecurityDashboardSettingsConfigValue;
   browserCloudProvider: BrowserCloudProviderConfigValue;
+  browserProxy: BrowserProxyConfigValue;
 }
 
 /**
@@ -493,6 +501,7 @@ export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
   'googlechatCredentials',
   'backupSync',
   'browserCloudProvider',
+  'browserProxy',
 ];
 
 /**

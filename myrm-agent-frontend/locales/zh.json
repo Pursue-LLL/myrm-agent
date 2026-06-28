@@ -3131,6 +3131,14 @@
       "testConnection": "测试连接",
       "saveFailed": "保存云浏览器设置失败"
     },
+    "browserProxy": {
+      "title": "浏览器代理",
+      "proxyUrls": "代理地址",
+      "proxyUrlsPlaceholder": "http://user:pass@proxy1.example.com:8080\nhttp://user:pass@proxy2.example.com:8080",
+      "proxyUrlsHint": "每行一个代理地址，支持 HTTP/HTTPS/SOCKS5 认证。代理自动轮询切换，支持会话绑定和故障隔离。",
+      "testConnection": "测试连接",
+      "saveFailed": "保存浏览器代理设置失败"
+    },
     "mcpServiceStatusAvailable": "延迟: {latency}ms",
     "mcpServiceStatusChecking": "检查中...",
     "mcpExtraParams": "额外参数",
@@ -9751,6 +9759,7 @@
     "handoverDialogTitle": "等待您操作",
     "handoverDialogDescription": "Agent 需要您在浏览器中完成操作。完成后点击「已完成」继续。",
     "resumeError": "恢复执行失败，请重试",
+    "approvalExpired": "该审批已由超时自动处理，无需操作",
     "resolveError": "提交审批失败，请重试",
     "browserSession": {
       "title": "浏览器会话操作",

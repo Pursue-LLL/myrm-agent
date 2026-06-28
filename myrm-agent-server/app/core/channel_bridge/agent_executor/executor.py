@@ -591,7 +591,13 @@ class ChannelAgentExecutor:
             query_input: str | Command[object]
             if is_resume:
                 approval_peer = msg.chat_id or msg.sender_id
-                ApprovalTimeoutScheduler.get().cancel(f"{msg.channel}:{approval_peer}")
+                approval_key = f"{msg.channel}:{approval_peer}"
+                if not ApprovalTimeoutScheduler.get().resolve_if_first(approval_key):
+                    logger.warning("Channel resume rejected (timeout already resolved): key=%s", approval_key)
+                    yield msg.get_or_create_correlation_context().create_reply(
+                        content=get_text(msg, "approval_timeout_resolved"),
+                    )
+                    return
                 query_input = Command(resume=msg.resume_value)
             else:
                 query_input = query

@@ -42,6 +42,7 @@ export type {
   ProxyAuthMode,
   BrowserCloudProviderConfigValue,
   BrowserCloudProviderType,
+  BrowserProxyConfigValue,
 } from './types';
 
 // 工具函数导出

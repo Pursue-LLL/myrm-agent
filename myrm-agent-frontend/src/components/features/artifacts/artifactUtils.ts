@@ -12,6 +12,7 @@ import {
   PaintBoardIcon,
   Video01Icon,
   HeadphonesIcon,
+  Table02Icon,
 } from 'hugeicons-react';
 import { getApiUrl } from '@/lib/api';
 import { Artifact, ArtifactType } from '@/store/chat/types';
@@ -29,6 +30,7 @@ const ARTIFACT_ICON_MAP: Record<ArtifactType, React.ElementType> = {
   audio: HeadphonesIcon,
   svg: Image01Icon,
   mermaid: GitBranchIcon,
+  spreadsheet: Table02Icon,
   binary: File02Icon,
   interactive_ui: File01Icon,
 };

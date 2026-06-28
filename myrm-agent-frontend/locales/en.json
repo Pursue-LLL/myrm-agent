@@ -3131,6 +3131,14 @@
       "testConnection": "Test Connection",
       "saveFailed": "Failed to save cloud browser settings"
     },
+    "browserProxy": {
+      "title": "Browser Proxy",
+      "proxyUrls": "Proxy URLs",
+      "proxyUrlsPlaceholder": "http://user:pass@proxy1.example.com:8080\nhttp://user:pass@proxy2.example.com:8080",
+      "proxyUrlsHint": "One proxy URL per line. Supports HTTP/HTTPS/SOCKS5 with authentication. Proxies rotate automatically with sticky sessions and fault quarantine.",
+      "testConnection": "Test Connection",
+      "saveFailed": "Failed to save browser proxy settings"
+    },
     "mcpServiceStatusAvailable": "Latency: {latency}ms",
     "mcpServiceStatusChecking": "Checking...",
     "mcpExtraParams": "Extra Parameters",
@@ -9751,6 +9759,7 @@
     "handoverDialogTitle": "Waiting for You",
     "handoverDialogDescription": "The agent needs you to complete an action in the browser. Click \"Done\" when finished.",
     "resumeError": "Failed to resume execution. Please try again.",
+    "approvalExpired": "This approval has already been handled by timeout. No action needed.",
     "resolveError": "Failed to submit approval, please try again.",
     "browserSession": {
       "title": "Browser Session Operation",

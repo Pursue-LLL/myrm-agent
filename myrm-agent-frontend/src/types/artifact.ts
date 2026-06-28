@@ -40,14 +40,14 @@ export type ArtifactStreamEvent = ArtifactsEvent | ArtifactContentEvent;
 // ==================== 渲染相关类型 ====================
 
 /** 可预览的 Artifact 类型 */
-export type PreviewableArtifactType = 'code' | 'document' | 'html' | 'image' | 'video' | 'audio' | 'svg' | 'mermaid';
+export type PreviewableArtifactType = 'code' | 'document' | 'html' | 'image' | 'video' | 'audio' | 'svg' | 'mermaid' | 'spreadsheet';
 
 /** 不可预览的 Artifact 类型 */
-export type NonPreviewableArtifactType = 'pdf' | 'binary';
+export type NonPreviewableArtifactType = 'binary';
 
 /** 检查 Artifact 是否可预览 */
 export function isPreviewable(type: ArtifactType): type is PreviewableArtifactType {
-  return ['code', 'document', 'html', 'image', 'video', 'audio', 'svg', 'mermaid'].includes(type);
+  return ['code', 'document', 'html', 'image', 'video', 'audio', 'svg', 'mermaid', 'spreadsheet'].includes(type);
 }
 
 /** 需要加载内容的 Artifact 类型 */
@@ -109,6 +109,12 @@ export const MIME_TO_ARTIFACT_TYPE: Record<string, ArtifactType> = {
 
   // PDF 类型
   'application/pdf': 'pdf',
+
+  // 电子表格类型
+  'text/csv': 'spreadsheet',
+  'text/tab-separated-values': 'spreadsheet',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'spreadsheet',
+  'application/vnd.ms-excel': 'spreadsheet',
 
   // 二进制类型
   'application/octet-stream': 'binary',

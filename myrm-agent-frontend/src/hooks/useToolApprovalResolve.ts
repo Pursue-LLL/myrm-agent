@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { groupRequestsForBulkResume } from '@/lib/approval/approvalBulkGroups';
 import {
+  ApprovalExpiredError,
   buildApprovalDecision,
   resumeApprovalStream,
   type ToolApprovalResolveExtra,
@@ -30,12 +31,13 @@ export function useToolApprovalResolve() {
   const resolveRequest = useCallback(
     async (requestId: string, decision: DecisionType, extra?: ToolApprovalResolveExtra) => {
       setResolving(true);
+      let requestsToRemove: ToolApprovalRequest[] = [];
       try {
         let request = queue.find((r) => r.requestId === requestId);
         if (!request) return;
 
         let resumeValue: { decisions: ReturnType<typeof buildApprovalDecision>[] };
-        let requestsToRemove: ToolApprovalRequest[] = [request];
+        requestsToRemove = [request];
 
         if (request.batchId) {
           const nextDecisions = new Map(batchDecisions);
@@ -79,7 +81,14 @@ export function useToolApprovalResolve() {
         }
       } catch (error) {
         console.error('[APPROVAL] Resume failed:', error);
-        toast.error(t('resumeError'));
+        if (error instanceof ApprovalExpiredError) {
+          toast.warning(t('approvalExpired'));
+          for (const req of requestsToRemove) {
+            removeRequest(req.requestId);
+          }
+        } else {
+          toast.error(t('resumeError'));
+        }
       } finally {
         setResolving(false);
       }
@@ -117,7 +126,14 @@ export function useToolApprovalResolve() {
         clearBatchDecisions();
       } catch (error) {
         console.error('[APPROVAL] Bulk resume failed:', error);
-        toast.error(t('resumeError'));
+        if (error instanceof ApprovalExpiredError) {
+          toast.warning(t('approvalExpired'));
+          for (const req of requests) {
+            removeRequest(req.requestId);
+          }
+        } else {
+          toast.error(t('resumeError'));
+        }
       } finally {
         setResolving(false);
       }
