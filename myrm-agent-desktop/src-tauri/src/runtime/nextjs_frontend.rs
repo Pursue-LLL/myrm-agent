@@ -81,6 +81,7 @@ pub async fn start_frontend(
     println!("🌐 Frontend will listen on {}:{}", config.host, config.port);
     println!("🔗 API proxy to localhost:{}", config.api_port);
 
+    super::suppress_console_window(&mut cmd);
     let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start frontend: {}", e))?;

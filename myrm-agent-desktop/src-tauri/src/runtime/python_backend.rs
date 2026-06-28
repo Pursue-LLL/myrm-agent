@@ -175,6 +175,7 @@ pub async fn start_backend_with_config(
         println!("🖥️  Desktop mode: {}:{}", config.host, config.port);
     }
 
+    super::suppress_console_window(&mut cmd);
     let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start backend: {}", e))?;

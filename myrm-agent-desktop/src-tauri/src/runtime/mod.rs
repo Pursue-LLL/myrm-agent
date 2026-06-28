@@ -32,3 +32,14 @@ pub use python_backend::{
     stop_backend, PythonBackend,
 };
 pub use setup_token::{get_setup_token, SetupTokenState};
+
+/// Windows: 设置 CREATE_NO_WINDOW 标志防止子进程弹出控制台窗口
+#[allow(unused_variables)]
+pub fn suppress_console_window(cmd: &mut std::process::Command) {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+}

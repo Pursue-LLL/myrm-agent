@@ -234,7 +234,7 @@ export function SessionTargetEditor({ job, onUpdated }: EditorProps) {
     try {
       await updateCronJob(job.id, {
         session_target: target,
-        ...(target === 'isolated' ? { chat_id: null } : {}),
+        ...(target !== 'main' ? { chat_id: null } : {}),
       });
       onUpdated();
       toast.success(t('sessionTargetUpdated'));
@@ -275,11 +275,16 @@ export function SessionTargetEditor({ job, onUpdated }: EditorProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="isolated">{t('sessionTargetIsolated')}</SelectItem>
+          <SelectItem value="daily">{t('sessionTargetDaily')}</SelectItem>
           <SelectItem value="main">{t('sessionTargetMain')}</SelectItem>
         </SelectContent>
       </Select>
       <p className="text-[11px] text-muted-foreground">
-        {value === 'isolated' ? t('sessionTargetIsolatedDesc') : t('sessionTargetMainDesc')}
+        {value === 'daily'
+          ? t('sessionTargetDailyDesc')
+          : value === 'main'
+            ? t('sessionTargetMainDesc')
+            : t('sessionTargetIsolatedDesc')}
       </p>
       {value === 'main' && (
         <Select value={chatId} onValueChange={handleChatChange} disabled={saving}>

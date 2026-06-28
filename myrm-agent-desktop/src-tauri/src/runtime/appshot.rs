@@ -496,9 +496,10 @@ foreach ($el in $elements) {
     } catch {}
 }
 "#;
-        let output = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", ps_script])
-            .output();
+        let mut cmd = Command::new("powershell");
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", ps_script]);
+        super::suppress_console_window(&mut cmd);
+        let output = cmd.output();
 
         match output {
             Ok(out) if out.status.success() => {

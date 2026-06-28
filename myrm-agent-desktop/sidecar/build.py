@@ -214,6 +214,8 @@ def build_backend(*, skip_harness_install: bool = False):
         "--workpath", str(OUTPUT_DIR / "build"),
         "--specpath", str(OUTPUT_DIR),
     ]
+    if SYSTEM == "windows":
+        cmd.append("--noconsole")
     data_sep = ";" if SYSTEM == "windows" else ":"
     cmd.extend(["--add-data", f"{shared_json}{data_sep}shared/config"])
 

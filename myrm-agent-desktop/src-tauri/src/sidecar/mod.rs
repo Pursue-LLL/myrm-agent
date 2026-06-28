@@ -129,11 +129,11 @@ impl SidecarManager {
         println!("🚀 Starting agent-runner sidecar: {}", sidecar_path);
 
         let mut cmd = if sidecar_path.ends_with(".js") || sidecar_path.ends_with(".ts") {
-            // 开发模式：通过 bun/node 运行脚本
-            let runner = if Command::new("bun").arg("--version").output().is_ok() {
-                "bun"
-            } else {
-                "node"
+            let runner = {
+                let mut probe = Command::new("bun");
+                probe.arg("--version");
+                crate::runtime::suppress_console_window(&mut probe);
+                if probe.output().is_ok() { "bun" } else { "node" }
             };
             let mut c = Command::new(runner);
             c.arg(sidecar_path);
@@ -142,6 +142,7 @@ impl SidecarManager {
             Command::new(sidecar_path)
         };
 
+        crate::runtime::suppress_console_window(&mut cmd);
         let mut child = cmd
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

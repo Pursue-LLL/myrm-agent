@@ -4,7 +4,7 @@ import { apiRequest } from '@/lib/api';
 
 export type JobStatus = 'active' | 'paused' | 'completed';
 export type RunStatus = 'ok' | 'error' | 'skipped';
-export type SessionTarget = 'isolated' | 'main';
+export type SessionTarget = 'isolated' | 'main' | 'daily';
 
 export interface CronSchedule {
   kind: 'cron' | 'interval' | 'once';

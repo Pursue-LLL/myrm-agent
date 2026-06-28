@@ -11,6 +11,13 @@ AgentProfileResolver to inject system_prompt, skills, model,
 subagent_ids, security overrides, max_iterations, and memory_policy
 into GeneralAgentParams — identical to Web/Channel entry points.
 
+Session target modes:
+- ISOLATED: each execution runs with a blank context (default).
+- MAIN: reuses the bound web-chat session's history.
+- DAILY: same-day executions share context via injected run-history;
+  a fresh context starts each calendar day.  See §2.3 of
+  PROMPT_CACHE_PRACTICE.md for cache-safety analysis.
+
 For recurring jobs, a [SILENT] instruction is appended to the prompt
 so the Agent can skip delivery when there's nothing actionable to report.
 
@@ -24,7 +31,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from myrm_agent_harness.toolkits.cron.cron_agent_tools import (
     enter_cron_execution_context,
@@ -74,12 +81,64 @@ _SILENT_SUFFIX = (
 )
 
 
+_DAILY_MAX_HISTORY_ENTRIES = 5
+_DAILY_OUTPUT_TRUNCATE_CHARS = 500
+_DAILY_CROSSDAY_SUMMARY_CHARS = 300
+_ONE_DAY = timedelta(days=1)
+
+
 def _build_effective_prompt(job: CronJob) -> str:
     """Append [SILENT] instruction for recurring jobs."""
     prompt = job.prompt or ""
     if job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
         return prompt + _SILENT_SUFFIX
     return prompt
+
+
+async def _build_daily_context(job: CronJob) -> str:
+    """Build injected context for DAILY session-target jobs.
+
+    Queries same-day CronRunRecords for this job and formats recent
+    outputs as context.  On cross-day boundary (first run of the day),
+    injects the previous day's last output as a summary.
+
+    Returns an empty string when there is no history to inject.
+    """
+    from .setup import get_cron_store
+
+    store = get_cron_store()
+    today = date.today()
+
+    runs = await store.list_runs(
+        job_id=job.id,
+        limit=_DAILY_MAX_HISTORY_ENTRIES + 5,
+        status="ok",
+    )
+    if not runs:
+        return ""
+
+    today_runs = [r for r in runs if r.finished_at.date() == today]
+    yesterday = today - _ONE_DAY
+    yesterday_runs = [r for r in runs if r.finished_at.date() == yesterday]
+
+    fragments: list[str] = []
+
+    if not today_runs and yesterday_runs:
+        prev = yesterday_runs[0]
+        output = (prev.output or "")[:_DAILY_CROSSDAY_SUMMARY_CHARS]
+        if output:
+            fragments.append(f"[Yesterday's last output]\n{output}")
+
+    for run in today_runs[:_DAILY_MAX_HISTORY_ENTRIES]:
+        time_label = run.finished_at.strftime("%H:%M")
+        output = (run.output or "")[:_DAILY_OUTPUT_TRUNCATE_CHARS]
+        if output:
+            fragments.append(f"[Previous run at {time_label}]\n{output}")
+
+    if not fragments:
+        return ""
+
+    return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
 
 
 class AgentJobRunner:
@@ -195,6 +254,11 @@ class AgentJobRunner:
             if not has_content:
                 logger.info("Heartbeat job %s: all sections empty, skipping LLM call", job.id)
                 return JobResult(success=True, skipped=True, skip_reason="no-content")
+
+        if job.session_target == SessionTarget.DAILY:
+            daily_ctx = await _build_daily_context(job)
+            if daily_ctx:
+                effective_prompt = f"{daily_ctx}\n\n{effective_prompt}"
 
         if context:
             effective_prompt = f"{effective_prompt}\n\n{context}"
