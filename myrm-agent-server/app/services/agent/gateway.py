@@ -363,6 +363,10 @@ class AgentGateway:
         started_at = time.monotonic()
         status = "success"
 
+        if session_id:
+            from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+            WorkspaceMultiplexer.get().publish_session_status(session_id, "generating", agent_type)
+
         interrupt_event = asyncio.Event()
         event_key = session_id or f"_anon_{id(interrupt_event)}"
         self._interrupt_events.setdefault("sandbox", {})[event_key] = interrupt_event
@@ -424,6 +428,8 @@ class AgentGateway:
                             logger.debug("Desktop session close error (non-fatal): %s", exc)
                 self._active_sessions.discard(session_id)
                 self._session_info.pop(session_id, None)
+                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+                WorkspaceMultiplexer.get().publish_session_status(session_id, "idle", agent_type)
             user_sem.release()
             self._global_sem.release()
             logger.info(

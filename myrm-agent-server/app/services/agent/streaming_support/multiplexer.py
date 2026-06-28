@@ -1,6 +1,7 @@
 """Workspace SSE Multiplexer for multi-tab support."""
 
 import asyncio
+import json
 import logging
 from collections.abc import AsyncGenerator
 
@@ -25,37 +26,28 @@ class WorkspaceMultiplexer:
     def __init__(self) -> None:
         self._subscribers: set[asyncio.Queue[str]] = set()
 
-    async def publish(self, chat_id: str | None, message_id: str, chunk: str) -> None:
-        """Publish a chunk to all multiplexed subscribers.
-
-        The chunk is already an SSE formatted string (e.g., 'event: message\\ndata: {...}\\n\\n').
-        We need to inject the chat_id and message_id so the frontend knows where to route it.
-        Since we can't easily parse and rebuild the SSE string without overhead,
-        we can wrap it in a custom multiplex event, OR we can just rely on the
-        frontend to parse the payload. Wait, the payload already contains messageId!
-        But does it contain chat_id?
-        Actually, the easiest way is to wrap the raw chunk in a new SSE event:
-        event: multiplex
-        data: {"chat_id": "...", "message_id": "...", "raw_chunk": "..."}
-        """
-        import json
-
+    def _broadcast(self, sse_chunk: str) -> None:
+        """Broadcast a pre-formatted SSE chunk to all subscribers (fire-and-forget)."""
         if not self._subscribers:
             return
-
-        payload = json.dumps({"chat_id": chat_id, "message_id": message_id, "raw_chunk": chunk})
-
-        multiplexed_chunk = f"event: multiplex\ndata: {payload}\n\n"
-
-        dead_queues = set()
+        dead_queues: set[asyncio.Queue[str]] = set()
         for queue in self._subscribers:
             try:
-                queue.put_nowait(multiplexed_chunk)
+                queue.put_nowait(sse_chunk)
             except asyncio.QueueFull:
                 dead_queues.add(queue)
-
         for q in dead_queues:
             self._subscribers.discard(q)
+
+    async def publish(self, chat_id: str | None, message_id: str, chunk: str) -> None:
+        """Publish a raw SSE chunk wrapped in a multiplex envelope."""
+        payload = json.dumps({"chat_id": chat_id, "message_id": message_id, "raw_chunk": chunk})
+        self._broadcast(f"event: multiplex\ndata: {payload}\n\n")
+
+    def publish_session_status(self, chat_id: str, status: str, agent_type: str = "") -> None:
+        """Publish a session status change event (generating / awaiting_approval / idle)."""
+        payload = json.dumps({"chat_id": chat_id, "status": status, "agent_type": agent_type})
+        self._broadcast(f"event: session_status\ndata: {payload}\n\n")
 
     async def subscribe(self) -> AsyncGenerator[str, None]:
         """Subscribe to the multiplexed stream."""

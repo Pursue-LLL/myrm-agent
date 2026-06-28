@@ -120,6 +120,9 @@ export interface ChatState {
   activeSessionAnalyticsId: string | null;
   activeSessionAnalyticsMessageId: string | null;
 
+  // 侧边栏会话实时状态（generating / awaiting_approval）
+  sessionStatuses: Record<string, string>;
+
   // 安全状态更新方法 (支持 immer)
   updateMessages: (updater: (state: ChatState) => void) => void;
 
@@ -172,6 +175,8 @@ export interface ChatState {
   setLoadError: (loadError: boolean) => void;
   setActiveSessionAnalyticsId: (id: string | null) => void;
   setActiveSessionAnalyticsMessageId: (id: string | null) => void;
+  setSessionStatus: (chatId: string, status: string) => void;
+  initSessionStatuses: (statuses: Record<string, string>) => void;
 
   // 配置面板展开状态
   setConfigPanelExpanded: (expanded: boolean) => void;

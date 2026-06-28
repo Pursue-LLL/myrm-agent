@@ -1,9 +1,11 @@
-"""Tests for AgentGateway — concurrency, interrupt, memory pressure, and session tracking."""
+"""Tests for AgentGateway — concurrency, interrupt, memory pressure, session tracking, and status events."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import weakref
+from unittest.mock import MagicMock, patch
 
 import pytest
 from myrm_agent_harness.runtime.memory_pressure import PressureEvent, PressureLevel
@@ -16,6 +18,7 @@ from app.services.agent.gateway import (
     AgentQueueTimeout,
     GatewayConfig,
 )
+from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
 
 
 def _cfg(**overrides: float | int) -> GatewayConfig:
@@ -827,3 +830,92 @@ class TestDesktopSessionCloseOnStreamEnd:
         ):
             events.append(event)
         assert len(events) == 1
+
+
+class TestGatewaySessionStatusEvents:
+    """Verify that execute_stream publishes session_status events via WorkspaceMultiplexer."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_multiplexer(self):
+        WorkspaceMultiplexer._instance = None
+        yield
+        WorkspaceMultiplexer._instance = None
+
+    @pytest.mark.asyncio
+    async def test_publishes_generating_and_idle_on_success(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        events = await _collect(gw, agent_type="general", session_id="status-test")
+        assert len(events) == 3
+        assert published == ["status-test:generating", "status-test:idle"]
+
+    @pytest.mark.asyncio
+    async def test_publishes_idle_on_error(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        async def failing_stream():
+            yield {"step": 1}
+            raise RuntimeError("crash")
+
+        with pytest.raises(RuntimeError, match="crash"):
+            async for _ in gw.execute_stream(failing_stream(), agent_type="general", session_id="err-test"):
+                pass
+
+        assert published == ["err-test:generating", "err-test:idle"]
+
+    @pytest.mark.asyncio
+    async def test_no_status_without_session_id(self) -> None:
+        gw = AgentGateway(_cfg())
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        events = await _collect(gw, agent_type="test")
+        assert len(events) == 3
+        assert published == []
+
+    @pytest.mark.asyncio
+    async def test_publishes_idle_on_timeout(self) -> None:
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+        mux = WorkspaceMultiplexer.get()
+        published: list[str] = []
+        original_publish = mux.publish_session_status
+
+        def capture_publish(chat_id: str, status: str, agent_type: str = "") -> None:
+            published.append(f"{chat_id}:{status}")
+            original_publish(chat_id, status, agent_type)
+
+        mux.publish_session_status = capture_publish  # type: ignore[assignment]
+
+        async def infinite():
+            while True:
+                await asyncio.sleep(0.01)
+                yield {}
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(infinite(), agent_type="test", session_id="timeout-test"):
+                pass
+
+        assert published == ["timeout-test:generating", "timeout-test:idle"]

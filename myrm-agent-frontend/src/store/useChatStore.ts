@@ -133,11 +133,25 @@ const useChatStore = create<ChatState>()(
       subagentPromptMessageId: null,
       activeSessionAnalyticsId: null,
       activeSessionAnalyticsMessageId: null,
+      sessionStatuses: {} as Record<string, string>,
 
       updateMessages: (updater) => set(updater),
 
       setActiveSessionAnalyticsId: (id) => set({ activeSessionAnalyticsId: id }),
       setActiveSessionAnalyticsMessageId: (id) => set({ activeSessionAnalyticsMessageId: id }),
+
+      setSessionStatus: (chatId: string, status: string) => {
+        set((state) => {
+          if (status === 'idle') {
+            delete state.sessionStatuses[chatId];
+          } else {
+            state.sessionStatuses[chatId] = status;
+          }
+        });
+      },
+      initSessionStatuses: (statuses: Record<string, string>) => {
+        set({ sessionStatuses: statuses });
+      },
 
       // 设置方法
       setChatId: (id) => {

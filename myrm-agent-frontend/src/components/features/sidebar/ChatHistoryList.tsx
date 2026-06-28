@@ -53,6 +53,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     setChatHistorySourceFilter,
     chatId: activeChatId,
     loading: isActiveLoading,
+    sessionStatuses,
   } = useChatStore();
 
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -172,7 +173,8 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     chat,
     isMobile,
     isActive: currentChatId === chat.id,
-    isGenerating: isActiveLoading && activeChatId === chat.id,
+    isGenerating: (isActiveLoading && activeChatId === chat.id) || sessionStatuses[chat.id] === 'generating',
+    sessionStatus: sessionStatuses[chat.id] as 'generating' | 'awaiting_approval' | undefined,
     renameId: actions.renameId,
     renameValue: actions.renameValue,
     exportingId: actions.exportingId,

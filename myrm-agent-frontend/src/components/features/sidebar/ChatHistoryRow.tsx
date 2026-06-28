@@ -65,6 +65,7 @@ export interface ChatHistoryRowProps {
   isMobile: boolean;
   isActive: boolean;
   isGenerating?: boolean;
+  sessionStatus?: 'generating' | 'awaiting_approval';
   renameId: string | null;
   renameValue: string;
   exportingId: string | null;
@@ -94,6 +95,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     isMobile,
     isActive,
     isGenerating,
+    sessionStatus,
     renameId,
     renameValue,
     exportingId,
@@ -202,10 +204,19 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                 >
                   {chat.title}
                 </p>
-                {isGenerating && (
+                {(isGenerating || sessionStatus === 'awaiting_approval') && (
                   <span className="relative flex-shrink-0 w-2 h-2">
-                    <span className="absolute inset-0 rounded-full bg-accent-warm animate-ping opacity-50" />
-                    <span className="relative block w-2 h-2 rounded-full bg-accent-warm" />
+                    {sessionStatus === 'awaiting_approval' ? (
+                      <>
+                        <span className="absolute inset-0 rounded-full bg-amber-500 animate-pulse opacity-60" />
+                        <span className="relative block w-2 h-2 rounded-full bg-amber-500" />
+                      </>
+                    ) : (
+                      <>
+                        <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-50" />
+                        <span className="relative block w-2 h-2 rounded-full bg-emerald-500" />
+                      </>
+                    )}
                   </span>
                 )}
                 {pinIndex != null && (
