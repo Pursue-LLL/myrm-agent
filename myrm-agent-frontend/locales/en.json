@@ -11903,5 +11903,15 @@
     "description": "Here's what changed in this release.",
     "gotIt": "Got It",
     "viewOnGitHub": "View on GitHub"
+  },
+  "memoryInsight": {
+    "budgetPill": "Memory Budget: {pct}%",
+    "budgetTitle": "Memory Context Budget",
+    "budgetUsed": "{chars} chars",
+    "budgetLimit": "{chars} limit",
+    "budgetDescription": "This shows how much of the LLM's context window is currently consumed by injected memories and learned rules.",
+    "citationsPill": "{count} Memories Cited",
+    "citationsTitle": "Cited Memories",
+    "citationsDescription": "The AI explicitly relied on the following memories to generate this response:"
   }
 }

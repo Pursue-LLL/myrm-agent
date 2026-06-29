@@ -29,7 +29,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `team_protocol.py` | ✅ 核心 | 团队型 Agent Leader Operating Protocol — 当 `agent_type='team'` 时，`build_leader_protocol_prompt()` 解析 `subagent_ids` 为成员名册（名称+描述），`dynamic_discovery=True` 时通过 `_resolve_roster()` 异步扫描用户全部 Agent（排除 leader 自身、无描述者、allow_discovery=False者，上限15），渲染 Leader 调度协议模板，在 Web/Channel/Cron/Kanban 四入口自动注入 `user_instructions` |
 | `subagent_catalog.py` | ✅ 核心 | DatabaseSubagentCatalog — SubagentCatalog Protocol 实现，解析 YAML 预设（注入 `_LLMModelResolver` 作为 ModelResolver）+ DB 自定义智能体（注入 CustomAgentFactory + display_name）。DB 自定义智能体会继承业务层保存的 `workspace_policy`，并统一映射为运行时 `SubagentConfig.workspace_policy`；同时强制 `LEAF` 控制范围和 `READ_ONLY_GLOBAL` 记忆隔离。`_LLMModelResolver` 通过 `resolve_model_config()` 从用户 provider 配置获取完整模型配置 |
 | `custom_agent_factory.py` | ✅ 核心 | CustomAgentFactory — AgentFactory Protocol 实现，从 DB Profile 构建完整 SkillAgent（技能、记忆、MCP），并为子 Agent 装配 Server-governed `conversation_search_tool`。通过 `apply_agent_mcp_selection()` 统一执行 server-level + tool-level MCP 过滤。支持大上下文静态前缀锁定、资源缓存和 asyncio.Lock 并发初始化保护。 |
-| `subagent_presets.py` | ✅ 核心 | 子 Agent 配置预置（search/browser/analysis），启动时注册 |
+| `subagent_presets.py` | ✅ 核心 | 子 Agent 配置预置（adversarial-reviewer/analysis/browser/coding/deep-audit/search），启动时注册 |
 | `general_agent/` | ✅ 核心 | 通用对话 Agent（配置、中间件、工具） |
 | `prompts/fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（供 general_agent_prompt.py search 模式 + builtin_initializer 动态解析） |
 | `extensions/` | ✅ 核心 | AgentExtension 具体实现（ZeroCostMemory、Security、Subagent、TaskAdaptive），由 factory.py 注册到 BaseAgent |

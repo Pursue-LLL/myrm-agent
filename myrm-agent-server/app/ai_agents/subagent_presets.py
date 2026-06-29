@@ -33,7 +33,7 @@ def register_default_subagent_configs() -> None:
     4. Registers final configurations to framework layer's global registry
 
     Configuration Sources:
-    - app/config/subagents/core/    : Core configs (search, browser, analysis, coding)
+    - app/config/subagents/core/    : Core configs (adversarial-reviewer, analysis, browser, coding, deep-audit, search)
     - app/config/subagents/custom/  : User-defined configs (override core)
 
     Priority: custom YAML > core YAML (per-agent tuning in each file's ``config:`` block).

@@ -227,8 +227,8 @@ async def retrieve_relevant_learnings(
 ) -> list[str]:
     """Retrieve relevant historical learnings for a new goal objective.
 
-    Searches SemanticMemory with 'goal_learning' tag using the objective as query.
-    Returns plain-text learnings suitable for injection into goal.metadata.
+    Searches SemanticMemory using the objective as semantic query, returning
+    the most relevant memories (patterns, gotchas, context) for the new goal.
     """
     from myrm_agent_harness.toolkits.memory.types import MemoryType
 
@@ -238,7 +238,6 @@ async def retrieve_relevant_learnings(
             memory_types=[MemoryType.SEMANTIC],
             limit=limit,
         )
-        # Filter for goal_learning tagged results
         learnings: list[str] = []
         for result in results:
             content = result.content

@@ -11358,5 +11358,15 @@
     "description": "이번 릴리스의 변경 사항입니다.",
     "gotIt": "확인",
     "viewOnGitHub": "GitHub에서 보기"
+  },
+  "memoryInsight": {
+    "budgetPill": "메모리 예산: {pct}%",
+    "budgetTitle": "메모리 컨텍스트 예산",
+    "budgetUsed": "{chars} 자",
+    "budgetLimit": "{chars} 한도",
+    "budgetDescription": "LLM 컨텍스트 창에서 주입된 메모리와 학습된 규칙이 차지하는 비율을 보여줍니다.",
+    "citationsPill": "{count}개 메모리 인용됨",
+    "citationsTitle": "인용된 메모리",
+    "citationsDescription": "AI가 이 응답을 생성할 때 다음 메모리에 명시적으로 의존했습니다:"
   }
 }

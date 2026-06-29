@@ -12,7 +12,7 @@
 ```
 app/config/subagents/
 ├── _ARCH.md
-├── core/          # search.yaml, browser.yaml, analysis.yaml, coding.yaml, adversarial-reviewer.yaml
+├── core/          # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml, search.yaml
 └── custom/        # 用户覆盖（example.yaml.template）
 ```
 

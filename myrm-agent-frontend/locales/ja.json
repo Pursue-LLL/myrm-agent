@@ -11358,5 +11358,15 @@
     "description": "このリリースの変更点です。",
     "gotIt": "了解",
     "viewOnGitHub": "GitHub で表示"
+  },
+  "memoryInsight": {
+    "budgetPill": "メモリ予算：{pct}%",
+    "budgetTitle": "メモリコンテキスト予算",
+    "budgetUsed": "{chars} 文字",
+    "budgetLimit": "{chars} 上限",
+    "budgetDescription": "LLMのコンテキストウィンドウのうち、注入されたメモリと学習ルールが占める割合を表示します。",
+    "citationsPill": "{count} 件のメモリを引用",
+    "citationsTitle": "引用されたメモリ",
+    "citationsDescription": "AIはこの回答を生成する際に、以下のメモリに明示的に依存しました："
   }
 }

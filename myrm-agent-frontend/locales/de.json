@@ -11358,5 +11358,15 @@
     "description": "Das hat sich in dieser Version geändert.",
     "gotIt": "Verstanden",
     "viewOnGitHub": "Auf GitHub ansehen"
+  },
+  "memoryInsight": {
+    "budgetPill": "Gedächtnis-Budget: {pct}%",
+    "budgetTitle": "Gedächtnis-Kontextbudget",
+    "budgetUsed": "{chars} Zeichen",
+    "budgetLimit": "{chars} Limit",
+    "budgetDescription": "Zeigt an, wie viel des LLM-Kontextfensters derzeit durch eingespeiste Erinnerungen und gelernte Regeln belegt ist.",
+    "citationsPill": "{count} Erinnerungen zitiert",
+    "citationsTitle": "Zitierte Erinnerungen",
+    "citationsDescription": "Die KI hat sich bei der Erstellung dieser Antwort ausdrücklich auf folgende Erinnerungen gestützt:"
   }
 }

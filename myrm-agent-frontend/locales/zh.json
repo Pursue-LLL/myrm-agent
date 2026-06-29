@@ -11903,5 +11903,15 @@
     "description": "以下是本次更新的内容。",
     "gotIt": "知道了",
     "viewOnGitHub": "在 GitHub 上查看"
+  },
+  "memoryInsight": {
+    "budgetPill": "记忆预算：{pct}%",
+    "budgetTitle": "记忆上下文预算",
+    "budgetUsed": "{chars} 字符",
+    "budgetLimit": "{chars} 上限",
+    "budgetDescription": "显示 LLM 上下文窗口中当前被注入的记忆和学习规则所占用的比例。",
+    "citationsPill": "引用了 {count} 条记忆",
+    "citationsTitle": "引用的记忆",
+    "citationsDescription": "AI 在生成此回复时明确依赖了以下记忆："
   }
 }

@@ -17,8 +17,7 @@ interface MemoryInsightPanelProps {
 }
 
 export default function MemoryInsightPanel({ memoryBudget, citations, className }: MemoryInsightPanelProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _t = useTranslations('memory');
+  const t = useTranslations('memoryInsight');
   
   if (!memoryBudget && (!citations || citations.length === 0)) {
     return null;
@@ -34,13 +33,13 @@ export default function MemoryInsightPanel({ memoryBudget, citations, className 
           <HoverCardTrigger asChild>
             <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-secondary/60 text-muted-foreground border border-border/50 cursor-help transition-colors hover:bg-secondary">
               <Brain size={12} className={cn("shrink-0", budgetPct > 80 ? "text-amber-500" : "text-primary/70")} />
-              <span>Memory Budget: {budgetPct}%</span>
+              <span>{t('budgetPill', { pct: budgetPct })}</span>
             </div>
           </HoverCardTrigger>
           <HoverCardContent align="start" className="w-64 p-3 z-50">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span>Memory Context Budget</span>
+                <span>{t('budgetTitle')}</span>
                 <span className={budgetPct > 80 ? "text-amber-500" : ""}>{budgetPct}%</span>
               </div>
               <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
@@ -50,11 +49,11 @@ export default function MemoryInsightPanel({ memoryBudget, citations, className 
                 />
               </div>
               <div className="text-[11px] text-muted-foreground flex justify-between">
-                <span>{memoryBudget.used.toLocaleString()} chars</span>
-                <span>{memoryBudget.total.toLocaleString()} limit</span>
+                <span>{t('budgetUsed', { chars: memoryBudget.used.toLocaleString() })}</span>
+                <span>{t('budgetLimit', { chars: memoryBudget.total.toLocaleString() })}</span>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
-                This shows how much of the LLM's context window is currently consumed by injected memories and learned rules.
+                {t('budgetDescription')}
               </p>
             </div>
           </HoverCardContent>
@@ -67,17 +66,17 @@ export default function MemoryInsightPanel({ memoryBudget, citations, className 
           <HoverCardTrigger asChild>
             <div className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full bg-primary/5 text-primary border border-primary/10 cursor-help transition-colors hover:bg-primary/10">
               <Search size={12} className="shrink-0" />
-              <span>{citations.length} Memories Cited</span>
+              <span>{t('citationsPill', { count: citations.length })}</span>
             </div>
           </HoverCardTrigger>
           <HoverCardContent align="start" className="w-64 p-3 z-50">
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
                 <Database size={12} className="text-primary" />
-                <span>Cited Memories</span>
+                <span>{t('citationsTitle')}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                The AI explicitly relied on the following memories to generate this response:
+                {t('citationsDescription')}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {citations.map((id) => (
