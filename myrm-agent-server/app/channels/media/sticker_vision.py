@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Protocol
 from app.channels.types import InboundMessage
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.vision.fallback_engine import VisionFallbackEngine
+    from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
 
 logger = logging.getLogger(__name__)
 

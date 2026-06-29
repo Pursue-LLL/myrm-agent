@@ -309,7 +309,7 @@ async def _load_sticker_vision_service() -> object | None:
         model_cfg = resolve_model_config(providers_dict, model_override=litellm_model)
 
         from myrm_agent_harness.agent.config.llm import LLMConfig
-        from myrm_agent_harness.toolkits.vision.fallback_engine import (
+        from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
             VisionFallbackEngine,
         )
 
