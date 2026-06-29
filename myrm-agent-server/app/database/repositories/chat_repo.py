@@ -70,9 +70,13 @@ class ChatRepository:
         elif unassigned:
             where_clause.append(Chat.project_id.is_(None))
         if keyword:
-            pattern = f"%{keyword}%"
+            escaped = keyword.replace("%", r"\%").replace("_", r"\_")
+            pattern = f"%{escaped}%"
             where_clause.append(
-                or_(Chat.title.ilike(pattern), Chat.first_message.ilike(pattern))
+                or_(
+                    Chat.title.ilike(pattern, escape="\\"),
+                    Chat.first_message.ilike(pattern, escape="\\"),
+                )
             )
 
         count_stmt = select(func.count(Chat.id)).where(*where_clause)

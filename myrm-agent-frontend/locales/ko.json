@@ -2754,6 +2754,16 @@
       "title": "About",
       "slogan": "Open-source Core Product, Powerful, and Extensible AI Assistant Platform",
       "version": "Version",
+      "update": {
+        "check": "업데이트 확인",
+        "checking": "확인 중...",
+        "upToDate": "최신 버전입니다",
+        "available": "새 버전 {version} 사용 가능",
+        "install": "다운로드 및 설치",
+        "downloading": "다운로드 중...",
+        "error": "업데이트 확인 실패",
+        "retry": "다시 시도"
+      },
       "introduction": {
         "title": "Introduction",
         "description": "MyrmAgent's core products (Server, Frontend, Desktop) are open source under the MIT License."

@@ -136,6 +136,12 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
       });
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
   const handleSearchChange = useCallback(
     (value: string) => {
       setLocalKeyword(value);
