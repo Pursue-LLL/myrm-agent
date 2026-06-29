@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import (
+    get_lite_model_selection,
     get_model_selection,
 )
 
@@ -25,16 +26,17 @@ def perform_fallback_test(client: TestClient, query: list[dict[str, object]]) ->
     if main_model_selection.get("providerId") in ("openai-compatible", "siliconflow"):
         main_model_selection["providerId"] = "openai"
 
-    # 2. 将 BASIC_MODEL 设置为 Vision Fallback Model
-    vision_fallback_selection = get_model_selection()
-    vision_fallback_selection["model"] = "qwen-vl-plus"
-    vision_fallback_selection["providerId"] = "dashscope"  # 明确使用 dashscope 避免前缀问题
+    # Vision fallback uses LITE credentials (valid minimax key in .env.test)
+    vision_fallback_selection = get_lite_model_selection()
 
     search_request: dict[str, object] = {
         "messageId": "test_msg_001",
         "chatId": "test_chat_001",
         "query": query,
-        "modelSelection": main_model_selection,
+        "modelSelection": {
+            **main_model_selection,
+            "supportsVision": False,
+        },
         "visionFallbackModelSelection": vision_fallback_selection,
         "searchServiceCfg": None,
     }
@@ -63,10 +65,11 @@ def perform_fallback_test(client: TestClient, query: list[dict[str, object]]) ->
                 collected_data.append(data)
                 event_type = data.get("type", "unknown")
 
-                if event_type == "agent_status":
+                if event_type == "status" and data.get("step_key") == "analyzing_image":
+                    analyzing_image_seen = True
+                elif event_type == "agent_status":
                     status_data = data.get("data", {})
-                    status_str = status_data.get("status")
-                    print(f"  ⚡ 状态更新: {status_str}")
+                    status_str = status_data.get("status") if isinstance(status_data, dict) else None
                     if status_str == "analyzing_image":
                         analyzing_image_seen = True
                 elif event_type == "message":
