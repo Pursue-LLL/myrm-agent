@@ -3017,7 +3017,17 @@
         "webuiPort": "WebUI 端口 (Next.js)",
         "webuiPortDesc": "用户在浏览器中访问的主端口",
         "apiPort": "API 端口 (FastAPI)",
-        "apiPortDesc": "内部 API 服务端口"
+        "apiPortDesc": "内部 API 服务端口",
+        "storageTitle": "存储位置",
+        "storageCurrentPath": "当前数据目录",
+        "storageUsed": "已用空间",
+        "storageFree": "可用空间",
+        "storageChange": "更改",
+        "storageMigrating": "正在迁移数据...",
+        "storageMigrateSuccess": "数据迁移完成",
+        "storageMigrateFailed": "数据迁移失败",
+        "storageLowWarning": "磁盘空间不足，建议迁移数据到其他磁盘",
+        "storageSelectDir": "选择新的数据存储目录"
       },
       "webuiAccess": {
         "title": "WebUI 访问密码",

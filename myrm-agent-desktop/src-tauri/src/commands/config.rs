@@ -2,6 +2,8 @@
 //!
 //! 提供前端调用的系统配置相关命令。
 
+use std::path::Path;
+
 use tauri::State;
 use crate::config::{ConfigManager, SystemConfig};
 
@@ -130,6 +132,100 @@ pub fn update_global_shortcut(
     }
 
     result
+}
+
+/// 迁移数据目录到新路径：先停止后端，复制数据，更新配置，再重启
+#[tauri::command]
+pub async fn migrate_data_dir(
+    app: tauri::AppHandle,
+    new_dir: String,
+    config_manager: State<'_, ConfigManager>,
+    backend: State<'_, crate::runtime::PythonBackend>,
+) -> Result<String, String> {
+    let new_path = Path::new(&new_dir);
+
+    if !new_path.exists() {
+        std::fs::create_dir_all(new_path)
+            .map_err(|e| format!("Failed to create target directory: {}", e))?;
+    }
+
+    if !new_path.is_dir() {
+        return Err("Target path is not a directory".to_string());
+    }
+
+    let test_file = new_path.join(".myrm_write_test");
+    std::fs::write(&test_file, b"test")
+        .map_err(|_| "Target directory is not writable".to_string())?;
+    let _ = std::fs::remove_file(&test_file);
+
+    let config = config_manager.load();
+    let old_dir = config
+        .custom_data_dir
+        .clone()
+        .unwrap_or_else(|| {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+            format!("{}/.myrm", home)
+        });
+    let old_path = Path::new(&old_dir);
+
+    println!("📦 Migrating data: {:?} → {:?}", old_path, new_path);
+
+    crate::runtime::stop_backend(app.state::<crate::runtime::PythonBackend>())?;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    if old_path.exists() {
+        let items = ["data.db", "checkpoints.db", "qdrant", "harness", "event_logs", "memory"];
+        for item in &items {
+            let src = old_path.join(item);
+            let dst = new_path.join(item);
+            if !src.exists() {
+                continue;
+            }
+            if src.is_dir() {
+                copy_dir_recursive(&src, &dst)?;
+            } else {
+                if let Some(parent) = dst.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                std::fs::copy(&src, &dst)
+                    .map_err(|e| format!("Failed to copy {}: {}", item, e))?;
+            }
+            println!("  ✅ Copied: {}", item);
+        }
+    }
+
+    let mut new_config = config;
+    new_config.custom_data_dir = Some(new_dir.clone());
+    config_manager.save(&new_config)?;
+
+    println!("✅ Migration complete. Restarting backend...");
+
+    let backend_config = crate::config::BackendConfig::from_system_config(&new_config);
+    match crate::runtime::start_backend_with_config(app.clone(), backend, backend_config).await {
+        Ok(msg) => Ok(format!("Migration complete, backend restarted: {}", msg)),
+        Err(e) => Err(format!("Migration complete but backend restart failed: {}. Please restart the app.", e)),
+    }
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create dir {:?}: {}", dst, e))?;
+    for entry in std::fs::read_dir(src)
+        .map_err(|e| format!("Failed to read dir {:?}: {}", src, e))?
+    {
+        let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy {:?}: {}", src_path, e))?;
+        }
+    }
+    Ok(())
 }
 
 fn register_shortcuts(

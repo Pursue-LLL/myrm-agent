@@ -46,6 +46,9 @@ export interface SystemConfig {
 
   /** 语音 Push-to-Talk 全局快捷键 */
   voicePttShortcut: string;
+
+  /** 自定义数据存储目录（为 undefined 时 Server 使用默认 ~/.myrm） */
+  customDataDir?: string;
 }
 
 /** 默认系统配置 */

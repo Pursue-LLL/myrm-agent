@@ -151,6 +151,11 @@ pub async fn start_backend_with_config(
         .env("PORT", config.port.to_string())
         .env("HOST", &config.host);
 
+    if let Some(ref data_dir) = config.custom_data_dir {
+        cmd.env("MYRM_DATA_DIR", data_dir);
+        println!("📂 Custom data dir: {}", data_dir);
+    }
+
     if config.webui_mode {
         cmd.env("WEBUI_MODE", "true");
         if config.remote_mode {

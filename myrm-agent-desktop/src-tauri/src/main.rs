@@ -441,6 +441,7 @@ fn main() {
             open_session_window,
             close_session_window,
             force_appshot_capture,
+            commands::config::migrate_data_dir,
             tray::set_tray_status
         ])
         .build(tauri::generate_context!())

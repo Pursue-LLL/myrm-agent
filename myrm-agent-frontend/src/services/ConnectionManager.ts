@@ -1,5 +1,4 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useChatStore from '@/store/useChatStore';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
@@ -102,15 +101,7 @@ class ConnectionManager {
 
   private dispatchChunk(chatId: string | null, messageId: string, rawChunk: string) {
     if (!chatId) return;
-
-    const workspaceState = useWorkspaceStore.getState();
-    const activePane = workspaceState.panes.find((p) => p.id === workspaceState.activePaneId);
-
-    if (activePane && activePane.chatId === chatId) {
-      window.dispatchEvent(new CustomEvent(`multiplex_chunk_${messageId}`, { detail: rawChunk }));
-    } else {
-      window.dispatchEvent(new CustomEvent(`multiplex_chunk_${messageId}`, { detail: rawChunk }));
-    }
+    window.dispatchEvent(new CustomEvent(`multiplex_chunk_${messageId}`, { detail: rawChunk }));
   }
 }
 

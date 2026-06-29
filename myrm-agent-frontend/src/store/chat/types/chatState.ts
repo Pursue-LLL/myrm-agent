@@ -111,7 +111,6 @@ export interface ChatState {
   _messageUpdateScheduled: boolean;
 
   // Subagent 智能提示状态
-  // Subagent 智能提示状态
   subagentPromptVisible: boolean;
   subagentPromptTimer: NodeJS.Timeout | null;
   subagentPromptMessageId: string | null;

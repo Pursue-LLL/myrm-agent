@@ -23,6 +23,7 @@ import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
 import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
+import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/useIngressRequirement';
 
 /**
@@ -649,6 +650,12 @@ const SystemSection = memo(() => {
 
         <AccessCard config={config} localIP={localIP} ingressSnapshot={ingressSnapshot} />
       </section>
+
+      {/* 存储位置 */}
+      <StorageCard
+        customDataDir={localConfig.customDataDir}
+        onDataDirChange={(dir) => handleChange('customDataDir', dir)}
+      />
 
       {/* Locked Use (Computer Use + Screen Lock) */}
       <LockedUseCard enabled={config.lockedUseEnabled} onToggle={(v) => handleChange('lockedUseEnabled', v)} />

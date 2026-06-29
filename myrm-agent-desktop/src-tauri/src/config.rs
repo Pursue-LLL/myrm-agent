@@ -77,6 +77,10 @@ pub struct SystemConfig {
     /// 语音 Push-to-Talk 全局快捷键：按住录音，松开发送给 Agent
     #[serde(default = "default_voice_ptt_shortcut")]
     pub voice_ptt_shortcut: String,
+
+    /// 自定义数据存储目录（为 None 时 Server 使用默认 ~/.myrm）
+    #[serde(default)]
+    pub custom_data_dir: Option<String>,
 }
 
 fn default_close_to_tray() -> bool {
@@ -127,6 +131,7 @@ impl Default for SystemConfig {
             locked_use_enabled: false,
             appshot_excluded_apps: default_appshot_excluded_apps(),
             voice_ptt_shortcut: default_voice_ptt_shortcut(),
+            custom_data_dir: None,
         }
     }
 }
@@ -138,6 +143,7 @@ pub struct BackendConfig {
     pub host: String,
     pub webui_mode: bool,
     pub remote_mode: bool,
+    pub custom_data_dir: Option<String>,
 }
 
 impl BackendConfig {
@@ -153,6 +159,7 @@ impl BackendConfig {
                 },
                 webui_mode: true,
                 remote_mode: config.enable_remote_access,
+                custom_data_dir: config.custom_data_dir.clone(),
             }
         } else {
             // Desktop 模式默认配置
@@ -161,6 +168,7 @@ impl BackendConfig {
                 host: "127.0.0.1".to_string(),
                 webui_mode: false,
                 remote_mode: false,
+                custom_data_dir: config.custom_data_dir.clone(),
             }
         }
     }

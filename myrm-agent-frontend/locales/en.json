@@ -3017,7 +3017,17 @@
         "webuiPort": "WebUI port (Next.js)",
         "webuiPortDesc": "Primary port users open in the browser",
         "apiPort": "API port (FastAPI)",
-        "apiPortDesc": "Internal API service port"
+        "apiPortDesc": "Internal API service port",
+        "storageTitle": "Storage Location",
+        "storageCurrentPath": "Current Data Directory",
+        "storageUsed": "Used",
+        "storageFree": "Available",
+        "storageChange": "Change",
+        "storageMigrating": "Migrating data...",
+        "storageMigrateSuccess": "Data migration complete",
+        "storageMigrateFailed": "Data migration failed",
+        "storageLowWarning": "Low disk space, consider migrating data to another drive",
+        "storageSelectDir": "Select new data storage directory"
       },
       "webuiAccess": {
         "title": "WebUI access password",
