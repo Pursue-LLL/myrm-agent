@@ -258,32 +258,14 @@ class MediaDownloader:
             http_client = temp_client
 
         if config.validate_ssrf:
-            from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError, async_pin_url
-            from myrm_agent_harness.core.security.http.secure_fetch import (
-                SecureHttpTarget,
-                resolve_secure_http_target,
+            from .ssrf_target import resolve_media_ssrf_target
+
+            target = await resolve_media_ssrf_target(
+                url=url,
+                config=config,
+                http_client=http_client,
+                headers=stream_headers,
             )
-
-            try:
-                if config.follow_redirects:
-                    target = await resolve_secure_http_target(
-                        http_client,
-                        url,
-                        headers=stream_headers,
-                    )
-                else:
-                    pinned_url, pin_headers = await async_pin_url(url)
-                    target = SecureHttpTarget(
-                        logical_url=url,
-                        request_url=pinned_url,
-                        headers={**stream_headers, **pin_headers},
-                        method="GET",
-                    )
-            except SSRFSecurityError as exc:
-                from .exceptions import SSRFError
-
-                raise SSRFError(str(exc), url) from exc
-
             request_url = target.request_url
             stream_headers = target.headers
 
