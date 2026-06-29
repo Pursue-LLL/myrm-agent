@@ -11137,6 +11137,7 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "Done",
+      "takeoverLearned": "Behavior recorded — Agent will learn from your demonstration",
       "takeoverResumeFailed": "Failed to resume agent, please try again"
     },
     "pricing": {

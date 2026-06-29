@@ -166,6 +166,12 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       url: data.data.url,
       messageId: data.messageId,
     });
+    const { fetchWithTimeout } = await import('@/lib/api');
+    fetchWithTimeout('/webui/vnc/takeover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: data.data.reason || '' }),
+    }).catch(() => {});
     return done(ctx);
   }
 

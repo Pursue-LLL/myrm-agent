@@ -233,6 +233,7 @@ myrm_agent_harness.toolkits.browser.pool.extension_bridge
 myrm_agent_harness.toolkits.browser.pool.proxy
 myrm_agent_harness.toolkits.browser.session
 myrm_agent_harness.toolkits.browser.session.snapshot_result
+myrm_agent_harness.toolkits.browser.snapshot.page_snapshot
 myrm_agent_harness.toolkits.calendar.types
 myrm_agent_harness.toolkits.code_execution
 myrm_agent_harness.toolkits.code_execution.config
@@ -305,6 +306,8 @@ myrm_agent_harness.toolkits.llms.utils.model_utils
 myrm_agent_harness.toolkits.llms.video
 myrm_agent_harness.toolkits.llms.video.providers
 myrm_agent_harness.toolkits.llms.video.video_langchain_tool
+myrm_agent_harness.toolkits.llms.vision.fallback_engine
+myrm_agent_harness.toolkits.llms.vision.video_analysis_engine
 myrm_agent_harness.toolkits.local_file_search
 myrm_agent_harness.toolkits.mcp
 myrm_agent_harness.toolkits.mcp.config
@@ -371,8 +374,6 @@ myrm_agent_harness.toolkits.vector
 myrm_agent_harness.toolkits.vector.config
 myrm_agent_harness.toolkits.vector.pool
 myrm_agent_harness.toolkits.vector.qdrant
-myrm_agent_harness.toolkits.llms.vision.fallback_engine
-myrm_agent_harness.toolkits.llms.vision.video_analysis_engine
 myrm_agent_harness.toolkits.vnc
 myrm_agent_harness.toolkits.web_fetch
 myrm_agent_harness.toolkits.web_fetch.engine

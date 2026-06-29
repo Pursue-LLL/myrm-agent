@@ -234,6 +234,19 @@ class AgentGateway:
                 return session
         return None
 
+    def get_active_event_log_backend(self) -> tuple[str, object] | None:
+        """Get (session_id, EventLogBackend) from the first active agent that has one."""
+        for info in self._session_info.values():
+            if info.agent is None:
+                continue
+            agent = info.agent()
+            if agent is None:
+                continue
+            backend = getattr(agent, "event_log_backend", None)
+            if backend is not None:
+                return info.chat_id, backend
+        return None
+
     def interrupt_all(self) -> int:
         """Interrupt all running agents. Returns count of interrupted users."""
         count = 0

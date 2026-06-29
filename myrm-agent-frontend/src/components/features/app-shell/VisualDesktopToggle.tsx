@@ -27,7 +27,15 @@ export const VisualDesktopToggle = () => {
     completeTakeover();
     if (storedMessageId) {
       try {
+        const { fetchWithTimeout } = await import('@/lib/api');
+        const resumeRes = await fetchWithTimeout('/webui/vnc/resume', { method: 'POST' });
+        const resumeData = resumeRes.ok ? await resumeRes.json() : null;
+
         await useChatStore.getState().sendMessage('', storedMessageId, undefined, { action: 'completed', message: '' });
+
+        if (resumeData?.learned) {
+          toast.success(t('takeoverLearned'), { duration: 3000 });
+        }
       } catch (error) {
         console.error('[TAKEOVER] Resume failed:', error);
         useBrowserTakeoverStore.getState().requestTakeover({

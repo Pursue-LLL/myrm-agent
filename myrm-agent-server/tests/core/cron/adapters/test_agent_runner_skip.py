@@ -24,6 +24,14 @@ from myrm_agent_harness.toolkits.cron.types import (
 from app.core.cron.adapters.agent_runner import AgentJobRunner
 
 _BUDGET_MODULE = "app.services.budget.enforcer.should_block_execution"
+_LOAD_USER_CONFIGS = "app.core.channel_bridge.config_loader.load_user_configs"
+
+
+def _fake_user_configs() -> object:
+    """Return a minimal stand-in for UserConfigs (only personal_settings_dict is read)."""
+    from types import SimpleNamespace
+
+    return SimpleNamespace(personal_settings_dict={})
 
 
 def _make_heartbeat_job(**overrides: object) -> CronJob:
@@ -65,7 +73,8 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value=None)
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert not has_content
         assert prompt == "original prompt"
 
@@ -75,7 +84,8 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value="")
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert not has_content
 
     @pytest.mark.asyncio
@@ -84,7 +94,8 @@ class TestInjectSituationReport:
         builder.build = AsyncMock(return_value="## Pending Commitments\n- Review PR #42")
         runner = AgentJobRunner(situation_builder=builder)
 
-        prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
+        with patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()):
+            prompt, has_content = await runner._inject_situation_report(_make_heartbeat_job(), "original prompt")
         assert has_content
         assert "<situation_report>" in prompt
         assert "Pending Commitments" in prompt
@@ -111,10 +122,9 @@ class TestHeartbeatSkipLogic:
         runner = AgentJobRunner(situation_builder=builder)
 
         job = _make_heartbeat_job()
-        with patch(
-            _BUDGET_MODULE,
-            new_callable=AsyncMock,
-            return_value=False,
+        with (
+            patch(_BUDGET_MODULE, new_callable=AsyncMock, return_value=False),
+            patch(_LOAD_USER_CONFIGS, new_callable=AsyncMock, return_value=_fake_user_configs()),
         ):
             result = await runner._run_once(job)
 

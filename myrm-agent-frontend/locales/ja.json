@@ -10630,6 +10630,7 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "完了",
+      "takeoverLearned": "操作を記録しました — エージェントがあなたの操作から学習します",
       "takeoverResumeFailed": "エージェントの再開に失敗しました。もう一度お試しください"
     },
     "pricing": {

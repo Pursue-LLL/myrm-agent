@@ -10630,6 +10630,7 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "완료",
+      "takeoverLearned": "동작이 기록되었습니다 — 에이전트가 시연에서 학습합니다",
       "takeoverResumeFailed": "에이전트 재개 실패, 다시 시도해주세요"
     },
     "pricing": {
