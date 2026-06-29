@@ -307,20 +307,20 @@ class TestSend:
             await ch.send(msg)
 
     @pytest.mark.asyncio
-    async def test_send_api_error_non_token(self) -> None:
+    async def test_send_non_rate_limit_error(self) -> None:
         from app.channels.core.exceptions import ChannelSendError
 
         ch = _make_channel()
         mock_resp = httpx.Response(
             200,
-            json={"errcode": 45015, "errmsg": "out of response count limit"},
+            json={"errcode": 48001, "errmsg": "api unauthorized"},
             request=httpx.Request("POST", "https://api.weixin.qq.com"),
         )
         ch._http = AsyncMock()
         ch._http.post = AsyncMock(return_value=mock_resp)
 
         msg = OutboundMessage(channel="wechat_official", recipient_id="user1", content="hello", user_id="u1")
-        with pytest.raises(ChannelSendError, match="errcode=45015"):
+        with pytest.raises(ChannelSendError, match="errcode=48001"):
             await ch.send(msg)
 
     @pytest.mark.asyncio
@@ -518,3 +518,74 @@ class TestTokenManagement:
         ch._http.get = AsyncMock()
         await ch._ensure_token()
         ch._http.get.assert_not_called()
+
+
+# ── Rate Limit Error Mapping (直接测试 _call_customer_api) ────────────
+
+
+class TestRateLimitErrorMapping:
+    @pytest.mark.asyncio
+    async def test_errcode_45015_raises_rate_limit_error(self) -> None:
+        from app.channels.core.exceptions import RateLimitError
+
+        ch = _make_channel()
+        mock_resp = httpx.Response(
+            200,
+            json={"errcode": 45015, "errmsg": "out of response count limit"},
+            request=httpx.Request("POST", "https://api.weixin.qq.com"),
+        )
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=mock_resp)
+
+        with pytest.raises(RateLimitError, match="errcode=45015") as exc_info:
+            await ch._call_customer_api({"touser": "u1", "msgtype": "text", "text": {"content": "hi"}})
+        assert exc_info.value.retry_after == 5.0
+        assert exc_info.value.channel == "wechat_official"
+
+    @pytest.mark.asyncio
+    async def test_errcode_45011_raises_rate_limit_error(self) -> None:
+        from app.channels.core.exceptions import RateLimitError
+
+        ch = _make_channel()
+        mock_resp = httpx.Response(
+            200,
+            json={"errcode": 45011, "errmsg": "api freq out of limit"},
+            request=httpx.Request("POST", "https://api.weixin.qq.com"),
+        )
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=mock_resp)
+
+        with pytest.raises(RateLimitError, match="errcode=45011"):
+            await ch._call_customer_api({"touser": "u1", "msgtype": "text", "text": {"content": "hi"}})
+
+    @pytest.mark.asyncio
+    async def test_errcode_45047_raises_rate_limit_error(self) -> None:
+        from app.channels.core.exceptions import RateLimitError
+
+        ch = _make_channel()
+        mock_resp = httpx.Response(
+            200,
+            json={"errcode": 45047, "errmsg": "mass send limit"},
+            request=httpx.Request("POST", "https://api.weixin.qq.com"),
+        )
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=mock_resp)
+
+        with pytest.raises(RateLimitError, match="errcode=45047"):
+            await ch._call_customer_api({"touser": "u1", "msgtype": "text", "text": {"content": "hi"}})
+
+    @pytest.mark.asyncio
+    async def test_non_rate_limit_errcode_raises_connection_error(self) -> None:
+        from app.channels.core.exceptions import ChannelConnectionError
+
+        ch = _make_channel()
+        mock_resp = httpx.Response(
+            200,
+            json={"errcode": 48001, "errmsg": "api unauthorized"},
+            request=httpx.Request("POST", "https://api.weixin.qq.com"),
+        )
+        ch._http = AsyncMock()
+        ch._http.post = AsyncMock(return_value=mock_resp)
+
+        with pytest.raises(ChannelConnectionError, match="errcode=48001"):
+            await ch._call_customer_api({"touser": "u1", "msgtype": "text", "text": {"content": "hi"}})

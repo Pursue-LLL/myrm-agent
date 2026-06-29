@@ -53,6 +53,18 @@ def test_create_limiter_telegram() -> None:
     assert limiter._burst == 10
 
 
+def test_create_limiter_wechat() -> None:
+    limiter = create_limiter("wechat")
+    assert limiter._rate == 2.0
+    assert limiter._burst == 1
+
+
+def test_create_limiter_wechat_official() -> None:
+    limiter = create_limiter("wechat_official")
+    assert limiter._rate == 1.0
+    assert limiter._burst == 1
+
+
 def test_create_limiter_default() -> None:
     limiter = create_limiter("unknown_channel")
     assert limiter._rate == 10.0

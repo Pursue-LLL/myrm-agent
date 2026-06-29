@@ -28,6 +28,8 @@ _CHANNEL_RATES: dict[str, float] = {
     "feishu": 5.0,
     "dingtalk": 5.0,
     "wecom": 4.0,
+    "wechat": 2.0,
+    "wechat_official": 1.0,
 }
 _DEFAULT_RATE = 10.0
 

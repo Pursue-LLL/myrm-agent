@@ -31,6 +31,7 @@ import httpx
 from app.channels.core.exceptions import (
     ChannelAuthError,
     ChannelConnectionError,
+    RateLimitError,
 )
 from app.channels.providers._ilink.types import (
     DEFAULT_BASE_URL,
@@ -50,6 +51,7 @@ _LONG_POLL_TIMEOUT = 35.0
 _SEND_TIMEOUT = 15.0
 _QR_POLL_TIMEOUT = 35.0
 _SESSION_EXPIRED_ERRCODE = -14
+_RATE_LIMIT_ERRCODE = -2
 _ILINK_APP_ID = "bot"
 _ILINK_APP_VERSION = "2.1.1"
 _ILINK_APP_CLIENT_VERSION = str((2 << 16) | (1 << 8) | 1)
@@ -297,8 +299,22 @@ class ILinkClient:
         data = await self._post("ilink/bot/sendmessage", body)
         ret = data.get("ret")
         if ret is not None and ret != 0:
+            errcode = data.get("errcode")
+            errmsg = str(data.get("errmsg", ""))
+            is_rate_limited = ret == _RATE_LIMIT_ERRCODE or errcode == _RATE_LIMIT_ERRCODE
+            if is_rate_limited:
+                if errmsg.lower() == "unknown error":
+                    raise ChannelAuthError(
+                        f"iLink stale session (ret={ret} errcode={errcode})",
+                        channel="wechat",
+                    )
+                raise RateLimitError(
+                    f"iLink rate limited: ret={ret} errcode={errcode} errmsg={errmsg}",
+                    channel="wechat",
+                    retry_after=3.0,
+                )
             raise ChannelConnectionError(
-                f"iLink sendMessage failed: ret={ret} errmsg={data.get('errmsg', '')}",
+                f"iLink sendMessage failed: ret={ret} errmsg={errmsg}",
                 channel="wechat",
             )
 

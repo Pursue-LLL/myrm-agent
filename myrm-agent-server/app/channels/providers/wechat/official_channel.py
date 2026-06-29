@@ -34,6 +34,7 @@ from app.channels.core.exceptions import (
     ChannelAuthError,
     ChannelConnectionError,
     ChannelSendError,
+    RateLimitError,
 )
 from app.channels.rendering.renderer import render
 from app.channels.types import (
@@ -53,6 +54,7 @@ _SEND_TIMEOUT = 15.0
 _MAX_TEXT_LENGTH = 600
 _TOKEN_REFRESH_BUFFER = 300
 _TOKEN_EXPIRED_ERRCODES = {40001, 42001}
+_RATE_LIMIT_ERRCODES = {45011, 45015, 45047}
 
 
 class WeChatOfficialChannel(BaseChannel):
@@ -275,6 +277,12 @@ class WeChatOfficialChannel(BaseChannel):
             await self._refresh_token()
             await self._call_customer_api(payload, _retried=True)
             return
+        if errcode in _RATE_LIMIT_ERRCODES:
+            raise RateLimitError(
+                f"WeChat rate limited: {data.get('errmsg')} (errcode={errcode})",
+                channel="wechat_official",
+                retry_after=5.0,
+            )
         raise ChannelConnectionError(
             f"WeChat API error: {data.get('errmsg')} (errcode={errcode})",
             channel="wechat_official",

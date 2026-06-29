@@ -10,6 +10,7 @@ import pytest
 from app.channels.core.exceptions import (
     ChannelAuthError,
     ChannelConnectionError,
+    RateLimitError,
 )
 from app.channels.providers._ilink.client import (
     ILinkClient,
@@ -456,6 +457,38 @@ class TestSendMessage:
 
         items = [MessageItem(type=ItemType.TEXT, text_item=TextItem(text="hello"))]
         with pytest.raises(ChannelConnectionError, match="sendMessage failed"):
+            await c.send_message("user1", items)
+
+    @pytest.mark.asyncio
+    async def test_send_rate_limited(self) -> None:
+        c = _make_client()
+        resp = _ok_response({"ret": -2, "errcode": -2, "errmsg": "frequency limit"})
+        c._http.post = AsyncMock(return_value=resp)
+
+        items = [MessageItem(type=ItemType.TEXT, text_item=TextItem(text="hello"))]
+        with pytest.raises(RateLimitError, match="rate limited") as exc_info:
+            await c.send_message("user1", items)
+        assert exc_info.value.retry_after == 3.0
+        assert exc_info.value.channel == "wechat"
+
+    @pytest.mark.asyncio
+    async def test_send_stale_session(self) -> None:
+        c = _make_client()
+        resp = _ok_response({"ret": -2, "errcode": -2, "errmsg": "unknown error"})
+        c._http.post = AsyncMock(return_value=resp)
+
+        items = [MessageItem(type=ItemType.TEXT, text_item=TextItem(text="hello"))]
+        with pytest.raises(ChannelAuthError, match="stale session"):
+            await c.send_message("user1", items)
+
+    @pytest.mark.asyncio
+    async def test_send_rate_limited_ret_only(self) -> None:
+        c = _make_client()
+        resp = _ok_response({"ret": -2, "errmsg": "freq limit"})
+        c._http.post = AsyncMock(return_value=resp)
+
+        items = [MessageItem(type=ItemType.TEXT, text_item=TextItem(text="hello"))]
+        with pytest.raises(RateLimitError):
             await c.send_message("user1", items)
 
 
