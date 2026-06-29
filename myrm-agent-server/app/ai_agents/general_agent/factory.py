@@ -236,11 +236,8 @@ async def build_general_agent(
     # 4.5 Channel notification tool
     if agent_wrapper.notify_targets:
         try:
-            from myrm_agent_harness.toolkits.notification import (
+            from app.services.agent.outbound_notify import (
                 create_channel_notify_tool,
-            )
-
-            from app.services.agent.notification_sender import (
                 create_notification_sender,
             )
 

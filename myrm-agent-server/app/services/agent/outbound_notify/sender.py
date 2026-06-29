@@ -1,42 +1,29 @@
-"""ChannelNotificationSender — Server-layer implementation of NotificationSender.
-
-Routes agent-initiated notifications through the ChannelGateway/MessageBus
-infrastructure, reusing existing retry, DLQ, and rate-limiting mechanisms.
+"""ChannelGateway-backed outbound notification sender.
 
 [INPUT]
-- myrm_agent_harness.toolkits.notification (POS: notification toolkit protocol/types)
-- app.channels.core.gateway (POS: channel gateway singleton)
+- app.channels.core.gateway::ChannelGateway (POS: multi-platform channel gateway)
 - app.channels.types::OutboundMessage (POS: outbound message model)
+- .types::NotifyResult, NotifyTarget, NotifyToolConfig (POS: outbound notification data types)
 
 [OUTPUT]
-- ChannelNotificationSender: Concrete NotificationSender implementation.
-- create_notification_sender: Factory from ResolvedAgentProfile notify_targets.
+- ChannelNotificationSender: NotificationSender implementation via ChannelGateway.
+- create_notification_sender: Factory from agent notify_targets.
 
 [POS]
-Server-layer notification delivery using ChannelGateway. Pure addition to the
-channel infrastructure — no schema changes, no side effects on existing flows.
+Channel delivery for agent-initiated outbound notifications.
 """
 
 from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.toolkits.notification import (
-    NotifyResult,
-    NotifyTarget,
-    NotifyToolConfig,
-)
+from .types import NotifyResult, NotifyTarget, NotifyToolConfig
 
 logger = logging.getLogger(__name__)
 
 
 class ChannelNotificationSender:
-    """Sends notifications via ChannelGateway.publish().
-
-    This implementation satisfies the NotificationSender protocol from
-    myrm-agent-harness. It bridges the framework tool with the server's
-    channel infrastructure.
-    """
+    """Sends notifications via ChannelGateway.publish()."""
 
     __slots__ = ("_targets",)
 
@@ -80,17 +67,17 @@ class ChannelNotificationSender:
                 success=True,
                 channel=target.channel,
             )
-        except Exception as e:
+        except Exception as exc:
             logger.warning(
                 "Notification delivery failed: channel=%s, recipient=%s, error=%s",
                 target.channel,
                 target.recipient_id,
-                e,
+                exc,
             )
             return NotifyResult(
                 success=False,
                 channel=target.channel,
-                error=str(e),
+                error=str(exc),
             )
 
     async def list_available_targets(self) -> list[NotifyTarget]:
@@ -101,7 +88,7 @@ class ChannelNotificationSender:
 def create_notification_sender(
     raw_targets: tuple[dict[str, str], ...],
 ) -> tuple[ChannelNotificationSender, NotifyToolConfig] | None:
-    """Create sender + config from agent profile's notify_targets.
+    """Create sender + config from agent profile notify_targets.
 
     Returns None if no targets are configured (tool won't be registered).
     """
@@ -110,11 +97,11 @@ def create_notification_sender(
 
     targets = tuple(
         NotifyTarget(
-            channel=t["channel"],
-            recipient_id=t["recipient_id"],
-            label=t.get("label", ""),
+            channel=entry["channel"],
+            recipient_id=entry["recipient_id"],
+            label=entry.get("label", ""),
         )
-        for t in raw_targets
+        for entry in raw_targets
     )
 
     sender = ChannelNotificationSender(targets)

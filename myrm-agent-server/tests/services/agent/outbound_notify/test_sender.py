@@ -1,4 +1,4 @@
-"""Tests for ChannelNotificationSender and create_notification_sender factory."""
+"""Tests for ChannelNotificationSender and create_notification_sender."""
 
 from __future__ import annotations
 
@@ -6,16 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.agent.notification_sender import (
+from app.services.agent.outbound_notify import (
     ChannelNotificationSender,
+    NotifyTarget,
     create_notification_sender,
 )
-from myrm_agent_harness.toolkits.notification import NotifyTarget
 
 
 class TestCreateNotificationSender:
-    """Tests for the factory function."""
-
     def test_returns_none_for_empty_targets(self) -> None:
         assert create_notification_sender(()) is None
 
@@ -39,8 +37,6 @@ class TestCreateNotificationSender:
 
 
 class TestChannelNotificationSender:
-    """Tests for the sender implementation."""
-
     @pytest.mark.asyncio
     async def test_list_available_targets(self) -> None:
         targets = (

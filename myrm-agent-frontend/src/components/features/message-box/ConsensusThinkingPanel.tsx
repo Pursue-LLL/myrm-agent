@@ -25,9 +25,9 @@ function formatModelName(model: string): string {
   return model;
 }
 
-function RefCard({ ref, defaultExpanded }: { ref: ConsensusRef; defaultExpanded: boolean }) {
+function RefCard({ data, defaultExpanded }: { data: ConsensusRef; defaultExpanded: boolean }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const preview = ref.content ? ref.content.slice(0, 120) + (ref.content.length > 120 ? '…' : '') : '';
+  const preview = data.content ? data.content.slice(0, 120) + (data.content.length > 120 ? '…' : '') : '';
 
   return (
     <div className="border border-border/50 rounded-md overflow-hidden">
@@ -36,26 +36,26 @@ function RefCard({ ref, defaultExpanded }: { ref: ConsensusRef; defaultExpanded:
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs hover:bg-muted/50 transition-colors"
       >
-        {ref.success ? (
+        {data.success ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
         ) : (
           <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
         )}
         <span className="font-medium text-foreground truncate">
-          {formatModelName(ref.model)}
+          {formatModelName(data.model)}
         </span>
         <span className="text-muted-foreground ml-auto tabular-nums shrink-0">
-          {ref.elapsed.toFixed(1)}s
+          {data.elapsed.toFixed(1)}s
         </span>
-        {ref.content && (
+        {data.content && (
           expanded
             ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
             : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
         )}
       </button>
-      {expanded && ref.content && (
+      {expanded && data.content && (
         <div className="px-2.5 pb-2 pt-0.5 text-xs text-muted-foreground leading-relaxed border-t border-border/30 max-h-40 overflow-y-auto">
-          <p className="whitespace-pre-wrap break-words">{ref.content}</p>
+          <p className="whitespace-pre-wrap break-words">{data.content}</p>
         </div>
       )}
       {!expanded && preview && (
@@ -79,7 +79,6 @@ export default function ConsensusThinkingPanel({
 
   const completedCount = refs.length;
   const total = totalExpected ?? refs.length;
-  const allDone = !isStreaming && completedCount === total;
 
   return (
     <div className={cn(
@@ -109,8 +108,8 @@ export default function ConsensusThinkingPanel({
       </button>
       {!collapsed && (
         <div className="px-3 pb-2 space-y-1.5">
-          {refs.map((ref, i) => (
-            <RefCard key={`${ref.model}-${i}`} ref={ref} defaultExpanded={false} />
+          {refs.map((item, i) => (
+            <RefCard key={`${item.model}-${i}`} data={item} defaultExpanded={false} />
           ))}
           {isStreaming && completedCount < total && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-muted-foreground">
