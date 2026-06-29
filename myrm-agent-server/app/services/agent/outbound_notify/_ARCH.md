@@ -6,8 +6,8 @@ Server module for agent-initiated outbound channel notifications: types, whiteli
 target resolution, session rate limits, ChannelGateway delivery, and optional
 `channel_notify_tool` LangChain adapter.
 
-**Migration note:** Harness `toolkits/notification/` was removed; this server module
-is the sole SSOT for channel notify tooling. Wire agents via
+**Migration note:** Harness `toolkits/notification/` was removed. This server module
+is the sole SSOT for channel notify tooling. Agents wire via
 `app.ai_agents.general_agent.factory` → `create_channel_notify_tool`.
 
 ## File Index

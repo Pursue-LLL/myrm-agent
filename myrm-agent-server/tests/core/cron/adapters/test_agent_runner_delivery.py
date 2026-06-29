@@ -81,7 +81,7 @@ class TestFinalizeHeartbeatFollowUpDelivery:
         result = JobResult(success=True, output="[SILENT]")
 
         with patch(_CONFIRM_MODULE, new_callable=AsyncMock) as confirm, patch(_RESET_MODULE) as reset:
-            await finalize_heartbeat_follow_up_delivery(job, result)
+            await _finalize_heartbeat_follow_up_delivery(job, result)
 
         confirm.assert_awaited_once_with(delivered=False)
         reset.assert_not_called()
@@ -92,7 +92,7 @@ class TestFinalizeHeartbeatFollowUpDelivery:
         result = JobResult(success=True, output="How did the interview go?")
 
         with patch(_CONFIRM_MODULE, new_callable=AsyncMock) as confirm, patch(_RESET_MODULE) as reset:
-            await finalize_heartbeat_follow_up_delivery(job, result)
+            await _finalize_heartbeat_follow_up_delivery(job, result)
 
         confirm.assert_awaited_once_with(delivered=True)
         reset.assert_not_called()
@@ -103,7 +103,7 @@ class TestFinalizeHeartbeatFollowUpDelivery:
         result = JobResult(success=True, skipped=True, skip_reason="no-content")
 
         with patch(_CONFIRM_MODULE, new_callable=AsyncMock) as confirm, patch(_RESET_MODULE) as reset:
-            await finalize_heartbeat_follow_up_delivery(job, result)
+            await _finalize_heartbeat_follow_up_delivery(job, result)
 
         confirm.assert_not_awaited()
         reset.assert_called_once()
@@ -114,7 +114,7 @@ class TestFinalizeHeartbeatFollowUpDelivery:
         result = JobResult(success=False, error="agent failed")
 
         with patch(_CONFIRM_MODULE, new_callable=AsyncMock) as confirm, patch(_RESET_MODULE) as reset:
-            await finalize_heartbeat_follow_up_delivery(job, result)
+            await _finalize_heartbeat_follow_up_delivery(job, result)
 
         confirm.assert_not_awaited()
         reset.assert_called_once()
@@ -125,7 +125,7 @@ class TestFinalizeHeartbeatFollowUpDelivery:
         result = JobResult(success=True, output="[SILENT]")
 
         with patch(_CONFIRM_MODULE, new_callable=AsyncMock) as confirm, patch(_RESET_MODULE) as reset:
-            await finalize_heartbeat_follow_up_delivery(job, result)
+            await _finalize_heartbeat_follow_up_delivery(job, result)
 
         confirm.assert_not_awaited()
         reset.assert_not_called()
