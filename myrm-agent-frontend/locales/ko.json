@@ -4863,6 +4863,12 @@
     "performanceDiagnostics": "Performance Diagnostics",
     "memoryFeedbackGood": "Helpful memory",
     "memoryFeedbackBad": "Unhelpful memory",
+    "saveToMemory": {
+      "title": "이 답변 기억하기",
+      "success": "기억에 저장됨",
+      "error": "기억 저장 실패",
+      "saved": "저장됨"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

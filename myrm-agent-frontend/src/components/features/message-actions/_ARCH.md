@@ -16,6 +16,7 @@
 | `RevertFiles.tsx` | 组件/模块 | 消息级文件变更撤销（每条 AI 回复旁） | — |
 | `SessionRevertButton.tsx` | 组件/模块 | 会话级一键撤销所有 AI 文件变更（调用 POST /files/revert/session） | — |
 | `SaveEvalCase.tsx` | 组件/模块 | — | — |
+| `SaveToMemoryButton.tsx` | 组件/模块 | 一键保存 assistant 消息到长期记忆（调用 createMemory API） | — |
 | `SaveToWikiButton.tsx` | 组件/模块 | — | — |
 | `SiblingNav.tsx` | 组件/模块 | — | — |
 | `SourcesButton.tsx` | 组件/模块 | 消息来源 Sheet 面板（web/mcp/conversation 三种类型差异化展示与操作） | ✅ |

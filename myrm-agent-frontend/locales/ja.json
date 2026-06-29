@@ -4863,6 +4863,12 @@
     "performanceDiagnostics": "Performance Diagnostics",
     "memoryFeedbackGood": "Helpful memory",
     "memoryFeedbackBad": "Unhelpful memory",
+    "saveToMemory": {
+      "title": "この回答を記憶",
+      "success": "記憶に保存しました",
+      "error": "記憶への保存に失敗しました",
+      "saved": "保存済み"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

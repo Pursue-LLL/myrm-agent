@@ -5030,6 +5030,12 @@
     "performanceDiagnostics": "耗时与性能诊断",
     "memoryFeedbackGood": "记忆有帮助",
     "memoryFeedbackBad": "记忆没帮助",
+    "saveToMemory": {
+      "title": "记住这条",
+      "success": "已保存到记忆",
+      "error": "保存到记忆失败",
+      "saved": "已保存"
+    },
     "fork": {
       "title": "分支对话",
       "description": "从消息 #{index} 创建新的对话分支。分支对话将保留此时刻的完整状态。",

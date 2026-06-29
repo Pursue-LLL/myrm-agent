@@ -4863,6 +4863,12 @@
     "performanceDiagnostics": "Performance Diagnostics",
     "memoryFeedbackGood": "Helpful memory",
     "memoryFeedbackBad": "Unhelpful memory",
+    "saveToMemory": {
+      "title": "Antwort merken",
+      "success": "Im Gedächtnis gespeichert",
+      "error": "Speichern fehlgeschlagen",
+      "saved": "Bereits gespeichert"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

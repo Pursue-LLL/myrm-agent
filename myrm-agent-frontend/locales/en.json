@@ -5030,6 +5030,12 @@
     "performanceDiagnostics": "Performance Diagnostics",
     "memoryFeedbackGood": "Helpful memory",
     "memoryFeedbackBad": "Unhelpful memory",
+    "saveToMemory": {
+      "title": "Save to Memory",
+      "success": "Saved to memory",
+      "error": "Failed to save to memory",
+      "saved": "Already saved"
+    },
     "fork": {
       "title": "Fork Conversation",
       "description": "Create a new conversation branch from message #{index}. The forked conversation will preserve the complete state at this point.",
