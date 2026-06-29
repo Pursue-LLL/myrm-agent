@@ -148,7 +148,7 @@ class TestEmailSend:
             result = await ch.send(msg)
 
         assert result is not None
-        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465)
+        mock_smtp_ssl.assert_called_once_with("smtp.example.com", 465, timeout=30)
 
     @pytest.mark.asyncio
     async def test_send_empty_content(self) -> None:
@@ -396,3 +396,76 @@ class TestEmailParseInbound:
         assert result is not None
         assert len(result.media) == 1
         assert result.media[0].media_type == MediaType.IMAGE
+
+    def test_parse_noreply_sender_filtered(self) -> None:
+        ch = _make_channel()
+        raw = self._raw_email(from_addr="noreply@example.com")
+        result = ch._parse_email(raw, uid=1)
+        assert result is None
+
+    def test_parse_mailer_daemon_filtered(self) -> None:
+        ch = _make_channel()
+        raw = self._raw_email(from_addr="mailer-daemon@example.com")
+        result = ch._parse_email(raw, uid=1)
+        assert result is None
+
+    def test_parse_automated_header_filtered(self) -> None:
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "newsletter@shop.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "Sale!"
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg["Precedence"] = "bulk"
+        msg.attach(email.mime.text.MIMEText("Buy now!", "plain"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+        assert result is None
+
+    def test_parse_list_unsubscribe_filtered(self) -> None:
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "updates@service.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = "Weekly digest"
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg["List-Unsubscribe"] = "<mailto:unsub@service.com>"
+        msg.attach(email.mime.text.MIMEText("Digest content", "plain"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+        assert result is None
+
+    def test_parse_rfc2047_subject_decoded(self) -> None:
+        import email.mime.multipart
+        import email.mime.text
+        import email.utils
+        from email.header import Header
+
+        msg = email.mime.multipart.MIMEMultipart("alternative")
+        msg["From"] = "user@example.com"
+        msg["To"] = "bot@example.com"
+        msg["Subject"] = Header("你好世界", "utf-8").encode()
+        msg["Message-ID"] = email.utils.make_msgid()
+        msg.attach(email.mime.text.MIMEText("Content", "plain"))
+
+        ch = _make_channel()
+        result = ch._parse_email(msg.as_bytes(), uid=1)
+
+        assert result is not None
+        assert result.metadata
+        assert result.metadata["subject"] == "你好世界"
+
+    def test_normal_sender_not_filtered(self) -> None:
+        ch = _make_channel()
+        raw = self._raw_email(from_addr="colleague@company.com")
+        result = ch._parse_email(raw, uid=1)
+        assert result is not None
+        assert result.sender_id == "colleague@company.com"

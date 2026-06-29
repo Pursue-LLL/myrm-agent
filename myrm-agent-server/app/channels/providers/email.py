@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import email as email_lib
+import email.header
 import email.mime.multipart
 import email.mime.text
 import email.utils
@@ -53,6 +54,63 @@ logger = logging.getLogger(__name__)
 
 _MAX_TEXT_LENGTH = 100000
 _POLL_INTERVAL = 30.0
+_SMTP_TIMEOUT = 30
+
+_NOREPLY_PATTERNS = (
+    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
+    "mailer-daemon", "postmaster", "bounce", "notifications@",
+    "automated@", "auto-confirm", "auto-reply", "automailer",
+)
+_AUTOMATED_HEADERS: dict[str, str] = {
+    "Auto-Submitted": "no",
+    "Precedence": "bulk,list,junk",
+    "X-Auto-Response-Suppress": "",
+    "List-Unsubscribe": "",
+}
+
+
+def _is_automated_sender(address: str, msg: email_lib.message.Message) -> bool:
+    """Detect automated/noreply senders to prevent reply loops."""
+    addr = address.lower()
+    if any(pat in addr for pat in _NOREPLY_PATTERNS):
+        return True
+    for hdr, reject_vals in _AUTOMATED_HEADERS.items():
+        value = msg.get(hdr, "")
+        if not value:
+            continue
+        if hdr == "Auto-Submitted":
+            if value.strip().lower() != "no":
+                return True
+        elif hdr == "Precedence":
+            if value.strip().lower() in reject_vals.split(","):
+                return True
+        else:
+            return True
+    return False
+
+
+def _decode_header(raw: str) -> str:
+    """Decode RFC 2047 encoded header (e.g. =?UTF-8?B?...?=) to plain text."""
+    parts = email.header.decode_header(raw)
+    decoded: list[str] = []
+    for part, charset in parts:
+        if isinstance(part, bytes):
+            decoded.append(part.decode(charset or "utf-8", errors="replace"))
+        else:
+            decoded.append(part)
+    return " ".join(decoded)
+
+
+def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
+    """Send RFC 2971 IMAP ID command. Required by 163/NetEase after LOGIN."""
+    try:
+        conn.xatom(
+            "ID",
+            '("name" "myrm-agent" "version" "1" '
+            '"vendor" "myrm" "support-email" "noreply@myrm.sh")',
+        )
+    except Exception:
+        pass
 
 
 class EmailChannel(BaseChannel):
@@ -240,6 +298,7 @@ class EmailChannel(BaseChannel):
         conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
         try:
             conn.login(self._imap_user, self._imap_password)
+            _send_imap_id(conn)
             conn.noop()
             return True
         finally:
@@ -269,11 +328,15 @@ class EmailChannel(BaseChannel):
         msg.attach(email.mime.text.MIMEText(body_html, "html"))
 
         if self._smtp_port == 465:
-            with smtplib.SMTP_SSL(self._smtp_host, self._smtp_port) as server:
+            with smtplib.SMTP_SSL(
+                self._smtp_host, self._smtp_port, timeout=_SMTP_TIMEOUT,
+            ) as server:
                 server.login(self._smtp_user, self._smtp_password)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP(self._smtp_host, self._smtp_port) as server:
+            with smtplib.SMTP(
+                self._smtp_host, self._smtp_port, timeout=_SMTP_TIMEOUT,
+            ) as server:
                 server.starttls()
                 server.login(self._smtp_user, self._smtp_password)
                 server.send_message(msg)
@@ -293,6 +356,7 @@ class EmailChannel(BaseChannel):
         conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
         try:
             conn.login(self._imap_user, self._imap_password)
+            _send_imap_id(conn)
             conn.select("INBOX")
 
             if self._last_uid:
@@ -336,8 +400,11 @@ class EmailChannel(BaseChannel):
         sender_email = email.utils.parseaddr(from_header)[1]
         if not sender_email or sender_email == self._from_address:
             return None
+        if _is_automated_sender(sender_email, msg):
+            logger.debug("Email: skipping automated sender %s", sender_email)
+            return None
 
-        subject = msg.get("Subject", "")
+        subject = _decode_header(msg.get("Subject", ""))
         message_id = msg.get("Message-ID", "")
         in_reply_to = msg.get("In-Reply-To", "")
         references = msg.get("References", "")
