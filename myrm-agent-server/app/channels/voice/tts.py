@@ -149,7 +149,9 @@ def _openai_request(config: VoiceConfig, text: str, fmt: str):
     base = _resolve_base_url(config, "openai")
     url = f"{base}/audio/speech"
     headers = {"Authorization": f"Bearer {config.tts_api_key}", "Content-Type": "application/json"}
-    body = {"model": "gpt-4o-mini-tts", "input": text, "voice": voice, "response_format": fmt}
+    body: dict[str, object] = {"model": "gpt-4o-mini-tts", "input": text, "voice": voice, "response_format": fmt}
+    if config.tts_speed != 1.0:
+        body["speed"] = config.tts_speed
     return url, headers, body
 
 
@@ -187,7 +189,7 @@ def _minimax_request(config: VoiceConfig, text: str, *, stream: bool):
         "text": text,
         "stream": stream,
         "language_boost": "auto",
-        "voice_setting": {"voice_id": voice_id, "speed": 1.0, "vol": 1.0, "pitch": 0},
+        "voice_setting": {"voice_id": voice_id, "speed": config.tts_speed, "vol": 1.0, "pitch": config.tts_pitch},
         "audio_setting": {"sample_rate": 32000, "bitrate": 128000, "format": "mp3", "channel": 1},
     }
     return url, headers, body
@@ -250,7 +252,9 @@ async def _synthesize_edge(text: str, config: VoiceConfig) -> Path:
     tmp.close()
     output_path = Path(tmp.name)
 
-    communicate = edge_tts.Communicate(text, voice)
+    rate = f"{(config.tts_speed - 1.0) * 100:+.0f}%" if config.tts_speed != 1.0 else "+0%"
+    pitch = f"{config.tts_pitch:+.0f}Hz" if config.tts_pitch != 0.0 else "+0Hz"
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
 
     file_size = output_path.stat().st_size
@@ -324,7 +328,9 @@ async def _stream_edge(text: str, config: VoiceConfig) -> AsyncGenerator[bytes]:
     import edge_tts
 
     voice = config.tts_voice or _DEFAULT_VOICES["edge"]
-    communicate = edge_tts.Communicate(text, voice)
+    rate = f"{(config.tts_speed - 1.0) * 100:+.0f}%" if config.tts_speed != 1.0 else "+0%"
+    pitch = f"{config.tts_pitch:+.0f}Hz" if config.tts_pitch != 0.0 else "+0Hz"
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
     async for event in communicate.stream():
         if event["type"] == "audio":
             yield event["data"]

@@ -585,6 +585,8 @@ class VoiceConfig:
     tts_api_key: str = ""
     tts_base_url: str = ""
     tts_voice: str = ""
+    tts_speed: float = 1.0
+    tts_pitch: float = 0.0
     tts_max_length: int = 4000
 
     tts_summary_enabled: bool = True

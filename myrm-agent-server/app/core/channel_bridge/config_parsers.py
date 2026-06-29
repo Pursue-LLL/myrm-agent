@@ -127,6 +127,8 @@ def extract_voice_config(voice_dict: dict[str, object] | None) -> "VoiceConfig |
         tts_api_key=str(voice_dict.get("ttsApiKey", "")),
         tts_base_url=str(voice_dict.get("ttsBaseUrl", "")),
         tts_voice=str(voice_dict.get("ttsVoice", "")),
+        tts_speed=float(voice_dict.get("ttsSpeed", 1.0)),
+        tts_pitch=float(voice_dict.get("ttsPitch", 0.0)),
         tts_max_length=_int_setting(voice_dict.get("ttsMaxLength", 4000), 4000),
         tts_summary_enabled=bool(voice_dict.get("ttsSummaryEnabled", True)),
         tts_summary_threshold=_int_setting(voice_dict.get("ttsSummaryThreshold", 1500), 1500),

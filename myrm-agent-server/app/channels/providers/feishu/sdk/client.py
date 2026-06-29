@@ -152,12 +152,13 @@ class FeishuClient(FeishuMessagingMixin, FeishuDocumentsMixin):
             return False
 
     async def download_url(self, url: str, *, timeout: float = 30.0) -> bytes | None:
-        """Download arbitrary URL content."""
-        http = self._get_http()
+        """Download arbitrary URL content with SSRF protection."""
         try:
-            resp = await http.get(url, timeout=timeout)
-            resp.raise_for_status()
-            return resp.content
+            from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+
+            response = await secure_get(url, timeout=timeout)
+            response.raise_for_status()
+            return response.content
         except Exception:
             logger.warning("Failed to download URL: %s", url)
             return None

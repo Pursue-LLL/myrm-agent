@@ -11,6 +11,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import SettingsSection from '../../SettingsSection';
+import TemperatureSlider from '../../default-model/TemperatureSlider';
 
 interface VoiceFormState {
   sttEnabled: boolean;
@@ -27,6 +28,8 @@ interface VoiceFormState {
   ttsApiKey: string;
   ttsBaseUrl: string;
   ttsVoice: string;
+  ttsSpeed: number;
+  ttsPitch: number;
   ttsMaxLength: number;
   ttsSummaryEnabled: boolean;
   ttsSummaryThreshold: number;
@@ -48,6 +51,8 @@ const DEFAULT_STATE: VoiceFormState = {
   ttsApiKey: '',
   ttsBaseUrl: '',
   ttsVoice: '',
+  ttsSpeed: 1.0,
+  ttsPitch: 0,
   ttsMaxLength: 4000,
   ttsSummaryEnabled: true,
   ttsSummaryThreshold: 1500,
@@ -346,6 +351,30 @@ const VoiceSection = memo(() => {
                   onChange={(e) => update({ ttsVoice: e.target.value })}
                 />
               </FieldRow>
+
+              <TemperatureSlider
+                value={form.ttsSpeed}
+                onChange={(v) => update({ ttsSpeed: v })}
+                min={0.5}
+                max={2.0}
+                step={0.1}
+                label={t('ttsSpeed')}
+                minLabel={t('ttsSpeedSlow')}
+                maxLabel={t('ttsSpeedFast')}
+                hint={t('ttsSpeedHint')}
+              />
+
+              <TemperatureSlider
+                value={form.ttsPitch}
+                onChange={(v) => update({ ttsPitch: v })}
+                min={-10}
+                max={10}
+                step={1}
+                label={t('ttsPitch')}
+                minLabel={t('ttsPitchLow')}
+                maxLabel={t('ttsPitchHigh')}
+                hint={t('ttsPitchHint')}
+              />
 
               <FieldRow label={t('ttsMaxLength')}>
                 <Input

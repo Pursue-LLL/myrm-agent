@@ -35,6 +35,8 @@ class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=_MAX_TEXT_LENGTH)
     provider: str | None = Field(None, description="Override TTS provider")
     voice: str | None = Field(None, description="Override voice ID")
+    speed: float | None = Field(None, ge=0.5, le=2.0, description="Override speech speed")
+    pitch: float | None = Field(None, ge=-10.0, le=10.0, description="Override pitch in Hz")
 
 
 @router.post("/synthesize")
@@ -120,7 +122,16 @@ async def _resolve_voice_config(user_id: str, req: TTSRequest) -> VoiceConfig:
     if req.provider:
         if req.provider not in _VALID_PROVIDERS:
             raise HTTPException(status_code=400, detail=f"Invalid provider: {req.provider}")
-        voice_config = _override_config(voice_config, provider=req.provider, voice=req.voice)
+
+    has_overrides = req.provider or req.voice or req.speed is not None or req.pitch is not None
+    if has_overrides:
+        voice_config = _override_config(
+            voice_config,
+            provider=req.provider,
+            voice=req.voice,
+            speed=req.speed,
+            pitch=req.pitch,
+        )
 
     return voice_config
 
@@ -130,8 +141,10 @@ def _override_config(
     *,
     provider: str | None = None,
     voice: str | None = None,
+    speed: float | None = None,
+    pitch: float | None = None,
 ) -> VoiceConfig:
-    """Create a new VoiceConfig with overridden provider/voice (frozen dataclass)."""
+    """Create a new VoiceConfig with overridden fields (frozen dataclass)."""
     from dataclasses import asdict
 
     from app.channels.types import VoiceConfig
@@ -141,6 +154,10 @@ def _override_config(
         fields["tts_provider"] = provider
     if voice:
         fields["tts_voice"] = voice
+    if speed is not None:
+        fields["tts_speed"] = speed
+    if pitch is not None:
+        fields["tts_pitch"] = pitch
     return VoiceConfig(**fields)
 
 

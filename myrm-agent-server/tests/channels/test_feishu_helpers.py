@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -602,13 +602,19 @@ class TestFeishuClient:
         resp.status_code = 200
         resp.content = b"img_data"
         resp.raise_for_status = MagicMock()
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
-        mock_http.get.return_value = resp
-        client._http = mock_http
 
-        result = await client.download_url("https://example.com/img.png")
+        with patch(
+            "myrm_agent_harness.core.security.http.secure_fetch.secure_get",
+            new_callable=AsyncMock,
+        ) as mock_secure_get:
+            mock_secure_get.return_value = resp
+            result = await client.download_url("https://example.com/img.png")
+
         assert result == b"img_data"
+        mock_secure_get.assert_awaited_once_with(
+            "https://example.com/img.png",
+            timeout=30.0,
+        )
 
     @pytest.mark.asyncio
     async def test_download_url_failure(self) -> None:
@@ -616,16 +622,17 @@ class TestFeishuClient:
         client._token = "tok"
         client._token_expires_at = float("inf")
 
-        mock_http = AsyncMock(spec=httpx.AsyncClient)
-        mock_http.is_closed = False
-        mock_http.get.side_effect = httpx.HTTPStatusError(
-            "404",
-            request=MagicMock(),
-            response=MagicMock(status_code=404),
-        )
-        client._http = mock_http
+        with patch(
+            "myrm_agent_harness.core.security.http.secure_fetch.secure_get",
+            new_callable=AsyncMock,
+        ) as mock_secure_get:
+            mock_secure_get.side_effect = httpx.HTTPStatusError(
+                "404",
+                request=MagicMock(),
+                response=MagicMock(status_code=404),
+            )
+            result = await client.download_url("https://example.com/missing.png")
 
-        result = await client.download_url("https://example.com/missing.png")
         assert result is None
 
     @pytest.mark.asyncio
