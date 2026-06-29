@@ -5850,6 +5850,7 @@
       "description": "{count, plural, =1 {1개의 새 메모리} other {#개의 새 메모리}}가 검토를 기다리고 있습니다"
     },
     "disabled": "Disabled",
+    "locked": "자동 수정으로부터 보호됨",
     "enable": "Enable",
     "disable": "Disable",
     "chatFromMemory": "Chat about this",
@@ -6837,6 +6838,7 @@
     "description": "이 답변에서 조회된 메모리입니다. 개인 또는 공유 컨텍스트가 답변에 어떤 영향을 줬는지 확인할 수 있습니다.",
     "score": "{score}% 일치",
     "unavailableContent": "이전 메시지라 메모리 상세 정보를 사용할 수 없습니다. 감사용으로 메모리 ID를 표시합니다.",
+    "viewSourceChat": "원본 대화에서 보기",
     "types": {
       "semantic": "지식",
       "episodic": "이벤트",
@@ -9516,6 +9518,16 @@
       }
     },
     "paletteTheme": "Theme Palette",
+    "tabs": {
+      "settings": "설정",
+      "gallery": "펫 도감"
+    },
+    "gallery": {
+      "loading": "펫을 불러오는 중...",
+      "error": "펫 도감을 불러오지 못했습니다",
+      "searchPlaceholder": "펫 검색...",
+      "count": "{count}마리의 펫"
+    },
     "sprite": {
       "contextTitle": "펫 스프라이트",
       "size": "크기",

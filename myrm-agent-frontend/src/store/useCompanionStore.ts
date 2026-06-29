@@ -232,16 +232,30 @@ const useCompanionStore = create<CompanionStore>()(
         try {
           const { apiRequest } = await import('@/lib/api');
           const data = await apiRequest<{
-            value: { name: string | null; species: Species | null; hat: Hat | null; palette_theme: string | null };
+            value: {
+              name: string | null;
+              species: Species | null;
+              hat: Hat | null;
+              palette_theme: string | null;
+              sprite: { sheet_url: string; name?: string | null } | null;
+            };
           }>('/companion/config');
           if (data && data.value) {
-            set({
+            const patch: Partial<CompanionState> = {
               nameOverride: data.value.name,
               speciesOverride: data.value.species,
               hatOverride:
                 data.value.hat === null ? null : data.value.hat === undefined ? undefined : (data.value.hat as Hat),
               paletteThemeOverride: data.value.palette_theme,
-            });
+            };
+            if (data.value.sprite?.sheet_url) {
+              patch.spriteConfig = {
+                sheetUrl: data.value.sprite.sheet_url,
+                name: data.value.sprite.name ?? undefined,
+              };
+              patch.spriteEnabled = true;
+            }
+            set(patch);
           }
         } catch (e) {
           console.warn('Failed to load companion config from server:', e);
@@ -263,6 +277,9 @@ const useCompanionStore = create<CompanionStore>()(
                 species: state.speciesOverride,
                 hat: state.hatOverride,
                 palette_theme: state.paletteThemeOverride,
+                sprite: state.spriteConfig
+                  ? { sheet_url: state.spriteConfig.sheetUrl, name: state.spriteConfig.name ?? null }
+                  : null,
               },
               deviceId: 'default_device',
             }),

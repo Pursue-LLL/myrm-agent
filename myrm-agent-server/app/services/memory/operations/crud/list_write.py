@@ -194,8 +194,15 @@ async def update_memory(
         )
 
     try:
+        lock_on_edit = mem_type == MemoryType.PROCEDURAL and body.content is not None
         updated = await manager.update_memory(
-            memory_id, content=body.content, importance=body.importance, reasoning=body.reasoning, application=body.application, tags=body.tags
+            memory_id,
+            content=body.content,
+            importance=body.importance,
+            reasoning=body.reasoning,
+            application=body.application,
+            tags=body.tags,
+            is_user_locked=True if lock_on_edit else None,
         )
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,

@@ -14,8 +14,11 @@ import useCompanionStore from '@/store/useCompanionStore';
 import { generateCompanion, HATS, SPECIES } from './companionGenerator';
 import { SPECIES_ICON_MAP, HAT_ICON_MAP } from './CompanionIcons';
 import { getSpeciesAsset } from './companionAssets';
+import PetGallery from './PetGallery';
 
 import type { Hat, Species } from './companionGenerator';
+
+type SettingsTab = 'settings' | 'gallery';
 
 interface CompanionSettingsProps {
   open: boolean;
@@ -106,6 +109,7 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
     setSpriteConfig,
   } = useCompanionStore();
 
+  const [tab, setTab] = useState<SettingsTab>('settings');
   const [sheetUrlInput, setSheetUrlInput] = useState(spriteConfig?.sheetUrl ?? '');
 
   const handleApplySheet = useCallback(() => {
@@ -140,140 +144,163 @@ export default function CompanionSettings({ open, onOpenChange }: CompanionSetti
           <DialogTitle>{t('settings')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t('enable')}</Label>
-              <p className="text-xs text-muted-foreground">{t('enableDesc')}</p>
-            </div>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
-          </div>
+        {/* Tab Switcher */}
+        <div className="flex gap-1 rounded-lg bg-muted p-0.5">
+          {(['settings', 'gallery'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={cn(
+                'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                tab === key
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t(`tabs.${key}`)}
+            </button>
+          ))}
+        </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>{t('mute')}</Label>
-              <p className="text-xs text-muted-foreground">{t('muteDesc')}</p>
-            </div>
-            <Switch checked={muted} onCheckedChange={setMuted} disabled={!enabled} />
-          </div>
-
-          <div className="space-y-1">
-            <Label>{t('rename')}</Label>
-            <Input
-              value={currentName}
-              onChange={(e) => setNameOverride(e.target.value || null)}
-              placeholder={t('renamePlaceholder')}
-              maxLength={16}
-              disabled={!enabled}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t('species')}</Label>
-            <div className="flex flex-wrap gap-1">
-              {SPECIES.map((s) => (
-                <SpeciesPickerItem
-                  key={s}
-                  species={s}
-                  isSelected={currentSpecies === s}
-                  disabled={!enabled}
-                  onClick={() => setSpeciesOverride(s === bones.species ? null : (s as Species))}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t('hat')}</Label>
-            <div className="flex flex-wrap gap-1">
-              <button
-                type="button"
-                onClick={() => setHatOverride(undefined)}
-                className={cn(
-                  'rounded-full px-2.5 py-1 text-xs transition-all',
-                  hatOverride === undefined
-                    ? 'bg-primary/15 ring-1 ring-primary text-primary'
-                    : 'hover:bg-muted text-muted-foreground',
-                )}
-                disabled={!enabled}
-              >
-                {t('defaultHat')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setHatOverride(null)}
-                className={cn(
-                  'rounded-full px-2.5 py-1 text-xs transition-all',
-                  currentHat === null && hatOverride !== undefined
-                    ? 'bg-primary/15 ring-1 ring-primary text-primary'
-                    : 'hover:bg-muted text-muted-foreground',
-                )}
-                disabled={!enabled}
-              >
-                {t('noHat')}
-              </button>
-              {HATS.map((h) => (
-                <HatPickerItem
-                  key={h}
-                  hatEmoji={h}
-                  isSelected={currentHat === h}
-                  disabled={!enabled}
-                  onClick={() => setHatOverride(h as Hat)}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Sprite Overlay Section */}
-          <div className="border-t border-border pt-4 space-y-3">
+        {tab === 'settings' ? (
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>{t('sprite.enableLabel')}</Label>
-                <p className="text-xs text-muted-foreground">{t('sprite.enableDesc')}</p>
+                <Label>{t('enable')}</Label>
+                <p className="text-xs text-muted-foreground">{t('enableDesc')}</p>
               </div>
-              <Switch
-                checked={spriteEnabled}
-                onCheckedChange={setSpriteEnabled}
-                disabled={!enabled || !spriteConfig?.sheetUrl}
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>{t('mute')}</Label>
+                <p className="text-xs text-muted-foreground">{t('muteDesc')}</p>
+              </div>
+              <Switch checked={muted} onCheckedChange={setMuted} disabled={!enabled} />
+            </div>
+
+            <div className="space-y-1">
+              <Label>{t('rename')}</Label>
+              <Input
+                value={currentName}
+                onChange={(e) => setNameOverride(e.target.value || null)}
+                placeholder={t('renamePlaceholder')}
+                maxLength={16}
+                disabled={!enabled}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>{t('sprite.sheetUrl')}</Label>
-              <div className="flex gap-1.5">
-                <Input
-                  value={sheetUrlInput}
-                  onChange={(e) => setSheetUrlInput(e.target.value)}
-                  placeholder={t('sprite.sheetUrlPlaceholder')}
-                  disabled={!enabled}
-                  className="text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={handleApplySheet}
-                  disabled={!enabled || !sheetUrlInput.trim()}
-                  className={cn(
-                    'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                    'bg-primary text-primary-foreground hover:bg-primary/90',
-                    (!enabled || !sheetUrlInput.trim()) && 'opacity-50 cursor-not-allowed',
-                  )}
-                >
-                  {t('sprite.apply')}
-                </button>
+              <Label>{t('species')}</Label>
+              <div className="flex flex-wrap gap-1">
+                {SPECIES.map((s) => (
+                  <SpeciesPickerItem
+                    key={s}
+                    species={s}
+                    isSelected={currentSpecies === s}
+                    disabled={!enabled}
+                    onClick={() => setSpeciesOverride(s === bones.species ? null : (s as Species))}
+                  />
+                ))}
               </div>
-              <p className="text-[10px] text-muted-foreground">{t('sprite.codexHint')}</p>
-              {spriteConfig?.sheetUrl && (
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t('hat')}</Label>
+              <div className="flex flex-wrap gap-1">
                 <button
                   type="button"
-                  onClick={handleClearSheet}
-                  className="text-xs text-destructive hover:underline"
+                  onClick={() => setHatOverride(undefined)}
+                  className={cn(
+                    'rounded-full px-2.5 py-1 text-xs transition-all',
+                    hatOverride === undefined
+                      ? 'bg-primary/15 ring-1 ring-primary text-primary'
+                      : 'hover:bg-muted text-muted-foreground',
+                  )}
+                  disabled={!enabled}
                 >
-                  {t('sprite.clear')}
+                  {t('defaultHat')}
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setHatOverride(null)}
+                  className={cn(
+                    'rounded-full px-2.5 py-1 text-xs transition-all',
+                    currentHat === null && hatOverride !== undefined
+                      ? 'bg-primary/15 ring-1 ring-primary text-primary'
+                      : 'hover:bg-muted text-muted-foreground',
+                  )}
+                  disabled={!enabled}
+                >
+                  {t('noHat')}
+                </button>
+                {HATS.map((h) => (
+                  <HatPickerItem
+                    key={h}
+                    hatEmoji={h}
+                    isSelected={currentHat === h}
+                    disabled={!enabled}
+                    onClick={() => setHatOverride(h as Hat)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Sprite Overlay Section */}
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>{t('sprite.enableLabel')}</Label>
+                  <p className="text-xs text-muted-foreground">{t('sprite.enableDesc')}</p>
+                </div>
+                <Switch
+                  checked={spriteEnabled}
+                  onCheckedChange={setSpriteEnabled}
+                  disabled={!enabled || !spriteConfig?.sheetUrl}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>{t('sprite.sheetUrl')}</Label>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={sheetUrlInput}
+                    onChange={(e) => setSheetUrlInput(e.target.value)}
+                    placeholder={t('sprite.sheetUrlPlaceholder')}
+                    disabled={!enabled}
+                    className="text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplySheet}
+                    disabled={!enabled || !sheetUrlInput.trim()}
+                    className={cn(
+                      'shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                      'bg-primary text-primary-foreground hover:bg-primary/90',
+                      (!enabled || !sheetUrlInput.trim()) && 'opacity-50 cursor-not-allowed',
+                    )}
+                  >
+                    {t('sprite.apply')}
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">{t('sprite.codexHint')}</p>
+                {spriteConfig?.sheetUrl && (
+                  <button
+                    type="button"
+                    onClick={handleClearSheet}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    {t('sprite.clear')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <PetGallery />
+        )}
       </DialogContent>
     </Dialog>
   );

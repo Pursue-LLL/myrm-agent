@@ -6181,6 +6181,7 @@
       "task_digest": "任务摘要"
     },
     "disabled": "已禁用",
+    "locked": "已锁定，不受自动修改影响",
     "enable": "启用",
     "disable": "禁用",
     "chatFromMemory": "围绕此记忆对话",
@@ -7442,6 +7443,7 @@
     "description": "本回答召回过的记忆。可用来核对哪些个人上下文或共享上下文影响了回答。",
     "score": "{score}% 匹配",
     "unavailableContent": "这条旧消息暂无记忆详情，仍显示记忆 ID 便于审计。",
+    "viewSourceChat": "查看原始会话",
     "types": {
       "semantic": "知识",
       "episodic": "事件",
@@ -10179,6 +10181,16 @@
           }
         }
       }
+    },
+    "tabs": {
+      "settings": "设置",
+      "gallery": "宠物图鉴"
+    },
+    "gallery": {
+      "loading": "加载宠物中...",
+      "error": "加载宠物图鉴失败",
+      "searchPlaceholder": "搜索宠物...",
+      "count": "{count} 只宠物"
     },
     "sprite": {
       "contextTitle": "宠物精灵",

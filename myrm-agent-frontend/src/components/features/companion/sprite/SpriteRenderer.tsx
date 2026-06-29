@@ -21,6 +21,8 @@ interface SpriteRendererProps {
   className?: string;
   /** Called when load state changes. */
   onLoadStateChange?: (state: SpriteLoadState) => void;
+  /** Called with detected grid rows after sheet loads (for dynamic row mapping). */
+  onSheetRowsDetected?: (rows: number) => void;
 }
 
 /**
@@ -43,6 +45,7 @@ export default function SpriteRenderer({
   meta,
   className,
   onLoadStateChange,
+  onSheetRowsDetected,
 }: SpriteRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SpriteEngine | null>(null);
@@ -80,10 +83,12 @@ export default function SpriteRenderer({
     const engine = engineRef.current;
     if (!engine || !sheetUrl) return;
 
-    engine.loadSheet(sheetUrl).then(() => engine.play()).catch(() => {
-      // error state already set by engine
-    });
-  }, [sheetUrl]);
+    engine.loadSheet(sheetUrl).then(() => {
+      engine.play();
+      const { rows: detectedRows } = engine.getEffectiveDimensions();
+      onSheetRowsDetected?.(detectedRows);
+    }).catch(() => {});
+  }, [sheetUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update row when prop changes
   useEffect(() => {

@@ -25,6 +25,7 @@ import useChatStore from '@/store/useChatStore';
 import useCompanionStore from '@/store/useCompanionStore';
 
 import { AnimRow, PetStateMachine, stepKeyToPetEvent } from './PetStateMachine';
+import { resolveAnimRow } from './petStateMapping';
 import SpriteRenderer from './SpriteRenderer';
 import { isTauriEnv, showPetOverlay, hidePetOverlay, setPetOverlayRow } from './tauriPetBridge';
 
@@ -109,6 +110,7 @@ const PetOverlay = memo(function PetOverlay() {
     return stored.x < 0 ? defaultPosition(getStoredSize()) : stored;
   });
   const [animRow, setAnimRow] = useState(AnimRow.IDLE);
+  const [sheetRows, setSheetRows] = useState(9);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -254,6 +256,12 @@ const PetOverlay = memo(function PetOverlay() {
     setContextMenu((prev) => ({ ...prev, visible: false }));
   }, [petSize]);
 
+  const resolvedRow = resolveAnimRow(animRow, sheetRows);
+
+  const handleSheetRowsDetected = useCallback((rows: number) => {
+    setSheetRows(rows);
+  }, []);
+
   const handleSpriteLoadState = useCallback((state: SpriteLoadState) => {
     if (state === 'error') {
       setAnimRow(AnimRow.IDLE);
@@ -275,15 +283,15 @@ const PetOverlay = memo(function PetOverlay() {
   useEffect(() => {
     if (!isTauri || !spriteEnabled || !spriteConfig?.sheetUrl) return;
 
-    showPetOverlay(spriteConfig.sheetUrl, petSize, animRow);
+    showPetOverlay(spriteConfig.sheetUrl, petSize, resolvedRow);
     return () => { hidePetOverlay(); };
   }, [isTauri, spriteEnabled, spriteConfig?.sheetUrl, petSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tauri: sync animation row changes to native overlay
   useEffect(() => {
     if (!isTauri || !spriteEnabled) return;
-    setPetOverlayRow(animRow);
-  }, [isTauri, spriteEnabled, animRow]);
+    setPetOverlayRow(resolvedRow);
+  }, [isTauri, spriteEnabled, resolvedRow]);
 
   if (!spriteEnabled || !spriteConfig?.sheetUrl) return null;
 
@@ -313,10 +321,11 @@ const PetOverlay = memo(function PetOverlay() {
       >
         <SpriteRenderer
           sheetUrl={spriteConfig.sheetUrl}
-          row={animRow}
+          row={resolvedRow}
           size={petSize}
           meta={spriteConfig.meta}
           onLoadStateChange={handleSpriteLoadState}
+          onSheetRowsDetected={handleSheetRowsDetected}
         />
       </div>
 

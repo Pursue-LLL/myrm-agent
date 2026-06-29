@@ -5850,6 +5850,7 @@
       "description": "{count, plural, =1 {1件の新しいメモリ} other {#件の新しいメモリ}}がレビュー待ちです"
     },
     "disabled": "Disabled",
+    "locked": "自動変更からロック済み",
     "enable": "Enable",
     "disable": "Disable",
     "chatFromMemory": "Chat about this",
@@ -6837,6 +6838,7 @@
     "description": "この回答で呼び出された記憶です。個人コンテキストまたは共有コンテキストが回答にどう影響したか確認できます。",
     "score": "{score}% 一致",
     "unavailableContent": "この古いメッセージでは記憶の詳細を利用できません。監査用に記憶 ID を表示しています。",
+    "viewSourceChat": "元の会話で確認",
     "types": {
       "semantic": "知識",
       "episodic": "イベント",
@@ -9516,6 +9518,16 @@
       }
     },
     "paletteTheme": "Theme Palette",
+    "tabs": {
+      "settings": "設定",
+      "gallery": "ペット図鑑"
+    },
+    "gallery": {
+      "loading": "ペットを読み込み中...",
+      "error": "ペット図鑑の読み込みに失敗しました",
+      "searchPlaceholder": "ペットを検索...",
+      "count": "{count} 匹のペット"
+    },
     "sprite": {
       "contextTitle": "ペットスプライト",
       "size": "サイズ",

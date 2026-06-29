@@ -6181,6 +6181,7 @@
       "task_digest": "Task Summary"
     },
     "disabled": "Disabled",
+    "locked": "Protected from auto-modification",
     "enable": "Enable",
     "disable": "Disable",
     "chatFromMemory": "Chat about this",
@@ -7442,6 +7443,7 @@
     "description": "Memories recalled for this answer. Use them to verify which personal or shared context influenced the response.",
     "score": "{score}% match",
     "unavailableContent": "Memory details are unavailable for this older message. The memory ID is still shown for audit.",
+    "viewSourceChat": "View in original chat",
     "types": {
       "semantic": "Knowledge",
       "episodic": "Event",
@@ -10179,6 +10181,16 @@
           }
         }
       }
+    },
+    "tabs": {
+      "settings": "Settings",
+      "gallery": "Pet Gallery"
+    },
+    "gallery": {
+      "loading": "Loading pets...",
+      "error": "Failed to load pet gallery",
+      "searchPlaceholder": "Search pets...",
+      "count": "{count} pets"
     },
     "sprite": {
       "contextTitle": "Pet Sprite",

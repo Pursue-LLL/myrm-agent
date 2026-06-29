@@ -211,11 +211,17 @@ async def get_evolution_status(
     )
 
 
+class SpriteConfigValue(BaseModel):
+    sheet_url: str
+    name: str | None = None
+
+
 class CompanionConfigValue(BaseModel):
     name: str | None = None
     species: str | None = None
     hat: str | None = None
     palette_theme: str | None = None
+    sprite: SpriteConfigValue | None = None
 
 
 class CompanionConfigResponse(BaseModel):
@@ -238,12 +244,15 @@ async def get_companion_config() -> CompanionConfigResponse:
         return CompanionConfigResponse(value=CompanionConfigValue())
 
     val = record.value
+    sprite_raw = val.get("sprite")
+    sprite_val = SpriteConfigValue(**sprite_raw) if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") else None
     return CompanionConfigResponse(
         value=CompanionConfigValue(
             name=val.get("name"),
             species=val.get("species"),
             hat=val.get("hat"),
             palette_theme=val.get("palette_theme"),
+            sprite=sprite_val,
         ),
         version=record.version,
     )
@@ -256,23 +265,27 @@ async def set_companion_config(
     """Set and persist the companion customization config."""
     from app.services.config.service import config_service
 
-    value_dict = {
+    value_dict: dict[str, object] = {
         "name": req.value.name,
         "species": req.value.species,
         "hat": req.value.hat,
         "palette_theme": req.value.palette_theme,
+        "sprite": req.value.sprite.model_dump() if req.value.sprite else None,
     }
     record = await config_service.set(
         config_key="companion_config",
         value=value_dict,
         device_id=req.device_id,
     )
+    sprite_raw = record.value.get("sprite")
+    sprite_val = SpriteConfigValue(**sprite_raw) if isinstance(sprite_raw, dict) and sprite_raw.get("sheet_url") else None
     return CompanionConfigResponse(
         value=CompanionConfigValue(
             name=record.value.get("name"),
             species=record.value.get("species"),
             hat=record.value.get("hat"),
             palette_theme=record.value.get("palette_theme"),
+            sprite=sprite_val,
         ),
         version=record.version,
     )

@@ -5850,6 +5850,7 @@
       "description": "{count, plural, =1 {1 neue Erinnerung} other {# neue Erinnerungen}} warten auf Ihre Überprüfung"
     },
     "disabled": "Disabled",
+    "locked": "Vor automatischen Änderungen geschützt",
     "enable": "Enable",
     "disable": "Disable",
     "chatFromMemory": "Chat about this",
@@ -6837,6 +6838,7 @@
     "description": "Speicher, die für diese Antwort abgerufen wurden. So ist nachvollziehbar, welcher persönliche oder gemeinsame Kontext die Antwort beeinflusst hat.",
     "score": "{score}% Treffer",
     "unavailableContent": "Für diese ältere Nachricht sind keine Speicherdetails verfügbar. Die Speicher-ID bleibt zur Prüfung sichtbar.",
+    "viewSourceChat": "Im Originalchat anzeigen",
     "types": {
       "semantic": "Wissen",
       "episodic": "Ereignis",
@@ -9516,6 +9518,16 @@
       }
     },
     "paletteTheme": "Theme Palette",
+    "tabs": {
+      "settings": "Einstellungen",
+      "gallery": "Haustier-Galerie"
+    },
+    "gallery": {
+      "loading": "Haustiere werden geladen...",
+      "error": "Haustier-Galerie konnte nicht geladen werden",
+      "searchPlaceholder": "Haustiere suchen...",
+      "count": "{count} Haustiere"
+    },
     "sprite": {
       "contextTitle": "Haustier-Sprite",
       "size": "Größe",

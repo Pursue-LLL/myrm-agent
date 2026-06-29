@@ -105,6 +105,8 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
             base["tool_name"] = memory.tool_name
         if memory.tool_rule_priority:
             base["tool_rule_priority"] = memory.tool_rule_priority.value
+        if memory.is_user_locked:
+            base["is_user_locked"] = True
     elif memory_type == MemoryType.EPISODIC and isinstance(memory, EpisodicMemory):
         base["event_type"] = memory.event_type
         base["related_entities"] = memory.related_entities or []

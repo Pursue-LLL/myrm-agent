@@ -14,6 +14,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import { MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -70,6 +72,7 @@ const uniqueReferences = (
 
 export default function MemoryCitationsButton({ memoryIds, references }: MemoryCitationsButtonProps) {
   const t = useTranslations('memoryCitations');
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [contextsById, setContextsById] = useState<Map<string, SharedContext>>(new Map());
   const citationRefs = useMemo(() => uniqueReferences(memoryIds, references), [memoryIds, references]);
@@ -131,6 +134,11 @@ export default function MemoryCitationsButton({ memoryIds, references }: MemoryC
               index={index + 1}
               reference={ref}
               namespace={namespaceLabel(ref, contextsById)}
+              onNavigate={(chatId, messageId) => {
+                setOpen(false);
+                const url = messageId ? `/${chatId}?highlight=${messageId}` : `/${chatId}`;
+                router.push(url);
+              }}
             />
           ))}
         </div>
@@ -143,10 +151,12 @@ function MemoryCitationItem({
   index,
   reference,
   namespace,
+  onNavigate,
 }: {
   index: number;
   reference: CitedMemoryReference;
   namespace: string | null;
+  onNavigate: (chatId: string, messageId?: string) => void;
 }) {
   const t = useTranslations('memoryCitations');
   const score = typeof reference.score === 'number' ? Math.round(reference.score * 100) : null;
@@ -185,6 +195,18 @@ function MemoryCitationItem({
           {shortId(reference.id)}
         </span>
       </div>
+
+      {reference.sourceChatId && (
+        <div className="mt-3 pt-3 border-t border-border/50">
+          <button
+            onClick={() => onNavigate(reference.sourceChatId!, reference.sourceMessageId)}
+            className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors"
+          >
+            <MessageSquare size={12} />
+            <span>{t('viewSourceChat')}</span>
+          </button>
+        </div>
+      )}
     </article>
   );
 }

@@ -17,6 +17,7 @@ import {
   MessageSquare,
   BookOpen,
   Clock,
+  Lock,
 } from 'lucide-react';
 import { Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -136,6 +137,9 @@ const MemoryCard = memo<MemoryCardProps>(
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                   {t('disabled')}
                 </span>
+              )}
+              {confirmed?.is_user_locked && (
+                <Lock size={12} className="text-amber-500" title={t('locked')} />
               )}
             </div>
 
