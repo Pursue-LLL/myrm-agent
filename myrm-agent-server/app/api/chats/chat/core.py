@@ -394,7 +394,6 @@ async def get_fission_topology(
 
         if not record:
             return success_response(data=None)
-
         data = {"fission_id": record.fission_id, "nodes": record.nodes, "total_cost_usd": record.total_cost_usd}
         return success_response(data=data)
     except Exception as e:
