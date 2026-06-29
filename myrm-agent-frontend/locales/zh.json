@@ -3807,6 +3807,16 @@
       "title": "关于",
       "slogan": "核心产品开源、强大、可扩展的 AI 助手平台",
       "version": "版本",
+      "update": {
+        "check": "检查更新",
+        "checking": "正在检查更新...",
+        "upToDate": "已是最新版本",
+        "available": "发现新版本 {version}",
+        "install": "下载并安装",
+        "downloading": "正在下载更新...",
+        "error": "检查更新失败",
+        "retry": "重试"
+      },
       "introduction": {
         "title": "项目简介",
         "description": "MyrmAgent 的核心产品（Server、Frontend、Desktop）采用 MIT 开源许可，致力于为用户提供强大、灵活且可扩展的智能对话体验。"

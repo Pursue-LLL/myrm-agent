@@ -4,10 +4,10 @@ import type { ChatItem } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale';
-import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks } from 'lucide-react';
+import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks, Search, X } from 'lucide-react';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { useCallback, useEffect, memo, useMemo, useRef } from 'react';
+import { useCallback, useEffect, memo, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -47,16 +47,22 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     chatHistoryLoading,
     chatHistoryError,
     chatHistorySourceFilter,
+    chatHistorySearchKeyword,
     chatHistoryAvailableSources,
     loadChatHistory,
     loadMoreChatHistory,
     setChatHistorySourceFilter,
+    setChatHistorySearchKeyword,
     chatId: activeChatId,
     loading: isActiveLoading,
     sessionStatuses,
   } = useChatStore();
 
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [localKeyword, setLocalKeyword] = useState(chatHistorySearchKeyword);
   const { activeFilter: projectFilter } = useProjectStore();
   const actions = useChatActions(chatHistoryItems, t);
   const batch = useBatchMode(chatHistoryItems, t);
@@ -129,6 +135,33 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
         locale,
       });
   }, []);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setLocalKeyword(value);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        setChatHistorySearchKeyword(value);
+      }, 300);
+    },
+    [setChatHistorySearchKeyword],
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setLocalKeyword('');
+    setChatHistorySearchKeyword('');
+    setShowSearch(false);
+  }, [setChatHistorySearchKeyword]);
+
+  const handleToggleSearch = useCallback(() => {
+    const next = !showSearch;
+    setShowSearch(next);
+    if (next) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    } else if (localKeyword) {
+      handleClearSearch();
+    }
+  }, [showSearch, localKeyword, handleClearSearch]);
 
   const showSourceFilter = chatHistoryAvailableSources.length > 1 || chatHistorySourceFilter !== null;
 
@@ -220,16 +253,58 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
         ) : (
           <div />
         )}
-        {!batch.batchMode && unpinnedChats.length > 1 && (
+        <div className="flex items-center gap-0.5">
           <button
-            onClick={batch.handleEnterBatchMode}
-            className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-            title={t('chat.batch.enter')}
+            onClick={handleToggleSearch}
+            className={cn(
+              'p-1 rounded transition-colors',
+              showSearch || chatHistorySearchKeyword
+                ? 'bg-primary/15 text-primary'
+                : 'hover:bg-black/5 dark:hover:bg-white/5',
+            )}
+            title={t('common.search')}
           >
-            <ListChecks size={14} className="text-muted-foreground" />
+            <Search size={14} className="text-muted-foreground" />
           </button>
-        )}
+          {!batch.batchMode && unpinnedChats.length > 1 && (
+            <button
+              onClick={batch.handleEnterBatchMode}
+              className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              title={t('chat.batch.enter')}
+            >
+              <ListChecks size={14} className="text-muted-foreground" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {showSearch && (
+        <div className="px-2 pb-1">
+          <div className="relative">
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={localKeyword}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') handleClearSearch(); }}
+              placeholder={t('common.search')}
+              className={cn(
+                'w-full pl-7 pr-7 py-1.5 text-xs rounded-md border border-border bg-background',
+                'placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30',
+              )}
+            />
+            {localKeyword && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <X size={12} className="text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <ProjectBar isMobile={isMobile} />
 

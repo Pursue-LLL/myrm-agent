@@ -117,6 +117,7 @@ class BoundChatRepository:
         source: str | None = None,
         project_id: str | None = None,
         unassigned: bool = False,
+        keyword: str | None = None,
     ) -> tuple[list[ChatDTO], int]:
         return await ChatRepository.get_chats_paginated(
             self.session,
@@ -125,6 +126,7 @@ class BoundChatRepository:
             source=source,
             project_id=project_id,
             unassigned=unassigned,
+            keyword=keyword,
         )
 
     async def get_chat_by_id(self, chat_id: str, load_messages: bool = False) -> ChatDTO | None:

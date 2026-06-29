@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconGlobe,
@@ -13,11 +13,12 @@ import {
   IconBriefcase,
   IconClock,
 } from '@/components/features/icons/PremiumIcons';
-import { Users } from 'lucide-react';
+import { Users, Download, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
+import { Button } from '@/components/primitives/button';
 
 interface FeatureCardProps {
   icon: React.ElementType;
@@ -111,9 +112,14 @@ ChangelogItem.displayName = 'ChangelogItem';
 
 const FALLBACK_VERSION = '0.1.0';
 
+type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'up-to-date' | 'error';
+
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
   const [version, setVersion] = useState(FALLBACK_VERSION);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -121,6 +127,43 @@ const AboutSection = memo(() => {
       .then((mod) => mod.getVersion())
       .then((v) => setVersion(v))
       .catch(() => {});
+  }, []);
+
+  const handleCheckUpdate = useCallback(async () => {
+    if (!isTauriRuntime()) return;
+    setUpdateStatus('checking');
+    setUpdateError(null);
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        setUpdateVersion(update.version);
+        setUpdateStatus('available');
+      } else {
+        setUpdateStatus('up-to-date');
+      }
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : String(err));
+      setUpdateStatus('error');
+    }
+  }, []);
+
+  const handleInstallUpdate = useCallback(async () => {
+    if (!isTauriRuntime()) return;
+    setUpdateStatus('downloading');
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        await update.downloadAndInstall();
+        setUpdateStatus('ready');
+        const { relaunch } = await import('@tauri-apps/plugin-process');
+        await relaunch();
+      }
+    } catch (err) {
+      setUpdateError(err instanceof Error ? err.message : String(err));
+      setUpdateStatus('error');
+    }
   }, []);
 
   return (
@@ -139,6 +182,58 @@ const AboutSection = memo(() => {
                 {t('version')} <span className="text-accent-warm font-medium">{version}</span>
               </span>
             </div>
+
+            {isTauriRuntime() && (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                {updateStatus === 'idle' && (
+                  <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5">
+                    <Download className="w-3.5 h-3.5" />
+                    {t('update.check')}
+                  </Button>
+                )}
+                {updateStatus === 'checking' && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {t('update.checking')}
+                  </div>
+                )}
+                {updateStatus === 'up-to-date' && (
+                  <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {t('update.upToDate')}
+                  </div>
+                )}
+                {updateStatus === 'available' && (
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-xs text-primary font-medium">
+                      {t('update.available', { version: updateVersion })}
+                    </p>
+                    <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
+                      <Download className="w-3.5 h-3.5" />
+                      {t('update.install')}
+                    </Button>
+                  </div>
+                )}
+                {updateStatus === 'downloading' && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    {t('update.downloading')}
+                  </div>
+                )}
+                {updateStatus === 'error' && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-2 text-xs text-destructive">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {t('update.error')}
+                    </div>
+                    {updateError && <p className="text-[10px] text-muted-foreground max-w-xs text-center">{updateError}</p>}
+                    <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5 mt-1">
+                      {t('update.retry')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </SettingsSection>

@@ -35,7 +35,7 @@ const ThemeColorMeta = () => {
 
 const ThemeProviderComponent = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ThemeProvider attribute="class" enableSystem={false} defaultTheme="light">
+    <ThemeProvider attribute="class" enableSystem={false} defaultTheme="dark">
       <ThemeColorMeta />
       {children}
     </ThemeProvider>

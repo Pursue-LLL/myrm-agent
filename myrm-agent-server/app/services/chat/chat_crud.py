@@ -42,8 +42,9 @@ class _ChatCrudMixin(_ChatServiceBase):
         source: str | None = None,
         project_id: str | None = None,
         unassigned: bool = False,
+        keyword: str | None = None,
     ) -> tuple[list[ChatDTO], int]:
-        """获取聊天列表（支持分页、来源和项目过滤）"""
+        """获取聊天列表（支持分页、来源、项目和关键词过滤）"""
         offset = (page - 1) * page_size
         async with UnitOfWork() as uow:
             return await _ChatServiceBase._cr(uow).get_chats_paginated(
@@ -52,6 +53,7 @@ class _ChatCrudMixin(_ChatServiceBase):
                 source=source,
                 project_id=project_id,
                 unassigned=unassigned,
+                keyword=keyword,
             )
 
     @staticmethod

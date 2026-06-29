@@ -62,6 +62,7 @@ const useChatStore = create<ChatState>()(
       chatHistoryLoading: false,
       chatHistoryError: null,
       chatHistorySourceFilter: null as string | null,
+      chatHistorySearchKeyword: '' as string,
       chatHistoryAvailableSources: [] as string[],
       files: [],
       cameraFrames: [],
@@ -609,7 +610,7 @@ const useChatStore = create<ChatState>()(
 
       // 分页聊天历史管理
       loadChatHistory: async (page = 1, pageSize = 20) => {
-        const { chatHistoryLoading, chatHistoryItems, chatHistorySourceFilter } = get();
+        const { chatHistoryLoading, chatHistoryItems, chatHistorySourceFilter, chatHistorySearchKeyword } = get();
         if (chatHistoryLoading || chatHistoryItems.length > 0) {
           return;
         }
@@ -617,7 +618,8 @@ const useChatStore = create<ChatState>()(
         try {
           const projectFilter = useProjectStore.getState().activeFilter;
           const projectId = projectFilter === undefined ? undefined : projectFilter;
-          const response = await getChatHistory(page, pageSize, chatHistorySourceFilter ?? undefined, projectId);
+          const kw = chatHistorySearchKeyword.trim() || undefined;
+          const response = await getChatHistory(page, pageSize, chatHistorySourceFilter ?? undefined, projectId, kw);
           const updates: Partial<ChatState> = {
             chatHistoryItems: response.items,
             chatHistoryPagination: response.pagination,
@@ -637,7 +639,7 @@ const useChatStore = create<ChatState>()(
       },
 
       loadMoreChatHistory: async () => {
-        const { chatHistoryPagination, chatHistoryItems, chatHistoryLoading, chatHistorySourceFilter } = get();
+        const { chatHistoryPagination, chatHistoryItems, chatHistoryLoading, chatHistorySourceFilter, chatHistorySearchKeyword } = get();
 
         if (chatHistoryLoading || !chatHistoryPagination?.has_next) {
           return;
@@ -648,11 +650,13 @@ const useChatStore = create<ChatState>()(
           const nextPage = chatHistoryPagination.page + 1;
           const projectFilter = useProjectStore.getState().activeFilter;
           const projectId = projectFilter === undefined ? undefined : projectFilter;
+          const kw = chatHistorySearchKeyword.trim() || undefined;
           const response = await getChatHistory(
             nextPage,
             chatHistoryPagination.page_size,
             chatHistorySourceFilter ?? undefined,
             projectId,
+            kw,
           );
 
           set({
@@ -669,6 +673,17 @@ const useChatStore = create<ChatState>()(
       setChatHistorySourceFilter: (source: string | null) => {
         set({
           chatHistorySourceFilter: source,
+          chatHistoryItems: [],
+          chatHistoryPagination: null,
+          chatHistoryLoading: false,
+          chatHistoryError: null,
+        });
+        get().loadChatHistory(1, 20);
+      },
+
+      setChatHistorySearchKeyword: (keyword: string) => {
+        set({
+          chatHistorySearchKeyword: keyword,
           chatHistoryItems: [],
           chatHistoryPagination: null,
           chatHistoryLoading: false,

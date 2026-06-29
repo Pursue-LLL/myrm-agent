@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import TypedDict, cast
 from uuid import uuid4
 
-from sqlalchemy import delete, desc, func, select, update
+from sqlalchemy import delete, desc, func, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -60,6 +60,7 @@ class ChatRepository:
         source: str | None = None,
         project_id: str | None = None,
         unassigned: bool = False,
+        keyword: str | None = None,
     ) -> tuple[list[ChatDTO], int]:
         where_clause: list[ColumnElement[bool]] = [Chat.deleted_at.is_(None), Chat.is_incognito.is_(False)]
         if source:
@@ -68,6 +69,11 @@ class ChatRepository:
             where_clause.append(Chat.project_id == project_id)
         elif unassigned:
             where_clause.append(Chat.project_id.is_(None))
+        if keyword:
+            pattern = f"%{keyword}%"
+            where_clause.append(
+                or_(Chat.title.ilike(pattern), Chat.first_message.ilike(pattern))
+            )
 
         count_stmt = select(func.count(Chat.id)).where(*where_clause)
         count_result = await db.execute(count_stmt)

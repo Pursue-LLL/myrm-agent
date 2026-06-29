@@ -40,11 +40,13 @@ export const getChatHistory = async (
   pageSize: number = 20,
   source?: string,
   projectId?: string | null,
+  keyword?: string,
 ): Promise<ChatHistoryResponse> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (source) params.set('source', source);
   if (projectId) params.set('project_id', projectId);
   if (projectId === null) params.set('unassigned', 'true');
+  if (keyword) params.set('keyword', keyword);
   const data = (await apiRequest(`/chats?${params}`)) as {
     items?: unknown[];
     pagination?: PaginationInfo;
