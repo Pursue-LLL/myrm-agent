@@ -1170,7 +1170,9 @@
       "functionCalling": "Tool Calling",
       "reasoning": "Reasoning",
       "audioInput": "Audio Input",
-      "videoInput": "Video Input"
+      "videoInput": "Video Input",
+      "contextWindow": "Kontextfenster",
+      "refCost": "Ref.-Kosten"
     },
     "account": {
       "title": "Account",
@@ -4017,6 +4019,17 @@
       "noEnabledMcp": "No enabled MCP",
       "goToSettings": "Go to Settings",
       "addMore": "Add More",
+      "actionSpaceRadar": {
+        "title": "Entscheidungsgenauigkeit-Prognose",
+        "loadMeterLabel": "Token-Last der Kern-Skills",
+        "evaluating": "Wird berechnet...",
+        "evaluatingHint": "Verbindung zur Engine für Aktionsraum-Analyse...",
+        "statusCritical": "Genauigkeitsrisiko: Zu viele Tools! Erhebliches Halluzinationsrisiko — jetzt aufräumen.",
+        "statusHigh": "Ausgewogen: Viele Tools; ähnliche Funktionen können das Modell verwirren.",
+        "statusGood": "Hervorragende Genauigkeit: schlanker Aktionsraum; minimale Halluzination beim Tool-Aufruf.",
+        "staleSkillsNotice": "Hinweis: {count} inaktive Skill(s) beeinträchtigen die Genauigkeit.",
+        "smartPrune": "Inaktive Skills bereinigen und Aktionsraum freigeben"
+      },
       "mcpTools": {
         "toolFilter": "Tool filter",
         "loading": "Loading tools...",
@@ -7746,6 +7759,13 @@
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
     "triggerSourceManual": "manual",
+    "schedulerStatus": {
+      "running": "Scheduler läuft",
+      "degraded": "Scheduler beeinträchtigt",
+      "stopped": "Scheduler gestoppt",
+      "lastTick": "Letzter Tick",
+      "errors": "Fehleranzahl"
+    },
     "blueprint": {
       "quickStart": "Schnellstart mit Vorlage",
       "tabTemplate": "Vorlage",
@@ -10524,6 +10544,7 @@
       "ready": "Ready"
     },
     "skipHint": "Click or press ESC to skip",
+    "backendSetupHint": "Backend is not running. Run ./myrm setup from the project root, then refresh.",
     "onboarding": {
       "migrationTitle": "History Data Detected",
       "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",

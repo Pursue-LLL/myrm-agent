@@ -16,6 +16,7 @@ import CronJobCard from './CronJobCard';
 import CronJobCreateDialog from './CronJobCreateDialog';
 import BlueprintCatalog from './BlueprintCatalog';
 import BlueprintFillDialog from './BlueprintFillDialog';
+import SchedulerHealthBadge from './SchedulerHealthBadge';
 import type { CronBlueprint } from './cron-blueprints';
 
 interface CronJobListProps {
@@ -96,7 +97,10 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
 
   return (
     <div className="space-y-4">
-      <CronStatsBar stats={stats} activeFilter={filter} onFilterChange={setFilter} />
+      <div className="flex items-center justify-between">
+        <CronStatsBar stats={stats} activeFilter={filter} onFilterChange={setFilter} />
+        <SchedulerHealthBadge />
+      </div>
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1">

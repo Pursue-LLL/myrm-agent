@@ -1465,7 +1465,9 @@
       "functionCalling": "Tool Calling",
       "reasoning": "Reasoning",
       "audioInput": "Audio Input",
-      "videoInput": "Video Input"
+      "videoInput": "Video Input",
+      "contextWindow": "Context Window",
+      "refCost": "Ref. Cost"
     },
     "account": {
       "title": "Account",
@@ -4716,6 +4718,7 @@
       "addMore": "Add More",
       "actionSpaceRadar": {
         "title": "Decision accuracy forecast",
+        "loadMeterLabel": "Core skills token load",
         "evaluating": "Calculating...",
         "evaluatingHint": "Connecting to the engine for action-space analysis...",
         "statusCritical": "Accuracy crash risk: too many tools! Severe hallucination risk — clean up now.",
@@ -8384,6 +8387,13 @@
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
     "triggerSourceManual": "manual",
+    "schedulerStatus": {
+      "running": "Scheduler Running",
+      "degraded": "Scheduler Degraded",
+      "stopped": "Scheduler Stopped",
+      "lastTick": "Last tick",
+      "errors": "Tick errors"
+    },
     "blueprint": {
       "quickStart": "Quick Start from Template",
       "tabTemplate": "From Template",
@@ -11021,6 +11031,7 @@
       "ready": "Ready"
     },
     "skipHint": "Click or press ESC to skip",
+    "backendSetupHint": "Backend is not running. Run ./myrm setup from the project root, then refresh.",
     "onboarding": {
       "migrationTitle": "History Data Detected",
       "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",

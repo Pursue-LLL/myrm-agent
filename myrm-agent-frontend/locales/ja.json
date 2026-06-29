@@ -1170,7 +1170,9 @@
       "functionCalling": "Tool Calling",
       "reasoning": "Reasoning",
       "audioInput": "Audio Input",
-      "videoInput": "Video Input"
+      "videoInput": "Video Input",
+      "contextWindow": "コンテキストウィンドウ",
+      "refCost": "参考コスト"
     },
     "account": {
       "title": "Account",
@@ -4017,6 +4019,17 @@
       "noEnabledMcp": "No enabled MCP",
       "goToSettings": "Go to Settings",
       "addMore": "Add More",
+      "actionSpaceRadar": {
+        "title": "意思決定精度の予測",
+        "loadMeterLabel": "コアスキルの Token 負荷",
+        "evaluating": "計算中...",
+        "evaluatingHint": "エンジンに接続してアクション空間を分析しています...",
+        "statusCritical": "精度低下リスク：ツールが多すぎます。深刻な幻覚リスク — 今すぐ整理してください。",
+        "statusHigh": "バランス：ツール数が多く、類似機能によりモデルが混乱する可能性があります。",
+        "statusGood": "優れた精度：アクション空間がスリムです。幻覚を抑えてツールを呼び出せます。",
+        "staleSkillsNotice": "リマインダー：{count} 個の休眠スキルが精度を下げています。",
+        "smartPrune": "休眠スキルを整理してアクション空間を解放"
+      },
       "mcpTools": {
         "toolFilter": "Tool filter",
         "loading": "Loading tools...",
@@ -7746,6 +7759,13 @@
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
     "triggerSourceManual": "manual",
+    "schedulerStatus": {
+      "running": "スケジューラー稼働中",
+      "degraded": "スケジューラー異常",
+      "stopped": "スケジューラー停止",
+      "lastTick": "最終チック",
+      "errors": "エラー回数"
+    },
     "blueprint": {
       "quickStart": "テンプレートからクイックスタート",
       "tabTemplate": "テンプレート",
@@ -10524,6 +10544,7 @@
       "ready": "Ready"
     },
     "skipHint": "Click or press ESC to skip",
+    "backendSetupHint": "Backend is not running. Run ./myrm setup from the project root, then refresh.",
     "onboarding": {
       "migrationTitle": "History Data Detected",
       "migrationDescription": "We found your data from other AI assistants. Import it seamlessly?",
