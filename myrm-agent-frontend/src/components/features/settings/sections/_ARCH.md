@@ -50,6 +50,10 @@
 | `ai-core/agent/` | [ai-core/agent/_ARCH.md](ai-core/agent/_ARCH.md) |
 | `integration/` | [integration/_ARCH.md](integration/_ARCH.md) |
 | `integration/channels/` | [integration/channels/_ARCH.md](integration/channels/_ARCH.md) |
+| `integration/integrations/` | [integration/integrations/_ARCH.md](integration/integrations/_ARCH.md) |
+| `personal/` | [personal/_ARCH.md](personal/_ARCH.md) |
+| `ai-core/` | [ai-core/_ARCH.md](ai-core/_ARCH.md) |
+| `ai-tools/` | [ai-tools/_ARCH.md](ai-tools/_ARCH.md) |
 | `system/` | [system/_ARCH.md](system/_ARCH.md) |
 | `knowledge/wiki/` | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md) |
 | `knowledge/` | [knowledge/_ARCH.md](knowledge/_ARCH.md) |

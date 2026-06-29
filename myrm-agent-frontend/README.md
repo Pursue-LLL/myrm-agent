@@ -2,7 +2,7 @@
 
 > MIT · Next.js WebUI，对接 `myrm-agent-server`。
 
-组件与状态架构见 **[src/components/_ARCH.md](src/components/_ARCH.md)** · **[src/store/_ARCH.md](src/store/_ARCH.md)**。
+包级与分形文档见 **[_ARCH.md](_ARCH.md)**；组件 **[src/components/_ARCH.md](src/components/_ARCH.md)** · Hooks **[src/hooks/_ARCH.md](src/hooks/_ARCH.md)** · 状态 **[src/store/_ARCH.md](src/store/_ARCH.md)**。
 
 ## 快速开始
 

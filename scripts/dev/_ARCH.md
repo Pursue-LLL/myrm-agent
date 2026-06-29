@@ -14,7 +14,8 @@
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API + Playwright 全链路 E2E |
-| `lib/` | Unix | 开发子脚本共享库，见 [lib/_ARCH.md](lib/_ARCH.md) |
+| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source） |
+| `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
 ## 依赖
 

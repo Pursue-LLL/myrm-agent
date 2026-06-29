@@ -54,8 +54,10 @@ async def scheduler_health() -> SchedulerHealthResponse:
         except (ValueError, TypeError):
             pass
 
-    if not running or last_tick_at is None:
+    if not running:
         status: Literal["green", "yellow", "red"] = "red"
+    elif last_tick_at is None:
+        status = "yellow" if has_timer else "red"
     elif (age is not None and age > 120) or tick_errors > 0:
         status = "yellow"
     else:

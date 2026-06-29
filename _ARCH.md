@@ -8,6 +8,8 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 | 文件 | 职责 |
 |------|------|
+| `README.md` | GitHub 仓库说明（英文；快速能力与部署模式） |
+| `README_zh.md` | GitHub 仓库说明（中文） |
 | `LICENSE` | MIT 许可（全仓） |
 | `CONTRIBUTING.md` | OSS 贡献指南（30 分钟阅读路径、任务路径 A/B/C、`api/`↔`services/` 域名词对照） |
 | `SECURITY.md` | 漏洞报告策略 |
@@ -19,21 +21,27 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 | 目录 | 地位 | 职责 | 部署 |
 |------|------|------|------|
 | `shared/` | 辅助 | 前后端共享静态契约（如 provider ID remap）；Docker `COPY shared /shared` | 随仓分发 |
-| `myrm-agent-server/` | 核心 | FastAPI 业务编排、API、渠道桥接 | Docker / sidecar / 本地 :8080 |
+| `scripts/` | 辅助 | OSS 安装、`myrm` CLI、dev 启动 · [\_ARCH.md](scripts/_ARCH.md) | 随仓分发 |
+| `.github/` | 辅助 | GitHub Actions CI/CD · [\_ARCH.md](.github/_ARCH.md) | 仅 CI |
+| `myrm-agent-server/` | 核心 | FastAPI 业务编排、API、渠道桥接 · [\_ARCH.md](myrm-agent-server/_ARCH.md) | Docker / sidecar / 本地 :8080 |
 | `myrm-agent-frontend/` | 核心 | Next.js Web UI、设置与对话界面 | 本地 :3000 / 静态导出 · [\_ARCH.md](myrm-agent-frontend/_ARCH.md) |
-| `myrm-agent-desktop/` | 核心 | Tauri 壳 + server sidecar | GitHub Releases |
+| `myrm-agent-desktop/` | 核心 | Tauri 壳 + server sidecar · [\_ARCH.md](myrm-agent-desktop/_ARCH.md) | GitHub Releases |
 | `myrm-agent-extension/` | 辅助 | Chrome MV3 浏览器 CDP 桥（WebSocket 客户端） | 开发者 unpacked / 未来商店 · [\_ARCH.md](myrm-agent-extension/_ARCH.md) |
 
 ## 模块依赖
 
-- **依赖**：`pyproject.toml` + `uv.lock` 钉死 PyPI 版本（`myrm setup` / `uv sync`）
+- **Python / harness**：`myrm-agent-server/pyproject.toml` + `myrm-agent-server/uv.lock` 钉死 PyPI 版本（`myrm setup` / `uv sync`）
+- **前端**：`myrm-agent-frontend/package.json` + `bun.lock`
 
-子模块详述（架构文档优先于 README）：
+子模块详述（架构文档优先于子包 README）：
 
-- [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md)
-- [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md)
+- [shared/_ARCH.md](shared/_ARCH.md)
+- [myrm-agent-server/_ARCH.md](myrm-agent-server/_ARCH.md) · [ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md)
+- [myrm-agent-frontend/_ARCH.md](myrm-agent-frontend/_ARCH.md)
 - [myrm-agent-desktop/_ARCH.md](myrm-agent-desktop/_ARCH.md)
 - [myrm-agent-extension/_ARCH.md](myrm-agent-extension/_ARCH.md)
+- [scripts/_ARCH.md](scripts/_ARCH.md)
+- [.github/_ARCH.md](.github/_ARCH.md)
 
 ## 本地开发
 

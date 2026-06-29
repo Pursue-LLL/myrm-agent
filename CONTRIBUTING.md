@@ -43,7 +43,7 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 | 2 | Route shell: [src/app/_ARCH.md](myrm-agent-frontend/src/app/_ARCH.md) — keep `app/*` thin; put UI in `components/features/*` |
 | 3 | Cross-feature widgets (not under `features/`): `components/agent/`, `auth/`, `billing/`, `security/`, `approval/`, `layout/`, `primitives/` |
 | 4 | API clients: [src/services/_ARCH.md](myrm-agent-frontend/src/services/_ARCH.md) · State: [src/store/_ARCH.md](myrm-agent-frontend/src/store/_ARCH.md) |
-| 5 | User-facing copy: `locales/en.json` + `locales/zh.json` · Verify: `bun run build` |
+| 5 | User-facing copy: `locales/en.json` + `locales/zh.json` (+ ja/ko/de when touching shared keys) · Verify: `bun run verify:i18n` · Build: `bun run build` |
 
 #### C — Channels (IM / webhook)
 

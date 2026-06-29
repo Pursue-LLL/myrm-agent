@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import { waitForBackendReady } from '@/lib/backend-health';
+import { BOOT_SCREEN_STORAGE_KEY, resolveLocalBackendSetupHint } from '@/lib/local-backend-dev';
+import { isLocalMode } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
-
-const BOOT_SCREEN_STORAGE_KEY = 'myrm_boot_shown';
 
 const STEP_INTERVAL_MS = 120;
 const FADE_START_DELAY_MS = 340;
@@ -31,10 +31,13 @@ export function markBootScreenShown(): void {
 
 export default function BootScreen({ onComplete }: BootScreenProps) {
   const t = useTranslations('boot');
+  const tSetupHint = useTranslations('common.configLoadError');
   const [visibleSteps, setVisibleSteps] = useState(0);
   const [logoVisible, setLogoVisible] = useState(false);
   const [titleVisible, setTitleVisible] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
+  const [backendSetupHint, setBackendSetupHint] = useState<string | null>(null);
   const completedRef = useRef(false);
   const backendGateOpenRef = useRef(false);
   const exitRequestedRef = useRef(false);
@@ -58,17 +61,31 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
   }, [tryFinish]);
 
   useEffect(() => {
-    const abortController = new AbortController();
-
-    void waitForBackendReady({ signal: abortController.signal }).finally(() => {
+    if (!isLocalMode()) {
       backendGateOpenRef.current = true;
       tryFinish();
-    });
+      return undefined;
+    }
+
+    const abortController = new AbortController();
+
+    void waitForBackendReady({ signal: abortController.signal })
+      .then(async (ready) => {
+        if (!ready) {
+          setBackendUnavailable(true);
+          const hint = await resolveLocalBackendSetupHint(tSetupHint);
+          setBackendSetupHint(hint);
+        }
+      })
+      .finally(() => {
+        backendGateOpenRef.current = true;
+        tryFinish();
+      });
 
     return () => {
       abortController.abort();
     };
-  }, [tryFinish]);
+  }, [tryFinish, tSetupHint]);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -175,6 +192,15 @@ export default function BootScreen({ onComplete }: BootScreenProps) {
           );
         })}
       </div>
+
+      {backendUnavailable && backendSetupHint && isLocalMode() ? (
+        <p
+          className="mt-6 max-w-md px-6 text-center text-[13px] leading-relaxed text-destructive/90 whitespace-pre-line font-mono"
+          data-testid="boot-backend-setup-hint"
+        >
+          {backendSetupHint}
+        </p>
+      ) : null}
 
       <div
         className={cn(

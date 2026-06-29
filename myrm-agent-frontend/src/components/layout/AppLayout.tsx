@@ -20,6 +20,7 @@ import { useVisibilityThrottling } from '@/hooks/useVisibilityThrottling';
 import { useTrayEvents } from '@/hooks/useTrayEvents';
 
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
+import LocalBackendUnavailableBanner from '@/components/features/app-shell/local-backend-unavailable-banner';
 
 const CronPushPoller = lazy(() => import('@/components/features/cron/CronPushPoller'));
 
@@ -359,6 +360,7 @@ function AppLayout({ children }: AppLayoutProps) {
         style={{ paddingLeft }}
       >
         <div className={cn(isSettingsPage ? 'h-full overflow-y-auto' : 'max-w-screen-lg mx-auto px-4 pt-4')}>
+          <LocalBackendUnavailableBanner />
           {children}
         </div>
       </main>

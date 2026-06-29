@@ -21,7 +21,7 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 |------|------|
 | `src-tauri/` | Rust 主程序、IPC、托盘、更新校验 |
 | `sidecar/` | PyInstaller + agent-runner 编译入口 |
-| `scripts/` | 桌面构建/签名辅助 |
+| `scripts/` | 桌面构建/签名辅助 → [scripts/_ARCH.md](scripts/_ARCH.md) |
 
 ## Windows 打包
 

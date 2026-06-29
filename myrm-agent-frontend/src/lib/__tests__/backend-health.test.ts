@@ -5,6 +5,11 @@ import { tauriBackend } from '@/lib/tauri';
 
 vi.mock('@/lib/deploy-mode', () => ({
   getDeployMode: vi.fn(() => 'tauri'),
+  isLocalMode: vi.fn(() => true),
+}));
+
+vi.mock('@/lib/local-backend-dev', () => ({
+  isBootSessionCompleted: vi.fn(() => false),
 }));
 
 vi.mock('@/lib/tauri', () => ({
@@ -91,5 +96,42 @@ describe('waitForBackendReady', () => {
 
     controller.abort();
     await expect(pending).resolves.toBe(false);
+  });
+});
+
+describe('checkBackendReadyOnce', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('delegates to tauri health probe when in tauri runtime', async () => {
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(true);
+
+    const { checkBackendReadyOnce } = await import('@/lib/backend-health');
+    await expect(checkBackendReadyOnce()).resolves.toBe(true);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('ensureLocalBackendReady', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+    void import('@/lib/backend-health').then(({ resetLocalBackendReadyGate }) => {
+      resetLocalBackendReadyGate();
+    });
+  });
+
+  it('uses single probe when boot session is completed', async () => {
+    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth).mockResolvedValue(false);
+
+    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
   });
 });

@@ -11,6 +11,8 @@ import ProviderIcon from '@/components/features/settings/model-service/ProviderI
 import CapabilityIcons from '@/components/features/app-shell/capability-icons';
 import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/llm-config';
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
+import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 
 interface PickerModelSelection {
   providerId: string;
@@ -47,11 +49,13 @@ export default function ModelPickerPopover({
   className,
 }: ModelPickerPopoverProps) {
   const t = useTranslations('settings.defaultModel');
+  const tCap = useTranslations('settings.modelCapabilities');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeSlot, setActiveSlot] = useState<SlotMode>('primary');
   const inputRef = useRef<HTMLInputElement>(null);
   const [capabilities, setCapabilities] = useState<Record<string, ModelCapabilities>>({});
+  const [costPerMillion, setCostPerMillion] = useState<Record<string, { input: number; output: number }>>({});
   const hasFallbackSupport = !!onSelectFallback;
   const hasSafetyFallbackSupport = !!onSelectSafetyFallback;
 
@@ -72,6 +76,7 @@ export default function ModelPickerPopover({
     setTimeout(() => inputRef.current?.focus(), 0);
 
     const mapped: Record<string, ModelCapabilities> = {};
+    const costs: Record<string, { input: number; output: number }> = {};
     const toFetch: string[] = [];
     const nameMap: Record<string, string> = {};
 
@@ -93,6 +98,9 @@ export default function ModelPickerPopover({
           max_input_tokens: local.max_input_tokens || null,
           max_output_tokens: null,
         };
+        if (local.input_cost_per_million != null && local.output_cost_per_million != null) {
+          costs[em.model] = { input: local.input_cost_per_million, output: local.output_cost_per_million };
+        }
       } else {
         const prov = providers.find((p) => p.id === em.providerId);
         const liteName = getLiteLLMModelName(em.providerId, em.model, prov?.providerType);
@@ -104,12 +112,24 @@ export default function ModelPickerPopover({
     if (toFetch.length > 0) {
       fetchModelCapabilitiesBatch(toFetch).then((caps) => {
         for (const ln of toFetch) {
-          if (caps[ln]) mapped[nameMap[ln]] = caps[ln];
+          if (caps[ln]) {
+            const modelName = nameMap[ln];
+            mapped[modelName] = caps[ln];
+            const c = caps[ln];
+            if (c.input_cost_per_token != null && c.output_cost_per_token != null) {
+              costs[modelName] = {
+                input: c.input_cost_per_token * 1_000_000,
+                output: c.output_cost_per_token * 1_000_000,
+              };
+            }
+          }
         }
         setCapabilities({ ...mapped });
+        setCostPerMillion({ ...costs });
       });
     } else {
       setCapabilities(mapped);
+      setCostPerMillion(costs);
     }
   }, [open, enabledModels, providers, customModelInfo]);
 
@@ -255,47 +275,77 @@ export default function ModelPickerPopover({
             />
           </div>
         </div>
-        <div className="max-h-80 overflow-y-auto">
-          {grouped.length === 0 ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              {enabledModels.length === 0 ? t('noEnabledModels') : t('noMatchingModels')}
-            </div>
-          ) : (
-            grouped.map(({ provider, models }) => (
-              <div key={provider.id}>
-                <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-secondary/50 sticky top-0 border-b border-border/50">
-                  <ProviderIcon providerId={provider.id} size={14} />
-                  <span>{provider.name}</span>
-                  <span className="ml-auto text-muted-foreground/60">{models.length}</span>
-                </div>
-                {models.map((model) => {
-                  const isActive = activeSelection?.providerId === provider.id && activeSelection?.model === model;
-                  const caps = capabilities[model];
-                  const highlightColor =
-                    activeSlot === 'primary'
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : activeSlot === 'fallback'
-                        ? 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-300 font-medium'
-                        : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-300 font-medium';
-
-                  return (
-                    <button
-                      key={model}
-                      onClick={() => handleModelClick(provider.id, model)}
-                      className={cn(
-                        'flex items-center w-full pl-9 pr-3 py-2.5 text-sm hover:bg-accent transition-colors cursor-pointer gap-2',
-                        isActive && highlightColor,
-                      )}
-                    >
-                      <span className="truncate flex-1 text-left flex items-center gap-2">{model}</span>
-                      {caps && <CapabilityIcons capabilities={caps} />}
-                    </button>
-                  );
-                })}
+        <TooltipProvider>
+          <div className="max-h-80 overflow-y-auto">
+            {grouped.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                {enabledModels.length === 0 ? t('noEnabledModels') : t('noMatchingModels')}
               </div>
-            ))
-          )}
-        </div>
+            ) : (
+              grouped.map(({ provider, models }) => (
+                <div key={provider.id}>
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-secondary/50 sticky top-0 border-b border-border/50">
+                    <ProviderIcon providerId={provider.id} size={14} />
+                    <span>{provider.name}</span>
+                    <span className="ml-auto text-muted-foreground/60">{models.length}</span>
+                  </div>
+                  {models.map((model) => {
+                    const isActive = activeSelection?.providerId === provider.id && activeSelection?.model === model;
+                    const caps = capabilities[model];
+                    const cost = costPerMillion[model];
+                    const contextLabel = caps?.max_input_tokens ? formatTokens(caps.max_input_tokens) : null;
+                    const highlightColor =
+                      activeSlot === 'primary'
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : activeSlot === 'fallback'
+                          ? 'bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-300 font-medium'
+                          : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-300 font-medium';
+
+                    return (
+                      <button
+                        key={model}
+                        onClick={() => handleModelClick(provider.id, model)}
+                        className={cn(
+                          'flex items-center w-full pl-9 pr-3 py-2.5 text-sm hover:bg-accent transition-colors cursor-pointer gap-2',
+                          isActive && highlightColor,
+                        )}
+                      >
+                        <span className="truncate flex-1 text-left flex items-center gap-2">{model}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {contextLabel && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                                  {contextLabel}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {tCap('contextWindow')}: {caps!.max_input_tokens!.toLocaleString()} tokens
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {cost && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                  {formatPrice(cost.input)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                {tCap('refCost')}: ↓{formatPrice(cost.input)} ↑{formatPrice(cost.output)}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {caps && <CapabilityIcons capabilities={caps} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </TooltipProvider>
       </PopoverContent>
     </Popover>
   );

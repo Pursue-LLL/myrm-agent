@@ -25,7 +25,9 @@
 | `CronRunHistory.tsx` | 组件/模块 | — | — |
 | `CronRunItem.tsx` | 组件/模块 | — | — |
 | `CronStatsBar.tsx` | 组件/模块 | — | — |
-| `CronTriggerEditor.tsx` | 组件/模块 | — | — |
+| `SchedulerHealthBadge.tsx` | 组件/模块 | 调度器存活状态 Badge（绿/黄/红），30s 轮询 GET /cron/scheduler/health | — |
+| `CronTriggerEditor.tsx` | 组件/模块 | Cron 触发器编辑（Webhook/Event/System） |
+| `CronTriggerWebhookDisplay.tsx` | 组件/模块 | Webhook URL/Secret/cURL 展示与复制 |
 | `CronUsageStats.tsx` | 组件/模块 | — | — |
 | `EditorToggle.tsx` | 组件/模块 | — | — |
 | `GlobalRunHistory.tsx` | 组件/模块 | — | — |

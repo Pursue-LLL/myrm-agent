@@ -1,6 +1,6 @@
 # MyrmAgent 开源产品仓架构
 
-> **许可**: MIT · **仓库**: `myrm-agent`（server + frontend + desktop + 根 `scripts/`）  
+> **许可**: MIT · **仓库**: `myrm-agent`（server + frontend + desktop + extension + shared + 根 `scripts/`）  
 > **产品定位**: 通用 AI 工作伙伴（GUI），对标 OpenClaw / Cowork / Hermes；**非**专业编码 IDE。  
 > **Agent 交互**: 对话与配置均在 WebUI；`myrm` 仅为安装/启动引导（`setup|start|searxng`），不是 Agent CLI 产品。
 
@@ -50,7 +50,7 @@ myrm-agent/
 ├── SECURITY.md              ← 漏洞报告策略
 ├── _ARCH.md                 ← 子目录职责表（分形 L3 入口）
 ├── shared/                  ← 前后端共享静态配置 → shared/_ARCH.md
-├── myrm-agent-server/       ← FastAPI 业务层 → 详见 server/ARCHITECTURE.md
+├── myrm-agent-server/       ← FastAPI 业务层 → _ARCH.md + server/ARCHITECTURE.md
 ├── myrm-agent-frontend/   ← Next.js WebUI
 ├── myrm-agent-desktop/      ← Tauri + sidecar 打包 → desktop/_ARCH.md
 ├── myrm-agent-extension/    ← Chrome MV3 浏览器 CDP 桥 → extension/_ARCH.md
@@ -59,7 +59,7 @@ myrm-agent/
 
 | 子目录 | 文档入口 |
 |--------|----------|
-| Server | [myrm-agent-server/ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md) |
+| Server | [myrm-agent-server/_ARCH.md](myrm-agent-server/_ARCH.md) · [ARCHITECTURE.md](myrm-agent-server/ARCHITECTURE.md) |
 | Server `app/` | [myrm-agent-server/app/_ARCH.md](myrm-agent-server/app/_ARCH.md) |
 | Frontend 包 | [myrm-agent-frontend/_ARCH.md](myrm-agent-frontend/_ARCH.md)（monorepo 构建契约） |
 | Frontend 组件 | [myrm-agent-frontend/src/components/_ARCH.md](myrm-agent-frontend/src/components/_ARCH.md) |
@@ -81,7 +81,7 @@ myrm-agent/
 3. **模块** — 每目录 `_ARCH.md`（模块说明；GitHub 入口 README 仅保留快速启动）
 4. **文件** — `[INPUT]` / `[OUTPUT]` / `[POS]` 或 `@input` / `@output` / `@pos`
 
-Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`check_file_line_budget.py`（禁止新增 >400 行 Python 模块）；`tests/architecture/test_api_services_vocabulary.py`（`api/`↔`services/` 顶域与 `CONTRIBUTING.md` 同步）。Frontend：`next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）。
+Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`check_file_line_budget.py`（禁止新增 >400 行 Python 模块）；`tests/architecture/test_api_services_vocabulary.py`（`api/`↔`services/` 顶域与 `CONTRIBUTING.md` 同步）。Frontend：`check_fractal_docs.py`（strict roots + recursive baseline）；`check_file_line_budget.py` + `verify:i18n` + `next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）。
 
 ---
 

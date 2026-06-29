@@ -2,7 +2,7 @@
 
 > MIT · FastAPI 业务后端，对接 WebUI / Tauri 桌面。
 
-架构与模块说明见 **[ARCHITECTURE.md](ARCHITECTURE.md)** · **[app/_ARCH.md](app/_ARCH.md)**。
+架构与模块说明见 **[_ARCH.md](_ARCH.md)** · **[ARCHITECTURE.md](ARCHITECTURE.md)** · **[app/_ARCH.md](app/_ARCH.md)**。
 
 ## 快速开始
 

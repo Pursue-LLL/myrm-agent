@@ -61,7 +61,13 @@
 | 文件 | 职责 |
 |------|------|
 | `UsageStatisticsSection.tsx` | 用量统计主面板（时间范围/多维度） |
-| `UsageStatisticsCharts.tsx` | 用量统计图表组件 |
+| `UsageStatisticsCharts.tsx` | 用量图表 barrel 导出 |
+| `UsageStatCard.tsx` | 统计卡片 |
+| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线 |
+| `UsageDailyChart.tsx` | 日趋势柱状图 + 缓存命中率折线 |
+| `UsageSessionTable.tsx` | Top 会话表格 |
+| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图 |
+| `UsagePrivacyRoutePanel.tsx` | 隐私路由 local/cloud 占比 |
 | `UsageModelBreakdown.tsx` | 模型用量明细 |
 | `AgentUsageCard.tsx` | Agent 用量卡片 |
 | `BudgetPolicySection.tsx` | 预算策略配置 |

@@ -9,7 +9,6 @@ src/components/approval/PolymorphicApprovalCard.tsx
 src/components/billing/QuotaDisplay.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
-src/components/features/artifacts/ArtifactPreview.tsx
 src/components/features/artifacts/DeployModal.tsx
 src/components/features/chat-window/Chat.tsx
 src/components/features/chat-window/ChatWindow.tsx
@@ -26,12 +25,10 @@ src/components/features/cron/CronAdvancedEditors.tsx
 src/components/features/cron/CronJobCard.tsx
 src/components/features/cron/CronJobCreateDialog.tsx
 src/components/features/eval-lab/EvalLabDashboard.tsx
-src/components/features/health/DoctorDashboard.tsx
 src/components/features/health/HealthTrendChart.tsx
 src/components/features/icons/PremiumIcons.tsx
 src/components/features/kanban/KanbanBoardView.tsx
 src/components/features/kanban/KanbanTaskCard.tsx
-src/components/features/kanban/KanbanTaskDrawer.tsx
 src/components/features/markdown-render-tools/MermaidChart.tsx
 src/components/features/memory/MemoryArchiveRestoreDialog.tsx
 src/components/features/memory/MemoryCommandCenter.tsx
@@ -47,6 +44,7 @@ src/components/features/message-box/MessageBox.tsx
 src/components/features/message-box/TokenUsageDisplay.tsx
 src/components/features/message-box/progress-steps/ProgressSteps.tsx
 src/components/features/message-input-actions/ActiveWorkingMemoryPanel.tsx
+src/components/features/message-input-actions/GoalModeToggle.tsx
 src/components/features/settings/SearchServiceEditDialog.tsx
 src/components/features/settings/SettingsIcons.tsx
 src/components/features/settings/SettingsLayout.tsx
@@ -61,6 +59,7 @@ src/components/features/settings/sections/ai-core/AgentsSection.tsx
 src/components/features/settings/sections/ai-core/DefaultModelSection.tsx
 src/components/features/settings/sections/ai-core/agent/AgentOpenAPIServicesTab.tsx
 src/components/features/settings/sections/ai-tools/SkillsSection.tsx
+src/components/features/settings/sections/integration/ConnectSection.tsx
 src/components/features/settings/sections/integration/CredentialsSection.tsx
 src/components/features/settings/sections/integration/ExternalAgentsConfig.tsx
 src/components/features/settings/sections/integration/channels/ChannelsSection.tsx
@@ -73,12 +72,12 @@ src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSteps.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiSection.tsx
+src/components/features/settings/sections/system/AccessCard.tsx
 src/components/features/settings/sections/system/AdvancedPiiConfig.tsx
 src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx
 src/components/features/settings/sections/system/HeartbeatSection.tsx
 src/components/features/settings/sections/system/MediaGenerationSection.tsx
 src/components/features/settings/sections/system/RiskRulesSection.tsx
-src/components/features/settings/sections/system/SecurityPolicySection.tsx
 src/components/features/settings/sections/system/SessionContextHealthPanel.tsx
 src/components/features/settings/sections/system/SessionContextHealthPanelRestore.tsx
 src/components/features/settings/sections/system/SystemSection.tsx
@@ -87,7 +86,7 @@ src/components/features/sidebar/ChatHistoryList.tsx
 src/components/features/sidebar/ChatHistoryRow.tsx
 src/components/features/skills/CuratorSettingsPanel.tsx
 src/components/features/skills/SkillCard.tsx
-src/components/features/skills/SkillDetailSheet.tsx
+src/components/features/skills/SkillDetailSheetContent.tsx
 src/components/features/skills/SkillDiscoverTab.tsx
 src/components/features/skills/SkillGrowthCaseCard.tsx
 src/components/features/skills/SkillInstanceManager.tsx

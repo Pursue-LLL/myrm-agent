@@ -13,9 +13,14 @@
 | KanbanTaskCard.tsx           | 核心 | 单任务卡片渲染（状态/进度/操作菜单）                                             | ✅    |
 | KanbanTaskDrawer.tsx         | 辅助 | 任务详情抽屉面板入口（编排 hook 与子组件）                                       | ✅    |
 | useKanbanTaskDrawer.ts       | 辅助 | 抽屉面板状态管理 hook（数据加载/操作处理/计算属性）                              | ✅    |
+| resolveTaskDepInfos.ts       | 辅助 | 任务依赖图节点标题解析（本地列表 + 远程 fallback）                               | ✅    |
+| useKanbanTaskDrawerAttachments.ts | 辅助 | 抽屉附件上传/拖拽/粘贴子 hook                                              | ✅    |
+| useKanbanTaskDrawerWorkflow.ts | 辅助 | Promote / Move / Reclaim 工作流子 hook                                           | ✅    |
 | KanbanTaskDrawerHeader.tsx   | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                              | ✅    |
 | KanbanTaskDrawerDetails.tsx  | 辅助 | 抽屉面板详情区（基本信息/超时/技能/完成标准/Agent 分配）                         | ✅    |
-| KanbanTaskDrawerBody.tsx     | 辅助 | 抽屉面板主体区（附件/结果/依赖/评论/进度）                                       | ✅    |
+| KanbanTaskDrawerBodySections.tsx | 辅助 | 抽屉附件与结果区段组件                                                         | ✅    |
+| KanbanTaskDrawerBodyMetaSections.tsx | 辅助 | 抽屉依赖/评论/进度区段组件                                                   | ✅    |
+| KanbanTaskDrawerBody.tsx     | 辅助 | 抽屉主体区段 barrel 导出                                                       | ✅    |
 | KanbanInlineAddForm.tsx      | 辅助 | 内联新增任务表单 UI                                                              | ✅    |
 | KanbanBulkActionBar.tsx      | 辅助 | 批量操作工具栏                                                                   | ✅    |
 | KanbanGraphView.tsx          | 辅助 | 任务依赖 DAG 可视化（含 running 节点脉冲 / failed 节点抖动动画）                | ✅    |

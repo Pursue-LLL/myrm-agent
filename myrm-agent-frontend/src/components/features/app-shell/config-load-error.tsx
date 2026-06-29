@@ -4,35 +4,13 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { fetchBackendHealth, type BackendHealthPayload } from '@/lib/backend-health';
+import { fetchBackendHealth } from '@/lib/backend-health';
+import { formatLocalBackendSetupHint } from '@/lib/local-backend-dev';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface ConfigLoadErrorProps {
   onRetry: () => void;
   className?: string;
-}
-
-function formatHint(
-  t: (key: string, values?: Record<string, string | number>) => string,
-  health: BackendHealthPayload | null,
-): string | null {
-  if (health?.status === 'healthy' && health.listen_port != null) {
-    const host = health.listen_host ?? '127.0.0.1';
-    const proxy = health.frontend_proxy_port ?? health.listen_port;
-    if (health.dev_mode === 'standalone_webui') {
-      return t('hintStandalone', {
-        host,
-        port: health.listen_port,
-        proxyPort: proxy,
-      });
-    }
-    return t('hintSplitDev', {
-      host,
-      port: health.listen_port,
-      proxyPort: proxy,
-    });
-  }
-  return t('hintUnreachable');
 }
 
 const ConfigLoadError = memo(({ onRetry, className }: ConfigLoadErrorProps) => {
@@ -41,7 +19,7 @@ const ConfigLoadError = memo(({ onRetry, className }: ConfigLoadErrorProps) => {
 
   const loadHint = useCallback(async () => {
     const health = await fetchBackendHealth();
-    setHint(formatHint(t, health));
+    setHint(formatLocalBackendSetupHint(t, health));
   }, [t]);
 
   useEffect(() => {

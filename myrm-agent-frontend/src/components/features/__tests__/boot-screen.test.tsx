@@ -10,6 +10,18 @@ vi.mock('@/lib/backend-health', () => ({
   waitForBackendReady: vi.fn(() => Promise.resolve(true)),
 }));
 
+vi.mock('@/lib/local-backend-dev', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/local-backend-dev')>();
+  return {
+    ...actual,
+    resolveLocalBackendSetupHint: vi.fn(() => Promise.resolve('hintUnreachable')),
+  };
+});
+
+vi.mock('@/lib/deploy-mode', () => ({
+  isLocalMode: vi.fn(() => true),
+}));
+
 const FADE_DURATION_MS = 400;
 const AUTO_FINISH_MS = 500 + 4 * 120 + 340 + FADE_DURATION_MS;
 
@@ -283,5 +295,35 @@ describe('BootScreen component', () => {
 
     const svgs = document.querySelectorAll('svg');
     expect(svgs.length).toBeGreaterThan(0);
+  });
+
+  it('shows backend setup hint when local backend health check fails', async () => {
+    const { waitForBackendReady } = await import('@/lib/backend-health');
+    vi.mocked(waitForBackendReady).mockResolvedValueOnce(false);
+
+    const onComplete = vi.fn();
+    render(<BootScreen onComplete={onComplete} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('boot-backend-setup-hint')).toHaveTextContent('hintUnreachable');
+  });
+
+  it('does not show backend setup hint outside local mode', async () => {
+    const { isLocalMode } = await import('@/lib/deploy-mode');
+    const { waitForBackendReady } = await import('@/lib/backend-health');
+    vi.mocked(isLocalMode).mockReturnValueOnce(false);
+    vi.mocked(waitForBackendReady).mockResolvedValueOnce(false);
+
+    const onComplete = vi.fn();
+    render(<BootScreen onComplete={onComplete} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('boot-backend-setup-hint')).not.toBeInTheDocument();
   });
 });

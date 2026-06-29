@@ -22,6 +22,7 @@ import {
   reviseSkillGrowthCase,
   type SkillGrowthCase,
 } from '@/services/skill-growth';
+import { createCronJob } from '@/services/cron';
 import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -222,6 +223,34 @@ export function PendingEvolutionsDashboard() {
     [loadCases, processingCaseId, t, user?.id],
   );
 
+  const handleCreateCron = useCallback(
+    async (item: SkillGrowthCase, scheduleHint: string) => {
+      if (!user?.id || processingCaseId) return;
+      setProcessingCaseId(item.id);
+      try {
+        await createCronJob({
+          name: item.skillName || scheduleHint,
+          job_type: 'agent',
+          schedule: { type: 'cron', cron: scheduleHint, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+          prompt: item.proposedContent || item.description || scheduleHint,
+        });
+        await approveSkillGrowthCase(item, 'immediate');
+        toast.success(t('cronCreated', { name: item.skillName }));
+        window.dispatchEvent(
+          new CustomEvent('skill-growth-updated', {
+            detail: { caseId: item.id, status: 'APPROVED', source: item.source },
+          }),
+        );
+        await loadCases(true);
+      } catch (cronError) {
+        toast.error(cronError instanceof Error ? cronError.message : t('cronCreateFailed', { name: item.skillName }));
+      } finally {
+        setProcessingCaseId(null);
+      }
+    },
+    [loadCases, processingCaseId, t, user?.id],
+  );
+
   return (
     <SettingsSection
       title={t('title')}
@@ -338,6 +367,11 @@ export function PendingEvolutionsDashboard() {
               onApproveShadow={() => handleApprove(item, 'shadow')}
               onReject={(reason?: string) => handleReject(item, reason)}
               onRevise={(evolvedContent: string) => handleRevise(item, evolvedContent)}
+              onCreateCron={
+                item.growthType === 'cron_suggestion' && item.formMetadata?.scheduleHint
+                  ? (hint: string) => handleCreateCron(item, hint)
+                  : undefined
+              }
             />
           ))}
         </div>

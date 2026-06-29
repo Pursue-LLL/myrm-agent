@@ -132,7 +132,11 @@ function Verify-HarnessInstall {
     }
     & $py -c "from myrm_agent_harness._distribution import assert_distribution_ready; assert_distribution_ready()"
     if ($LASTEXITCODE -ne 0) {
-        throw "Harness distribution check failed. Ensure PyPI has myrm-agent-harness-core for this platform (win32-x64/arm64)."
+        throw @"
+Harness distribution check failed / Harness 分发校验失败.
+Run myrm setup from the repo root (or install the platform core wheel for this machine).
+请在仓库根目录运行 myrm setup（或安装与本机匹配的平台 core 包）。
+"@
     }
     Write-Ok "Harness distribution OK."
 }

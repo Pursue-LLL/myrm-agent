@@ -97,7 +97,7 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CronStatsBar stats={stats} activeFilter={filter} onFilterChange={setFilter} />
         <SchedulerHealthBadge />
       </div>

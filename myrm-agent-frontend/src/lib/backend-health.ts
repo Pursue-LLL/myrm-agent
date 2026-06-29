@@ -1,4 +1,5 @@
 import { getDeployMode, isLocalMode } from '@/lib/deploy-mode';
+import { isBootSessionCompleted } from '@/lib/local-backend-dev';
 import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
@@ -44,6 +45,11 @@ async function probeBackendReadyOnce(): Promise<boolean> {
 
   const payload = await fetchBackendHealth();
   return payload?.status === 'healthy';
+}
+
+/** One-shot backend health probe (no polling). For inline UI before the API readiness gate resolves. */
+export async function checkBackendReadyOnce(): Promise<boolean> {
+  return probeBackendReadyOnce();
 }
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -138,6 +144,7 @@ let localBackendReadyGate: Promise<boolean> | null = null;
 
 /**
  * Single-flight gate: local/Tauri clients await backend health once per page load.
+ * After Boot was shown this session, fail fast with a single probe (align with Banner).
  */
 export function ensureLocalBackendReady(): Promise<boolean> {
   if (typeof window === 'undefined' || !isLocalMode()) {
@@ -145,7 +152,9 @@ export function ensureLocalBackendReady(): Promise<boolean> {
   }
 
   if (!localBackendReadyGate) {
-    localBackendReadyGate = waitForBackendReady();
+    localBackendReadyGate = isBootSessionCompleted()
+      ? checkBackendReadyOnce()
+      : waitForBackendReady();
   }
 
   return localBackendReadyGate;
