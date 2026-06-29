@@ -67,3 +67,75 @@ async def test_notify_targets_omitted_on_create_returns_none(async_client: Async
     assert detail.get("notify_targets") is None
 
     await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_notify_targets_flows_to_profile_resolver(async_client: AsyncClient) -> None:
+    """API persist → profile_resolver.resolve() → factory-ready notify_targets tuple."""
+    from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+    create_payload = {
+        "name": "Resolver Notify Agent",
+        "system_prompt": "Notify resolver test.",
+        "model_selection": {"providerId": "openai", "model": "gpt-4o-mini"},
+        "notify_targets": [
+            {"channel": "telegram", "recipient_id": "chat_resolver"},
+            {"channel": "slack"},
+        ],
+    }
+    response = await async_client.post("/api/agents", json=create_payload)
+    assert response.status_code == 200
+    agent_id = response.json()["data"]["id"]
+
+    resolver = get_agent_profile_resolver()
+    resolver.invalidate(agent_id)
+    resolved = await resolver.resolve(agent_id)
+    assert resolved is not None
+    assert resolved.notify_targets == ({"channel": "telegram", "recipient_id": "chat_resolver"},)
+
+    deferred_tools: list[object] = []
+    if resolved.notify_targets:
+        from app.services.agent.outbound_notify import (
+            create_channel_notify_tool,
+            create_notification_sender,
+        )
+
+        sender_result = create_notification_sender(resolved.notify_targets)
+        assert sender_result is not None
+        sender, notify_config = sender_result
+        deferred_tools.append(create_channel_notify_tool(sender, notify_config))
+
+    assert len(deferred_tools) == 1
+    assert getattr(deferred_tools[0], "name", None) == "channel_notify_tool"
+
+    await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_profile_resolver_empty_notify_skips_factory_tool(async_client: AsyncClient) -> None:
+    from app.services.agent.profile_resolver import get_agent_profile_resolver
+
+    response = await async_client.post(
+        "/api/agents",
+        json={
+            "name": "No Notify Resolver Agent",
+            "system_prompt": "No notify.",
+            "model_selection": {"providerId": "openai", "model": "gpt-4o-mini"},
+        },
+    )
+    assert response.status_code == 200
+    agent_id = response.json()["data"]["id"]
+
+    resolver = get_agent_profile_resolver()
+    resolver.invalidate(agent_id)
+    resolved = await resolver.resolve(agent_id)
+    assert resolved is not None
+    assert resolved.notify_targets == ()
+
+    deferred_tools: list[object] = []
+    if resolved.notify_targets:
+        deferred_tools.append(object())
+
+    assert deferred_tools == []
+
+    await async_client.delete(f"/api/agents/{agent_id}")
