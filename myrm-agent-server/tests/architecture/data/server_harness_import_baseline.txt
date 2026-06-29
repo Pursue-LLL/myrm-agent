@@ -165,6 +165,7 @@ myrm_agent_harness.backends.skills.types
 myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
 myrm_agent_harness.core.artifacts.constants
+myrm_agent_harness.core.artifacts.paths
 myrm_agent_harness.core.config
 myrm_agent_harness.core.config.gateway
 myrm_agent_harness.core.config.llm
@@ -243,8 +244,6 @@ myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer
 myrm_agent_harness.toolkits.code_execution.tool_discovery
 myrm_agent_harness.toolkits.code_execution.workspace.registry
 myrm_agent_harness.toolkits.code_index
-myrm_agent_harness.toolkits.commitment
-myrm_agent_harness.toolkits.commitment.types
 myrm_agent_harness.toolkits.computer_use
 myrm_agent_harness.toolkits.computer_use.desktop_session
 myrm_agent_harness.toolkits.computer_use.session
@@ -252,6 +251,9 @@ myrm_agent_harness.toolkits.computer_use.types
 myrm_agent_harness.toolkits.context
 myrm_agent_harness.toolkits.context.health
 myrm_agent_harness.toolkits.context.spec
+myrm_agent_harness.toolkits.context_bundle
+myrm_agent_harness.toolkits.context_bundle.health
+myrm_agent_harness.toolkits.context_bundle.spec
 myrm_agent_harness.toolkits.cron
 myrm_agent_harness.toolkits.cron.cron_agent_tools
 myrm_agent_harness.toolkits.cron.delivery
@@ -328,10 +330,13 @@ myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
 myrm_agent_harness.toolkits.memory.mcp_server
 myrm_agent_harness.toolkits.memory.metrics
+myrm_agent_harness.toolkits.memory.proactive
+myrm_agent_harness.toolkits.memory.proactive.types
 myrm_agent_harness.toolkits.memory.protocols.embedding
 myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
 myrm_agent_harness.toolkits.memory.security
+myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.strategies.consolidation_rollback
 myrm_agent_harness.toolkits.memory.strategies.extractor
 myrm_agent_harness.toolkits.memory.strategies.pattern_discovery

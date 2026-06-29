@@ -143,7 +143,7 @@ def probe_deployment_boundary(runtime: MemoryCommandRuntimeStatus) -> MemoryComm
 
 
 def probe_context_bundle_manifest(runtime: MemoryCommandRuntimeStatus) -> MemoryCommandDoctorCheck:
-    from myrm_agent_harness.toolkits.context import run_migration_dry_run
+    from myrm_agent_harness.toolkits.context_bundle import run_migration_dry_run
 
     memory_path = Path(runtime.memory_base_path).expanduser()
     state_dir = memory_path.parent if memory_path.name == "memory" else memory_path

@@ -1,7 +1,7 @@
 """SQLAlchemy implementation of the CommitmentStore protocol.
 
 [INPUT]
-- myrm_agent_harness.toolkits.commitment::{CommitmentRecord, CommitmentStatus, CommitmentDueWindow, is_active_status}
+- myrm_agent_harness.toolkits.memory.proactive::{CommitmentRecord, CommitmentStatus, CommitmentDueWindow, is_active_status}
 - app.database.models::CommitmentModel
 - app.database.connection::get_session
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 
-from myrm_agent_harness.toolkits.commitment.types import (
+from myrm_agent_harness.toolkits.memory.proactive.types import (
     CommitmentDueWindow,
     CommitmentRecord,
     CommitmentStatus,
@@ -35,7 +35,7 @@ _ACTIVE_STATUSES = (CommitmentStatus.PENDING.value, CommitmentStatus.SNOOZED.val
 
 def _to_domain(row: CommitmentModel) -> CommitmentRecord:
     """Convert ORM model to domain record."""
-    from myrm_agent_harness.toolkits.commitment.types import (
+    from myrm_agent_harness.toolkits.memory.proactive.types import (
         CommitmentKind,
         CommitmentSensitivity,
     )

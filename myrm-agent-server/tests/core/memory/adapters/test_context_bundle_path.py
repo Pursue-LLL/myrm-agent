@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from myrm_agent_harness.toolkits.context import ContextBundleFacade
+from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
 from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding

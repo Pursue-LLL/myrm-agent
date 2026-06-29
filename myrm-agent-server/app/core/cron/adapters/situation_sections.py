@@ -212,7 +212,7 @@ class DailyWorkSummarySection:
 
 def build_situation_report_builder() -> SituationReportBuilder:
     """Factory: creates and populates the builder with all server-layer sections."""
-    from app.core.commitment.section import PendingCommitmentsSection
+    from app.core.memory.proactive.section import PendingCommitmentsSection
 
     builder = SituationReportBuilder(token_budget=800)
     builder.register(PendingCommitmentsSection())

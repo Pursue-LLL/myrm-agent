@@ -180,18 +180,32 @@ class AgentJobRunner:
         can skip the LLM call when no section produced useful data.
         """
         assert self._situation_builder is not None
+        from app.core.channel_bridge.config_loader import load_user_configs
+        from app.core.memory.proactive.delivery_tracker import (
+            begin_follow_up_delivery,
+            reset_follow_up_delivery,
+        )
+
+        begin_follow_up_delivery()
         try:
+            user_cfgs = await load_user_configs()
+            memory_settings = user_cfgs.personal_settings_dict or {}
+            memory_enabled = bool(memory_settings.get("enableMemory", True))
+
             ctx = SituationContext(
                 last_tick_at=job.last_run_at,
                 agent_id=job.agent_id or "",
                 user_id=job.user_id,
+                memory_enabled=memory_enabled,
             )
             report = await self._situation_builder.build(ctx)
             if report:
                 return f"<situation_report>\n{report}</situation_report>\n\n{prompt}", True
         except Exception:
             logger.warning("Situation report build failed for job %s", job.id, exc_info=True)
+            reset_follow_up_delivery()
             return prompt, True
+        reset_follow_up_delivery()
         return prompt, False
 
     async def _try_enqueue_if_goal_active(self, job: CronJob, *, context: str = "") -> bool:
@@ -425,6 +439,19 @@ class AgentJobRunner:
                     )
                 finally:
                     await agent.close()
+
+                if job.name == HEARTBEAT_JOB_NAME:
+                    from app.core.memory.proactive.delivery_tracker import (
+                        confirm_follow_up_delivery,
+                        reset_follow_up_delivery,
+                    )
+
+                    if result.success and not result.skipped:
+                        output = (result.output or "").strip()
+                        delivered = bool(output) and not output.startswith("[SILENT]")
+                        await confirm_follow_up_delivery(delivered=delivered)
+                    else:
+                        reset_follow_up_delivery()
 
                 return result
             finally:

@@ -1,7 +1,7 @@
 """
 [INPUT]
-- app.core.commitment.sqlite_store::SqlAlchemyCommitmentStore
-- myrm_agent_harness.toolkits.commitment.types::{CommitmentStatus, CommitmentRecord}
+- app.core.memory.proactive.sqlite_store::SqlAlchemyCommitmentStore
+- myrm_agent_harness.toolkits.memory.proactive.types::{CommitmentStatus, CommitmentRecord}
 
 [OUTPUT]
 - router: Commitment REST endpoints (list/dismiss/snooze)
@@ -15,13 +15,13 @@ import logging
 import time
 
 from fastapi import APIRouter, HTTPException, Query
-from myrm_agent_harness.toolkits.commitment.types import CommitmentStatus
+from myrm_agent_harness.toolkits.memory.proactive.types import CommitmentStatus
 from pydantic import BaseModel, Field
 
-from app.core.commitment.sqlite_store import SqlAlchemyCommitmentStore
+from app.core.memory.proactive.sqlite_store import SqlAlchemyCommitmentStore
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/commitments", tags=["Commitments"])
+router = APIRouter(prefix="/follow-ups", tags=["memory-follow-ups"])
 
 _store = SqlAlchemyCommitmentStore()
 
@@ -57,7 +57,7 @@ class CommitmentListResponse(BaseModel):
 
 
 def _to_response(r: object) -> CommitmentResponse:
-    from myrm_agent_harness.toolkits.commitment.types import CommitmentRecord
+    from myrm_agent_harness.toolkits.memory.proactive.types import CommitmentRecord
 
     assert isinstance(r, CommitmentRecord)
     return CommitmentResponse(

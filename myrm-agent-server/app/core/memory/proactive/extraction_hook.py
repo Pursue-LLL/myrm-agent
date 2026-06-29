@@ -1,8 +1,8 @@
 """Commitment extraction hook — triggers extraction after sessions.
 
 [INPUT]
-- myrm_agent_harness.toolkits.commitment::{CommitmentExtractor, CommitmentConfig, CommitmentRecord, CommitmentDueWindow}
-- app.core.commitment.sqlite_store::SqlAlchemyCommitmentStore
+- myrm_agent_harness.toolkits.memory.proactive::{CommitmentExtractor, CommitmentConfig, CommitmentRecord, CommitmentDueWindow}
+- app.core.memory.proactive.sqlite_store::SqlAlchemyCommitmentStore
 
 [OUTPUT]
 - run_commitment_extraction: Async function to extract and persist commitments.
@@ -40,14 +40,14 @@ async def run_commitment_extraction(
 
     Returns the number of commitments created/updated.
     """
-    from myrm_agent_harness.toolkits.commitment import (
+    from myrm_agent_harness.toolkits.memory.proactive import (
         CommitmentConfig,
         CommitmentDueWindow,
         CommitmentExtractor,
         CommitmentRecord,
     )
 
-    from app.core.commitment.sqlite_store import SqlAlchemyCommitmentStore
+    from app.core.memory.proactive.sqlite_store import SqlAlchemyCommitmentStore
 
     config = CommitmentConfig()
     extractor = CommitmentExtractor(config=config)

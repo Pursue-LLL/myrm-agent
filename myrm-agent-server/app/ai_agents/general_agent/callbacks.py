@@ -109,7 +109,18 @@ def make_commitment_extraction_callback(
         if llm_func is None:
             return
         try:
-            from app.core.commitment.extraction_hook import run_commitment_extraction
+            from app.core.channel_bridge.config_loader import load_user_configs
+            from app.core.memory.proactive.extraction_hook import run_commitment_extraction
+
+            timezone = "UTC"
+            try:
+                user_cfgs = await load_user_configs()
+                memory_settings = user_cfgs.personal_settings_dict or {}
+                tz_raw = memory_settings.get("timezone")
+                if isinstance(tz_raw, str) and tz_raw.strip():
+                    timezone = tz_raw.strip()
+            except Exception:
+                logger.debug("Using UTC for proactive extraction; user timezone unavailable")
 
             await run_commitment_extraction(
                 messages,
@@ -118,6 +129,7 @@ def make_commitment_extraction_callback(
                 user_id=user_id,
                 channel=channel,
                 source_chat_id=chat_id,
+                timezone=timezone,
             )
         except Exception as e:
             logger.warning("Commitment extraction skipped: %s", e)

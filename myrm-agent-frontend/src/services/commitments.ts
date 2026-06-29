@@ -49,17 +49,17 @@ export async function fetchCommitments(params?: {
   if (params?.limit) query.set('limit', String(params.limit));
 
   const qs = query.toString();
-  return apiRequest<CommitmentListResponse>(`/commitments${qs ? `?${qs}` : ''}`);
+  return apiRequest<CommitmentListResponse>(`/memory/follow-ups${qs ? `?${qs}` : ''}`);
 }
 
 export async function dismissCommitment(id: string): Promise<{ success: boolean }> {
-  return apiRequest<{ success: boolean }>(`/commitments/${id}/dismiss`, {
+  return apiRequest<{ success: boolean }>(`/memory/follow-ups/${id}/dismiss`, {
     method: 'POST',
   });
 }
 
 export async function snoozeCommitment(id: string, untilMs: number): Promise<{ success: boolean }> {
-  return apiRequest<{ success: boolean }>(`/commitments/${id}/snooze`, {
+  return apiRequest<{ success: boolean }>(`/memory/follow-ups/${id}/snooze`, {
     method: 'POST',
     body: JSON.stringify({ until_ms: untilMs }),
   });

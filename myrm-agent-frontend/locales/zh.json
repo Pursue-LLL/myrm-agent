@@ -230,7 +230,11 @@
       }
     },
     "memoryCenter": {
+      "tabs": {
+        "followUps": "智能跟进"
+      },
       "tabDescriptions": {
+        "followUps": "查看并管理从对话中自动提取的隐式跟进事项，可忽略或延后",
         "migration": "扫描 Hermes、OpenClaw、Claude Code、Codex — 预览导入；技能需审核；MCP 与渠道需手动配置"
       },
       "migrationUnavailable": {
@@ -2849,7 +2853,7 @@
     "systemInstructions": "系统提示词",
     "systemInstructionsDesc": "全局系统指令，会注入到每次对话中",
     "enableMemory": "启用记忆",
-    "enableMemoryDesc": "启用后，AI 将记住对话中的重要信息，并提供更个性化的回复",
+    "enableMemoryDesc": "启用后，AI 将记住对话中的重要信息，并可能在合适时候主动跟进隐式承诺事项",
     "memoryRequireConfirmation": "记忆需确认",
     "memoryRequireConfirmationDesc": "新记忆写入前需手动确认，关闭则自动保存",
     "enableMemoryAutoExtraction": "自动提取记忆",
@@ -6260,7 +6264,7 @@
     "loginRequired": "登录后查看记忆",
     "loginRequiredDesc": "登录后即可查看和管理 AI 学习到的记忆",
     "enableMemory": "启用记忆",
-    "enableMemoryDesc": "启用后，AI 将记住您对话中的重要信息，并使用这些信息提供更个性化的回复。",
+    "enableMemoryDesc": "启用后，AI 将记住您对话中的重要信息，并可能在合适时候主动跟进隐式承诺事项。",
     "requireConfirmation": "保存前确认",
     "requireConfirmationDesc": "开启后，AI 保存的记忆需要您在此处审核确认后才会生效。关闭则自动保存。",
     "autoExtraction": "自动提取记忆",
@@ -10923,6 +10927,8 @@
     "snoozed": "已延后4小时",
     "dismissAction": "忽略",
     "snoozeAction": "延后",
+    "agentFilter": "智能体",
+    "agentFilterAll": "全部智能体",
     "filter": {
       "all": "全部",
       "pending": "待处理",

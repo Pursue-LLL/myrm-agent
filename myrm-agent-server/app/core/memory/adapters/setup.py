@@ -22,7 +22,7 @@ import logging
 from pathlib import Path
 from typing import Protocol, cast
 
-from myrm_agent_harness.toolkits.context.spec import DEFAULT_BUNDLE_ID
+from myrm_agent_harness.toolkits.context_bundle.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
     create_local_memory_manager,
@@ -112,7 +112,7 @@ async def create_memory_manager(
     In SaaS sandbox, the Control Plane injects the path (e.g., `/persistent/memory`).
     Locally, it defaults to `{state_dir}/memory`.
     """
-    from myrm_agent_harness.toolkits.context import ContextBundleFacade
+    from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
 
     from app.config.settings import settings
 
@@ -211,7 +211,7 @@ def resolve_context_binding(
     bundle_id: str | None = None,
     task_workspace_root: str | None = None,
 ) -> ResolvedContextBinding:
-    from myrm_agent_harness.toolkits.context import AgentContextOverlay
+    from myrm_agent_harness.toolkits.context_bundle import AgentContextOverlay
 
     normalized_shared_context_ids = list(
         dict.fromkeys(context_id.strip() for context_id in (shared_context_ids or []) if context_id.strip())

@@ -42,9 +42,11 @@ async def _start_vault_gc() -> None:
     import asyncio
     import time
 
+    from myrm_agent_harness.core.artifacts.paths import resolve_workspace_artifact_vault_dir
+
     ws_root = getattr(settings, "workspace_root", None)
     workspace_root = Path(ws_root) if ws_root else Path.cwd()
-    vault_dir = workspace_root / ".myrm" / "vault"
+    vault_dir = resolve_workspace_artifact_vault_dir(workspace_root)
 
     gc_interval_seconds = 3600
     expire_seconds = 7 * 24 * 3600

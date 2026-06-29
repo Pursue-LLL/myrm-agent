@@ -1,7 +1,7 @@
 # context/
 
 [INPUT]
-- myrm_agent_harness.toolkits.context (POS: ContextBundle abstraction)
+- myrm_agent_harness.toolkits.context_bundle (POS: ContextBundle abstraction)
 - myrm_agent_harness.toolkits.memory (POS: MemoryManager)
 - app.core.memory.adapters.setup (POS: context binding resolver)
 

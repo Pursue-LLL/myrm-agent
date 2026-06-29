@@ -230,7 +230,11 @@
       }
     },
     "memoryCenter": {
+      "tabs": {
+        "followUps": "Follow-ups"
+      },
       "tabDescriptions": {
+        "followUps": "View and manage proactive follow-ups extracted from conversations / 查看并管理从对话中提取的智能跟进",
         "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
       },
       "migrationUnavailable": {
@@ -2849,7 +2853,7 @@
     "systemInstructions": "System Prompt",
     "systemInstructionsDesc": "Global system instructions injected into every conversation",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, the AI remembers important information from conversations",
+    "enableMemoryDesc": "When enabled, the AI remembers important information and may proactively follow up on implicit commitments from conversations",
     "memoryRequireConfirmation": "Require Memory Confirmation",
     "memoryRequireConfirmationDesc": "New memories must be confirmed before saving; disable to auto-save",
     "enableMemoryAutoExtraction": "Auto Extract Memories",
@@ -6257,7 +6261,7 @@
     "loginRequired": "Login to view memories",
     "loginRequiredDesc": "Login to view and manage memories AI learned about you",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and use it to provide more personalized responses.",
+    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and may proactively follow up on implicit commitments.",
     "requireConfirmation": "Confirm Before Saving",
     "requireConfirmationDesc": "When enabled, memories saved by AI require your review and approval before taking effect. When disabled, memories are saved automatically.",
     "autoExtraction": "Auto-Extract Memories",
@@ -10952,6 +10956,8 @@
     "snoozed": "Snoozed for 4 hours",
     "dismissAction": "Dismiss",
     "snoozeAction": "Snooze",
+    "agentFilter": "Agent",
+    "agentFilterAll": "All agents",
     "filter": {
       "all": "All",
       "pending": "Pending",

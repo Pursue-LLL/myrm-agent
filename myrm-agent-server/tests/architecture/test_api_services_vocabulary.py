@@ -56,7 +56,6 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
     {
         "api_keys",
         "client_logs",
-        "commitment",
         "credentials",
         "cron",
         "datasets",

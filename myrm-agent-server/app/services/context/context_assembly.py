@@ -1,7 +1,7 @@
 """Context assembly for agent runs.
 
 [INPUT]
-- myrm_agent_harness.toolkits.context::ContextBundleFacade (POS: unified context volume facade)
+- myrm_agent_harness.toolkits.context_bundle::ContextBundleFacade (POS: unified context volume facade)
 - app.core.memory.adapters.setup::resolve_context_binding (POS: context binding resolver)
 - app.core.memory.adapters.types::ResolvedContextBinding (POS: context runtime binding)
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.context import ContextBundleFacade, ContextBundleSpec
+from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade, ContextBundleSpec
 
 from app.config.settings import settings
 from app.core.memory.adapters.setup import resolve_context_binding

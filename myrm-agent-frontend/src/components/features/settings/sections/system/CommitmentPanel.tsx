@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { IconHeart } from '@/components/features/icons/PremiumIcons';
+import useAgentStore from '@/store/useAgentStore';
 import SettingsSection from '../SettingsSection';
 import { fetchCommitments, dismissCommitment, snoozeCommitment, type Commitment } from '@/services/commitments';
 
@@ -65,21 +66,29 @@ const CommitmentPanel = memo(function CommitmentPanel() {
   const [items, setItems] = useState<Commitment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const agents = useAgentStore((s) => s.agents);
+  const fetchAgents = useAgentStore((s) => s.fetchAgents);
   const isZh = t('title') !== 'Follow-up Tracking';
+
+  useEffect(() => {
+    void fetchAgents(1, 50, true);
+  }, [fetchAgents]);
 
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const params: Record<string, string> = {};
-      if (filter !== 'all') params.status = filter;
-      const res = await fetchCommitments(filter !== 'all' ? { status: filter } : undefined);
+      const res = await fetchCommitments({
+        ...(filter !== 'all' ? { status: filter } : {}),
+        ...(agentFilter !== 'all' ? { agent_id: agentFilter } : {}),
+      });
       setItems(res.items);
     } catch {
       toast.error(t('loadError'));
     } finally {
       setLoading(false);
     }
-  }, [filter, t]);
+  }, [filter, agentFilter, t]);
 
   useEffect(() => {
     load();
@@ -140,6 +149,24 @@ const CommitmentPanel = memo(function CommitmentPanel() {
             </button>
           ))}
         </div>
+
+        {agents.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">{t('agentFilter')}</span>
+            <select
+              value={agentFilter}
+              onChange={(e) => setAgentFilter(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+            >
+              <option value="all">{t('agentFilterAll')}</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {loading ? (
           <div className="space-y-3">

@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 async def _init_integration_memory() -> None:
     """Initialize IntegrationMemoryService and start the sync daemon."""
     try:
-        from myrm_agent_harness.toolkits.context import ContextBundleFacade
+        from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
         from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
         from myrm_agent_harness.toolkits.retriever.embedding.factory import (
             EmbeddingConfig,

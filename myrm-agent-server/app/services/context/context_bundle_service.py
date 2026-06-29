@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.context.context_assembly::ContextAssemblyService (POS: context assembly)
-- myrm_agent_harness.toolkits.context (POS: context bundle toolkit)
+- myrm_agent_harness.toolkits.context_bundle (POS: context bundle toolkit)
 
 [OUTPUT]
 - ContextBundleService: bundle health, migration dry-run/apply
@@ -13,22 +13,22 @@ Server-side ContextBundle orchestration. Wraps Harness facade without duplicatin
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.context import (
+from myrm_agent_harness.toolkits.context_bundle import (
     ContextBundleFacade,
     ContextScene,
     apply_migration,
     run_migration_dry_run,
 )
-from myrm_agent_harness.toolkits.context.health import (
+from myrm_agent_harness.toolkits.context_bundle.health import (
     HealthProbe,
     MemorySceneHealthBackend,
     StaticSceneHealthBackend,
 )
 
 try:
-    from myrm_agent_harness.toolkits.context.health import WorkspaceSceneHealthBackend
+    from myrm_agent_harness.toolkits.context_bundle.health import WorkspaceSceneHealthBackend
 except ImportError:
-    from myrm_agent_harness.toolkits.context.health import (
+    from myrm_agent_harness.toolkits.context_bundle.health import (
         LocalFileSearchSceneHealthBackend as WorkspaceSceneHealthBackend,
     )
 

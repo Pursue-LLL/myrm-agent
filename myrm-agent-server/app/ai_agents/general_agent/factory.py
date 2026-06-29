@@ -875,6 +875,8 @@ def _build_session_cleanup_callback(
         create_extraction_llm_func,
     )
 
+    from myrm_agent_harness.toolkits.memory.session_post_process import run_session_post_process
+
     from .callbacks import (
         make_commitment_extraction_callback,
         make_correction_propagation_callback,
@@ -885,33 +887,26 @@ def _build_session_cleanup_callback(
     agent_id = agent_wrapper.agent_id or "default"
     channel = agent_wrapper.channel_name or "web"
 
-    commitment_cb = make_commitment_extraction_callback(
-        agent_id=agent_id,
-        user_id=user_id,
-        channel=channel,
-        llm_func=llm_func,
-    )
-
-    correction_cb = make_correction_propagation_callback(
-        agent_id=agent_id,
-        llm_func=llm_func,
-    )
-
-    frustration_cb = make_frustration_skill_routing_callback(
-        agent_id=agent_id,
-        skill_ids=agent_wrapper.skill_ids or [],
-        llm_func=llm_func,
-    )
+    tasks = [
+        make_commitment_extraction_callback(
+            agent_id=agent_id,
+            user_id=user_id,
+            channel=channel,
+            llm_func=llm_func,
+        ),
+        make_correction_propagation_callback(
+            agent_id=agent_id,
+            llm_func=llm_func,
+        ),
+        make_frustration_skill_routing_callback(
+            agent_id=agent_id,
+            skill_ids=agent_wrapper.skill_ids or [],
+            llm_func=llm_func,
+        ),
+    ]
 
     async def _composite(messages: "Sequence[dict[str, str]]", chat_id: str | None) -> None:
-        import asyncio
-
-        await asyncio.gather(
-            commitment_cb(messages, chat_id),
-            correction_cb(messages, chat_id),
-            frustration_cb(messages, chat_id),
-            return_exceptions=True,
-        )
+        await run_session_post_process(tasks, messages, chat_id)
 
     return _composite
 

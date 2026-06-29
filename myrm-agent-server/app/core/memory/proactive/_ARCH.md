@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Commitment 承诺段提取与 SQLite 存储。上级文档：[../_ARCH.md](../_ARCH.md)。
+Commitment 承诺段提取与 SQLite 存储。Harness 抽取引擎：`myrm_agent_harness.toolkits.memory.proactive`（见 harness 包内 `COMMITMENT_SYSTEM.md`）。
 
 ## 文件清单
 

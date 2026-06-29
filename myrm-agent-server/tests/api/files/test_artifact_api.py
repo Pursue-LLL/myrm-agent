@@ -11,7 +11,7 @@ from app.database.models.artifact import Artifact, ArtifactVersion
 async def test_artifact_hash_verification(client: TestClient, db_session: AsyncSession, tmp_path):
     """Test that the artifact API correctly verifies the SHA-256 hash of a file."""
     # 1. Setup mock vault file
-    vault_dir = tmp_path / ".myrm" / "vault" / "objects"
+    vault_dir = tmp_path / ".agent" / "vault" / "objects"
     vault_dir.mkdir(parents=True, exist_ok=True)
 
     test_content = b"Hello, Enterprise Vault!"

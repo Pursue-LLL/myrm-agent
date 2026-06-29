@@ -172,7 +172,7 @@ pub async fn migrate_data_dir(
 
     println!("📦 Migrating data: {:?} → {:?}", old_path, new_path);
 
-    crate::runtime::stop_backend(app.state::<crate::runtime::PythonBackend>())?;
+    crate::runtime::stop_backend(backend.clone())?;
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     if old_path.exists() {

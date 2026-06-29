@@ -1,6 +1,6 @@
 """
 [INPUT]
-myrm_agent_harness.toolkits.context.spec::AgentContextOverlay, IncognitoPolicy (POS: context bundle specification)
+myrm_agent_harness.toolkits.context_bundle.spec::AgentContextOverlay, IncognitoPolicy (POS: context bundle specification)
 myrm_agent_harness.toolkits.memory.config::AgentMemoryPolicy (POS: 记忆策略配置)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from myrm_agent_harness.toolkits.context.spec import (
+from myrm_agent_harness.toolkits.context_bundle.spec import (
     CONTEXT_BUNDLE_SCHEMA_VERSION,
     DEFAULT_BUNDLE_ID,
     DEFAULT_SCENES,
