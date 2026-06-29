@@ -5560,12 +5560,7 @@
       "dismiss": "稍后再说",
       "apiKeysHint": "检测到 API Key 名称，请在设置中手动填写"
     },
-    "reasoningModelDisabledWithImage": "When vision enhancement is enabled, images require vision model",
-    "search": {
-      "placeholder": "搜索对话...",
-      "noResults": "未找到匹配的对话",
-      "results": "{count} 条结果"
-    }
+    "reasoningModelDisabledWithImage": "When vision enhancement is enabled, images require vision model"
   },
   "mode": {
     "fast": "快速搜索",

@@ -5560,11 +5560,6 @@
       "importButton": "Open Migration Wizard",
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
-    },
-    "search": {
-      "placeholder": "Search conversations...",
-      "noResults": "No matching conversations",
-      "results": "{count} results"
     }
   },
   "mode": {

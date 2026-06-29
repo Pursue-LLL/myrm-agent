@@ -119,6 +119,7 @@ const AboutSection = memo(() => {
   const [version, setVersion] = useState(FALLBACK_VERSION);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [updateBody, setUpdateBody] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,6 +139,7 @@ const AboutSection = memo(() => {
       const update = await check();
       if (update) {
         setUpdateVersion(update.version);
+        setUpdateBody(update.body ?? null);
         setUpdateStatus('available');
       } else {
         setUpdateStatus('up-to-date');
@@ -204,10 +206,15 @@ const AboutSection = memo(() => {
                   </div>
                 )}
                 {updateStatus === 'available' && (
-                  <div className="flex flex-col items-center gap-2">
+                  <div className="flex flex-col items-center gap-2 w-full max-w-sm">
                     <p className="text-xs text-primary font-medium">
                       {t('update.available', { version: updateVersion })}
                     </p>
+                    {updateBody && (
+                      <div className="w-full max-h-32 overflow-y-auto rounded-md bg-muted/50 p-3 text-left text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {updateBody}
+                      </div>
+                    )}
                     <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
                       <Download className="w-3.5 h-3.5" />
                       {t('update.install')}

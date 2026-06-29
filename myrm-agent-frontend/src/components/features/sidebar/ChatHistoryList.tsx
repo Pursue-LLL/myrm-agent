@@ -4,7 +4,7 @@ import type { ChatItem } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale';
-import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks, Search, X } from 'lucide-react';
+import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks, Loader2, Search, X } from 'lucide-react';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { useCallback, useEffect, memo, useMemo, useRef, useState } from 'react';
@@ -287,7 +287,11 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
       {showSearch && (
         <div className="px-2 pb-1">
           <div className="relative">
-            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            {chatHistoryLoading && localKeyword ? (
+              <Loader2 size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-primary animate-spin pointer-events-none" />
+            ) : (
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            )}
             <input
               ref={searchInputRef}
               type="text"
