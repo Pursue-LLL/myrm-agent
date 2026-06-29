@@ -173,6 +173,8 @@ myrm_agent_harness.core.events
 myrm_agent_harness.core.features
 myrm_agent_harness.core.features.types
 myrm_agent_harness.core.security.detection.leak_detector
+myrm_agent_harness.core.security.guards.ssrf
+myrm_agent_harness.core.security.http.secure_fetch
 myrm_agent_harness.core.security.path_security
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.eval
