@@ -62,8 +62,16 @@ async def skills_client(
     await prebuilt_sync.sync_prebuilt_seeds(skills_storage)
 
     _patch_integration_db(monkeypatch, integration_db, skills_storage)
+    monkeypatch.setattr(
+        "app.core.skills.oauth_availability._is_xai_provider_configured",
+        lambda: _always_false(),
+    )
     app = build_minimal_app(preset="skills_api")
     yield TestClient(app)
+
+
+async def _always_false() -> bool:
+    return False
 
 
 def test_catalog_lists_google_workspace_unavailable_without_oauth(

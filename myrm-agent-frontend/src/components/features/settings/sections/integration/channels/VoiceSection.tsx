@@ -11,7 +11,7 @@ import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import SettingsSection from '../../SettingsSection';
-import TemperatureSlider from '../../default-model/TemperatureSlider';
+import TemperatureSlider from '../../../default-model/TemperatureSlider';
 
 interface VoiceFormState {
   sttEnabled: boolean;

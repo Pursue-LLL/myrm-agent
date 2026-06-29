@@ -89,7 +89,12 @@ async def list_commitments(
     limit: int = Query(100, ge=1, le=500),
 ) -> CommitmentListResponse:
     """List all commitments for the current user."""
-    status_filter = CommitmentStatus(status) if status else None
+    status_filter: CommitmentStatus | None = None
+    if status is not None:
+        try:
+            status_filter = CommitmentStatus(status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}") from exc
     items = await _store.list_all(
         user_id="default",
         status=status_filter,

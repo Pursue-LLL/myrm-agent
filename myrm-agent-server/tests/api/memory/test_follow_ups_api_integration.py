@@ -109,3 +109,9 @@ def test_follow_ups_snooze_rejects_past_timestamp(client: TestClient) -> None:
 def test_follow_ups_dismiss_unknown_returns_404(client: TestClient) -> None:
     resp = client.post(f"{BASE}/cm_does_not_exist/dismiss")
     assert resp.status_code == 404
+
+
+def test_follow_ups_invalid_status_returns_400(client: TestClient) -> None:
+    resp = client.get(BASE, params={"status": "not_a_status"})
+    assert resp.status_code == 400
+    assert "Invalid status" in resp.json()["detail"]
