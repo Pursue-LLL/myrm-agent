@@ -30,6 +30,7 @@ async def _run_evolution_task(
     chat_id: str,
     model_cfg: ModelConfig,
     conversation_text: str | None = None,
+    agent_id: str | None = None,
 ) -> None:
     """Background task to analyze chat and generate a skill."""
     logger.info(f"🧠 Starting asynchronous skill evolution for chat {chat_id}")
@@ -86,6 +87,7 @@ async def _run_evolution_task(
                 trajectory=conversation_text,
                 session_id=chat_id,
                 env_fingerprint=env_fingerprint,
+                agent_id=agent_id,
             )
         finally:
             store.close()
@@ -118,6 +120,7 @@ def trigger_skill_evolution(
     model_cfg: ModelConfig,
     tool_steps_count: int = 0,
     conversation_text: str | None = None,
+    agent_id: str | None = None,
 ) -> None:
     """Trigger the background skill evolution engine.
 
@@ -127,12 +130,13 @@ def trigger_skill_evolution(
         tool_steps_count: Number of tools used in the last turn (heuristic for complexity).
         conversation_text: Pre-built conversation text (e.g. from DW stream collector).
             When provided, skips loading from ChatService.
+        agent_id: Originating agent profile ID for proposal attribution.
     """
     if tool_steps_count == 0 and not conversation_text:
         return
 
     asyncio.create_task(
-        _run_evolution_task(chat_id, model_cfg, conversation_text=conversation_text),
+        _run_evolution_task(chat_id, model_cfg, conversation_text=conversation_text, agent_id=agent_id),
         name=f"skill_evolution_{chat_id}",
     )
     logger.debug(f"Triggered background skill evolution for chat {chat_id}")

@@ -96,6 +96,7 @@ async def test_evolution_triggered_when_tools_used() -> None:
         model_cfg=session.params.model_cfg,
         tool_steps_count=5,
         conversation_text=None,
+        agent_id=session.request.agent_id,
     )
 
 
@@ -145,6 +146,7 @@ async def test_evolution_passes_dw_content_when_workflow() -> None:
         model_cfg=session.params.model_cfg,
         tool_steps_count=3,
         conversation_text="DW orchestrated result",
+        agent_id=session.request.agent_id,
     )
 
 

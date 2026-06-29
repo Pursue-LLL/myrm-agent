@@ -209,6 +209,7 @@ async def finalize_agent_stream_session(
                 model_cfg=session.params.model_cfg,
                 tool_steps_count=tool_steps,
                 conversation_text=dw_text,
+                agent_id=getattr(session.request, "agent_id", None),
             )
         except Exception as evo_exc:
             logger.debug("Skill evolution trigger skipped: %s", evo_exc)
