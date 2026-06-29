@@ -1,9 +1,0 @@
-{
-  "id": "79c94605-d737-4714-bef7-f03b2302f163",
-  "filename": "test.txt",
-  "content_type": "text/plain",
-  "size_bytes": 19,
-  "created_at": 1782730972.26484,
-  "sha256_hash": "7da69d394fecd1dc83d1c109340c4c34748aabbcd401f1a06c4da0a3f32b1252",
-  "description": "Persisted from chat artifact processor"
-}
