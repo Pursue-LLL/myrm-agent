@@ -612,6 +612,52 @@ class TestMcpToolSelectionsField:
         assert result.mcp_tool_selections == {}
 
 
+class TestNotifyTargetsFiltering:
+    """notify_targets in metadata are filtered to valid channel+recipient_id entries."""
+
+    @pytest.mark.asyncio
+    async def test_load_from_db_filters_invalid_entries(self) -> None:
+        from unittest.mock import MagicMock
+
+        mock_agent = MagicMock()
+        mock_agent.system_prompt = "prompt"
+        mock_agent.model = "openai/gpt-4o"
+        mock_agent.skills = []
+        mock_agent.skill_configs = None
+        mock_agent.max_iterations = 10
+        mock_agent.memory_policy = None
+        mock_agent.memory_decay_profile = None
+        mock_agent.metadata = {
+            "mcp_ids": [],
+            "enabled_builtin_tools": list(DEFAULT_ENABLED_BUILTIN_TOOLS),
+            "notify_targets": [
+                {"channel": "telegram", "recipient_id": "123", "label": "TG"},
+                {"channel": "slack"},
+                {"recipient_id": "orphan"},
+                "not-a-dict",
+            ],
+        }
+
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("app.platform_utils.get_session_factory", return_value=lambda: mock_session),
+            patch(
+                "app.services.agent.agent_service.AgentService.get_agent_by_id",
+                new_callable=AsyncMock,
+                return_value=mock_agent,
+            ),
+        ):
+            profile = await AgentProfileResolver._load_from_db("agent-notify")
+
+        assert profile is not None
+        assert profile.notify_targets == (
+            {"channel": "telegram", "recipient_id": "123", "label": "TG"},
+        )
+
+
 class TestDefaultEnabledBuiltinTools:
     """Verify the canonical default contains expected tools."""
 

@@ -46,6 +46,28 @@ from .injection_scan import scan_cron_prompt
 logger = logging.getLogger(__name__)
 
 
+def heartbeat_follow_up_delivered(job_output: str | None) -> bool:
+    """Return True when heartbeat output counts as a successful follow-up delivery ack."""
+    text = (job_output or "").strip()
+    return bool(text) and not text.startswith("[SILENT]")
+
+
+async def finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
+    """Confirm or reset follow-up delivery state after a heartbeat agent run."""
+    if job.name != HEARTBEAT_JOB_NAME:
+        return
+
+    from app.core.memory.proactive.delivery_tracker import (
+        confirm_follow_up_delivery,
+        reset_follow_up_delivery,
+    )
+
+    if result.success and not result.skipped:
+        await confirm_follow_up_delivery(delivered=heartbeat_follow_up_delivered(result.output))
+        return
+    reset_follow_up_delivery()
+
+
 def _source_sort_key(s: dict[str, object]) -> int:
     v = s.get("index", 0)
     if isinstance(v, int):
@@ -441,18 +463,7 @@ class AgentJobRunner:
                 finally:
                     await agent.close()
 
-                if job.name == HEARTBEAT_JOB_NAME:
-                    from app.core.memory.proactive.delivery_tracker import (
-                        confirm_follow_up_delivery,
-                        reset_follow_up_delivery,
-                    )
-
-                    if result.success and not result.skipped:
-                        output = (result.output or "").strip()
-                        delivered = bool(output) and not output.startswith("[SILENT]")
-                        await confirm_follow_up_delivery(delivered=delivered)
-                    else:
-                        reset_follow_up_delivery()
+                await finalize_heartbeat_follow_up_delivery(job, result)
 
                 return result
             finally:

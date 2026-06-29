@@ -36,6 +36,9 @@ vi.mock('../sections/knowledge/RemoteBackupSection', () => ({
 vi.mock('../sections/knowledge/MigrationWizardSection', () => ({
   default: () => <div data-testid="migration-wizard-section" />,
 }));
+vi.mock('../sections/knowledge/FollowUpsPanel', () => ({
+  default: () => <div data-testid="follow-ups-panel" />,
+}));
 
 import MemoryCenterSection from '../sections/knowledge/MemoryCenterSection';
 
@@ -47,5 +50,11 @@ describe('MemoryCenterSection', () => {
   it('mounts memory tab shell', () => {
     render(<MemoryCenterSection />);
     expect(screen.getByTestId('memory-section')).toBeInTheDocument();
+  });
+
+  it('selects follow-ups sub-tab from search params', () => {
+    searchParams.set('sub', 'follow-ups');
+    render(<MemoryCenterSection />);
+    expect(screen.getByTestId('follow-ups-panel')).toBeInTheDocument();
   });
 });
