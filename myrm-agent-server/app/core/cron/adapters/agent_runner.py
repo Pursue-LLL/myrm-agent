@@ -46,13 +46,13 @@ from .injection_scan import scan_cron_prompt
 logger = logging.getLogger(__name__)
 
 
-def heartbeat_follow_up_delivered(job_output: str | None) -> bool:
+def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
     """Return True when heartbeat output counts as a successful follow-up delivery ack."""
     text = (job_output or "").strip()
     return bool(text) and not text.startswith("[SILENT]")
 
 
-async def finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
+async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult) -> None:
     """Confirm or reset follow-up delivery state after a heartbeat agent run."""
     if job.name != HEARTBEAT_JOB_NAME:
         return
@@ -63,7 +63,7 @@ async def finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult)
     )
 
     if result.success and not result.skipped:
-        await confirm_follow_up_delivery(delivered=heartbeat_follow_up_delivered(result.output))
+        await confirm_follow_up_delivery(delivered=_heartbeat_follow_up_delivered(result.output))
         return
     reset_follow_up_delivery()
 
@@ -463,7 +463,7 @@ class AgentJobRunner:
                 finally:
                     await agent.close()
 
-                await finalize_heartbeat_follow_up_delivery(job, result)
+                await _finalize_heartbeat_follow_up_delivery(job, result)
 
                 return result
             finally:

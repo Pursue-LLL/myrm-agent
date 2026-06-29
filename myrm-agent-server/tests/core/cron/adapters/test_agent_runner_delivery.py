@@ -17,8 +17,8 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.cron.adapters.agent_runner import (
-    finalize_heartbeat_follow_up_delivery,
-    heartbeat_follow_up_delivered,
+    _finalize_heartbeat_follow_up_delivery,
+    _heartbeat_follow_up_delivered,
 )
 
 _CONFIRM_MODULE = "app.core.memory.proactive.delivery_tracker.confirm_follow_up_delivery"
@@ -59,17 +59,17 @@ class TestHeartbeatFollowUpDelivered:
     """Unit tests for silent-vs-delivered output classification."""
 
     def test_normal_output_is_delivered(self) -> None:
-        assert heartbeat_follow_up_delivered("Reminder: your interview is tomorrow.") is True
+        assert _heartbeat_follow_up_delivered("Reminder: your interview is tomorrow.") is True
 
     def test_silent_token_is_not_delivered(self) -> None:
-        assert heartbeat_follow_up_delivered("[SILENT]") is False
+        assert _heartbeat_follow_up_delivered("[SILENT]") is False
 
     def test_silent_with_whitespace_is_not_delivered(self) -> None:
-        assert heartbeat_follow_up_delivered("  [SILENT]  ") is False
+        assert _heartbeat_follow_up_delivered("  [SILENT]  ") is False
 
     def test_empty_output_is_not_delivered(self) -> None:
-        assert heartbeat_follow_up_delivered("") is False
-        assert heartbeat_follow_up_delivered(None) is False
+        assert _heartbeat_follow_up_delivered("") is False
+        assert _heartbeat_follow_up_delivered(None) is False
 
 
 class TestFinalizeHeartbeatFollowUpDelivery:
