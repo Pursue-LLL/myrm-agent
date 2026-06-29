@@ -162,7 +162,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `tasks/` | `app/tasks/` executors |
 | `mcp/` | `services/connect/` MCP endpoint + `services/agent/` platform config |
 | `external_agents/` | harness ACP subscription auth (CLI login SSE) |
-| `commitment/` | `core/commitment/` |
+| `memory/follow_ups/` | `core/memory/proactive/` |
 | `notifications/` | `core/channel_bridge/` (gateway push) |
 | `statistics/` | `api/statistics/*` aggregators + `database/` |
 | `internal/` | Control Plane internal bridge (SaaS) |

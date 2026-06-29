@@ -185,12 +185,13 @@ class AgentJobRunner:
             begin_follow_up_delivery,
             reset_follow_up_delivery,
         )
+        from app.core.memory.proactive.settings import resolve_memory_enabled
 
         begin_follow_up_delivery()
         try:
             user_cfgs = await load_user_configs()
             memory_settings = user_cfgs.personal_settings_dict or {}
-            memory_enabled = bool(memory_settings.get("enableMemory", True))
+            memory_enabled = resolve_memory_enabled(memory_settings)
 
             ctx = SituationContext(
                 last_tick_at=job.last_run_at,

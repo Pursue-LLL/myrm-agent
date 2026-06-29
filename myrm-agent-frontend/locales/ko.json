@@ -2968,6 +2968,13 @@
       "warning": "Rate limit usage for {provider} ({model}) is at {pct}%. Agent may slow down."
     },
     "memoryCenter": {
+      "tabs": {
+        "followUps": "팔로우업"
+      },
+      "tabDescriptions": {
+        "followUps": "대화에서 추출된 선제적 팔로우업 보기 및 관리",
+        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
+      },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
@@ -3163,7 +3170,7 @@
     "systemInstructions": "System Prompt",
     "systemInstructionsDesc": "Global system instructions injected into every conversation",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, the AI remembers important information from conversations",
+    "enableMemoryDesc": "활성화하면 AI가 대화에서 중요한 정보를 기억하고 암묵적 팔로우업을 선제적으로 수행할 수 있습니다",
     "memoryRequireConfirmation": "Require Memory Confirmation",
     "memoryRequireConfirmationDesc": "New memories must be confirmed before saving; disable to auto-save",
     "enableMemoryAutoExtraction": "Auto Extract Memories",
@@ -5583,7 +5590,7 @@
     "loginRequired": "Login to view memories",
     "loginRequiredDesc": "Login to view and manage memories AI learned about you",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and use it to provide more personalized responses.",
+    "enableMemoryDesc": "활성화하면 AI가 대화에서 중요한 정보를 기억하고 암묵적 팔로우업을 선제적으로 수행할 수 있습니다.",
     "requireConfirmation": "Confirm Before Saving",
     "requireConfirmationDesc": "When enabled, memories saved by AI require your review and approval before taking effect. When disabled, memories are saved automatically.",
     "autoExtraction": "Auto-Extract Memories",
@@ -10469,16 +10476,18 @@
       "totalCost": "실제 비용"
     }
   },
-  "commitments": {
-    "title": "Follow-up Tracking",
-    "description": "Implicit commitments extracted from conversations. The agent automatically detects follow-up opportunities and reminds you during heartbeat checks.",
-    "empty": "No follow-up items yet. Commitments will appear here as you chat.",
-    "loadError": "Failed to load commitments",
-    "actionError": "Action failed, please try again",
-    "dismissed": "Commitment dismissed",
+  "followUps": {
+    "title": "팔로우업",
+    "description": "대화에서 추출된 능동적 팔로우업입니다. 에이전트가 하트비트 점검 시 확인하고 적절한 시점에 알려줍니다.",
+    "empty": "아직 팔로우업이 없습니다. 메모리를 켠 뒤 대화하면 여기에 표시됩니다.",
+    "loadError": "팔로우업을 불러오지 못했습니다",
+    "actionError": "작업에 실패했습니다. 다시 시도해 주세요",
+    "dismissed": "팔로우업을 무시했습니다",
     "snoozed": "Snoozed for 4 hours",
     "dismissAction": "Dismiss",
     "snoozeAction": "Snooze",
+    "agentFilter": "에이전트",
+    "agentFilterAll": "모든 에이전트",
     "filter": {
       "all": "All",
       "pending": "Pending",

@@ -863,7 +863,7 @@ def _build_session_cleanup_callback(
     agent_wrapper: "GeneralAgent",
     user_id: str,
 ) -> "Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None":
-    """Build a composite session cleanup callback (commitment + correction propagation)."""
+    """Build a composite session cleanup callback (follow-up extraction + correction propagation)."""
     if not agent_wrapper.enable_memory or agent_wrapper.incognito_mode:
         return None
 

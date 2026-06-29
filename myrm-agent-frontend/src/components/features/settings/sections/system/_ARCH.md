@@ -74,8 +74,6 @@
 | `ChannelBudgetSection.tsx` | 渠道预算管理 |
 | `RateLimitMonitor.tsx` | 速率限制监控 |
 | `RoutingAnalyticsPanel.tsx` | 路由分析面板（模型路由/成本格式化） |
-| `CommitmentPanel.tsx` | 承诺用量管理 |
-
 ### Trace 可视化与调试
 
 | 文件 | 职责 |

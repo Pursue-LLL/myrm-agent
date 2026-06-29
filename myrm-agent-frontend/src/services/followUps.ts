@@ -3,16 +3,16 @@
  * - @/lib/api::apiRequest (POS: unified API request function)
  *
  * [OUTPUT]
- * - Commitment types and API functions for the commitment tracking system.
+ * - FollowUp types and API functions for proactive follow-up management.
  *
  * [POS]
- * Frontend service layer for commitment tracking. Provides typed API
- * functions for listing, dismissing, and snoozing commitments.
+ * Frontend service layer for the memory follow-ups tab. Provides typed API
+ * functions for listing, dismissing, and snoozing follow-up items.
  */
 
 import { apiRequest } from '@/lib/api';
 
-export interface Commitment {
+export interface FollowUp {
   id: string;
   agent_id: string;
   user_id: string;
@@ -33,32 +33,32 @@ export interface Commitment {
   snoozed_until_ms: number | null;
 }
 
-export interface CommitmentListResponse {
-  items: Commitment[];
+export interface FollowUpListResponse {
+  items: FollowUp[];
   total: number;
 }
 
-export async function fetchCommitments(params?: {
+export async function fetchFollowUps(params?: {
   status?: string;
   agent_id?: string;
   limit?: number;
-}): Promise<CommitmentListResponse> {
+}): Promise<FollowUpListResponse> {
   const query = new URLSearchParams();
   if (params?.status) query.set('status', params.status);
   if (params?.agent_id) query.set('agent_id', params.agent_id);
   if (params?.limit) query.set('limit', String(params.limit));
 
   const qs = query.toString();
-  return apiRequest<CommitmentListResponse>(`/memory/follow-ups${qs ? `?${qs}` : ''}`);
+  return apiRequest<FollowUpListResponse>(`/memory/follow-ups${qs ? `?${qs}` : ''}`);
 }
 
-export async function dismissCommitment(id: string): Promise<{ success: boolean }> {
+export async function dismissFollowUp(id: string): Promise<{ success: boolean }> {
   return apiRequest<{ success: boolean }>(`/memory/follow-ups/${id}/dismiss`, {
     method: 'POST',
   });
 }
 
-export async function snoozeCommitment(id: string, untilMs: number): Promise<{ success: boolean }> {
+export async function snoozeFollowUp(id: string, untilMs: number): Promise<{ success: boolean }> {
   return apiRequest<{ success: boolean }>(`/memory/follow-ups/${id}/snooze`, {
     method: 'POST',
     body: JSON.stringify({ until_ms: untilMs }),

@@ -19,7 +19,7 @@ const MigrationWizardSection = dynamic(() => import('./MigrationWizardSection'),
   loading: () => <SettingsSkeleton />,
 });
 
-const FollowUpsPanel = dynamic(() => import('../system/CommitmentPanel'), {
+const FollowUpsPanel = dynamic(() => import('./FollowUpsPanel'), {
   loading: () => <SettingsSkeleton />,
 });
 

@@ -2968,6 +2968,13 @@
       "warning": "Rate limit usage for {provider} ({model}) is at {pct}%. Agent may slow down."
     },
     "memoryCenter": {
+      "tabs": {
+        "followUps": "フォローアップ"
+      },
+      "tabDescriptions": {
+        "followUps": "会話から抽出された能動的フォローアップを表示・管理",
+        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
+      },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
@@ -3163,7 +3170,7 @@
     "systemInstructions": "System Prompt",
     "systemInstructionsDesc": "Global system instructions injected into every conversation",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, the AI remembers important information from conversations",
+    "enableMemoryDesc": "有効にすると、AIは会話から重要な情報を記憶し、暗黙のフォローアップを能動的に行う場合があります",
     "memoryRequireConfirmation": "Require Memory Confirmation",
     "memoryRequireConfirmationDesc": "New memories must be confirmed before saving; disable to auto-save",
     "enableMemoryAutoExtraction": "Auto Extract Memories",
@@ -5583,7 +5590,7 @@
     "loginRequired": "Login to view memories",
     "loginRequiredDesc": "Login to view and manage memories AI learned about you",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and use it to provide more personalized responses.",
+    "enableMemoryDesc": "有効にすると、AIは会話から重要な情報を記憶し、暗黙のフォローアップを能動的に行う場合があります。",
     "requireConfirmation": "Confirm Before Saving",
     "requireConfirmationDesc": "When enabled, memories saved by AI require your review and approval before taking effect. When disabled, memories are saved automatically.",
     "autoExtraction": "Auto-Extract Memories",
@@ -10469,16 +10476,18 @@
       "totalCost": "実際コスト"
     }
   },
-  "commitments": {
-    "title": "Follow-up Tracking",
-    "description": "Implicit commitments extracted from conversations. The agent automatically detects follow-up opportunities and reminds you during heartbeat checks.",
-    "empty": "No follow-up items yet. Commitments will appear here as you chat.",
-    "loadError": "Failed to load commitments",
-    "actionError": "Action failed, please try again",
-    "dismissed": "Commitment dismissed",
+  "followUps": {
+    "title": "フォローアップ",
+    "description": "会話から抽出された能動的フォローアップ。エージェントがハートビート時に確認し、適切なタイミングでリマインドします。",
+    "empty": "フォローアップはまだありません。メモリを有効にして会話すると、ここに表示されます。",
+    "loadError": "フォローアップの読み込みに失敗しました",
+    "actionError": "操作に失敗しました。もう一度お試しください",
+    "dismissed": "フォローアップを無視しました",
     "snoozed": "Snoozed for 4 hours",
     "dismissAction": "Dismiss",
     "snoozeAction": "Snooze",
+    "agentFilter": "エージェント",
+    "agentFilterAll": "すべてのエージェント",
     "filter": {
       "all": "All",
       "pending": "Pending",

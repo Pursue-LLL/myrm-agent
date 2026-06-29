@@ -27,6 +27,8 @@ import email.utils
 import imaplib
 import logging
 import smtplib
+import tempfile
+from pathlib import Path
 from typing import Self
 
 from app.channels.core.base import BaseChannel
@@ -358,7 +360,19 @@ class EmailChannel(BaseChannel):
                         mt = MediaType.VIDEO
                     else:
                         mt = MediaType.DOCUMENT
-                    media_list.append(MediaAttachment(media_type=mt, filename=filename, mime_type=ct))
+                    file_data = part.get_payload(decode=True)
+                    saved_path: str | None = None
+                    if isinstance(file_data, bytes) and file_data:
+                        suffix = Path(filename).suffix or ""
+                        tmp = tempfile.NamedTemporaryFile(
+                            delete=False, prefix="email_att_", suffix=suffix
+                        )
+                        tmp.write(file_data)
+                        tmp.close()
+                        saved_path = tmp.name
+                    media_list.append(MediaAttachment(
+                        media_type=mt, filename=filename, mime_type=ct, path=saved_path,
+                    ))
                 elif (ct == "text/plain" and not body) or (ct == "text/html" and not body):
                     payload = part.get_payload(decode=True)
                     if isinstance(payload, bytes):

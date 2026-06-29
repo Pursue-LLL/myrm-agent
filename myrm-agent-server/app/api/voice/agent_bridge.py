@@ -234,6 +234,7 @@ class VoiceAgentBridge:
 
         memory_settings = configs.personal_settings_dict or {}
 
+        from app.core.memory.proactive.settings import resolve_memory_enabled
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
             resolve_builtin_tool_flags,
@@ -257,7 +258,7 @@ class VoiceAgentBridge:
             agent_id=agent_id,
             embedding_config=embedding_cfg,
             reranker_config=reranker_cfg,
-            enable_memory=bool(memory_settings.get("enableMemory", True)),
+            enable_memory=resolve_memory_enabled(memory_settings),
             enable_web_search=search_available,
             **resolve_builtin_tool_flags(enabled_builtin_tools),
             fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),

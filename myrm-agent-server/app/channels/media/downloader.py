@@ -238,7 +238,7 @@ class MediaDownloader:
             validators.append(ContentTypeValidator(config.allowed_content_types))
             validators.append(MagicBytesValidator(config.allowed_content_types))
 
-        # Validate URL (SSRF)
+        # Validate URL (SSRF) and resolve pinned request target
         url_context = ValidationContext(url=url, http_client=self._http)
         for validator in validators:
             if isinstance(validator, SSRFValidator):
@@ -246,6 +246,8 @@ class MediaDownloader:
 
         # Prepare HTTP request
         headers = dict(config.headers or {})
+        request_url = url
+        stream_headers = headers
 
         # If proxy is configured, create a temporary client with proxy
         # (httpx.stream() doesn't accept proxies parameter)
@@ -255,14 +257,44 @@ class MediaDownloader:
             temp_client = httpx.AsyncClient(proxy=config.proxy)
             http_client = temp_client
 
+        if config.validate_ssrf:
+            from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError, async_pin_url
+            from myrm_agent_harness.core.security.http.secure_fetch import (
+                SecureHttpTarget,
+                resolve_secure_http_target,
+            )
+
+            try:
+                if config.follow_redirects:
+                    target = await resolve_secure_http_target(
+                        http_client,
+                        url,
+                        headers=stream_headers,
+                    )
+                else:
+                    pinned_url, pin_headers = await async_pin_url(url)
+                    target = SecureHttpTarget(
+                        logical_url=url,
+                        request_url=pinned_url,
+                        headers={**stream_headers, **pin_headers},
+                        method="GET",
+                    )
+            except SSRFSecurityError as exc:
+                from .exceptions import SSRFError
+
+                raise SSRFError(str(exc), url) from exc
+
+            request_url = target.request_url
+            stream_headers = target.headers
+
         try:
-            # Start streaming download
+            # Start streaming download (redirects resolved above when validate_ssrf=True)
             async with http_client.stream(
                 "GET",
-                url,
-                headers=headers,
+                request_url,
+                headers=stream_headers,
                 timeout=config.timeout_seconds,
-                follow_redirects=config.follow_redirects,
+                follow_redirects=False,
             ) as response:
                 # Check HTTP status
                 if response.status_code >= 400:

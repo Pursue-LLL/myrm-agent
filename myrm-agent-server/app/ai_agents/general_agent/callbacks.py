@@ -111,11 +111,14 @@ def make_commitment_extraction_callback(
         try:
             from app.core.channel_bridge.config_loader import load_user_configs
             from app.core.memory.proactive.extraction_hook import run_commitment_extraction
+            from app.core.memory.proactive.settings import resolve_memory_enabled
 
             timezone = "UTC"
             try:
                 user_cfgs = await load_user_configs()
                 memory_settings = user_cfgs.personal_settings_dict or {}
+                if not resolve_memory_enabled(memory_settings):
+                    return
                 tz_raw = memory_settings.get("timezone")
                 if isinstance(tz_raw, str) and tz_raw.strip():
                     timezone = tz_raw.strip()

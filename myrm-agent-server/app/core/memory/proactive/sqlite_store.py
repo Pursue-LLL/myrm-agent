@@ -164,8 +164,9 @@ class SqlAlchemyCommitmentStore:
         user_id: str,
         now_ms: int,
         limit: int = 3,
+        expire_after_ms: int = 72 * 3600 * 1000,
     ) -> list[CommitmentRecord]:
-        """List commitments whose due window has arrived."""
+        """List commitments whose due window has arrived and is not stale."""
         async with get_session() as session:
             stmt = (
                 select(CommitmentModel)
@@ -182,6 +183,8 @@ class SqlAlchemyCommitmentStore:
 
             due: list[CommitmentRecord] = []
             for r in rows:
+                if r.due_latest_ms + expire_after_ms < now_ms:
+                    continue
                 if r.status == CommitmentStatus.SNOOZED.value:
                     if r.snoozed_until_ms is not None and r.snoozed_until_ms > now_ms:
                         continue
@@ -289,18 +292,28 @@ class SqlAlchemyCommitmentStore:
             )
             return result.scalar() or 0
 
-    async def expire_stale(self, now_ms: int, expire_after_ms: int) -> int:
+    async def expire_stale(
+        self,
+        now_ms: int,
+        expire_after_ms: int,
+        *,
+        agent_id: str | None = None,
+        user_id: str | None = None,
+    ) -> int:
         """Expire commitments past their latest + grace period."""
         cutoff_ms = now_ms - expire_after_ms
         now_dt = datetime.fromtimestamp(now_ms / 1000, tz=UTC)
         async with get_session() as session:
+            stmt = update(CommitmentModel).where(
+                CommitmentModel.status.in_(_ACTIVE_STATUSES),
+                CommitmentModel.due_latest_ms < cutoff_ms,
+            )
+            if agent_id is not None:
+                stmt = stmt.where(CommitmentModel.agent_id == agent_id)
+            if user_id is not None:
+                stmt = stmt.where(CommitmentModel.user_id == user_id)
             result = await session.execute(
-                update(CommitmentModel)
-                .where(
-                    CommitmentModel.status.in_(_ACTIVE_STATUSES),
-                    CommitmentModel.due_latest_ms < cutoff_ms,
-                )
-                .values(
+                stmt.values(
                     status=CommitmentStatus.EXPIRED.value,
                     expired_at=now_dt,
                     updated_at=now_dt,

@@ -20,7 +20,7 @@
 | `security/` | 核心 | 安全模块（MCP SSRF 防护、凭证存储、浏览器会话保管） | [_ARCH.md](security/_ARCH.md) |
 | `skills/` | 核心 | 技能管理（技能存储适配器） | [_ARCH.md](skills/_ARCH.md) |
 | `channel_bridge/` | 核心 | 渠道业务适配层（配对、Agent 执行、策略、BTW 通知；框架在 `app/channels/`） | [_ARCH.md](channel_bridge/_ARCH.md) |
-| `commitment/` | 核心 | Commitment 领域原语（HTTP 在 `api/commitment/`） | [_ARCH.md](commitment/_ARCH.md) |
+| `memory/proactive/` | 核心 | Proactive follow-up 领域（HTTP 在 `api/memory/follow_ups/`） | [_ARCH.md](memory/proactive/_ARCH.md) |
 | `integrations/` | 核心 | 集成目录数据模型与校验（编排 HTTP 在 `api/integrations/`） | [_ARCH.md](integrations/_ARCH.md) |
 | `cron/` | 核心 | 定时任务引擎（调度器、执行器、cron 解析） | [_ARCH.md](cron/_ARCH.md) |
 | `storage/` | 核心 | 存储服务 | [_ARCH.md](storage/_ARCH.md) |

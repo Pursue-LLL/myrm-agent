@@ -1,14 +1,14 @@
 'use client';
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { IconHeart } from '@/components/features/icons/PremiumIcons';
 import useAgentStore from '@/store/useAgentStore';
 import SettingsSection from '../SettingsSection';
-import { fetchCommitments, dismissCommitment, snoozeCommitment, type Commitment } from '@/services/commitments';
+import { dismissFollowUp, fetchFollowUps, snoozeFollowUp, type FollowUp } from '@/services/followUps';
 
 const KIND_ICON: Record<string, React.ReactNode> = {
   event_check_in: '◆',
@@ -31,7 +31,7 @@ const STATUS_STYLES: Record<string, string> = {
   expired: 'bg-muted text-muted-foreground line-through',
 };
 
-function formatDueWindow(earliestMs: number, _latestMs: number): string {
+function formatDueWindowEn(earliestMs: number): string {
   const now = Date.now();
   const diffMs = earliestMs - now;
   const diffHours = Math.round(diffMs / (1000 * 60 * 60));
@@ -45,7 +45,7 @@ function formatDueWindow(earliestMs: number, _latestMs: number): string {
   return `${Math.round(diffHours / 24)}d`;
 }
 
-function formatDueWindowZh(earliestMs: number, _latestMs: number): string {
+function formatDueWindowZh(earliestMs: number): string {
   const now = Date.now();
   const diffMs = earliestMs - now;
   const diffHours = Math.round(diffMs / (1000 * 60 * 60));
@@ -61,15 +61,16 @@ function formatDueWindowZh(earliestMs: number, _latestMs: number): string {
 
 type StatusFilter = 'all' | 'pending' | 'sent' | 'dismissed' | 'expired';
 
-const CommitmentPanel = memo(function CommitmentPanel() {
-  const t = useTranslations('commitments');
-  const [items, setItems] = useState<Commitment[]>([]);
+const FollowUpsPanel = memo(function FollowUpsPanel() {
+  const t = useTranslations('followUps');
+  const locale = useLocale();
+  const isZh = locale.startsWith('zh');
+  const [items, setItems] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const agents = useAgentStore((s) => s.agents);
   const fetchAgents = useAgentStore((s) => s.fetchAgents);
-  const isZh = t('title') !== 'Follow-up Tracking';
 
   useEffect(() => {
     void fetchAgents(1, 50, true);
@@ -78,7 +79,7 @@ const CommitmentPanel = memo(function CommitmentPanel() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchCommitments({
+      const res = await fetchFollowUps({
         ...(filter !== 'all' ? { status: filter } : {}),
         ...(agentFilter !== 'all' ? { agent_id: agentFilter } : {}),
       });
@@ -97,7 +98,7 @@ const CommitmentPanel = memo(function CommitmentPanel() {
   const handleDismiss = useCallback(
     async (id: string) => {
       try {
-        await dismissCommitment(id);
+        await dismissFollowUp(id);
         setItems((prev) => prev.filter((i) => i.id !== id));
         toast.success(t('dismissed'));
       } catch {
@@ -111,7 +112,7 @@ const CommitmentPanel = memo(function CommitmentPanel() {
     async (id: string) => {
       const untilMs = Date.now() + 4 * 60 * 60 * 1000;
       try {
-        await snoozeCommitment(id, untilMs);
+        await snoozeFollowUp(id, untilMs);
         setItems((prev) =>
           prev.map((i) => (i.id === id ? { ...i, status: 'snoozed' as const, snoozed_until_ms: untilMs } : i)),
         );
@@ -180,7 +181,7 @@ const CommitmentPanel = memo(function CommitmentPanel() {
         ) : (
           <div className="space-y-2">
             {items.map((item) => (
-              <CommitmentCard
+              <FollowUpCard
                 key={item.id}
                 item={item}
                 isZh={isZh}
@@ -196,19 +197,17 @@ const CommitmentPanel = memo(function CommitmentPanel() {
   );
 });
 
-interface CommitmentCardProps {
-  item: Commitment;
+interface FollowUpCardProps {
+  item: FollowUp;
   isZh: boolean;
   t: ReturnType<typeof useTranslations>;
   onDismiss: (id: string) => void;
   onSnooze: (id: string) => void;
 }
 
-const CommitmentCard = memo<CommitmentCardProps>(function CommitmentCard({ item, isZh, t, onDismiss, onSnooze }) {
+const FollowUpCard = memo<FollowUpCardProps>(function FollowUpCard({ item, isZh, t, onDismiss, onSnooze }) {
   const isActive = item.status === 'pending' || item.status === 'snoozed';
-  const dueText = isZh
-    ? formatDueWindowZh(item.due_earliest_ms, item.due_latest_ms)
-    : formatDueWindow(item.due_earliest_ms, item.due_latest_ms);
+  const dueText = isZh ? formatDueWindowZh(item.due_earliest_ms) : formatDueWindowEn(item.due_earliest_ms);
 
   return (
     <div
@@ -258,4 +257,4 @@ const CommitmentCard = memo<CommitmentCardProps>(function CommitmentCard({ item,
   );
 });
 
-export default CommitmentPanel;
+export default FollowUpsPanel;

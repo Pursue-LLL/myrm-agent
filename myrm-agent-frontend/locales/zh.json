@@ -10917,13 +10917,13 @@
       }
     }
   },
-  "commitments": {
-    "title": "待跟进事项",
-    "description": "从对话中自动提取的隐式承诺。Agent 会在心跳巡检时自动检查并提醒你。",
-    "empty": "暂无待跟进事项。随着对话进行，Agent 会自动发现需要跟进的事项。",
-    "loadError": "加载失败",
+  "followUps": {
+    "title": "智能跟进",
+    "description": "从对话中自动提取的隐式跟进事项。Agent 会在心跳巡检时检查并在合适时候提醒你。",
+    "empty": "暂无跟进事项。开启记忆后，随着对话进行会自动发现需要跟进的内容。",
+    "loadError": "加载跟进事项失败",
     "actionError": "操作失败，请重试",
-    "dismissed": "已忽略",
+    "dismissed": "已忽略该跟进",
     "snoozed": "已延后4小时",
     "dismissAction": "忽略",
     "snoozeAction": "延后",

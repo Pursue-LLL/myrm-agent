@@ -55,7 +55,7 @@ async def run_commitment_extraction(
 
     now_ms = int(time.time() * 1000)
     expire_after_ms = config.expire_after_hours * 3600 * 1000
-    await store.expire_stale(now_ms, expire_after_ms)
+    await store.expire_stale(now_ms, expire_after_ms, agent_id=agent_id, user_id=user_id)
 
     existing = await store.list_pending(
         agent_id=agent_id,

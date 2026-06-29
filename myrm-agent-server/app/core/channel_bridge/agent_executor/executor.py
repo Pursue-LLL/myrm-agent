@@ -60,6 +60,7 @@ from app.channels.types import (
 )
 from app.channels.types.thread_sharing import ThreadSharingMode
 from app.core.channel_bridge.config_loader import load_user_configs
+from app.core.memory.proactive.settings import resolve_memory_enabled
 from app.core.channel_bridge.config_parsers import (
     extract_fallback_model_configs,
     extract_lite_model_config,
@@ -548,7 +549,7 @@ class ChannelAgentExecutor:
                 chat_id=chat_id,
                 agent_id=resolved_agent_id,
                 embedding_config=embedding_cfg,
-                enable_memory=bool(memory_settings.get("enableMemory", True)),
+                enable_memory=resolve_memory_enabled(memory_settings),
                 reranker_config=reranker_cfg,
                 agent_skill_ids=agent_skill_ids,
                 subagent_ids=agent_subagent_ids,

@@ -10946,13 +10946,13 @@
       }
     }
   },
-  "commitments": {
-    "title": "Follow-up Tracking",
-    "description": "Implicit commitments extracted from conversations. The agent automatically detects follow-up opportunities and reminds you during heartbeat checks.",
-    "empty": "No follow-up items yet. Commitments will appear here as you chat.",
-    "loadError": "Failed to load commitments",
+  "followUps": {
+    "title": "Follow-ups",
+    "description": "Proactive follow-ups extracted from conversations. The agent detects implicit items to revisit and reminds you during heartbeat checks.",
+    "empty": "No follow-ups yet. Items will appear here as you chat with memory enabled.",
+    "loadError": "Failed to load follow-ups",
     "actionError": "Action failed, please try again",
-    "dismissed": "Commitment dismissed",
+    "dismissed": "Follow-up dismissed",
     "snoozed": "Snoozed for 4 hours",
     "dismissAction": "Dismiss",
     "snoozeAction": "Snooze",

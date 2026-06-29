@@ -9,7 +9,7 @@
 
 [POS]
 ContextVar-based tracker that registers commitment IDs injected into a
-situation report and confirms delivery after the agent responds.
+situation report; marks SENT on successful delivery ack, or snoozes 6h on skip.
 """
 
 from __future__ import annotations
@@ -21,6 +21,9 @@ from contextvars import ContextVar
 from myrm_agent_harness.toolkits.memory.proactive.types import CommitmentStatus
 
 logger = logging.getLogger(__name__)
+
+_FAILED_DELIVERY_SNOOZE_MS = 6 * 60 * 60 * 1000
+FAILED_DELIVERY_SNOOZE_MS = _FAILED_DELIVERY_SNOOZE_MS
 
 _follow_up_attempt_ids: ContextVar[list[str]] = ContextVar("_follow_up_attempt_ids", default=[])
 
@@ -47,10 +50,10 @@ def reset_follow_up_delivery() -> None:
 
 
 async def confirm_follow_up_delivery(*, delivered: bool) -> None:
-    """Mark injected follow-ups as sent when delivery succeeded."""
+    """Mark injected follow-ups as sent, or snooze after a failed delivery ack."""
     ids = get_follow_up_attempt_ids()
     reset_follow_up_delivery()
-    if not ids or not delivered:
+    if not ids:
         return
 
     from app.core.memory.proactive.sqlite_store import SqlAlchemyCommitmentStore
@@ -58,6 +61,17 @@ async def confirm_follow_up_delivery(*, delivered: bool) -> None:
     store = SqlAlchemyCommitmentStore()
     now_ms = int(time.time() * 1000)
     try:
-        await store.mark_status(ids, CommitmentStatus.SENT, now_ms)
+        if delivered:
+            await store.mark_status(ids, CommitmentStatus.SENT, now_ms)
+            return
+
+        until_ms = now_ms + _FAILED_DELIVERY_SNOOZE_MS
+        for commitment_id in ids:
+            snoozed = await store.snooze(commitment_id, until_ms, now_ms)
+            if not snoozed:
+                logger.warning(
+                    "Failed to snooze follow-up %s after undelivered heartbeat ack",
+                    commitment_id,
+                )
     except Exception:
         logger.warning("Failed to confirm delivery for %d follow-ups", len(ids), exc_info=True)

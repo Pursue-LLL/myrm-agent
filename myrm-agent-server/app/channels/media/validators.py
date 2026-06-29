@@ -20,7 +20,7 @@ import logging
 from typing import Protocol
 
 import httpx
-from myrm_agent_harness.utils.url_utils import async_validate_url_for_ssrf
+from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
 
 from .exceptions import ContentTypeError, SizeExceededError, SSRFError, ValidationError
 

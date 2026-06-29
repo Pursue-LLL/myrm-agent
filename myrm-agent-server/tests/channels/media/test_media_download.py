@@ -1,5 +1,6 @@
 """Core tests for media download system."""
 
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -13,6 +14,34 @@ from app.channels.media import (
     SizeExceededError,
     url_to_cache_key,
 )
+from myrm_agent_harness.core.security.http.secure_fetch import SecureHttpTarget
+
+
+@contextmanager
+def patch_ssrf_and_pinning():
+    """Bypass DNS pinning in unit tests while keeping validator behavior."""
+
+    async def _resolve_target(_client: object, url: str, *, headers: dict[str, str] | None = None, **_kwargs: object):
+        return SecureHttpTarget(
+            logical_url=url,
+            request_url=url,
+            headers=dict(headers or {}),
+            method="GET",
+        )
+
+    with (
+        patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf,
+        patch(
+            "myrm_agent_harness.core.security.http.secure_fetch.resolve_secure_http_target",
+            new=AsyncMock(side_effect=_resolve_target),
+        ),
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_pin_url",
+            new=AsyncMock(side_effect=lambda url, _allowed=None: (url, {})),
+        ),
+    ):
+        mock_ssrf.return_value = MagicMock(safe=True)
+        yield
 
 
 @pytest.mark.asyncio
@@ -101,9 +130,7 @@ async def test_basic_download_success():
 
     mock_client.stream = MagicMock(return_value=MockStreamContext())
 
-    with patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf:
-        mock_ssrf.return_value = MagicMock(safe=True)
-
+    with patch_ssrf_and_pinning():
         downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
         result = await downloader.download("https://example.com/test.png")
 
@@ -141,9 +168,7 @@ async def test_size_limit_validation():
 
     config = MediaDownloadConfig(max_size_bytes=1500)  # Limit: 1500 bytes
 
-    with patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf:
-        mock_ssrf.return_value = MagicMock(safe=True)
-
+    with patch_ssrf_and_pinning():
         downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
         result = await downloader.download("https://example.com/large.png", config=config)
 
@@ -177,9 +202,7 @@ async def test_content_type_validation():
     # Only allow images
     config = MediaDownloadConfig(allowed_content_types=frozenset({"image/png", "image/jpeg"}))
 
-    with patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf:
-        mock_ssrf.return_value = MagicMock(safe=True)
-
+    with patch_ssrf_and_pinning():
         downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
         result = await downloader.download("https://example.com/doc.pdf", config=config)
 
@@ -242,9 +265,7 @@ async def test_retry_on_timeout():
 
     config = MediaDownloadConfig(enable_retry=True, max_retries=3)
 
-    with patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf:
-        mock_ssrf.return_value = MagicMock(safe=True)
-
+    with patch_ssrf_and_pinning():
         downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
         result = await downloader.download("https://example.com/test.png", config=config)
 
@@ -282,9 +303,7 @@ async def test_batch_download():
 
     mock_client.stream = MagicMock(return_value=MockStreamContext())
 
-    with patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf:
-        mock_ssrf.return_value = MagicMock(safe=True)
-
+    with patch_ssrf_and_pinning():
         downloader = MediaDownloader(http_client=mock_client, enable_default_cache=False)
         results = await downloader.download_many(urls, max_concurrent=2)
 

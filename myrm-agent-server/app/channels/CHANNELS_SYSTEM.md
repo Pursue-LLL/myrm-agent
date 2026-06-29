@@ -398,7 +398,7 @@ MessageBus 出站分发
 
 **出站媒体 SSRF 防护**：`MediaAttachment.url` 可能来自 Agent 生成内容（受 prompt injection 影响），
 所有出站媒体下载通过 `channels.media.MediaDownloader` 执行（内置 `SSRFValidator`），
-集成 `async_validate_url_for_ssrf`（scheme 白名单 + hostname 黑名单 + DNS 解析 + IP 网络黑名单）。
+集成 `core.security.guards.ssrf.async_validate_url_for_ssrf`（scheme 白名单 + hostname 黑名单 + DNS 解析 + IP 网络黑名单）。
 
 ### 6.3 流式输出
 

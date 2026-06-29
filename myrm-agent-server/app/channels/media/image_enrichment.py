@@ -238,14 +238,15 @@ async def _download_via_channel_api(
 async def _download_via_http(url: str) -> bytes | None:
     """Download image from a remote URL via HTTP."""
     try:
-        async with httpx.AsyncClient(timeout=DOWNLOAD_TIMEOUT, follow_redirects=True) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.content
-            if len(data) > MAX_IMAGE_BYTES * 2:
-                logger.warning("Image too large from URL (%d bytes), skipping", len(data))
-                return None
-            return data
+        from myrm_agent_harness.core.security.http.secure_fetch import secure_get
+
+        response = await secure_get(url, timeout=DOWNLOAD_TIMEOUT)
+        response.raise_for_status()
+        data = response.content
+        if len(data) > MAX_IMAGE_BYTES * 2:
+            logger.warning("Image too large from URL (%d bytes), skipping", len(data))
+            return None
+        return data
     except Exception as exc:
         logger.warning("Image HTTP download failed for %s: %s", url[:120], exc)
         return None

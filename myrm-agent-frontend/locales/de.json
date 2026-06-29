@@ -2968,6 +2968,13 @@
       "warning": "Rate limit usage for {provider} ({model}) is at {pct}%. Agent may slow down."
     },
     "memoryCenter": {
+      "tabs": {
+        "followUps": "Follow-ups"
+      },
+      "tabDescriptions": {
+        "followUps": "View and manage proactive follow-ups extracted from conversations",
+        "migration": "Scan Hermes, OpenClaw, Claude Code, or Codex — preview import; skills need review; MCP and channels are manual"
+      },
       "migrationUnavailable": {
         "title": "External source migration requires Local or Desktop",
         "description": "SaaS cloud sandboxes cannot read Hermes, OpenClaw, or other folders on your machine. Download the Tauri desktop app or run Local WebUI, then open Settings → Memory → Migration.",
@@ -3163,7 +3170,7 @@
     "systemInstructions": "System Prompt",
     "systemInstructionsDesc": "Global system instructions injected into every conversation",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, the AI remembers important information from conversations",
+    "enableMemoryDesc": "When enabled, the AI remembers important information and may proactively follow up on implicit commitments from conversations",
     "memoryRequireConfirmation": "Require Memory Confirmation",
     "memoryRequireConfirmationDesc": "New memories must be confirmed before saving; disable to auto-save",
     "enableMemoryAutoExtraction": "Auto Extract Memories",
@@ -5583,7 +5590,7 @@
     "loginRequired": "Login to view memories",
     "loginRequiredDesc": "Login to view and manage memories AI learned about you",
     "enableMemory": "Enable Memory",
-    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and use it to provide more personalized responses.",
+    "enableMemoryDesc": "When enabled, AI will remember important information from your conversations and may proactively follow up on implicit commitments.",
     "requireConfirmation": "Confirm Before Saving",
     "requireConfirmationDesc": "When enabled, memories saved by AI require your review and approval before taking effect. When disabled, memories are saved automatically.",
     "autoExtraction": "Auto-Extract Memories",
@@ -10469,16 +10476,18 @@
       "totalCost": "Tatsächliche Kosten"
     }
   },
-  "commitments": {
-    "title": "Follow-up Tracking",
-    "description": "Implicit commitments extracted from conversations. The agent automatically detects follow-up opportunities and reminds you during heartbeat checks.",
-    "empty": "No follow-up items yet. Commitments will appear here as you chat.",
-    "loadError": "Failed to load commitments",
-    "actionError": "Action failed, please try again",
-    "dismissed": "Commitment dismissed",
+  "followUps": {
+    "title": "Follow-ups",
+    "description": "Proaktive Follow-ups aus Gesprächen. Der Agent erkennt implizite Nachverfolgungen und erinnert dich bei Heartbeat-Prüfungen.",
+    "empty": "Noch keine Follow-ups. Sie erscheinen hier, wenn die Erinnerung aktiviert ist.",
+    "loadError": "Follow-ups konnten nicht geladen werden",
+    "actionError": "Aktion fehlgeschlagen, bitte erneut versuchen",
+    "dismissed": "Follow-up verworfen",
     "snoozed": "Snoozed for 4 hours",
     "dismissAction": "Dismiss",
     "snoozeAction": "Snooze",
+    "agentFilter": "Agent",
+    "agentFilterAll": "All agents",
     "filter": {
       "all": "All",
       "pending": "Pending",
