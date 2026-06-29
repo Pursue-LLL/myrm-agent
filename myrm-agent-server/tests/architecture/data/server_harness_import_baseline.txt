@@ -56,6 +56,7 @@ myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
 myrm_agent_harness.agent.meta_tools.spawn_subagent
 myrm_agent_harness.agent.middlewares
 myrm_agent_harness.agent.middlewares._session_context
+myrm_agent_harness.agent.middlewares.auto_session_recall_middleware
 myrm_agent_harness.agent.middlewares.approval
 myrm_agent_harness.agent.middlewares.approval.batch_processor
 myrm_agent_harness.agent.middlewares.approval.scheduler
