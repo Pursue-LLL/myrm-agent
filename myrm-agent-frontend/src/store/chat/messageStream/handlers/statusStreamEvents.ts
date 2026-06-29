@@ -136,6 +136,18 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           } else {
             state.messages[messageIndex].progressSteps!.push(progressStep);
           }
+          if (stepKey === 'consensus_reference_done' && data.data) {
+            const rd = data.data as Record<string, unknown>;
+            if (!state.messages[messageIndex].consensusRefs) {
+              state.messages[messageIndex].consensusRefs = [];
+            }
+            state.messages[messageIndex].consensusRefs!.push({
+              model: String(rd.model ?? ''),
+              success: Boolean(rd.success),
+              elapsed: typeof rd.elapsed === 'number' ? rd.elapsed : 0,
+              content: typeof rd.content === 'string' ? rd.content : undefined,
+            });
+          }
           if (isMediaAnalysis) {
             state.messages[messageIndex].mediaAnalysisStatus = stepKey as 'analyzing_image' | 'analyzing_video';
           }

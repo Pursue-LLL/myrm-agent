@@ -10531,7 +10531,8 @@
       "consensusMetaTitle": "Multi-Model Consensus",
       "consensusMetaModels": "{succeeded}/{total} models participated",
       "consensusMetaAggregator": "Aggregator: {model}",
-      "consensusMetaElapsed": "Elapsed: {seconds}s"
+      "consensusMetaElapsed": "Elapsed: {seconds}s",
+      "consensusActive": "Waiting for remaining models…"
     }
   },
   "multiPane": {

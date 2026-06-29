@@ -26,6 +26,7 @@ import { Source } from '@/store/chat/types';
 import { stripDatetimeTag } from '@/lib/utils/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
+import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
 import MarkdownContent from './MarkdownContent';
 import Suggestions from './Suggestions';
@@ -453,6 +454,13 @@ const MessageBox = ({
         {/* 进度步骤 */}
         {message.progressSteps && message.progressSteps.length > 0 && (
           <ProgressSteps messageId={message.messageId} steps={message.progressSteps || []} loading={loading} />
+        )}
+
+        {message.consensusRefs && message.consensusRefs.length > 0 && (
+          <ConsensusThinkingPanel
+            refs={message.consensusRefs}
+            isStreaming={isLast && loading && !message.content}
+          />
         )}
 
         {/* 可视化审批 Artifact（BBox 高亮截图卡片） */}

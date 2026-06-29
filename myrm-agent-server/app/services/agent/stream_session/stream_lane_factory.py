@@ -399,6 +399,7 @@ async def create_consensus_stream(
                         "model": event.ref.model,
                         "success": event.ref.success,
                         "elapsed": event.ref.elapsed_seconds,
+                        "content": event.ref.content if event.ref.success else None,
                     },
                 }
             elif event.kind == "agg_chunk" and event.chunk:

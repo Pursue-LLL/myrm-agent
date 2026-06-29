@@ -10502,7 +10502,8 @@
       "consensusMetaTitle": "多模型共识推理",
       "consensusMetaModels": "{succeeded}/{total} 个模型参与",
       "consensusMetaAggregator": "聚合模型: {model}",
-      "consensusMetaElapsed": "总耗时: {seconds}s"
+      "consensusMetaElapsed": "总耗时: {seconds}s",
+      "consensusActive": "等待其余模型响应中…"
     }
   },
   "multiPane": {

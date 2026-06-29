@@ -55,6 +55,12 @@ export type Message = {
     aggregator_model: string;
     elapsed_seconds: number;
   };
+  consensusRefs?: Array<{
+    model: string;
+    success: boolean;
+    elapsed: number;
+    content?: string;
+  }>;
   modelName?: string; // 最后使用的模型名称
   routingTier?: 'simple' | 'standard' | 'reasoning' | 'complex';
   modelTier?: 'weak' | 'medium';
