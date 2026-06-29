@@ -63,24 +63,48 @@ function CustomNode({ data }: NodeProps<Node<SubagentNodeData>>) {
   const StatusIcon = {
     pending: CircleDashed,
     running: Loader2,
+    verifying: Loader2,
     completed: CheckCircle2,
     failed: XCircle,
+    timed_out: XCircle,
+    cancelled: XCircle,
+    cancelled_by_budget: XCircle,
+    pending_approval: AlertCircle,
+    yielded: CircleDashed,
+    interrupted: AlertCircle,
+    checkpoint: CircleDashed,
     paused: AlertCircle,
   }[status as string] || CircleDashed;
 
   const statusColor = {
     pending: 'text-muted-foreground',
     running: 'text-blue-500 animate-spin',
+    verifying: 'text-purple-500 animate-spin',
     completed: 'text-green-500',
     failed: 'text-red-500',
+    timed_out: 'text-orange-500',
+    cancelled: 'text-muted-foreground',
+    cancelled_by_budget: 'text-orange-500',
+    pending_approval: 'text-yellow-500',
+    yielded: 'text-muted-foreground',
+    interrupted: 'text-orange-500',
+    checkpoint: 'text-muted-foreground',
     paused: 'text-yellow-500',
   }[status as string] || 'text-muted-foreground';
 
   const borderColor = {
     pending: 'border-border',
     running: 'border-blue-500',
+    verifying: 'border-purple-500',
     completed: 'border-green-500',
     failed: 'border-red-500',
+    timed_out: 'border-orange-500',
+    cancelled: 'border-border',
+    cancelled_by_budget: 'border-orange-500',
+    pending_approval: 'border-yellow-500',
+    yielded: 'border-border',
+    interrupted: 'border-orange-500',
+    checkpoint: 'border-border',
     paused: 'border-yellow-500',
   }[status as string] || 'border-border';
 

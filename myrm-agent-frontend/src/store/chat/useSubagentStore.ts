@@ -3,14 +3,18 @@ import { create } from 'zustand';
 import { mergeTeammateEntries, normalizeTeammateEntry } from '@/lib/utils/teammateMessage';
 
 export type SubagentStatus =
+  | 'pending'
   | 'running'
   | 'verifying'
   | 'completed'
   | 'failed'
-  | 'cancelled'
   | 'timed_out'
-  | 'checkpoint'
-  | 'interrupted';
+  | 'cancelled'
+  | 'cancelled_by_budget'
+  | 'pending_approval'
+  | 'yielded'
+  | 'interrupted'
+  | 'checkpoint';
 export type SubagentMetadataValue =
   | string
   | number
