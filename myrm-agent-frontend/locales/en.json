@@ -9930,6 +9930,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
+    "autoMemoryExtracted": "Remembered {count} items from conversation",
+    "memoryRecallUpdated": "Memory recall scope updated",
+    "viewMemoryCenter": "View in Memory",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent response completed",
     "clarificationNeeded": "Agent needs your input"

@@ -116,17 +116,28 @@ class ZeroCostMemoryExtension(AgentExtension):
                             effective_chat_id,
                             deep_scan_llm_func=deep_scan_llm,
                         )
+                        count = len(result.memories)
                         logger.info(
                             "🧠 [Zero-Cost Memory] Auto-extracted %d memories from %d evicted tools",
-                            len(result.memories),
+                            count,
                             len(evicted_pairs),
                         )
-                        from langchain_core.callbacks.manager import adispatch_custom_event
+                        try:
+                            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
-                        await adispatch_custom_event(
-                            "agent_status",
-                            {"event": "memory_extracted", "count": len(result.memories), "source": "eviction"},
-                        )
+                            get_event_bus().publish(
+                                AppEvent(
+                                    event_type=AppEventType.MEMORY_OPERATION,
+                                    data={
+                                        "operation": "auto_memory_extracted",
+                                        "count": count,
+                                        "source": "eviction",
+                                        "chat_id": effective_chat_id,
+                                    },
+                                )
+                            )
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning("Eviction memory extraction failed: %s", e)
 

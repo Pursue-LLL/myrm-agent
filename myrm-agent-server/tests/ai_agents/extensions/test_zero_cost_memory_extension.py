@@ -139,3 +139,158 @@ class TestEvictionCallbackUsesOriginalContent:
             assert tool_result_msg is not None
             assert original_content in tool_result_msg["content"]
             assert "COMPACTED" not in tool_result_msg["content"]
+
+
+class TestEvictionCallbackPublishesSSE:
+    @pytest.mark.asyncio
+    async def test_publishes_memory_operation_sse_on_extraction(self, extension):
+        """After extracting memories, the callback must publish an SSE event."""
+        ai_msg = AIMessage(content="Reading config", tool_calls=[{"id": "tc1", "name": "read", "args": {}}])
+        tool_msg = ToolMessage(content="compacted", tool_call_id="tc1", name="read")
+        evicted = [EvictedToolCall(ai_msg=ai_msg, tool_msg=tool_msg, original_content="host: localhost")]
+
+        mock_memory = MagicMock()
+        mock_memory.content = "User prefers dark mode"
+        mock_result = MagicMock()
+        mock_result.memories = [mock_memory]
+        mock_extractor_instance = MagicMock()
+        mock_extractor_instance.extract = AsyncMock(return_value=mock_result)
+
+        mock_publish = MagicMock()
+        mock_event_bus = MagicMock()
+        mock_event_bus.publish = mock_publish
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                return_value=mock_extractor_instance,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                return_value=AsyncMock(),
+            ),
+            patch(
+                "app.services.event.app_event_bus.get_event_bus",
+                return_value=mock_event_bus,
+            ),
+        ):
+            cb = extension.build_eviction_callback()
+            assert cb is not None
+            await cb(evicted, "user goal")
+
+            await asyncio.sleep(0.2)
+            pending = [t for t in asyncio.all_tasks() if not t.done() and t != asyncio.current_task()]
+            for t in pending:
+                try:
+                    await asyncio.wait_for(t, timeout=2.0)
+                except (TimeoutError, Exception):
+                    pass
+
+            mock_publish.assert_called_once()
+            event = mock_publish.call_args[0][0]
+            assert event.data["operation"] == "auto_memory_extracted"
+            assert event.data["count"] == 1
+            assert event.data["source"] == "eviction"
+            assert event.data["chat_id"] == "chat-123"
+
+    @pytest.mark.asyncio
+    async def test_no_sse_when_no_memories_extracted(self, extension):
+        """No SSE event should be published when extraction yields no memories."""
+        ai_msg = AIMessage(content="reading", tool_calls=[{"id": "tc1", "name": "read", "args": {}}])
+        tool_msg = ToolMessage(content="compacted", tool_call_id="tc1", name="read")
+        evicted = [EvictedToolCall(ai_msg=ai_msg, tool_msg=tool_msg, original_content="empty")]
+
+        mock_result = MagicMock()
+        mock_result.memories = []
+        mock_extractor_instance = MagicMock()
+        mock_extractor_instance.extract = AsyncMock(return_value=mock_result)
+
+        mock_publish = MagicMock()
+        mock_event_bus = MagicMock()
+        mock_event_bus.publish = mock_publish
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                return_value=mock_extractor_instance,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                new_callable=AsyncMock,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                return_value=AsyncMock(),
+            ),
+            patch(
+                "app.services.event.app_event_bus.get_event_bus",
+                return_value=mock_event_bus,
+            ),
+        ):
+            cb = extension.build_eviction_callback()
+            assert cb is not None
+            await cb(evicted, "user goal")
+
+            await asyncio.sleep(0.2)
+            pending = [t for t in asyncio.all_tasks() if not t.done() and t != asyncio.current_task()]
+            for t in pending:
+                try:
+                    await asyncio.wait_for(t, timeout=2.0)
+                except (TimeoutError, Exception):
+                    pass
+
+            mock_publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_sse_failure_does_not_break_extraction(self, extension):
+        """SSE publish failure must not affect the memory extraction flow."""
+        ai_msg = AIMessage(content="reading", tool_calls=[{"id": "tc1", "name": "read", "args": {}}])
+        tool_msg = ToolMessage(content="compacted", tool_call_id="tc1", name="read")
+        evicted = [EvictedToolCall(ai_msg=ai_msg, tool_msg=tool_msg, original_content="data")]
+
+        mock_memory = MagicMock()
+        mock_result = MagicMock()
+        mock_result.memories = [mock_memory]
+        mock_extractor_instance = MagicMock()
+        mock_extractor_instance.extract = AsyncMock(return_value=mock_result)
+
+        mock_persist = AsyncMock()
+
+        mock_event_bus = MagicMock()
+        mock_event_bus.publish = MagicMock(side_effect=RuntimeError("SSE bus down"))
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.memory.strategies.extractor.MemoryExtractor",
+                return_value=mock_extractor_instance,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                mock_persist,
+            ),
+            patch(
+                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                return_value=AsyncMock(),
+            ),
+            patch(
+                "app.services.event.app_event_bus.get_event_bus",
+                return_value=mock_event_bus,
+            ),
+        ):
+            cb = extension.build_eviction_callback()
+            assert cb is not None
+            await cb(evicted, "user goal")
+
+            await asyncio.sleep(0.2)
+            pending = [t for t in asyncio.all_tasks() if not t.done() and t != asyncio.current_task()]
+            for t in pending:
+                try:
+                    await asyncio.wait_for(t, timeout=2.0)
+                except (TimeoutError, Exception):
+                    pass
+
+            mock_persist.assert_called_once()

@@ -9266,6 +9266,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
+    "autoMemoryExtracted": "{count}개의 기억을 저장했습니다",
+    "memoryRecallUpdated": "기억 리콜 범위가 업데이트되었습니다",
+    "viewMemoryCenter": "기억 보기",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent 응답이 완료되었습니다",
     "clarificationNeeded": "Agent가 입력을 기다리고 있습니다"

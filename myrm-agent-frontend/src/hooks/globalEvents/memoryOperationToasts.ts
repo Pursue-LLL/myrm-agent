@@ -10,6 +10,28 @@ export interface MemoryOperationToastDeps {
 }
 
 const MEMORY_SHARED_TAB_PATH = '/settings/memory?tab=shared';
+const MEMORY_CENTER_PATH = '/settings/memory';
+
+const THROTTLE_MS = 2_000;
+let _pendingExtractCount = 0;
+let _throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+function _flushExtractToast(deps: MemoryOperationToastDeps): void {
+  const count = _pendingExtractCount;
+  _pendingExtractCount = 0;
+  _throttleTimer = null;
+  if (count <= 0) return;
+
+  const { t, router } = deps;
+  toast.success(t('autoMemoryExtracted', { count }), {
+    duration: 8_000,
+    dismissible: true,
+    action: {
+      label: t('viewMemoryCenter'),
+      onClick: () => router.push(MEMORY_CENTER_PATH),
+    },
+  });
+}
 
 export function showMemoryOperationToasts(data: Record<string, unknown>, deps: MemoryOperationToastDeps): void {
   const { t, router } = deps;
@@ -79,6 +101,35 @@ export function showMemoryOperationToasts(data: Record<string, unknown>, deps: M
       description: preference || undefined,
       duration: 10_000,
       dismissible: true,
+    });
+    return;
+  }
+
+  if (operation === 'auto_memory_extracted') {
+    const count = typeof data.count === 'number' ? data.count : 1;
+    _pendingExtractCount += count;
+    if (!_throttleTimer) {
+      _throttleTimer = setTimeout(() => _flushExtractToast(deps), THROTTLE_MS);
+    }
+    return;
+  }
+
+  // Fallback: handle operation_ledger events that use `kind` instead of `operation`
+  const kind = String(data.kind ?? '');
+  const description = String(data.description ?? '').trim();
+  const status = String(data.status ?? '');
+
+  if (!kind || status === 'skipped' || status === 'error') return;
+
+  if (kind === 'forget' || kind === 'write') {
+    toast.info(t('memoryRecallUpdated'), {
+      description: description || undefined,
+      duration: 8_000,
+      dismissible: true,
+      action: {
+        label: t('viewMemoryCenter'),
+        onClick: () => router.push(MEMORY_CENTER_PATH),
+      },
     });
   }
 }

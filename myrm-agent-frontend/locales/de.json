@@ -9266,6 +9266,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
+    "autoMemoryExtracted": "{count} Erinnerungen gespeichert",
+    "memoryRecallUpdated": "Erinnerungsabruf aktualisiert",
+    "viewMemoryCenter": "Erinnerungen anzeigen",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent-Antwort abgeschlossen",
     "clarificationNeeded": "Agent benötigt Ihre Eingabe"

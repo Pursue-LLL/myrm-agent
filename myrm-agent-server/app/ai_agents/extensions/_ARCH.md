@@ -14,4 +14,4 @@ AgentExtension 具体实现（安全/子 Agent/任务自适应等）。上级文
 | `security_policy_extension.py` | 模块 | Extension that configures the agent's security policies and PII handling. | ✅ |
 | `subagent_extension.py` | 模块 | Extension that injects subagent management tools into the agent. | ✅ |
 | `task_adaptive_extension.py` | 模块 | Extension that dynamically injects task-adaptive JIT guidance middleware. | ✅ |
-| `zero_cost_memory.py` | 模块 | Extension that intercepts evicted tool calls/responses from the ContextPipeline | ✅ |
+| `zero_cost_memory.py` | 模块 | Extension that intercepts evicted tool calls/responses from the ContextPipeline and publishes `MEMORY_OPERATION` SSE events for frontend toast notifications. | ✅ |

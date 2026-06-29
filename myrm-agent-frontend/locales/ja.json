@@ -9266,6 +9266,9 @@
     "correctionMemorySynced": "Correction synced to team memory",
     "correctionMemoryPendingApproval": "Correction awaits team memory approval",
     "frustrationSkillLearned": "Preference learned for skill \"{skillName}\"",
+    "autoMemoryExtracted": "{count}件の記憶を保存しました",
+    "memoryRecallUpdated": "記憶リコール範囲が更新されました",
+    "viewMemoryCenter": "記憶を確認",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agentの応答が完了しました",
     "clarificationNeeded": "Agentがあなたの入力を必要としています"

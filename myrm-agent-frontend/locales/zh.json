@@ -9930,6 +9930,9 @@
     "correctionMemorySynced": "纠错已同步到团队记忆",
     "correctionMemoryPendingApproval": "纠错待团队记忆审批",
     "frustrationSkillLearned": "已学会偏好，技能「{skillName}」已更新",
+    "autoMemoryExtracted": "已记住 {count} 条偏好",
+    "memoryRecallUpdated": "记忆召回范围已更新",
+    "viewMemoryCenter": "查看记忆",
     "reviewSharedContextProposal": "前往记忆中心审批",
     "streamCompleted": "Agent 回复已完成",
     "clarificationNeeded": "Agent 需要您的输入"
