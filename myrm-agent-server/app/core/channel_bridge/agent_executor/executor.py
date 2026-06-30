@@ -729,8 +729,13 @@ class ChannelAgentExecutor:
 
                 elif event_type == "tool_image_output":
                     img_data = event.get("data", {})
-                    if isinstance(img_data, dict) and img_data.get("base64"):
-                        acc.last_image_base64 = str(img_data["base64"])
+                    if isinstance(img_data, dict):
+                        if img_data.get("base64"):
+                            acc.last_image_base64 = str(img_data["base64"])
+                            acc.last_image_url = None
+                        elif img_data.get("url"):
+                            acc.last_image_url = str(img_data["url"])
+                            acc.last_image_base64 = None
                         acc.last_image_mime = str(img_data.get("mime_type", "image/jpeg"))
                         acc.last_image_tool = str(event.get("tool_name", ""))
 

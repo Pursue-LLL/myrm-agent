@@ -33,7 +33,8 @@ export interface FileMutationFailedStreamEvent extends BaseAgentEvent {
 }
 
 export type ToolImageOutput = {
-  base64: string;
+  base64?: string;
+  url?: string;
   mimeType: string;
   toolName: string;
 };
@@ -42,7 +43,8 @@ export interface ToolImageOutputStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.TOOL_IMAGE_OUTPUT;
   tool_name: string;
   data: {
-    base64: string;
+    base64?: string;
+    url?: string;
     mime_type: string;
   };
 }

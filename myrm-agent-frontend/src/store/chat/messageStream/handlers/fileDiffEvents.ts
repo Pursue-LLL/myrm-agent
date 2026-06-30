@@ -111,7 +111,8 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
     const message = state.messages[messageIndex];
     const imgEntry: import('@/store/chat/types').ToolImageOutput = {
-      base64: data.data.base64,
+      ...(data.data.base64 ? { base64: data.data.base64 } : {}),
+      ...(data.data.url ? { url: data.data.url } : {}),
       mimeType: data.data.mime_type,
       toolName: data.tool_name,
     };

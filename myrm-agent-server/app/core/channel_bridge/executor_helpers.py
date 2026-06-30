@@ -389,6 +389,7 @@ class StreamAccumulator:
     sources: list[dict[str, object]] = field(default_factory=list)
     error_message: str | None = None
     last_image_base64: str | None = None
+    last_image_url: str | None = None
     last_image_mime: str = "image/jpeg"
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)

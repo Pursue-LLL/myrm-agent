@@ -3,11 +3,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
-import { Monitor, X, ZoomIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Monitor, X, ZoomIn } from 'lucide-react';
 import type { ToolImageOutput } from '@/store/chat/types';
 
 interface ToolImageGalleryProps {
   images: ToolImageOutput[];
+}
+
+function getImageSrc(img: ToolImageOutput): string {
+  if (img.url) return img.url;
+  return `data:${img.mimeType};base64,${img.base64}`;
 }
 
 const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
@@ -22,16 +27,52 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
     setLightboxIndex(null);
   }, []);
 
+  const goToPrev = useCallback(() => {
+    setLightboxIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : prev));
+  }, []);
+
+  const goToNext = useCallback(() => {
+    setLightboxIndex((prev) => (prev !== null && prev < images.length - 1 ? prev + 1 : prev));
+  }, [images.length]);
+
+  const handleDownload = useCallback(() => {
+    if (lightboxIndex === null) return;
+    const img = images[lightboxIndex];
+    const ext = img.mimeType.includes('jpeg') || img.mimeType.includes('jpg') ? 'jpg' : 'png';
+    const filename = `${img.toolName || 'screenshot'}_${lightboxIndex + 1}.${ext}`;
+
+    if (img.url) {
+      const a = document.createElement('a');
+      a.href = img.url;
+      a.download = filename;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.click();
+    } else if (img.base64) {
+      const a = document.createElement('a');
+      a.href = `data:${img.mimeType};base64,${img.base64}`;
+      a.download = filename;
+      a.click();
+    }
+  }, [lightboxIndex, images]);
+
   useEffect(() => {
     if (lightboxIndex === null) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') goToPrev();
+      else if (e.key === 'ArrowRight') goToNext();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [lightboxIndex, closeLightbox]);
+  }, [lightboxIndex, closeLightbox, goToPrev, goToNext]);
 
   if (images.length === 0) return null;
+
+  const lightboxBtnClass = cn(
+    'p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors',
+    'text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+  );
 
   return (
     <>
@@ -59,7 +100,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`data:${img.mimeType};base64,${img.base64}`}
+                src={getImageSrc(img)}
                 alt={`${img.toolName} screenshot ${idx + 1}`}
                 className="w-full h-auto object-contain"
                 loading="lazy"
@@ -82,7 +123,6 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
         </div>
       </div>
 
-      {/* Lightbox overlay */}
       {lightboxIndex !== null && images[lightboxIndex] && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
@@ -91,25 +131,63 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
           aria-modal="true"
           aria-label="Screenshot preview"
         >
-          <button
-            type="button"
-            onClick={closeLightbox}
-            className={cn(
-              'absolute top-4 right-4 p-2 rounded-full',
-              'bg-white/10 hover:bg-white/20 transition-colors',
-              'text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
-            )}
-            aria-label="Close preview"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Top toolbar */}
+          <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={handleDownload} className={lightboxBtnClass} aria-label="Download">
+              <Download className="w-5 h-5" />
+            </button>
+            <button type="button" onClick={closeLightbox} className={lightboxBtnClass} aria-label="Close preview">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Left arrow */}
+          {images.length > 1 && lightboxIndex > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToPrev();
+              }}
+              className={cn(lightboxBtnClass, 'absolute left-4')}
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`data:${images[lightboxIndex].mimeType};base64,${images[lightboxIndex].base64}`}
+            src={getImageSrc(images[lightboxIndex])}
             alt={`${images[lightboxIndex].toolName} screenshot full`}
             className="max-w-[95vw] max-h-[85vh] sm:max-w-[90vw] sm:max-h-[90vh] object-contain rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />
+
+          {/* Right arrow */}
+          {images.length > 1 && lightboxIndex < images.length - 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToNext();
+              }}
+              className={cn(lightboxBtnClass, 'absolute right-4')}
+              aria-label="Next image"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+
+          {/* Counter */}
+          {images.length > 1 && (
+            <div
+              className="absolute bottom-4 text-sm text-white/70 select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {lightboxIndex + 1} / {images.length}
+            </div>
+          )}
         </div>
       )}
     </>
