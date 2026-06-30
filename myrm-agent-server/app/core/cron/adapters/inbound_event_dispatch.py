@@ -1,7 +1,7 @@
 """Dispatch cron event triggers for inbound channel messages.
 
-Single entry point for local MessageBus and Control Plane channel ingress so
-event-triggered CronJobs behave the same in every deployment mode.
+Single entry point wired from AgentRouter after approval/reaction/slash
+filtering so event-triggered CronJobs behave the same in every deployment mode.
 
 [INPUT]
 - app.core.cron.adapters.setup::get_cron_scheduler (POS: Cron scheduler singleton)

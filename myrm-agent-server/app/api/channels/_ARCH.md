@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Channel webhook API routes. | ✅ |
-| `channel_ingress.py` | 模块 | Internal ingress endpoint used by Control Plane sandboxes. | ✅ |
+| `channel_ingress.py` | 模块 | Control Plane 沙箱内部入站：仅 `_handle_inbound` 入队；cron event dispatch 由 AgentRouter 统一处理 | ✅ |
 | `dlq.py` | 模块 | Get failed messages from the Dead Letter Queue. | ✅ |
 | `feishu_register.py` | 模块 | Business layer API. | ✅ |
 | `instances.py` | 模块 | 频道实例管理路由。提供多实例 CRUD、显示名更新、凭证存取和配置管理端点。 | ✅ |

@@ -66,14 +66,4 @@ async def ingest_channel_message(body: ChannelIngressRequest) -> dict[str, str]:
     )
     await channel_gateway.bus._handle_inbound(msg)
 
-    from app.core.cron.adapters.inbound_event_dispatch import (
-        dispatch_cron_event_for_inbound_message,
-    )
-
-    await dispatch_cron_event_for_inbound_message(
-        body.content,
-        body.channel_type,
-        body.resolved_identity.platform_user_id,
-    )
-
     return {"status": "queued"}
