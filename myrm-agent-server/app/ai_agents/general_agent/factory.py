@@ -216,7 +216,6 @@ async def build_general_agent(
 
     if is_local_mode():
         agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
-    await agent_wrapper._setup_deploy_tools(deferred_tools)
     agent_wrapper._setup_canvas_tools(deferred_tools)
 
     await agent_wrapper._setup_external_agents(tools, deferred_tools)

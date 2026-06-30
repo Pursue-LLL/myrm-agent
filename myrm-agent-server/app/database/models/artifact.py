@@ -32,15 +32,16 @@ class Artifact(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)  # Soft delete
-    deployment_url = Column(String(512), nullable=True)  # Public URL after deployment
-    deployment_project_id = Column(String(255), nullable=True)  # Vercel project ID
-    deployment_status = Column(String(50), nullable=True)  # e.g., DEPLOYING, READY, ERROR
-    deployment_version_id = Column(String(36), nullable=True)  # Version ID last deployed
+    deployment_url = Column(String(512), nullable=True)  # Deprecated: use artifact_publications
+    deployment_project_id = Column(String(255), nullable=True)
+    deployment_status = Column(String(50), nullable=True)
+    deployment_version_id = Column(String(36), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     versions = relationship("ArtifactVersion", back_populates="artifact", cascade="all, delete-orphan")
     audit_logs = relationship("ArtifactAuditLog", back_populates="artifact", cascade="all, delete-orphan")
+    publications = relationship("ArtifactPublication", back_populates="artifact", cascade="all, delete-orphan")
 
 
 class ArtifactVersion(Base):

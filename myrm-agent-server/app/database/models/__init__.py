@@ -9,6 +9,7 @@ from .agent_history import AgentProfileHistory
 from .api_key import APIKey
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
+from .artifact_publication import ArtifactPublication
 from .base import Base
 from .canvas import Canvas
 from .channel import ChannelPairingModel
@@ -156,6 +157,7 @@ __all__ = [
     "Artifact",
     "ArtifactVersion",
     "ArtifactAuditLog",
+    "ArtifactPublication",
     # Fission
     "FissionTaskRecord",
     # Canvas

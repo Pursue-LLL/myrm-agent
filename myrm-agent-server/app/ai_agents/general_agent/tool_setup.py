@@ -662,25 +662,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
-    async def _setup_deploy_tools(self, deferred_tools: list[object]) -> None:
-        """Set up the artifact deployment agent tool when Vercel credentials exist."""
-        try:
-            from app.platform_utils.workspace_root import get_workspace_root
-            from app.services.deploy.agent_deploy_service import AgentDeployService
-            from app.services.deploy.credentials import has_deploy_credentials
-            from app.services.deploy.deploy_agent_tools import create_deploy_tool
-
-            if not await has_deploy_credentials():
-                logger.debug("Deploy tool skipped: no Vercel credentials configured")
-                return
-
-            backend = AgentDeployService(workspace_root=str(get_workspace_root()))
-            deploy_tools = create_deploy_tool(backend)
-            deferred_tools.extend(deploy_tools)
-            logger.info("Loaded %d deploy tool(s) [Deferred]", len(deploy_tools))
-        except Exception as e:
-            logger.warning("Deploy tool load failed (degraded): %s", e)
-
     def _setup_canvas_tools(self, deferred_tools: list[object]) -> None:
         """Set up canvas interaction tools when canvas is enabled and bound."""
         if not getattr(self, "enable_canvas", False) or not getattr(self, "canvas_id", None):

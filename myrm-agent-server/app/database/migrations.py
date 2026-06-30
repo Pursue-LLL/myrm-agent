@@ -717,6 +717,21 @@ INDEX_STATEMENTS = [
     "DROP INDEX IF EXISTS idx_calendar_events_start_at",
     "DROP INDEX IF EXISTS idx_calendar_events_agent_id",
     "DROP INDEX IF EXISTS idx_calendar_events_status",
+    """CREATE TABLE IF NOT EXISTS artifact_publications (
+        id VARCHAR(36) PRIMARY KEY,
+        artifact_id VARCHAR(36) NOT NULL,
+        hosting_target_id VARCHAR(36) NOT NULL,
+        publication_url VARCHAR(512),
+        publication_status VARCHAR(50),
+        publication_project_ref VARCHAR(255),
+        publication_version_id VARCHAR(36),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE,
+        UNIQUE(artifact_id, hosting_target_id)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
+    "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
 ]
 
 

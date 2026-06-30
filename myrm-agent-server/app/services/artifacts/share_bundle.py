@@ -30,8 +30,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.services.artifacts.share_token import ArtifactShareClaims
-from app.services.deploy.artifact_files import resolve_artifact_deploy_files
-from app.services.deploy.deploy_packager import DeployFile, validate_deploy_payload
+from app.services.hosting.artifact_files import resolve_artifact_deploy_files
+from app.services.hosting.packager import PublishFile, validate_publish_payload
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def _pick_entry_name(files: dict[str, DeployFile]) -> str:
     raise ValueError("Share bundle must include index.html or a single HTML entry")
 
 
-def _write_deploy_files(bundle_root: Path, files: dict[str, DeployFile]) -> None:
+def _write_deploy_files(bundle_root: Path, files: dict[str, PublishFile]) -> None:
     if bundle_root.exists():
         shutil.rmtree(bundle_root)
     bundle_root.mkdir(parents=True, exist_ok=True)
@@ -134,7 +134,7 @@ async def materialize_share_bundle(
         raise ValueError("No files to share")
 
     if _has_html_payload(files):
-        validate_deploy_payload(files)
+        validate_publish_payload(files)
 
     entry = _pick_entry_name(files)
     bundle_root = bundle_dir_for_claims(claims)

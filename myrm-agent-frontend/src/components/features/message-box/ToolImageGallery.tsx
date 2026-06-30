@@ -10,6 +10,11 @@ interface ToolImageGalleryProps {
   images: ToolImageOutput[];
 }
 
+const LIGHTBOX_BTN_CLASS = cn(
+  'p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors',
+  'text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
+);
+
 function getImageSrc(img: ToolImageOutput): string {
   if (img.url) return img.url;
   return `data:${img.mimeType};base64,${img.base64}`;
@@ -35,24 +40,29 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
     setLightboxIndex((prev) => (prev !== null && prev < images.length - 1 ? prev + 1 : prev));
   }, [images.length]);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     if (lightboxIndex === null) return;
     const img = images[lightboxIndex];
     const ext = img.mimeType.includes('jpeg') || img.mimeType.includes('jpg') ? 'jpg' : 'png';
     const filename = `${img.toolName || 'screenshot'}_${lightboxIndex + 1}.${ext}`;
 
+    const triggerDownload = (href: string) => {
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = filename;
+      a.click();
+    };
+
     if (img.url) {
-      const a = document.createElement('a');
-      a.href = img.url;
-      a.download = filename;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.click();
+      try {
+        const res = await fetch(img.url);
+        const blob = await res.blob();
+        triggerDownload(URL.createObjectURL(blob));
+      } catch {
+        window.open(img.url, '_blank', 'noopener,noreferrer');
+      }
     } else if (img.base64) {
-      const a = document.createElement('a');
-      a.href = `data:${img.mimeType};base64,${img.base64}`;
-      a.download = filename;
-      a.click();
+      triggerDownload(`data:${img.mimeType};base64,${img.base64}`);
     }
   }, [lightboxIndex, images]);
 
@@ -68,11 +78,6 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   }, [lightboxIndex, closeLightbox, goToPrev, goToNext]);
 
   if (images.length === 0) return null;
-
-  const lightboxBtnClass = cn(
-    'p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors',
-    'text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50',
-  );
 
   return (
     <>
@@ -133,10 +138,10 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
         >
           {/* Top toolbar */}
           <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={handleDownload} className={lightboxBtnClass} aria-label="Download">
+            <button type="button" onClick={handleDownload} className={LIGHTBOX_BTN_CLASS} aria-label="Download">
               <Download className="w-5 h-5" />
             </button>
-            <button type="button" onClick={closeLightbox} className={lightboxBtnClass} aria-label="Close preview">
+            <button type="button" onClick={closeLightbox} className={LIGHTBOX_BTN_CLASS} aria-label="Close preview">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -149,7 +154,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
                 e.stopPropagation();
                 goToPrev();
               }}
-              className={cn(lightboxBtnClass, 'absolute left-4')}
+              className={cn(LIGHTBOX_BTN_CLASS, 'absolute left-4')}
               aria-label="Previous image"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -172,7 +177,7 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
                 e.stopPropagation();
                 goToNext();
               }}
-              className={cn(lightboxBtnClass, 'absolute right-4')}
+              className={cn(LIGHTBOX_BTN_CLASS, 'absolute right-4')}
               aria-label="Next image"
             >
               <ChevronRight className="w-6 h-6" />
