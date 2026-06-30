@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException
 
 from app.api.channels.channel_ingress import (
     ChannelIngressRequest,
@@ -133,3 +134,36 @@ async def test_ingest_channel_message_does_not_dispatch_cron(
     assert result == {"status": "queued"}
     assert len(fake_bus.messages) == 1
     dispatch.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ingest_channel_message_rejects_when_router_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core import channel_bridge as channels_module
+
+    fake_gateway = SimpleNamespace(bus=_FakeBus(), _router=None)
+    monkeypatch.setattr(channels_module, "channel_gateway", fake_gateway)
+
+    body = ChannelIngressRequest(
+        message_id="msg-4",
+        content="hello",
+        channel_type="feishu",
+        chat_type="group",
+        chat_id="chat-4",
+        channel_user_id="owner-4",
+        timestamp=1710000003.0,
+        resolved_identity=ResolvedChannelIdentityRequest(
+            platform_user_id="owner-4",
+            sandbox_owner_id="owner-4",
+            channel_id="feishu",
+            channel_user_id="owner-4",
+            conversation_id="feishu:group:chat-4",
+            task_id="feishu:group:chat-4",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await ingest_channel_message(body)
+
+    assert exc_info.value.status_code == 503
