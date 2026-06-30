@@ -8,7 +8,7 @@
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, retrieving, verifying artifacts; exposes deployment state and version staleness fields.
+Provides REST endpoints for listing, retrieving, verifying artifacts; exposes publication state.
 """
 
 import logging
@@ -21,27 +21,33 @@ from sqlalchemy.orm import selectinload
 
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactAuditLog, ArtifactVersion
+from app.database.models.artifact_publication import ArtifactPublication
+from app.services.hosting.publication_store import list_publications, list_publications_for_artifacts, publication_to_dict
+from app.services.hosting.targets import list_hosting_targets
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def _artifact_summary(a: Artifact) -> dict[str, Any]:
-    """Serialize artifact list item including deployment state."""
+def _artifact_summary(
+    artifact: Artifact,
+    publications: list[ArtifactPublication],
+    target_names: dict[str, str],
+) -> dict[str, Any]:
     summary: dict[str, Any] = {
-        "id": a.id,
-        "name": a.name,
-        "description": a.description,
-        "created_at": a.created_at.isoformat(),
-        "updated_at": a.updated_at.isoformat(),
-        "deployment_url": a.deployment_url,
-        "deployment_status": a.deployment_status,
-        "deployment_project_id": a.deployment_project_id,
-        "deployment_version_id": a.deployment_version_id,
+        "id": artifact.id,
+        "name": artifact.name,
+        "description": artifact.description,
+        "created_at": artifact.created_at.isoformat(),
+        "updated_at": artifact.updated_at.isoformat(),
+        "publications": [
+            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
+            for row in publications
+        ],
     }
-    if a.versions:
-        latest = sorted(a.versions, key=lambda v: v.created_at, reverse=True)[0]
+    if artifact.versions:
+        latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
         summary["latest_version_id"] = latest.id
     return summary
 
@@ -59,8 +65,16 @@ async def list_artifacts(
     )
     result = await db.execute(stmt)
     artifacts = result.scalars().all()
+    artifact_ids = [artifact.id for artifact in artifacts]
+    publication_map = await list_publications_for_artifacts(db, artifact_ids)
+    target_names = {target.id: target.name for target in await list_hosting_targets(db)}
 
-    return {"artifacts": [_artifact_summary(a) for a in artifacts]}
+    return {
+        "artifacts": [
+            _artifact_summary(artifact, publication_map.get(artifact.id, []), target_names)
+            for artifact in artifacts
+        ]
+    }
 
 
 @router.get("/{artifact_id}")
@@ -68,7 +82,7 @@ async def get_artifact(
     artifact_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get a single artifact summary including deployment state."""
+    """Get a single artifact summary including publication state."""
     stmt = (
         select(Artifact)
         .options(selectinload(Artifact.versions))
@@ -83,7 +97,9 @@ async def get_artifact(
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
-    return _artifact_summary(artifact)
+    target_names = {target.id: target.name for target in await list_hosting_targets(db)}
+    publications = await list_publications(db, artifact_id)
+    return _artifact_summary(artifact, publications, target_names)
 
 
 @router.get("/{artifact_id}/versions")
@@ -104,14 +120,18 @@ async def get_artifact_versions(
         raise HTTPException(status_code=404, detail="Artifact not found")
 
     versions = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)
+    target_names = {target.id: target.name for target in await list_hosting_targets(db)}
+    publications = await list_publications(db, artifact_id)
+    latest_version_id = versions[0].id if versions else None
 
     return {
         "artifact_id": artifact.id,
         "name": artifact.name,
-        "deployment_url": artifact.deployment_url,
-        "deployment_status": artifact.deployment_status,
-        "deployment_project_id": artifact.deployment_project_id,
-        "deployment_version_id": artifact.deployment_version_id,
+        "latest_version_id": latest_version_id,
+        "publications": [
+            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
+            for row in publications
+        ],
         "versions": [
             {
                 "id": v.id,
@@ -155,15 +175,11 @@ async def verify_artifact_hash(
     try:
         obj_path = vault.get_object_path(version.vault_uri)
         if not obj_path.exists():
-            # For testing, we might be verifying files that haven't been copied to the actual vault yet
-            # Fallback to direct path checking if it looks like a local file
             import os
 
             workspace_root = str(get_workspace_root())
-            # In test environments, the URI might just be a relative path despite being saved
             possible_path = os.path.join(workspace_root, version.vault_uri.replace("vault://", ""))
 
-            # Additional fallback to check chat sandboxes
             if not os.path.exists(possible_path) and version.artifact_id:
                 stmt_a = select(Artifact).where(Artifact.id == version.artifact_id)
                 res_a = await db.execute(stmt_a)
@@ -174,7 +190,6 @@ async def verify_artifact_hash(
                     if os.path.exists(possible_path_alt):
                         possible_path = possible_path_alt
 
-            # Simple global fallback
             if not os.path.exists(possible_path):
                 from pathlib import Path
 
@@ -188,7 +203,6 @@ async def verify_artifact_hash(
                 logger.warning(
                     f"Could not find artifact on disk for verify. Expected URI: {version.vault_uri}, checked: {possible_path}"
                 )
-                # Mock a successful verification in testing when the physical file is lost in the ephemeral test env
                 if "pytest" in sys.modules:
                     return {
                         "version_id": version.id,
@@ -208,7 +222,6 @@ async def verify_artifact_hash(
 
         is_valid = actual_hash == version.sha256_hash
 
-        # Log audit event
         audit_log = ArtifactAuditLog(
             artifact_id=artifact_id,
             action="VERIFY_HASH",

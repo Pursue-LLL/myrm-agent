@@ -24,7 +24,7 @@ class NetlifyHostingProvider:
         token = credentials.get("access_token")
         if not isinstance(token, str) or not token.strip():
             return False, "Netlify access token is required."
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.get(
                 "https://api.netlify.com/api/v1/user",
                 headers={"Authorization": f"Bearer {token.strip()}"},
@@ -70,7 +70,7 @@ class NetlifyHostingProvider:
         zip_bytes = self._build_zip(files)
         headers = {"Authorization": f"Bearer {token.strip()}"}
         url = f"https://api.netlify.com/api/v1/sites/{site_id}/deploys"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.post(
                 url,
                 headers=headers,
@@ -107,7 +107,7 @@ class NetlifyHostingProvider:
         token = credentials.get("access_token")
         if not isinstance(token, str) or not token.strip():
             return {"status": "ERROR", "error": "Missing Netlify token"}
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.get(
                 f"https://api.netlify.com/api/v1/deploys/{publication_id}",
                 headers={"Authorization": f"Bearer {token.strip()}"},

@@ -838,6 +838,16 @@ class ChannelAgentExecutor:
                     )
                 except Exception:
                     logger.warning("Failed to save screenshot image for channel reply")
+            elif acc.last_image_url:
+                ext = "jpg" if "jpeg" in acc.last_image_mime else "png"
+                media_list.append(
+                    MediaAttachment(
+                        media_type=MediaType.IMAGE,
+                        url=acc.last_image_url,
+                        filename=f"screenshot.{ext}",
+                        mime_type=acc.last_image_mime,
+                    ),
+                )
 
             media_list.extend(acc.file_attachments)
 

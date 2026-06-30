@@ -88,7 +88,7 @@ class HttpWebhookProvider:
             "artifact_name": artifact_name,
             "project_ref": existing_project_ref or "",
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.post(
                 safe_url,
                 headers=headers,

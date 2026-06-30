@@ -1,8 +1,8 @@
 """Deploy preflight evaluation for artifact publishing.
 
 [INPUT]
-- app.services.deploy.deploy_packager::collect_deploy_files, validate_deploy_payload
-- app.services.deploy.artifact_files::resolve_artifact_deploy_files (POS: vault file collection)
+- app.services.hosting.packager::collect_publish_files, validate_publish_payload
+- app.services.hosting.artifact_files::resolve_artifact_deploy_files (POS: vault file collection)
 
 [OUTPUT]
 - evaluate_deploy_preflight: structured deployability result

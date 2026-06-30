@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Sequence
 
-from myrm_agent_harness.toolkits.security.credential_vault import get_global_credential_vault
+from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 from sqlalchemy import select
 
@@ -78,9 +78,16 @@ class VaultCredentialService:
             await db.commit()
             await db.refresh(cred)
 
-        # Sync to global vault
+        # Sync to global vault using persisted secrets (partial updates must not wipe in-memory values)
+        sync_password = password
+        sync_totp = totp_seed
+        if sync_password is None and cred.encrypted_password:
+            sync_password = str(ConfigCrypto.decrypt_value(cred.encrypted_password, self._key)["value"])
+        if sync_totp is None and cred.encrypted_totp_seed:
+            sync_totp = str(ConfigCrypto.decrypt_value(cred.encrypted_totp_seed, self._key)["value"])
+
         vault = get_global_credential_vault()
-        vault.add_credential(label=label, password=password, totp_seed=totp_seed)
+        vault.add_credential(label=label, password=sync_password, totp_seed=sync_totp)
 
         return cred
 

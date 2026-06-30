@@ -57,7 +57,9 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
       try {
         const res = await fetch(img.url);
         const blob = await res.blob();
-        triggerDownload(URL.createObjectURL(blob));
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDownload(blobUrl);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
       } catch {
         window.open(img.url, '_blank', 'noopener,noreferrer');
       }
@@ -68,13 +70,17 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
 
   useEffect(() => {
     if (lightboxIndex === null) return;
+    document.body.style.overflow = 'hidden';
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeLightbox();
       else if (e.key === 'ArrowLeft') goToPrev();
       else if (e.key === 'ArrowRight') goToNext();
     };
     window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handler);
+    };
   }, [lightboxIndex, closeLightbox, goToPrev, goToNext]);
 
   if (images.length === 0) return null;

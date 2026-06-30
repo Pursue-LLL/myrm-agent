@@ -1,10 +1,10 @@
-# services/deploy 模块架构
+# services/hosting 模块架构
 
 ---
 
 ## 架构概述
 
-产物一键部署业务层。封装第三方托管平台 API（当前为 Vercel），负责静态/二进制文件打包、SPA 路由注入、部署状态轮询与网络重试。Agent 对话式部署工具与 GUI DeployModal 共用同一基础设施。
+Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify / HTTP Webhook 托管 API，负责静态文件打包、SPA 路由注入、发布状态轮询与 SSRF 防护。**GUI Globe 发布专用，无 Agent 工具。**
 
 ---
 
@@ -12,37 +12,44 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `vercel_client.py` | ✅ 核心 | Vercel API v13：deploy（支持 projectId redeploy）、get_deployment_status |
-| `deploy_packager.py` | ✅ 核心 | Vault 收集 + HTML 相对依赖解析（sandbox 同目录静态资源）+ 敏感目录排除；`validate_deploy_payload` |
-| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files(version_id=)` — deploy / share 共用的工件文件收集 |
-| `preflight.py` | ✅ 核心 | `run_deploy_preflight` / `evaluate_deploy_preflight` — FE 部署前门禁 |
-| `types.py` | ✅ 核心 | `DeployResult` 数据类 |
-| `protocols.py` | ✅ 核心 | `DeployBackend` Protocol |
-| `deploy_agent_tools.py` | ✅ 核心 | `create_deploy_tool()` — LangChain `deploy_artifact` + HITL interrupt |
-| `credentials.py` | ✅ 核心 | Vercel token 读写 SSOT：`save_vercel_credentials` / `resolve_vercel_token` |
-| `vercel_artifact_deploy.py` | ✅ 核心 | `execute_vercel_artifact_deploy()` — REST + Agent 唯一执行入口 |
-| `agent_deploy_service.py` | ✅ 核心 | `AgentDeployService` — `DeployBackend` 实现（委托 executor） |
+| `orchestrator.py` | ✅ 核心 | `publish_artifact_to_target` — 预检、provider 调度、publication 持久化 |
+| `registry.py` | ✅ 核心 | Provider 注册表 |
+| `targets.py` | ✅ 核心 | UserConfig 中 hosting target CRUD |
+| `credentials.py` | ✅ 核心 | 按 target 加密存储凭证 + legacy Vercel 迁移 |
+| `publication_store.py` | ✅ 核心 | `artifact_publications` 表 CRUD |
+| `publication_legacy.py` | ✅ 核心 | 将 publication SSOT 投影为 API 兼容 `deployment_*` 字段 |
+| `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 敏感目录排除 |
+| `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用 |
+| `preflight.py` | ✅ 核心 | 发布前门禁 |
+| `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
+| `vercel_client.py` | ✅ 核心 | Vercel API v13 客户端 |
+| `providers/*.py` | ✅ 核心 | 四平台 HostingProvider 实现 |
 
 ---
 
 ## 依赖关系
 
-- `httpx`：异步 HTTP 客户端
-- `tenacity`：网络抖动重试
-- 调用方：`app/api/files/deploy_api.py`、`app/api/files/artifact_share_api.py`、`app/ai_agents/general_agent/tool_setup.py`
+- `httpx`：异步 HTTP（webhook 禁用 follow_redirects）
+- 调用方：`app/api/files/hosting_api.py`、`hosting_legacy_api.py`（legacy `/deploy` shim）、`artifact_share_api.py`
 
 ---
 
-## Token 解析优先级（credentials SSOT）
+## SSOT
 
-1. 请求体 token
-2. UserConfig 加密存储的用户 BYOK token
-3. Sandbox 环境变量 `VERCEL_PLATFORM_TOKEN`（CP 注入）
-
-`deploy_api.py` POST 仅调 executor（单次 vault 读取）；GET preflight 仍用 `run_deploy_preflight` 服务 DeployModal。Token 读写均经 `credentials`。
+- **唯一发布状态**：`artifact_publications`（UNIQUE artifact_id + hosting_target_id）
+- **已删除**：`artifacts.deployment_*` 列、`services/deploy/`、`deploy_artifact` Agent 工具
 
 ---
 
-## Agent 工具注册门控
+## API
 
-`tool_setup._setup_deploy_tools()` 仅在 `has_deploy_credentials()` 为 True 时注册 deferred `deploy_artifact` 工具。
+- `GET/POST/PUT/DELETE /artifacts/hosting/targets` — target CRUD
+- `POST /artifacts/{id}/publish` — 多目标发布
+- `GET /artifacts/{id}/publications` — 各 target 发布状态
+- Legacy shim：`/artifacts/{id}/deploy` → 默认 Vercel target
+
+---
+
+## Prompt Cache
+
+不注册 LangChain deploy 工具；发布走 REST + GUI，零 LLM token。

@@ -17,26 +17,26 @@ from app.services.artifacts.share_bundle import (
     resolve_share_bundle_file,
 )
 from app.services.artifacts.share_token import ArtifactShareClaims
-from app.services.deploy.deploy_packager import DeployFile
+from app.services.hosting.packager import PublishFile
 
 
 def test_pick_entry_prefers_index_html() -> None:
     files = {
-        "styles.css": DeployFile(path="styles.css", content="body{}", encoding="utf-8"),
-        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     assert _pick_entry_name(files) == "index.html"
 
 
 def test_pick_entry_single_pdf() -> None:
-    files = {"report.pdf": DeployFile(path="report.pdf", content="abc", encoding="base64")}
+    files = {"report.pdf": PublishFile(path="report.pdf", content="abc", encoding="base64")}
     assert _pick_entry_name(files) == "report.pdf"
 
 
 def test_pick_entry_rejects_multiple_html_without_index() -> None:
     files = {
-        "a.html": DeployFile(path="a.html", content="<html/>", encoding="utf-8"),
-        "b.html": DeployFile(path="b.html", content="<html/>", encoding="utf-8"),
+        "a.html": PublishFile(path="a.html", content="<html/>", encoding="utf-8"),
+        "b.html": PublishFile(path="b.html", content="<html/>", encoding="utf-8"),
     }
     with pytest.raises(ValueError, match="index.html"):
         _pick_entry_name(files)
@@ -52,8 +52,8 @@ def test_resolve_share_bundle_file_blocks_traversal(tmp_path: Path, monkeypatch:
     _write_deploy_files(
         bundle_root,
         {
-            "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
-            "styles.css": DeployFile(path="styles.css", content="x{}", encoding="utf-8"),
+            "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+            "styles.css": PublishFile(path="styles.css", content="x{}", encoding="utf-8"),
         },
     )
     _write_manifest(bundle_root, entry="index.html", exp=claims.exp)

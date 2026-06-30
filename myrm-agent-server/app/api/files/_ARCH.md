@@ -10,9 +10,10 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Files management API module | ✅ |
 | `artifact_api.py` | 模块 | Provides REST endpoints for listing, retrieving, verifying artifacts; exposes deployment state and version staleness fields | ✅ |
-| `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without Vercel deploy | ✅ |
+| `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
 | `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |
-| `deploy_api.py` | 模块 | Provides one-click artifact deployment to Vercel and encrypted credential storage | ✅ |
+| `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
+| `hosting_legacy_api.py` | 模块 | Legacy `/deploy/*` shim for backward-compatible clients | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file action endpoints. | ✅ |
 | `pdf_extract.py` | 模块 | PDF content extraction API endpoint | ✅ |

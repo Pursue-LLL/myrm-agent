@@ -1,10 +1,13 @@
 import hashlib
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
+from app.database.models.artifact_publication import ArtifactPublication
+from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID
 
 
 @pytest.mark.asyncio
@@ -68,11 +71,19 @@ async def test_list_artifacts_includes_deployment_fields(client: TestClient, db_
     artifact = Artifact(
         id="art-deploy-1",
         name="Landing Page",
-        deployment_url="https://landing.vercel.app",
-        deployment_status="READY",
-        deployment_project_id="prj_123",
     )
     db_session.add(artifact)
+    await db_session.flush()
+    db_session.add(
+        ArtifactPublication(
+            id=str(uuid.uuid4()),
+            artifact_id="art-deploy-1",
+            hosting_target_id=LEGACY_VERCEL_TARGET_ID,
+            publication_url="https://landing.vercel.app",
+            publication_status="READY",
+            publication_project_ref="prj_123",
+        )
+    )
     await db_session.commit()
 
     response = client.get("/api/v1/files/artifacts")
@@ -91,11 +102,19 @@ async def test_get_artifact_returns_deployment_fields(client: TestClient, db_ses
     artifact = Artifact(
         id="art-get-1",
         name="Portfolio",
-        deployment_url="https://portfolio.vercel.app",
-        deployment_status="READY",
-        deployment_project_id="prj_456",
     )
     db_session.add(artifact)
+    await db_session.flush()
+    db_session.add(
+        ArtifactPublication(
+            id=str(uuid.uuid4()),
+            artifact_id="art-get-1",
+            hosting_target_id=LEGACY_VERCEL_TARGET_ID,
+            publication_url="https://portfolio.vercel.app",
+            publication_status="READY",
+            publication_project_ref="prj_456",
+        )
+    )
     await db_session.commit()
 
     response = client.get("/api/v1/files/artifacts/art-get-1")

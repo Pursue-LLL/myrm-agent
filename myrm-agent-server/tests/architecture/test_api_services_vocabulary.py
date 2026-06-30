@@ -89,7 +89,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "auth",
         "background",
         "chat",
-        "deploy",
         "event",
         "hosting",
         "infra",

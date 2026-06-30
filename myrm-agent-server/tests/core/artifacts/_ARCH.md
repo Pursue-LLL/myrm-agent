@@ -20,5 +20,5 @@
 ## 依赖关系
 
 - `app.core.artifacts.listener`
-- `app.api.files.deploy_api`
+- `app.api.files.hosting_legacy_api`
 - `app.core.artifacts.processor`

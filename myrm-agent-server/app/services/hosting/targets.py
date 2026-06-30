@@ -184,3 +184,22 @@ def get_default_hosting_target_from_list(targets: list[HostingTarget]) -> Hostin
         if target.is_default:
             return target
     return targets[0] if targets else None
+
+
+async def set_default_hosting_target(db: AsyncSession, target_id: str) -> HostingTarget:
+    targets = await list_hosting_targets(db)
+    selected = next((t for t in targets if t.id == target_id), None)
+    if selected is None:
+        raise ValueError("Hosting target not found.")
+    updated = [
+        HostingTarget(
+            id=t.id,
+            name=t.name,
+            provider_type=t.provider_type,
+            config=t.config,
+            is_default=t.id == target_id,
+        )
+        for t in targets
+    ]
+    await save_hosting_targets(db, updated)
+    return next(t for t in updated if t.id == target_id)

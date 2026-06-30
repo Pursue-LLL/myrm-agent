@@ -15,7 +15,7 @@ import {
   Table02Icon,
 } from 'hugeicons-react';
 import { getApiUrl } from '@/lib/api';
-import { Artifact, ArtifactType } from '@/store/chat/types';
+import { Artifact, ArtifactPublication, ArtifactType } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { formatFileSize as formatFileSizeUtil, isPreviewable, needsContentLoad, inferLanguage } from '@/types/artifact';
 
@@ -233,6 +233,32 @@ export function getDownloadFilename(filename: string): string {
 }
 
 /** Sync deployment fields on matching chat message artifacts. */
+export function isPublicationStale(
+  publication: { publication_status?: string | null; publication_version_id?: string | null },
+  latestVersionId?: string | null,
+): boolean {
+  return Boolean(
+    publication.publication_status === 'READY' &&
+      publication.publication_version_id &&
+      latestVersionId &&
+      publication.publication_version_id !== latestVersionId,
+  );
+}
+
+export function patchArtifactPublicationsInChat(artifactId: string, publications: ArtifactPublication[]): void {
+  useChatStore.getState().updateMessages((state) => {
+    for (const message of state.messages) {
+      if (!message.artifacts?.length) {
+        continue;
+      }
+      const index = message.artifacts.findIndex((item) => item.id === artifactId);
+      if (index >= 0) {
+        message.artifacts[index] = { ...message.artifacts[index], publications };
+      }
+    }
+  });
+}
+
 export function patchArtifactDeploymentInChat(artifactId: string, update: Partial<Artifact>): void {
   useChatStore.getState().updateMessages((state) => {
     for (const message of state.messages) {
@@ -248,12 +274,11 @@ export function patchArtifactDeploymentInChat(artifactId: string, update: Partia
 }
 
 export function isDeploymentStale(artifact: Artifact): boolean {
-  return Boolean(
-    artifact.deployment_status === 'READY' &&
-      artifact.deployment_version_id &&
-      artifact.latest_version_id &&
-      artifact.deployment_version_id !== artifact.latest_version_id,
-  );
+  const pubs = artifact.publications ?? [];
+  if (!artifact.latest_version_id) {
+    return false;
+  }
+  return pubs.some((pub) => isPublicationStale(pub, artifact.latest_version_id));
 }
 
 const DEPLOY_CANDIDATE_TYPES: ReadonlySet<ArtifactType> = new Set(['html', 'code']);
@@ -272,7 +297,7 @@ export interface ArtifactDeployPreflight {
 export async function fetchArtifactDeployPreflight(
   artifactId: string,
 ): Promise<ArtifactDeployPreflight | null> {
-  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/deploy/preflight`));
+  const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifactId}/publish/preflight`));
   if (!response.ok) {
     return null;
   }

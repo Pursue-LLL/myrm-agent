@@ -13,7 +13,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ArtifactCard.tsx` | 核心 | 聊天卡片；Link 只读分享；Globe 部署（preflight 通过才可部署）；BookOpen 写入 Wiki 知识库；MessageSquarePlus 插入当前对话 |
-| `DeployModal.tsx` | 核心 | Vercel 部署；打开时拉取 preflight |
+| `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS |
 | `artifactUtils.ts` | 辅助 | preflight/share API 客户端、`isDeploymentStale`、图标 |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由（code/document/html/pdf/svg/mermaid/image/video/audio/spreadsheet） |
 | `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe（主题桥、自动高度、DOM 元素拾取） |
@@ -32,5 +32,5 @@
 - `@/services/wikiService`：`ingestArtifact()` Wiki 知识库写入
 - `@tanstack/react-virtual`：DataGrid 虚拟滚动
 - `xlsx`（动态导入）：XLSX/XLS 文件解析
-- `app/api/files/deploy_api.py`、`artifact_share_api.py`（服务端）
+- `app/api/files/hosting_api.py`、`hosting_legacy_api.py`、`artifact_share_api.py`（服务端）
 - `app/api/wiki/router.py`：`POST /wiki/ingest`（服务端）

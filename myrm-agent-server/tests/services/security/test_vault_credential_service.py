@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from myrm_agent_harness.toolkits.security.credential_vault import get_global_credential_vault
+from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
 
 from app.services.security.vault_credential_service import VaultCredentialService
 
@@ -38,6 +38,16 @@ async def test_save_and_sync_roundtrip() -> None:
     vault.clear()
     await service.sync_all_to_vault()
     assert vault.get_password("svc-roundtrip") == "pw-123"
+
+
+@pytest.mark.asyncio
+async def test_update_description_only_preserves_vault_password() -> None:
+    service = VaultCredentialService()
+    await service.save_credential(label="svc-desc-only", password="keep-me")
+    assert get_global_credential_vault().get_password("svc-desc-only") == "keep-me"
+
+    await service.save_credential(label="svc-desc-only", description="metadata only")
+    assert get_global_credential_vault().get_password("svc-desc-only") == "keep-me"
 
 
 @pytest.mark.asyncio

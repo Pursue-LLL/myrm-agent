@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.core.artifacts.listener::ensure_artifact_for_deploy, resolve_sandbox_file_path
-- app.services.deploy.deploy_packager::collect_deploy_files
+- app.services.hosting.packager::collect_publish_files
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: sandbox artifact storage)
 
 [OUTPUT]

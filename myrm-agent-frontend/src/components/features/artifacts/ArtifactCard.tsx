@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
 import { wikiService } from '@/services/wikiService';
-import { DeployModal, type DeployedArtifactUpdate } from './DeployModal';
+import { PublishModal, type PublishedArtifactUpdate } from './PublishModal';
+import { fetchArtifactPublications, type ArtifactPublication } from '@/services/hosting';
 import { HtmlPreview } from './renderers/MediaPreview';
 import {
   deploymentHostname,
@@ -87,7 +88,9 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [inlineExpanded, setInlineExpanded] = useState(false);
   const [inlineContent, setInlineContent] = useState<string | null>(null);
   const [inlineLoading, setInlineLoading] = useState(false);
-  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [publishModalOpen, setPublishModalOpen] = useState(false);
+  const [publishTargetId, setPublishTargetId] = useState<string | undefined>();
+  const [publications, setPublications] = useState<ArtifactPublication[]>([]);
   const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [ingestLoading, setIngestLoading] = useState(false);
@@ -143,9 +146,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           deployment_project_id?: string | null;
           deployment_version_id?: string | null;
           latest_version_id?: string | null;
+          publications?: ArtifactPublication[];
         };
         if (cancelled) {
           return;
+        }
+        if (data.publications) {
+          setPublications(data.publications);
         }
         setArtifactState((prev) => ({
           ...prev,
@@ -176,7 +183,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         });
         return;
       }
-      setDeployModalOpen(true);
+      setPublishTargetId(undefined);
+      setPublishModalOpen(true);
     },
     [deployPreflight],
   );
@@ -406,9 +414,10 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
     }
   };
 
-  const handleDeployed = (update: DeployedArtifactUpdate) => {
+  const handlePublished = (update: PublishedArtifactUpdate) => {
     setArtifactState((prev) => ({ ...prev, ...update }));
     patchArtifactDeploymentInChat(artifact.id, update);
+    void fetchArtifactPublications(artifact.id).then(setPublications);
   };
 
   const showRedeployBanner = isDeploymentStale(artifactState);
@@ -638,6 +647,28 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
       </div>
 
+      {publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
+        <div className="mx-3 mb-2 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+          {publications
+            .filter((pub) => pub.publication_status === 'READY' && pub.publication_url)
+            .map((pub) => (
+              <button
+                key={pub.id}
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-800 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-950/50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(pub.publication_url!, '_blank');
+                }}
+                title={t('publish.openLive', { hostname: deploymentHostname(pub.publication_url!) })}
+              >
+                <ExternalLink className="h-3 w-3" />
+                {deploymentHostname(pub.publication_url!)}
+              </button>
+            ))}
+        </div>
+      )}
+
       {showRedeployBanner && (
         <div
           className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
@@ -650,7 +681,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
             className="h-7 shrink-0 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              setDeployModalOpen(true);
+              setPublishTargetId(undefined);
+              setPublishModalOpen(true);
             }}
           >
             {t('deploy.redeployAction')}
@@ -677,11 +709,15 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
       )}
     </div>
-    <DeployModal
+    <PublishModal
       artifact={artifactState}
-      open={deployModalOpen}
-      onClose={() => setDeployModalOpen(false)}
-      onDeployed={handleDeployed}
+      open={publishModalOpen}
+      onClose={() => {
+        setPublishModalOpen(false);
+        setPublishTargetId(undefined);
+      }}
+      onPublished={handlePublished}
+      initialTargetId={publishTargetId}
     />
     </>
   );

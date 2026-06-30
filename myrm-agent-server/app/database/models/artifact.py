@@ -32,10 +32,6 @@ class Artifact(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)  # Soft delete
-    deployment_url = Column(String(512), nullable=True)  # Deprecated: use artifact_publications
-    deployment_project_id = Column(String(255), nullable=True)
-    deployment_status = Column(String(50), nullable=True)
-    deployment_version_id = Column(String(36), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

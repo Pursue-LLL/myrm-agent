@@ -24,7 +24,7 @@ from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.artifacts.share_bundle import bundle_asset_count, bundle_dir_for_claims
 from app.services.artifacts.share_token import parse_artifact_share_token
-from app.services.deploy.deploy_packager import DeployFile
+from app.services.hosting.packager import PublishFile
 
 
 @pytest.fixture
@@ -76,8 +76,8 @@ async def html_artifact(db_session):
 @pytest.mark.asyncio
 async def test_create_share_preview_materializes_bundle(share_client, html_artifact) -> None:
     files = {
-        "index.html": DeployFile(path="index.html", content="<html></html>", encoding="utf-8"),
-        "styles.css": DeployFile(path="styles.css", content="body{}", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -108,7 +108,7 @@ async def test_create_share_preview_materializes_bundle(share_client, html_artif
 @pytest.mark.asyncio
 async def test_html_share_includes_csp_headers(share_client, html_artifact) -> None:
     files = {
-        "index.html": DeployFile(path="index.html", content="<html></html>", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html></html>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -133,7 +133,7 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
 @pytest.mark.asyncio
 async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
     files = {
-        "report.pdf": DeployFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
+        "report.pdf": PublishFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -154,12 +154,12 @@ async def test_pdf_share_omits_csp_headers(share_client, html_artifact) -> None:
 async def test_multi_file_bundle_csp_allows_self(share_client, html_artifact) -> None:
     """CSP 'self' allows same-origin CSS/JS in multi-file bundles."""
     files = {
-        "index.html": DeployFile(
+        "index.html": PublishFile(
             path="index.html",
             content='<html><link href="styles.css"/></html>',
             encoding="utf-8",
         ),
-        "styles.css": DeployFile(path="styles.css", content="body{}", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -207,7 +207,7 @@ async def test_public_share_invalid_token(share_client) -> None:
 @pytest.mark.asyncio
 async def test_single_file_share_serves_without_redirect(share_client, html_artifact) -> None:
     files = {
-        "report.pdf": DeployFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
+        "report.pdf": PublishFile(path="report.pdf", content="JVBERi0=", encoding="base64"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -244,7 +244,7 @@ async def test_create_share_accepts_document_type_without_suffix(share_client, d
     await db_session.refresh(artifact)
 
     files = {
-        "季度报告": DeployFile(path="季度报告", content="# Title", encoding="utf-8"),
+        "季度报告": PublishFile(path="季度报告", content="# Title", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -322,7 +322,7 @@ async def test_create_share_ttl_out_of_range(share_client, html_artifact) -> Non
 @pytest.mark.asyncio
 async def test_public_share_expired_token(share_client, html_artifact) -> None:
     files = {
-        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -347,12 +347,12 @@ async def test_public_share_expired_token(share_client, html_artifact) -> None:
 @pytest.mark.asyncio
 async def test_public_share_nested_asset_path(share_client, html_artifact) -> None:
     files = {
-        "index.html": DeployFile(
+        "index.html": PublishFile(
             path="index.html",
             content='<html><link rel="stylesheet" href="assets/styles.css"/></html>',
             encoding="utf-8",
         ),
-        "assets/styles.css": DeployFile(
+        "assets/styles.css": PublishFile(
             path="assets/styles.css",
             content=".x{color:red}",
             encoding="utf-8",
@@ -376,8 +376,8 @@ async def test_public_share_nested_asset_path(share_client, html_artifact) -> No
 @pytest.mark.asyncio
 async def test_public_share_manifest_not_served(share_client, html_artifact) -> None:
     files = {
-        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
-        "styles.css": DeployFile(path="styles.css", content="body{}", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "styles.css": PublishFile(path="styles.css", content="body{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -397,7 +397,7 @@ async def test_public_share_manifest_not_served(share_client, html_artifact) -> 
 async def test_share_rematerialization_uses_pinned_version(share_client, html_artifact) -> None:
     """Verify that bundle re-materialization passes version_id from JWT claims."""
     files_v1 = {
-        "index.html": DeployFile(path="index.html", content="<html>v1</html>", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html>v1</html>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -475,7 +475,7 @@ async def test_share_version_pinning_integration(share_client, db_session, tmp_p
     await db_session.refresh(artifact)
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact,
     ):
@@ -499,7 +499,7 @@ async def test_share_version_pinning_integration(share_client, db_session, tmp_p
     assert bundle_asset_count(claims) == 0
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact,
     ):
@@ -537,7 +537,7 @@ async def test_share_pinned_version_survives_new_version(share_client, db_sessio
         artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1],
     )
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached_v1_only,
     ):
@@ -565,7 +565,7 @@ async def test_share_pinned_version_survives_new_version(share_client, db_sessio
         artifact_id=art_id, name="index.html", chat_id=chat_id, versions=[ver1, ver2],
     )
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached_both,
     ):
@@ -602,7 +602,7 @@ async def test_share_invalid_version_returns_404(share_client, db_session, tmp_p
     await db_session.refresh(artifact)
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact,
     ):
@@ -623,7 +623,7 @@ async def test_share_invalid_version_returns_404(share_client, db_session, tmp_p
     artifact_no_ver.versions = []
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact_no_ver,
     ):
@@ -645,7 +645,7 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_sess
 
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    from app.services.deploy.artifact_files import resolve_artifact_deploy_files
+    from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
     vault = ArtifactVault(str(tmp_path))
     v1_uri = vault.put("<html>old</html>", "index.html")
@@ -670,7 +670,7 @@ async def test_resolve_artifact_deploy_files_version_id_none_uses_latest(db_sess
     )
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
@@ -691,7 +691,7 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
 
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    from app.services.deploy.artifact_files import resolve_artifact_deploy_files
+    from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
     vault = ArtifactVault(str(tmp_path))
     v1_uri = vault.put("<html>first</html>", "index.html")
@@ -716,7 +716,7 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
     )
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
@@ -727,7 +727,7 @@ async def test_resolve_artifact_deploy_files_explicit_version(db_session, tmp_pa
     assert "first" in base64.b64decode(raw_v1).decode()
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
@@ -743,7 +743,7 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, 
     """When version_id doesn't match any version, LookupError is raised."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 
-    from app.services.deploy.artifact_files import resolve_artifact_deploy_files
+    from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 
     vault = ArtifactVault(str(tmp_path))
     v1_uri = vault.put("<html>only</html>", "index.html")
@@ -757,7 +757,7 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, 
     )
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
@@ -770,8 +770,8 @@ async def test_resolve_artifact_deploy_files_invalid_version_raises(db_session, 
 @pytest.mark.asyncio
 async def test_create_share_rejects_ambiguous_multi_html(share_client, html_artifact) -> None:
     files = {
-        "a.html": DeployFile(path="a.html", content="<html/>", encoding="utf-8"),
-        "b.html": DeployFile(path="b.html", content="<html/>", encoding="utf-8"),
+        "a.html": PublishFile(path="a.html", content="<html/>", encoding="utf-8"),
+        "b.html": PublishFile(path="b.html", content="<html/>", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -812,7 +812,7 @@ async def test_csp_integration_html_real_vault(share_client, db_session, tmp_pat
     await db_session.refresh(artifact)
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact,
     ):
@@ -869,7 +869,7 @@ async def test_csp_integration_multi_file_bundle(share_client, db_session, tmp_p
         versions=[ver],
     )
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=detached,
     ):
@@ -921,7 +921,7 @@ async def test_csp_integration_pdf_real_vault(share_client, db_session, tmp_path
     await db_session.refresh(artifact)
 
     with patch(
-        "app.services.deploy.artifact_files.ensure_artifact_for_deploy",
+        "app.services.hosting.artifact_files.ensure_artifact_for_deploy",
         new_callable=AsyncMock,
         return_value=artifact,
     ):
@@ -1027,8 +1027,8 @@ class TestShareSecurityHeadersCompleteness:
 async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> None:
     """307 redirect for multi-file bundles must not carry CSP headers."""
     files = {
-        "index.html": DeployFile(path="index.html", content="<html/>", encoding="utf-8"),
-        "app.js": DeployFile(path="app.js", content="console.log(1)", encoding="utf-8"),
+        "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
+        "app.js": PublishFile(path="app.js", content="console.log(1)", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",
@@ -1049,12 +1049,12 @@ async def test_multi_file_redirect_has_no_csp(share_client, html_artifact) -> No
 async def test_nested_css_asset_no_csp(share_client, html_artifact) -> None:
     """CSS sub-asset in nested path must not carry CSP headers."""
     files = {
-        "index.html": DeployFile(
+        "index.html": PublishFile(
             path="index.html",
             content='<html><link href="assets/main.css"/></html>',
             encoding="utf-8",
         ),
-        "assets/main.css": DeployFile(path="assets/main.css", content=".a{}", encoding="utf-8"),
+        "assets/main.css": PublishFile(path="assets/main.css", content=".a{}", encoding="utf-8"),
     }
     with patch(
         "app.services.artifacts.share_bundle.resolve_artifact_deploy_files",

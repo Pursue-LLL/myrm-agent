@@ -46,6 +46,27 @@ async def list_publications(db: AsyncSession, artifact_id: str) -> list[Artifact
     )
 
 
+async def list_publications_for_artifacts(
+    db: AsyncSession,
+    artifact_ids: list[str],
+) -> dict[str, list[ArtifactPublication]]:
+    if not artifact_ids:
+        return {}
+    rows = list(
+        (
+            await db.execute(
+                select(ArtifactPublication)
+                .where(ArtifactPublication.artifact_id.in_(artifact_ids))
+                .order_by(ArtifactPublication.updated_at.desc())
+            )
+        ).scalars().all()
+    )
+    grouped: dict[str, list[ArtifactPublication]] = {artifact_id: [] for artifact_id in artifact_ids}
+    for row in rows:
+        grouped.setdefault(row.artifact_id, []).append(row)
+    return grouped
+
+
 async def upsert_publication(
     db: AsyncSession,
     *,
@@ -73,10 +94,15 @@ async def upsert_publication(
     return row
 
 
-def publication_to_dict(row: ArtifactPublication) -> dict[str, str | None]:
+def publication_to_dict(
+    row: ArtifactPublication,
+    *,
+    hosting_target_name: str | None = None,
+) -> dict[str, str | None]:
     return {
         "id": row.id,
         "hosting_target_id": row.hosting_target_id,
+        "hosting_target_name": hosting_target_name,
         "publication_url": row.publication_url,
         "publication_status": row.publication_status,
         "publication_project_ref": row.publication_project_ref,

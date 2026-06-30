@@ -117,16 +117,6 @@ async def publish_artifact_to_target(
         ),
     )
 
-    if result.success:
-        artifact.deployment_url = result.url
-        artifact.deployment_project_id = result.project_ref
-        artifact.deployment_status = result.status
-        artifact.deployment_version_id = latest_version.id
-        await db.commit()
-    elif result.status == "ERROR":
-        artifact.deployment_status = "ERROR"
-        await db.commit()
-
     return PublicationResult(
         success=result.success,
         url=result.url,

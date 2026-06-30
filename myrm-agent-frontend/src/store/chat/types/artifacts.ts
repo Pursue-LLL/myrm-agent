@@ -52,4 +52,16 @@ export interface Artifact {
   deployment_project_id?: string | null;
   deployment_version_id?: string | null;
   latest_version_id?: string | null;
+  publications?: ArtifactPublication[];
+}
+
+export interface ArtifactPublication {
+  id: string;
+  hosting_target_id: string;
+  hosting_target_name?: string | null;
+  publication_url?: string | null;
+  publication_status?: string | null;
+  publication_project_ref?: string | null;
+  publication_version_id?: string | null;
+  updated_at?: string | null;
 }

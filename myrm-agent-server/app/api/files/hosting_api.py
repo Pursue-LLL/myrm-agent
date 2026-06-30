@@ -39,6 +39,7 @@ from app.services.hosting.targets import (
     delete_hosting_target,
     get_hosting_target,
     list_hosting_targets,
+    set_default_hosting_target,
     upsert_hosting_target,
 )
 from app.services.hosting.types import HostingTarget, ProviderType
@@ -139,6 +140,15 @@ async def remove_hosting_target(target_id: str, db: AsyncSession = Depends(get_d
     return {"status": "success"}
 
 
+@router.post("/hosting/targets/{target_id}/make-default")
+async def make_default_hosting_target(target_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+    try:
+        target = await set_default_hosting_target(db, target_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _target_dict(target)
+
+
 @router.post("/hosting/targets/{target_id}/test")
 async def test_hosting_target(target_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     target = await get_hosting_target(db, target_id)
@@ -187,7 +197,13 @@ async def put_target_credentials(
 @router.get("/{artifact_id}/publications")
 async def get_artifact_publications(artifact_id: str, db: AsyncSession = Depends(get_db)) -> dict[str, list[dict[str, str | None]]]:
     rows = await list_publications(db, artifact_id)
-    return {"publications": [publication_to_dict(row) for row in rows]}
+    target_names = {t.id: t.name for t in await list_hosting_targets(db)}
+    return {
+        "publications": [
+            publication_to_dict(row, hosting_target_name=target_names.get(row.hosting_target_id))
+            for row in rows
+        ]
+    }
 
 
 @router.get("/{artifact_id}/publish/preflight", response_model=PublishPreflightResponse)
@@ -235,9 +251,7 @@ async def publish_artifact(
         raise HTTPException(status_code=500, detail=result.error or "Publication failed")
     return {
         "publication_id": result.publication_id,
-        "deployment_id": result.publication_id,
         "url": result.url,
-        "project_ref": result.project_ref,
         "status": result.status,
         "publication_url": result.url,
         "publication_status": result.status,
@@ -245,10 +259,6 @@ async def publish_artifact(
         "publication_version_id": result.latest_version_id,
         "latest_version_id": result.latest_version_id,
         "hosting_target_id": body.target_id,
-        "deployment_url": result.url,
-        "deployment_status": result.status,
-        "deployment_project_id": result.project_ref,
-        "deployment_version_id": result.latest_version_id,
     }
 
 

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from app.services.deploy.deploy_packager import DeployFile
-from app.services.deploy.vercel_client import VercelClient
+from app.services.hosting.packager import PublishFile
+from app.services.hosting.vercel_client import VercelClient
 
 
 @pytest.fixture
@@ -14,7 +14,7 @@ def vercel_client():
 
 @pytest.mark.asyncio
 async def test_deploy_success(vercel_client):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     # Mock httpx.AsyncClient.post
     mock_response = AsyncMock()
@@ -32,7 +32,7 @@ async def test_deploy_success(vercel_client):
 
 @pytest.mark.asyncio
 async def test_deploy_includes_project_id(vercel_client):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     mock_response = AsyncMock()
     mock_response.status_code = 200
@@ -52,7 +52,7 @@ async def test_deploy_includes_project_id(vercel_client):
 
 @pytest.mark.asyncio
 async def test_deploy_spa_injection(vercel_client):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     mock_response = AsyncMock()
     mock_response.status_code = 200
@@ -72,7 +72,7 @@ async def test_deploy_spa_injection(vercel_client):
 
 @pytest.mark.asyncio
 async def test_deploy_failure_with_retry(vercel_client):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     # Simulate network error
     with patch("httpx.AsyncClient.post", side_effect=httpx.RequestError("Network error")):
@@ -107,7 +107,7 @@ async def test_get_deployment_status_api_error(vercel_client):
 
 @pytest.mark.asyncio
 async def test_deploy_api_http_error(vercel_client):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     mock_response = AsyncMock()
     mock_response.status_code = 401

@@ -1,8 +1,8 @@
 """Materialize shareable artifact static bundles for public preview links.
 
 [INPUT]
-- app.services.deploy.artifact_files::resolve_artifact_deploy_files (POS: vault + asset_root packaging)
-- app.services.deploy.deploy_packager::DeployFile, validate_deploy_payload
+- app.services.hosting.artifact_files::resolve_artifact_deploy_files (POS: vault + asset_root packaging)
+- app.services.hosting.packager::PublishFile, validate_publish_payload
 - app.services.artifacts.share_token::ArtifactShareClaims (POS: HMAC claims)
 - app.config.settings::settings (POS: state_dir root)
 
@@ -57,7 +57,7 @@ def bundle_dir_for_claims(claims: ArtifactShareClaims) -> Path:
     return _bundles_root() / digest
 
 
-def _pick_entry_name(files: dict[str, DeployFile]) -> str:
+def _pick_entry_name(files: dict[str, PublishFile]) -> str:
     if "index.html" in files:
         return "index.html"
     if len(files) == 1:
@@ -81,7 +81,7 @@ def _write_deploy_files(bundle_root: Path, files: dict[str, PublishFile]) -> Non
             dest.write_bytes(base64.b64decode(deploy_file.content))
 
 
-def _has_html_payload(files: dict[str, DeployFile]) -> bool:
+def _has_html_payload(files: dict[str, PublishFile]) -> bool:
     return any(name.lower().endswith((".html", ".htm")) for name in files)
 
 

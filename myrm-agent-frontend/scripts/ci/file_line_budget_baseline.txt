@@ -9,7 +9,7 @@ src/components/approval/PolymorphicApprovalCard.tsx
 src/components/billing/QuotaDisplay.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
-src/components/features/artifacts/DeployModal.tsx
+src/components/features/artifacts/PublishModal.tsx
 src/components/features/chat-window/Chat.tsx
 src/components/features/chat-window/ChatWindow.tsx
 src/components/features/chat-window/MessageInput.tsx

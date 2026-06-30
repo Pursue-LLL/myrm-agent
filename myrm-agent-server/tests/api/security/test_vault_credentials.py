@@ -11,6 +11,40 @@ def client() -> TestClient:
     return TestClient(app)
 
 
+def test_create_vault_credential_syncs_to_global_vault(client: TestClient) -> None:
+    from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
+
+    get_global_credential_vault().clear()
+    response = client.post(
+        "/api/v1/security/vault-credentials",
+        json={
+            "label": "api-vault-sync",
+            "password": "api-sync-pw",
+            "totp_seed": "JBSWY3DPEHPK3PXP",
+        },
+    )
+    assert response.status_code == 201
+    assert get_global_credential_vault().get_password("api-vault-sync") == "api-sync-pw"
+    token = get_global_credential_vault().get_totp_token("api-vault-sync")
+    assert len(token) == 6 and token.isdigit()
+
+
+def test_update_vault_credential_description_preserves_global_vault(client: TestClient) -> None:
+    from myrm_agent_harness.core.security.credential_vault import get_global_credential_vault
+
+    get_global_credential_vault().clear()
+    client.post(
+        "/api/v1/security/vault-credentials",
+        json={"label": "api-desc-only", "password": "persist-pw"},
+    )
+    response = client.put(
+        "/api/v1/security/vault-credentials/api-desc-only",
+        json={"description": "desc changed only"},
+    )
+    assert response.status_code == 200
+    assert get_global_credential_vault().get_password("api-desc-only") == "persist-pw"
+
+
 def test_create_vault_credential(client: TestClient) -> None:
     response = client.post(
         "/api/v1/security/vault-credentials",

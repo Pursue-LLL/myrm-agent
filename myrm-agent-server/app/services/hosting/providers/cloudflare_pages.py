@@ -29,7 +29,7 @@ class CloudflarePagesProvider:
         if not account_id:
             return False, "Cloudflare account_id is required in target config."
         url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.get(url, headers={"Authorization": f"Bearer {token.strip()}"}, timeout=20.0)
         if response.status_code >= 400:
             return False, f"Cloudflare API error: {response.text[:200]}"
@@ -72,7 +72,7 @@ class CloudflarePagesProvider:
         zip_bytes = self._build_zip(files)
         headers = {"Authorization": f"Bearer {token.strip()}"}
         base = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             if not existing_project_ref:
                 create_resp = await client.post(
                     base,
