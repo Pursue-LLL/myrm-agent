@@ -233,3 +233,52 @@ async def test_empty_body_and_no_attachments_rejected(single_target_config: Noti
     result = await tool.ainvoke({"channel": "", "target": "", "body": "   ", "attachments": []})
     assert "empty" in result.lower()
     assert len(sender.calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> None:
+    import tempfile
+
+    sender = FakeSender()
+    tool = create_channel_notify_tool(sender, single_target_config)
+
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        f.write(b"a,b,c")
+        tmp_file = f.name
+
+    try:
+        result = await tool.ainvoke({
+            "channel": "",
+            "target": "",
+            "body": "Multiple files",
+            "attachments": [tmp_file, "https://example.com/logo.jpg"],
+        })
+        assert "success" in result.lower()
+        assert "2 attachment" in result.lower()
+        assert len(sender.calls) == 1
+        _, _, media = sender.calls[0]
+        assert len(media) == 2
+        assert media[0].path == tmp_file
+        assert media[1].url == "https://example.com/logo.jpg"
+        assert media[1].media_type.value == "image"
+    finally:
+        import os
+
+        os.unlink(tmp_file)
+
+
+@pytest.mark.asyncio
+async def test_empty_attachment_entry_skipped(single_target_config: NotifyToolConfig) -> None:
+    sender = FakeSender()
+    tool = create_channel_notify_tool(sender, single_target_config)
+    result = await tool.ainvoke({
+        "channel": "",
+        "target": "",
+        "body": "test",
+        "attachments": ["  ", "", "https://example.com/file.png"],
+    })
+    assert "success" in result.lower()
+    assert "1 attachment" in result.lower()
+    assert len(sender.calls) == 1
+    _, _, media = sender.calls[0]
+    assert len(media) == 1

@@ -239,3 +239,76 @@ async def test_url_attachment_delivered_through_gateway() -> None:
         assert len(msg.media) == 1
         assert msg.media[0].url == "https://example.com/chart.png"
         assert msg.media[0].media_type.value == "image"
+
+
+@pytest.mark.asyncio
+async def test_attachment_only_no_body_through_gateway() -> None:
+    """Attachment-only message (empty body) flows through ChannelGateway."""
+    channel = RecordingChannel()
+    async with wired_gateway(channel):
+        tool, _ = _make_tool(channel=channel)
+        result = await tool.ainvoke({
+            "channel": "",
+            "target": "",
+            "body": "",
+            "attachments": ["https://example.com/report.pdf"],
+        })
+        assert "success" in result.lower()
+        assert len(channel.sent) == 1
+        msg = channel.sent[0]
+        assert msg.content == ""
+        assert len(msg.media) == 1
+        assert msg.media[0].media_type.value == "document"
+
+
+@pytest.mark.asyncio
+async def test_multiple_attachments_through_gateway() -> None:
+    """Multiple attachments all reach the channel via ChannelGateway."""
+    import tempfile
+
+    channel = RecordingChannel()
+
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        f.write(b"col1,col2")
+        tmp_file = f.name
+
+    try:
+        async with wired_gateway(channel):
+            tool, _ = _make_tool(channel=channel)
+            result = await tool.ainvoke({
+                "channel": "",
+                "target": "",
+                "body": "Multiple files",
+                "attachments": [
+                    tmp_file,
+                    "https://cdn.example.com/photo.jpg",
+                ],
+            })
+            assert "success" in result.lower()
+            assert "2 attachment" in result.lower()
+            assert len(channel.sent) == 1
+            msg = channel.sent[0]
+            assert len(msg.media) == 2
+            assert msg.media[0].path == tmp_file
+            assert msg.media[1].url == "https://cdn.example.com/photo.jpg"
+            assert msg.media[1].media_type.value == "image"
+    finally:
+        import os
+
+        os.unlink(tmp_file)
+
+
+@pytest.mark.asyncio
+async def test_attachment_file_not_found_blocks_gateway_send() -> None:
+    """Nonexistent file attachment aborts before reaching ChannelGateway."""
+    channel = RecordingChannel()
+    async with wired_gateway(channel):
+        tool, _ = _make_tool(channel=channel)
+        result = await tool.ainvoke({
+            "channel": "",
+            "target": "",
+            "body": "Report",
+            "attachments": ["/nonexistent/report.pdf"],
+        })
+        assert "file not found" in result.lower()
+        assert len(channel.sent) == 0
