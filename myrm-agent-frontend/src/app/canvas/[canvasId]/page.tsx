@@ -4,7 +4,9 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { use, useCallback } from 'react';
+import { use, useCallback, useEffect } from 'react';
+
+import { useCanvasStore } from '@/store/useCanvasStore';
 
 const CanvasWorkspace = dynamic(
   () => import('@/components/features/canvas/CanvasWorkspace'),
@@ -22,6 +24,10 @@ export default function CanvasEditorPage({ params }: { params: Promise<{ canvasI
   const { canvasId } = use(params);
   const t = useTranslations('canvas');
   const router = useRouter();
+
+  useEffect(() => {
+    useCanvasStore.getState().setActiveCanvas(canvasId);
+  }, [canvasId]);
 
   const handleBack = useCallback(() => {
     router.push('/canvas');

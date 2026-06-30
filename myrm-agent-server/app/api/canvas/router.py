@@ -4,13 +4,13 @@
 - app.database.models.canvas::Canvas (POS: Infinite canvas workspace metadata)
 - app.database.connection::get_db (POS: Async session provider)
 - app.services.canvas._paths (POS: Shared canvas filesystem path utilities)
+- app.services.canvas._events (POS: SSE event notification hub)
 
 [OUTPUT]
 - CRUD endpoints for canvas workspaces
 - Snapshot save/load via filesystem
 - Selection state read/write
 - SSE endpoint for real-time canvas change notifications
-- _notify_canvas_change: SSE trigger (consumed by service layer)
 
 [POS]
 REST API for the infinite canvas workspace. Canvas metadata is stored in
@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.canvas._events import notify_canvas_change, sse_events
 from app.services.canvas._paths import (
     MAX_SNAPSHOT_SIZE_BYTES,
     canvas_dir,
@@ -48,15 +49,6 @@ from app.database.models.canvas import Canvas
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/canvas", tags=["canvas"])
-
-_sse_events: dict[str, set[asyncio.Event]] = {}
-
-
-def _notify_canvas_change(canvas_id: str) -> None:
-    events = _sse_events.get(canvas_id)
-    if events:
-        for event in events:
-            event.set()
 
 
 async def _write_file(path: Path, content: str) -> None:
@@ -196,7 +188,7 @@ async def save_snapshot(canvas_id: str, body: SnapshotSaveRequest, session: Asyn
     await session.execute(update(Canvas).where(Canvas.id == canvas_id).values(**updates))
     await session.commit()
 
-    _notify_canvas_change(canvas_id)
+    notify_canvas_change(canvas_id)
 
     return success_response({"saved": True})
 
@@ -246,7 +238,7 @@ async def load_selection(canvas_id: str):
 async def canvas_events(canvas_id: str, request: Request):
     """SSE endpoint for real-time canvas change notifications."""
     event = asyncio.Event()
-    _sse_events.setdefault(canvas_id, set()).add(event)
+    sse_events.setdefault(canvas_id, set()).add(event)
 
     async def event_stream():
         try:
@@ -260,11 +252,11 @@ async def canvas_events(canvas_id: str, request: Request):
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
         finally:
-            bucket = _sse_events.get(canvas_id)
+            bucket = sse_events.get(canvas_id)
             if bucket is not None:
                 bucket.discard(event)
                 if not bucket:
-                    _sse_events.pop(canvas_id, None)
+                    sse_events.pop(canvas_id, None)
 
     return StreamingResponse(
         event_stream(),

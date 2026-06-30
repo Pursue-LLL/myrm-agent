@@ -33,6 +33,23 @@ const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de'];
  */
 const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = ['autoRestoreDomains', 'autoRestoreDomainsDesc'];
 
+/** `useTranslations('artifacts')` keys used by ArtifactsCenter — must exist in all locales. */
+const ARTIFACTS_CENTER_REQUIRED_STRING_KEYS = [
+  'title',
+  'empty',
+  'select_prompt',
+  'no_desc',
+  'version_history',
+  'tamper_free',
+  'corrupted',
+  'verifying',
+  'verify_hash',
+  'loading_versions',
+  'auto_saved_version',
+  'preview',
+  'download',
+];
+
 let hasErrors = false;
 
 console.log('🔍 开始验证翻译完整性...\n');
@@ -195,6 +212,34 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   } else {
     console.log(`  ✅ ${lang}.json agent.configPanel 关键 keys 完整`);
+  }
+}
+
+// 验证6: artifacts 命名空间 — ArtifactsCenter 所需 keys（全语言）
+console.log('\n📋 验证 artifacts 命名空间 ArtifactsCenter keys（全语言）...');
+for (const lang of LANGUAGES) {
+  const data = translations[lang];
+  if (!data) continue;
+
+  const artifacts = data.artifacts;
+  if (!artifacts || typeof artifacts !== 'object') {
+    console.error(`  ❌ ${lang}.json 缺少或无效 artifacts`);
+    hasErrors = true;
+    continue;
+  }
+
+  const missing = [];
+  for (const key of ARTIFACTS_CENTER_REQUIRED_STRING_KEYS) {
+    const v = artifacts[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(key);
+    }
+  }
+  if (missing.length > 0) {
+    console.error(`  ❌ ${lang}.json artifacts 缺少或非空字符串: ${missing.join(', ')}`);
+    hasErrors = true;
+  } else {
+    console.log(`  ✅ ${lang}.json artifacts ArtifactsCenter keys 完整`);
   }
 }
 

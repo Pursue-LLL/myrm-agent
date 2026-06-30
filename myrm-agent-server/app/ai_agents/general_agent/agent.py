@@ -88,6 +88,8 @@ class GeneralAgent(ToolSetupMixin):
         enable_code_execute: bool = True,
         enable_wiki: bool = False,
         enable_kanban: bool = False,
+        enable_canvas: bool = False,
+        canvas_id: str | None = None,
         enable_llm_map: bool = False,
         enable_answer_tool: bool = True,
         kanban_tool_mode: str = "full",
@@ -175,6 +177,8 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_code_execute = enable_code_execute
         self.enable_wiki = enable_wiki
         self.enable_kanban = enable_kanban
+        self.enable_canvas = enable_canvas
+        self.canvas_id = canvas_id
         self.enable_llm_map = enable_llm_map
         self.enable_answer_tool = enable_answer_tool
         self.kanban_tool_mode = kanban_tool_mode

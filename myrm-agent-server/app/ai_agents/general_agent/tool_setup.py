@@ -681,6 +681,19 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Deploy tool load failed (degraded): %s", e)
 
+    def _setup_canvas_tools(self, deferred_tools: list[object]) -> None:
+        """Set up canvas interaction tools when canvas is enabled and bound."""
+        if not getattr(self, "enable_canvas", False) or not getattr(self, "canvas_id", None):
+            return
+        try:
+            from app.services.canvas.canvas_agent_tools import create_canvas_tools
+
+            canvas_tools = create_canvas_tools(self.canvas_id)
+            deferred_tools.extend(canvas_tools)
+            logger.info("Loaded %d canvas tool(s) [Deferred]", len(canvas_tools))
+        except Exception as e:
+            logger.warning("Canvas tools load failed (degraded): %s", e)
+
     def _setup_local_browser_data_tool(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""
         try:

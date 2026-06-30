@@ -62,6 +62,7 @@ class AgentConfigRequest(BaseModel):
         default=None, description="Browser session recording mode (off/on_failure/always)"
     )
     auto_restore_domains: list[str] = []
+    canvas_id: str | None = Field(default=None, description="Active canvas workspace ID for agent canvas tools")
     tool_gateway_config: ToolGatewayConfig | None = None
 
     @field_validator("browser_engine")

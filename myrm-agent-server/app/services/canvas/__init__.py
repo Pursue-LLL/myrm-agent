@@ -1,4 +1,4 @@
-"""Canvas service — Agent-facing canvas operations."""
+"""Canvas service — Agent-facing canvas operations and tools."""
 
 from app.services.canvas.operations import (
     get_canvas_selection,

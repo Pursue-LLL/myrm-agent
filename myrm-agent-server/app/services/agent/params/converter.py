@@ -416,6 +416,7 @@ async def convert_to_general_agent_params(
 
     enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
     auto_restore_domains: list[str] = []
+    canvas_id: str | None = None
     browser_source: str | None = None
     dialog_policy: str | None = None
     session_recording: str | None = None
@@ -547,6 +548,7 @@ async def convert_to_general_agent_params(
             agent_skill_configs = cfg.skill_configs
         enabled_builtin_tools = cfg.enabled_builtin_tools
         auto_restore_domains = list(cfg.auto_restore_domains)
+        canvas_id = cfg.canvas_id
         browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
         browser_engine = cfg.browser_engine if hasattr(cfg, "browser_engine") else (resolved.browser_engine if resolved else None)
         dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
@@ -849,6 +851,7 @@ async def convert_to_general_agent_params(
         fetch_raw_webpage=request.fetch_raw_webpage,
         enable_web_search=search_available,
         **tool_flags,
+        canvas_id=canvas_id,
         browser_engine=browser_engine,
         browser_source=browser_source,
         dialog_policy=dialog_policy,

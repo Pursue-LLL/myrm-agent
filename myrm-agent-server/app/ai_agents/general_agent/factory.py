@@ -217,6 +217,7 @@ async def build_general_agent(
     if is_local_mode():
         agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
     await agent_wrapper._setup_deploy_tools(deferred_tools)
+    agent_wrapper._setup_canvas_tools(deferred_tools)
 
     await agent_wrapper._setup_external_agents(tools, deferred_tools)
 
@@ -583,6 +584,7 @@ async def build_general_agent(
         ("computer_use", agent_wrapper.enable_computer_use),
         ("memory", agent_wrapper.enable_memory),
         ("kanban", agent_wrapper.enable_kanban),
+        ("canvas", agent_wrapper.enable_canvas),
         ("wiki", agent_wrapper.enable_wiki),
     ]
     active_tool_groups = [group for group, enabled in _flag_to_group if enabled]

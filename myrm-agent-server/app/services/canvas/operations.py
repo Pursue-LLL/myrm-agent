@@ -10,9 +10,9 @@
 
 [POS]
 Service-layer operations enabling Agent ↔ canvas interaction. These functions
-are the backend for MCP tools and internal agent tools that need to read or
-write canvas state programmatically. SSE notification is the caller's
-responsibility (api layer), not this module's.
+are the backend for agent tools and the REST API that need to read or write
+canvas state programmatically. SSE notification is the caller's
+responsibility (via _events.notify_canvas_change), not this module's.
 """
 
 from __future__ import annotations
