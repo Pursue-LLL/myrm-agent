@@ -308,6 +308,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                         value={editingQueueText}
                         onChange={(e) => setEditingQueueText(e.target.value)}
                         onKeyDown={(e) => {
+                          e.stopPropagation();
                           if (e.key === 'Enter') {
                             e.preventDefault();
                             confirmEditQueue();
