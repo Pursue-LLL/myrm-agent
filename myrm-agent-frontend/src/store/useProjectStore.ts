@@ -26,7 +26,7 @@ interface ProjectActions {
   fetchProjects: () => Promise<void>;
   setActiveFilter: (filter: string | null | undefined) => void;
   addProject: (name: string, color?: string) => Promise<Project>;
-  updateProject: (id: string, updates: { name?: string; color?: string }) => Promise<void>;
+  updateProject: (id: string, updates: { name?: string; color?: string; workspace_path?: string }) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
 }
 

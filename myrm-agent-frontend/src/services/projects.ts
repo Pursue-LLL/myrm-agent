@@ -30,7 +30,10 @@ export const createProject = async (name: string, color?: string): Promise<Proje
   return data.project;
 };
 
-export const updateProject = async (id: string, updates: { name?: string; color?: string }): Promise<Project> => {
+export const updateProject = async (
+  id: string,
+  updates: { name?: string; color?: string; workspace_path?: string },
+): Promise<Project> => {
   const data = (await apiRequest(`/projects/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

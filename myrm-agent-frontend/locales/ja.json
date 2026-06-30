@@ -10175,7 +10175,11 @@
     "removeFromProject": "プロジェクトから外す",
     "rename": "名前変更",
     "delete": "プロジェクト削除",
-    "current": "現在"
+    "current": "現在",
+    "setWorkspace": "作業ディレクトリ設定",
+    "workspacePlaceholder": "絶対パス 例: /workspace/docs",
+    "workspaceUpdated": "作業ディレクトリを更新しました",
+    "workspaceCleared": "作業ディレクトリをクリアしました"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

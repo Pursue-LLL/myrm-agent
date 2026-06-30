@@ -7,11 +7,12 @@
  */
 
 import { useCallback, useState, useRef, useEffect } from 'react';
-import { Plus, Pencil, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, Pencil, Trash2, FolderOpen, FolderCog } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useProjectStore } from '@/store/useProjectStore';
 import type { Project } from '@/services/projects';
 import { useTranslations } from 'next-intl';
+import { toast } from '@/hooks/useToast';
 
 const PROJECT_COLORS = [
   '#7cb9ff',
@@ -39,8 +40,11 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [contextMenu, setContextMenu] = useState<{ projectId: string; x: number; y: number } | null>(null);
+  const [workspaceEditId, setWorkspaceEditId] = useState<string | null>(null);
+  const [workspacePath, setWorkspacePath] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const workspaceInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +58,10 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
   useEffect(() => {
     if (editingId) editInputRef.current?.focus();
   }, [editingId]);
+
+  useEffect(() => {
+    if (workspaceEditId) workspaceInputRef.current?.focus();
+  }, [workspaceEditId]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -93,6 +101,20 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
     },
     [removeProject],
   );
+
+  const handleWorkspaceSubmit = useCallback(async () => {
+    if (!workspaceEditId) return;
+    const trimmed = workspacePath.trim();
+    if (trimmed) {
+      await updateProject(workspaceEditId, { workspace_path: trimmed });
+      toast({ title: t('project.workspaceUpdated') });
+    } else {
+      await updateProject(workspaceEditId, { workspace_path: '' });
+      toast({ title: t('project.workspaceCleared') });
+    }
+    setWorkspaceEditId(null);
+    setWorkspacePath('');
+  }, [workspaceEditId, workspacePath, updateProject, t]);
 
   const handleChipClick = useCallback(
     (projectId: string) => {
@@ -226,8 +248,39 @@ export default function ProjectBar({ isMobile }: ProjectBarProps) {
             await updateProject(p.id, { color });
             setContextMenu(null);
           }}
+          onSetWorkspace={(p) => {
+            setWorkspaceEditId(p.id);
+            setWorkspacePath(p.workspacePath ?? '');
+            setContextMenu(null);
+          }}
           t={t}
         />
+      )}
+
+      {/* Workspace path inline editor */}
+      {workspaceEditId && (
+        <div className="mt-1 flex items-center gap-1">
+          <FolderCog size={10} className="text-muted-foreground/60 shrink-0" />
+          <input
+            ref={workspaceInputRef}
+            value={workspacePath}
+            onChange={(e) => setWorkspacePath(e.target.value)}
+            onBlur={handleWorkspaceSubmit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleWorkspaceSubmit();
+              if (e.key === 'Escape') {
+                setWorkspaceEditId(null);
+                setWorkspacePath('');
+              }
+            }}
+            placeholder={t('project.workspacePlaceholder')}
+            className={cn(
+              'flex-1 h-5 px-1.5 text-[10px] rounded border border-primary/30 bg-transparent outline-none',
+              'placeholder:text-muted-foreground/40 min-w-0',
+              isMobile && 'text-[9px] h-4',
+            )}
+          />
+        </div>
       )}
     </div>
   );
@@ -285,6 +338,7 @@ interface ContextMenuProps {
   onEdit: (p: Project) => void;
   onDelete: (p: Project) => void;
   onChangeColor: (p: Project, color: string) => void;
+  onSetWorkspace: (p: Project) => void;
   t: ReturnType<typeof useTranslations>;
 }
 
@@ -295,6 +349,7 @@ const ContextMenu = ({
   onEdit,
   onDelete,
   onChangeColor,
+  onSetWorkspace,
   t,
   ref,
 }: ContextMenuProps & { ref: React.Ref<HTMLDivElement> }) => {
@@ -309,6 +364,12 @@ const ContextMenu = ({
         onClick={() => onEdit(project)}
       >
         <Pencil size={12} /> {t('project.rename')}
+      </button>
+      <button
+        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
+        onClick={() => onSetWorkspace(project)}
+      >
+        <FolderCog size={12} /> {t('project.setWorkspace')}
       </button>
       <div className="px-3 py-1.5">
         <div className="flex gap-1 flex-wrap">

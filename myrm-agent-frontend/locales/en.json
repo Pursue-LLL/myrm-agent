@@ -12002,7 +12002,11 @@
     "removeFromProject": "Remove from Project",
     "rename": "Rename",
     "delete": "Delete Project",
-    "current": "current"
+    "current": "current",
+    "setWorkspace": "Set Workspace",
+    "workspacePlaceholder": "Absolute path, e.g. /workspace/docs",
+    "workspaceUpdated": "Workspace updated",
+    "workspaceCleared": "Workspace cleared"
   },
   "cliAgent": {
     "modeAgent": "AI Agent",
