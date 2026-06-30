@@ -235,3 +235,24 @@ Test at these widths (or use Tailwind responsive variants):
 | 768px | iPad | Grid switches to 2-column |
 | 1280px | Desktop | Full layout; sidebar visible |
 | 1920px | Full HD | Content doesn't stretch too wide |
+
+## Prebuilt Preview Environment
+
+When generating React code for the preview sandbox, these tools are available at runtime:
+
+**Preloaded:** `clsx`, `class-variance-authority`, `tailwind-merge`, `framer-motion`, `lucide-react`, `recharts`, `date-fns`, `zustand`, `react-hook-form`
+
+**Auto-detected on import:** All `@radix-ui/react-*` primitives (dialog, select, tabs, switch, checkbox, accordion, avatar, progress, slider, toast, and more)
+
+**Prebuilt utility:** `cn()` function at `./lib/utils` — combines `clsx` + `tailwind-merge` for intelligent className merging (Shadcn UI pattern)
+
+```tsx
+import { cn } from './lib/utils';
+import * as Dialog from '@radix-ui/react-dialog';
+
+<Dialog.Root>
+  <Dialog.Trigger className={cn("px-4 py-2 rounded-md", isPrimary && "bg-primary text-white")}>
+    Open
+  </Dialog.Trigger>
+</Dialog.Root>
+```

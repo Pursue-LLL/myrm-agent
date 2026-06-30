@@ -3,23 +3,35 @@
 提供应用程序的日志配置功能，包括：
 - 控制台日志输出（自动脱敏 API key / token / 凭证）
 - 第三方库日志级别控制
-- 自定义日志格式
+- 自定义日志格式（文本 / JSON，环境变量切换）
+- 请求 trace_id / session_id 自动注入（通过 TracingLogFilter）
 """
 
 import logging
+import os
 import sys
 
 from myrm_agent_harness.agent.security.redact import RedactingFormatter
+from myrm_agent_harness.observability.tracing import JsonFormatter, TracingLogFilter
 
 from app.config.env import is_debug_mode
+
+_TEXT_FORMAT = "🚀 %(name)s - %(levelname)s - [%(trace_id)s] %(message)s"
+
+
+def _is_json_log_format() -> bool:
+    return os.getenv("MYRM_LOG_FORMAT", "").lower() == "json"
 
 
 def configure_logging() -> None:
     """配置全局日志
 
     设置日志格式、级别，并控制第三方库的日志输出。
-    使用 RedactingFormatter 自动脱敏日志中的敏感信息。
     应在应用启动时调用一次。
+
+    格式选择（``MYRM_LOG_FORMAT`` 环境变量）：
+    - ``json``  → 单行 JSON（适合 Loki / ELK / 云托管部署）
+    - 默认      → 文本格式 + RedactingFormatter（本地开发）
 
     日志级别根据 DEBUG 环境变量动态调整：
     - DEBUG=true → logging.DEBUG
@@ -29,10 +41,14 @@ def configure_logging() -> None:
     root_logger.handlers = []
 
     console_handler = logging.StreamHandler(sys.stdout)
-    formatter = RedactingFormatter("🚀 %(name)s - %(levelname)s - %(message)s")
-    console_handler.setFormatter(formatter)
 
-    # 环境感知日志级别
+    if _is_json_log_format():
+        console_handler.setFormatter(JsonFormatter())
+    else:
+        console_handler.setFormatter(RedactingFormatter(_TEXT_FORMAT))
+
+    console_handler.addFilter(TracingLogFilter())
+
     log_level = logging.DEBUG if is_debug_mode() else logging.WARNING
     root_logger.setLevel(log_level)
     root_logger.addHandler(console_handler)

@@ -30,6 +30,7 @@ FastAPI 全局 HTTP 中间件。提供文本清洗、认证和缓存控制。
 | `auth_audit.py` | ✅ 核心 | Auth 审计 JSONL（`auth.py` 在非回环认证时写入） | ✅ |
 | `auth_alert.py` | ✅ 核心 | Auth 告警引擎（WebUI Remote / Sandbox） | ✅ |
 | `security.py` | ⚠️ 保留 | 防重放中间件实现；**默认不 register**（SaaS 由 CP 网络层隔离） | ⚠️ |
+| `observability.py` | ✅ 核心 | 请求 Tracing 中间件：为每个 HTTP 请求生成 trace_id，从 URL 提取 session_id，注入 TracingContext（ContextVar），并设置 X-Trace-Id 响应头。 |
 | `cache.py` | ✅ 辅助 | 缓存中间件（路径级 Cache-Control，仅 GET 请求） |
 
 ---

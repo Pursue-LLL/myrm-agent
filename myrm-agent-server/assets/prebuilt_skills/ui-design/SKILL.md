@@ -201,3 +201,68 @@ Ask these questions about the final output:
 2. Would this look identical to other AI-generated pages? → If yes, revisit typography and composition
 3. Is there at least one visual element that surprises? → If no, add a signature detail
 4. Does the motion feel orchestrated or random? → If random, simplify and focus on 2-3 key moments
+
+## Sandpack Runtime Environment
+
+When generating React code for preview, the following packages are pre-installed in the runtime:
+
+### Always Available (Preloaded)
+
+- `clsx` — conditional className composition
+- `class-variance-authority` — component variant definitions (cva)
+- `tailwind-merge` — intelligent Tailwind class merging
+- `framer-motion` — animation and motion library
+- `lucide-react` — icon library
+- `recharts` — charting library
+- `date-fns` — date utilities
+- `zustand` — lightweight state management
+- `react-hook-form` — form handling
+
+### Available on Import (Auto-Detected)
+
+All Radix UI primitives are available — just `import` them and the runtime will install automatically:
+
+`@radix-ui/react-accordion`, `alert-dialog`, `avatar`, `checkbox`, `collapsible`, `context-menu`, `dialog`, `dropdown-menu`, `hover-card`, `label`, `menubar`, `navigation-menu`, `popover`, `progress`, `radio-group`, `scroll-area`, `select`, `separator`, `slider`, `slot`, `switch`, `tabs`, `toast`, `toggle`, `toggle-group`, `tooltip`
+
+### Prebuilt Utility: `cn()`
+
+A `cn()` utility function is pre-installed at `/lib/utils.js` — the Shadcn UI standard pattern:
+
+```tsx
+import { cn } from './lib/utils';
+
+<button className={cn(
+  "px-4 py-2 rounded-md font-medium transition-colors",
+  variant === "destructive" && "bg-destructive text-destructive-foreground",
+  disabled && "opacity-50 cursor-not-allowed"
+)}>
+```
+
+### Recommended Pattern: Radix + cn() + Tailwind
+
+Build Shadcn-quality components by combining Radix primitives with `cn()` and Tailwind:
+
+```tsx
+import * as SwitchPrimitive from '@radix-ui/react-switch';
+import { cn } from './lib/utils';
+
+function Switch({ className, ...props }) {
+  return (
+    <SwitchPrimitive.Root
+      className={cn(
+        "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full",
+        "border-2 border-transparent shadow-sm transition-colors",
+        "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input",
+        className
+      )}
+      {...props}
+    >
+      <SwitchPrimitive.Thumb
+        className={cn(
+          "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg",
+          "transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
+        )}
+      />
+    </SwitchPrimitive.Root>
+  );
+}
