@@ -199,7 +199,7 @@ class TestPersonalityYoloCombined:
         from app.ai_agents.personality_templates import get_personality_template, list_all_personalities
 
         templates = list_all_personalities()
-        assert len(templates) == 16
+        assert len(templates) == 17
 
         for style in [
             "professional",
@@ -218,6 +218,7 @@ class TestPersonalityYoloCombined:
             "hype",
             "uwu",
             "surfer",
+            "wenyan",
         ]:
             t = get_personality_template(style)
             assert t is not None

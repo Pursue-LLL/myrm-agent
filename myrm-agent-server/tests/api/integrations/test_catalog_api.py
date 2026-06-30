@@ -211,3 +211,86 @@ class TestCatalogDetailEndpoint:
         assert "gitee" in ids
         assert "gitee-enterprise" in ids
         assert data["total"] >= 7
+
+    def test_figma_entry_full(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/figma")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "figma"
+        assert data["name"] == "Figma"
+        assert data["nameZh"] == "Figma"
+        assert data["category"] == "design"
+        assert data["connectorType"] == "mcp"
+        assert data["authType"] == "api_key"
+        assert data["envKey"] == "FIGMA_API_KEY"
+        assert data["icon"] == "figma"
+        assert data["website"] == "https://figma.com"
+        assert "code generation" in data["description"].lower()
+        assert data["descriptionZh"] is not None
+        assert len(data["descriptionZh"]) > 0
+
+    def test_figma_mcp_config_complete(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/figma")
+        mcp = response.json()["data"]["mcpConfig"]
+        assert mcp is not None
+        assert mcp["name"] == "figma"
+        assert mcp["type"] == "stdio"
+        assert mcp["command"] == "npx"
+        assert mcp["args"] == ["-y", "figma-developer-mcp", "--stdio"]
+        assert "description" in mcp
+        assert len(mcp["description"]) > 0
+
+    def test_figma_auth_details(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/figma")
+        data = response.json()["data"]
+        assert data["helpUrl"] is not None
+        assert "figma.com" in data["helpUrl"]
+        assert data["helpText"] is not None
+        assert "Personal Access Token" in data["helpText"]
+        assert data["helpTextZh"] is not None
+        assert data["credentialFields"] is None
+
+    def test_figma_tags_complete(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/figma")
+        tags = response.json()["data"]["tags"]
+        assert set(tags) == {"design", "ui", "assets", "prototype"}
+
+    def test_figma_search_by_english_name(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=figma")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total"] >= 1
+        assert any(e["id"] == "figma" for e in data["entries"])
+
+    def test_figma_search_by_tag(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=prototype")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert any(e["id"] == "figma" for e in data["entries"])
+
+    def test_figma_search_by_description_keyword(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=code generation")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert any(e["id"] == "figma" for e in data["entries"])
+
+    def test_figma_in_design_category(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?category=design")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        ids = {e["id"] for e in data["entries"]}
+        assert "figma" in ids
+
+    def test_figma_not_in_wrong_category(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?category=development")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        ids = {e["id"] for e in data["entries"]}
+        assert "figma" not in ids
+
+    def test_figma_in_list_all(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog")
+        assert response.status_code == 200
+        entries = response.json()["data"]["entries"]
+        figma_entries = [e for e in entries if e["id"] == "figma"]
+        assert len(figma_entries) == 1

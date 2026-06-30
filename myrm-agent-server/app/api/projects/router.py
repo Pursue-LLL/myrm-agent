@@ -30,6 +30,7 @@ class ProjectCreateRequest(BaseModel):
 class ProjectUpdateRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=255, description="项目名称")
     color: str | None = Field(None, description="项目颜色 (hex format)")
+    workspace_path: str | None = Field(None, max_length=4096, description="项目工作目录绝对路径")
 
 
 class ChatMoveRequest(BaseModel):
@@ -66,14 +67,16 @@ async def create_project(req: ProjectCreateRequest) -> JSONResponse:
 
 @router.put("/{project_id}", response_model=StandardSuccessResponse)
 async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResponse:
-    """更新项目（名称/颜色）"""
+    """更新项目（名称/颜色/工作目录）"""
     if req.color and not _HEX_COLOR_RE.match(req.color):
         raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
-    if req.name is None and req.color is None:
-        raise validation_error("At least one of name or color must be provided")
+    if req.name is None and req.color is None and req.workspace_path is None:
+        raise validation_error("At least one of name, color, or workspace_path must be provided")
 
     try:
-        project = await ProjectService.update_project(project_id, name=req.name, color=req.color)
+        project = await ProjectService.update_project(
+            project_id, name=req.name, color=req.color, workspace_path=req.workspace_path
+        )
         if not project:
             raise not_found_error("Project")
         return success_response(data={"project": project})
