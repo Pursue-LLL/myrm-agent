@@ -283,6 +283,7 @@ myrm_agent_harness.toolkits.filesystem_suggest
 myrm_agent_harness.toolkits.interaction
 myrm_agent_harness.toolkits.interaction.ask_question
 myrm_agent_harness.toolkits.interaction.clipboard_tools
+myrm_agent_harness.toolkits.interaction.interaction_agent_tools
 myrm_agent_harness.toolkits.interaction.render_ui_tool
 myrm_agent_harness.toolkits.kanban
 myrm_agent_harness.toolkits.kanban.context_builder
