@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections import OrderedDict
@@ -89,16 +90,29 @@ class MCPRegistryService:
     def __init__(self) -> None:
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
         self._client: httpx.AsyncClient | None = None
+        self._client_loop_id: int | None = None
 
     def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
+        loop_id: int | None
+        try:
+            loop_id = id(asyncio.get_running_loop())
+        except RuntimeError:
+            loop_id = None
+
+        if (
+            self._client is None
+            or self._client.is_closed
+            or self._client_loop_id != loop_id
+        ):
             self._client = httpx.AsyncClient(timeout=HTTP_TIMEOUT)
+            self._client_loop_id = loop_id
         return self._client
 
     async def close(self) -> None:
         if self._client is not None and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
+            self._client_loop_id = None
 
     def _get_cached(self, key: str) -> RegistrySearchResult | RegistryServerDetail | None:
         entry = self._cache.get(key)

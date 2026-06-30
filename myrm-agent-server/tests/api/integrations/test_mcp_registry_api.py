@@ -39,3 +39,12 @@ class TestMCPRegistrySearchEndpoint:
         first = data["servers"][0]
         assert first.get("qualifiedName")
         assert data.get("totalPages", 0) >= 1
+
+    def test_registry_detail_namespaced_server(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/mcp/registry/detail/vercel/grep")
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["success"] is True
+        data = body["data"]
+        assert data.get("qualifiedName") == "vercel/grep"
+        assert data.get("transportType")
