@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, Download, Monitor, X, ZoomIn } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Monitor, Pencil, X, ZoomIn } from 'lucide-react';
 import type { ToolImageOutput } from '@/store/chat/types';
+import { uploadFiles } from '@/services/file';
+import useChatStore from '@/store/useChatStore';
+
+const ImageEditor = lazy(() => import('@/components/features/image-editor/ImageEditor'));
 
 interface ToolImageGalleryProps {
   images: ToolImageOutput[];
@@ -22,7 +26,9 @@ function getImageSrc(img: ToolImageOutput): string {
 
 const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [editingSrc, setEditingSrc] = useState<string | null>(null);
   const t = useTranslations('chat');
+  const tEditor = useTranslations('imageEditor');
 
   const openLightbox = useCallback((index: number) => {
     setLightboxIndex(index);
@@ -67,6 +73,35 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
       triggerDownload(`data:${img.mimeType};base64,${img.base64}`);
     }
   }, [lightboxIndex, images]);
+
+  const handleEdit = useCallback(() => {
+    if (lightboxIndex === null) return;
+    setEditingSrc(getImageSrc(images[lightboxIndex]));
+  }, [lightboxIndex, images]);
+
+  const handleEditComplete = useCallback(async (blob: Blob) => {
+    setEditingSrc(null);
+    setLightboxIndex(null);
+    try {
+      const file = new File([blob], `annotated_${Date.now()}.png`, { type: 'image/png' });
+      const result = await uploadFiles([file]);
+      if (result.uploaded_count > 0 && result.files?.[0]) {
+        const { files, setFiles } = useChatStore.getState();
+        setFiles([...files, {
+          fileName: result.files[0].fileName,
+          fileExtension: 'png',
+          fileUrl: result.files[0].fileUrl,
+          fileType: 'uploaded',
+        }]);
+      }
+    } catch (err) {
+      console.error('Failed to upload annotated image:', err);
+    }
+  }, []);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingSrc(null);
+  }, []);
 
   useEffect(() => {
     if (lightboxIndex === null) return;
@@ -144,6 +179,9 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
         >
           {/* Top toolbar */}
           <div className="absolute top-4 right-4 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={handleEdit} className={LIGHTBOX_BTN_CLASS} aria-label={tEditor('editButton')} title={tEditor('editTooltip')}>
+              <Pencil className="w-5 h-5" />
+            </button>
             <button type="button" onClick={handleDownload} className={LIGHTBOX_BTN_CLASS} aria-label="Download">
               <Download className="w-5 h-5" />
             </button>
@@ -200,6 +238,15 @@ const ToolImageGallery: React.FC<ToolImageGalleryProps> = ({ images }) => {
             </div>
           )}
         </div>
+      )}
+      {editingSrc && (
+        <Suspense fallback={null}>
+          <ImageEditor
+            imageSrc={editingSrc}
+            onComplete={handleEditComplete}
+            onCancel={handleEditCancel}
+          />
+        </Suspense>
       )}
     </>
   );

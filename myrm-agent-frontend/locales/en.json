@@ -1969,7 +1969,13 @@
         "selectFolder": "Select folder to import",
         "folder": "Import Folder",
         "zip": "Upload ZIP",
-        "importing": "Importing..."
+        "importing": "Importing...",
+        "obsidianTitle": "Obsidian Vault Import",
+        "obsidianDescription": "Import an entire Obsidian vault with frontmatter, wikilinks, and image embeds preserved",
+        "obsidianFolder": "Import Obsidian Vault",
+        "obsidianZip": "Upload Vault ZIP",
+        "selectObsidianVault": "Select Obsidian vault folder",
+        "obsidianResult": "Imported {processed} notes ({tags} tags, {images} images), {skipped} skipped"
       },
       "tabs": {
         "overview": "Overview",
@@ -7543,6 +7549,22 @@
     "copy": "Copy code",
     "copied": "Copied",
     "preview": "Preview"
+  },
+  "imageEditor": {
+    "cancel": "Cancel",
+    "send": "Send",
+    "undo": "Undo",
+    "redo": "Redo",
+    "rotate": "Rotate 90°",
+    "freehand": "Freehand",
+    "rect": "Rectangle",
+    "ellipse": "Ellipse",
+    "arrow": "Arrow",
+    "text": "Text",
+    "blur": "Mosaic",
+    "textPlaceholder": "Type text annotation...",
+    "editButton": "Annotate",
+    "editTooltip": "Open image editor to annotate"
   },
   "artifacts": {
     "title": "Artifacts",

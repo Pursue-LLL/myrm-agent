@@ -1,12 +1,18 @@
 'use client';
 
-import React, { memo, useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import React, { memo, useMemo, useRef, useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useTranslations } from 'next-intl';
 import { IMAGE_LAZY_LOAD_MARGIN } from '@/lib/constants/artifact';
 import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
 import { useWidgetStorage } from '@/hooks/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
+import { Pencil } from 'lucide-react';
+import { uploadFiles } from '@/services/file';
+import useChatStore from '@/store/useChatStore';
+
+const ImageEditorLazy = lazy(() => import('@/components/features/image-editor/ImageEditor'));
 
 /** Picked element data from iframe postMessage */
 export interface PickedElement {
@@ -191,12 +197,14 @@ const LoadingOverlay: React.FC = memo(() => (
 ));
 LoadingOverlay.displayName = 'LoadingOverlay';
 
-/** 图片预览组件（支持懒加载） */
+/** 图片预览组件（支持懒加载 + 标注编辑） */
 export const ImagePreview: React.FC<{ url: string; filename: string; errorMessage: string }> = memo(
   ({ url, filename, errorMessage }) => {
     const [isLoaded, setIsLoaded] = React.useState(false);
     const [hasError, setHasError] = React.useState(false);
+    const [editing, setEditing] = React.useState(false);
     const imgRef = useRef<HTMLImageElement>(null);
+    const tEditor = useTranslations('imageEditor');
 
     React.useEffect(() => {
       const img = imgRef.current;
@@ -218,8 +226,27 @@ export const ImagePreview: React.FC<{ url: string; filename: string; errorMessag
       return () => observer.disconnect();
     }, [url]);
 
+    const handleEditComplete = useCallback(async (blob: Blob) => {
+      setEditing(false);
+      try {
+        const file = new File([blob], `annotated_${Date.now()}.png`, { type: 'image/png' });
+        const result = await uploadFiles([file]);
+        if (result.uploaded_count > 0 && result.files?.[0]) {
+          const { files, setFiles } = useChatStore.getState();
+          setFiles([...files, {
+            fileName: result.files[0].fileName,
+            fileExtension: 'png',
+            fileUrl: result.files[0].fileUrl,
+            fileType: 'uploaded',
+          }]);
+        }
+      } catch (err) {
+        console.error('Failed to upload annotated image:', err);
+      }
+    }, []);
+
     return (
-      <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4">
+      <div className="h-full w-full flex items-center justify-center bg-muted/30 p-4 group/img relative">
         {!isLoaded && !hasError && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-full max-w-md aspect-video rounded-lg bg-muted animate-pulse flex items-center justify-center">
@@ -247,6 +274,32 @@ export const ImagePreview: React.FC<{ url: string; filename: string; errorMessag
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
         />
+
+        {isLoaded && !hasError && (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className={cn(
+              'absolute top-6 right-6 p-2 rounded-full',
+              'bg-black/50 text-white hover:bg-black/70 transition-all',
+              'opacity-0 group-hover/img:opacity-100',
+            )}
+            aria-label={tEditor('editButton')}
+            title={tEditor('editTooltip')}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
+
+        {editing && (
+          <Suspense fallback={null}>
+            <ImageEditorLazy
+              imageSrc={url}
+              onComplete={handleEditComplete}
+              onCancel={() => setEditing(false)}
+            />
+          </Suspense>
+        )}
       </div>
     );
   },

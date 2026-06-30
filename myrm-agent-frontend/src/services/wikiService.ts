@@ -56,6 +56,16 @@ export interface ImportResultResponse {
   message: string;
 }
 
+export interface ObsidianImportResultResponse {
+  success: boolean;
+  files_scanned: number;
+  files_processed: number;
+  files_skipped: number;
+  tags_extracted: number;
+  images_copied: number;
+  message: string;
+}
+
 export const wikiService = {
   // Tree
   getTree: async (): Promise<TreeNode[]> => {
@@ -179,6 +189,30 @@ export const wikiService = {
     params.append('extensions', extensions);
     params.append('auto_compile', autoCompile.toString());
     return apiRequest<ImportResultResponse>(`/wiki/import/zip?${params.toString()}`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  importObsidianFolder: async (
+    vaultPath: string,
+    autoCompile: boolean = true,
+  ): Promise<ObsidianImportResultResponse> => {
+    return apiRequest<ObsidianImportResultResponse>('/wiki/import/obsidian', {
+      method: 'POST',
+      body: JSON.stringify({ vault_path: vaultPath, auto_compile: autoCompile }),
+    });
+  },
+
+  importObsidianZip: async (
+    file: File,
+    autoCompile: boolean = true,
+  ): Promise<ObsidianImportResultResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    params.append('auto_compile', autoCompile.toString());
+    return apiRequest<ObsidianImportResultResponse>(`/wiki/import/obsidian-zip?${params.toString()}`, {
       method: 'POST',
       body: formData,
     });

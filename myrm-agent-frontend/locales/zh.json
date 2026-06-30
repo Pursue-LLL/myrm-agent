@@ -1969,7 +1969,13 @@
         "selectFolder": "选择要导入的文件夹",
         "folder": "导入文件夹",
         "zip": "上传 ZIP",
-        "importing": "导入中..."
+        "importing": "导入中...",
+        "obsidianTitle": "Obsidian 知识库导入",
+        "obsidianDescription": "一键导入整个 Obsidian 知识库，完整保留 Frontmatter 元数据、双链和嵌入图片",
+        "obsidianFolder": "导入 Obsidian 仓库",
+        "obsidianZip": "上传仓库 ZIP",
+        "selectObsidianVault": "选择 Obsidian 仓库文件夹",
+        "obsidianResult": "已导入 {processed} 篇笔记（{tags} 个标签、{images} 张图片），跳过 {skipped} 个"
       },
       "tabs": {
         "overview": "总览",
@@ -7543,6 +7549,22 @@
     "copy": "复制代码",
     "copied": "已复制",
     "preview": "预览"
+  },
+  "imageEditor": {
+    "cancel": "取消",
+    "send": "发送",
+    "undo": "撤销",
+    "redo": "重做",
+    "rotate": "旋转 90°",
+    "freehand": "自由画笔",
+    "rect": "矩形",
+    "ellipse": "椭圆",
+    "arrow": "箭头",
+    "text": "文字",
+    "blur": "马赛克",
+    "textPlaceholder": "输入文字标注...",
+    "editButton": "标注",
+    "editTooltip": "打开图片编辑器进行标注"
   },
   "artifacts": {
     "title": "工件",

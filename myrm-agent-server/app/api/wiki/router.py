@@ -685,6 +685,21 @@ class ImportResultResponse(BaseModel):
     message: str
 
 
+class ObsidianImportRequest(BaseModel):
+    vault_path: str = Field(..., min_length=1, description="Absolute path to Obsidian vault folder")
+    auto_compile: bool = Field(default=True, description="Start compilation after import")
+
+
+class ObsidianImportResultResponse(BaseModel):
+    success: bool
+    files_scanned: int
+    files_processed: int
+    files_skipped: int
+    tags_extracted: int
+    images_copied: int
+    message: str
+
+
 @router.post("/import/folder", response_model=ImportResultResponse)
 async def import_folder(
     request: ImportFolderRequest,
@@ -812,4 +827,127 @@ async def import_zip(
         raise
     except Exception as e:
         logger.error(f"ZIP import failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _process_obsidian_vault(
+    vault_root: Path,
+    archiver: MemoryToWikiArchiver,
+    auto_compile: bool,
+    source_label: str = "",
+) -> ObsidianImportResultResponse:
+    """Shared logic for processing an Obsidian vault directory into Wiki."""
+    from app.services.wiki.obsidian_adapter import (
+        ObsidianImportStats,
+        adapt_obsidian_file,
+    )
+
+    scanned_files = archiver._structure.scan_folder(vault_root, [".md"])
+    stats = ObsidianImportStats(files_scanned=len(scanned_files))
+
+    raw_dir = archiver._structure.raw_dir
+    assets_dir = archiver._structure.wiki_dir / "assets"
+    enqueued_paths: list[Path] = []
+
+    for src_file in scanned_files:
+        try:
+            dest, metadata, imgs = adapt_obsidian_file(src_file, vault_root, raw_dir, assets_dir)
+            if dest is None:
+                stats.files_skipped += 1
+                continue
+            stats.files_processed += 1
+            stats.images_copied += imgs
+            if metadata:
+                stats.frontmatter_parsed += 1
+                tags = metadata.get("tags")
+                if isinstance(tags, list):
+                    stats.tags_extracted += len(tags)
+                elif tags:
+                    stats.tags_extracted += 1
+            enqueued_paths.append(dest)
+        except Exception as exc:
+            stats.files_skipped += 1
+            stats.errors.append(f"{src_file.name}: {exc}")
+            logger.warning("Skipping Obsidian file %s: %s", src_file, exc)
+
+    if enqueued_paths:
+        archiver._queue.add_batch(enqueued_paths)
+        if auto_compile:
+            archiver._compiler.start_background_worker()
+
+    suffix = f" from {source_label}" if source_label else ""
+    return ObsidianImportResultResponse(
+        success=True,
+        files_scanned=stats.files_scanned,
+        files_processed=stats.files_processed,
+        files_skipped=stats.files_skipped,
+        tags_extracted=stats.tags_extracted,
+        images_copied=stats.images_copied,
+        message=(
+            f"Imported {stats.files_processed} Obsidian notes{suffix}"
+            f" ({stats.tags_extracted} tags, {stats.images_copied} images)"
+            f"{', compilation started' if auto_compile else ''}"
+        ),
+    )
+
+
+@router.post("/import/obsidian", response_model=ObsidianImportResultResponse)
+async def import_obsidian_vault(
+    request: ObsidianImportRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> ObsidianImportResultResponse:
+    """Import an Obsidian vault with frontmatter parsing and image embed handling."""
+    try:
+        vault_root = Path(request.vault_path)
+        if not vault_root.is_dir():
+            raise HTTPException(status_code=404, detail=f"Vault directory not found: {request.vault_path}")
+        return _process_obsidian_vault(vault_root, archiver, request.auto_compile)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Obsidian vault import failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/import/obsidian-zip", response_model=ObsidianImportResultResponse)
+async def import_obsidian_zip(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    file: UploadFile = File(..., description="ZIP of Obsidian vault"),
+    auto_compile: bool = Query(True),
+) -> ObsidianImportResultResponse:
+    """Upload an Obsidian vault as ZIP (for WebUI / cloud-hosted deployments)."""
+    import tempfile
+    import zipfile
+
+    _MAX_ZIP_BYTES = 100 * 1024 * 1024
+
+    if not file.filename or not file.filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+    if file.size and file.size > _MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            zip_path = tmp_path / "vault.zip"
+            raw_bytes = await file.read()
+            if len(raw_bytes) > _MAX_ZIP_BYTES:
+                raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
+            zip_path.write_bytes(raw_bytes)
+
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                zf.extractall(tmp_path / "vault")
+
+            vault_root = tmp_path / "vault"
+            top_items = list(vault_root.iterdir())
+            if len(top_items) == 1 and top_items[0].is_dir():
+                vault_root = top_items[0]
+
+            return _process_obsidian_vault(vault_root, archiver, auto_compile, source_label="ZIP")
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid ZIP file") from None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Obsidian ZIP import failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e

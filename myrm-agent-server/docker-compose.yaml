@@ -48,6 +48,8 @@ services:
     env_file:
       - path: .env
         required: false
+    mem_limit: ${MYRM_MEM_LIMIT:-0}
+    cpus: ${MYRM_CPU_LIMIT:-0}
     volumes:
       - backend-data:/home/myrm/.myrm-agent
       - ${MYRM_WORKSPACE:-./workspace}:/home/myrm/workspace

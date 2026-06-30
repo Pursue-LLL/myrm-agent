@@ -11,7 +11,7 @@ import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore } from '@/com
 import { Textarea } from '@/components/primitives/textarea';
 import { apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';
-import { wikiService } from '@/services/wikiService';
+import { wikiService, type ObsidianImportResultResponse } from '@/services/wikiService';
 import { WikiConceptsList } from './WikiConceptsList';
 import { WikiPendingEdits } from './WikiPendingEdits';
 import { WikiQueuePanel } from './WikiQueuePanel';
@@ -44,8 +44,10 @@ export function WikiSection() {
   const [isLoadingPurpose, setIsLoadingPurpose] = useState(false);
   const [isSavingPurpose, setIsSavingPurpose] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isImportingObsidian, setIsImportingObsidian] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const zipInputRef = useRef<HTMLInputElement>(null);
+  const obsidianZipRef = useRef<HTMLInputElement>(null);
 
   const isTauriEnv = isTauri();
 
@@ -93,6 +95,64 @@ export function WikiSection() {
     } finally {
       setIsImporting(false);
       if (zipInputRef.current) zipInputRef.current.value = '';
+    }
+  };
+
+  const showObsidianResult = (result: ObsidianImportResultResponse) => {
+    toast.success(
+      t('import.obsidianResult', {
+        processed: result.files_processed,
+        tags: result.tags_extracted,
+        images: result.images_copied,
+        skipped: result.files_skipped,
+      }),
+    );
+  };
+
+  const handleImportObsidianFolder = async () => {
+    if (!isTauriEnv) return;
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({ directory: true, multiple: false, title: t('import.selectObsidianVault') });
+      if (!selected) return;
+
+      setIsImportingObsidian(true);
+      const result = await wikiService.importObsidianFolder(selected as string);
+      if (result.success) {
+        showObsidianResult(result);
+        setActiveTab('queue');
+        await loadStats();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Obsidian folder import failed:', error);
+      toast.error(t('errors.importFailed'));
+    } finally {
+      setIsImportingObsidian(false);
+    }
+  };
+
+  const handleImportObsidianZip = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImportingObsidian(true);
+    try {
+      const result = await wikiService.importObsidianZip(file);
+      if (result.success) {
+        showObsidianResult(result);
+        setActiveTab('queue');
+        await loadStats();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Obsidian ZIP import failed:', error);
+      toast.error(t('errors.importFailed'));
+    } finally {
+      setIsImportingObsidian(false);
+      if (obsidianZipRef.current) obsidianZipRef.current.value = '';
     }
   };
 
@@ -391,6 +451,46 @@ export function WikiSection() {
                 type="file"
                 accept=".zip"
                 onChange={handleImportZip}
+                className="hidden"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Obsidian Vault Import */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <IconBook className="w-5 h-5" />
+                {t('import.obsidianTitle')}
+              </CardTitle>
+              <CardDescription>{t('import.obsidianDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4">
+              {isTauriEnv && (
+                <Button
+                  onClick={handleImportObsidianFolder}
+                  disabled={isImportingObsidian}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <IconExplore className="w-4 h-4 mr-2" />
+                  {isImportingObsidian ? t('import.importing') : t('import.obsidianFolder')}
+                </Button>
+              )}
+              <Button
+                onClick={() => obsidianZipRef.current?.click()}
+                disabled={isImportingObsidian}
+                variant="outline"
+                className="flex-1"
+              >
+                <IconDatabase className="w-4 h-4 mr-2" />
+                {isImportingObsidian ? t('import.importing') : t('import.obsidianZip')}
+              </Button>
+              <input
+                ref={obsidianZipRef}
+                type="file"
+                accept=".zip"
+                onChange={handleImportObsidianZip}
                 className="hidden"
               />
             </CardContent>
