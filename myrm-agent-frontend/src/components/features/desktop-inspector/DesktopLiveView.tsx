@@ -141,7 +141,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
     setIsResizing(true);
 
     const startX = e.clientX;
-    const startWidth = panelWidth;
+    const startWidth = panelWidthRef.current;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const delta = startX - moveEvent.clientX;
