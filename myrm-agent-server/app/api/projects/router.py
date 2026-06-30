@@ -70,6 +70,8 @@ async def update_project(project_id: str, req: ProjectUpdateRequest) -> JSONResp
     """更新项目（名称/颜色/工作目录）"""
     if req.color and not _HEX_COLOR_RE.match(req.color):
         raise validation_error("Invalid color format. Must be hex (e.g. #7cb9ff)")
+    if req.workspace_path and not req.workspace_path.startswith("/"):
+        raise validation_error("workspace_path must be an absolute path (starting with /)")
     if req.name is None and req.color is None and req.workspace_path is None:
         raise validation_error("At least one of name, color, or workspace_path must be provided")
 

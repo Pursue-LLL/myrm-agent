@@ -7,7 +7,10 @@ from httpx import ASGITransport
 
 from tests.support.minimal_app import build_minimal_app
 
-app = build_minimal_app(preset="projects")
+app = build_minimal_app(
+    "projects", "chats", "agents_general", "agents_harness",
+    "memory", "files", "wiki",
+)
 from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,

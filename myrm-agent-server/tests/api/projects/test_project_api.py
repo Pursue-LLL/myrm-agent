@@ -273,6 +273,93 @@ async def test_update_project_no_fields_returns_400(async_client: httpx.AsyncCli
 
 
 @pytest.mark.asyncio
+async def test_update_workspace_path_absolute(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Abs"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/workspace/docs"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] == "/workspace/docs"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_relative_rejected(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Rel"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "workspace/docs"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_clear(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Clear"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/tmp/test"})
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": ""})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] == ""
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_traversal_rejected(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Traverse"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "../etc/passwd"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_dot_relative_rejected(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Dot"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "./local/dir"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_with_spaces(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Spaces"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/workspace/my docs"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] == "/workspace/my docs"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_path_with_unicode(async_client: httpx.AsyncClient) -> None:
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Unicode"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/workspace/项目文件"})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["project"]["workspacePath"] == "/workspace/项目文件"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_only(async_client: httpx.AsyncClient) -> None:
+    """workspace_path alone (no name/color) should be accepted"""
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Only"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    resp = await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/data/agent"})
+    assert resp.status_code == 200
+    project = resp.json()["data"]["project"]
+    assert project["workspacePath"] == "/data/agent"
+    assert project["name"] == "WS Only"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_persists_in_list(async_client: httpx.AsyncClient) -> None:
+    """workspace_path should persist and be visible in project list"""
+    create_resp = await async_client.post(f"{PREFIX}/", json={"name": "WS Persist"})
+    project_id = create_resp.json()["data"]["project"]["id"]
+    await async_client.put(f"{PREFIX}/{project_id}", json={"workspace_path": "/persistent/ws"})
+
+    list_resp = await async_client.get(f"{PREFIX}/")
+    projects = list_resp.json()["data"]["projects"]
+    project = next((p for p in projects if p["id"] == project_id), None)
+    assert project is not None
+    assert project["workspacePath"] == "/persistent/ws"
+
+
+@pytest.mark.asyncio
 async def test_sort_order_in_response(async_client: httpx.AsyncClient) -> None:
     await async_client.post(f"{PREFIX}/", json={"name": "Sort Order Test"})
     resp = await async_client.get(f"{PREFIX}/")
