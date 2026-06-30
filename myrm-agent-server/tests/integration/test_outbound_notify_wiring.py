@@ -10,6 +10,7 @@ import pytest
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
 from app.channels.types import ChannelStatus, OutboundMessage
+from app.channels.types.status import ChannelCapabilities
 from app.services.agent.outbound_notify import (
     NotifyTarget,
     NotifyToolConfig,
@@ -22,6 +23,7 @@ class RecordingChannel(BaseChannel):
     """Minimal channel that records outbound messages for integration tests."""
 
     name = "telegram"
+    capabilities = ChannelCapabilities(media=True, file_upload=True)
 
     def __init__(self) -> None:
         super().__init__()
