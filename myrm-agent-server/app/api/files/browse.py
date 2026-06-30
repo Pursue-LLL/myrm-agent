@@ -3,16 +3,19 @@
 [INPUT]
 - myrm_agent_harness.agent.security.path_security::is_within_boundary
   (POS: Path security — boundary check immune to symlink escape)
-- myrm_agent_harness.agent.security.path_security::is_dangerous_path
+- myrm_agent_harness.core.security.path_security::is_dangerous_path
   (POS: Path security — single source of truth for dangerous paths)
-- myrm_agent_harness.agent.security.path_security::is_sensitive_file
+- myrm_agent_harness.core.security.path_security::is_sensitive_file
   (POS: Path security — sensitive file pattern matching)
+- myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer, rank_basename
+  (POS: SSOT for /browse/search file enumeration and ranking)
 - app.core.utils.errors::validation_error (POS: HTTP error helpers)
 - app.core.utils.response_utils::success_response (POS: Standard response wrapper)
 
 [OUTPUT]
 - GET /browse — Directory-only listing for workspace directory picker
 - GET /browse/files — File+directory listing with metadata for workspace file browser
+- GET /browse/search — File name fuzzy search (uses harness filesystem_suggest SSOT)
 - GET /browse/content — File content read for preview/download (workspace root and/or chat_id boundary)
 
 [POS]

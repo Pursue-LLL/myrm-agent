@@ -11,7 +11,7 @@
 | `__init__.py` | 入口 | Files management API module | ✅ |
 | `artifact_api.py` | 模块 | Provides REST endpoints for listing, retrieving, verifying artifacts; exposes deployment state and version staleness fields | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without Vercel deploy | ✅ |
-| `browse.py` | 模块 | Workspace browse API. | ✅ |
+| `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |
 | `deploy_api.py` | 模块 | Provides one-click artifact deployment to Vercel and encrypted credential storage | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file action endpoints. | ✅ |
@@ -19,7 +19,7 @@
 | `revert.py` | 模块 | File revert & review API — message-level / file-level / session-level undo of AI file edits and review diffs. | ✅ |
 | `router.py` | 路由 | Files API router | ✅ |
 | `storage.py` | 模块 | 文件管理 API | ✅ |
-| `suggest.py` | 模块 | File reference suggestion API. | ✅ |
+| `suggest.py` | 模块 | `@` reference suggestion API via harness `filesystem_suggest`. | ✅ |
 | `upload.py` | 模块 | 文件上传 API | ✅ |
 | `vault_api.py` | 模块 | Retrieve the raw binary/text content of a vault object. | ✅ |
 | `vault_proxy.py` | 模块 | Vault secure artifact proxy router. | ✅ |
