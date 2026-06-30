@@ -25,6 +25,7 @@ import logging
 import mimetypes
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse, Response
@@ -474,91 +475,45 @@ async def browse_content(
     )
 
 
-def fuzzy_score(query_lower: str, target: str) -> float:
-    """Calculate a fuzzy match score (0-100) between query and target.
-
-    Higher score is better.
-    - 100: Exact match
-    - 80-99: Substring match
-    - 10-79: Subsequence match
-    - 0: No match
-    """
-    if not query_lower:
-        return 100.0
-
-    target = target.lower()
-
-    if query_lower == target:
-        return 100.0
-
-    if query_lower in target:
-        # Give higher score if it matches the beginning of the target
-        base_score = 90.0 if target.startswith(query_lower) else 80.0
-        return base_score + (len(query_lower) / len(target)) * 9.0
-
-    # Subsequence match
-    q_idx = 0
-    t_idx = 0
-    q_len = len(query_lower)
-    t_len = len(target)
-
-    match_indices = []
-    while q_idx < q_len and t_idx < t_len:
-        if query_lower[q_idx] == target[t_idx]:
-            match_indices.append(t_idx)
-            q_idx += 1
-        t_idx += 1
-
-    if q_idx < q_len:
-        return 0.0  # not a subsequence
-
-    # It is a subsequence. Calculate score based on compactness.
-    spread = match_indices[-1] - match_indices[0] + 1
-    compactness = len(query_lower) / spread if spread > 0 else 1.0
-
-    return 10.0 + (compactness * 60.0) + (len(query_lower) / len(target)) * 9.0
-
-
 def _search_files(
     root: str,
     query_lower: str,
     max_results: int,
 ) -> list[FileSearchResult]:
     """Retrieve workspace files and perform fuzzy scoring."""
-    from myrm_agent_harness.agent.security.path_security import is_dangerous_path, is_sensitive_file
-    from myrm_agent_harness.utils.workspace_indexer import WorkspaceFileIndexer
+    from myrm_agent_harness.core.security.path_security import is_dangerous_path, is_sensitive_file
+    from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer, rank_basename
 
-    root_real = os.path.realpath(root)
-    all_files = WorkspaceFileIndexer.list_all_files(root_real)
+    root_path = Path(root).expanduser().resolve()
+    all_files = WorkspacePathIndexer.list_files(root_path)
 
-    scored_files = []
+    scored_files: list[tuple[int, str, Path, str]] = []
     for rel_path in all_files:
         fname = os.path.basename(rel_path)
-        # Score based on filename
-        score = fuzzy_score(query_lower, fname)
-        if score <= 0:
+        rank = rank_basename(fname, query_lower)
+        if rank is None:
             continue
+        _tier, score, _ranges = rank
 
-        full_path = os.path.join(root_real, rel_path)
-        if is_dangerous_path(full_path) or is_sensitive_file(full_path):
+        full_path = root_path / rel_path
+        if is_dangerous_path(str(full_path)) or is_sensitive_file(str(full_path)):
             continue
 
         scored_files.append((score, fname, full_path, rel_path))
 
-    # Sort by score descending, then by relative path ascending
-    scored_files.sort(key=lambda x: (-x[0], x[3]))
+    scored_files.sort(key=lambda item: (-item[0], item[3]))
 
     results: list[FileSearchResult] = []
     for _score, fname, full_path, rel_path in scored_files[:max_results]:
         try:
-            size = os.path.getsize(full_path)
+            size = full_path.stat().st_size
         except OSError:
             size = None
 
         results.append(
             FileSearchResult(
                 name=fname,
-                path=full_path,
+                path=str(full_path),
                 relative_path=rel_path,
                 size=size,
             )
