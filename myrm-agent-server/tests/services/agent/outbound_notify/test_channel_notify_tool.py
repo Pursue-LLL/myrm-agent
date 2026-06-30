@@ -170,6 +170,24 @@ async def test_attachment_with_url(single_target_config: NotifyToolConfig) -> No
 
 
 @pytest.mark.asyncio
+async def test_url_with_query_params_resolves_correct_type(single_target_config: NotifyToolConfig) -> None:
+    sender = FakeSender()
+    tool = create_channel_notify_tool(sender, single_target_config)
+    result = await tool.ainvoke({
+        "channel": "",
+        "target": "",
+        "body": "AI generated chart",
+        "attachments": ["https://oaidalleapiprodscus.blob.core.windows.net/chart.png?se=2024-01-01&sp=r&sv=2023-11-03&sig=xxx"],
+    })
+    assert "success" in result.lower()
+    assert len(sender.calls) == 1
+    _, _, media = sender.calls[0]
+    assert len(media) == 1
+    assert media[0].media_type.value == "image"
+    assert media[0].filename == "chart.png"
+
+
+@pytest.mark.asyncio
 async def test_attachment_file_not_found(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)

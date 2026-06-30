@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from langchain_core.tools import BaseTool
 from langchain_core.tools.convert import tool
@@ -83,7 +84,7 @@ def _resolve_attachments(raw_paths: list[str]) -> tuple[tuple[MediaAttachment, .
             errors.append(f"File not found: {entry}")
             continue
 
-        filename = os.path.basename(entry) if not is_url else entry.rsplit("/", 1)[-1]
+        filename = os.path.basename(urlparse(entry).path) if is_url else os.path.basename(entry)
         media_type = guess_media_type(filename)
 
         attachments.append(
