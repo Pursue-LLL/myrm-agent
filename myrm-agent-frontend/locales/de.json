@@ -10179,7 +10179,9 @@
     "setWorkspace": "Arbeitsverzeichnis festlegen",
     "workspacePlaceholder": "Absoluter Pfad, z.B. /workspace/docs",
     "workspaceUpdated": "Arbeitsverzeichnis aktualisiert",
-    "workspaceCleared": "Arbeitsverzeichnis gelöscht"
+    "workspaceCleared": "Arbeitsverzeichnis gelöscht",
+    "moveSuccess": "{count} Chats erfolgreich verschoben",
+    "moveFailed": "Chats konnten nicht verschoben werden"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

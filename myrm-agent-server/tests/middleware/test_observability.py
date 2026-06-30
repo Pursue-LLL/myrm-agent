@@ -101,3 +101,20 @@ class TestTracingMiddleware:
 
         assert TracingContext.get_trace_id() == "-"
         assert TracingContext.get_session_id() == "-"
+
+    async def test_exception_still_resets_context(self) -> None:
+        async def raise_error(_request: Request) -> JSONResponse:
+            raise RuntimeError("boom")
+
+        app = Starlette(routes=[Route("/api/fail", raise_error)])
+        app.add_middleware(TracingMiddleware)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app, raise_app_exceptions=False),
+            base_url="http://test",
+        ) as client:
+            resp = await client.get("/api/fail")
+
+        assert resp.status_code == 500
+        assert TracingContext.get_trace_id() == "-"
+        assert TracingContext.get_session_id() == "-"

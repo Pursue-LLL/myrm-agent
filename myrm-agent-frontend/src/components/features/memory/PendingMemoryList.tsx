@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, X, CheckCheck, Loader2, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -41,8 +41,11 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
 
   const selectedCount = selectedPendingIds.size;
   const allSelected = pendingMemories.length > 0 && selectedCount === pendingMemories.length;
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleBatchApprove = useCallback(async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       await batchApprove();
       toast({
@@ -55,10 +58,14 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
         description: error instanceof Error ? error.message : t('unknownError'),
         variant: 'destructive',
       });
+    } finally {
+      setIsProcessing(false);
     }
-  }, [batchApprove, selectedCount, t]);
+  }, [batchApprove, selectedCount, t, isProcessing]);
 
   const handleBatchReject = useCallback(async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       await batchReject();
       toast({
@@ -71,8 +78,10 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
         description: error instanceof Error ? error.message : t('unknownError'),
         variant: 'destructive',
       });
+    } finally {
+      setIsProcessing(false);
     }
-  }, [batchReject, selectedCount, t]);
+  }, [batchReject, selectedCount, t, isProcessing]);
 
   const handleApprove = useCallback(
     async (id: string, editedContent?: string) => {
@@ -199,26 +208,30 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
             <div className="flex items-center gap-2">
               <button
                 onClick={handleBatchReject}
+                disabled={isProcessing}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm',
                   'transition-colors duration-200',
                   'border border-destructive/30 hover:border-destructive/50',
                   'text-destructive hover:bg-destructive/5',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
                 )}
               >
-                <X size={14} />
+                {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
                 {t('batchReject')}
               </button>
               <button
                 onClick={handleBatchApprove}
+                disabled={isProcessing}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm',
                   'transition-colors duration-200',
                   'bg-primary/10 hover:bg-primary/20',
                   'text-primary border border-primary/20 hover:border-primary/40',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
                 )}
               >
-                <Check size={14} />
+                {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 {t('batchAccept')}
               </button>
             </div>

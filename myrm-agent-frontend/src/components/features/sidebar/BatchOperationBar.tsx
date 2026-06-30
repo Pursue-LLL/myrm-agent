@@ -1,12 +1,13 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Trash2, X, CheckSquare, FolderInput, FolderX } from 'lucide-react';
+import { Trash2, X, CheckSquare, FolderInput, FolderX, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { useTranslations } from 'next-intl';
 import { useProjectStore } from '@/store/useProjectStore';
 import { batchMoveChats } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
+import { toast } from '@/hooks/useToast';
 
 interface BatchOperationBarProps {
   selectedCount: number;
@@ -24,15 +25,29 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
   ({ selectedCount, totalCount, selectedIds, isMobile = false, onSelectAll, onDeselectAll, onDelete, onExit, t }) => {
     const projects = useProjectStore((s) => s.projects);
     const [showProjectPicker, setShowProjectPicker] = useState(false);
+    const [moving, setMoving] = useState(false);
 
     const handleBatchMove = async (projectId: string | null) => {
-      const ids = [...selectedIds];
-      await batchMoveChats(ids, projectId);
-      const items = useChatStore.getState().chatHistoryItems;
-      useChatStore.setState({
-        chatHistoryItems: items.map((item) => (selectedIds.has(item.id) ? { ...item, projectId } : item)),
-      });
-      setShowProjectPicker(false);
+      if (moving) return;
+      setMoving(true);
+      try {
+        const ids = [...selectedIds];
+        await batchMoveChats(ids, projectId);
+        const items = useChatStore.getState().chatHistoryItems;
+        useChatStore.setState({
+          chatHistoryItems: items.map((item) => (selectedIds.has(item.id) ? { ...item, projectId } : item)),
+        });
+        toast(t('project.moveSuccess', { count: ids.length }));
+      } catch (error) {
+        toast({
+          title: t('project.moveFailed'),
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        });
+      } finally {
+        setMoving(false);
+        setShowProjectPicker(false);
+      }
     };
 
     return (
@@ -100,9 +115,11 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
 
         {showProjectPicker && selectedCount > 0 && (
           <div className="flex items-center gap-1 flex-wrap px-2 py-1 rounded-lg bg-black/3 dark:bg-white/3">
+            {moving && <Loader2 size={10} className="animate-spin text-primary" />}
             <button
               onClick={() => handleBatchMove(null)}
-              className="flex items-center gap-1 h-5 px-2 rounded-full text-[10px] font-medium bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 text-muted-foreground transition-colors"
+              disabled={moving}
+              className="flex items-center gap-1 h-5 px-2 rounded-full text-[10px] font-medium bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 text-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FolderX size={10} />
               {t('project.removeFromProject')}
@@ -111,7 +128,8 @@ const BatchOperationBar = memo<BatchOperationBarProps>(
               <button
                 key={p.id}
                 onClick={() => handleBatchMove(p.id)}
-                className="flex items-center gap-1 h-5 px-2 rounded-full text-[10px] font-medium bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 text-foreground/80 transition-colors"
+                disabled={moving}
+                className="flex items-center gap-1 h-5 px-2 rounded-full text-[10px] font-medium bg-black/5 dark:bg-white/8 hover:bg-black/10 dark:hover:bg-white/12 text-foreground/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                 {p.name}

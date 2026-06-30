@@ -12006,7 +12006,9 @@
     "setWorkspace": "Set Workspace",
     "workspacePlaceholder": "Absolute path, e.g. /workspace/docs",
     "workspaceUpdated": "Workspace updated",
-    "workspaceCleared": "Workspace cleared"
+    "workspaceCleared": "Workspace cleared",
+    "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
+    "moveFailed": "Failed to move chats"
   },
   "cliAgent": {
     "modeAgent": "AI Agent",

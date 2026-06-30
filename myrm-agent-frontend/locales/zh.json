@@ -11490,7 +11490,9 @@
     "setWorkspace": "设置工作目录",
     "workspacePlaceholder": "绝对路径，如 /workspace/docs",
     "workspaceUpdated": "工作目录已更新",
-    "workspaceCleared": "工作目录已清除"
+    "workspaceCleared": "工作目录已清除",
+    "moveSuccess": "已成功移动 {count} 个会话",
+    "moveFailed": "移动会话失败"
   },
   "cliAgent": {
     "modeAgent": "AI 智能体",

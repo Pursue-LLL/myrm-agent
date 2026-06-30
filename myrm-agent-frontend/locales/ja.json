@@ -10179,7 +10179,9 @@
     "setWorkspace": "作業ディレクトリ設定",
     "workspacePlaceholder": "絶対パス 例: /workspace/docs",
     "workspaceUpdated": "作業ディレクトリを更新しました",
-    "workspaceCleared": "作業ディレクトリをクリアしました"
+    "workspaceCleared": "作業ディレクトリをクリアしました",
+    "moveSuccess": "{count}件のチャットを移動しました",
+    "moveFailed": "チャットの移動に失敗しました"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

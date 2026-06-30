@@ -10179,7 +10179,9 @@
     "setWorkspace": "작업 디렉터리 설정",
     "workspacePlaceholder": "절대 경로, 예: /workspace/docs",
     "workspaceUpdated": "작업 디렉터리가 업데이트되었습니다",
-    "workspaceCleared": "작업 디렉터리가 지워졌습니다"
+    "workspaceCleared": "작업 디렉터리가 지워졌습니다",
+    "moveSuccess": "{count}개의 대화를 이동했습니다",
+    "moveFailed": "대화 이동에 실패했습니다"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

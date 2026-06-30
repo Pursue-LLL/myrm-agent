@@ -22,6 +22,7 @@
   "context_reference_warning",
   "context_snapshot",
   "correction_learned",
+  "council_phase",
   "dag_state_update",
   "desktop_view_update",
   "engine_limit_reached",
