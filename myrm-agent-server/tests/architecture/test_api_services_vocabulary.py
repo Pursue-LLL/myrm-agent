@@ -29,6 +29,7 @@ SAME_NAME_DOMAINS: frozenset[str] = frozenset(
         "approvals",
         "audit",
         "budget",
+        "canvas",
         "channels",
         "checkpoint",
         "companion",
