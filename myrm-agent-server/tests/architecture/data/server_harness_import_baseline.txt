@@ -48,6 +48,9 @@ myrm_agent_harness.agent.goals.types
 myrm_agent_harness.agent.goals.verification.base
 myrm_agent_harness.agent.goals.verification.shell
 myrm_agent_harness.agent.meta_tools.bash._background_registry
+myrm_agent_harness.agent.meta_tools.clarification
+myrm_agent_harness.agent.meta_tools.clarification.ask_question
+myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools
 myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools
@@ -198,6 +201,7 @@ myrm_agent_harness.observability.diagnostics.performance
 myrm_agent_harness.observability.diagnostics.protocols
 myrm_agent_harness.observability.metrics
 myrm_agent_harness.observability.metrics.db_pool_collector
+myrm_agent_harness.observability.tracing
 myrm_agent_harness.runtime.checkpointing.factory
 myrm_agent_harness.runtime.context.archive_restore_action
 myrm_agent_harness.runtime.context.cleanup_task
@@ -280,9 +284,6 @@ myrm_agent_harness.toolkits.file_parsers.ipynb
 myrm_agent_harness.toolkits.file_parsers.pdf_content_extractor
 myrm_agent_harness.toolkits.file_parsers.pptx
 myrm_agent_harness.toolkits.filesystem_suggest
-myrm_agent_harness.agent.meta_tools.clarification
-myrm_agent_harness.agent.meta_tools.clarification.ask_question
-myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools
 myrm_agent_harness.toolkits.kanban
 myrm_agent_harness.toolkits.kanban.context_builder
 myrm_agent_harness.toolkits.kanban.diagnostics
