@@ -5526,6 +5526,7 @@
       "placeholder": "输入您的回答以帮助精确研究方向...",
       "submit": "提交",
       "skip": "跳过",
+      "submitFailed": "提交澄清失败，请重试",
       "answered": "已回答澄清问题"
     },
     "toolsPanel": {
@@ -10427,7 +10428,8 @@
     "restoring": "恢复中...",
     "externalEffects": "外部操作",
     "externalEffectsTooltip": "此快照包含外部操作（{effects}），文件回滚无法撤销这些操作",
-    "restoreExternalWarning": "此快照涉及外部操作（{effects}），文件恢复无法撤销这些变更"
+    "restoreExternalWarning": "此快照涉及外部操作（{effects}），文件恢复无法撤销这些变更",
+    "allAgents": "全部"
   },
   "SkillOptimization": {
     "qualityScore": "质量评分",

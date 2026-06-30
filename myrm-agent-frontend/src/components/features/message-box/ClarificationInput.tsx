@@ -16,6 +16,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import type { ClarificationForm } from '@/store/chat/types';
@@ -228,6 +229,7 @@ const ClarificationInput = ({
       markAnswered();
     } catch (err) {
       console.error('Failed to submit clarification:', err);
+      toast.error(t('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -245,6 +247,7 @@ const ClarificationInput = ({
       markAnswered();
     } catch (err) {
       console.error('Failed to skip clarification:', err);
+      toast.error(t('submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -328,6 +331,7 @@ const ClarificationInput = ({
                 const selected = formSelections[question.id] ?? [];
                 const questionText = formTexts[question.id] ?? '';
                 const questionAllowMultiple = question.allowMultiple ?? false;
+                const hasQuestionOptions = Boolean(question.options && question.options.length > 0);
                 return (
                   <div
                     key={question.id}
@@ -363,10 +367,16 @@ const ClarificationInput = ({
                       </div>
                     ) : null}
 
+                    {hasQuestionOptions ? (
+                      <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
+                    ) : null}
+
                     <textarea
                       className={clarificationTextareaClass}
                       rows={2}
-                      placeholder={t('placeholder')}
+                      placeholder={
+                        hasQuestionOptions ? t('freeTextWithOptionsPlaceholder') : t('placeholder')
+                      }
                       value={questionText}
                       onChange={(e) =>
                         setFormTexts((prev) => ({

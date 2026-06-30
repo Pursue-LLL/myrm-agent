@@ -5527,6 +5527,7 @@
       "placeholder": "Type your answer to help refine the research...",
       "submit": "Submit",
       "skip": "Skip",
+      "submitFailed": "Failed to submit clarification. Please try again.",
       "answered": "Clarification answered"
     },
     "toolsPanel": {
@@ -10456,7 +10457,8 @@
     "restoring": "Restoring...",
     "externalEffects": "External",
     "externalEffectsTooltip": "This snapshot contains external operations ({effects}) that cannot be undone by file rollback",
-    "restoreExternalWarning": "External operations ({effects}) were performed and cannot be undone by this restore"
+    "restoreExternalWarning": "External operations ({effects}) were performed and cannot be undone by this restore",
+    "allAgents": "All"
   },
   "SkillOptimization": {
     "qualityScore": "Quality Score",
