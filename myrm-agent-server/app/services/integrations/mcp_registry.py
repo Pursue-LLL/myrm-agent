@@ -17,12 +17,14 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-SMITHERY_BASE_URL = "https://registry.smithery.ai"
+# Smithery migrated from registry.smithery.ai/api/v1/* to api.smithery.ai/* (2026).
+SMITHERY_BASE_URL = "https://api.smithery.ai"
 DEFAULT_PAGE_SIZE = 20
 CACHE_TTL_SECONDS = 300  # 5 minutes
 CACHE_MAX_ENTRIES = 100
@@ -131,7 +133,7 @@ class MCPRegistryService:
             params["q"] = query
 
         client = self._get_client()
-        resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers", params=params)
+        resp = await client.get(f"{SMITHERY_BASE_URL}/servers", params=params)
         resp.raise_for_status()
         payload = resp.json()
 
@@ -148,11 +150,12 @@ class MCPRegistryService:
             for s in servers_raw
         ]
 
+        pagination = payload.get("pagination") or {}
         result = RegistrySearchResult(
             servers=servers,
-            page=payload.get("page", page),
-            page_size=payload.get("pageSize", page_size),
-            total_pages=payload.get("totalPages", 1),
+            page=pagination.get("currentPage", payload.get("page", page)),
+            page_size=pagination.get("pageSize", payload.get("pageSize", page_size)),
+            total_pages=pagination.get("totalPages", payload.get("totalPages", 1)),
         )
         self._put_cache(cache_key, result)
         return result
@@ -164,7 +167,8 @@ class MCPRegistryService:
             return cached  # type: ignore[return-value]
 
         client = self._get_client()
-        resp = await client.get(f"{SMITHERY_BASE_URL}/api/v1/servers/{qualified_name}")
+        encoded_name = quote(qualified_name, safe="")
+        resp = await client.get(f"{SMITHERY_BASE_URL}/servers/{encoded_name}")
         resp.raise_for_status()
         payload = resp.json()
 

@@ -228,8 +228,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       // PTT 屏幕上下文：Rust 端在 PTT 按下时截取的屏幕截图 + AX 文本
       const pttCtx = pttScreenContextRef.current;
-      if (pttCtx) {
-        pttScreenContextRef.current = null;
+      pttScreenContextRef.current = null;
+      if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
 
         if (pttCtx.screenshot) {
           const screenFrame: VisualFrame = {

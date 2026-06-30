@@ -120,7 +120,7 @@ async def test_target_not_found(single_target_config: NotifyToolConfig) -> None:
 
 
 @pytest.mark.asyncio
-async def test_attachment_with_local_file(single_target_config: NotifyToolConfig, tmp_path: object) -> None:
+async def test_attachment_with_local_file(single_target_config: NotifyToolConfig) -> None:
     import tempfile
 
     sender = FakeSender()

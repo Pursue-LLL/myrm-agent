@@ -360,7 +360,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            from myrm_agent_harness.toolkits.tts import TTSConfig, TTSTool
+            from myrm_agent_harness.toolkits.llms.tts import TTSConfig, create_tts_tool
 
             config = TTSConfig(
                 provider=params.provider,
@@ -372,7 +372,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 gateway_config=params.gateway_config,
                 media_callback=self._create_tts_media_callback(),
             )
-            tts_tool = TTSTool(
+            tts_tool = create_tts_tool(
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )

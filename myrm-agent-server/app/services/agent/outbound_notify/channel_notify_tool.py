@@ -46,7 +46,10 @@ class _NotifyInput(BaseModel):
         ),
         default="",
     )
-    body: str = Field(description="The notification message content to send.")
+    body: str = Field(
+        description="The notification message content to send. Can be empty when attachments are provided.",
+        default="",
+    )
     attachments: list[str] = Field(
         description=(
             "Optional file attachments to include with the notification. "

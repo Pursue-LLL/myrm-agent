@@ -532,11 +532,15 @@ export const searchMCPRegistry = async (
 ): Promise<MCPRegistrySearchResult> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (query) params.set('q', query);
-  return apiRequest<MCPRegistrySearchResult>(`/integrations/mcp/registry/search?${params}`, { method: 'GET' });
+  return apiRequest<MCPRegistrySearchResult>(`/integrations/mcp/registry/search?${params}`, {
+    method: 'GET',
+    silent: true,
+  });
 };
 
 export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRegistryServerDetail> => {
   return apiRequest<MCPRegistryServerDetail>(`/integrations/mcp/registry/detail/${qualifiedName}`, {
     method: 'GET',
+    silent: true,
   });
 };
