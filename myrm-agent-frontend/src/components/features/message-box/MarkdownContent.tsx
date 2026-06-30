@@ -22,6 +22,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeHeadingIds from '../markdown-render-tools/rehypeHeadingIds';
 import 'katex/dist/katex.min.css';
 import remarkGfm from 'remark-gfm';
+import remarkGitHubAlerts from 'remark-github-markdown-alerts';
 import LinkPopover from '@/components/features/markdown-render-tools/LinkPopover';
 import CodeBlock from '@/components/features/markdown-render-tools/CodeBlock';
 import InlineHtmlWidget from '@/components/features/markdown-render-tools/InlineHtmlWidget';
@@ -240,7 +241,7 @@ const MarkdownContent = React.memo(
         )}
       >
         <ReactMarkdown
-          remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm]} // 用于 渲染 解析后的 AST 内容
+          remarkPlugins={[[remarkMath, remarkMathOptions], remarkGfm, [remarkGitHubAlerts, { mode: 'component' }]]}
           rehypePlugins={[[rehypeKatex, katexConfig], rehypeRaw, [rehypeHeadingIds, { prefix: `toc-${_messageId}` }]]} // 将 AST 转换为最终的 HTML 结构
           components={components}
           allowedElements={[
@@ -285,6 +286,9 @@ const MarkdownContent = React.memo(
             'input',
             'details',
             'summary',
+            // Footnote
+            'sup',
+            'section',
             // 自定义标签
             'think',
             'thinking',
