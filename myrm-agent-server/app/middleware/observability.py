@@ -6,6 +6,16 @@ emitted during request processing carry these identifiers automatically.
 
 Registered just before PublicIngress in the middleware stack so that the
 trace context covers all inner middleware (auth, e2ee, sanitizer, etc.).
+
+[INPUT]
+- myrm_agent_harness.observability.tracing::TracingContext
+  (POS: 请求级别 trace/session 上下文管理)
+
+[OUTPUT]
+- TracingMiddleware: 为每个 HTTP 请求注入 trace_id 和 session_id 到 TracingContext。
+
+[POS]
+请求追踪中间件。在请求生命周期内绑定 trace_id/session_id 上下文，供日志自动携带。
 """
 
 from __future__ import annotations
