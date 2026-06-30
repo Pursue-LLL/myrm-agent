@@ -16,6 +16,9 @@
 | `PublishModal.tsx` | 核心 | 多 target 发布；target 下拉 + `/publish` + WS + Settings 深链 |
 | `artifactUtils.ts` | 辅助 | preflight/share API、`isPublicationStale`、`publicationsChanged` |
 | `ArtifactRenderer.tsx` | 核心 | 多类型工件渲染路由 |
+| `ReactPreview.tsx` | 核心 | React 组件纯预览器（Sandpack）；视图切换由 PortalHeader 统一控制 |
+| `components/SandpackErrorBoundary.tsx` | 辅助 | Sandpack 编译/运行时错误边界 |
+| `components/CompileErrorDisplay.tsx` | 辅助 | Sandpack 编译错误展示面板 |
 | `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe |
 | `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取指令栏 |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 表格预览 |
