@@ -165,7 +165,7 @@ async def build_general_agent(
     tools: list[object] = []
     deferred_tools: list[object] = []
     agent_wrapper._setup_search_and_basic_tools(tools, deferred_tools)
-    agent_wrapper._setup_interaction_tools(tools, deferred_tools)
+    agent_wrapper._setup_clarification_tools(tools, deferred_tools)
 
     from app.services.context.context_assembly import ContextAssemblyService
 

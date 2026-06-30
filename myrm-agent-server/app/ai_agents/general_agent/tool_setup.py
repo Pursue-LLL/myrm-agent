@@ -192,16 +192,16 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_video_generation_tools(deferred_tools)
         self._setup_tts_tools(deferred_tools)
 
-    def _setup_interaction_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
-        """Set up human-in-the-loop interaction tools."""
+    def _setup_clarification_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
+        """Set up ask_question HITL clarification tool."""
         if "ask_question_tool" not in self.declared_capabilities:
             return
 
         try:
             import json
 
-            from myrm_agent_harness.toolkits.interaction.ask_question import AskQuestionInput
-            from myrm_agent_harness.toolkits.interaction.interaction_agent_tools import (
+            from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
+            from myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools import (
                 create_ask_question_tool,
             )
 

@@ -6,7 +6,7 @@ Bridges Agent/Orchestrator → AgentGateway → SSE output.
 - ai_agents::AgentFactory, GeneralAgentParams
 - services.agent.gateway::get_agent_gateway
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
-- myrm_agent_harness.toolkits.interaction::AskQuestionInput (POS: 深研究澄清表单结构输入)
+- myrm_agent_harness.agent.meta_tools.clarification::AskQuestionInput (POS: 深研究澄清表单结构输入)
 
 [OUTPUT]
 - ai_agent_service_stream: General Agent SSE stream (budget_blocked semantic code; progress.started without UI copy)
@@ -332,7 +332,7 @@ async def ai_deep_research_service_stream(
 
     from myrm_agent_harness.agent.deep_research import DeepResearchOrchestrator
     from myrm_agent_harness.agent.streaming.types import AgentEventType
-    from myrm_agent_harness.toolkits.interaction import AskQuestionInput
+    from myrm_agent_harness.agent.meta_tools.clarification import AskQuestionInput
 
     _SENTINEL = object()
     _HEARTBEAT_INTERVAL = 15  # seconds — well under typical proxy idle timeouts

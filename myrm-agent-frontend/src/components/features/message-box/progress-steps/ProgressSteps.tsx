@@ -590,11 +590,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
           </div>
         )}
 
-        {!isExpanded && isCollapsedStepCurrent && collapsedStep.stdout && (
-          <div className="mt-2 ml-7 slide-up">
-            <LiveTerminal stdout={collapsedStep.stdout} evictedFileRef={collapsedStep.evicted_file_ref} />
-          </div>
-        )}
+        {!isExpanded && isCollapsedStepCurrent && collapsedStep.stdout && (() => {
+          const lines = collapsedStep.stdout.split('\n').filter(Boolean);
+          const lastLine = lines[lines.length - 1]?.trim();
+          return lastLine ? (
+            <p className="mt-1.5 ml-7 text-[11px] text-muted-foreground/60 font-mono truncate slide-up">
+              {lastLine}
+            </p>
+          ) : null;
+        })()}
 
         {isExpanded && (
           <div ref={scrollContainerRef} className="relative space-y-4 sm:space-y-6">
