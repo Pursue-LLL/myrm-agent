@@ -394,6 +394,8 @@ class StreamAccumulator:
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)
     cost_usd: float = 0.0
+    model_name: str = ""
+    total_tokens: int = 0
     _seen: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:

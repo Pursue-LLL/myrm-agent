@@ -112,6 +112,7 @@ class _PreparedContent:
     body: str
     sources_block: str
     tool_summary_block: str
+    cost_footer: str
 
 
 def render(msg: OutboundMessage, style: RenderStyle) -> list[str]:
@@ -143,8 +144,9 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
     reasoning_block = _build_reasoning_block(msg.reasoning, style)
     sources_block = _build_sources_block(msg, style)
     tool_summary_block = _build_tool_summary_block(msg.tool_steps, style)
+    cost_footer = _build_cost_footer(msg, style)
 
-    reserve = len(header) + len(sources_block) + len(reasoning_block) + len(tool_summary_block)
+    reserve = len(header) + len(sources_block) + len(reasoning_block) + len(tool_summary_block) + len(cost_footer)
     body = (msg.content or "")[: max(style.max_text_length - reserve, 0)]
     body = strip_thinking_tags(body)
 
@@ -157,6 +159,7 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
         body=body,
         sources_block=sources_block,
         tool_summary_block=tool_summary_block,
+        cost_footer=cost_footer,
     )
 
 
@@ -232,6 +235,43 @@ def _build_sources_block(msg: OutboundMessage, style: RenderStyle) -> str:
     return f"\n\n{prefix}\n" + "\n".join(lines)
 
 
+def _build_cost_footer(msg: OutboundMessage, style: RenderStyle) -> str:
+    """Build a one-line cost summary from message metadata, if available."""
+    if not msg.metadata:
+        return ""
+    cost_meta = msg.metadata.get("cost_metadata")
+    if not isinstance(cost_meta, dict):
+        return ""
+
+    cost_usd = cost_meta.get("cost_usd")
+    if not isinstance(cost_usd, (int, float)) or cost_usd <= 0:
+        return ""
+
+    parts: list[str] = []
+    model_name = cost_meta.get("model_name")
+    if isinstance(model_name, str) and model_name:
+        parts.append(model_name)
+
+    total_tokens = cost_meta.get("total_tokens")
+    if isinstance(total_tokens, int) and total_tokens > 0:
+        parts.append(f"{_format_tokens(total_tokens)} tokens")
+
+    parts.append(f"~${cost_usd:.4f}")
+
+    sep = " · "
+    line = sep.join(parts)
+    if style.use_emoji:
+        line = f"💰 {line}"
+    return f"\n\n{line}"
+
+
+def _format_tokens(n: int) -> str:
+    """Format token count: 1234 → 1.2k, 12345 → 12.3k."""
+    if n >= 1000:
+        return f"{n / 1000:.1f}k"
+    return str(n)
+
+
 # ---------------------------------------------------------------------------
 # Layer 2: Format —  based on  RenderStyle ConvertFormat
 # ---------------------------------------------------------------------------
@@ -244,6 +284,7 @@ def _format(prepared: _PreparedContent, style: RenderStyle) -> str:
         prepared.body,
         prepared.sources_block,
         prepared.tool_summary_block,
+        prepared.cost_footer,
     ]
     raw = "".join(p for p in parts if p)
 

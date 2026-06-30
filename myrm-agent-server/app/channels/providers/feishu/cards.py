@@ -116,6 +116,28 @@ def wrap_text_as_card(text: str) -> dict[str, object]:
 # ── Result card ──────────────────────────────────────────────────
 
 
+def _format_cost_note(cost_meta: dict[str, object]) -> str:
+    """Format cost_metadata into a compact note string for Feishu cards."""
+    cost_usd = cost_meta.get("cost_usd")
+    if not isinstance(cost_usd, (int, float)) or cost_usd <= 0:
+        return ""
+
+    parts: list[str] = []
+    model_name = cost_meta.get("model_name")
+    if isinstance(model_name, str) and model_name:
+        parts.append(model_name)
+
+    total_tokens = cost_meta.get("total_tokens")
+    if isinstance(total_tokens, int) and total_tokens > 0:
+        if total_tokens >= 1000:
+            parts.append(f"{total_tokens / 1000:.1f}k tokens")
+        else:
+            parts.append(f"{total_tokens} tokens")
+
+    parts.append(f"~${cost_usd:.4f}")
+    return " · ".join(parts)
+
+
 def build_result_card(
     content: str,
     *,
@@ -123,6 +145,7 @@ def build_result_card(
     sources: list[dict[str, object]] | None = None,
     success: bool | None = None,
     timestamp: str = "",
+    cost_metadata: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Final result card with optional header, sources, and timestamp."""
     elements: list[dict[str, object]] = []
@@ -144,11 +167,20 @@ def build_result_card(
                 }
             )
 
+    note_parts: list[str] = []
     if timestamp:
+        note_parts.append(timestamp)
+
+    if cost_metadata and isinstance(cost_metadata, dict):
+        cost_line = _format_cost_note(cost_metadata)
+        if cost_line:
+            note_parts.append(cost_line)
+
+    if note_parts:
         elements.append(
             {
                 "tag": "note",
-                "elements": [{"tag": "plain_text", "content": timestamp}],
+                "elements": [{"tag": "plain_text", "content": " · ".join(note_parts)}],
             }
         )
 

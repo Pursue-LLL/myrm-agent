@@ -751,6 +751,12 @@ class ChannelAgentExecutor:
                     cost = event.get("cost_usd")
                     if isinstance(cost, (int, float)):
                         acc.cost_usd += float(cost)
+                    model = event.get("model_name")
+                    if isinstance(model, str) and model:
+                        acc.model_name = model
+                    tokens = event.get("total_tokens")
+                    if isinstance(tokens, int) and tokens > acc.total_tokens:
+                        acc.total_tokens = tokens
 
             content = strip_internal_markers("".join(acc.chunks))
 
@@ -807,6 +813,15 @@ class ChannelAgentExecutor:
                     "reason": session_policy.mode.value,
                     "idle_minutes": session_policy.idle_minutes,
                     "daily_reset_hour": session_policy.daily_reset_hour,
+                }
+
+            if acc.cost_usd > 0 and memory_settings.get("enableCostEstimation"):
+                if metadata is None:
+                    metadata = {}
+                metadata["cost_metadata"] = {
+                    "cost_usd": acc.cost_usd,
+                    "model_name": acc.model_name,
+                    "total_tokens": acc.total_tokens,
                 }
 
             reasoning = "".join(acc.reasoning_chunks) or None

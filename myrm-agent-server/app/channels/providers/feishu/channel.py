@@ -632,12 +632,14 @@ class FeishuChannel(BaseChannel):
 
         cron = extract_cron_context(msg)
         content = (msg.content or "")[:_MAX_TEXT_LENGTH]
+        cost_meta = msg.metadata.get("cost_metadata") if msg.metadata else None
         card = build_result_card(
             content,
             title=cron.job_name if cron else "",
             sources=self._extract_sources(msg),
             success=cron.success if cron else None,
             timestamp=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+            cost_metadata=cost_meta,
         )
         actions = build_card_actions(msg.quick_replies, msg.components)
         if actions:
