@@ -3110,7 +3110,18 @@
       "saveFailed": "Speichern fehlgeschlagen",
       "deleteFailed": "Löschen fehlgeschlagen",
       "deleted": "Ziel entfernt",
-      "added": "Ziel hinzugefügt"
+      "added": "Ziel hinzugefügt",
+      "workflowTitle": "So funktioniert Veröffentlichen",
+      "workflowStep1": "Hosting-Ziele hier konfigurieren — Vercel, Cloudflare Pages, Netlify oder Webhook",
+      "workflowStep2": "HTML-Artifact öffnen und Globe-Symbol auf der Karte tippen",
+      "workflowStep3": "Ziel wählen und veröffentlichen — keine LLM-Tokens",
+      "zeroTokenHint": "Veröffentlichung läuft nur in GUI und Server. Keine Agent-Tools oder Modell-Tokens.",
+      "providerHint": {
+        "vercel": "Edge-Deploys mit automatischem HTTPS. Vercel Personal Access Token erforderlich.",
+        "cloudflare_pages": "Statische Sites im Cloudflare-Netzwerk. Account-ID und API-Token erforderlich.",
+        "netlify": "Deploy nach Netlify. Token erforderlich; Site-ID optional für bestehende Sites.",
+        "http_webhook": "Packaged Artifact per POST an CI oder Custom-Endpoint. Keine Vault-Anmeldedaten nötig."
+      }
     },
     "proxy": {
       "title": "LLM Passthrough Proxy",
@@ -7047,6 +7058,7 @@
     "publish": {
       "title": "Im Web veröffentlichen",
       "description": "Veröffentliche dieses Artifact auf einem in den Einstellungen konfigurierten Hosting-Ziel.",
+      "openModal": "Im Web veröffentlichen",
       "targetLabel": "Hosting-Ziel",
       "defaultTarget": "Standard",
       "noTargetsHint": "Keine Hosting-Ziele. Öffne Einstellungen → Hosting-Ziele.",

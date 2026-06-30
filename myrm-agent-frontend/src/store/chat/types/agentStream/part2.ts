@@ -338,11 +338,3 @@ export interface CatchupSnapshotStreamEvent {
     sources: Source[];
   };
 }
-
-export interface ClientActionStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.CLIENT_ACTION;
-  data: {
-    action: string;
-    payload: any;
-  };
-}

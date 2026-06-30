@@ -194,16 +194,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
     def _setup_interaction_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up human-in-the-loop interaction tools."""
-        try:
-            from myrm_agent_harness.toolkits.interaction.interaction_agent_tools import (
-                write_to_clipboard,
-            )
-
-            tools.append(write_to_clipboard)
-            logger.info("📋 已加载 write_to_clipboard")
-        except Exception as e:
-            logger.warning(f"⚠️ write_to_clipboard 加载失败: {e}")
-
         if "ask_question_tool" not in self.declared_capabilities:
             return
 

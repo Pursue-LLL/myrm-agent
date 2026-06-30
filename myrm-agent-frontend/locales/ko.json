@@ -3110,7 +3110,18 @@
       "saveFailed": "저장 실패",
       "deleteFailed": "삭제 실패",
       "deleted": "삭제됨",
-      "added": "추가됨"
+      "added": "추가됨",
+      "workflowTitle": "게시 흐름",
+      "workflowStep1": "여기서 호스팅 대상 설정 — Vercel, Cloudflare Pages, Netlify 또는 Webhook",
+      "workflowStep2": "HTML Artifact를 열고 카드의 Globe 아이콘을 탭",
+      "workflowStep3": "대상을 선택해 게시 — LLM 토큰 소비 없음",
+      "zeroTokenHint": "게시는 GUI와 서버에서만 실행됩니다. Agent 도구나 모델 토큰을 사용하지 않습니다.",
+      "providerHint": {
+        "vercel": "자동 HTTPS가 적용된 엣지 배포. Vercel personal access token 필요.",
+        "cloudflare_pages": "Cloudflare 글로벌 네트워크 정적 사이트. Account ID와 API 토큰 필요.",
+        "netlify": "Netlify에 배포. 액세스 토큰 필수. 기존 사이트는 Site ID 선택 입력.",
+        "http_webhook": "패키징된 Artifact를 CI 또는 커스텀 엔드포인트로 POST. 자격 증명 저장 불필요."
+      }
     },
     "proxy": {
       "title": "LLM Passthrough Proxy",
@@ -7047,6 +7058,7 @@
     "publish": {
       "title": "웹에 게시",
       "description": "Settings에 구성된 호스팅 대상으로 Artifact를 게시합니다.",
+      "openModal": "웹에 게시",
       "targetLabel": "호스팅 대상",
       "defaultTarget": "기본",
       "noTargetsHint": "호스팅 대상이 없습니다. Settings → 호스팅 대상에서 추가하세요.",

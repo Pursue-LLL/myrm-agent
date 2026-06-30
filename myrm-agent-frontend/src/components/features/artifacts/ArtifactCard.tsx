@@ -562,8 +562,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               onClick={handleOpenDeploy}
               title={
                 canDeploy
-                  ? t('deploy.openModal')
-                  : deployPreflight?.hint ?? deployPreflight?.message ?? t('deploy.openModal')
+                  ? t('publish.openModal')
+                  : deployPreflight?.hint ?? deployPreflight?.message ?? t('publish.openModal')
               }
             >
               <Globe className="w-4 h-4" />

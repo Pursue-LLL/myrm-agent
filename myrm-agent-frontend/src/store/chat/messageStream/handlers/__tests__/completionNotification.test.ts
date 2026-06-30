@@ -24,7 +24,6 @@ vi.mock('@/services/chat', () => ({
 
 vi.mock('../handlerDeps', () => ({
   AgentEventType: {
-    CLIENT_ACTION: 'client_action',
     GOAL_STATUS: 'goal_status',
     FILE_MUTATION_FAILED: 'file_mutation_failed',
     MESSAGE_END: 'message_end',

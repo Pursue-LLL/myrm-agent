@@ -457,7 +457,18 @@
       "saveFailed": "Failed to save",
       "deleteFailed": "Failed to delete",
       "deleted": "Target removed",
-      "added": "Target added"
+      "added": "Target added",
+      "workflowTitle": "How publishing works",
+      "workflowStep1": "Configure targets here — Vercel, Cloudflare Pages, Netlify, or webhook",
+      "workflowStep2": "Open any HTML artifact and tap the Globe icon on its card",
+      "workflowStep3": "Choose a target and publish — zero LLM tokens consumed",
+      "zeroTokenHint": "Publishing runs in the GUI and server only. No Agent tools or model tokens are used.",
+      "providerHint": {
+        "vercel": "Edge deploys with automatic HTTPS. Add your Vercel personal access token.",
+        "cloudflare_pages": "Static sites on Cloudflare's global network. Requires account ID and API token.",
+        "netlify": "Deploy to Netlify. Token required; site ID optional for existing sites.",
+        "http_webhook": "POST a packaged artifact to your CI or custom endpoint. No vault credentials required."
+      }
     },
     "proxy": {
       "title": "LLM Passthrough Proxy",
@@ -7593,6 +7604,7 @@
     "publish": {
       "title": "Publish to Web",
       "description": "Publish this artifact to a hosting target configured in Settings.",
+      "openModal": "Publish to Web",
       "targetLabel": "Hosting target",
       "defaultTarget": "default",
       "noTargetsHint": "No hosting targets configured. Open Settings → Hosting Targets to add Vercel, Cloudflare, Netlify, or a webhook.",

@@ -63,7 +63,6 @@ export const AgentEventType = {
   STEERING: 'steering',
   TOOL_FALLBACK: 'tool_fallback',
   CONTEXT_REFERENCE_WARNING: 'context_reference_warning',
-  CLIENT_ACTION: 'client_action',
   CAPTCHA_DETECTED: 'captcha_detected',
   CAPTCHA_RESOLVED: 'captcha_resolved',
   CAPTCHA_TIMEOUT: 'captcha_timeout',

@@ -457,7 +457,18 @@
       "saveFailed": "保存失败",
       "deleteFailed": "删除失败",
       "deleted": "目标已删除",
-      "added": "目标已添加"
+      "added": "目标已添加",
+      "workflowTitle": "发布流程",
+      "workflowStep1": "在此配置托管目标 — Vercel、Cloudflare Pages、Netlify 或 Webhook",
+      "workflowStep2": "打开任意 HTML Artifact，点击卡片上的 Globe 图标",
+      "workflowStep3": "选择目标并发布 — 不消耗 LLM Token",
+      "zeroTokenHint": "发布仅在界面与服务器端完成，不调用 Agent 工具，不消耗模型 Token。",
+      "providerHint": {
+        "vercel": "边缘部署，自动 HTTPS。需填写 Vercel 个人访问令牌。",
+        "cloudflare_pages": "Cloudflare 全球网络静态站点。需 Account ID 与 API Token。",
+        "netlify": "部署到 Netlify。需 Access Token；已有站点可填 Site ID。",
+        "http_webhook": "将打包后的 Artifact POST 到你的 CI 或自定义端点，无需凭证库。"
+      }
     },
     "proxy": {
       "title": "LLM 直通代理",
@@ -7593,6 +7604,7 @@
     "publish": {
       "title": "发布到 Web",
       "description": "将 Artifact 发布到 Settings 中配置的托管目标。",
+      "openModal": "发布到 Web",
       "targetLabel": "托管目标",
       "defaultTarget": "默认",
       "noTargetsHint": "尚未配置托管目标。请打开 Settings → 托管目标，添加 Vercel、Cloudflare、Netlify 或 Webhook。",

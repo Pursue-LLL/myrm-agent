@@ -9,16 +9,6 @@ import * as H from "./handlerDeps";
 
 export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, recievedMessage, state, actions } = ctx;
-  if (data.type === H.AgentEventType.CLIENT_ACTION) {
-    const actionData = data.data;
-    if (actionData && actionData.action === 'write_clipboard') {
-      import('@/lib/utils/clipboardUtils').then(({ writeToClipboardByAgent }) => {
-        writeToClipboardByAgent(actionData.payload.text);
-      });
-    }
-    return done(ctx);
-  }
-
   if (data.type === H.AgentEventType.GOAL_STATUS) {
     const { useGoalStore } = await import('@/store/chat/goals/useGoalStore');
     const goalState = H.normalizeGoalState(data.data);

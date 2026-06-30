@@ -17,12 +17,11 @@
   "captcha_timeout",
   "catchup_snapshot",
   "clarification_required",
-  "client_action",
   "cognitive_consolidation",
   "context_overflow_reset",
-  "correction_learned",
   "context_reference_warning",
   "context_snapshot",
+  "correction_learned",
   "dag_state_update",
   "desktop_view_update",
   "engine_limit_reached",
@@ -46,7 +45,9 @@
   "rate_limit_updated",
   "rate_limit_warning",
   "reasoning",
+  "risk_blocked",
   "routing_decision",
+  "session_recording",
   "sources",
   "status",
   "steering",
@@ -73,5 +74,6 @@
   "tool_timeout",
   "tool_token_usage",
   "tools_snapshot",
-  "ui_update"
+  "ui_update",
+  "verification_verdict"
 ]

@@ -3110,7 +3110,18 @@
       "saveFailed": "保存に失敗しました",
       "deleteFailed": "削除に失敗しました",
       "deleted": "削除しました",
-      "added": "追加しました"
+      "added": "追加しました",
+      "workflowTitle": "公開の流れ",
+      "workflowStep1": "ここでホスティング先を設定（Vercel / Cloudflare Pages / Netlify / Webhook）",
+      "workflowStep2": "HTML Artifact を開き、カードの Globe アイコンをタップ",
+      "workflowStep3": "公開先を選んで公開 — LLM トークンは消費しません",
+      "zeroTokenHint": "公開は GUI とサーバーのみで実行。Agent ツールやモデルトークンは使用しません。",
+      "providerHint": {
+        "vercel": "エッジに HTTPS 自動付与でデプロイ。Vercel パーソナルアクセストークンが必要です。",
+        "cloudflare_pages": "Cloudflare グローバルネットワークへの静的サイト。Account ID と API トークンが必要です。",
+        "netlify": "Netlify へデプロイ。アクセストークン必須。既存サイトは Site ID を任意で指定。",
+        "http_webhook": "パッケージ済み Artifact を CI やカスタムエンドポイントへ POST。認証情報庫は不要。"
+      }
     },
     "proxy": {
       "title": "LLM Passthrough Proxy",
@@ -7047,6 +7058,7 @@
     "publish": {
       "title": "Web に公開",
       "description": "Settings で設定したホスティング先に Artifact を公開します。",
+      "openModal": "Web に公開",
       "targetLabel": "ホスティング先",
       "defaultTarget": "デフォルト",
       "noTargetsHint": "ホスティング先がありません。Settings → ホスティング先 から追加してください。",

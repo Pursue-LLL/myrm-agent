@@ -17,7 +17,6 @@ import type {
   ArtifactsStreamEvent,
   CaptchaStreamEvent,
   ClarificationRequiredStreamEvent,
-  ClientActionStreamEvent,
   ErrorStreamEvent,
   MessageEndStreamEvent,
   MessageStreamEvent,
@@ -72,7 +71,6 @@ import type {
 } from './part2';
 
 export type AgentStreamEvent =
-  | ClientActionStreamEvent
   | CatchupSnapshotStreamEvent
   | PtcNotifyStreamEvent
   | ToolProgressStreamEvent

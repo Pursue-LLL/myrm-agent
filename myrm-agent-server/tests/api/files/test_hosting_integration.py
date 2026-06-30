@@ -508,3 +508,142 @@ async def test_ws_rejects_invalid_auth(hosting_integration_client) -> None:
                 ws.receive_json()
             except Exception:
                 pass
+
+
+@pytest.mark.asyncio
+async def test_vercel_publish_without_credentials_returns_500(hosting_integration_client) -> None:
+    """User-facing: Vercel target with no saved token and no override must fail clearly."""
+    client, workspace, db_session = hosting_integration_client
+    target_id = f"vercel-nocred-{uuid.uuid4().hex[:8]}"
+    await save_hosting_targets(
+        db_session,
+        [
+            HostingTarget(
+                id=target_id,
+                name="Vercel No Creds",
+                provider_type="vercel",
+                config={},
+                is_default=True,
+            )
+        ],
+    )
+    artifact_id = await _seed_html_artifact(db_session, workspace)
+
+    with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=None):
+        with patch("app.services.hosting.credentials.load_legacy_vercel_token", AsyncMock(return_value=None)):
+            response = client.post(
+                f"/{artifact_id}/publish",
+                json={"target_id": target_id, "token": ""},
+            )
+
+    assert response.status_code == 500
+    assert "credentials" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_make_default_missing_target_404(hosting_integration_client) -> None:
+    client, _, _db = hosting_integration_client
+    response = client.post("/hosting/targets/does-not-exist/make-default")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_put_credentials_missing_target_404(hosting_integration_client) -> None:
+    client, _, _db = hosting_integration_client
+    response = client.put(
+        "/hosting/targets/missing-target/credentials",
+        json={"credentials": {"token": "x"}},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_test_connection_vercel_without_credentials(hosting_integration_client) -> None:
+    client, _workspace, db_session = hosting_integration_client
+    target_id = f"vercel-test-{uuid.uuid4().hex[:8]}"
+    await save_hosting_targets(
+        db_session,
+        [
+            HostingTarget(
+                id=target_id,
+                name="Vercel",
+                provider_type="vercel",
+                config={},
+                is_default=True,
+            )
+        ],
+    )
+    with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=None):
+        response = client.post(f"/hosting/targets/{target_id}/test")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is False
+    assert "credentials" in body["message"].lower() or "token" in body["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_multi_target_publications_same_artifact(hosting_integration_client) -> None:
+    """Same HTML artifact published to two webhook targets keeps separate publication rows."""
+    client, workspace, db_session = hosting_integration_client
+    target_a = f"wh-a-{uuid.uuid4().hex[:8]}"
+    target_b = f"wh-b-{uuid.uuid4().hex[:8]}"
+    await save_hosting_targets(
+        db_session,
+        [
+            HostingTarget(
+                id=target_a,
+                name="Webhook A",
+                provider_type="http_webhook",
+                config={"webhook_url": "https://hooks.example.com/a"},
+                is_default=True,
+            ),
+            HostingTarget(
+                id=target_b,
+                name="Webhook B",
+                provider_type="http_webhook",
+                config={"webhook_url": "https://hooks.example.com/b"},
+                is_default=False,
+            ),
+        ],
+    )
+    artifact_id = await _seed_html_artifact(db_session, workspace)
+    urls = {"https://a.example.com", "https://b.example.com"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        host = "a" if "/a" in str(request.url) else "b"
+        return httpx.Response(
+            200,
+            json={"url": f"https://{host}.example.com", "publication_id": f"pub_{host}"},
+            request=request,
+        )
+
+    transport = httpx.MockTransport(handler)
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+        with patch(
+            "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
+            return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
+        ):
+            first = client.post(f"/{artifact_id}/publish", json={"target_id": target_a, "token": ""})
+        with patch(
+            "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
+            return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
+        ):
+            second = client.post(f"/{artifact_id}/publish", json={"target_id": target_b, "token": ""})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    pubs = client.get(f"/{artifact_id}/publications").json()["publications"]
+    assert len(pubs) == 2
+    pub_urls = {p["publication_url"] for p in pubs}
+    assert pub_urls == urls
+
+
+@pytest.mark.asyncio
+async def test_preflight_with_valid_target_id_succeeds(hosting_integration_client) -> None:
+    client, workspace, db_session = hosting_integration_client
+    target_id = f"wh-pf-{uuid.uuid4().hex[:8]}"
+    await _seed_webhook_target(db_session, target_id)
+    artifact_id = await _seed_html_artifact(db_session, workspace)
+    response = client.get(f"/{artifact_id}/publish/preflight?target_id={target_id}")
+    assert response.status_code == 200
+    assert response.json()["deployable"] is True

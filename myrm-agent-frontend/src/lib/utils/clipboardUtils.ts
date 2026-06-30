@@ -146,48 +146,6 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
 };
 
 /**
- * 智能体发起的剪贴板写入操作，必须经过用户确认
- *
- * @param text 要写入剪贴板的文本
- */
-export const writeToClipboardByAgent = async (text: string): Promise<boolean> => {
-  if (typeof window === 'undefined') return false;
-
-  let allowed = false;
-  if (isTauri()) {
-    try {
-      allowed = await ask(
-        `智能体请求将以下内容写入您的剪贴板：\n\n${text.substring(0, 100)}${text.length > 100 ? '...' : ''}\n\n是否允许？`,
-        {
-          title: '安全警告：剪贴板写入请求',
-          kind: 'warning',
-          okLabel: '允许写入',
-          cancelLabel: '拒绝',
-        },
-      );
-    } catch (e) {
-      console.error('Dialog error:', e);
-      allowed = false;
-    }
-  } else {
-    allowed = window.confirm(
-      `智能体请求将以下内容写入您的剪贴板：\n\n${text.substring(0, 100)}${text.length > 100 ? '...' : ''}\n\n是否允许？`,
-    );
-  }
-
-  if (allowed) {
-    const success = await writeToClipboard(text, true);
-    if (success) {
-      toast.success('智能体已将内容写入剪贴板');
-    }
-    return success;
-  } else {
-    toast.error('已拒绝智能体写入剪贴板');
-    return false;
-  }
-};
-
-/**
  * 请求读取剪贴板的权限
  */
 const requestReadPermission = async (): Promise<boolean> => {
