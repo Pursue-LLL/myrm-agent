@@ -1,6 +1,6 @@
 """
 [INPUT]
-myrm_agent_harness.toolkits.workspace::suggest_workspace_paths (POS: Workspace path suggestion ranker)
+myrm_agent_harness.toolkits.filesystem_suggest::suggest_workspace_paths (POS: Workspace path suggestion ranker)
 app.services.chat.chat_service::ChatService (POS: Chat metadata and workspace resolver)
 app.core.storage::files_service (POS: Stored file metadata service)
 
@@ -20,7 +20,7 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.toolkits.storage.types import FilePurpose
-from myrm_agent_harness.toolkits.workspace import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
+from myrm_agent_harness.toolkits.filesystem_suggest import WorkspaceSuggestionOptions, rank_basename, suggest_workspace_paths
 from pydantic import BaseModel, Field
 
 from app.core.storage import files_service

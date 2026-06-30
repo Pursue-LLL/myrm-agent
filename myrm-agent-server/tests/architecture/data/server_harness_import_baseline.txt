@@ -387,7 +387,7 @@ myrm_agent_harness.toolkits.web_search.web_searcher
 myrm_agent_harness.toolkits.wiki
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
-myrm_agent_harness.toolkits.workspace
+myrm_agent_harness.toolkits.filesystem_suggest
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils
 myrm_agent_harness.utils.coercion
