@@ -67,7 +67,7 @@ async def test_artifact_hash_verification(client: TestClient, db_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_list_artifacts_includes_deployment_fields(client: TestClient, db_session: AsyncSession):
+async def test_list_artifacts_includes_publications(client: TestClient, db_session: AsyncSession):
     artifact = Artifact(
         id="art-deploy-1",
         name="Landing Page",
@@ -92,13 +92,15 @@ async def test_list_artifacts_includes_deployment_fields(client: TestClient, db_
     assert len(data["artifacts"]) >= 1
 
     listed = next(item for item in data["artifacts"] if item["id"] == "art-deploy-1")
-    assert listed["deployment_url"] == "https://landing.vercel.app"
-    assert listed["deployment_status"] == "READY"
-    assert listed["deployment_project_id"] == "prj_123"
+    assert len(listed["publications"]) == 1
+    pub = listed["publications"][0]
+    assert pub["publication_url"] == "https://landing.vercel.app"
+    assert pub["publication_status"] == "READY"
+    assert pub["publication_project_ref"] == "prj_123"
 
 
 @pytest.mark.asyncio
-async def test_get_artifact_returns_deployment_fields(client: TestClient, db_session: AsyncSession):
+async def test_get_artifact_returns_publications(client: TestClient, db_session: AsyncSession):
     artifact = Artifact(
         id="art-get-1",
         name="Portfolio",
@@ -121,9 +123,11 @@ async def test_get_artifact_returns_deployment_fields(client: TestClient, db_ses
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == "art-get-1"
-    assert data["deployment_url"] == "https://portfolio.vercel.app"
-    assert data["deployment_status"] == "READY"
-    assert data["deployment_project_id"] == "prj_456"
+    assert len(data["publications"]) == 1
+    pub = data["publications"][0]
+    assert pub["publication_url"] == "https://portfolio.vercel.app"
+    assert pub["publication_status"] == "READY"
+    assert pub["publication_project_ref"] == "prj_456"
 
 
 @pytest.mark.asyncio

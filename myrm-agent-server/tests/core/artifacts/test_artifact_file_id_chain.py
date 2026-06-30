@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.api.files.hosting_api import router as hosting_router
-from app.api.files.hosting_legacy_api import router as legacy_router
 from app.core.artifacts.listener import ensure_artifact_for_deploy, upsert_processor_artifact
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
@@ -39,11 +38,10 @@ async def db_session() -> AsyncSession:
 
 
 @pytest.fixture
-def deploy_client(db_session: AsyncSession) -> TestClient:
+def publish_client(db_session: AsyncSession) -> TestClient:
     limiter.enabled = False
     test_app = FastAPI()
     test_app.include_router(hosting_router)
-    test_app.include_router(legacy_router)
 
     async def override_get_db():
         yield db_session
@@ -107,8 +105,8 @@ async def test_ensure_artifact_for_deploy_resolves_processor_file_id(db_session:
 
 
 @pytest.mark.asyncio
-async def test_deploy_api_accepts_processor_file_id_not_uuid(
-    deploy_client: TestClient, db_session: AsyncSession, tmp_path
+async def test_publish_api_accepts_processor_file_id_not_uuid(
+    publish_client: TestClient, db_session: AsyncSession, tmp_path
 ) -> None:
     await save_hosting_targets(
         db_session,
@@ -148,27 +146,37 @@ async def test_deploy_api_accepts_processor_file_id_not_uuid(
     publish_files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
 
     with patch(
-        "app.services.hosting.orchestrator.resolve_artifact_deploy_files",
+        "app.api.files.hosting_api.run_deploy_preflight",
         new_callable=AsyncMock,
-        return_value=(mock_artifact, publish_files),
+        return_value=DeployPreflightResult(
+            deployable=True,
+            reason="OK",
+            message="OK",
+            hint=None,
+        ),
     ):
-        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
-            mock_vercel_instance = mock_vercel_class.return_value
-            mock_vercel_instance.deploy = AsyncMock(
-                return_value={
-                    "deployment_id": "dep_file_id",
-                    "url": "https://file-id-chain.vercel.app",
-                    "project_id": "prj_file_id",
-                    "status": "READY",
-                }
-            )
+        with patch(
+            "app.services.hosting.orchestrator.resolve_artifact_deploy_files",
+            new_callable=AsyncMock,
+            return_value=(mock_artifact, publish_files),
+        ):
+            with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.deploy = AsyncMock(
+                    return_value={
+                        "deployment_id": "dep_file_id",
+                        "url": "https://file-id-chain.vercel.app",
+                        "project_id": "prj_file_id",
+                        "status": "READY",
+                    }
+                )
 
-            response = deploy_client.post(
-                f"/{file_id}/deploy",
-                json={"token": "test_token", "platform": "vercel"},
-            )
+                response = publish_client.post(
+                    f"/{file_id}/publish",
+                    json={"target_id": LEGACY_VERCEL_TARGET_ID, "token": "test_token"},
+                )
 
     assert response.status_code == 200
     data = response.json()
     assert data["url"] == "https://file-id-chain.vercel.app"
-    assert data["deployment_version_id"] == "version-001"
+    assert data["publication_version_id"] == "version-001"

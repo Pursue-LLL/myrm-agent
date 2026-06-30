@@ -14,7 +14,7 @@ import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
 import { wikiService } from '@/services/wikiService';
 import { PublishModal, type PublishedArtifactUpdate } from './PublishModal';
-import { fetchArtifactPublications, type ArtifactPublication } from '@/services/hosting';
+import { type ArtifactPublication } from '@/services/hosting';
 import { HtmlPreview } from './renderers/MediaPreview';
 import {
   deploymentHostname,
@@ -25,9 +25,9 @@ import {
   createArtifactSharePreview,
   fetchArtifactDeployPreflight,
   isDeployCandidateArtifactType,
-  isDeploymentStale,
+  isPublicationStale,
   isSharePreviewableArtifact,
-  patchArtifactDeploymentInChat,
+  patchArtifactPublicationsInChat,
   type ArtifactDeployPreflight,
 } from './artifactUtils';
 
@@ -90,7 +90,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const [inlineLoading, setInlineLoading] = useState(false);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [publishTargetId, setPublishTargetId] = useState<string | undefined>();
-  const [publications, setPublications] = useState<ArtifactPublication[]>([]);
+  const [publications, setPublications] = useState<ArtifactPublication[]>(artifact.publications ?? []);
   const [deployPreflight, setDeployPreflight] = useState<ArtifactDeployPreflight | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [ingestLoading, setIngestLoading] = useState(false);
@@ -128,23 +128,25 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   }, [artifact.id, isDeployCandidate]);
 
   useEffect(() => {
+    if (artifact.publications?.length) {
+      setPublications(artifact.publications);
+    }
+  }, [artifact.publications]);
+
+  useEffect(() => {
     if (!isDeployCandidate) {
       return;
     }
 
     let cancelled = false;
 
-    const hydrateDeployment = async () => {
+    const hydratePublications = async () => {
       try {
         const response = await fetch(getApiUrl(`/api/v1/files/artifacts/${artifact.id}`));
         if (!response.ok || cancelled) {
           return;
         }
         const data = (await response.json()) as {
-          deployment_url?: string | null;
-          deployment_status?: string | null;
-          deployment_project_id?: string | null;
-          deployment_version_id?: string | null;
           latest_version_id?: string | null;
           publications?: ArtifactPublication[];
         };
@@ -153,21 +155,17 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         }
         if (data.publications) {
           setPublications(data.publications);
+          patchArtifactPublicationsInChat(artifact.id, data.publications);
         }
-        setArtifactState((prev) => ({
-          ...prev,
-          deployment_url: data.deployment_url ?? prev.deployment_url,
-          deployment_status: data.deployment_status ?? prev.deployment_status,
-          deployment_project_id: data.deployment_project_id ?? prev.deployment_project_id,
-          deployment_version_id: data.deployment_version_id ?? prev.deployment_version_id,
-          latest_version_id: data.latest_version_id ?? prev.latest_version_id,
-        }));
+        if (data.latest_version_id) {
+          setArtifactState((prev) => ({ ...prev, latest_version_id: data.latest_version_id }));
+        }
       } catch {
         // hydrate is best-effort
       }
     };
 
-    void hydrateDeployment();
+    void hydratePublications();
 
     return () => {
       cancelled = true;
@@ -415,12 +413,27 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   };
 
   const handlePublished = (update: PublishedArtifactUpdate) => {
-    setArtifactState((prev) => ({ ...prev, ...update }));
-    patchArtifactDeploymentInChat(artifact.id, update);
-    void fetchArtifactPublications(artifact.id).then(setPublications);
+    setPublications((prev) => {
+      const merged = [...prev];
+      for (const incoming of update.publications) {
+        const index = merged.findIndex((item) => item.hosting_target_id === incoming.hosting_target_id);
+        if (index >= 0) {
+          merged[index] = { ...merged[index], ...incoming };
+        } else {
+          merged.push(incoming);
+        }
+      }
+      patchArtifactPublicationsInChat(artifact.id, merged);
+      return merged;
+    });
+    if (update.latest_version_id) {
+      setArtifactState((prev) => ({ ...prev, latest_version_id: update.latest_version_id }));
+    }
   };
 
-  const showRedeployBanner = isDeploymentStale(artifactState);
+  const stalePublications = publications.filter((pub) =>
+    isPublicationStale(pub, artifactState.latest_version_id),
+  );
 
   return (
     <>
@@ -510,16 +523,23 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
               <Copy className={cn('w-3.5 h-3.5', pathCopied && 'text-green-500')} />
             </Button>
           )}
-          {canDeploy && artifactState.deployment_status === 'READY' && artifactState.deployment_url && (
+          {canDeploy && publications.some((pub) => pub.publication_status === 'READY' && pub.publication_url) && (
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-green-600 dark:text-green-500"
               onClick={(e) => {
                 e.stopPropagation();
-                window.open(artifactState.deployment_url!, '_blank');
+                const live = publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url);
+                if (live?.publication_url) {
+                  window.open(live.publication_url, '_blank');
+                }
               }}
-              title={t('deploy.deployedLabel', { hostname: deploymentHostname(artifactState.deployment_url) })}
+              title={t('deploy.deployedLabel', {
+                hostname: deploymentHostname(
+                  publications.find((pub) => pub.publication_status === 'READY' && pub.publication_url)?.publication_url ?? '',
+                ),
+              })}
             >
               <ExternalLink className="w-4 h-4" />
             </Button>
@@ -660,35 +680,46 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
                   e.stopPropagation();
                   window.open(pub.publication_url!, '_blank');
                 }}
-                title={t('publish.openLive', { hostname: deploymentHostname(pub.publication_url!) })}
+                title={t('publish.openLiveWithTarget', {
+                  target: pub.hosting_target_name ?? pub.hosting_target_id,
+                  hostname: deploymentHostname(pub.publication_url!),
+                })}
               >
                 <ExternalLink className="h-3 w-3" />
-                {deploymentHostname(pub.publication_url!)}
+                <span className="truncate max-w-[12rem]">
+                  {pub.hosting_target_name ? `${pub.hosting_target_name} · ` : ''}
+                  {deploymentHostname(pub.publication_url!)}
+                </span>
               </button>
             ))}
         </div>
       )}
 
-      {showRedeployBanner && (
+      {stalePublications.map((pub) => (
         <div
+          key={pub.id}
           className="mx-3 mb-2 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="min-w-0">{t('deploy.redeployBanner')}</span>
+          <span className="min-w-0">
+            {t('deploy.redeployBannerForTarget', {
+              target: pub.hosting_target_name ?? pub.hosting_target_id,
+            })}
+          </span>
           <Button
             size="sm"
             variant="outline"
             className="h-7 shrink-0 text-xs"
             onClick={(e) => {
               e.stopPropagation();
-              setPublishTargetId(undefined);
+              setPublishTargetId(pub.hosting_target_id);
               setPublishModalOpen(true);
             }}
           >
             {t('deploy.redeployAction')}
           </Button>
         </div>
-      )}
+      ))}
 
       {/* Inline HTML preview */}
       {canInlinePreview && inlineExpanded && (

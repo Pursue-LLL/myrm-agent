@@ -8,6 +8,7 @@ import { Label } from '@/components/primitives/label';
 import {
   deleteHostingTarget,
   fetchHostingTargets,
+  makeDefaultHostingTarget,
   saveHostingTarget,
   saveTargetCredentials,
   testHostingTarget,
@@ -190,14 +191,10 @@ export default function HostingTargetsPanel() {
   const handleSetDefault = async (target: HostingTarget) => {
     setSaving(true);
     try {
-      for (const item of targets) {
-        await saveHostingTarget({
-          id: item.id,
-          name: item.name,
-          provider_type: item.provider_type,
-          config: item.config,
-          is_default: item.id === target.id,
-        });
+      const updated = await makeDefaultHostingTarget(target.id);
+      if (!updated) {
+        toast.error(t('defaultUpdateFailed'));
+        return;
       }
       await load();
       toast.success(t('defaultUpdated'));
