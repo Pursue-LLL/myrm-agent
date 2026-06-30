@@ -25,6 +25,7 @@
 | `mobile/` | Mobile Session Hub + 远程 HITL StatusBoard（`/mobile` 路由） | [_ARCH.md](mobile/_ARCH.md) |
 | `browser-inspector/` | 浏览器检查器 | [_ARCH.md](browser-inspector/_ARCH.md) |
 | `desktop-inspector/` | 桌面检查器 | [_ARCH.md](desktop-inspector/_ARCH.md) |
+| `image-editor/` | 图片标注编辑器（Canvas API） | [_ARCH.md](image-editor/_ARCH.md) |
 
 其余子目录（`agent-events/`、`eval-lab/`、`voice/` 等）均有目录级 `_ARCH.md`，见各文件夹。
 

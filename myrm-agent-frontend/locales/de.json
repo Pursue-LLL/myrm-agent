@@ -6914,6 +6914,22 @@
     "copied": "Copied",
     "preview": "Preview"
   },
+  "imageEditor": {
+    "cancel": "Abbrechen",
+    "send": "Senden",
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "rotate": "90° drehen",
+    "freehand": "Freihand",
+    "rect": "Rechteck",
+    "ellipse": "Ellipse",
+    "arrow": "Pfeil",
+    "text": "Text",
+    "blur": "Mosaik",
+    "textPlaceholder": "Textanmerkung eingeben...",
+    "editButton": "Annotieren",
+    "editTooltip": "Bildeditor zum Annotieren öffnen"
+  },
   "artifacts": {
     "title": "Artifacts",
     "empty": "No artifacts yet",

@@ -6914,6 +6914,22 @@
     "copied": "Copied",
     "preview": "Preview"
   },
+  "imageEditor": {
+    "cancel": "취소",
+    "send": "보내기",
+    "undo": "실행 취소",
+    "redo": "다시 실행",
+    "rotate": "90° 회전",
+    "freehand": "자유 그리기",
+    "rect": "사각형",
+    "ellipse": "타원",
+    "arrow": "화살표",
+    "text": "텍스트",
+    "blur": "모자이크",
+    "textPlaceholder": "텍스트 주석 입력...",
+    "editButton": "주석",
+    "editTooltip": "이미지 편집기에서 주석 달기"
+  },
   "artifacts": {
     "title": "Artifacts",
     "empty": "No artifacts yet",

@@ -105,7 +105,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const cursorClass = tool === 'text' ? 'cursor-text' : tool === 'blur' ? 'cursor-crosshair' : 'cursor-crosshair';
+  const cursorClass = tool === 'text' ? 'cursor-text' : 'cursor-crosshair';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm animate-in fade-in-0 duration-200">

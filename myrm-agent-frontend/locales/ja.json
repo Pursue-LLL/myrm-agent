@@ -6914,6 +6914,22 @@
     "copied": "Copied",
     "preview": "Preview"
   },
+  "imageEditor": {
+    "cancel": "キャンセル",
+    "send": "送信",
+    "undo": "元に戻す",
+    "redo": "やり直す",
+    "rotate": "90° 回転",
+    "freehand": "フリーハンド",
+    "rect": "四角形",
+    "ellipse": "楕円",
+    "arrow": "矢印",
+    "text": "テキスト",
+    "blur": "モザイク",
+    "textPlaceholder": "テキスト注釈を入力...",
+    "editButton": "注釈",
+    "editTooltip": "画像エディタを開いて注釈"
+  },
   "artifacts": {
     "title": "Artifacts",
     "empty": "No artifacts yet",

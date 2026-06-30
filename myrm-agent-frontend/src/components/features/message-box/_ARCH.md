@@ -26,7 +26,7 @@
 | `Suggestions.tsx` | 组件/模块 | — | — |
 | `TokenUsageDisplay.tsx` | 组件 | Token 用量详情 tooltip：5 类 token 分类、费用、缓存命中率与节省、cache break 归因、模型/工具分解、TTFT/P95/TPS、会话基线对比、View Trace | ✅ |
 | `ToolCallApproval.tsx` | 组件/模块 | — | — |
-| `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器） | ✅ |
+| `ToolImageGallery.tsx` | 组件 | MCP/工具图像画廊：base64+URL 双模式渲染、Lightbox 预览（箭头导航/键盘翻页/一键下载/计数器/标注编辑） | ✅ |
 | `SessionRecordingCard.tsx` | 组件/模块 | 会话录制视频回放卡片（HTML5 video player） | ✅ |
 | `McpAppSection.tsx` | 组件/模块 | MCP Apps (ext-apps) embedded UI section — renders McpAppViewer for each MCP App view in a message | — |
 | `UserMessage.tsx` | 组件/模块 | — | — |
