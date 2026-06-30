@@ -217,6 +217,9 @@ from app.channels.voice.handler import (
     transcribe_inbound,
     transcribe_video_inbound,
 )
+from app.core.cron.adapters.inbound_event_dispatch import (
+    dispatch_cron_event_for_inbound_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +454,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 continue
 
             msg = await self._enrich_message_locale(msg)
+
+            await dispatch_cron_event_for_inbound_message(
+                msg.content,
+                msg.channel,
+                msg.user_id or "",
+            )
 
             if (
                 msg.metadata.get("callback_prefix") == "act"

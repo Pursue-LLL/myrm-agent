@@ -24,6 +24,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `channel_delivery.py` | ResultDelivery 协议实现：IM 渠道投递 + Webhook；Feishu/Lark **bot hook** 走 `feishu_bot_webhook.py` |
 | `delivery_resolver.py` | Cron 工具 webhook URL → `DeliveryConfig`（非空 URL 均为 `webhook` channel） |
 | `feishu_bot_webhook.py` | Feishu/Lark 自定义机器人 hook：`msg_type=text` JSON POST |
+| `inbound_event_dispatch.py` | 入站 IM 消息 → `CronScheduler.dispatch_event`（local MessageBus 与 Control Plane ingress 共用） |
+| `sqlalchemy_trigger_provider.py` | TriggerProvider 实现：event/system/webhook 匹配 |
 
 ---
 

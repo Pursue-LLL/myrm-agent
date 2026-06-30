@@ -66,16 +66,14 @@ async def ingest_channel_message(body: ChannelIngressRequest) -> dict[str, str]:
     )
     await channel_gateway.bus._handle_inbound(msg)
 
-    try:
-        from app.core.cron.adapters.setup import get_cron_scheduler
+    from app.core.cron.adapters.inbound_event_dispatch import (
+        dispatch_cron_event_for_inbound_message,
+    )
 
-        scheduler = get_cron_scheduler()
-        await scheduler.dispatch_event(
-            body.content,
-            body.channel_type,
-            body.resolved_identity.platform_user_id,
-        )
-    except Exception as exc:
-        logger.warning("Event trigger dispatch failed: %s", exc)
+    await dispatch_cron_event_for_inbound_message(
+        body.content,
+        body.channel_type,
+        body.resolved_identity.platform_user_id,
+    )
 
     return {"status": "queued"}
