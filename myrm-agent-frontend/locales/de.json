@@ -10175,7 +10175,11 @@
     "removeFromProject": "Aus Projekt entfernen",
     "rename": "Umbenennen",
     "delete": "Projekt löschen",
-    "current": "aktuell"
+    "current": "aktuell",
+    "setWorkspace": "Arbeitsverzeichnis festlegen",
+    "workspacePlaceholder": "Absoluter Pfad, z.B. /workspace/docs",
+    "workspaceUpdated": "Arbeitsverzeichnis aktualisiert",
+    "workspaceCleared": "Arbeitsverzeichnis gelöscht"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

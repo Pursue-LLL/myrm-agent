@@ -10175,7 +10175,11 @@
     "removeFromProject": "프로젝트에서 제거",
     "rename": "이름 변경",
     "delete": "프로젝트 삭제",
-    "current": "현재"
+    "current": "현재",
+    "setWorkspace": "작업 디렉터리 설정",
+    "workspacePlaceholder": "절대 경로, 예: /workspace/docs",
+    "workspaceUpdated": "작업 디렉터리가 업데이트되었습니다",
+    "workspaceCleared": "작업 디렉터리가 지워졌습니다"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

@@ -144,3 +144,41 @@ class TestWenyanTemplate:
         assert any(
             "\u4e00" <= ch <= "\u9fff" for ch in template.system_prompt_suffix
         ), "wenyan prompt should contain Chinese characters"
+
+
+class TestPromptInjectionLogic:
+    """验证 personality_style 的 prompt 注入与 converter 的协作逻辑"""
+
+    def test_non_default_style_produces_suffix(self) -> None:
+        """非默认风格应产生非空的注入 suffix"""
+        for style_name, template in PERSONALITY_TEMPLATES.items():
+            if style_name == DEFAULT_PERSONALITY_STYLE:
+                continue
+            suffix = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+            assert "Communication Style" in suffix
+            assert len(template.system_prompt_suffix) > 10, f"{style_name}: suffix too short"
+
+    def test_default_style_skipped_in_injection(self) -> None:
+        """默认风格 professional 在 converter 中不注入额外 suffix"""
+        assert DEFAULT_PERSONALITY_STYLE == "professional"
+
+    def test_concise_suffix_format_for_injection(self) -> None:
+        """concise 的 suffix 注入后应保持格式完整"""
+        template = get_personality_template("concise")
+        injected = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+        assert injected.startswith("\n\n**Communication Style**: Respond terse")
+        assert "EXCEPTION" in injected
+
+    def test_wenyan_suffix_format_for_injection(self) -> None:
+        """wenyan 的 suffix 注入后应保持格式完整"""
+        template = get_personality_template("wenyan")
+        injected = f"\n\n**Communication Style**: {template.system_prompt_suffix}"
+        assert "Communication Style" in injected
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in injected)
+
+    def test_all_suffixes_are_single_paragraph(self) -> None:
+        """所有 suffix 不应包含多余的换行，避免破坏 prompt 结构"""
+        for style_name, template in PERSONALITY_TEMPLATES.items():
+            assert "\n\n" not in template.system_prompt_suffix, (
+                f"{style_name}: suffix contains double newline which may break prompt structure"
+            )
