@@ -11,6 +11,59 @@ export const isTauri = (): boolean => {
 
 const CLIPBOARD_PERMISSION_KEY = 'myrm_clipboard_read_permission';
 
+function isClipboardNotAllowedError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'NotAllowedError' || error.message.includes('Document is not focused'))
+  );
+}
+
+/** execCommand fallback when async Clipboard API is blocked (e.g. after confirm dialog). */
+function copyTextViaExecCommand(text: string): boolean {
+  if (typeof document === 'undefined') return false;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '0';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } finally {
+    document.body.removeChild(textarea);
+  }
+
+  return copied;
+}
+
+async function writeWebClipboardText(text: string): Promise<boolean> {
+  if (typeof document !== 'undefined' && !document.hasFocus()) {
+    window.focus();
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      if (!isClipboardNotAllowedError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return copyTextViaExecCommand(text);
+}
+
 /**
  * 安全地将文本写入剪贴板
  * 在 Tauri 环境下使用原生插件，Web 环境下使用 navigator.clipboard
@@ -24,7 +77,10 @@ export const writeToClipboard = async (text: string, silent = false): Promise<bo
     if (isTauri()) {
       await tauriWriteText(text);
     } else {
-      await navigator.clipboard.writeText(text);
+      const copied = await writeWebClipboardText(text);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
     }
 
     if (!silent) {
@@ -32,7 +88,9 @@ export const writeToClipboard = async (text: string, silent = false): Promise<bo
     }
     return true;
   } catch (error) {
-    console.error('Failed to write to clipboard:', error);
+    if (!isClipboardNotAllowedError(error)) {
+      console.error('Failed to write to clipboard:', error);
+    }
     if (!silent) {
       toast.error('复制失败，请检查剪贴板权限');
     }
@@ -59,7 +117,10 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
       });
       await navigator.clipboard.write([item]);
     } else {
-      await navigator.clipboard.writeText(plainText);
+      const copied = await writeWebClipboardText(plainText);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
     }
 
     if (!silent) {
@@ -67,9 +128,14 @@ export const writeRichToClipboard = async (plainText: string, html: string, sile
     }
     return true;
   } catch (error) {
-    console.error('Failed to write rich content to clipboard:', error);
+    if (!isClipboardNotAllowedError(error)) {
+      console.error('Failed to write rich content to clipboard:', error);
+    }
     try {
-      await navigator.clipboard.writeText(plainText);
+      const copied = await writeWebClipboardText(plainText);
+      if (!copied) {
+        throw new DOMException('Clipboard write blocked', 'NotAllowedError');
+      }
       if (!silent) toast.success('已复制到剪贴板');
       return true;
     } catch {

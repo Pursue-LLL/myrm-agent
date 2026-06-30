@@ -4,13 +4,14 @@
  * hooks/useTTS (POS: Text-to-speech output with browser and API backends)
  * hooks/useCameraInput (POS: Camera input manager with frame buffering)
  * hooks/useVisionIntent (POS: Vision intent classifier with bilingual rules)
+ * hooks/useVoicePttListener (POS: Bridges Tauri PTT events to DOM, provides PttScreenContext type)
  *
  * [OUTPUT]
- * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS, and vision fusion
+ * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS, vision fusion, and PTT screen context
  *
  * [POS]
- * Full-duplex voice session orchestrator. Upgrades from half-duplex sequential mode to
- * concurrent listening + speaking with automatic barge-in detection.
+ * Full-duplex voice session orchestrator. Manages concurrent listening + speaking with
+ * automatic barge-in detection and PTT screen context fusion (Tauri desktop).
  */
 
 'use client';
@@ -23,6 +24,7 @@ import { useVisionIntent } from './useVisionIntent';
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
 import type { VisualFrame } from '@/lib/vision/frameSelector';
+import type { PttScreenContext } from './useVoicePttListener';
 
 export type VoiceSessionState = 'inactive' | 'listening' | 'processing' | 'speaking' | 'paused';
 export type VoiceSessionMode = 'audio_only' | 'agent_bridge' | 'openai_realtime';
@@ -139,6 +141,21 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const { classify } = useVisionIntent();
 
+  // PTT 屏幕上下文：Rust 端在 PTT 按下时异步截图后发射 voice-ptt-context DOM 事件
+  const pttScreenContextRef = useRef<PttScreenContext | null>(null);
+
+  useEffect(() => {
+    const handlePttContext = (e: Event) => {
+      const detail = (e as CustomEvent<PttScreenContext>).detail;
+      if (detail?.screenshot || detail?.extractedText) {
+        pttScreenContextRef.current = detail;
+      }
+    };
+
+    window.addEventListener('voice-ptt-context', handlePttContext);
+    return () => window.removeEventListener('voice-ptt-context', handlePttContext);
+  }, []);
+
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
   const agentBridge = useVoiceAgentBridge({
@@ -189,10 +206,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     (text: string) => {
       if (!sessionActiveRef.current || !autoSend) return;
 
-      // In agent_bridge mode, STT is handled server-side via WS — skip frontend dispatch
       if (mode === 'agent_bridge') return;
 
-      // In full-duplex mode, if TTS is playing when user speaks, trigger barge-in
       if (fullDuplex && isSpeakingRef.current) {
         pendingTTSRef.current = [];
         isSpeakingRef.current = false;
@@ -202,6 +217,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       setSessionState('processing');
 
       let visionFrames: VisualFrame[] | undefined;
+      let finalText = text;
 
       if (cameraEnabled && camera.cameraState === 'active') {
         const intent = classify(text);
@@ -210,7 +226,35 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
         }
       }
 
-      onSendMessage?.(text, visionFrames);
+      // PTT 屏幕上下文：Rust 端在 PTT 按下时截取的屏幕截图 + AX 文本
+      const pttCtx = pttScreenContextRef.current;
+      if (pttCtx) {
+        pttScreenContextRef.current = null;
+
+        if (pttCtx.screenshot) {
+          const screenFrame: VisualFrame = {
+            id: `ptt-screen-${pttCtx.timestamp}`,
+            base64: pttCtx.screenshot,
+            width: 0,
+            height: 0,
+            timestamp: pttCtx.timestamp,
+          };
+          visionFrames = visionFrames ? [...visionFrames, screenFrame] : [screenFrame];
+        }
+
+        const contextParts: string[] = [];
+        if (pttCtx.windowTitle) {
+          contextParts.push(`[Active Window: ${pttCtx.windowTitle}]`);
+        }
+        if (pttCtx.extractedText) {
+          contextParts.push(`[Screen Text: ${pttCtx.extractedText.slice(0, 2000)}]`);
+        }
+        if (contextParts.length > 0) {
+          finalText = `${contextParts.join('\n')}\n\n${text}`;
+        }
+      }
+
+      onSendMessage?.(finalText, visionFrames);
     },
     [autoSend, fullDuplex, tts, cameraEnabled, camera, classify, onSendMessage, mode],
   );

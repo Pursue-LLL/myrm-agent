@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 interface DataGridProps {
   headers: string[];
   rows: string[][];
-  totalRows: number;
+  totalRows?: number;
   className?: string;
 }
 
@@ -129,7 +129,7 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
     URL.revokeObjectURL(url);
   }, [headers, sortedRows]);
 
-  const showTruncated = totalRows > rows.length;
+  const showTruncated = totalRows != null && totalRows > rows.length;
   const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;
 
   return (
@@ -146,7 +146,7 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
         <span className="text-[11px] text-muted-foreground whitespace-nowrap">
           {showFiltered && `${sortedRows.length} / `}
           {rows.length}
-          {showTruncated && ` ${t('of')} ${totalRows.toLocaleString()}`} {t('rows')}
+          {showTruncated && ` ${t('of')} ${totalRows!.toLocaleString()}`} {t('rows')}
         </span>
         <button
           onClick={handleCopy}

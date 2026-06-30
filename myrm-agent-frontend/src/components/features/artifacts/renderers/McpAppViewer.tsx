@@ -45,7 +45,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
           server: view.serverName,
         });
         const resp = await fetchWithTimeout(
-          `/mcp/resource?${params.toString()}`,
+          `/integrations/mcp/resource?${params.toString()}`,
           {},
           15000,
         );

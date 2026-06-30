@@ -43,6 +43,9 @@ export const BACKEND_BASE_URL = createDynamicUrl(getBackendBaseUrl);
  * 获取完整的API地址
  */
 export const getApiUrl = (endpoint: string): string => {
+  if (endpoint.startsWith('/webui')) {
+    return getWebuiUrl(endpoint);
+  }
   return `${API_BASE_URL}${endpoint}`;
 };
 

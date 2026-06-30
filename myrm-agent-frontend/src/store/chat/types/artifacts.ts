@@ -23,11 +23,13 @@ export type ArtifactType =
 
 // 工件版本数据
 export interface ArtifactVersion {
-  versionId: string; // 版本 ID
-  versionNumber: number; // 版本号（从 1 开始）
-  content: string; // 版本内容快照
-  createdAt: string; // 创建时间
-  description?: string; // 版本描述（如 "AI 添加了重置按钮"）
+  versionId: string;
+  versionNumber: number;
+  content: string;
+  createdAt: string;
+  description?: string;
+  source?: 'assistant' | 'user';
+  originalArtifact?: Artifact;
 }
 
 // 工件数据

@@ -3,6 +3,7 @@
 import React, { memo, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useDebounce } from 'use-debounce';
 import { useTheme } from 'next-themes';
+import { useTranslations } from 'next-intl';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import useArtifactPortalStore, { useIsGenerating } from '@/store/useArtifactPortalStore';
@@ -19,6 +20,7 @@ type MonacoNamespace = typeof import('monaco-editor');
 /** 可编辑的代码预览组件 (基于 Monaco Editor)，集成 SelectionToolbar 选中精准编辑。 */
 const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artifactId }) => {
   const { resolvedTheme } = useTheme();
+  const t = useTranslations('artifacts');
   const [editableContent, setEditableContent] = useState(content);
   const [debouncedContent] = useDebounce(editableContent, 2000);
 
@@ -191,7 +193,7 @@ const CodePreview: React.FC<CodePreviewProps> = memo(({ content, language, artif
     <div className="h-full flex flex-col relative bg-background">
       {artifactId && (
         <div className="absolute top-2 right-6 z-10 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded backdrop-blur-sm border">
-          {isDirty ? '保存中...' : '已保存'}
+          {isDirty ? t('saving') : t('saved')}
         </div>
       )}
       <div className="flex-1 overflow-hidden relative">

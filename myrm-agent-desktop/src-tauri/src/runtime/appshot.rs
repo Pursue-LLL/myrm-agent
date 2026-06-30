@@ -9,6 +9,7 @@
 //! - IPC 事件: `appshot-captured` (screenshot_b64, windowTitle, extractedText, needsPermission, timestamp)
 //! - IPC 事件: `appshot-blocked` (blockedApp, timestamp)
 //! - IPC 事件: `voice-ptt-start` / `voice-ptt-stop`
+//! - IPC 事件: `voice-ptt-context` (screenshot, windowTitle, extractedText, timestamp) — PTT 按下时自动截取的屏幕上下文
 //!
 //! [POS]
 //! 全局快捷键处理的唯一入口。负责 Appshot 跨平台截屏（macOS + Windows）、
@@ -29,9 +30,47 @@ pub static APPSHOT_SHORTCUT_STR: std::sync::Mutex<String> = std::sync::Mutex::ne
 /// 用于在全局快捷键 handler 中识别 Voice PTT 绑定
 pub static VOICE_PTT_SHORTCUT_STR: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
-/// Voice PTT 快捷键按下：通知前端开始录音
+/// Voice PTT 快捷键按下：通知前端开始录音，同时异步截取屏幕上下文
 pub fn handle_voice_ptt_start(app: &AppHandle) {
     let _ = app.emit("voice-ptt-start", ());
+    capture_screen_context_for_ptt(app);
+}
+
+/// PTT 按下时异步截取当前屏幕上下文（截图 + AX 文本），发射 `voice-ptt-context` 事件。
+/// 与 Appshot 快捷键不同：不弹出主窗口、不走 FlowPad 链路，仅为语音提供附加上下文。
+/// 截图失败不影响 PTT 录音流程（容错降级）。
+fn capture_screen_context_for_ptt(app: &AppHandle) {
+    let excluded_apps = load_excluded_apps(app);
+    let app_handle = app.clone();
+
+    std::thread::spawn(move || {
+        let front_app_name = get_frontmost_app_name();
+
+        if is_app_excluded(&front_app_name, &excluded_apps) {
+            return;
+        }
+
+        let timestamp = current_timestamp_ms();
+
+        #[cfg(target_os = "macos")]
+        let (screenshot_b64, window_title, extracted_text, _) = capture_appshot_macos();
+
+        #[cfg(target_os = "windows")]
+        let (screenshot_b64, window_title, extracted_text, _) = capture_appshot_windows();
+
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        let (screenshot_b64, window_title, extracted_text) =
+            (String::new(), String::new(), String::new());
+
+        let payload = serde_json::json!({
+            "screenshot": screenshot_b64,
+            "windowTitle": window_title,
+            "extractedText": extracted_text,
+            "timestamp": timestamp,
+        });
+
+        let _ = app_handle.emit("voice-ptt-context", payload);
+    });
 }
 
 /// Voice PTT 快捷键松开：通知前端停止录音并发送

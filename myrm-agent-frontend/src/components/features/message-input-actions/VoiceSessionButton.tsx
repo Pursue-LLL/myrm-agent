@@ -1,6 +1,7 @@
 /**
  * [INPUT]
- * - @/hooks/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator)
+ * - @/hooks/useVoiceSession::useVoiceSession (POS: Full-duplex voice session orchestrator with PTT screen context)
+ * - @/lib/vision/frameSelector::VisualFrame (POS: Intelligent frame selector for vision)
  * - @/components/features/voice/VoiceSessionOverlay (POS: Full-screen voice session UI)
  * - @/store/useChatStore::useChatStore (POS: Chat state bus)
  *
@@ -20,6 +21,7 @@ import { HeadsetIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { useVoiceSession, type VoiceSessionMode } from '@/hooks/useVoiceSession';
+import type { VisualFrame } from '@/lib/vision/frameSelector';
 import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
 import Tooltip from '@/components/features/settings/Tooltip';
 import useChatStore from '@/store/useChatStore';
@@ -45,6 +47,7 @@ interface VoiceSessionButtonProps {
 const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionButtonProps) => {
   const t = useTranslations('voiceSession');
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const setCameraFrames = useChatStore((s) => s.setCameraFrames);
   const chatId = useChatStore((s) => s.chatId);
   const agentId = useChatStore((s) => s.agentConfig?.agentId);
 
@@ -67,12 +70,19 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
   }, []);
 
   const handleSendMessage = useCallback(
-    (text: string) => {
-      if (text.trim()) {
-        void sendMessage(text);
+    (text: string, visionFrames?: VisualFrame[]) => {
+      if (!text.trim()) return;
+
+      if (visionFrames?.length) {
+        const dataUrls = visionFrames.map((f) =>
+          f.base64.startsWith('data:') ? f.base64 : `data:image/jpeg;base64,${f.base64}`
+        );
+        setCameraFrames(dataUrls);
       }
+
+      void sendMessage(text);
     },
-    [sendMessage],
+    [sendMessage, setCameraFrames],
   );
 
   const voice = useVoiceSession({

@@ -7531,6 +7531,8 @@
       "loadError": "Failed to load",
       "truncated": "Showing first {count} of {total} rows"
     },
+    "saving": "Saving...",
+    "saved": "Saved",
     "noPreview": "Preview not available for this file type",
     "downloadHint": "Click download to save the file",
     "diffTruncatedNotice": "This diff preview is truncated to the configured maximum length. Lines beyond the limit are omitted.",

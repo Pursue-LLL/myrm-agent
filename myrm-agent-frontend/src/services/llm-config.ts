@@ -78,7 +78,7 @@ const PROVIDER_MODELS: Record<string, string[]> = {
 export const fetchProviderModels = async (providerId: string): Promise<string[]> => {
   try {
     // 尝试从后端获取模型列表
-    const response = await apiRequest<{ models: string[] }>(`/llm/models/${providerId}`, {
+    const response = await apiRequest<{ models: string[] }>(`/integrations/llm/models/${providerId}`, {
       method: 'GET',
     });
     if (response.models && response.models.length > 0) {
@@ -98,7 +98,7 @@ export const validateLLM = async (config: ModelConfig): Promise<ValidationResult
   const startTime = performance.now();
 
   try {
-    await apiRequest('/llm/verify', {
+    await apiRequest('/integrations/llm/verify', {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -129,7 +129,7 @@ type ReachabilityApiResponse = Partial<ReachabilityResult> & {
  */
 export const checkModelReachability = async (config: ModelConfig): Promise<ReachabilityResult> => {
   try {
-    const res = await apiRequest<ReachabilityApiResponse>('/llm/check-reachability', {
+    const res = await apiRequest<ReachabilityApiResponse>('/integrations/llm/check-reachability', {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -162,7 +162,7 @@ export const validateSearchServiceConfig = async (config: SearchServiceConfig): 
   const startTime = performance.now();
 
   try {
-    await apiRequest('/search/verify', {
+    await apiRequest('/integrations/search/verify', {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -207,14 +207,14 @@ interface MCPVerifyData {
  * Static pre-flight scan for MCP configuration (no network connection).
  */
 export const scanMCPConfig = async (config: MCPServiceConfig): Promise<MCPScanResult> => {
-  return apiRequest<MCPScanResult>('/mcp/scan', {
+  return apiRequest<MCPScanResult>('/integrations/mcp/scan', {
     method: 'POST',
     body: JSON.stringify(config),
   });
 };
 
 export const scanMCPConfigBatch = async (configs: MCPServiceConfig[]): Promise<MCPScanBatchResult> => {
-  return apiRequest<MCPScanBatchResult>('/mcp/scan-batch', {
+  return apiRequest<MCPScanBatchResult>('/integrations/mcp/scan-batch', {
     method: 'POST',
     body: JSON.stringify({ configs }),
   });
@@ -231,7 +231,7 @@ export const validateMCPConfig = async (
 
   try {
     const query = acknowledgedHighRisks ? '?acknowledgedHighRisks=true' : '';
-    const data = await apiRequest<MCPVerifyData>(`/mcp/verify${query}`, {
+    const data = await apiRequest<MCPVerifyData>(`/integrations/mcp/verify${query}`, {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -269,7 +269,7 @@ export interface FetchMCPToolsResult {
  */
 export const fetchMCPTools = async (config: MCPServiceConfig): Promise<FetchMCPToolsResult> => {
   try {
-    const data = await apiRequest<MCPVerifyData>('/mcp/verify', {
+    const data = await apiRequest<MCPVerifyData>('/integrations/mcp/verify', {
       method: 'POST',
       body: JSON.stringify(config),
     });
@@ -294,10 +294,10 @@ export interface MCPOptionsResponse {
  */
 export const getMCPOptions = async (): Promise<MCPOptionsResponse> => {
   try {
-    const response = await apiRequest<{ data: MCPOptionsResponse }>('/mcp/options', {
+    return await apiRequest<MCPOptionsResponse>('/integrations/mcp/options', {
       method: 'GET',
+      silent: true,
     });
-    return response.data;
   } catch (error) {
     console.error('Failed to fetch MCP options:', error);
     // 默认允许所有类型
@@ -326,7 +326,7 @@ export interface SpeedTestResult {
  */
 export const runSpeedTest = async (models: ModelConfig[]): Promise<SpeedTestResult[]> => {
   try {
-    const response = await apiRequest<{ data: SpeedTestResult[] }>('/llm/speed-test', {
+    const response = await apiRequest<{ data: SpeedTestResult[] }>('/integrations/llm/speed-test', {
       method: 'POST',
       body: JSON.stringify({ models }),
     });
@@ -376,7 +376,7 @@ export const fetchModelInfo = async (model: string): Promise<ModelInfoResponse> 
   }
 
   try {
-    const response = await apiRequest<ModelInfoResponse>('/llm/model-info', {
+    const response = await apiRequest<ModelInfoResponse>('/integrations/llm/model-info', {
       method: 'POST',
       body: JSON.stringify({ model }),
     });
@@ -422,7 +422,7 @@ export const fetchModelCapabilitiesBatch = async (models: string[]): Promise<Rec
   }
 
   try {
-    const response = await apiRequest<Record<string, ModelCapabilities>>('/llm/model-info/batch', {
+    const response = await apiRequest<Record<string, ModelCapabilities>>('/integrations/llm/model-info/batch', {
       method: 'POST',
       body: JSON.stringify({ models: uncachedModels }),
     });
@@ -532,11 +532,11 @@ export const searchMCPRegistry = async (
 ): Promise<MCPRegistrySearchResult> => {
   const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (query) params.set('q', query);
-  return apiRequest<MCPRegistrySearchResult>(`/mcp/registry/search?${params}`, { method: 'GET' });
+  return apiRequest<MCPRegistrySearchResult>(`/integrations/mcp/registry/search?${params}`, { method: 'GET' });
 };
 
 export const getMCPRegistryDetail = async (qualifiedName: string): Promise<MCPRegistryServerDetail> => {
-  return apiRequest<MCPRegistryServerDetail>(`/mcp/registry/detail/${qualifiedName}`, {
+  return apiRequest<MCPRegistryServerDetail>(`/integrations/mcp/registry/detail/${qualifiedName}`, {
     method: 'GET',
   });
 };

@@ -7531,6 +7531,8 @@
       "loadError": "加载失败",
       "truncated": "显示前 {count} 行，共 {total} 行"
     },
+    "saving": "保存中...",
+    "saved": "已保存",
     "noPreview": "该文件类型不支持预览",
     "downloadHint": "点击下载按钮保存文件",
     "diffTruncatedNotice": "此 Diff 预览已按服务端配置的最大长度截断，超出部分未展示。",

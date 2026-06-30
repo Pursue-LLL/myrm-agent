@@ -96,6 +96,10 @@ async def list_templates(request: Request) -> JSONResponse:
     accept_lang = request.headers.get("Accept-Language", "en")
     templates = []
     try:
+        if not os.path.isdir(PREBUILT_AGENTS_DIR):
+            logger.warning("Prebuilt agents directory not found: %s", PREBUILT_AGENTS_DIR)
+            return success_response(data=[])
+
         yaml_files = glob.glob(os.path.join(PREBUILT_AGENTS_DIR, "*.yaml"))
         for file_path in yaml_files:
             try:

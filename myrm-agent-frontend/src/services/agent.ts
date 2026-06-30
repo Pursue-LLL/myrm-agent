@@ -1,3 +1,4 @@
+import { apiRequest } from '@/lib/api';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 
@@ -667,37 +668,12 @@ export interface TemplateListItem {
 }
 
 export async function getTemplates(): Promise<TemplateListItem[]> {
-  const response = await fetch(`${getBackendUrl()}/api/v1/agents/templates`, {
-    method: 'GET',
-    headers: {
-      ...getAuthHeaders(),
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch templates: ${response.statusText}`);
-  }
-  const result = await response.json();
-  return result.data;
+  return apiRequest<TemplateListItem[]>('/agents/templates', { method: 'GET', silent: true });
 }
 
 export async function instantiateTemplate(templateId: string): Promise<Agent> {
-  const response = await fetch(`${getBackendUrl()}/api/v1/agents/instantiate-template/${templateId}`, {
+  return apiRequest<Agent>(`/agents/instantiate-template/${templateId}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
+    silent: true,
   });
-  if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const errorBody = (await response.json()) as { detail?: string; message?: string };
-      message = errorBody.detail || errorBody.message || message;
-    } catch {
-      // use statusText
-    }
-    throw new Error(`Failed to instantiate template: ${message}`);
-  }
-  const result = await response.json();
-  return result.data;
 }

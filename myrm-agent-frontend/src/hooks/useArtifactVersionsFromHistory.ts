@@ -29,12 +29,12 @@ export const useArtifactVersionsFromHistory = (artifactId: string | undefined): 
           versions.push({
             versionId: `msg-${msg.messageId}-assistant`,
             versionNumber: versionNumber++,
-            content: '', // 实际内容由 ArtifactPortal 根据 URL 获取，这里仅作为版本标记
+            content: '',
             createdAt: new Date(msg.createdAt).toISOString(),
             description: 'Agent Generated',
             source: 'assistant',
             originalArtifact: artifact,
-          } as any); // 使用 as any 扩展类型以包含 source
+          });
         }
       }
 
@@ -51,7 +51,7 @@ export const useArtifactVersionsFromHistory = (artifactId: string | undefined): 
             createdAt: new Date(msg.createdAt).toISOString(),
             description: 'User Edited',
             source: 'user',
-          } as any);
+          });
         }
       }
     });

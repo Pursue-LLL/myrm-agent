@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { getTemplates, instantiateTemplate, type TemplateListItem } from '@/services/agent';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Bot, Plus, Loader2, Users } from 'lucide-react';
@@ -32,17 +33,32 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchTemplates = async () => {
       try {
+        const backendReady = await ensureLocalBackendReady();
+        if (!backendReady || cancelled) {
+          return;
+        }
         const data = await getTemplates();
-        setTemplates(data);
-      } catch (e) {
-        console.error('Failed to fetch templates:', e);
+        if (!cancelled) {
+          setTemplates(data);
+        }
+      } catch {
+        // Template market is optional; hide section when backend is unavailable.
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
-    fetchTemplates();
+
+    void fetchTemplates();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleInstantiate = async (templateId: string) => {
