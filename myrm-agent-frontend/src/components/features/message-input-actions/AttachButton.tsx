@@ -41,10 +41,10 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
     const hasVisionFallback = fallbackModelInfo?.supports_vision;
 
     if (hasImages && !modelInfo?.supports_vision && !hasVisionFallback) {
-      return 'modelNotSupportVision';
+      return 'warnModelNotSupportVision';
     }
     if (hasVideos && !modelInfo?.supports_video_input && !hasVisionFallback) {
-      return 'modelNotSupportVideo';
+      return 'warnModelNotSupportVideo';
     }
     return null;
   };
@@ -60,10 +60,9 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
         return;
       }
 
-      const capErr = checkModelCapability(selectedFiles.map((f) => f.fileName));
-      if (capErr) {
-        toast({ title: t(capErr), duration: 5000 });
-        return;
+      const capWarn = checkModelCapability(selectedFiles.map((f) => f.fileName));
+      if (capWarn) {
+        toast({ title: t(capWarn), duration: 5000 });
       }
 
       const existingFileNames = files.map((file) => file.fileName);
@@ -77,7 +76,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
         return;
       }
 
-      if (files.length + selectedFiles.length > 5) {
+      if (files.length + selectedFiles.length > 20) {
         toast({
           title: t('uploadLimit'),
           description: t('uploadLimitDesc', { count: String(files.length) }),
@@ -107,10 +106,9 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
     // Reset input value so the same file can be re-selected after switching models
     e.target.value = '';
 
-    const capErr = checkModelCapability(selectedFiles.map((f) => f.name));
-    if (capErr) {
-      toast({ title: t(capErr), duration: 5000 });
-      return;
+    const capWarn = checkModelCapability(selectedFiles.map((f) => f.name));
+    if (capWarn) {
+      toast({ title: t(capWarn), duration: 5000 });
     }
 
     const oversizedVideo = selectedFiles.find((f) => isVideoFile(getFileExtension(f.name)) && f.size > MAX_VIDEO_BYTES);
@@ -127,7 +125,7 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
       return;
     }
 
-    if (files.length + selectedFiles.length > 5) {
+    if (files.length + selectedFiles.length > 20) {
       toast({
         title: t('uploadLimit'),
         description: t('uploadLimitDesc', { count: String(files.length) }),

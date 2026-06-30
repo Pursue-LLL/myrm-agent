@@ -119,7 +119,7 @@ describe('AttachButton 核心逻辑测试', () => {
     });
 
     it('应该验证文件数量限制', () => {
-      const existingFiles: File[] = Array(5).fill({
+      const existingFiles: File[] = Array(20).fill({
         fileName: 'file.png',
         fileExtension: 'png',
         localPath: '/path/to/file.png',
@@ -127,7 +127,7 @@ describe('AttachButton 核心逻辑测试', () => {
       });
 
       const newFilesCount = 1;
-      const exceedsLimit = existingFiles.length + newFilesCount > 5;
+      const exceedsLimit = existingFiles.length + newFilesCount > 20;
 
       expect(exceedsLimit).toBe(true);
     });
@@ -143,7 +143,7 @@ describe('AttachButton 核心逻辑测试', () => {
       ];
 
       const newFilesCount = 2;
-      const exceedsLimit = existingFiles.length + newFilesCount > 5;
+      const exceedsLimit = existingFiles.length + newFilesCount > 20;
 
       expect(exceedsLimit).toBe(false);
     });
