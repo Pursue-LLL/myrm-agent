@@ -67,12 +67,6 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
     onToggleModel,
   });
 
-  useEffect(() => {
-    if (providerId === 'xiaomi_mimo' && models.find(m => m.name === 'mimo-v2.5-pro' && !m.isEnabled)) {
-      throw new Error('CRASH-TEST-AUTO-TRIGGER');
-    }
-  }, [providerId, models]);
-
     // 检查是否支持从 API 或 models.dev 导入模型
     const canFetchFromApi = !!(apiKey && apiUrl);
     const supportsModelsDevImport = hasModelsDevSupport(providerId, { providerType, apiUrl });
