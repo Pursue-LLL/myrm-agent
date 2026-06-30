@@ -1,11 +1,25 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout } from '../api';
+import { fetchWithTimeout, getApiUrl } from '../api';
 
 vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => 'http://127.0.0.1:8080/api/v1',
   getBackendBaseUrl: () => 'http://127.0.0.1:8080',
   shouldRedirectToLoginOnAuthFailure: () => true,
 }));
+
+describe('getApiUrl', () => {
+  it('routes /webui paths without /api/v1 prefix', () => {
+    expect(getApiUrl('/webui/desktop/permissions')).toBe(
+      'http://127.0.0.1:8080/webui/desktop/permissions',
+    );
+  });
+
+  it('keeps /api/v1 prefix for standard API endpoints', () => {
+    expect(getApiUrl('/integrations/mcp/options')).toBe(
+      'http://127.0.0.1:8080/api/v1/integrations/mcp/options',
+    );
+  });
+});
 
 describe('fetchWithTimeout Global Auth Interceptor', () => {
   const originalWindow = globalThis.window;

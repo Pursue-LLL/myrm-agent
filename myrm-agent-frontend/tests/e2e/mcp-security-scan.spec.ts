@@ -9,7 +9,7 @@ test.describe('MCP security scan', () => {
   );
 
   test.beforeAll(async ({ request }) => {
-    const probe = await request.post(`${apiBase}/api/v1/mcp/scan`, {
+    const probe = await request.post(`${apiBase}/api/v1/integrations/mcp/scan`, {
       data: {
         name: 'probe',
         type: 'sse',
@@ -19,12 +19,12 @@ test.describe('MCP security scan', () => {
     });
     test.skip(
       probe.status() === 404,
-      'Backend missing POST /api/v1/mcp/scan — restart server with latest code',
+      'Backend missing POST /api/v1/integrations/mcp/scan — restart server with latest code',
     );
   });
 
   test('POST /mcp/scan blocks hardcoded env secret', async ({ request }) => {
-    const response = await request.post(`${apiBase}/api/v1/mcp/scan`, {
+    const response = await request.post(`${apiBase}/api/v1/integrations/mcp/scan`, {
       data: {
         name: 'evil-import',
         type: 'stdio',
@@ -47,7 +47,7 @@ test.describe('MCP security scan', () => {
   });
 
   test('POST /mcp/scan flags underscore description prompt injection', async ({ request }) => {
-    const response = await request.post(`${apiBase}/api/v1/mcp/scan`, {
+    const response = await request.post(`${apiBase}/api/v1/integrations/mcp/scan`, {
       data: {
         name: 'docs',
         type: 'sse',
@@ -65,7 +65,7 @@ test.describe('MCP security scan', () => {
   });
 
   test('POST /mcp/scan flags sensitive kube path in args', async ({ request }) => {
-    const response = await request.post(`${apiBase}/api/v1/mcp/scan`, {
+    const response = await request.post(`${apiBase}/api/v1/integrations/mcp/scan`, {
       data: {
         name: 'fs',
         type: 'stdio',
@@ -82,7 +82,7 @@ test.describe('MCP security scan', () => {
   });
 
   test('POST /mcp/scan allows clean SSE config', async ({ request }) => {
-    const response = await request.post(`${apiBase}/api/v1/mcp/scan`, {
+    const response = await request.post(`${apiBase}/api/v1/integrations/mcp/scan`, {
       data: {
         name: 'docs',
         type: 'sse',

@@ -3,6 +3,7 @@
 [INPUT]
 - app.channels.core.gateway::ChannelGateway (POS: multi-platform channel gateway)
 - app.channels.types::OutboundMessage (POS: outbound message model)
+- app.channels.types.messages::MediaAttachment (POS: media attachment model)
 - .types::NotifyResult, NotifyTarget, NotifyToolConfig (POS: outbound notification data types)
 
 [OUTPUT]
@@ -16,8 +17,12 @@ Channel delivery for agent-initiated outbound notifications.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from .types import NotifyResult, NotifyTarget, NotifyToolConfig
+
+if TYPE_CHECKING:
+    from app.channels.types.messages import MediaAttachment
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,7 @@ class ChannelNotificationSender:
         self,
         target: NotifyTarget,
         body: str,
+        media: tuple[MediaAttachment, ...] = (),
     ) -> NotifyResult:
         """Deliver notification via ChannelGateway (always NORMAL priority)."""
         try:
@@ -54,14 +60,16 @@ class ChannelNotificationSender:
                 content=body,
                 user_id="system",
                 priority=MessagePriority.NORMAL,
+                media=media,
             )
             await channel_gateway.publish(msg)
 
             logger.info(
-                "Notification sent: channel=%s, recipient=%s, len=%d",
+                "Notification sent: channel=%s, recipient=%s, len=%d, media=%d",
                 target.channel,
                 target.recipient_id,
                 len(body),
+                len(media),
             )
             return NotifyResult(
                 success=True,

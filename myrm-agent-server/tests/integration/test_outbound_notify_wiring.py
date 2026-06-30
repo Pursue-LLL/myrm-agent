@@ -183,3 +183,57 @@ async def test_gateway_not_initialized_surfaces_error() -> None:
 def test_empty_notify_targets_skips_sender_factory() -> None:
     """Factory guard: create_notification_sender returns None when no targets."""
     assert create_notification_sender(()) is None
+
+
+@pytest.mark.asyncio
+async def test_attachment_delivered_through_real_channel_gateway() -> None:
+    """channel_notify_tool with attachments → media flows through ChannelGateway to channel."""
+    import tempfile
+
+    channel = RecordingChannel()
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+        f.write(b"fake pdf")
+        tmp_file = f.name
+
+    try:
+        async with wired_gateway(channel):
+            tool, _ = _make_tool(channel=channel)
+            result = await tool.ainvoke({
+                "channel": "telegram",
+                "target": "",
+                "body": "Report ready",
+                "attachments": [tmp_file],
+            })
+            assert "success" in result.lower()
+            assert "1 attachment" in result.lower()
+            assert len(channel.sent) == 1
+            msg = channel.sent[0]
+            assert msg.content == "Report ready"
+            assert len(msg.media) == 1
+            assert msg.media[0].path == tmp_file
+            assert msg.media[0].media_type.value == "document"
+    finally:
+        import os
+
+        os.unlink(tmp_file)
+
+
+@pytest.mark.asyncio
+async def test_url_attachment_delivered_through_gateway() -> None:
+    """URL attachment flows through to OutboundMessage.media."""
+    channel = RecordingChannel()
+    async with wired_gateway(channel):
+        tool, _ = _make_tool(channel=channel)
+        result = await tool.ainvoke({
+            "channel": "",
+            "target": "",
+            "body": "See image",
+            "attachments": ["https://example.com/chart.png"],
+        })
+        assert "success" in result.lower()
+        assert len(channel.sent) == 1
+        msg = channel.sent[0]
+        assert len(msg.media) == 1
+        assert msg.media[0].url == "https://example.com/chart.png"
+        assert msg.media[0].media_type.value == "image"

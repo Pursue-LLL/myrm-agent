@@ -4,6 +4,7 @@
 - .protocols::NotificationSender (POS: outbound notification sender protocol)
 - .target_resolver::resolve_notify_target (POS: whitelist target resolution)
 - .types::NotifySessionState, NotifyToolConfig (POS: outbound notification data types)
+- app.channels.types.messages::MediaAttachment, MediaType, guess_media_type (POS: media types)
 
 [OUTPUT]
 - create_channel_notify_tool: Factory for channel_notify_tool BaseTool.
@@ -14,6 +15,7 @@ Optional LangChain surface for agent-initiated outbound channel notifications.
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 from langchain_core.tools import BaseTool
@@ -24,6 +26,8 @@ from .target_resolver import resolve_notify_target
 from .types import NotifySessionState, NotifyToolConfig
 
 if TYPE_CHECKING:
+    from app.channels.types.messages import MediaAttachment
+
     from .protocols import NotificationSender
 
 
@@ -43,6 +47,52 @@ class _NotifyInput(BaseModel):
         default="",
     )
     body: str = Field(description="The notification message content to send.")
+    attachments: list[str] = Field(
+        description=(
+            "Optional file attachments to include with the notification. "
+            "Each entry is a local file path (e.g. '/myrm/sandbox/report.pdf') "
+            "or a URL (e.g. 'https://example.com/image.png'). "
+            "Supported types: images, documents, audio, video."
+        ),
+        default_factory=list,
+    )
+
+
+def _resolve_attachments(raw_paths: list[str]) -> tuple[tuple[MediaAttachment, ...], list[str]]:
+    """Convert raw path/URL strings to MediaAttachment objects.
+
+    Returns (resolved_attachments, errors).
+    """
+    from app.channels.types.messages import MediaAttachment as MA
+    from app.channels.types.messages import guess_media_type
+
+    attachments: list[MA] = []
+    errors: list[str] = []
+
+    for entry in raw_paths:
+        entry = entry.strip()
+        if not entry:
+            continue
+
+        is_url = entry.startswith(("http://", "https://"))
+
+        if not is_url and not os.path.isfile(entry):
+            errors.append(f"File not found: {entry}")
+            continue
+
+        filename = os.path.basename(entry) if not is_url else entry.rsplit("/", 1)[-1]
+        media_type = guess_media_type(filename)
+
+        attachments.append(
+            MA(
+                media_type=media_type,
+                url=entry if is_url else None,
+                path=entry if not is_url else None,
+                filename=filename,
+            )
+        )
+
+    return tuple(attachments), errors
 
 
 def create_channel_notify_tool(
@@ -57,6 +107,7 @@ def create_channel_notify_tool(
         channel: str = "",
         target: str = "",
         body: str = "",
+        attachments: list[str] | None = None,
     ) -> str:
         """Send a notification message to a configured external channel.
 
@@ -64,12 +115,13 @@ def create_channel_notify_tool(
         - The user asks to be notified on another platform (e.g. "notify me on Telegram when done")
         - You need to send an alert or result to a specific channel
         - Cross-channel delivery is requested (e.g. "send this summary to Slack")
+        - You need to send a file/image/document to an external channel
 
         The tool only works for channels that the user has explicitly configured
         in their agent's notification settings.
         """
-        if not body.strip():
-            return "Error: notification body cannot be empty."
+        if not body.strip() and not attachments:
+            return "Error: notification body and attachments cannot both be empty."
 
         if not config.allowed_targets:
             return (
@@ -97,14 +149,21 @@ def create_channel_notify_tool(
             )
             return f"Error: target not found or not allowed. Available targets: [{available}]"
 
-        result = await sender.send(resolved_target, body_truncated)
+        media: tuple[MediaAttachment, ...] = ()
+        if attachments:
+            media, resolve_errors = _resolve_attachments(attachments)
+            if resolve_errors:
+                return "Error resolving attachments: " + "; ".join(resolve_errors)
+
+        result = await sender.send(resolved_target, body_truncated, media=media)
 
         session_state.send_count += 1
         session_state.targets_used.append(f"{resolved_target.channel}:{resolved_target.recipient_id}")
 
         if result.success:
             label = resolved_target.label or resolved_target.recipient_id
-            return f"Notification sent successfully to {resolved_target.channel} ({label})."
+            media_note = f" with {len(media)} attachment(s)" if media else ""
+            return f"Notification sent successfully to {resolved_target.channel} ({label}){media_note}."
         return f"Error: failed to send notification — {result.error}"
 
     return channel_notify_tool
