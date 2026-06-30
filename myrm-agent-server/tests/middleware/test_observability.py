@@ -44,6 +44,13 @@ class TestExtractSessionId:
     def test_empty_path(self) -> None:
         assert _extract_session_id("/") == "-"
 
+    def test_trailing_slash_only(self) -> None:
+        assert _extract_session_id("/api/sessions/") == ""
+
+    def test_uuid_session_id(self) -> None:
+        sid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        assert _extract_session_id(f"/api/sessions/{sid}/messages") == sid
+
 
 @pytest.mark.asyncio
 class TestTracingMiddleware:
@@ -101,6 +108,22 @@ class TestTracingMiddleware:
 
         assert TracingContext.get_trace_id() == "-"
         assert TracingContext.get_session_id() == "-"
+
+    async def test_post_request_has_trace_header(self) -> None:
+        async def handle_post(request: Request) -> JSONResponse:
+            return JSONResponse({"ok": True}, status_code=201)
+
+        app = Starlette(routes=[Route("/api/data", handle_post, methods=["POST"])])
+        app.add_middleware(TracingMiddleware)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            resp = await client.post("/api/data", json={"x": 1})
+
+        assert resp.status_code == 201
+        assert "x-trace-id" in resp.headers
+        assert len(resp.headers["x-trace-id"]) == 32
 
     async def test_exception_still_resets_context(self) -> None:
         async def raise_error(_request: Request) -> JSONResponse:
