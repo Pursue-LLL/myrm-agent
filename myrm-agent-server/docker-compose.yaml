@@ -50,6 +50,7 @@ services:
         required: false
     volumes:
       - backend-data:/home/myrm/.myrm-agent
+      - ${MYRM_WORKSPACE:-./workspace}:/home/myrm/workspace
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:25808/health"]
       interval: 30s

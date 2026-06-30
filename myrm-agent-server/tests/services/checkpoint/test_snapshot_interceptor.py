@@ -83,8 +83,9 @@ async def test_per_turn_dedup_skips_second_call(interceptor: SnapshotInterceptor
 
     with patch.object(interceptor, "_emit_snapshot_event", new_callable=AsyncMock):
         cache_key = ("/tmp/ws", "turn-1")
-        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", cache_key)
-        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", cache_key)
+        meta: dict[str, object] = {"agent_id": "a"}
+        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", cache_key, meta)
+        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", cache_key, meta)
 
     assert mock_store.take_snapshot.await_count == 1
 
@@ -96,9 +97,10 @@ async def test_different_turns_both_snapshot(interceptor: SnapshotInterceptor):
     mock_store.take_snapshot = AsyncMock(return_value="abc123")
     interceptor._store = mock_store
 
+    meta: dict[str, object] = {"agent_id": "a"}
     with patch.object(interceptor, "_emit_snapshot_event", new_callable=AsyncMock):
-        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", ("/tmp/ws", "turn-1"))
-        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-2", ("/tmp/ws", "turn-2"))
+        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", ("/tmp/ws", "turn-1"), meta)
+        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-2", ("/tmp/ws", "turn-2"), meta)
 
     assert mock_store.take_snapshot.await_count == 2
 
@@ -132,7 +134,7 @@ async def test_emit_snapshot_event_uses_event_bus(interceptor: SnapshotIntercept
     mock_module.AppEventType.SYSTEM_NOTIFICATION = "system_notification"
 
     with patch.dict("sys.modules", {"app.services.event.app_event_bus": mock_module}):
-        await interceptor._emit_snapshot_event("chat-123", "bash")
+        await interceptor._emit_snapshot_event("chat-123", "bash", "agent-1")
 
     mock_bus.publish.assert_called_once()
     mock_module.AppEvent.assert_called_once()
@@ -155,8 +157,9 @@ async def test_snapshot_error_caught_gracefully(interceptor: SnapshotInterceptor
     mock_store.take_snapshot = AsyncMock(side_effect=RuntimeError("git failed"))
     interceptor._store = mock_store
 
+    meta: dict[str, object] = {"agent_id": "a"}
     with patch.object(interceptor, "_emit_snapshot_event", new_callable=AsyncMock):
-        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", ("/tmp/ws", "turn-1"))
+        await interceptor._safe_snapshot_with_lock("/tmp/ws", "bash", "c", "a", "turn-1", ("/tmp/ws", "turn-1"), meta)
 
     assert not interceptor._snapshotted_turns.get(("/tmp/ws", "turn-1"))
 
@@ -188,9 +191,10 @@ async def test_trigger_mapping(interceptor: SnapshotInterceptor):
         interceptor._snapshotted_turns.clear()
         mock_store.take_snapshot.reset_mock()
 
+        meta: dict[str, object] = {"agent_id": "a"}
         with patch.object(interceptor, "_emit_snapshot_event", new_callable=AsyncMock):
             await interceptor._safe_snapshot_with_lock(
-                "/tmp/ws", action_type, "c", "a", f"turn-{action_type}", ("/tmp/ws", f"turn-{action_type}")
+                "/tmp/ws", action_type, "c", "a", f"turn-{action_type}", ("/tmp/ws", f"turn-{action_type}"), meta
             )
 
         call_kwargs = mock_store.take_snapshot.call_args.kwargs
@@ -278,7 +282,7 @@ async def test_emit_snapshot_event_catches_exceptions(interceptor: SnapshotInter
     mock_module.get_event_bus.side_effect = RuntimeError("bus broken")
 
     with patch.dict("sys.modules", {"app.services.event.app_event_bus": mock_module}):
-        await interceptor._emit_snapshot_event("chat-1", "bash")
+        await interceptor._emit_snapshot_event("chat-1", "bash", "agent-1")
 
 
 # ---------------------------------------------------------------------------
@@ -301,10 +305,11 @@ async def test_concurrent_snapshots_different_workspaces(interceptor: SnapshotIn
     mock_store.take_snapshot = _mock_take_snapshot
     interceptor._store = mock_store
 
+    meta: dict[str, object] = {"agent_id": "a"}
     with patch.object(interceptor, "_emit_snapshot_event", new_callable=AsyncMock):
         await asyncio.gather(
-            interceptor._safe_snapshot_with_lock("/ws/a", "bash", "c", "a", "t1", ("/ws/a", "t1")),
-            interceptor._safe_snapshot_with_lock("/ws/b", "bash", "c", "a", "t1", ("/ws/b", "t1")),
+            interceptor._safe_snapshot_with_lock("/ws/a", "bash", "c", "a", "t1", ("/ws/a", "t1"), meta),
+            interceptor._safe_snapshot_with_lock("/ws/b", "bash", "c", "a", "t1", ("/ws/b", "t1"), meta),
         )
 
     assert len(call_order) == 4
