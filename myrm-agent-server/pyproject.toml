@@ -136,10 +136,12 @@ ignore = ["B008", "E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-m 'not e2e' --timeout=300"
+addopts = "-m 'not e2e and not performance' --timeout=300"
 markers = [
   "docker: Docker 沙箱测试（内存占用高，默认排除可加 -m 'not docker'）",
   "e2e: End-to-end tests against running app (may require network or API keys)",
+  "performance: Performance and benchmark tests (excluded from default suite)",
+  "benchmark: pytest-benchmark tests (auto-remapped to performance in conftest)",
   "allow_blocking_io: Opt out of the blockbuster blocking-IO gate for this test",
 ]
 python_files = "test_*.py"

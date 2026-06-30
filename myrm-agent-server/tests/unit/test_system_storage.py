@@ -1,12 +1,10 @@
 """Unit tests for GET /api/v1/system/storage endpoint."""
 
-import shutil
+import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from app.api.system.router import StorageInfoResponse, SubdirUsage, _dir_size_bytes, get_storage_info
+from app.api.system.router import StorageInfoResponse, _dir_size_bytes, get_storage_info
 
 
 class TestDirSizeBytes:
@@ -39,30 +37,28 @@ class TestDirSizeBytes:
 class TestGetStorageInfo:
     """Tests for get_storage_info route handler."""
 
-    @pytest.fixture
-    def mock_data_dir(self, tmp_path: Path) -> Path:
-        (tmp_path / "qdrant").mkdir()
-        (tmp_path / "qdrant" / "vectors.bin").write_bytes(b"v" * 200)
-        (tmp_path / "harness").mkdir()
-        (tmp_path / "data.db").write_bytes(b"d" * 500)
-        return tmp_path
-
-    def test_returns_storage_info(self, mock_data_dir: Path) -> None:
+    def test_returns_storage_info(self, tmp_path: Path) -> None:
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "data.db").write_bytes(b"d" * 500)
         mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(mock_data_dir)
+        mock_settings.database.state_dir = str(data_dir)
 
         with patch("app.api.system.router.get_settings", return_value=mock_settings):
             result = get_storage_info()
 
         assert isinstance(result, StorageInfoResponse)
-        assert result.data_dir == str(mock_data_dir)
+        assert result.data_dir == str(data_dir)
         assert result.disk_total_bytes > 0
         assert result.disk_free_bytes > 0
         assert result.disk_used_bytes > 0
 
-    def test_includes_data_db(self, mock_data_dir: Path) -> None:
+    def test_includes_data_db(self, tmp_path: Path) -> None:
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "data.db").write_bytes(b"d" * 500)
         mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(mock_data_dir)
+        mock_settings.database.state_dir = str(data_dir)
 
         with patch("app.api.system.router.get_settings", return_value=mock_settings):
             result = get_storage_info()
@@ -71,9 +67,14 @@ class TestGetStorageInfo:
         assert len(db_entries) == 1
         assert db_entries[0].bytes == 500
 
-    def test_includes_existing_subdirs(self, mock_data_dir: Path) -> None:
+    def test_includes_existing_subdirs(self, tmp_path: Path) -> None:
+        data_dir = tmp_path / "data"
+        (data_dir / "qdrant").mkdir(parents=True)
+        (data_dir / "qdrant" / "vectors.bin").write_bytes(b"v" * 200)
+        (data_dir / "harness").mkdir(parents=True)
+        (data_dir / "data.db").write_bytes(b"d" * 500)
         mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(mock_data_dir)
+        mock_settings.database.state_dir = str(data_dir)
 
         with patch("app.api.system.router.get_settings", return_value=mock_settings):
             result = get_storage_info()
@@ -82,9 +83,11 @@ class TestGetStorageInfo:
         assert "qdrant" in names
         assert "harness" in names
 
-    def test_excludes_nonexistent_subdirs(self, mock_data_dir: Path) -> None:
+    def test_excludes_nonexistent_subdirs(self, tmp_path: Path) -> None:
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
         mock_settings = MagicMock()
-        mock_settings.database.state_dir = str(mock_data_dir)
+        mock_settings.database.state_dir = str(data_dir)
 
         with patch("app.api.system.router.get_settings", return_value=mock_settings):
             result = get_storage_info()
@@ -106,5 +109,4 @@ class TestGetStorageInfo:
 
     def test_is_sync_function(self) -> None:
         """Verify get_storage_info is a regular (sync) function, not async."""
-        import asyncio
         assert not asyncio.iscoroutinefunction(get_storage_info)

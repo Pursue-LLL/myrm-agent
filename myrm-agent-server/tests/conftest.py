@@ -6,8 +6,9 @@ import logging
 import os
 import shutil
 import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import AsyncIterator, Awaitable, Iterator
+from typing import TypeVar
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,11 @@ from tests.support.test_secrets import apply_test_secrets_to_environ, load_test_
 
 _SERVER_ROOT = Path(__file__).resolve().parent.parent
 _logger = logging.getLogger(__name__)
+_T = TypeVar("_T")
+_TESTS_ROOT = Path(__file__).resolve().parent
+_INTEGRATION_TEST_ROOT = _TESTS_ROOT / "integration"
+_E2E_TEST_ROOT = _TESTS_ROOT / "e2e"
+_LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 
 
 def _prepend_monorepo_pythonpath() -> None:
@@ -72,8 +78,57 @@ def _cleanup_browser_child_processes() -> None:
 atexit.register(_cleanup_browser_child_processes)
 
 
+def _run_async_teardown(coro: Awaitable[_T]) -> _T:
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+
+async def _shutdown_test_session_resources_async() -> None:
+    from app.core.memory.adapters.setup import shutdown_cached_memory_managers
+    from app.platform_utils import reset_database_engine
+
+    await shutdown_cached_memory_managers()
+    await reset_database_engine()
+
+
+def _shutdown_test_session_resources() -> None:
+    """Release session-scoped DB engine and cached memory managers."""
+    try:
+        _run_async_teardown(_shutdown_test_session_resources_async())
+    except Exception as exc:
+        _logger.warning("Failed to shutdown test session resources: %s", exc)
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     _cleanup_browser_child_processes()
+    _shutdown_test_session_resources()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Align benchmark markers with the default memory-safe suite filter."""
+    for item in items:
+        if item.get_closest_marker("benchmark") is not None and item.get_closest_marker("performance") is None:
+            item.add_marker(pytest.mark.performance)
+
+
+def _needs_browser_singleton_reset(request: pytest.FixtureRequest) -> bool:
+    """Return whether a test may touch the GlobalBrowserPool singleton."""
+    item_path = Path(request.fspath).resolve()
+    if item_path.is_relative_to(_INTEGRATION_TEST_ROOT):
+        return True
+    if item_path.is_relative_to(_E2E_TEST_ROOT):
+        return True
+    if item_path.is_relative_to(_LIFECYCLE_TEST_ROOT):
+        return True
+    if request.node.get_closest_marker("integration") is not None:
+        return True
+    return request.node.get_closest_marker("e2e") is not None
 
 
 @pytest.fixture(scope="session")
@@ -86,8 +141,6 @@ def test_secrets():
 @pytest.fixture(scope="session", autouse=True)
 def init_test_database():
     """Initialize database schema for isolated test DBs."""
-    if os.environ.get("PYTEST_CURRENT_TEST", "").find("e2e") != -1:
-        return
     from app.database.connection import init_database
 
     try:
@@ -132,17 +185,22 @@ def blocking_io_gate() -> Iterator[BlockBuster]:
 
 
 @pytest.fixture(autouse=True)
-async def _reset_global_browser_pool_after_test() -> None:
-    """Shut down harness GlobalBrowserPool between tests.
+async def _reset_global_browser_pool_after_test(request: pytest.FixtureRequest) -> AsyncIterator[None]:
+    """Shut down harness GlobalBrowserPool after browser-related tests.
 
     TestClient bypasses app lifespan, so Chromium instances otherwise accumulate
-    for the lifetime of each xdist worker process.
+    for the lifetime of each xdist worker process. Scoped to integration/e2e
+    paths to avoid async fixture overhead on the full default suite.
     """
     yield
+    if not _needs_browser_singleton_reset(request):
+        return
+
     try:
         from myrm_agent_harness.toolkits.browser.pool import reset_global_browser_pool_for_tests
 
-        await reset_global_browser_pool_for_tests()
+        with suppress(Exception):
+            await reset_global_browser_pool_for_tests()
     except Exception as exc:
         _logger.warning("Failed to reset GlobalBrowserPool after test: %s", exc)
 

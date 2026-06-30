@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Default server pytest suite (unit + API integration; excludes @pytest.mark.e2e).
+# Default server pytest suite (unit + API integration; excludes @pytest.mark.e2e and performance/benchmark).
 # Requires local harness (vortexai layout) or PyPI-published harness for the pinned version.
 set -euo pipefail
 
@@ -10,7 +10,7 @@ cd "${SERVER_ROOT}"
 source "${SERVER_ROOT}/scripts/ci/lib_harness_deps.sh"
 
 _run_pytest() {
-  # pyproject addopts already applies: -m 'not e2e' --timeout=300
+  # pyproject addopts already applies: -m 'not e2e and not performance' --timeout=300
   local pytest_args=(-n0 --tb=short -q)
   if [[ -x "${SERVER_ROOT}/.venv/bin/python" ]]; then
     "${SERVER_ROOT}/.venv/bin/python" -m pytest "${pytest_args[@]}"

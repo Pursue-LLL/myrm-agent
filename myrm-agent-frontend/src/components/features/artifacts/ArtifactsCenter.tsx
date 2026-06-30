@@ -152,7 +152,7 @@ export const ArtifactsCenter: React.FC = () => {
                       </span>
                       <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</span>
                     </div>
-                    <p className="text-sm mb-3">{v.commit_message || 'Auto-saved version'}</p>
+                    <p className="text-sm mb-3">{v.commit_message || t('auto_saved_version', { defaultMessage: '自动保存的版本' })}</p>
 
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-2">

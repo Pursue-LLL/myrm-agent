@@ -18,6 +18,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_oss_scripts_arch.py` | `scripts/` 子树（ci/dev/lib）必须有 `_ARCH.md` |
 | `test_sync_arch_guard.py` | `sync_arch_file_tables.py` 不得覆盖已人工维护的 `_ARCH.md`（混合 stub/✅ 或多余章节） |
 | `test_no_app_main_in_tests.py` | `tests/**` 禁止 AST 级 `import app.main`（须用 `build_minimal_app`） |
+| `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
 | `test_integrations_hardware_routes.py` | `/api/v1/integrations/hardware/*` 路由已注册（防 prefix 回归） |
 | `test_api_services_vocabulary.py` | `app/api/` 与 `app/services/` 顶域分区 + 别名表与 `CONTRIBUTING.md` 同步 |
 | `test_calendar_schema_retired.py` | 磁盘无 calendar ORM/API；`migrations.py` 尾部 DROP calendar_events 表/索引 |

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local pytest entrypoint tuned for low memory (~300MB single worker vs N×350MB with xdist).
-# Matches CI: scripts/ci/run_default_tests.sh uses -n0; pyproject addopts already apply -m 'not e2e'.
+# Matches CI: scripts/ci/run_default_tests.sh uses -n0; pyproject addopts apply -m 'not e2e and not performance'.
 set -euo pipefail
 
 SERVER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

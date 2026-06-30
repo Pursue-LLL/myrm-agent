@@ -8,7 +8,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 | 路径 | 地位 | 职责 |
 |------|------|------|
-| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、每测后 `reset_global_browser_pool_for_tests()` |
+| `conftest.py` | 核心 | 进程级 `.env` + [T] secrets bootstrap、隔离 workspace、`test_secrets` session fixture、integration/e2e 路径每测后 `reset_global_browser_pool_for_tests()`、session 结束 `reset_database_engine()` + `shutdown_cached_memory_managers()`、浏览器进程树 cleanup（`myrm_agent_harness.testing.browser_process_cleanup`） |
 | `support/test_secrets.py` | 核心 | [T] `.env.test` 结构化加载（`TestSecrets`、`load_test_secrets`、`resolve_test_env`） |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
@@ -37,14 +37,14 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 ## 测试分层（默认 `pytest`）
 
-- 默认 `addopts`：`-m 'not e2e'`（跳过需真实 LLM / 长链路 e2e）
+- 默认 `addopts`：`-m 'not e2e and not performance'`（跳过 e2e 与 benchmark/performance）
 - **低内存推荐（本地 / CI 同款）**：`scripts/dev/run_tests_low_memory.sh` 或 `uv run pytest -n0`
 - 单元 + API 集成：`uv run pytest -n0`（单 worker；实测 `build_minimal_app(chats)` ~118MB，`app.main` ~439MB）
 - E2E（真实 LLM API）：`uv run pytest -m e2e`（含 `tests/api/agent/test_auto_capture_hooks_e2e.py`、`test_bash_terminal_streaming_e2e.py`）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
 - Playwright UI 测试在 `myrm-agent-frontend/tests/e2e/`（`bun run test:e2e`；CI：`scripts/ci/run_frontend_e2e.sh`；Instinct Inbox 依赖 `POST /api/v1/skills/drafts/test/seed-mock?agent_id=`，**不** mock `/approvals`）
-- CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e' -n0`，workflow `server-unit-tests.yml`）
+- CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e and not performance' -n0`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft
 - `tests/api/skills/conftest.py`：minimal app 含 drafts/curator/sync/evolution/skill-growth 路由
@@ -56,5 +56,6 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 
 - `tests/conftest.py` → `tests/support/test_secrets.py`（**唯一** [T] 加载入口）
 - 新 API/集成测优先 `from tests.support.minimal_app import build_minimal_app` + `preset_for_test_path()`，禁止 `from app.main import app`
-- `tests/conftest.py` autouse → harness `reset_global_browser_pool_for_tests()`（防 Chromium 跨测累积）
+- `tests/conftest.py` → integration/e2e/lifecycle 路径 autouse `reset_global_browser_pool_for_tests()`（防 Chromium 跨测累积）；sessionfinish 释放 DB engine 与 `_memory_manager_cache`
+- `tests/unit/test_system_storage.py`：系统存储 API 单元测（**禁止**在 `tests/unit/` 下创建 `api/` 子包，会与 `tests/api/` 在 `import_mode=importlib` 下冲突）
 - `app/startup/env_loader.py` **不**读取 `.env.test`
