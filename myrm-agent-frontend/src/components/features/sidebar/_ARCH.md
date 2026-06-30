@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `BatchOperationBar.tsx` | 组件/模块 | — | — |
+| `BatchOperationBar.tsx` | 组件 | 批量操作栏：会话批量选择、移动（含 loading/toast/错误处理）、删除入口 | — |
 | `ChatHistoryList.tsx` | 组件/模块 | — | — |
 | `ChatHistoryRow.tsx` | 组件/模块 | — | — |
 | `HandoffDialog.tsx` | 组件/模块 | — | — |
