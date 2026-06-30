@@ -303,3 +303,57 @@ class TestStripThinkingTags:
         full = "".join(result)
         assert "</think>" not in full
         assert "done" in full
+
+
+class TestCostFooter:
+    """Tests for cost metadata footer rendering."""
+
+    def test_no_metadata_no_footer(self) -> None:
+        result = render(_msg(), _style())
+        assert "~$" not in result[0]
+
+    def test_cost_footer_with_full_metadata(self) -> None:
+        msg = _msg(metadata={
+            "cost_metadata": {
+                "cost_usd": 0.0035,
+                "model_name": "claude-sonnet-4-20250514",
+                "total_tokens": 2500,
+            },
+        })
+        result = render(msg, _style(use_emoji=True))
+        full = "".join(result)
+        assert "💰" in full
+        assert "claude-sonnet-4-20250514" in full
+        assert "2.5k tokens" in full
+        assert "~$0.0035" in full
+
+    def test_cost_footer_no_emoji(self) -> None:
+        msg = _msg(metadata={
+            "cost_metadata": {"cost_usd": 0.001, "model_name": "gpt-4o", "total_tokens": 500},
+        })
+        result = render(msg, _style(use_emoji=False))
+        full = "".join(result)
+        assert "💰" not in full
+        assert "gpt-4o" in full
+        assert "~$0.0010" in full
+
+    def test_cost_footer_zero_cost_no_render(self) -> None:
+        msg = _msg(metadata={"cost_metadata": {"cost_usd": 0, "model_name": "x", "total_tokens": 100}})
+        result = render(msg, _style())
+        full = "".join(result)
+        assert "~$" not in full
+
+    def test_cost_footer_missing_model_and_tokens(self) -> None:
+        msg = _msg(metadata={"cost_metadata": {"cost_usd": 0.02}})
+        result = render(msg, _style(use_emoji=False))
+        full = "".join(result)
+        assert "~$0.0200" in full
+        assert "tokens" not in full
+
+    def test_cost_footer_small_token_count(self) -> None:
+        msg = _msg(metadata={
+            "cost_metadata": {"cost_usd": 0.0001, "model_name": "m", "total_tokens": 50},
+        })
+        result = render(msg, _style(use_emoji=False))
+        full = "".join(result)
+        assert "50 tokens" in full

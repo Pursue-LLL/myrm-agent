@@ -8,6 +8,7 @@ export const PRESET_DEPENDENCIES: Record<string, string> = {
   'lucide-react': 'latest',
   clsx: 'latest',
   'class-variance-authority': 'latest',
+  'tailwind-merge': 'latest',
   // 图表
   recharts: '^2.12.0',
   // 动画
@@ -24,14 +25,33 @@ export const PRESET_DEPENDENCIES: Record<string, string> = {
 
 /** 可选依赖（根据代码自动检测） */
 export const OPTIONAL_DEPENDENCIES: Record<string, string> = {
-  // Radix UI 组件
+  // Radix UI 组件（覆盖 Shadcn UI 全套原语）
+  '@radix-ui/react-accordion': 'latest',
+  '@radix-ui/react-alert-dialog': 'latest',
+  '@radix-ui/react-avatar': 'latest',
+  '@radix-ui/react-checkbox': 'latest',
+  '@radix-ui/react-collapsible': 'latest',
+  '@radix-ui/react-context-menu': 'latest',
   '@radix-ui/react-dialog': 'latest',
   '@radix-ui/react-dropdown-menu': 'latest',
+  '@radix-ui/react-hover-card': 'latest',
+  '@radix-ui/react-label': 'latest',
+  '@radix-ui/react-menubar': 'latest',
+  '@radix-ui/react-navigation-menu': 'latest',
   '@radix-ui/react-popover': 'latest',
+  '@radix-ui/react-progress': 'latest',
+  '@radix-ui/react-radio-group': 'latest',
+  '@radix-ui/react-scroll-area': 'latest',
   '@radix-ui/react-select': 'latest',
-  '@radix-ui/react-tabs': 'latest',
-  '@radix-ui/react-tooltip': 'latest',
+  '@radix-ui/react-separator': 'latest',
+  '@radix-ui/react-slider': 'latest',
   '@radix-ui/react-slot': 'latest',
+  '@radix-ui/react-switch': 'latest',
+  '@radix-ui/react-tabs': 'latest',
+  '@radix-ui/react-toast': 'latest',
+  '@radix-ui/react-toggle': 'latest',
+  '@radix-ui/react-toggle-group': 'latest',
+  '@radix-ui/react-tooltip': 'latest',
   // 其他常用库
   axios: 'latest',
   uuid: 'latest',
@@ -72,6 +92,12 @@ export const TAILWIND_CSS = `
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(155, 155, 155, 0.7);
 }
+`;
+
+/** cn() 工具函数（Shadcn UI 标准模式：clsx + tailwind-merge） */
+export const CN_UTILS_CODE = `import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+export function cn(...inputs) { return twMerge(clsx(inputs)); }
 `;
 
 /** Tailwind 配置 */

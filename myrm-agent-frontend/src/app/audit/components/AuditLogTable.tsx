@@ -192,7 +192,7 @@ const AuditLogTable = () => {
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="rounded-full border">
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -264,7 +264,7 @@ const AuditLogTable = () => {
                     <Badge variant="outline">{selectedLog.command_type}</Badge>
                     <Badge variant={getRiskBadgeVariant(selectedLog.risk_level)}>{selectedLog.risk_level}</Badge>
                   </div>
-                  <pre className="bg-muted p-3 rounded-full font-mono text-sm overflow-x-auto">
+                  <pre className="bg-muted p-3 rounded-md font-mono text-sm overflow-x-auto">
                     {selectedLog.command}
                   </pre>
                 </div>
@@ -288,7 +288,7 @@ const AuditLogTable = () => {
                 {selectedLog.stdout && (
                   <div>
                     <span className="text-sm font-semibold">Standard Output:</span>
-                    <pre className="mt-2 bg-muted p-3 rounded-full font-mono text-xs overflow-x-auto max-h-60">
+                    <pre className="mt-2 bg-muted p-3 rounded-md font-mono text-xs overflow-x-auto max-h-60">
                       {selectedLog.stdout}
                     </pre>
                   </div>
@@ -297,7 +297,7 @@ const AuditLogTable = () => {
                 {selectedLog.stderr && (
                   <div>
                     <span className="text-sm font-semibold text-destructive">Standard Error:</span>
-                    <pre className="mt-2 bg-destructive/10 p-3 rounded-full font-mono text-xs overflow-x-auto max-h-60">
+                    <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto max-h-60">
                       {selectedLog.stderr}
                     </pre>
                   </div>
@@ -306,7 +306,7 @@ const AuditLogTable = () => {
                 {selectedLog.error_message && (
                   <div>
                     <span className="text-sm font-semibold text-destructive">Error Message:</span>
-                    <pre className="mt-2 bg-destructive/10 p-3 rounded-full font-mono text-xs overflow-x-auto">
+                    <pre className="mt-2 bg-destructive/10 p-3 rounded-md font-mono text-xs overflow-x-auto">
                       {selectedLog.error_message}
                     </pre>
                   </div>

@@ -747,16 +747,28 @@ class ChannelAgentExecutor:
                     error_type = str(event.get("error_type", ""))
                     acc.error_message = f"{error_type}: {error_msg}" if error_type else error_msg
 
-                elif event_type == "token_economics":
-                    cost = event.get("cost_usd")
-                    if isinstance(cost, (int, float)):
-                        acc.cost_usd += float(cost)
-                    model = event.get("model_name")
-                    if isinstance(model, str) and model:
-                        acc.model_name = model
-                    tokens = event.get("total_tokens")
-                    if isinstance(tokens, int) and tokens > acc.total_tokens:
-                        acc.total_tokens = tokens
+                elif event_type == "token_usage":
+                    data = event.get("data")
+                    if isinstance(data, dict):
+                        cost = data.get("cost_usd")
+                        if isinstance(cost, (int, float)):
+                            acc.cost_usd += float(cost)
+                        model = data.get("model_name")
+                        if isinstance(model, str) and model:
+                            acc.model_name = model
+                        usage = data.get("usage")
+                        if isinstance(usage, dict):
+                            total = usage.get("total_tokens")
+                            if isinstance(total, int) and total > 0:
+                                acc.total_tokens += total
+
+                elif event_type == "message_end":
+                    end_cost = event.get("cost_usd")
+                    if isinstance(end_cost, (int, float)) and end_cost > 0 and acc.cost_usd == 0:
+                        acc.cost_usd = float(end_cost)
+                    end_model = event.get("model")
+                    if isinstance(end_model, str) and end_model and not acc.model_name:
+                        acc.model_name = end_model
 
             content = strip_internal_markers("".join(acc.chunks))
 

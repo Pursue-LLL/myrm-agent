@@ -24,7 +24,7 @@ import {
 } from '@codesandbox/sandpack-react';
 import { nightOwl, githubLight } from '@codesandbox/sandpack-themes';
 import { Code } from 'lucide-react';
-import { TAILWIND_CSS, TAILWIND_CONFIG } from './constants/reactPreviewConstants';
+import { TAILWIND_CSS, TAILWIND_CONFIG, CN_UTILS_CODE } from './constants/reactPreviewConstants';
 import { SandpackErrorBoundary } from './components/SandpackErrorBoundary';
 import { useReactPreview } from '@/hooks/useReactPreview';
 
@@ -67,6 +67,10 @@ const ReactPreview = memo<ReactPreviewProps>(({ code, filename, isDarkMode = fal
           '/styles.css': TAILWIND_CSS,
           '/tailwind.config.js': {
             code: TAILWIND_CONFIG,
+            hidden: true,
+          },
+          '/lib/utils.js': {
+            code: CN_UTILS_CODE,
             hidden: true,
           },
         }}
