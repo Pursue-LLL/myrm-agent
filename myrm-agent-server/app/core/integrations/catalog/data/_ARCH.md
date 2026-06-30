@@ -9,7 +9,7 @@ Integration Catalog 的静态预配置数据。按服务分类组织，每个 JS
 | 文件 | 分类 | 条目数 | 内容 |
 |------|------|--------|------|
 | `productivity.json` | productivity | 4 | Notion, Todoist, Google Calendar, Linear |
-| `development.json` | development | 5 | GitHub, GitLab, Sentry, Code Review Graph, CodeGraph |
+| `development.json` | development | 7 | GitHub, GitLab, Sentry, Code Review Graph, CodeGraph, Gitee, Gitee Enterprise |
 | `communication.json` | communication | 4 | Gmail, Slack, 飞书, 钉钉 |
 | `data_storage.json` | data_storage | 4 | Google Drive, PostgreSQL, File System, Supabase |
 | `browser.json` | browser | 2 | Playwright, Browserbase |

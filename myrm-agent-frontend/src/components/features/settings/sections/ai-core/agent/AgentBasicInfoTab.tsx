@@ -20,6 +20,7 @@ import {
   Flame,
   Heart,
   MessageCircleHeartIcon,
+  Scroll,
   Shield,
   Smile,
   Sparkles,
@@ -46,6 +47,7 @@ const PERSONALITY_STYLES: Array<{ value: string; emoji: React.ReactNode; categor
   { value: 'hype', emoji: <Flame className="w-5 h-5" />, category: 'fun' },
   { value: 'uwu', emoji: <Heart className="w-5 h-5" />, category: 'fun' },
   { value: 'surfer', emoji: <Waves className="w-5 h-5" />, category: 'fun' },
+  { value: 'wenyan', emoji: <Scroll className="w-5 h-5" />, category: 'fun' },
 ];
 
 const MAX_SUGGESTION_PROMPTS = 8;

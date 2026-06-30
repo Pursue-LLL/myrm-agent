@@ -80,6 +80,12 @@ const FirecrawlIcon: ComponentType<IconProps> = (props) => (
   </svg>
 );
 
+const GiteeIcon: ComponentType<IconProps> = (props) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.93 7.42h-3.03c-.24 0-.44.2-.44.44v1.03c0 .24.2.44.44.44h1.92c.24 0 .44.2.44.44v.22a2.2 2.2 0 01-2.2 2.2H9.93a.44.44 0 01-.44-.44V9.62a2.2 2.2 0 012.2-2.2h5.24c.24 0 .44-.2.44-.44V5.95c0-.24-.2-.44-.44-.44h-5.24a4.4 4.4 0 00-4.4 4.4v5.24c0 .24.2.44.44.44h5.46a3.96 3.96 0 003.96-3.96V9.86c0-.24-.2-.44-.44-.44z" />
+  </svg>
+);
+
 const DefaultIcon: ComponentType<IconProps> = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
     <rect x="3" y="3" width="18" height="18" rx="4" />
@@ -91,6 +97,7 @@ export const SERVICE_ICONS: Record<string, ComponentType<IconProps>> = {
   notion: NotionIcon,
   github: GithubIcon,
   gitlab: GithubIcon,
+  gitee: GiteeIcon,
   gmail: GmailIcon,
   slack: SlackIcon,
   feishu: FeishuIcon,

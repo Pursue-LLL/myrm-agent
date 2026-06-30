@@ -149,3 +149,65 @@ class TestCatalogDetailEndpoint:
         assert mcp is not None
         assert "env" in mcp
         assert mcp["env"]["ACTIVE_PROFILES"] is not None
+
+    def test_gitee_entry(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/gitee")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "gitee"
+        assert data["name"] == "Gitee"
+        assert data["category"] == "development"
+        assert data["connectorType"] == "mcp"
+        assert data["authType"] == "api_key"
+        assert data["envKey"] == "GITEE_ACCESS_TOKEN"
+        mcp = data["mcpConfig"]
+        assert mcp is not None
+        assert mcp["type"] == "stdio"
+        assert any("@gitee/mcp-gitee" in arg for arg in mcp["args"])
+
+    def test_gitee_enterprise_entry(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog/gitee-enterprise")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["id"] == "gitee-enterprise"
+        assert data["name"] == "Gitee Enterprise"
+        assert data["category"] == "development"
+        assert data["connectorType"] == "mcp"
+        assert data["authType"] == "api_key"
+        fields = data["credentialFields"]
+        assert fields is not None
+        assert len(fields) == 2
+        keys = [f["key"] for f in fields]
+        assert "GITEE_ENT_MCP_ACCESS_TOKEN" in keys
+        assert "GITEE_ENT_API_BASE" in keys
+        injects = {f["key"]: f["inject"] for f in fields}
+        assert injects["GITEE_ENT_MCP_ACCESS_TOKEN"] == "env"
+        assert injects["GITEE_ENT_API_BASE"] == "env"
+        mcp = data["mcpConfig"]
+        assert mcp is not None
+        assert mcp["type"] == "stdio"
+        assert any("@gitee/mcp-gitee-ent" in arg for arg in mcp["args"])
+
+    def test_gitee_search_by_english_name(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=gitee")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total"] == 2
+        ids = {e["id"] for e in data["entries"]}
+        assert ids == {"gitee", "gitee-enterprise"}
+
+    def test_gitee_search_by_chinese_name(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?q=码云")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total"] >= 1
+        assert any(e["id"] == "gitee" for e in data["entries"])
+
+    def test_gitee_in_development_category(self, client: TestClient) -> None:
+        response = client.get("/api/v1/integrations/catalog?category=development")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        ids = {e["id"] for e in data["entries"]}
+        assert "gitee" in ids
+        assert "gitee-enterprise" in ids
+        assert data["total"] >= 7

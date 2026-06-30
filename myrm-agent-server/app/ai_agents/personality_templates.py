@@ -1,32 +1,24 @@
-"""Personality Templates - 预置聊天风格模板
+"""[INPUT]
+- app.database.dto::PersonalityStyleLiteral (POS: Pydantic 数据传输对象与类型定义)
 
-提供 16 种预置的人格风格（8 实用 + 8 趣味），可通过 `/personality` 命令或前端 UI 切换。
+[OUTPUT]
+- PersonalityStyle: 人格风格类型别名（从 dto.PersonalityStyleLiteral 导入）
+- PersonalityTemplate: 人格风格模板数据类
+- PERSONALITY_TEMPLATES: 全部预置风格模板字典
+- DEFAULT_PERSONALITY_STYLE: 默认风格常量
+- get_personality_template(): 按风格名获取模板
+- list_all_personalities(): 列出全部风格
+- is_valid_personality_style(): 检验风格名是否有效
+
+[POS]
+预置聊天风格模板定义。提供 17 种预置人格风格（8 实用 + 9 趣味），
+可通过 IM 渠道 `/personality` 命令或前端 UI 切换。
 风格仅影响 System Prompt 的追加内容，不改变 Agent 核心能力。
 """
 
 from dataclasses import dataclass
-from typing import Literal
 
-PersonalityStyle = Literal[
-    # ── 实用型 ──
-    "professional",  # 默认，专业助手
-    "friendly",  # 友好热情
-    "concise",  # 简洁直接
-    "detailed",  # 详细解释
-    "humorous",  # 幽默风趣
-    "academic",  # 学术严谨
-    "creative",  # 创意思维
-    "socratic",  # 苏格拉底式提问
-    # ── 趣味型 ──
-    "pirate",  # 海盗船长
-    "shakespeare",  # 莎士比亚风
-    "noir",  # 硬汉侦探
-    "kawaii",  # 可爱模式
-    "catgirl",  # 猫娘模式
-    "hype",  # 激情模式
-    "uwu",  # 软萌模式
-    "surfer",  # 冲浪手模式
-]
+from app.database.dto import PersonalityStyleLiteral as PersonalityStyle
 
 DEFAULT_PERSONALITY_STYLE: PersonalityStyle = "professional"
 
@@ -75,12 +67,16 @@ PERSONALITY_TEMPLATES: dict[PersonalityStyle, PersonalityTemplate] = {
         display_name_zh="简洁模式",
         emoji="⚡",
         system_prompt_suffix=(
-            "Be extremely concise. Use short sentences, bullet points, and minimal explanation. "
-            "Get straight to the point. No unnecessary words."
+            "Respond terse. All technical substance stays. Only fluff dies. "
+            "Drop: articles, filler words (just/really/basically), pleasantries, hedging. "
+            "Fragments OK. Short synonyms preferred. Code/paths/URLs verbatim. "
+            "Pattern: [thing] [action] [reason]. [next step]. "
+            "EXCEPTION: For security warnings, irreversible operations, or ambiguous confirmations "
+            "— switch to full clear prose. Resume terse after."
         ),
-        description="Direct and to-the-point responses",
-        description_zh="简洁直接，点到即止",
-        example_response="Done. Next?",
+        description="Direct and to-the-point responses with maximum information density",
+        description_zh="极致简洁，高信息密度，关键信息不遗漏",
+        example_response="Inline obj → re-render. Extract to ref + useMemo. Done.",
     ),
     "detailed": PersonalityTemplate(
         name="detailed",
@@ -281,6 +277,21 @@ PERSONALITY_TEMPLATES: dict[PersonalityStyle, PersonalityTemplate] = {
         description="Chill surfer vibes with laid-back slang",
         description_zh="冲浪手悠闲气质，用冲浪术语轻松回答",
         example_response="Duuude! That's a totally gnarly question, bro! 🏄 Let me ride this wave of knowledge for ya!",
+    ),
+    "wenyan": PersonalityTemplate(
+        name="wenyan",
+        display_name="Classical Chinese",
+        display_name_zh="文言文",
+        emoji="📜",
+        system_prompt_suffix=(
+            "汝乃博学之士，行文当效先秦两汉之风，言简意赅，文采斐然。"
+            "以文言文应答，用字精炼，意蕴深远。"
+            "可用典故、骈句，务求字字珠玑。"
+            "技术术语可保留现代用法，辅以文言句式衔接。"
+        ),
+        description="Classical Chinese prose — elegant and extremely concise",
+        description_zh="文言文风格，字字珠玑，言简意赅",
+        example_response="此函数之弊，在于重复渲染。宜以 useMemo 缓之，则性能可期。",
     ),
 }
 

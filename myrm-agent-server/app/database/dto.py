@@ -28,6 +28,7 @@ PersonalityStyleLiteral = Literal[
     "hype",
     "uwu",
     "surfer",
+    "wenyan",
 ]
 MemoryDecayProfileLiteral = Literal["permanent", "normal", "fast"]
 PromptModeLiteral = Literal["full", "lean", "naked"]
