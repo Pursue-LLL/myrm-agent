@@ -72,6 +72,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'session_recording',
   'risk_blocked',
   'correction_learned',
+  'verification_verdict',
 ] as const;
 
 /** Harness name → frontend handler type (same payload shape). */

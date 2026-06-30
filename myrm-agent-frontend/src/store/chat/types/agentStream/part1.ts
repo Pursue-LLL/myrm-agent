@@ -84,6 +84,7 @@ export const AgentEventType = {
   SESSION_RECORDING: 'session_recording',
   RISK_BLOCKED: 'risk_blocked',
   CORRECTION_LEARNED: 'correction_learned',
+  VERIFICATION_VERDICT: 'verification_verdict',
 } as const;
 
 export interface BaseAgentEvent {

@@ -174,6 +174,48 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.VERIFICATION_VERDICT) {
+    const vd = data.data as {
+      passed: boolean;
+      summary: string;
+      confidence: string;
+      round: number;
+      max_rounds: number;
+      worker_type: string;
+      has_workspace_diff: boolean;
+      findings: Array<{ severity: string; description: string }>;
+    };
+
+    actions.setMessages((state) => {
+      const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (messageIndex !== -1) {
+        if (!state.messages[messageIndex].progressSteps) {
+          state.messages[messageIndex].progressSteps = [];
+        }
+
+        const statusLabel = vd.passed ? '[PASS]' : '[FAIL]';
+        const confidenceLabel = vd.confidence === 'HIGH' ? '' : ` [${vd.confidence}]`;
+        const diffLabel = vd.has_workspace_diff ? ' (with diff)' : '';
+        const headerText = `Verification ${statusLabel} (${vd.round}/${vd.max_rounds})${confidenceLabel}${diffLabel}`;
+
+        const items: Array<{ text: string }> = [{ text: headerText }];
+        if (vd.summary) {
+          items.push({ text: vd.summary });
+        }
+        for (const f of (vd.findings || []).slice(0, 3)) {
+          items.push({ text: `[${f.severity}] ${f.description}` });
+        }
+
+        state.messages[messageIndex].progressSteps!.push({
+          step_key: 'verification_verdict',
+          tool_name: vd.worker_type,
+          items,
+        });
+      }
+    });
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.TEAMMATE_MESSAGE) {
     const chatId = H.useChatStore.getState().chatId;
     const payload = data.data as Record<string, string | number> | undefined;
@@ -194,7 +236,6 @@ export async function subagentEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     }
     return done(ctx);
   }
-
 
   return null;
 }
