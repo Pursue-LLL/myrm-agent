@@ -1,4 +1,14 @@
-"""Deploy backend protocol for agent-initiated artifact deployment."""
+"""Deploy backend protocol for agent-initiated artifact deployment.
+
+[INPUT]
+- app.services.deploy.types::DeployResult (POS: 部署结果数据类)
+
+[OUTPUT]
+- DeployBackend: Protocol — agent deploy_artifact 工具的后端契约
+
+[POS]
+Server 业务层 DeployBackend 协议；AgentDeployService 实现此接口。
+"""
 
 from __future__ import annotations
 
