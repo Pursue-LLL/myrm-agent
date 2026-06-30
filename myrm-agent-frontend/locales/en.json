@@ -5518,6 +5518,9 @@
     },
     "clarification": {
       "formTitle": "Clarification form",
+      "badge": "Needs your input",
+      "questionCount": "{count} questions",
+      "optionalNote": "You can also type a custom answer below",
       "singleChoicePrompt": "Choose one option:",
       "multipleChoicePrompt": "Choose one or more options:",
       "freeTextWithOptionsPlaceholder": "Add details or other answers...",

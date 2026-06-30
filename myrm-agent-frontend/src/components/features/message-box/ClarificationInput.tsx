@@ -16,6 +16,11 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { submitClarifyResponse } from '@/services/chat';
+import useChatStore from '@/store/useChatStore';
+import type { ClarificationForm } from '@/store/chat/types';
+import { cn } from '@/lib/utils';
+
 const SendIcon = ({ className }: { className?: string }) => (
   <svg
     className={className}
@@ -60,9 +65,63 @@ const CheckCircleIcon = ({ className }: { className?: string }) => (
     <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
-import { submitClarifyResponse } from '@/services/chat';
-import useChatStore from '@/store/useChatStore';
-import type { ClarificationForm } from '@/store/chat/types';
+
+const CheckMarkIcon = () => (
+  <svg
+    width="10"
+    height="10"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+interface OptionPillProps {
+  label: string;
+  description?: string;
+  selected: boolean;
+  allowMultiple: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}
+
+const OptionPill = ({ label, description, selected, allowMultiple, disabled, onSelect }: OptionPillProps) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    disabled={disabled}
+    className={cn(
+      'group max-w-full rounded-full border px-3 py-2 text-left text-sm transition-all duration-200 sm:px-4 sm:py-2.5',
+      selected
+        ? 'border-primary/70 bg-primary/10 text-primary ring-2 ring-primary/20'
+        : 'border-border/70 bg-background/80 text-foreground hover:border-primary/40 hover:bg-primary/5',
+    )}
+  >
+    <div className="flex items-start gap-2.5">
+      <div
+        className={cn(
+          'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors',
+          allowMultiple ? 'rounded' : 'rounded-full',
+          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background',
+        )}
+      >
+        {selected ? <CheckMarkIcon /> : null}
+      </div>
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <span className={cn('font-medium leading-snug', selected && 'text-primary')}>{label}</span>
+        {description ? <span className="text-xs leading-relaxed text-muted-foreground">{description}</span> : null}
+      </div>
+    </div>
+  </button>
+);
+
+const clarificationTextareaClass =
+  'w-full resize-none rounded-xl border border-border/70 bg-background/90 px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/25 sm:px-4 sm:py-3';
 
 interface ClarificationInputProps {
   messageId: string;
@@ -179,7 +238,7 @@ const ClarificationInput = ({
     setSubmitting(true);
     try {
       if (isResumeMode) {
-        await sendMessage('', messageId, undefined, null); // null means skip
+        await sendMessage('', messageId, undefined, null);
       } else {
         await submitClarifyResponse(messageId, '');
       }
@@ -201,9 +260,9 @@ const ClarificationInput = ({
 
   if (answered) {
     return (
-      <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-sm">
-        <CheckCircleIcon className="w-4 h-4 text-green-500 shrink-0" />
-        <span className="text-green-700 dark:text-green-300">{t('answered')}</span>
+      <div className="mt-3 flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm sm:mt-4 sm:px-4 sm:py-3">
+        <CheckCircleIcon className="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
+        <span className="font-medium text-emerald-700 dark:text-emerald-300">{t('answered')}</span>
       </div>
     );
   }
@@ -219,181 +278,145 @@ const ClarificationInput = ({
   const isSubmitDisabled =
     submitting || (hasStructuredForm ? !hasStructuredAnswer : selectedOptions.length === 0 && !input.trim());
 
+  const displayTitle = title ?? form?.title ?? t('formTitle');
+  const questionCount = form?.questions.length ?? 0;
+
+  const renderActions = () => (
+    <div className="flex flex-col-reverse gap-2 border-t border-border/50 pt-3 sm:flex-row sm:justify-end sm:pt-4">
+      <button
+        type="button"
+        onClick={handleSkip}
+        disabled={submitting}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-border hover:bg-accent/60 disabled:opacity-50 sm:w-auto sm:py-2"
+      >
+        <SkipIcon className="h-3.5 w-3.5" />
+        {t('skip')}
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isSubmitDisabled}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:w-auto sm:py-2"
+      >
+        <SendIcon className="h-3.5 w-3.5" />
+        {t('submit')}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="mt-3 flex flex-col gap-3">
-      {hasStructuredForm ? (
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-3">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {title ?? form?.title ?? t('formTitle')}
-          </div>
-          <div className="flex flex-col gap-3">
-            {(form?.questions ?? []).map((question) => {
-              const selected = formSelections[question.id] ?? [];
-              const questionText = formTexts[question.id] ?? '';
-              const questionAllowMultiple = question.allowMultiple ?? false;
-              return (
-                <div
-                  key={question.id}
-                  className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3"
-                >
-                  <div className="text-sm font-medium text-foreground">{question.prompt}</div>
+    <div className="mt-3 sm:mt-4">
+      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/90 backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-violet-500/5 dark:from-primary/12 dark:to-violet-500/8" />
 
-                  {question.options && question.options.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <div className="text-xs text-muted-foreground">
-                        {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {question.options.map((option) => {
-                          const isSelected = selected.includes(option.label);
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => toggleFormOption(question.id, option.label, questionAllowMultiple)}
-                              disabled={submitting}
-                              className={`max-w-full rounded-full border px-3 py-2 text-left text-sm transition-all ${
-                                isSelected
-                                  ? 'border-primary bg-primary/10 text-primary'
-                                  : 'border-border bg-background text-foreground hover:border-primary/50'
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <div
-                                  className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
-                                    isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-input'
-                                  }`}
-                                >
-                                  {isSelected && (
-                                    <svg
-                                      width="10"
-                                      height="10"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="3"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  )}
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-medium">{option.label}</span>
-                                  {option.description ? (
-                                    <span className="text-xs text-muted-foreground">{option.description}</span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+        <div className="relative flex flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-sm font-semibold leading-snug text-foreground sm:text-base">{displayTitle}</span>
+              {hasStructuredForm && questionCount > 1 ? (
+                <span className="text-xs text-muted-foreground">{t('questionCount', { count: questionCount })}</span>
+              ) : null}
+            </div>
+            <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-primary">
+              {t('badge')}
+            </span>
+          </div>
+
+          {hasStructuredForm ? (
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {(form?.questions ?? []).map((question, index) => {
+                const selected = formSelections[question.id] ?? [];
+                const questionText = formTexts[question.id] ?? '';
+                const questionAllowMultiple = question.allowMultiple ?? false;
+                return (
+                  <div
+                    key={question.id}
+                    className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background/70 p-3 sm:gap-4 sm:p-4"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      {questionCount > 1 ? (
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-semibold text-primary">
+                          {index + 1}
+                        </span>
+                      ) : null}
+                      <p className="text-sm font-medium leading-relaxed text-foreground sm:text-[15px]">{question.prompt}</p>
                     </div>
-                  )}
 
-                  <textarea
-                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    rows={2}
-                    placeholder={t('placeholder')}
-                    value={questionText}
-                    onChange={(e) =>
-                      setFormTexts((prev) => ({
-                        ...prev,
-                        [question.id]: e.target.value,
-                      }))
-                    }
-                    disabled={submitting}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <>
-          {options && options.length > 0 && (
-            <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
-              <div className="mb-1 text-xs text-muted-foreground">
-                {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {options.map((opt) => {
-                  const isSelected = selectedOptions.includes(opt);
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => toggleOption(opt)}
-                      disabled={submitting}
-                      className={`rounded-full border px-3 py-1.5 text-left text-sm transition-all ${
-                        isSelected
-                          ? 'border-primary bg-primary/10 font-medium text-primary'
-                          : 'border-border bg-background text-foreground hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
-                            isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-input'
-                          }`}
-                        >
-                          {isSelected && (
-                            <svg
-                              width="10"
-                              height="10"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
+                    {question.options && question.options.length > 0 ? (
+                      <div className="flex flex-col gap-2.5">
+                        <p className="text-xs text-muted-foreground">
+                          {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {question.options.map((option) => (
+                            <OptionPill
+                              key={option.id}
+                              label={option.label}
+                              description={option.description}
+                              selected={selected.includes(option.label)}
+                              allowMultiple={questionAllowMultiple}
+                              disabled={submitting}
+                              onSelect={() => toggleFormOption(question.id, option.label, questionAllowMultiple)}
+                            />
+                          ))}
                         </div>
-                        <span>{opt}</span>
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    ) : null}
+
+                    <textarea
+                      className={clarificationTextareaClass}
+                      rows={2}
+                      placeholder={t('placeholder')}
+                      value={questionText}
+                      onChange={(e) =>
+                        setFormTexts((prev) => ({
+                          ...prev,
+                          [question.id]: e.target.value,
+                        }))
+                      }
+                      disabled={submitting}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {options && options.length > 0 ? (
+                <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
+                  <p className="text-xs text-muted-foreground">
+                    {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map((opt) => (
+                      <OptionPill
+                        key={opt}
+                        label={opt}
+                        selected={selectedOptions.includes(opt)}
+                        allowMultiple={Boolean(allowMultiple)}
+                        disabled={submitting}
+                        onSelect={() => toggleOption(opt)}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
+                </div>
+              ) : null}
+
+              <textarea
+                className={clarificationTextareaClass}
+                rows={options && options.length > 0 ? 2 : 3}
+                placeholder={options && options.length > 0 ? t('freeTextWithOptionsPlaceholder') : t('placeholder')}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={submitting}
+              />
             </div>
           )}
 
-          <textarea
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-            rows={2}
-            placeholder={options && options.length > 0 ? t('freeTextWithOptionsPlaceholder') : t('placeholder')}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={submitting}
-          />
-        </>
-      )}
-
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={handleSkip}
-          disabled={submitting}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent disabled:opacity-50"
-        >
-          <SkipIcon className="h-3.5 w-3.5" />
-          {t('skip')}
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={isSubmitDisabled}
-          className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          <SendIcon className="h-3.5 w-3.5" />
-          {t('submit')}
-        </button>
+          {renderActions()}
+        </div>
       </div>
     </div>
   );

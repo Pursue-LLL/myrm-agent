@@ -5517,6 +5517,9 @@
     },
     "clarification": {
       "formTitle": "澄清表单",
+      "badge": "需要你确认",
+      "questionCount": "共 {count} 个问题",
+      "optionalNote": "也可在下方输入自定义回答",
       "singleChoicePrompt": "请选择一个选项：",
       "multipleChoicePrompt": "请选择一个或多个选项：",
       "freeTextWithOptionsPlaceholder": "补充说明或其他回答...",
