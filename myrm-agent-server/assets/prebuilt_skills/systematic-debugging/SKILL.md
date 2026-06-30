@@ -11,7 +11,7 @@ tags:
   - troubleshooting
   - root-cause
   - investigation
-allowed-tools: bash_code_execute_tool file_read_tool grep_tool glob_tool runtime_diagnostics_tool web_search_tool
+allowed-tools: bash_code_execute_tool file_read_tool grep_tool glob_tool web_search_tool
 contract:
   steps:
     - "Phase 1: Root Cause Investigation — read errors, reproduce, check recent changes, trace data flow"
