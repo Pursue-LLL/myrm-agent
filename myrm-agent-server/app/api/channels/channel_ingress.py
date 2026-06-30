@@ -39,7 +39,11 @@ class ChannelIngressRequest(BaseModel):
 
 @router.post("/channel/message", tags=["channels"])
 async def ingest_channel_message(body: ChannelIngressRequest) -> dict[str, str]:
-    """Internal ingress endpoint used by Control Plane sandboxes."""
+    """Internal ingress endpoint used by Control Plane sandboxes.
+
+    Enqueues inbound messages on the local MessageBus only. Cron event triggers
+    are evaluated later in AgentRouter after approval/reaction/slash filtering.
+    """
     from app.core.channel_bridge import channel_gateway
 
     if getattr(channel_gateway, "_router", None) is None:

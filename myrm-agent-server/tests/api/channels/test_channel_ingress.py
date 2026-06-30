@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -91,3 +92,44 @@ async def test_ingest_channel_message_propagates_force_new_epoch(monkeypatch: py
     assert len(fake_bus.messages) == 1
     inbound = fake_bus.messages[0]
     assert inbound.metadata["force_new_epoch"] is True
+
+
+@pytest.mark.asyncio
+async def test_ingest_channel_message_does_not_dispatch_cron(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core import channel_bridge as channels_module
+
+    dispatch = AsyncMock()
+    monkeypatch.setattr(
+        "app.core.cron.adapters.inbound_event_dispatch.dispatch_cron_event_for_inbound_message",
+        dispatch,
+    )
+
+    fake_bus = _FakeBus()
+    fake_gateway = SimpleNamespace(bus=fake_bus, _router=object())
+    monkeypatch.setattr(channels_module, "channel_gateway", fake_gateway)
+
+    body = ChannelIngressRequest(
+        message_id="msg-3",
+        content="server down alert",
+        channel_type="feishu",
+        chat_type="private",
+        chat_id="chat-3",
+        channel_user_id="owner-3",
+        timestamp=1710000002.0,
+        resolved_identity=ResolvedChannelIdentityRequest(
+            platform_user_id="owner-3",
+            sandbox_owner_id="owner-3",
+            channel_id="feishu",
+            channel_user_id="owner-3",
+            conversation_id="feishu:private:chat-3",
+            task_id="feishu:private:chat-3",
+        ),
+    )
+
+    result = await ingest_channel_message(body)
+
+    assert result == {"status": "queued"}
+    assert len(fake_bus.messages) == 1
+    dispatch.assert_not_awaited()
