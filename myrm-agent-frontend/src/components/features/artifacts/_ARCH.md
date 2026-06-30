@@ -20,7 +20,11 @@
 | `components/SandpackErrorBoundary.tsx` | 辅助 | Sandpack 编译/运行时错误边界 |
 | `components/CompileErrorDisplay.tsx` | 辅助 | Sandpack 编译错误展示面板 |
 | `renderers/MediaPreview.tsx` | 辅助 | `HtmlPreview` 沙箱 iframe |
+| `portal/useSelectionAction.ts` | 辅助 | Artifact 选中交互的通用消息发送 hook（dirtyArtifacts 注入 + Agent 忙碌排队） |
+| `portal/SelectionToolbar.tsx` | 辅助 | Monaco Editor 选中文本悬浮操作栏 |
+| `portal/DocumentSelectionToolbar.tsx` | 辅助 | 文档预览 DOM 选中文本悬浮操作栏 |
 | `portal/ElementPickerToolbar.tsx` | 辅助 | DOM 元素拾取指令栏 |
+| `renderers/DocumentPreview.tsx` | 核心 | 文档/Markdown 渲染预览（集成 DocumentSelectionToolbar） |
 | `renderers/SpreadsheetPreview/` | 辅助 | CSV/TSV/XLSX 表格预览 |
 
 ---

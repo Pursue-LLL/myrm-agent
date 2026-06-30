@@ -344,6 +344,7 @@ myrm_agent_harness.toolkits.memory.proactive.types
 myrm_agent_harness.toolkits.memory.protocols.embedding
 myrm_agent_harness.toolkits.memory.protocols.relational
 myrm_agent_harness.toolkits.memory.protocols.vector
+myrm_agent_harness.toolkits.memory.relational.sqlite_store
 myrm_agent_harness.toolkits.memory.security
 myrm_agent_harness.toolkits.memory.session_post_process
 myrm_agent_harness.toolkits.memory.strategies.consolidation

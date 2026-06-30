@@ -152,7 +152,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({ artifact, content, dis
     return type === 'code' ? (
       <CodePreview content={content} language={artifact.language} artifactId={artifact.id} />
     ) : (
-      <DocumentPreview content={content} filename={filename} />
+      <DocumentPreview content={content} filename={filename} artifactId={artifact.id} />
     );
   }
 

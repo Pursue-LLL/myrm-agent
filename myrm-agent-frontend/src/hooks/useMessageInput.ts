@@ -102,7 +102,7 @@ export const useMessageInput = () => {
   const { initialDraft, clearDraft } = useDraftPersistence(chatId, inputMessage);
 
   // ─── 消息排队 ───
-  const { queue, enqueue, dequeue, removeMessage, clearQueue } = useMessageQueue(chatId);
+  const { queue, enqueue, dequeue, editMessage, removeMessage, clearQueue } = useMessageQueue(chatId);
 
   const prevLoadingRef = useRef(loading);
 
@@ -465,6 +465,7 @@ export const useMessageInput = () => {
 
     // Queue state
     queue,
+    editMessage,
     removeMessage,
     clearQueue,
 

@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * HtmlPreview postMessage `widget-element-pick` events (via PickedElement);
- * useChatStore::sendMessage (POS: 发送消息到 Agent).
+ * useSelectionAction (POS: Artifact 选中交互的通用消息发送 hook).
  * [OUTPUT] ElementPickerToolbar: 拾取 DOM 元素后的悬浮提示输入工具栏。
  * [POS] HTML artifact 预览模式的"指哪改哪"UX 增强。
  */
@@ -11,15 +11,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { toast } from '@/lib/utils/toast';
-import useChatStore from '@/store/useChatStore';
-import useArtifactPortalStore from '@/store/useArtifactPortalStore';
-import { useMessageQueue } from '@/hooks/useMessageQueue';
 import type { PickedElement } from '../renderers/MediaPreview';
 import {
   ArrowRight01Icon,
   Cancel01Icon,
 } from 'hugeicons-react';
+import { useSelectionAction } from './useSelectionAction';
 
 interface ElementPickerToolbarProps {
   pickedElement: PickedElement | null;
@@ -35,10 +32,12 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const sendMessage = useChatStore((s) => s.sendMessage);
-  const chatId = useChatStore((s) => s.chatId);
-  const loading = useChatStore((s) => s.loading);
-  const { enqueue } = useMessageQueue(chatId);
+  const handleSent = useCallback(() => {
+    setInputValue('');
+    onDismiss();
+  }, [onDismiss]);
+
+  const { sendAction } = useSelectionAction({ onSent: handleSent });
 
   useEffect(() => {
     if (pickedElement && inputRef.current) {
@@ -64,38 +63,14 @@ const ElementPickerToolbar: React.FC<ElementPickerToolbarProps> = ({ pickedEleme
     [pickedElement, artifactId],
   );
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     if (!inputValue.trim() || !pickedElement) return;
 
     const message = buildElementContext(inputValue.trim());
     if (!message) return;
 
-    const dirtyArtifacts = useArtifactPortalStore.getState().getDirtyArtifacts();
-    let finalMessage = message;
-    for (const [id, content] of Object.entries(dirtyArtifacts)) {
-      finalMessage += `\n\n<edited_artifact id="${id}">\n${content}\n</edited_artifact>`;
-      useArtifactPortalStore.getState().clearDirtyState(id);
-    }
-
-    setInputValue('');
-    onDismiss();
-
-    if (loading) {
-      enqueue(finalMessage, []);
-      toast.info(t('queued'));
-    } else {
-      try {
-        await sendMessage(finalMessage, undefined);
-      } catch (err) {
-        if (err && typeof err === 'object' && 'name' in err && err.name === 'AgentBusyError') {
-          enqueue(finalMessage, []);
-          toast.info(t('queued'));
-        } else {
-          console.error('ElementPickerToolbar: failed to send message', err);
-        }
-      }
-    }
-  }, [inputValue, pickedElement, buildElementContext, sendMessage, loading, enqueue, onDismiss, t]);
+    sendAction({ message });
+  }, [inputValue, pickedElement, buildElementContext, sendAction]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

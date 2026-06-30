@@ -2,15 +2,14 @@
 
 /**
  * [INPUT]
- * Monaco Editor selection events (onDidChangeCursorSelection);
- * useSelectionAction (POS: Artifact 选中交互的通用消息发送 hook).
- * [OUTPUT] SelectionToolbar: 选中文本后的悬浮操作工具栏。
- * [POS] Portal 内 Monaco Editor 的选中精准编辑 UX 增强。
+ * DOM Selection API (window.getSelection());
+ * useSelectionAction (POS: 公共消息发送逻辑);
+ * [OUTPUT] DocumentSelectionToolbar: 文档预览模式下选中文本后的悬浮操作工具栏。
+ * [POS] DocumentPreview 的选中精准编辑 UX 增强，让非技术用户也能在 Preview 模式下与 Agent 交互。
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import type { editor } from 'monaco-editor';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
@@ -18,36 +17,27 @@ import {
   Edit04Icon,
   InformationCircleIcon,
   SparklesIcon,
-  MessageAdd01Icon,
   Copy01Icon,
   ArrowRight01Icon,
 } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
 
-interface SelectionInfo {
-  text: string;
-  startLine: number;
-  endLine: number;
-}
-
-interface SelectionToolbarProps {
-  editorInstance: editor.IStandaloneCodeEditor | null;
+interface DocumentSelectionToolbarProps {
+  containerRef: React.RefObject<HTMLDivElement | null>;
   artifactId?: string;
-  language?: string;
 }
 
-type ActionType = 'modify' | 'explain' | 'optimize' | 'comment';
+type ActionType = 'modify' | 'explain' | 'optimize';
 
-const TOOLBAR_DEBOUNCE_MS = 200;
-
+const TOOLBAR_DEBOUNCE_MS = 250;
 const TOOLBAR_HEIGHT_ESTIMATE = 48;
 
-const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, artifactId, language }) => {
-  const t = useTranslations('artifacts.selectionToolbar');
+const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ containerRef, artifactId }) => {
+  const t = useTranslations('artifacts.documentSelection');
 
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  const [selection, setSelection] = useState<SelectionInfo | null>(null);
+  const [selectedText, setSelectedText] = useState('');
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
@@ -55,94 +45,70 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetUI = useCallback(() => {
+  const hideToolbar = useCallback(() => {
     setVisible(false);
     setShowInput(false);
     setInputValue('');
+    setSelectedText('');
   }, []);
 
-  const { sendAction } = useSelectionAction({ onSent: resetUI });
+  const { sendAction } = useSelectionAction({ onSent: hideToolbar });
+
+  const computePosition = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) {
+      hideToolbar();
+      return;
+    }
+
+    if (!container.contains(selection.anchorNode)) {
+      return;
+    }
+
+    const text = selection.toString().trim();
+    if (!text) {
+      hideToolbar();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const selectionRect = range.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    const relativeBottom = selectionRect.bottom - containerRect.top + container.scrollTop;
+    const relativeTop = selectionRect.top - containerRect.top + container.scrollTop;
+    const relativeLeft = selectionRect.left - containerRect.left;
+
+    const spaceBelow = container.scrollTop + container.clientHeight - relativeBottom;
+    const showAbove = spaceBelow < TOOLBAR_HEIGHT_ESTIMATE + 16;
+
+    setSelectedText(text);
+    setPosition({
+      top: showAbove ? relativeTop - TOOLBAR_HEIGHT_ESTIMATE - 8 : relativeBottom + 8,
+      left: Math.max(relativeLeft, 16),
+    });
+    setVisible(true);
+  }, [containerRef, hideToolbar]);
 
   useEffect(() => {
-    if (!editorInstance) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    const hideToolbar = () => {
-      setVisible(false);
-      setShowInput(false);
-      setInputValue('');
-    };
-
-    const computePosition = () => {
-      const sel = editorInstance.getSelection();
-      if (!sel || sel.isEmpty()) {
-        hideToolbar();
-        return;
-      }
-
-      const model = editorInstance.getModel();
-      if (!model) return;
-
-      const selectedText = model.getValueInRange(sel);
-      if (!selectedText.trim()) {
-        setVisible(false);
-        return;
-      }
-
-      const endPos = editorInstance.getScrolledVisiblePosition({
-        lineNumber: sel.endLineNumber,
-        column: sel.endColumn,
-      });
-
-      if (!endPos) {
-        setVisible(false);
-        return;
-      }
-
-      const editorDom = editorInstance.getDomNode();
-      const editorHeight = editorDom?.clientHeight ?? 600;
-      const spaceBelow = editorHeight - (endPos.top + endPos.height);
-      const showAbove = spaceBelow < TOOLBAR_HEIGHT_ESTIMATE + 16;
-
-      const startPos = editorInstance.getScrolledVisiblePosition({
-        lineNumber: sel.startLineNumber,
-        column: sel.startColumn,
-      });
-
-      setSelection({
-        text: selectedText,
-        startLine: sel.startLineNumber,
-        endLine: sel.endLineNumber,
-      });
-
-      if (showAbove && startPos) {
-        setPosition({
-          top: startPos.top - TOOLBAR_HEIGHT_ESTIMATE - 8,
-          left: Math.max(startPos.left, 16),
-        });
-      } else {
-        setPosition({
-          top: endPos.top + endPos.height + 8,
-          left: Math.max(endPos.left, 16),
-        });
-      }
-      setVisible(true);
-    };
-
-    const selectionDisposable = editorInstance.onDidChangeCursorSelection(() => {
+    const handleSelectionChange = () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(computePosition, TOOLBAR_DEBOUNCE_MS);
-    });
+    };
 
-    const scrollDisposable = editorInstance.onDidScrollChange(() => {
-      if (visible) setVisible(false);
-    });
+    document.addEventListener('selectionchange', handleSelectionChange);
 
     return () => {
-      selectionDisposable.dispose();
-      scrollDisposable.dispose();
+      document.removeEventListener('selectionchange', handleSelectionChange);
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [editorInstance, visible]);
+  }, [containerRef, computePosition]);
 
   useEffect(() => {
     if (showInput && inputRef.current) {
@@ -150,49 +116,43 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     }
   }, [showInput]);
 
-  const buildSelectionContext = useCallback(
+  const buildContext = useCallback(
     (actionLabel: string, customInstruction?: string): string => {
-      if (!selection || !artifactId) return '';
+      if (!selectedText || !artifactId) return '';
 
-      const lineRange =
-        selection.startLine === selection.endLine
-          ? `line ${selection.startLine}`
-          : `lines ${selection.startLine}-${selection.endLine}`;
-
-      let instruction = `[${actionLabel}] ${lineRange}`;
+      let instruction = `[${actionLabel}]`;
       if (customInstruction) {
         instruction += `: ${customInstruction}`;
       }
 
-      return `${instruction}\n\n<selection_context artifact_id="${artifactId}" language="${language || 'unknown'}" start_line="${selection.startLine}" end_line="${selection.endLine}">\n${selection.text}\n</selection_context>`;
+      return `${instruction}\n\n<selection_context artifact_id="${artifactId}" format="document">\n${selectedText}\n</selection_context>`;
     },
-    [selection, artifactId, language],
+    [selectedText, artifactId],
   );
 
   const executeAction = useCallback(
     (action: ActionType, customInstruction?: string) => {
-      if (!selection) return;
+      if (!selectedText) return;
 
       const actionLabels: Record<ActionType, string> = {
         modify: t('modify'),
         explain: t('explain'),
-        optimize: t('optimize'),
-        comment: t('addComment'),
+        optimize: t('rewrite'),
       };
 
-      const message = buildSelectionContext(actionLabels[action], customInstruction);
+      const message = buildContext(actionLabels[action], customInstruction);
       if (!message) return;
 
       sendAction({ message });
     },
-    [selection, buildSelectionContext, sendAction, t],
+    [selectedText, buildContext, sendAction, t],
   );
 
   const handleCopy = useCallback(async () => {
-    if (!selection) return;
-    await writeToClipboard(selection.text);
-    setVisible(false);
-  }, [selection]);
+    if (!selectedText) return;
+    await writeToClipboard(selectedText);
+    hideToolbar();
+  }, [selectedText, hideToolbar]);
 
   const handleModifyClick = useCallback(() => {
     setShowInput(true);
@@ -216,7 +176,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     [handleModifySubmit],
   );
 
-  if (!visible || !selection) return null;
+  if (!visible || !selectedText) return null;
   if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) return null;
 
   const actions: { type: ActionType | 'copy'; icon: React.ReactNode; label: string; onClick: () => void }[] = [
@@ -235,14 +195,8 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
     {
       type: 'optimize',
       icon: <SparklesIcon className="w-3.5 h-3.5" />,
-      label: t('optimize'),
+      label: t('rewrite'),
       onClick: () => executeAction('optimize'),
-    },
-    {
-      type: 'comment',
-      icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
-      label: t('addComment'),
-      onClick: () => executeAction('comment'),
     },
     {
       type: 'copy',
@@ -323,4 +277,4 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
   );
 };
 
-export default SelectionToolbar;
+export default DocumentSelectionToolbar;

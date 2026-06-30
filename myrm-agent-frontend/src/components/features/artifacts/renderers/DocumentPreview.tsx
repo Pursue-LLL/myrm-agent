@@ -1,9 +1,10 @@
 'use client';
 
-import React, { memo, Suspense } from 'react';
+import React, { memo, Suspense, useRef } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import MermaidChart from '../../markdown-render-tools/MermaidChart';
 import CodeBlock from '../../markdown-render-tools/CodeBlock';
+import DocumentSelectionToolbar from '../portal/DocumentSelectionToolbar';
 
 /** 简单加载状态 */
 const LoadingState: React.FC = () => (
@@ -103,11 +104,14 @@ const ReactMarkdownRenderer: React.FC<{ content: string }> = memo(({ content }) 
 ReactMarkdownRenderer.displayName = 'ReactMarkdownRenderer';
 
 /** Markdown 实时渲染预览组件 */
-const MarkdownPreview: React.FC<{ content: string }> = memo(({ content }) => {
+const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo(({ content, artifactId }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div
+      ref={containerRef}
       className={cn(
-        'h-full overflow-auto p-6',
+        'h-full overflow-auto p-6 relative',
         'bg-background',
         'prose prose-sm dark:prose-invert max-w-none',
         'prose-headings:font-semibold',
@@ -117,19 +121,14 @@ const MarkdownPreview: React.FC<{ content: string }> = memo(({ content }) => {
         'prose-p:leading-relaxed prose-p:mb-3',
         'prose-ul:my-2 prose-ol:my-2',
         'prose-li:my-1',
-        // 行内代码样式（不影响代码块）
         'prose-code:bg-gray-100 dark:prose-code:bg-gray-800',
         'prose-code:text-gray-900 dark:prose-code:text-gray-100',
         'prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm',
-        // 重置 prose 对 pre 的样式，让 CodeBlock 组件完全控制
-        // 使用 :not([data-code-block]) 选择器，只影响普通的 pre 标签
         'prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0',
         'prose-pre:rounded-none prose-pre:shadow-none',
-        // 为非 CodeBlock 的 pre 标签提供降级样式
         '[&_pre:not([data-code-block])]:bg-gray-100 [&_pre:not([data-code-block])]:dark:bg-gray-800',
         '[&_pre:not([data-code-block])]:px-3 [&_pre:not([data-code-block])]:py-2',
         '[&_pre:not([data-code-block])]:rounded-lg [&_pre:not([data-code-block])]:text-sm',
-        // 其他元素样式
         'prose-blockquote:border-l-4 prose-blockquote:border-primary/50 prose-blockquote:pl-4 prose-blockquote:italic',
         'prose-a:text-primary prose-a:underline hover:prose-a:text-primary/80',
         'prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-th:bg-muted',
@@ -140,22 +139,32 @@ const MarkdownPreview: React.FC<{ content: string }> = memo(({ content }) => {
       <Suspense fallback={<SkeletonLoader />}>
         <ReactMarkdownRenderer content={content} />
       </Suspense>
+      {artifactId && (
+        <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />
+      )}
     </div>
   );
 });
 MarkdownPreview.displayName = 'MarkdownPreview';
 
 /** 文档/Markdown 预览组件 */
-const DocumentPreview: React.FC<{ content: string; filename?: string }> = memo(({ content, filename }) => {
+const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId?: string }> = memo(({ content, filename, artifactId }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const isMarkdown = filename?.match(/\.(md|markdown|mdx)$/i);
 
   if (isMarkdown) {
-    return <MarkdownPreview content={content} />;
+    return <MarkdownPreview content={content} artifactId={artifactId} />;
   }
 
   return (
-    <div className={cn('h-full overflow-auto p-6', 'bg-background', 'prose prose-sm dark:prose-invert max-w-none')}>
+    <div
+      ref={containerRef}
+      className={cn('h-full overflow-auto p-6 relative', 'bg-background', 'prose prose-sm dark:prose-invert max-w-none')}
+    >
       <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
+      {artifactId && (
+        <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />
+      )}
     </div>
   );
 });

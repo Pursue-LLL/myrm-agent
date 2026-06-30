@@ -10,7 +10,7 @@
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
  */
 import * as React from 'react';
-import { ArrowRight, Square, Plus, Clock, X, Navigation, ListPlus } from 'lucide-react';
+import { ArrowRight, Square, Plus, Clock, X, Navigation, ListPlus, Pencil, Check } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
@@ -135,8 +135,32 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     handleSkipAtSymbol,
     confirmCompact,
     queue,
+    editMessage,
     removeMessage,
   } = useMessageInput();
+
+  const [editingQueueId, setEditingQueueId] = React.useState<string | null>(null);
+  const [editingQueueText, setEditingQueueText] = React.useState('');
+  const editInputRef = React.useRef<HTMLInputElement>(null);
+
+  const startEditQueue = React.useCallback((id: string, text: string) => {
+    setEditingQueueId(id);
+    setEditingQueueText(text);
+    requestAnimationFrame(() => editInputRef.current?.focus());
+  }, []);
+
+  const confirmEditQueue = React.useCallback(() => {
+    if (editingQueueId && editingQueueText.trim()) {
+      editMessage(editingQueueId, editingQueueText.trim());
+    }
+    setEditingQueueId(null);
+    setEditingQueueText('');
+  }, [editingQueueId, editingQueueText, editMessage]);
+
+  const cancelEditQueue = React.useCallback(() => {
+    setEditingQueueId(null);
+    setEditingQueueText('');
+  }, []);
 
   const mobileSheetEntries = useMobileSheetEntries({
     onClose: () => setIsMobileSheetOpen(false),
@@ -273,26 +297,79 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               {queue.map((msg, index) => (
                 <div
                   key={msg.id}
-                  className="flex items-center justify-between bg-primary/8 border border-accent-warm/25 rounded-lg px-3 py-2 text-sm shadow-[var(--shadow-brand)]"
+                  className="group/queue flex items-center justify-between bg-primary/8 border border-accent-warm/25 rounded-lg px-3 py-2 text-sm shadow-[var(--shadow-brand)]"
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <Clock size={14} className="text-accent-warm flex-shrink-0 animate-pulse" />
-                    <span className="text-accent-warm font-medium flex-shrink-0">
-                      {chatT('queue.queued', { index: String(index + 1), total: String(queue.length) })}
-                    </span>
-                    <span className="text-muted-foreground truncate">{msg.text}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      removeMessage(msg.id);
-                    }}
-                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                    title={chatT('queue.cancel')}
-                  >
-                    <X size={14} />
-                  </button>
+                  {editingQueueId === msg.id ? (
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Clock size={14} className="text-accent-warm flex-shrink-0" />
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editingQueueText}
+                        onChange={(e) => setEditingQueueText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            confirmEditQueue();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelEditQueue();
+                          }
+                        }}
+                        className="flex-1 min-w-0 bg-transparent text-sm text-foreground outline-none border-b border-accent-warm/50 focus:border-accent-warm"
+                      />
+                      <button
+                        type="button"
+                        onClick={confirmEditQueue}
+                        className="text-accent-warm hover:text-accent-warm/80 transition-colors p-1"
+                        title={chatT('queue.saveEdit')}
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditQueue}
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                        title={chatT('queue.cancelEdit')}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <Clock size={14} className="text-accent-warm flex-shrink-0 animate-pulse" />
+                        <span className="text-accent-warm font-medium flex-shrink-0">
+                          {chatT('queue.queued', { index: String(index + 1), total: String(queue.length) })}
+                        </span>
+                        <span className="text-muted-foreground truncate">{msg.text}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover/queue:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            startEditQueue(msg.id, msg.text);
+                          }}
+                          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                          title={chatT('queue.edit')}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            removeMessage(msg.id);
+                          }}
+                          className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                          title={chatT('queue.cancel')}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

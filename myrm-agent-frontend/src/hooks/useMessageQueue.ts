@@ -95,6 +95,10 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
     setQueue((prev) => prev.filter((msg) => msg.id !== id));
   }, []);
 
+  const editMessage = useCallback((id: string, newText: string) => {
+    setQueue((prev) => prev.map((msg) => (msg.id === id ? { ...msg, text: newText } : msg)));
+  }, []);
+
   const clearQueue = useCallback(() => {
     setQueue([]);
   }, []);
@@ -112,6 +116,7 @@ export const useMessageQueue = (chatId: string | null | undefined) => {
     queue,
     enqueue,
     dequeue,
+    editMessage,
     removeMessage,
     clearQueue,
     requeue,
