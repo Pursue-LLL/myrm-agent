@@ -20,11 +20,13 @@ def test_migration_tail_drops_calendar_events_table() -> None:
 def test_index_tail_drops_calendar_events_indexes() -> None:
     from app.database import migrations
 
-    tail = migrations.INDEX_STATEMENTS[-3:]
-    assert tail == [
-        "DROP INDEX IF EXISTS idx_calendar_events_start_at",
-        "DROP INDEX IF EXISTS idx_calendar_events_agent_id",
-        "DROP INDEX IF EXISTS idx_calendar_events_status",
+    stmts = migrations.INDEX_STATEMENTS
+    assert "DROP INDEX IF EXISTS idx_calendar_events_start_at" in stmts
+    assert "DROP INDEX IF EXISTS idx_calendar_events_agent_id" in stmts
+    assert "DROP INDEX IF EXISTS idx_calendar_events_status" in stmts
+    assert stmts[-2:] == [
+        "CREATE INDEX IF NOT EXISTS idx_artifact_publications_artifact_id ON artifact_publications(artifact_id)",
+        "CREATE INDEX IF NOT EXISTS idx_artifact_publications_target_id ON artifact_publications(hosting_target_id)",
     ]
 
 

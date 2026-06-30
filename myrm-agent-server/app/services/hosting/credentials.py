@@ -24,7 +24,7 @@ from app.config.deploy_mode import is_sandbox
 from app.database.connection import get_session
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
-from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID, ensure_legacy_vercel_target, get_hosting_target
+from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID, get_hosting_target, list_hosting_targets, save_hosting_targets
 from app.services.hosting.types import TargetCredentialStatus
 
 VERCEL_CREDENTIALS_KEY = "vercelDeployCredentials"
@@ -163,12 +163,23 @@ async def get_target_credential_status(db: AsyncSession, target_id: str) -> Targ
 
 async def migrate_legacy_vercel_credentials(db: AsyncSession) -> None:
     legacy_token = await load_legacy_vercel_token(db)
-    if legacy_token:
-        await ensure_legacy_vercel_target(db, token=legacy_token)
+    token = legacy_token or get_platform_vercel_token()
+    if not token:
         return
-    platform = get_platform_vercel_token()
-    if platform:
-        await ensure_legacy_vercel_target(db, token=platform)
+    targets = await list_hosting_targets(db)
+    if targets:
+        return
+    from app.services.hosting.types import HostingTarget
+
+    target = HostingTarget(
+        id=LEGACY_VERCEL_TARGET_ID,
+        name="Vercel",
+        provider_type="vercel",
+        config={},
+        is_default=True,
+    )
+    await save_hosting_targets(db, [target])
+    await save_target_credentials(db, target.id, {"token": token})
 
 
 async def has_any_hosting_credentials() -> bool:

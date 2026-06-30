@@ -201,6 +201,7 @@
       "channelRouting": "渠道路由",
       "voice": "语音",
       "openaiApi": "API 访问",
+      "hosting": "托管目标",
       "integrationCatalog": "服务目录",
       "integrationMemory": "集成记忆",
       "extensionBridge": "浏览器扩展",
@@ -415,6 +416,24 @@
       "docsTitle": "快速开始",
       "docsDesc": "使用你的 API 密钥配合 OpenAI SDK 或任何兼容客户端。",
       "createdAt": "创建时间"
+    },
+    "hosting": {
+      "title": "托管目标",
+      "description": "配置 Artifact Globe 发布目的地 — Vercel、Cloudflare Pages、Netlify 或自定义 Webhook。",
+      "loading": "加载中…",
+      "empty": "尚未配置托管目标。添加后可在 Artifact 卡片上通过 Globe 发布。",
+      "addVercel": "添加 Vercel 目标",
+      "default": "默认",
+      "vercelToken": "Vercel Token",
+      "vercelTokenPlaceholder": "粘贴 Vercel 访问令牌",
+      "webhookHint": "Webhook URL 可在目标配置中设置（高级）。",
+      "testConnection": "测试连接",
+      "credentialsSaved": "凭证已保存",
+      "saveFailed": "保存失败",
+      "deleteFailed": "删除失败",
+      "deleted": "目标已删除",
+      "added": "目标已添加",
+      "providersNote": "Cloudflare Pages、Netlify、HTTP Webhook 目标可通过 API 添加；完整表单 UI 后续补齐。"
     },
     "proxy": {
       "title": "LLM 直通代理",

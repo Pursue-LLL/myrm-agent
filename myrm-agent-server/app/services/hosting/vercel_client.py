@@ -52,7 +52,7 @@ class VercelClient:
         # 1. 智能注入 vercel.json (处理 SPA 路由)
         if "index.html" in files and "vercel.json" not in files:
             logger.info("Injecting vercel.json for SPA routing in project %s", project_name)
-            files["vercel.json"] = DeployFile(
+            files["vercel.json"] = PublishFile(
                 path="vercel.json",
                 content=json.dumps(
                     {"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]},

@@ -18,6 +18,7 @@ import {
   Radio,
   Shield,
   Activity,
+  Globe,
   KeyRound,
   BookOpen,
   Archive,
@@ -64,6 +65,7 @@ export type SettingsTab =
   | 'credentials'
   | 'wiki'
   | 'openaiApi'
+  | 'hosting'
   | 'developer'
   | 'importExport'
   | 'cron'
@@ -124,6 +126,7 @@ const menuItems: MenuItem[] = [
   { id: 'extensionBridge', icon: Cable, labelKey: 'extensionBridge', group: 'integration' },
   { id: 'connect', icon: Share2, labelKey: 'connect', group: 'integration' },
   { id: 'channels', icon: Radio, labelKey: 'channels', group: 'integration', tauriOnly: true },
+  { id: 'hosting', icon: Globe, labelKey: 'hosting', group: 'integration' },
   { id: 'openaiApi', icon: KeyRound, labelKey: 'openaiApi', group: 'integration' },
 
   // 系统与安全

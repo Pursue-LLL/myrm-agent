@@ -179,27 +179,6 @@ async def get_default_hosting_target(db: AsyncSession) -> HostingTarget | None:
     return targets[0]
 
 
-async def ensure_legacy_vercel_target(db: AsyncSession, *, token: str | None) -> HostingTarget | None:
-    """Seed a default Vercel target from legacy vercelDeployCredentials if needed."""
-    targets = await list_hosting_targets(db)
-    if targets:
-        return get_default_hosting_target_from_list(targets)
-    if not token:
-        return None
-    target = HostingTarget(
-        id=LEGACY_VERCEL_TARGET_ID,
-        name="Vercel",
-        provider_type="vercel",
-        config={},
-        is_default=True,
-    )
-    await save_hosting_targets(db, [target])
-    from app.services.hosting.credentials import save_target_credentials
-
-    await save_target_credentials(db, target.id, {"token": token})
-    return target
-
-
 def get_default_hosting_target_from_list(targets: list[HostingTarget]) -> HostingTarget | None:
     for target in targets:
         if target.is_default:

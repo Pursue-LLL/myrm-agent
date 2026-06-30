@@ -201,6 +201,7 @@
       "channelRouting": "Channel Routing",
       "voice": "Voice",
       "openaiApi": "API Access",
+      "hosting": "Hosting Targets",
       "integrationCatalog": "Service Catalog",
       "integrationMemory": "Integration Memory",
       "extensionBridge": "Browser Extension",
@@ -415,6 +416,24 @@
       "docsTitle": "Quick Start",
       "docsDesc": "Use your API key with the OpenAI SDK or any compatible client.",
       "createdAt": "Created"
+    },
+    "hosting": {
+      "title": "Hosting Targets",
+      "description": "Configure where artifact Globe publishes go — Vercel, Cloudflare Pages, Netlify, or a custom webhook.",
+      "loading": "Loading targets…",
+      "empty": "No hosting targets yet. Add one to publish artifacts from the Globe button.",
+      "addVercel": "Add Vercel target",
+      "default": "Default",
+      "vercelToken": "Vercel token",
+      "vercelTokenPlaceholder": "Paste your Vercel access token",
+      "webhookHint": "Configure webhook URL in target config (advanced).",
+      "testConnection": "Test connection",
+      "credentialsSaved": "Credentials saved",
+      "saveFailed": "Failed to save",
+      "deleteFailed": "Failed to delete",
+      "deleted": "Target removed",
+      "added": "Target added",
+      "providersNote": "Cloudflare Pages, Netlify, and HTTP webhook targets can be added via API today; UI forms coming next."
     },
     "proxy": {
       "title": "LLM Passthrough Proxy",

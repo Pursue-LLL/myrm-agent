@@ -40,6 +40,9 @@ const WikiSection = dynamic(() => import('./sections/knowledge/WikiSection').the
 const CheckpointSection = dynamic(() => import('./sections/knowledge/CheckpointSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const HostingTargetsSection = dynamic(() => import('./sections/hosting/HostingTargetsPanel'), {
+  loading: () => <SettingsSkeleton />,
+});
 const OpenAIApiSection = dynamic(() => import('./sections/integration/OpenAIApiSection'), { loading: () => <SettingsSkeleton /> });
 const WorkspaceRulesSection = dynamic(() => import('./sections/ai-core/WorkspaceRulesSection'), {
   loading: () => <SettingsSkeleton />,
@@ -115,6 +118,7 @@ const BASE_TABS: SettingsTab[] = [
   'kanban',
   'checkpoint',
   'openaiApi',
+  'hosting',
   'integrationCatalog',
   'integrationMemory',
   'connect',
@@ -182,6 +186,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   'memory-archival': MemoryCenterSection,
   'memory-migration': MemoryCenterSection,
   openaiApi: OpenAIApiSection,
+  hosting: HostingTargetsSection,
   integrationCatalog: IntegrationCatalogSection,
   integrationMemory: IntegrationMemorySection,
   connect: ConnectSection,

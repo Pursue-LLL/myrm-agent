@@ -159,7 +159,7 @@ async def ensure_artifact_for_deploy(
         .where(Artifact.id == artifact_id, Artifact.is_deleted.is_(False))
     )
     artifact = (await db.execute(stmt)).scalars().first()
-    if artifact and artifact.versions:
+    if artifact is not None:
         return artifact
 
     files_svc = FilesService()

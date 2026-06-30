@@ -30,7 +30,6 @@ from app.services.hosting.credentials import (
     migrate_legacy_vercel_credentials,
     resolve_target_credentials,
     save_target_credentials,
-    token_from_credentials,
 )
 from app.services.hosting.orchestrator import publish_artifact_to_target
 from app.services.hosting.preflight import run_deploy_preflight
@@ -38,7 +37,6 @@ from app.services.hosting.publication_store import list_publications, publicatio
 from app.services.hosting.registry import get_hosting_provider
 from app.services.hosting.targets import (
     delete_hosting_target,
-    get_default_hosting_target,
     get_hosting_target,
     list_hosting_targets,
     upsert_hosting_target,
@@ -232,6 +230,8 @@ async def publish_artifact(
     if not result.success:
         if result.status == "PREFLIGHT_FAILED":
             raise HTTPException(status_code=400, detail=result.error or result.status)
+        if result.error == "Artifact not found.":
+            raise HTTPException(status_code=400, detail="Artifact not found.")
         raise HTTPException(status_code=500, detail=result.error or "Publication failed")
     return {
         "publication_id": result.publication_id,
@@ -258,7 +258,7 @@ async def publication_status_ws(
     artifact_id: str,
     publication_id: str,
     target_id: str = Query(...),
-):
+) -> None:
     await websocket.accept()
     try:
         auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
@@ -284,7 +284,6 @@ async def publication_status_ws(
         await websocket.close(code=1008, reason="Missing credentials")
         return
 
-    terminal_status: str | None = None
     try:
         while True:
             status_data = await provider.poll_status(
@@ -295,146 +294,12 @@ async def publication_status_ws(
             await websocket.send_json(status_data)
             status = status_data.get("status")
             if status in ["READY", "ERROR", "CANCELED", "ready"]:
-                terminal_status = str(status)
                 break
             await asyncio.sleep(2.0)
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected for publication %s", publication_id)
     except Exception as exc:
         logger.error("Publication status poll error: %s", exc)
-        await websocket.send_json({"status": "ERROR", "error": str(exc)})
-    finally:
-        try:
-            await websocket.close()
-        except Exception:
-            pass
-
-
-# Legacy deploy endpoints (delegate to hosting)
-class LegacyDeployRequest(BaseModel):
-    token: str = ""
-    platform: str = "vercel"
-    target_id: str | None = None
-
-
-@router.get("/deploy/credentials/vercel")
-async def legacy_get_vercel_credentials(db: AsyncSession = Depends(get_db)) -> dict[str, object]:
-    await migrate_legacy_vercel_credentials(db)
-    default = await get_default_hosting_target(db)
-    if default is None:
-        return {"configured": False, "platform_available": False, "token": None}
-    status = await get_target_credential_status(db, default.id)
-    token: str | None = None
-    if status.configured:
-        creds = await resolve_target_credentials(db, default.id)
-        token = token_from_credentials(creds)
-    return {
-        "token": token,
-        "configured": status.configured,
-        "platform_available": status.platform_available,
-    }
-
-
-@router.put("/deploy/credentials/vercel")
-async def legacy_save_vercel_credentials(
-    payload: dict[str, str],
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
-    token = payload.get("token", "").strip()
-    if not token:
-        raise HTTPException(status_code=400, detail="Token is required.")
-    await migrate_legacy_vercel_credentials(db)
-    default = await get_default_hosting_target(db)
-    if default is None:
-        default = await upsert_hosting_target(
-            db,
-            HostingTarget(
-                id=str(uuid.uuid4()),
-                name="Vercel",
-                provider_type="vercel",
-                config={},
-                is_default=True,
-            ),
-        )
-    return await save_target_credentials(db, default.id, {"token": token})
-
-
-@router.get("/{artifact_id}/deploy/preflight", response_model=PublishPreflightResponse)
-async def legacy_deploy_preflight(artifact_id: str, db: AsyncSession = Depends(get_db)) -> PublishPreflightResponse:
-    return await publish_preflight(artifact_id, None, db)
-
-
-@router.post("/{artifact_id}/deploy")
-@limiter.limit(settings.rate_limit.artifact_deploy)
-async def legacy_deploy_artifact(
-    request: Request,
-    artifact_id: str,
-    deploy_body: LegacyDeployRequest,
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
-    await migrate_legacy_vercel_credentials(db)
-    default = await get_default_hosting_target(db)
-    if default is None:
-        raise HTTPException(status_code=400, detail="Configure a hosting target in Settings first.")
-    return await publish_artifact(
-        request,
-        artifact_id,
-        PublishRequest(target_id=deploy_body.target_id or default.id, token=deploy_body.token),
-        db,
-    )
-
-
-@router.websocket("/{artifact_id}/deploy/status/{deployment_id}")
-async def legacy_deployment_status_ws(
-    websocket: WebSocket,
-    artifact_id: str,
-    deployment_id: str,
-):
-    """Legacy Vercel deployment status WebSocket for existing DeployModal clients."""
-    from app.services.hosting.vercel_client import VercelClient
-
-    await websocket.accept()
-    try:
-        auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
-        if not isinstance(auth_msg, dict) or auth_msg.get("type") != "auth":
-            await websocket.close(code=1008, reason="Invalid auth payload")
-            return
-    except asyncio.TimeoutError:
-        await websocket.close(code=1008, reason="Auth timeout")
-        return
-    except json.JSONDecodeError:
-        await websocket.close(code=1003, reason="Unsupported Data: Invalid JSON")
-        return
-
-    try:
-        async with get_session() as db:
-            await migrate_legacy_vercel_credentials(db)
-            default = await get_default_hosting_target(db)
-            if default is None:
-                await websocket.close(code=1008, reason="No hosting target")
-                return
-            credentials = await resolve_target_credentials(db, default.id)
-            token = token_from_credentials(credentials)
-            if not token:
-                await websocket.close(code=1008, reason="Missing credentials")
-                return
-    except HTTPException:
-        await websocket.close(code=1008, reason="Missing credentials")
-        return
-
-    client = VercelClient(token=token)
-    try:
-        while True:
-            status_data = await client.get_deployment_status(deployment_id)
-            await websocket.send_json(status_data)
-            status = status_data.get("status")
-            if status in ["READY", "ERROR", "CANCELED"]:
-                break
-            await asyncio.sleep(2.0)
-    except WebSocketDisconnect:
-        logger.info("Legacy WebSocket disconnected for deployment %s", deployment_id)
-    except Exception as exc:
-        logger.error("Legacy deployment status poll error: %s", exc)
         await websocket.send_json({"status": "ERROR", "error": str(exc)})
     finally:
         try:

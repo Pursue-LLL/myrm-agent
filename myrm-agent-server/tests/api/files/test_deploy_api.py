@@ -1,5 +1,6 @@
 import uuid
 from contextlib import asynccontextmanager
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -8,17 +9,37 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.api.files.deploy_api import router as deploy_router
+from app.api.files.hosting_api import router as hosting_router
+from app.api.files.hosting_legacy_api import router as legacy_router
 from app.core.infra.limiter import limiter
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact, ArtifactVersion
-from app.services.deploy.deploy_packager import DeployFile
-from app.services.deploy.preflight import DeployPreflightResult
+from app.services.hosting.packager import PublishFile
+from app.services.hosting.preflight import DeployPreflightResult
+from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID
+from app.services.hosting.types import HostingTarget
+
+
+async def _seed_default_vercel_target(db_session) -> None:
+    from app.services.hosting.targets import save_hosting_targets
+
+    await save_hosting_targets(
+        db_session,
+        [
+            HostingTarget(
+                id=LEGACY_VERCEL_TARGET_ID,
+                name="Vercel",
+                provider_type="vercel",
+                config={},
+                is_default=True,
+            )
+        ],
+    )
 
 
 def _patch_deployable_preflight():
     return patch(
-        "app.api.files.deploy_api.run_deploy_preflight",
+        "app.api.files.hosting_api.run_deploy_preflight",
         new_callable=AsyncMock,
         return_value=DeployPreflightResult(
             deployable=True,
@@ -29,19 +50,29 @@ def _patch_deployable_preflight():
     )
 
 
-def _patch_resolve_deploy_files(artifact: Artifact, files: dict[str, DeployFile]):
+def _patch_resolve_deploy_files(artifact: Artifact, files: dict[str, PublishFile]):
     return patch(
-        "app.services.deploy.artifact_files.resolve_artifact_deploy_files",
+        "app.services.hosting.orchestrator.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(artifact, files),
     )
 
 
+@pytest.fixture(autouse=True)
+def bypass_rate_limit():
+    with patch(
+        "app.core.infra.limiter.limiter._limiter.check",
+        new_callable=AsyncMock,
+        return_value=SimpleNamespace(allowed=True, retry_after_seconds=None),
+    ):
+        yield
+
+
 @pytest.fixture
 def deploy_client(db_session) -> TestClient:
-    limiter.enabled = False
     test_app = FastAPI()
-    test_app.include_router(deploy_router)
+    test_app.include_router(hosting_router)
+    test_app.include_router(legacy_router)
 
     async def override_get_db():
         yield db_session
@@ -49,7 +80,6 @@ def deploy_client(db_session) -> TestClient:
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as test_client:
         yield test_client
-    limiter.enabled = True
 
 
 @pytest.fixture
@@ -90,9 +120,10 @@ async def artifact_without_versions(db_session):
 
 @pytest.mark.asyncio
 async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    await _seed_default_vercel_target(db_session)
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -122,17 +153,24 @@ async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session)
 
 
 @pytest.mark.asyncio
-async def test_deploy_artifact_not_found(deploy_client):
-    response = deploy_client.post(
-        f"/{uuid.uuid4()}/deploy",
-        json={"token": "test_token", "platform": "vercel"},
-    )
+async def test_deploy_artifact_not_found(deploy_client, db_session):
+    await _seed_default_vercel_target(db_session)
+    with patch(
+        "app.services.hosting.orchestrator.resolve_artifact_deploy_files",
+        new_callable=AsyncMock,
+        side_effect=LookupError("Artifact not found"),
+    ):
+        response = deploy_client.post(
+            f"/{uuid.uuid4()}/deploy",
+            json={"token": "test_token", "platform": "vercel"},
+        )
     assert response.status_code == 400
     assert "Artifact not found" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_deploy_unsupported_platform(deploy_client, mock_artifact):
+async def test_deploy_unsupported_platform(deploy_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
     response = deploy_client.post(
         f"/{mock_artifact.id}/deploy",
         json={"token": "test_token", "platform": "netlify"},
@@ -142,22 +180,23 @@ async def test_deploy_unsupported_platform(deploy_client, mock_artifact):
 
 
 @pytest.mark.asyncio
-async def test_deploy_artifact_no_versions(deploy_client, artifact_without_versions):
+async def test_deploy_artifact_no_versions(deploy_client, artifact_without_versions, db_session):
+    await _seed_default_vercel_target(db_session)
     response = deploy_client.post(
         f"/{artifact_without_versions.id}/deploy",
         json={"token": "test_token", "platform": "vercel"},
     )
     assert response.status_code == 400
-    assert response.json()["detail"] == "Artifact has no versions to deploy."
+    assert response.json()["detail"] == "Artifact has no versions to publish."
 
 
 @pytest.mark.asyncio
 async def test_deploy_preflight_rejects_tsx_only(deploy_client, mock_artifact):
     with patch(
-        "app.api.files.deploy_api.run_deploy_preflight",
+        "app.api.files.hosting_api.run_deploy_preflight",
         new_callable=AsyncMock,
     ) as mock_preflight:
-        from app.services.deploy.preflight import DeployPreflightResult
+        from app.services.hosting.preflight import DeployPreflightResult
 
         mock_preflight.return_value = DeployPreflightResult(
             deployable=False,
@@ -174,9 +213,10 @@ async def test_deploy_preflight_rejects_tsx_only(deploy_client, mock_artifact):
 
 @pytest.mark.asyncio
 async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artifact, db_session):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    await _seed_default_vercel_target(db_session)
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(side_effect=Exception("Invalid token"))
 
@@ -192,12 +232,13 @@ async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artif
 
 @pytest.mark.asyncio
 async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
     files = {
-        "index.html": DeployFile(path="index.html", content="<h1>Dir</h1>"),
-        "style.css": DeployFile(path="style.css", content="body{}"),
+        "index.html": PublishFile(path="index.html", content="<h1>Dir</h1>"),
+        "style.css": PublishFile(path="style.css", content="body{}"),
     }
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -221,11 +262,13 @@ async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_sessio
 
 @pytest.mark.asyncio
 async def test_deployment_status_ws_auth_success(deploy_client, db_session):
+    await _seed_default_vercel_target(db_session)
+
     @asynccontextmanager
     async def session_override():
         yield db_session
 
-    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
+    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "test_token"}, False)
         mock_service.decrypt.return_value = {"token": "test_token"}
@@ -235,24 +278,23 @@ async def test_deployment_status_ws_auth_success(deploy_client, db_session):
             json={"token": "test_token"},
         )
 
-        with patch("app.api.files.deploy_api.get_session", session_override):
-            with patch("app.api.files.deploy_api._apply_deployment_state", new_callable=AsyncMock):
-                with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
-                    mock_vercel_instance = mock_vercel_class.return_value
-                    mock_vercel_instance.get_deployment_status = AsyncMock(
-                        return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
-                    )
+        with patch("app.api.files.hosting_legacy_api.get_session", session_override):
+            with patch("app.services.hosting.vercel_client.VercelClient") as mock_vercel_class:
+                mock_vercel_instance = mock_vercel_class.return_value
+                mock_vercel_instance.get_deployment_status = AsyncMock(
+                    return_value={"id": "dep_123", "url": "https://test.vercel.app", "status": "READY"}
+                )
 
-                    artifact_id = str(uuid.uuid4())
-                    artifact = Artifact(id=artifact_id, name="ws-artifact", is_deleted=False)
-                    db_session.add(artifact)
-                    await db_session.commit()
+                artifact_id = str(uuid.uuid4())
+                artifact = Artifact(id=artifact_id, name="ws-artifact", is_deleted=False)
+                db_session.add(artifact)
+                await db_session.commit()
 
-                    with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
-                        ws.send_json({"type": "auth"})
-                        data = ws.receive_json()
-                        assert data["status"] == "READY"
-                    mock_vercel_class.assert_called_once_with(token="test_token")
+                with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
+                    ws.send_json({"type": "auth"})
+                    data = ws.receive_json()
+                    assert data["status"] == "READY"
+                mock_vercel_class.assert_called_once_with(token="test_token")
 
 
 def test_deployment_status_ws_invalid_auth_payload(deploy_client):
@@ -268,8 +310,8 @@ def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
     async def session_override():
         yield db_session
 
-    with patch("app.api.files.deploy_api.get_session", session_override):
-        with patch("app.services.deploy.credentials.get_platform_vercel_token", return_value=None):
+    with patch("app.api.files.hosting_legacy_api.get_session", session_override):
+        with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=None):
             artifact_id = str(uuid.uuid4())
             with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
                 ws.send_json({"type": "auth"})
@@ -287,7 +329,7 @@ def test_get_vercel_credentials_empty(deploy_client):
 
 
 def test_save_and_get_vercel_credentials(deploy_client):
-    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
+    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "secret-token"}, False)
         mock_service.decrypt.return_value = {"token": "secret-token"}
@@ -307,16 +349,17 @@ def test_save_and_get_vercel_credentials(deploy_client):
 
 @pytest.mark.asyncio
 async def test_deploy_uses_stored_credentials_when_token_empty(deploy_client, mock_artifact, db_session):
-    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
+    await _seed_default_vercel_target(db_session)
+    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "stored-token"}, False)
         mock_service.decrypt.return_value = {"token": "stored-token"}
 
         deploy_client.put("/deploy/credentials/vercel", json={"token": "stored-token"})
 
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -336,12 +379,23 @@ async def test_deploy_uses_stored_credentials_when_token_empty(deploy_client, mo
 
 @pytest.mark.asyncio
 async def test_deploy_passes_project_id_on_redeploy(deploy_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    from app.database.models.artifact_publication import ArtifactPublication
+
+    pub = ArtifactPublication(
+        id=str(uuid.uuid4()),
+        artifact_id=mock_artifact.id,
+        hosting_target_id=LEGACY_VERCEL_TARGET_ID,
+        publication_project_ref="prj_existing",
+        publication_status="READY",
+    )
+    db_session.add(pub)
     mock_artifact.deployment_project_id = "prj_existing"
     await db_session.commit()
 
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -360,11 +414,12 @@ async def test_deploy_passes_project_id_on_redeploy(deploy_client, mock_artifact
 
 
 @pytest.mark.asyncio
-async def test_deploy_uses_platform_token_in_sandbox(deploy_client, mock_artifact):
-    files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
-    with patch("app.services.deploy.credentials.get_platform_vercel_token", return_value="platform-token"):
+async def test_deploy_uses_platform_token_in_sandbox(deploy_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    files = {"index.html": PublishFile(path="index.html", content="<h1>Hello</h1>")}
+    with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value="platform-token"):
         with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-            with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
+            with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
                 mock_vercel_instance.deploy = AsyncMock(
                     return_value={
