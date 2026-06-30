@@ -174,6 +174,14 @@ async def _run_guardian_cycle() -> MaintenanceReport | None:
             await _record_purge_audit(purge_count)
     except Exception as exc:
         logger.warning("Memory guardian: archive purge pass failed (non-fatal): %s", exc)
+
+    try:
+        resolved_count = await _auto_resolve_expired_conflicts()
+        if resolved_count > 0:
+            logger.info("Memory guardian: auto-resolved %d expired conflicts (keep_old)", resolved_count)
+    except Exception as exc:
+        logger.warning("Memory guardian: conflict auto-resolve failed (non-fatal): %s", exc)
+
     _run_sqlite_backup()
     return report
 
@@ -271,6 +279,41 @@ async def _record_purge_audit(purge_count: int) -> None:
             )
     except Exception as exc:
         logger.warning("Memory guardian: failed to record purge audit event: %s", exc)
+
+
+async def _auto_resolve_expired_conflicts() -> int:
+    """Resolve conflicts whose auto_resolve_at deadline has passed.
+
+    Applies KEEP_OLD (safe default): the old memory stays, the conflicting
+    new content is discarded. Returns the number of resolved conflicts.
+    """
+    from datetime import UTC, datetime as dt
+
+    from sqlalchemy import select, update
+
+    from app.database.connection import get_session
+    from app.database.models import PendingMemory
+
+    now = dt.now(UTC)
+
+    async with get_session() as db:
+        stmt = (
+            update(PendingMemory)
+            .where(
+                PendingMemory.is_conflict.is_(True),
+                PendingMemory.status == "pending",
+                PendingMemory.conflict_auto_resolve_at.isnot(None),
+                PendingMemory.conflict_auto_resolve_at <= now,
+            )
+            .values(
+                status="resolved",
+                resolved_at=now,
+                metadata_json={"resolution": "keep_old", "auto_resolved": True},
+            )
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        return result.rowcount  # type: ignore[return-value]
 
 
 async def _purge_expired_archives(manager: MemoryManager) -> int:

@@ -19,6 +19,8 @@ export type MemoryStatusType = 'active' | 'disabled' | 'archived';
 
 export type PendingMemoryStatus = 'pending' | 'approved' | 'rejected';
 
+export type ConflictResolution = 'keep_old' | 'keep_new' | 'merge' | 'discard_both';
+
 export interface PendingMemory {
   id: string;
   user_id: string;
@@ -30,6 +32,12 @@ export interface PendingMemory {
   status: PendingMemoryStatus;
   created_at: string;
   resolved_at?: string;
+  is_conflict?: boolean;
+  conflict_old_memory_id?: string;
+  conflict_old_content?: string;
+  conflict_accuracy_score?: number;
+  conflict_importance?: number;
+  conflict_auto_resolve_at?: string;
 }
 
 export interface Memory {
@@ -180,6 +188,21 @@ export const batchRejectMemories = async (memoryIds: string[]): Promise<BatchMem
   return apiRequest<BatchMemoryResponse>('/memory/pending/batch/reject', {
     method: 'POST',
     body: JSON.stringify({ memory_ids: memoryIds }),
+  });
+};
+
+export const getConflicts = async (): Promise<PendingMemoryListResponse> => {
+  return apiRequest<PendingMemoryListResponse>('/memory/conflicts');
+};
+
+export const resolveConflict = async (
+  conflictId: string,
+  resolution: ConflictResolution,
+  mergedContent?: string,
+): Promise<void> => {
+  await apiRequest(`/memory/conflicts/${conflictId}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ resolution, merged_content: mergedContent }),
   });
 };
 

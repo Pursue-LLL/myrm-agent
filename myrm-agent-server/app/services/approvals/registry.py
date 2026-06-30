@@ -131,6 +131,10 @@ class ApprovalRegistry:
                             "action_type": action_type,
                             "status": status,
                             "severity": severity,
+                            "reason": reason,
+                            "payload": payload,
+                            "chat_id": chat_id,
+                            "expires_at": expires_at.isoformat() if expires_at else None,
                         },
                     )
                 )

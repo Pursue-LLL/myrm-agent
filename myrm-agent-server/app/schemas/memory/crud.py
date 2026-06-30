@@ -94,6 +94,12 @@ class PendingMemoryItem(BaseModel):
     status: str
     created_at: datetime
     resolved_at: datetime | None = None
+    is_conflict: bool = False
+    conflict_old_memory_id: str | None = None
+    conflict_old_content: str | None = None
+    conflict_accuracy_score: float | None = None
+    conflict_importance: float | None = None
+    conflict_auto_resolve_at: datetime | None = None
 
 
 class PendingMemoriesResponse(BaseModel):
@@ -107,6 +113,13 @@ class ApproveMemoryRequest(BaseModel):
     """Request to approve a pending memory"""
 
     edited_content: str | None = None
+
+
+class ResolveConflictRequest(BaseModel):
+    """Request to resolve a memory conflict."""
+
+    resolution: str  # keep_old | keep_new | merge | discard_both
+    merged_content: str | None = None
 
 
 class BatchMemoryRequest(BaseModel):

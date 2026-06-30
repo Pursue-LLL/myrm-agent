@@ -10,6 +10,7 @@ import type {
   CreateMemoryRequest,
   MemorySortBy,
   MemorySortOrder,
+  ConflictResolution,
 } from '@/services/memory';
 
 export type {
@@ -24,6 +25,7 @@ export type {
   CreateMemoryRequest,
   MemorySortBy,
   MemorySortOrder,
+  ConflictResolution,
 };
 
 export interface MemoryState {
@@ -50,6 +52,11 @@ export interface MemoryState {
   // 统计
   memoryStats: MemoryStatsResponse | null;
   statsLoading: boolean;
+
+  // 冲突
+  conflicts: PendingMemory[];
+  conflictCount: number;
+  conflictsLoading: boolean;
 
   // 回收站
   archivedMemories: Memory[];
@@ -87,6 +94,10 @@ export interface MemoryState {
 
   // 统计
   fetchMemoryStats: () => Promise<void>;
+
+  // 冲突操作
+  fetchConflicts: () => Promise<void>;
+  resolveConflict: (id: string, resolution: ConflictResolution, mergedContent?: string) => Promise<void>;
 
   // 回收站操作
   fetchArchivedMemories: (page?: number) => Promise<void>;

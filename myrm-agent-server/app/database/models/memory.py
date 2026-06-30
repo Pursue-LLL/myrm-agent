@@ -64,6 +64,7 @@ class PendingMemory(Base):
     """待审批记忆条目表
 
     Agent 从对话中提取的记忆候选，需要用户确认后才正式存储。
+    同时承载冲突裁决记录（is_conflict=True 时生效）。
     """
 
     __tablename__ = "pending_memories"
@@ -76,6 +77,13 @@ class PendingMemory(Base):
     metadata_json: Mapped[dict[str, object] | None] = mapped_column("metadata", JSON, nullable=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False, index=True)
+
+    is_conflict: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    conflict_old_memory_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    conflict_old_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    conflict_accuracy_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    conflict_importance: Mapped[float | None] = mapped_column(Float, nullable=True)
+    conflict_auto_resolve_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

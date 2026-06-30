@@ -506,12 +506,16 @@ class ToolSetupMixin(ExternalAgentsMixin):
             elif self.memory_decay_profile == "fast":
                 time_decay_half_life_days = 7.0
 
+            from app.core.memory.adapters.setup import create_conflict_callback
+
+            on_conflict = create_conflict_callback(agent_id=self.agent_id)
             manager, memory_tools = await create_memory_tools_for_user(
                 binding,
                 self.embedding_config,
                 approval_required=self.memory_require_confirmation,
                 dedup_llm=self._lite_llm,
                 time_decay_half_life_days=time_decay_half_life_days,
+                on_conflict=on_conflict,
             )
             # Memory tools are high frequency for a personal assistant, keep them in tools
             tools.extend(memory_tools)
@@ -658,18 +662,22 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
-    def _setup_deploy_tools(self, deferred_tools: list[object]) -> None:
-        """Set up the artifact deployment agent tool."""
+    async def _setup_deploy_tools(self, deferred_tools: list[object]) -> None:
+        """Set up the artifact deployment agent tool when Vercel credentials exist."""
         try:
-            from myrm_agent_harness.toolkits import create_deploy_tool
-
             from app.platform_utils.workspace_root import get_workspace_root
             from app.services.deploy.agent_deploy_service import AgentDeployService
+            from app.services.deploy.credentials import has_deploy_credentials
+            from app.services.deploy.deploy_agent_tools import create_deploy_tool
+
+            if not await has_deploy_credentials():
+                logger.debug("Deploy tool skipped: no Vercel credentials configured")
+                return
 
             backend = AgentDeployService(workspace_root=str(get_workspace_root()))
             deploy_tools = create_deploy_tool(backend)
             deferred_tools.extend(deploy_tools)
-            logger.info("🚀 Loaded %d deploy tool(s) [Deferred]", len(deploy_tools))
+            logger.info("Loaded %d deploy tool(s) [Deferred]", len(deploy_tools))
         except Exception as e:
             logger.warning("Deploy tool load failed (degraded): %s", e)
 

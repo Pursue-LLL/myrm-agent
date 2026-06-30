@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from myrm_agent_harness.toolkits.context_bundle.spec import DEFAULT_BUNDLE_ID
 from myrm_agent_harness.toolkits.memory import (
@@ -35,6 +35,9 @@ from app.core.memory.adapters.policy import (
     resolve_scope_identifiers,
 )
 from app.core.memory.adapters.types import ResolvedContextBinding
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory.strategies.consolidation import ConflictCallback, ConflictContext
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +108,7 @@ async def create_memory_manager(
     dedup_llm: object | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
+    on_conflict: ConflictCallback | None = None,
 ) -> MemoryManager:
     """Create a MemoryManager wired to local/volume-backed storage.
 
@@ -161,6 +165,7 @@ async def create_memory_manager(
             recall_mode=recall_mode,
             vector_store=store,
             time_decay_half_life_days=time_decay_half_life_days,
+            on_conflict=on_conflict,
         )
 
         _memory_manager_cache[cache_key] = manager
@@ -182,6 +187,7 @@ async def create_memory_tools_for_user(
     dedup_llm: object | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
+    on_conflict: ConflictCallback | None = None,
 ) -> tuple[MemoryManager, list[object]]:
     """Create a MemoryManager and its agent tools in one call."""
     from myrm_agent_harness.toolkits import create_memory_tools
@@ -194,9 +200,67 @@ async def create_memory_tools_for_user(
         dedup_llm=dedup_llm,
         recall_mode=recall_mode,
         time_decay_half_life_days=time_decay_half_life_days,
+        on_conflict=on_conflict,
     )
     tools = create_memory_tools_fn(manager, recall_mode=recall_mode)
     return manager, tools
+
+
+def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
+    """Create an on_conflict callback that persists conflicts as PendingMemory rows.
+
+    When the consolidation engine detects a high-importance contradiction it cannot
+    auto-resolve, this callback writes a PendingMemory record with ``is_conflict=True``
+    and returns ``ConflictResolution.PENDING`` so the framework keeps the old memory
+    untouched until the user resolves it via the GUI.
+    """
+
+    from myrm_agent_harness.toolkits.memory.types import ConflictResolution
+
+    async def _on_conflict(ctx: ConflictContext) -> ConflictResolution:
+        from datetime import UTC, datetime as dt, timedelta
+        from uuid import uuid4
+
+        from app.database.connection import get_session
+        from app.database.models import PendingMemory
+
+        conflict_id = str(uuid4())
+        auto_resolve_at = dt.now(UTC) + timedelta(hours=72)
+
+        try:
+            async with get_session() as db:
+                record = PendingMemory(
+                    id=conflict_id,
+                    agent_id=agent_id,
+                    memory_type="semantic",
+                    content=ctx.new_content,
+                    metadata_json={
+                        "merge_suggestion": ctx.merge_suggestion,
+                        "source": "consolidation_conflict",
+                    },
+                    confidence=ctx.accuracy_score,
+                    status="pending",
+                    is_conflict=True,
+                    conflict_old_memory_id=ctx.old_memory_id,
+                    conflict_old_content=ctx.old_content,
+                    conflict_accuracy_score=ctx.accuracy_score,
+                    conflict_importance=ctx.importance,
+                    conflict_auto_resolve_at=auto_resolve_at,
+                )
+                db.add(record)
+                await db.commit()
+
+            logger.info(
+                "Conflict persisted as PendingMemory %s (old=%s, auto_resolve=%s)",
+                conflict_id, ctx.old_memory_id, auto_resolve_at,
+            )
+        except Exception:
+            logger.warning("Failed to persist conflict, falling back to KEEP_OLD", exc_info=True)
+            return ConflictResolution.KEEP_OLD
+
+        return ConflictResolution.PENDING
+
+    return _on_conflict
 
 
 def resolve_context_binding(

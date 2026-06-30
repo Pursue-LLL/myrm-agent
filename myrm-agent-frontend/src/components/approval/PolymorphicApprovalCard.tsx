@@ -636,6 +636,28 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           </div>
         );
       }
+      case 'deploy_approval': {
+        const artifactName = approval.payload?.artifact_name ?? approval.payload?.artifact_id ?? '';
+        const deployMessage = approval.payload?.message ?? approval.reason ?? '';
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+              <Globe className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <h4 className="font-semibold text-sm">{t('deployApprovalTitle')}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">{deployMessage}</p>
+              </div>
+            </div>
+            {artifactName ? (
+              <div className="rounded-lg border bg-muted/50 p-3 text-sm">
+                <span className="text-muted-foreground">{t('deployApprovalArtifact')}: </span>
+                <span className="font-medium">{artifactName}</span>
+              </div>
+            ) : null}
+            <p className="text-xs text-muted-foreground">{t('deployApprovalHint')}</p>
+          </div>
+        );
+      }
       default:
         return (
           <div className="space-y-4">
@@ -719,7 +741,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         <Button variant="outline" onClick={() => onResolve('reject', comment, undefined, { feedback: comment || undefined })} disabled={isSubmitting}>
           {t('reject')}
         </Button>
-        {singleShellToolCall && (
+        {singleShellToolCall && approval.action_type !== 'deploy_approval' && (
           <Button variant="secondary" onClick={() => setMode('editing')} disabled={isSubmitting}>
             <Pencil className="mr-1 h-3.5 w-3.5" />
             {t('edit')}

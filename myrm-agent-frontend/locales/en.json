@@ -4110,7 +4110,8 @@
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
     "totalTokens": "Tokens",
-    "batchOptimization": "Batch Optimization"
+    "batchOptimization": "Batch Optimization",
+    "canvas": "Canvas"
   },
   "loginBubble": {
     "title": "Unlock More Features",
@@ -6242,6 +6243,24 @@
     "rejectSuccess": "Memory rejected",
     "rejectSuccessDesc": "Memory has been rejected and won't be saved",
     "rejectFailed": "Rejection failed",
+    "conflict": {
+      "title": "Memory Conflict",
+      "importance": "Importance",
+      "currentMemory": "Current Memory",
+      "unknown": "(Content unavailable)",
+      "newMemory": "New Extracted Content",
+      "mergedContent": "Merged Content",
+      "mergePlaceholder": "Edit the merged memory content...",
+      "accuracy": "Accuracy",
+      "keepOld": "Keep Old",
+      "keepNew": "Use New",
+      "merge": "Merge",
+      "confirmMerge": "Confirm Merge",
+      "discardBoth": "Discard Both",
+      "resolveSuccess": "Conflict Resolved",
+      "resolveSuccessDesc": "Memory conflict has been resolved successfully",
+      "resolveFailed": "Resolution Failed"
+    },
     "batchApproveSuccess": "Batch approval successful",
     "batchApproveSuccessDesc": "Successfully approved {count} memories",
     "batchApproveFailed": "Batch approval failed",
@@ -9759,6 +9778,9 @@
     "batchTitle": "Batch Approval ({count} tools)",
     "description": "The agent wants to execute the following action(s). Review and decide: approve, edit parameters, or reject with feedback.",
     "subagentApprovalRequired": "Subagent Task Approval",
+    "deployApprovalTitle": "Confirm Artifact Deployment",
+    "deployApprovalArtifact": "Artifact",
+    "deployApprovalHint": "Approving will publish this artifact to Vercel and create a public URL.",
     "skillGrowthPending": "Skill Growth Review",
     "viewChanges": "View changes",
     "hideChanges": "Hide changes",
@@ -11913,5 +11935,19 @@
     "citationsPill": "{count} Memories Cited",
     "citationsTitle": "Cited Memories",
     "citationsDescription": "The AI explicitly relied on the following memories to generate this response:"
+  },
+  "canvas": {
+    "title": "Canvas Workspaces",
+    "newCanvas": "New Canvas",
+    "emptyTitle": "No canvases yet",
+    "emptyDescription": "Create a new canvas to start your visual workspace.",
+    "deleteTitle": "Delete Canvas",
+    "deleteDescription": "This action cannot be undone. The canvas and all its content will be permanently deleted.",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "loading": "Loading canvases...",
+    "justCreated": "Just created",
+    "loadingCanvas": "Loading canvas...",
+    "back": "Back"
   }
 }

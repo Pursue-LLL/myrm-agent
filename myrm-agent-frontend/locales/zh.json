@@ -4110,7 +4110,8 @@
     "usageAnalytics": "统计分析",
     "totalCalls": "调用次数",
     "totalTokens": "Token",
-    "batchOptimization": "批量优化"
+    "batchOptimization": "批量优化",
+    "canvas": "画布"
   },
   "loginBubble": {
     "title": "登录解锁更多功能",
@@ -6242,6 +6243,24 @@
     "rejectSuccess": "记忆已拒绝",
     "rejectSuccessDesc": "记忆已被拒绝，不会被保存",
     "rejectFailed": "拒绝失败",
+    "conflict": {
+      "title": "记忆冲突",
+      "importance": "重要度",
+      "currentMemory": "当前记忆",
+      "unknown": "（内容不可用）",
+      "newMemory": "新提取内容",
+      "mergedContent": "合并内容",
+      "mergePlaceholder": "编辑合并后的记忆内容...",
+      "accuracy": "准确度",
+      "keepOld": "保留旧的",
+      "keepNew": "使用新的",
+      "merge": "合并",
+      "confirmMerge": "确认合并",
+      "discardBoth": "丢弃两者",
+      "resolveSuccess": "冲突已解决",
+      "resolveSuccessDesc": "记忆冲突已成功处理",
+      "resolveFailed": "解决失败"
+    },
     "batchApproveSuccess": "批量确认成功",
     "batchApproveSuccessDesc": "已成功确认 {count} 条记忆",
     "batchApproveFailed": "批量确认失败",
@@ -9759,6 +9778,9 @@
     "batchTitle": "批量审批 ({count} 个工具)",
     "description": "Agent 请求执行以下操作。你可以批准、编辑参数后执行、或拒绝并反馈。",
     "subagentApprovalRequired": "子智能体任务需审批",
+    "deployApprovalTitle": "Artifact 部署确认",
+    "deployApprovalArtifact": "Artifact",
+    "deployApprovalHint": "批准后将通过 Vercel 发布该 artifact，产生公网可访问 URL。",
     "skillGrowthPending": "技能成长待审",
     "viewChanges": "查看变更",
     "hideChanges": "收起变更",
@@ -11913,5 +11935,19 @@
     "citationsPill": "引用了 {count} 条记忆",
     "citationsTitle": "引用的记忆",
     "citationsDescription": "AI 在生成此回复时明确依赖了以下记忆："
+  },
+  "canvas": {
+    "title": "画布工作区",
+    "newCanvas": "新建画布",
+    "emptyTitle": "暂无画布",
+    "emptyDescription": "创建一个新画布，开始你的视觉工作区。",
+    "deleteTitle": "删除画布",
+    "deleteDescription": "此操作不可撤销。画布及其所有内容将被永久删除。",
+    "cancel": "取消",
+    "delete": "删除",
+    "loading": "加载画布中...",
+    "justCreated": "刚刚创建",
+    "loadingCanvas": "加载画布中...",
+    "back": "返回"
   }
 }

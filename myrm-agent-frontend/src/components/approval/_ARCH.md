@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `ApprovalDrawer.tsx` | 核心 | 全局审批抽屉（subagent 批量 decisions） |
-| `PolymorphicApprovalCard.tsx` | 核心 | 单条工具审批卡片（shell/MCP/视觉等形态） |
+| `PolymorphicApprovalCard.tsx` | 核心 | 单条审批卡片（shell/MCP/视觉/`deploy_approval` 等形态） |
 | `__tests__/` | 测试 | 组件级测试 |
 
 ## 依赖

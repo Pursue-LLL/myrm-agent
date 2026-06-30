@@ -1,9 +1,10 @@
 'use client';
 
-import { memo } from 'react';
-import { Brain } from 'lucide-react';
+import { memo, useEffect, useRef } from 'react';
+import { AlertTriangle, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
+import { toast } from '@/hooks/useToast';
 
 interface PendingMemoryBadgeProps {
   onClick?: () => void;
@@ -12,11 +13,24 @@ interface PendingMemoryBadgeProps {
 }
 
 const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, showIcon = true }) => {
-  // 只消费 pendingCount 数据，不启动轮询
-  // 轮询由 UserMenu 统一管理，避免重复启动
   const pendingCount = useMemoryStore((state) => state.pendingCount);
+  const conflictCount = useMemoryStore((state) => state.conflictCount);
+  const prevConflictCount = useRef(conflictCount);
 
-  if (pendingCount === 0) return null;
+  useEffect(() => {
+    if (conflictCount > prevConflictCount.current && prevConflictCount.current === 0) {
+      toast({
+        title: '检测到记忆冲突',
+        description: `发现 ${conflictCount} 条记忆冲突，请在记忆管理中查看并裁决`,
+        variant: 'default',
+      });
+    }
+    prevConflictCount.current = conflictCount;
+  }, [conflictCount]);
+
+  const totalCount = pendingCount + conflictCount;
+
+  if (totalCount === 0) return null;
 
   return (
     <button
@@ -30,26 +44,33 @@ const PendingMemoryBadge = memo<PendingMemoryBadgeProps>(({ onClick, className, 
     >
       {showIcon && (
         <div className="relative">
-          <Brain size={20} className={cn('text-primary', pendingCount > 0 && 'animate-pulse')} />
-
-          {/* 发光效果 */}
-          <div className="absolute inset-0 bg-primary/20 blur-md rounded-full animate-pulse" />
+          {conflictCount > 0 ? (
+            <AlertTriangle size={20} className="text-amber-500 animate-pulse" />
+          ) : (
+            <Brain size={20} className={cn('text-primary', pendingCount > 0 && 'animate-pulse')} />
+          )}
+          <div
+            className={cn(
+              'absolute inset-0 blur-md rounded-full animate-pulse',
+              conflictCount > 0 ? 'bg-amber-500/20' : 'bg-primary/20',
+            )}
+          />
         </div>
       )}
 
-      {/* 数量徽章 */}
       <span
         className={cn(
           'absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px]',
           'flex items-center justify-center',
           'text-[10px] font-bold text-white',
-          'bg-gradient-to-br from-red-500 to-rose-600',
           'rounded-full px-1',
-          'shadow-lg shadow-red-500/30',
           'animate-in zoom-in-50 duration-300',
+          conflictCount > 0
+            ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30'
+            : 'bg-gradient-to-br from-red-500 to-rose-600 shadow-lg shadow-red-500/30',
         )}
       >
-        {pendingCount > 99 ? '99+' : pendingCount}
+        {totalCount > 99 ? '99+' : totalCount}
       </span>
     </button>
   );

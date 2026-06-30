@@ -7,4 +7,5 @@ export type {
   MemoryPaginationInfo,
   MemoryStatsResponse,
   UpdateMemoryRequest,
+  ConflictResolution,
 } from './types';

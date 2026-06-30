@@ -11,6 +11,9 @@ export interface ApprovalPayloadData {
   original_content?: string;
   tool_name?: string;
   tool_calls?: ApprovalToolCall[];
+  artifact_id?: string;
+  artifact_name?: string;
+  message?: string;
 }
 
 export interface ApprovalPayload {
@@ -62,6 +65,9 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       patch_content: asString(payload.patch_content) || undefined,
       original_content: asString(payload.original_content) || undefined,
       tool_calls: normalizeToolCalls(payload.tool_calls),
+      artifact_id: asString(payload.artifact_id) || undefined,
+      artifact_name: asString(payload.artifact_name) || undefined,
+      message: asString(payload.message) || undefined,
     },
     chat_id: asString(raw.chat_id) || undefined,
     expires_at: asString(raw.expires_at) || undefined,

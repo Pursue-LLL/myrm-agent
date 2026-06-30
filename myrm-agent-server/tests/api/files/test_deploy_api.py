@@ -31,7 +31,7 @@ def _patch_deployable_preflight():
 
 def _patch_resolve_deploy_files(artifact: Artifact, files: dict[str, DeployFile]):
     return patch(
-        "app.api.files.deploy_api.resolve_artifact_deploy_files",
+        "app.services.deploy.artifact_files.resolve_artifact_deploy_files",
         new_callable=AsyncMock,
         return_value=(artifact, files),
     )
@@ -92,7 +92,7 @@ async def artifact_without_versions(db_session):
 async def test_deploy_artifact_success(deploy_client, mock_artifact, db_session):
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -176,7 +176,7 @@ async def test_deploy_preflight_rejects_tsx_only(deploy_client, mock_artifact):
 async def test_deploy_vercel_failure_sets_error_status(deploy_client, mock_artifact, db_session):
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(side_effect=Exception("Invalid token"))
 
@@ -197,7 +197,7 @@ async def test_deploy_directory_artifact(deploy_client, mock_artifact, db_sessio
         "style.css": DeployFile(path="style.css", content="body{}"),
     }
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -225,7 +225,7 @@ async def test_deployment_status_ws_auth_success(deploy_client, db_session):
     async def session_override():
         yield db_session
 
-    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "test_token"}, False)
         mock_service.decrypt.return_value = {"token": "test_token"}
@@ -269,7 +269,7 @@ def test_deployment_status_ws_missing_credentials(deploy_client, db_session):
         yield db_session
 
     with patch("app.api.files.deploy_api.get_session", session_override):
-        with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value=None):
+        with patch("app.services.deploy.credentials.get_platform_vercel_token", return_value=None):
             artifact_id = str(uuid.uuid4())
             with deploy_client.websocket_connect(f"/{artifact_id}/deploy/status/dep_123") as ws:
                 ws.send_json({"type": "auth"})
@@ -287,7 +287,7 @@ def test_get_vercel_credentials_empty(deploy_client):
 
 
 def test_save_and_get_vercel_credentials(deploy_client):
-    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "secret-token"}, False)
         mock_service.decrypt.return_value = {"token": "secret-token"}
@@ -307,7 +307,7 @@ def test_save_and_get_vercel_credentials(deploy_client):
 
 @pytest.mark.asyncio
 async def test_deploy_uses_stored_credentials_when_token_empty(deploy_client, mock_artifact, db_session):
-    with patch("app.api.files.deploy_api.get_encryption_service") as mock_service_factory:
+    with patch("app.services.deploy.credentials.get_encryption_service") as mock_service_factory:
         mock_service = mock_service_factory.return_value
         mock_service.encrypt_if_needed.return_value = ({"token": "stored-token"}, False)
         mock_service.decrypt.return_value = {"token": "stored-token"}
@@ -316,7 +316,7 @@ async def test_deploy_uses_stored_credentials_when_token_empty(deploy_client, mo
 
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -341,7 +341,7 @@ async def test_deploy_passes_project_id_on_redeploy(deploy_client, mock_artifact
 
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
     with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-        with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+        with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
             mock_vercel_instance = mock_vercel_class.return_value
             mock_vercel_instance.deploy = AsyncMock(
                 return_value={
@@ -362,9 +362,9 @@ async def test_deploy_passes_project_id_on_redeploy(deploy_client, mock_artifact
 @pytest.mark.asyncio
 async def test_deploy_uses_platform_token_in_sandbox(deploy_client, mock_artifact):
     files = {"index.html": DeployFile(path="index.html", content="<h1>Hello</h1>")}
-    with patch("app.api.files.deploy_api._get_platform_vercel_token", return_value="platform-token"):
+    with patch("app.services.deploy.credentials.get_platform_vercel_token", return_value="platform-token"):
         with _patch_deployable_preflight(), _patch_resolve_deploy_files(mock_artifact, files):
-            with patch("app.api.files.deploy_api.VercelClient") as mock_vercel_class:
+            with patch("app.services.deploy.vercel_client.VercelClient") as mock_vercel_class:
                 mock_vercel_instance = mock_vercel_class.return_value
                 mock_vercel_instance.deploy = AsyncMock(
                     return_value={

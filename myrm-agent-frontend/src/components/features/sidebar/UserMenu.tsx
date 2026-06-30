@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { CreditCard, Settings, LogOut, User, FlaskConical, Crown, Zap, Layers, BrainCircuit } from 'lucide-react';
+import { CreditCard, Settings, LogOut, User, FlaskConical, Crown, Zap, Layers, BrainCircuit, PenTool } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -32,7 +32,7 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
   const locale = useLocale();
   const router = useRouter();
   const { user, isLoading, initAuth, logout, loginMock } = useAuthStore();
-  const { pendingCount, fetchPendingMemories } = useMemoryStore();
+  const { pendingCount, fetchPendingMemories, fetchConflicts } = useMemoryStore();
   const { isPro } = useSubscription();
   const { usage, isLoading: isUsageLoading } = useUsageAnalytics();
   const isLocal = isLocalMode();
@@ -44,13 +44,14 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
     }
   }, [isLocal, initAuth]);
 
-  // 获取一次待审批记忆（不轮询）
+  // 获取一次待审批记忆和冲突（不轮询）
   // Local 模式无需 user 条件；Sandbox 模式需等登录后再获取
   useEffect(() => {
     if (isLocal || user) {
       fetchPendingMemories();
+      fetchConflicts();
     }
-  }, [user, isLocal, fetchPendingMemories]);
+  }, [user, isLocal, fetchPendingMemories, fetchConflicts]);
 
   const handleNavigate = useCallback(
     (path: string, hash?: string) => {
@@ -90,6 +91,11 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
           onClick: () => handleNavigate('/brain'),
         },
         {
+          icon: PenTool,
+          label: t('canvas'),
+          onClick: () => handleNavigate('/canvas'),
+        },
+        {
           icon: Layers,
           label: t('batchOptimization'),
           onClick: () => handleNavigate('/batch-optimization'),
@@ -116,6 +122,11 @@ const UserMenu = memo<UserMenuProps>(({ isExpanded, isMobile, isMobileOpen, onMo
           icon: BrainCircuit,
           label: 'Brain Console',
           onClick: () => handleNavigate('/brain'),
+        },
+        {
+          icon: PenTool,
+          label: t('canvas'),
+          onClick: () => handleNavigate('/canvas'),
         },
         {
           icon: Layers,

@@ -27,6 +27,7 @@ from app.schemas.memory.crud import (
     BatchMemoryResponse,
     PendingMemoriesResponse,
     PendingMemoryItem,
+    ResolveConflictRequest,
 )
 from app.services.memory.operation_ledger import MemoryOperationLedgerService
 from app.services.skills.experience_ledger import (
@@ -248,3 +249,101 @@ async def batch_reject_memories(
         failed_count=len(request.memory_ids) - count,
         failed_ids=[],
     )
+
+
+# ── Conflict Resolution Endpoints ───────────────────────────────────
+
+
+@router.get("/conflicts", response_model=PendingMemoriesResponse)
+async def get_pending_conflicts(
+    manager: MemoryManager = Depends(get_memory_manager),
+) -> PendingMemoriesResponse:
+    """Get pending memory conflicts awaiting user resolution."""
+    from sqlalchemy import select
+
+    async with get_session() as db:
+        stmt = select(PendingMemory).where(
+            PendingMemory.is_conflict.is_(True),
+            PendingMemory.status == "pending",
+        )
+        result = await db.execute(stmt)
+        conflicts = result.scalars().all()
+
+    items = [
+        PendingMemoryItem(
+            id=c.id,
+            user_id="sandbox",
+            memory_type=c.memory_type,
+            content=c.content,
+            extra_data=c.metadata_json,
+            status=c.status,
+            created_at=c.created_at,
+            resolved_at=c.resolved_at,
+            is_conflict=True,
+            conflict_old_memory_id=c.conflict_old_memory_id,
+            conflict_old_content=c.conflict_old_content,
+            conflict_accuracy_score=c.conflict_accuracy_score,
+            conflict_importance=c.conflict_importance,
+            conflict_auto_resolve_at=c.conflict_auto_resolve_at,
+        )
+        for c in conflicts
+    ]
+    return PendingMemoriesResponse(items=items, total=len(items))
+
+
+@router.post("/conflicts/{conflict_id}/resolve")
+async def resolve_conflict(
+    conflict_id: str,
+    request: ResolveConflictRequest,
+    manager: MemoryManager = Depends(get_memory_manager),
+) -> StandardSuccessResponse:
+    """Resolve a memory conflict with a user decision."""
+    from sqlalchemy import select
+
+    async with get_session() as db:
+        stmt = select(PendingMemory).where(
+            PendingMemory.id == conflict_id,
+            PendingMemory.is_conflict.is_(True),
+        )
+        result = await db.execute(stmt)
+        conflict = result.scalar_one_or_none()
+
+    if not conflict or conflict.status != "pending":
+        raise HTTPException(status_code=404, detail="Conflict not found or already resolved")
+
+    resolution = request.resolution
+    old_memory_id = conflict.conflict_old_memory_id
+
+    if resolution == "keep_old":
+        pass
+    elif resolution == "keep_new":
+        if old_memory_id:
+            await manager.update_memory(old_memory_id, content=conflict.content)
+    elif resolution == "merge":
+        if not request.merged_content:
+            raise HTTPException(status_code=400, detail="merged_content required for merge resolution")
+        if old_memory_id:
+            await manager.update_memory(old_memory_id, content=request.merged_content)
+    elif resolution == "discard_both":
+        if old_memory_id:
+            await manager.update_memory(old_memory_id, importance=0.01)
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid resolution: {resolution}")
+
+    from datetime import UTC, datetime as dt
+
+    async with get_session() as db:
+        record = await db.get(PendingMemory, conflict_id)
+        if record:
+            record.status = "resolved"
+            record.resolved_at = dt.now(UTC)
+            record.metadata_json = {**(record.metadata_json or {}), "resolution": resolution}
+            await db.commit()
+
+    await _record_pending_event(
+        kind=MemoryOperationKind.APPROVE,
+        memory_id=conflict_id,
+        memory_type=conflict.memory_type,
+        summary=f"Conflict resolved: {resolution}",
+    )
+    return create_success_response(data={"status": "resolved", "resolution": resolution, "conflict_id": conflict_id})

@@ -7,6 +7,7 @@ import type {
   MemorySortBy,
   MemorySortOrder,
   UpdateMemoryRequest,
+  ConflictResolution,
 } from './types';
 import type { CreateMemoryRequest } from '@/services/memory';
 import {
@@ -24,6 +25,8 @@ import {
   getArchivedMemories as apiGetArchivedMemories,
   restoreMemory as apiRestoreMemory,
   purgeMemory as apiPurgeMemory,
+  getConflicts as apiGetConflicts,
+  resolveConflict as apiResolveConflict,
 } from '@/services/memory';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -47,6 +50,9 @@ const initialState = {
   memorySortOrder: 'desc' as MemorySortOrder,
   memoryStats: null,
   statsLoading: false,
+  conflicts: [] as PendingMemory[],
+  conflictCount: 0,
+  conflictsLoading: false,
   archivedMemories: [],
   archivedLoading: false,
   archivedPagination: null,
@@ -343,6 +349,34 @@ const useMemoryStore = create<MemoryState>()(
         set({ memoryStats: stats, statsLoading: false });
       } catch {
         set({ statsLoading: false });
+      }
+    },
+
+    // ==================== 冲突 ====================
+
+    fetchConflicts: async () => {
+      set({ conflictsLoading: true });
+      try {
+        const response = await apiGetConflicts();
+        set({
+          conflicts: response.items,
+          conflictCount: response.total,
+          conflictsLoading: false,
+        });
+      } catch {
+        set({ conflictsLoading: false });
+      }
+    },
+
+    resolveConflict: async (id: string, resolution: ConflictResolution, mergedContent?: string) => {
+      try {
+        await apiResolveConflict(id, resolution, mergedContent);
+        set((state) => {
+          state.conflicts = state.conflicts.filter((c) => c.id !== id);
+          state.conflictCount = Math.max(0, state.conflictCount - 1);
+        });
+      } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Failed to resolve conflict');
       }
     },
 

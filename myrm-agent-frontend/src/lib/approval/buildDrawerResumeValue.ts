@@ -17,7 +17,7 @@ import {
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/approvalDecision';
 
-const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval']);
+const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval', 'deploy_approval']);
 
 /**
  * [INPUT] Drawer approval record + user decision

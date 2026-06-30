@@ -10,6 +10,7 @@ from .api_key import APIKey
 from .approval import ApprovalRecord
 from .artifact import Artifact, ArtifactAuditLog, ArtifactVersion
 from .base import Base
+from .canvas import Canvas
 from .channel import ChannelPairingModel
 from .chat import Chat, ConversationFork, Message, OfflineDurableTask
 from .commitment import CommitmentModel
@@ -157,6 +158,8 @@ __all__ = [
     "ArtifactAuditLog",
     # Fission
     "FissionTaskRecord",
+    # Canvas
+    "Canvas",
     # Widget KV Storage
     "WidgetKVEntry",
     # Daily Wrap Cache

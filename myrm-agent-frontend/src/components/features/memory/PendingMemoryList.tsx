@@ -1,11 +1,13 @@
 'use client';
 
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, X, CheckCheck, Loader2, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useMemoryStore } from '@/store/memory';
+import type { ConflictResolution } from '@/store/memory';
 import MemoryCard from './MemoryCard';
+import ConflictCard from './ConflictCard';
 import { toast } from '@/hooks/useToast';
 
 interface PendingMemoryListProps {
@@ -27,7 +29,15 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     approveMemory,
     rejectMemory,
     fetchPendingMemories,
+    conflicts,
+    conflictsLoading,
+    fetchConflicts,
+    resolveConflict,
   } = useMemoryStore();
+
+  useEffect(() => {
+    fetchConflicts();
+  }, [fetchConflicts]);
 
   const selectedCount = selectedPendingIds.size;
   const allSelected = pendingMemories.length > 0 && selectedCount === pendingMemories.length;
@@ -102,6 +112,25 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     [rejectMemory, t],
   );
 
+  const handleResolveConflict = useCallback(
+    async (id: string, resolution: ConflictResolution, mergedContent?: string) => {
+      try {
+        await resolveConflict(id, resolution, mergedContent);
+        toast({
+          title: t('conflict.resolveSuccess', { defaultMessage: '冲突已解决' }),
+          description: t('conflict.resolveSuccessDesc', { defaultMessage: '记忆冲突已成功处理' }),
+        });
+      } catch (error) {
+        toast({
+          title: t('conflict.resolveFailed', { defaultMessage: '解决失败' }),
+          description: error instanceof Error ? error.message : t('unknownError'),
+          variant: 'destructive',
+        });
+      }
+    },
+    [resolveConflict, t],
+  );
+
   // 加载状态
   if (pendingLoading && pendingMemories.length === 0) {
     return (
@@ -124,8 +153,10 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
     );
   }
 
-  // 空状态
-  if (pendingMemories.length === 0) {
+  const hasConflicts = conflicts.length > 0;
+
+  // 空状态 (no pending and no conflicts)
+  if (pendingMemories.length === 0 && !hasConflicts) {
     return (
       <div className={cn('flex flex-col items-center justify-center py-16', className)}>
         <div className="relative">
@@ -192,6 +223,19 @@ const PendingMemoryList = memo<PendingMemoryListProps>(({ className, showBatchAc
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 冲突区域 */}
+      {hasConflicts && (
+        <div className="space-y-3">
+          {conflicts.map((conflict) => (
+            <ConflictCard
+              key={conflict.id}
+              conflict={conflict}
+              onResolve={handleResolveConflict}
+            />
+          ))}
         </div>
       )}
 
