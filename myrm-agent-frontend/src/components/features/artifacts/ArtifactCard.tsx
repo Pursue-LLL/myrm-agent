@@ -28,6 +28,7 @@ import {
   isPublicationStale,
   isSharePreviewableArtifact,
   patchArtifactPublicationsInChat,
+  publicationsChanged,
   type ArtifactDeployPreflight,
 } from './artifactUtils';
 
@@ -154,8 +155,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
           return;
         }
         if (data.publications) {
-          setPublications(data.publications);
-          patchArtifactPublicationsInChat(artifact.id, data.publications);
+          setPublications((prev) => {
+            if (!publicationsChanged(prev, data.publications!)) {
+              return prev;
+            }
+            patchArtifactPublicationsInChat(artifact.id, data.publications!);
+            return data.publications!;
+          });
         }
         if (data.latest_version_id) {
           setArtifactState((prev) => ({ ...prev, latest_version_id: data.latest_version_id }));
@@ -413,19 +419,8 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   };
 
   const handlePublished = (update: PublishedArtifactUpdate) => {
-    setPublications((prev) => {
-      const merged = [...prev];
-      for (const incoming of update.publications) {
-        const index = merged.findIndex((item) => item.hosting_target_id === incoming.hosting_target_id);
-        if (index >= 0) {
-          merged[index] = { ...merged[index], ...incoming };
-        } else {
-          merged.push(incoming);
-        }
-      }
-      patchArtifactPublicationsInChat(artifact.id, merged);
-      return merged;
-    });
+    setPublications(update.publications);
+    patchArtifactPublicationsInChat(artifact.id, update.publications);
     if (update.latest_version_id) {
       setArtifactState((prev) => ({ ...prev, latest_version_id: update.latest_version_id }));
     }

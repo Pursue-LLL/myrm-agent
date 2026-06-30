@@ -6,7 +6,9 @@
  * 聊天工件（代码/文档/媒体）契约。
  */
 
-// 工件类型
+import type { ArtifactPublication } from '@/services/hosting';
+
+export type { ArtifactPublication } from '@/services/hosting';
 export type ArtifactType =
   | 'code'
   | 'document'
@@ -49,15 +51,4 @@ export interface Artifact {
   currentVersionIndex?: number; // 当前版本索引（默认为最新版本）
   latest_version_id?: string | null;
   publications?: ArtifactPublication[];
-}
-
-export interface ArtifactPublication {
-  id: string;
-  hosting_target_id: string;
-  hosting_target_name?: string | null;
-  publication_url?: string | null;
-  publication_status?: string | null;
-  publication_project_ref?: string | null;
-  publication_version_id?: string | null;
-  updated_at?: string | null;
 }

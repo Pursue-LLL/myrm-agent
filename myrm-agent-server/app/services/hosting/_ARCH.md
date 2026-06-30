@@ -17,7 +17,6 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `targets.py` | ✅ 核心 | UserConfig 中 hosting target CRUD |
 | `credentials.py` | ✅ 核心 | 按 target 加密存储凭证 + legacy Vercel 迁移 |
 | `publication_store.py` | ✅ 核心 | `artifact_publications` 表 CRUD |
-| `publication_legacy.py` | ✅ 核心 | 将 publication SSOT 投影为 API 兼容 `deployment_*` 字段 |
 | `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 敏感目录排除 |
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用 |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
@@ -30,23 +29,24 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 ## 依赖关系
 
 - `httpx`：异步 HTTP（webhook 禁用 follow_redirects）
-- 调用方：`app/api/files/hosting_api.py`、`hosting_legacy_api.py`（legacy `/deploy` shim）、`artifact_share_api.py`
+- 调用方：`app/api/files/hosting_api.py`、`artifact_share_api.py`
 
 ---
 
 ## SSOT
 
 - **唯一发布状态**：`artifact_publications`（UNIQUE artifact_id + hosting_target_id）
-- **已删除**：`artifacts.deployment_*` 列、`services/deploy/`、`deploy_artifact` Agent 工具
+- API 响应区分 `provider_publication_ref`（平台 deployment id，WS 轮询用）与 `publication.id`（DB UUID）
 
 ---
 
 ## API
 
 - `GET/POST/PUT/DELETE /artifacts/hosting/targets` — target CRUD
+- `POST /artifacts/hosting/targets/{id}/make-default` — 事务性默认 target
 - `POST /artifacts/{id}/publish` — 多目标发布
 - `GET /artifacts/{id}/publications` — 各 target 发布状态
-- Legacy shim：`/artifacts/{id}/deploy` → 默认 Vercel target
+- `WS /artifacts/{id}/publish/status/{provider_publication_ref}` — 状态轮询
 
 ---
 

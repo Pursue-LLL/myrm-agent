@@ -125,8 +125,10 @@ async def test_publish_artifact_success(hosting_client, mock_artifact, db_sessio
 
     assert response.status_code == 200
     data = response.json()
-    assert data["publication_id"] == "dep_123"
+    assert data["provider_publication_ref"] == "dep_123"
     assert data["publication_url"] == "https://test.vercel.app"
+    assert data["publication"]["id"]
+    assert data["publication"]["hosting_target_id"] == LEGACY_VERCEL_TARGET_ID
     pub = (
         await db_session.execute(
             select(ArtifactPublication).where(ArtifactPublication.artifact_id == mock_artifact.id)
@@ -210,3 +212,48 @@ async def test_publish_passes_project_id_on_redeploy(hosting_client, mock_artifa
             )
     assert response.status_code == 200
     assert mock_vercel_instance.deploy.call_args.kwargs["project_id"] == "prj_existing"
+    assert response.json()["provider_publication_ref"] == "dep_re"
+
+
+@pytest.mark.asyncio
+async def test_list_hosting_targets(hosting_client, db_session):
+    await save_hosting_targets(
+        db_session,
+        [HostingTarget(id="t-list", name="Prod", provider_type="vercel", config={}, is_default=True)],
+    )
+    response = hosting_client.get("/hosting/targets")
+    assert response.status_code == 200
+    targets = response.json()["targets"]
+    assert any(item["id"] == "t-list" for item in targets)
+
+
+@pytest.mark.asyncio
+async def test_create_and_delete_hosting_target(hosting_client, db_session):
+    create = hosting_client.post(
+        "/hosting/targets",
+        json={"name": "Webhook", "provider_type": "http_webhook", "config": {"webhook_url": "https://example.com/hook"}},
+    )
+    assert create.status_code == 200
+    target_id = create.json()["id"]
+    delete = hosting_client.delete(f"/hosting/targets/{target_id}")
+    assert delete.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_artifact_publications(hosting_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    db_session.add(
+        ArtifactPublication(
+            id=str(uuid.uuid4()),
+            artifact_id=mock_artifact.id,
+            hosting_target_id=LEGACY_VERCEL_TARGET_ID,
+            publication_url="https://live.example.com",
+            publication_status="READY",
+        )
+    )
+    await db_session.commit()
+    response = hosting_client.get(f"/{mock_artifact.id}/publications")
+    assert response.status_code == 200
+    pubs = response.json()["publications"]
+    assert len(pubs) == 1
+    assert pubs[0]["publication_url"] == "https://live.example.com"

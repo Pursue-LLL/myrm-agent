@@ -21,6 +21,11 @@ def test_validate_webhook_url_blocks_private_ip_resolution() -> None:
             validate_webhook_url("https://internal.example/hook")
 
 
+def test_validate_webhook_url_allows_public_ip() -> None:
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("8.8.8.8", 0))]):
+        assert validate_webhook_url("https://public.example/hook") == "https://public.example/hook"
+
+
 @pytest.mark.asyncio
 async def test_webhook_client_does_not_follow_redirect_to_private_ip() -> None:
     from app.services.hosting.providers.http_webhook import HttpWebhookProvider

@@ -127,5 +127,37 @@ class CloudflarePagesProvider:
         target: HostingTarget,
         credentials: dict[str, object],
         publication_id: str,
+        project_ref: str | None = None,
     ) -> dict[str, str]:
-        return {"id": publication_id, "status": "READY", "url": ""}
+        token = credentials.get("api_token")
+        account_id = target.config.get("account_id")
+        project_name = project_ref or target.config.get("project_name")
+        if not isinstance(token, str) or not token.strip() or not account_id or not project_name or not publication_id:
+            return {"status": "ERROR", "error": "Missing Cloudflare poll context"}
+        url = (
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/pages/projects/"
+            f"{project_name}/deployments/{publication_id}"
+        )
+        async with httpx.AsyncClient(follow_redirects=False) as client:
+            response = await client.get(
+                url,
+                headers={"Authorization": f"Bearer {token.strip()}"},
+                timeout=20.0,
+            )
+        if response.status_code >= 400:
+            return {"status": "ERROR", "error": response.text[:200]}
+        payload = response.json().get("result", {})
+        stage_status = str(payload.get("latest_stage", {}).get("status", "UNKNOWN"))
+        normalized = stage_status
+        if stage_status == "success":
+            normalized = "READY"
+        elif stage_status in {"failure", "canceled"}:
+            normalized = "ERROR"
+        deploy_url = str(payload.get("url") or "")
+        if deploy_url and not deploy_url.startswith("http"):
+            deploy_url = f"https://{deploy_url}"
+        return {
+            "id": publication_id,
+            "status": normalized,
+            "url": deploy_url,
+        }

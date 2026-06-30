@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   buildPublishStatusWsUrl,
+  fetchArtifactPublications,
   fetchHostingTargets,
   fetchPublishPreflight,
   fetchTargetCredentialStatus,
@@ -175,33 +176,22 @@ export const PublishModal: React.FC<PublishModalProps> = ({
 
     try {
       const data = await publishArtifact(artifact.id, selectedTargetId, tokenOverride.trim());
-      const publicationId = data.publication_id;
+      const providerRef = data.provider_publication_ref;
       const initialUrl = data.publication_url || data.url;
       const publicationStatus = data.publication_status || data.status || 'PUBLISHING';
-      const targetName = selectedTarget?.name ?? selectedTargetId;
+      const latestVersionId = data.latest_version_id ?? data.publication_version_id ?? null;
 
-      const buildPublication = (url: string, status: string, projectRef?: string | null): ArtifactPublication => ({
-        id: publicationId,
-        hosting_target_id: selectedTargetId,
-        hosting_target_name: targetName,
-        publication_url: url,
-        publication_status: status,
-        publication_project_ref: projectRef ?? data.publication_project_ref ?? null,
-        publication_version_id: data.publication_version_id ?? data.latest_version_id ?? null,
-        updated_at: new Date().toISOString(),
-      });
-
-      const publishedUpdate: PublishedArtifactUpdate = {
-        publications: [buildPublication(initialUrl, publicationStatus)],
-        latest_version_id: data.latest_version_id ?? data.publication_version_id ?? null,
+      const syncPublications = async () => {
+        const publications = await fetchArtifactPublications(artifact.id);
+        notifyPublished({ publications, latest_version_id: latestVersionId });
       };
 
       if (initialUrl) {
         setPublishUrl(initialUrl);
-        notifyPublished(publishedUpdate);
       }
+      await syncPublications();
 
-      if (!publicationId) {
+      if (!providerRef) {
         if (publicationStatus === 'READY' && initialUrl) {
           setStatus('SUCCESS');
           return;
@@ -209,9 +199,9 @@ export const PublishModal: React.FC<PublishModalProps> = ({
         throw new Error(t('errors.noPublicationId'));
       }
 
-      setLogs((prev) => [...prev, t('logs.created', { id: publicationId }), t('logs.connecting')]);
+      setLogs((prev) => [...prev, t('logs.created', { id: providerRef }), t('logs.connecting')]);
 
-      const wsUrl = buildPublishStatusWsUrl(artifact.id, publicationId, selectedTargetId);
+      const wsUrl = buildPublishStatusWsUrl(artifact.id, providerRef, selectedTargetId);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -219,7 +209,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
       };
 
       ws.onmessage = (event) => {
-        const statusData = JSON.parse(event.data) as { status?: string; url?: string; project_id?: string };
+        const statusData = JSON.parse(event.data) as { status?: string; url?: string };
         const currentStatus = statusData.status ?? 'UNKNOWN';
 
         setLogs((prev) => [...prev, t('logs.status', { status: currentStatus })]);
@@ -228,10 +218,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           const url = statusData.url ?? initialUrl;
           setStatus('SUCCESS');
           setPublishUrl(url);
-          notifyPublished({
-            publications: [buildPublication(url, 'READY', statusData.project_id ?? data.publication_project_ref ?? null)],
-            latest_version_id: data.latest_version_id ?? data.publication_version_id ?? null,
-          });
+          void syncPublications();
           isIntentionalClose.current = true;
           ws.close();
         } else if (currentStatus === 'ERROR' || currentStatus === 'CANCELED') {

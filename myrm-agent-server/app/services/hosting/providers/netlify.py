@@ -103,6 +103,7 @@ class NetlifyHostingProvider:
         target: HostingTarget,
         credentials: dict[str, object],
         publication_id: str,
+        project_ref: str | None = None,
     ) -> dict[str, str]:
         token = credentials.get("access_token")
         if not isinstance(token, str) or not token.strip():

@@ -150,3 +150,96 @@ async def test_migrate_legacy_uses_vercel_key() -> None:
 
 def test_vercel_legacy_key_constant() -> None:
     assert VERCEL_CREDENTIALS_KEY == "vercelDeployCredentials"
+
+
+def test_decrypt_credentials_cipher_dict() -> None:
+    mock_service = MagicMock()
+    mock_service.decrypt.return_value = '{"token": "from-cipher"}'
+    with patch("app.services.hosting.credentials.get_encryption_service", return_value=mock_service):
+        result = decrypt_credentials({"_cipher": "blob"}, is_encrypted=True)
+    assert result == {"token": "from-cipher"}
+
+
+@pytest.mark.asyncio
+async def test_get_target_credential_status_configured(db_session) -> None:
+    from app.services.hosting.credentials import get_target_credential_status
+    from app.services.hosting.targets import save_hosting_targets
+    from app.services.hosting.types import HostingTarget
+
+    await save_hosting_targets(
+        db_session,
+        [HostingTarget(id="t1", name="Vercel", provider_type="vercel", config={}, is_default=True)],
+    )
+    await save_target_credentials(db_session, "t1", {"token": "saved"})
+    status = await get_target_credential_status(db_session, "t1")
+    assert status.configured is True
+
+
+@pytest.mark.asyncio
+async def test_resolve_target_credentials_webhook_empty_ok() -> None:
+    from app.services.hosting.types import HostingTarget
+
+    mock_db = AsyncMock()
+    webhook_target = HostingTarget(
+        id="wh-1",
+        name="Hook",
+        provider_type="http_webhook",
+        config={"webhook_url": "https://example.com/hook"},
+        is_default=True,
+    )
+    with (
+        patch("app.services.hosting.credentials.load_target_credentials", AsyncMock(return_value={})),
+        patch("app.services.hosting.credentials.get_hosting_target", AsyncMock(return_value=webhook_target)),
+    ):
+        creds = await resolve_target_credentials(mock_db, "wh-1", request_token="")
+    assert creds == {}
+
+
+@pytest.mark.asyncio
+async def test_migrate_legacy_skips_when_targets_exist() -> None:
+    from app.services.hosting.credentials import migrate_legacy_vercel_credentials
+
+    mock_db = AsyncMock()
+    with (
+        patch("app.services.hosting.credentials.load_legacy_vercel_token", AsyncMock(return_value="legacy")),
+        patch("app.services.hosting.credentials.list_hosting_targets", AsyncMock(return_value=[object()])),
+        patch("app.services.hosting.credentials.save_hosting_targets", AsyncMock()) as mock_save,
+    ):
+        await migrate_legacy_vercel_credentials(mock_db)
+    mock_save.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_resolve_target_credentials_legacy_vercel() -> None:
+    from app.services.hosting.types import HostingTarget
+
+    mock_db = AsyncMock()
+    legacy_target = HostingTarget(id="legacy", name="V", provider_type="vercel", config={}, is_default=True)
+    with (
+        patch("app.services.hosting.credentials.load_target_credentials", AsyncMock(return_value={})),
+        patch("app.services.hosting.credentials.get_hosting_target", AsyncMock(return_value=legacy_target)),
+        patch("app.services.hosting.credentials.load_legacy_vercel_token", AsyncMock(return_value="legacy-tok")),
+    ):
+        creds = await resolve_target_credentials(mock_db, "legacy", request_token="")
+    assert creds == {"token": "legacy-tok"}
+
+
+@pytest.mark.asyncio
+async def test_save_target_credentials_updates_existing_row() -> None:
+    mock_row = MagicMock()
+    mock_scalars = MagicMock()
+    mock_scalars.first.return_value = mock_row
+    mock_result = MagicMock()
+    mock_result.scalars.return_value = mock_scalars
+    mock_db = AsyncMock()
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+
+    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
+        mock_service = mock_service_factory.return_value
+        mock_service.encrypt_if_needed.return_value = ({"token": "updated"}, False)
+        result = await save_target_credentials(mock_db, "target-abc", {"token": "updated"})
+
+    assert result["status"] == "success"
+    mock_db.add.assert_not_called()
+    mock_db.commit.assert_awaited_once()

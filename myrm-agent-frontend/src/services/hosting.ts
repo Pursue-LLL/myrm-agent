@@ -29,7 +29,7 @@ export interface PublishPreflight {
 }
 
 export interface PublishResult {
-  publication_id: string;
+  provider_publication_ref: string;
   url: string;
   status: string;
   publication_url: string;
@@ -38,6 +38,7 @@ export interface PublishResult {
   publication_version_id?: string | null;
   latest_version_id?: string | null;
   hosting_target_id: string;
+  publication: ArtifactPublication | null;
 }
 
 export async function fetchHostingTargets(): Promise<HostingTarget[]> {
@@ -150,10 +151,14 @@ export async function publishArtifact(
   return (await response.json()) as PublishResult;
 }
 
-export function buildPublishStatusWsUrl(artifactId: string, publicationId: string, targetId: string): string {
+export function buildPublishStatusWsUrl(
+  artifactId: string,
+  providerPublicationRef: string,
+  targetId: string,
+): string {
   const wsProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHost = getApiUrl('').replace(/^https?:\/\//, '');
-  return `${wsProtocol}//${wsHost}/api/v1/files/artifacts/${artifactId}/publish/status/${publicationId}?target_id=${encodeURIComponent(targetId)}`;
+  return `${wsProtocol}//${wsHost}/api/v1/files/artifacts/${artifactId}/publish/status/${providerPublicationRef}?target_id=${encodeURIComponent(targetId)}`;
 }
 
 export const PROVIDER_LABELS: Record<HostingProviderType, string> = {

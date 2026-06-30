@@ -79,3 +79,26 @@ def test_collect_directory_skips_node_modules(tmp_path: Path) -> None:
 
     assert "index.html" in files
     assert "secret.js" not in files
+
+
+def test_collect_publish_files_missing_path(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        collect_publish_files(tmp_path / "missing.html")
+
+
+def test_collect_publish_files_empty_directory(tmp_path: Path) -> None:
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    with pytest.raises(ValueError, match="no deployable files"):
+        collect_publish_files(empty_dir)
+
+
+def test_collect_html_with_js_import(tmp_path: Path) -> None:
+    (tmp_path / "index.html").write_text(
+        '<html><script src="app.js"></script></html>',
+        encoding="utf-8",
+    )
+    (tmp_path / "app.js").write_text("console.log('ok')", encoding="utf-8")
+    files = collect_publish_files(tmp_path)
+    assert "index.html" in files
+    assert "app.js" in files

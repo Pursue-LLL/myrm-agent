@@ -21,7 +21,8 @@
 | `migrationDiscovery.ts` | Local/Tauri 外部助手数据自动发现（Hermes / OpenClaw / Claude Code / Codex） |
 | `google-workspace-oauth.ts` | `/integrations/google-workspace/oauth/*`：config/start/poll/status/disconnect；Tauri 用 shell.open |
 | `kanban.ts` | `/kanban/*`：Board/Task CRUD、move/promote/reclaim、bulk、依赖边、Specify/Decompose、Pipeline 实例化 |
-| `deploy*.ts` / `artifact*.ts` | 工件与部署 |
+| `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |
+| `artifact*.ts` | 工件相关 REST |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |
 | `*-api.ts` | 零散 REST 封装 |
 

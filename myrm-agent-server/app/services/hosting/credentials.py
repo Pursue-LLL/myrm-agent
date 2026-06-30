@@ -137,6 +137,9 @@ async def resolve_target_credentials(
         return creds
 
     target = await get_hosting_target(db, target_id)
+    if target and target.provider_type == "http_webhook":
+        return {}
+
     if target and target.provider_type == "vercel":
         legacy = await load_legacy_vercel_token(db)
         if legacy:
@@ -153,6 +156,8 @@ async def get_target_credential_status(db: AsyncSession, target_id: str) -> Targ
     platform_available = bool(target and target.provider_type == "vercel" and get_platform_vercel_token())
     creds = await load_target_credentials(db, target_id)
     if creds:
+        return TargetCredentialStatus(configured=True, platform_available=platform_available)
+    if target and target.provider_type == "http_webhook":
         return TargetCredentialStatus(configured=True, platform_available=platform_available)
     if target and target.provider_type == "vercel":
         legacy = await load_legacy_vercel_token(db)

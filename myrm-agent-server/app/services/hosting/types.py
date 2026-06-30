@@ -28,6 +28,7 @@ class PublicationResult:
     status: str
     error: str | None = None
     latest_version_id: str | None = None
+    publication_row_id: str | None = None
 
 
 @dataclass

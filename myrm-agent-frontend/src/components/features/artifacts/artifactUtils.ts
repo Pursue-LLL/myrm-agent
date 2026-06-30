@@ -259,26 +259,23 @@ export function patchArtifactPublicationsInChat(artifactId: string, publications
   });
 }
 
-export function patchArtifactDeploymentInChat(artifactId: string, update: Partial<Artifact>): void {
-  useChatStore.getState().updateMessages((state) => {
-    for (const message of state.messages) {
-      if (!message.artifacts?.length) {
-        continue;
-      }
-      const index = message.artifacts.findIndex((item) => item.id === artifactId);
-      if (index >= 0) {
-        message.artifacts[index] = { ...message.artifacts[index], ...update };
-      }
-    }
-  });
+function publicationSnapshot(publications: ArtifactPublication[]): string {
+  return JSON.stringify(
+    publications.map((pub) => ({
+      id: pub.id,
+      hosting_target_id: pub.hosting_target_id,
+      publication_url: pub.publication_url,
+      publication_status: pub.publication_status,
+      publication_version_id: pub.publication_version_id,
+    })),
+  );
 }
 
-export function isDeploymentStale(artifact: Artifact): boolean {
-  const pubs = artifact.publications ?? [];
-  if (!artifact.latest_version_id) {
-    return false;
-  }
-  return pubs.some((pub) => isPublicationStale(pub, artifact.latest_version_id));
+export function publicationsChanged(
+  previous: ArtifactPublication[],
+  next: ArtifactPublication[],
+): boolean {
+  return publicationSnapshot(previous) !== publicationSnapshot(next);
 }
 
 const DEPLOY_CANDIDATE_TYPES: ReadonlySet<ArtifactType> = new Set(['html', 'code']);

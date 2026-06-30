@@ -137,5 +137,6 @@ class HttpWebhookProvider:
         target: HostingTarget,
         credentials: dict[str, object],
         publication_id: str,
+        project_ref: str | None = None,
     ) -> dict[str, str]:
         return {"id": publication_id, "status": "READY", "url": ""}

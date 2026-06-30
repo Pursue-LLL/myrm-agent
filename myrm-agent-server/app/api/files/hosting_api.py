@@ -33,7 +33,7 @@ from app.services.hosting.credentials import (
 )
 from app.services.hosting.orchestrator import publish_artifact_to_target
 from app.services.hosting.preflight import run_deploy_preflight
-from app.services.hosting.publication_store import list_publications, publication_to_dict
+from app.services.hosting.publication_store import get_publication, list_publications, publication_to_dict
 from app.services.hosting.registry import get_hosting_provider
 from app.services.hosting.targets import (
     delete_hosting_target,
@@ -249,8 +249,18 @@ async def publish_artifact(
         if result.error == "Artifact not found.":
             raise HTTPException(status_code=400, detail="Artifact not found.")
         raise HTTPException(status_code=500, detail=result.error or "Publication failed")
+    target = await get_hosting_target(db, body.target_id)
+    publication_row = await get_publication(db, artifact_id, body.target_id)
+    publication_payload = (
+        publication_to_dict(
+            publication_row,
+            hosting_target_name=target.name if target else None,
+        )
+        if publication_row is not None
+        else None
+    )
     return {
-        "publication_id": result.publication_id,
+        "provider_publication_ref": result.publication_id,
         "url": result.url,
         "status": result.status,
         "publication_url": result.url,
@@ -259,6 +269,7 @@ async def publish_artifact(
         "publication_version_id": result.latest_version_id,
         "latest_version_id": result.latest_version_id,
         "hosting_target_id": body.target_id,
+        "publication": publication_payload,
     }
 
 
@@ -288,6 +299,8 @@ async def publication_status_ws(
             if target is None:
                 await websocket.close(code=1008, reason="Target not found")
                 return
+            publication_row = await get_publication(db, artifact_id, target_id)
+            project_ref = publication_row.publication_project_ref if publication_row else None
             credentials = await resolve_target_credentials(db, target_id)
             provider = get_hosting_provider(target.provider_type)
     except HTTPException:
@@ -300,6 +313,7 @@ async def publication_status_ws(
                 target=target,
                 credentials=credentials,
                 publication_id=publication_id,
+                project_ref=project_ref,
             )
             await websocket.send_json(status_data)
             status = status_data.get("status")

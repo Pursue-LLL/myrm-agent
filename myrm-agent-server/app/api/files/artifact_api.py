@@ -8,7 +8,7 @@
 - router: APIRouter — Artifacts API router
 
 [POS]
-Provides REST endpoints for listing, retrieving, verifying artifacts; exposes publication state.
+Provides REST endpoints for listing, retrieving, verifying artifacts; exposes publication state via `publications[]`.
 """
 
 import logging

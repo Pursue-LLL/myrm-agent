@@ -20,7 +20,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `../scripts/dev/run_tests_low_memory.sh` | 辅助 | 本地低内存 pytest 入口（`-n0`，可选 `PYTEST_XDIST_WORKERS=N`） |
 | `../scripts/dev/profile_test_memory.py` | 辅助 | 按 test 文件采样 peak RSS，定位高内存用例 |
 | `services/migration/_ARCH.md` | 模块 | 迁移业务层测试清单（四源 discover/load/e2e） |
-| `services/deploy/_ARCH.md` | 模块 | 部署打包业务层测试清单 |
+| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist 单测（16 文件） |
 

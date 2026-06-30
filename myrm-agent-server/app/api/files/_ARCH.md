@@ -9,11 +9,10 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Files management API module | ✅ |
-| `artifact_api.py` | 模块 | Provides REST endpoints for listing, retrieving, verifying artifacts; exposes deployment state and version staleness fields | ✅ |
+| `artifact_api.py` | 模块 | List/retrieve/verify artifacts; exposes `publications[]` per artifact | ✅ |
 | `artifact_share_api.py` | 模块 | Lets GUI users share html/pdf/document artifacts without publication deploy | ✅ |
 | `browse.py` | 模块 | Workspace browse API; `/browse/search` uses harness `filesystem_suggest`. | ✅ |
 | `hosting_api.py` | 模块 | Multi-target artifact publish, hosting targets CRUD, publications | ✅ |
-| `hosting_legacy_api.py` | 模块 | Legacy `/deploy/*` shim for backward-compatible clients | ✅ |
 | `document_extract.py` | 模块 | Document content extraction API. | ✅ |
 | `local_actions.py` | 模块 | Local-only file action endpoints. | ✅ |
 | `pdf_extract.py` | 模块 | PDF content extraction API endpoint | ✅ |

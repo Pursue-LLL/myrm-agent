@@ -105,7 +105,7 @@ async def publish_artifact_to_target(
         existing_project_ref=existing_project_ref,
     )
 
-    await upsert_publication(
+    row = await upsert_publication(
         db,
         artifact_id=artifact_id,
         hosting_target_id=hosting_target_id,
@@ -125,4 +125,5 @@ async def publish_artifact_to_target(
         status=result.status,
         error=result.error,
         latest_version_id=latest_version.id if result.success else None,
+        publication_row_id=row.id,
     )
