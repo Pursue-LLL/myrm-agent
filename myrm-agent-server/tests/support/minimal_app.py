@@ -107,6 +107,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "system_shutdown": _RouterMount("app.api.system.shutdown", prefix="/system", tags=("system",)),
     "features": _RouterMount("app.api.features.router", prefix="/features", tags=("features",)),
     "companion": _RouterMount("app.api.companion.router", prefix="/companion", tags=("companion",)),
+    "canvas": _RouterMount("app.api.canvas.router", tags=("canvas",)),
     "client_logs": _RouterMount("app.api.client_logs", tags=("logs",)),
     "channels_login": _RouterMount("app.api.channels.login", prefix="/channels", tags=("channels",)),
     "channels_manage": _RouterMount("app.api.channels.router", prefix="/channels/manage", tags=("channels",)),
@@ -158,6 +159,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "wiki": ("wiki",),
     "connect": ("connect",),
     "companion": ("companion",),
+    "canvas": ("canvas",),
     "client_logs": ("client_logs",),
     "features": ("features",),
     "eval": ("eval",),
@@ -308,6 +310,8 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "webui_only"
     if path.startswith("tests/api/connect/"):
         return "connect"
+    if path.startswith("tests/integration/test_canvas_api"):
+        return "canvas"
     if path.startswith("tests/api/companion/"):
         return "companion"
     if path.startswith("tests/api/client_logs/") or path.startswith("tests/api/logs/"):
