@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { RefreshCw, Trash } from 'lucide-react';
+import { RefreshCw, Trash, Filter } from 'lucide-react';
 import FileSnapshotCard from './FileSnapshotCard';
 import FileDiffViewer from './FileDiffViewer';
 import {
@@ -16,11 +16,14 @@ import {
 } from '@/services/checkpoint';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
+import { useAgentNameMap } from '@/hooks/useAgentName';
 
 interface FileSnapshotListProps {
   workingDir: string;
   onRestoreSuccess?: (snapshotId: string, filesRestored: number) => void;
 }
+
+const SSE_REFRESH_DEBOUNCE_MS = 500;
 
 const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onRestoreSuccess }) => {
   const t = useTranslations('fileSnapshot');
@@ -32,6 +35,29 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
   const [diffSnapshotId, setDiffSnapshotId] = useState<string | null>(null);
   const [diffChanges, setDiffChanges] = useState<FileChange[]>([]);
   const [loadingDiff, setLoadingDiff] = useState(false);
+  const [filterAgentId, setFilterAgentId] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const agentIds = useMemo(
+    () => snapshots.map((s) => s.agentId),
+    [snapshots],
+  );
+  const agentNameMap = useAgentNameMap(agentIds);
+
+  const uniqueAgents = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const s of snapshots) {
+      if (s.agentId && !seen.has(s.agentId)) {
+        seen.set(s.agentId, agentNameMap.get(s.agentId) ?? s.agentId);
+      }
+    }
+    return seen;
+  }, [snapshots, agentNameMap]);
+
+  const filteredSnapshots = useMemo(
+    () => filterAgentId ? snapshots.filter((s) => s.agentId === filterAgentId) : snapshots,
+    [snapshots, filterAgentId],
+  );
 
   const loadSnapshots = useCallback(async () => {
     setLoading(true);
@@ -49,6 +75,21 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
 
   useEffect(() => {
     loadSnapshots();
+  }, [loadSnapshots]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.meta_data?.type === 'snapshot_created') {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => void loadSnapshots(), SSE_REFRESH_DEBOUNCE_MS);
+      }
+    };
+    window.addEventListener('system-notification', handler);
+    return () => {
+      window.removeEventListener('system-notification', handler);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [loadSnapshots]);
 
   const handleRestore = async (snapshotId: string) => {
@@ -161,6 +202,37 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
         </div>
       </div>
 
+      {uniqueAgents.size > 1 && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+          <button
+            onClick={() => setFilterAgentId(null)}
+            className={cn(
+              'px-2 py-0.5 text-xs rounded-full transition-colors',
+              !filterAgentId
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+            )}
+          >
+            {t('allAgents')}
+          </button>
+          {Array.from(uniqueAgents.entries()).map(([id, name]) => (
+            <button
+              key={id}
+              onClick={() => setFilterAgentId(filterAgentId === id ? null : id)}
+              className={cn(
+                'px-2 py-0.5 text-xs rounded-full transition-colors truncate max-w-[140px]',
+                filterAgentId === id
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 hover:bg-blue-500/25',
+              )}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-lg text-sm">
           {error}
@@ -188,10 +260,11 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
             />
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {snapshots.map((snapshot) => (
+            {filteredSnapshots.map((snapshot) => (
               <FileSnapshotCard
                 key={snapshot.snapshotId}
                 snapshot={snapshot}
+                agentName={snapshot.agentId ? agentNameMap.get(snapshot.agentId) : undefined}
                 onRestore={handleRestore}
                 onViewDiff={handleViewDiff}
                 onDelete={handleDelete}
@@ -203,7 +276,8 @@ const FileSnapshotList: React.FC<FileSnapshotListProps> = ({ workingDir, onResto
       )}
 
       <div className="mt-4 text-xs text-muted-foreground text-center">
-        {t('total', { count: snapshots.length })}
+        {t('total', { count: filteredSnapshots.length })}
+        {filterAgentId && ` / ${snapshots.length}`}
       </div>
     </div>
   );

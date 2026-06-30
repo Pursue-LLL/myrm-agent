@@ -40,6 +40,7 @@ export interface FileSnapshotInfo {
   fileCount: number;
   description: string;
   externalEffects: string[];
+  agentId: string | null;
 }
 
 export interface FileSnapshotListResponse {
@@ -119,10 +120,15 @@ export const cleanupCheckpoints = async (ttlDays: number = 7): Promise<Checkpoin
 /**
  * List file snapshots for a workspace
  */
-export const listFileSnapshots = async (workingDir: string, limit: number = 20): Promise<FileSnapshotListResponse> => {
+export const listFileSnapshots = async (
+  workingDir: string,
+  limit: number = 20,
+  agentId?: string,
+): Promise<FileSnapshotListResponse> => {
   const params = new URLSearchParams();
   params.append('working_dir', workingDir);
   params.append('limit', limit.toString());
+  if (agentId) params.append('agent_id', agentId);
 
   return (await apiRequest(`/checkpoint/file-snapshot/list?${params.toString()}`)) as FileSnapshotListResponse;
 };

@@ -71,12 +71,12 @@ class SnapshotInterceptor(ExecutionInterceptor):
         if self._snapshotted_turns.get(cache_key):
             return
 
-        metadata: dict[str, object] | None = None
+        metadata: dict[str, object] = {"agent_id": agent_id}
         if action_type == "bash":
             command = payload.get("command", "")
             effects = detect_external_effects(command)
             if effects:
-                metadata = {"external_effects": effects}
+                metadata["external_effects"] = effects
 
         snapshot_task = asyncio.create_task(
             self._safe_snapshot_with_lock(workspace_path, action_type, chat_id, agent_id, turn_id, cache_key, metadata)
@@ -97,7 +97,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
         agent_id: str,
         turn_id: str,
         cache_key: tuple[str, str],
-        metadata: dict[str, object] | None = None,
+        metadata: dict[str, object],
     ) -> None:
         """Acquire lock and perform snapshot safely."""
         lock = _workspace_locks[workspace_path]
@@ -106,7 +106,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
                 return
 
             try:
-                await self._emit_snapshot_event(chat_id, action_type)
+                await self._emit_snapshot_event(chat_id, action_type, agent_id)
 
                 store = await self._get_store()
                 trigger = _TRIGGER_MAP.get(action_type, SnapshotTrigger.MANUAL)
@@ -123,7 +123,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
             except Exception as e:
                 logger.error("Failed to create snapshot for %s: %s", workspace_path, e)
 
-    async def _emit_snapshot_event(self, chat_id: str, action_type: str) -> None:
+    async def _emit_snapshot_event(self, chat_id: str, action_type: str, agent_id: str) -> None:
         """Emit an SSE event to the frontend to show the Snapshotting UI indicator."""
         try:
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -138,6 +138,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
                             "type": "snapshot_created",
                             "action": action_type,
                             "chat_id": chat_id,
+                            "agent_id": agent_id,
                         },
                     },
                 )

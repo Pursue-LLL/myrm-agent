@@ -242,6 +242,7 @@ class FileSnapshotInfoResponse(BaseModel):
     file_count: int
     description: str = ""
     external_effects: list[str] = Field(default_factory=list)
+    agent_id: str | None = None
 
 
 class FileSnapshotListResponse(BaseModel):
@@ -291,23 +292,33 @@ class FileDiffResponse(BaseModel):
 async def list_file_snapshots(
     working_dir: str = Query(..., description="Working directory to list snapshots for"),
     limit: int = Query(20, ge=1, le=100, description="Maximum snapshots to return"),
+    agent_id: str | None = Query(None, description="Filter snapshots by agent ID"),
 ) -> FileSnapshotListResponse:
     """List file snapshots for a workspace."""
     try:
         store = await _get_file_snapshot_store()
-        snapshots = await store.list_snapshots(working_dir, limit=limit)
-        items = [
-            FileSnapshotInfoResponse(
-                snapshot_id=s.snapshot_id,
-                working_dir=s.working_dir,
-                trigger=s.trigger.value,
-                created_at=s.created_at,
-                file_count=s.file_count,
-                description=s.description,
-                external_effects=s.metadata.get("external_effects", []) if s.metadata else [],
+        fetch_limit = limit * 3 if agent_id else limit
+        snapshots = await store.list_snapshots(working_dir, limit=fetch_limit)
+        items: list[FileSnapshotInfoResponse] = []
+        for s in snapshots:
+            if len(items) >= limit:
+                break
+            meta = s.metadata or {}
+            snap_agent_id: str | None = meta.get("agent_id")
+            if agent_id and snap_agent_id != agent_id:
+                continue
+            items.append(
+                FileSnapshotInfoResponse(
+                    snapshot_id=s.snapshot_id,
+                    working_dir=s.working_dir,
+                    trigger=s.trigger.value,
+                    created_at=s.created_at,
+                    file_count=s.file_count,
+                    description=s.description,
+                    external_effects=meta.get("external_effects", []),
+                    agent_id=snap_agent_id,
+                )
             )
-            for s in snapshots
-        ]
         return FileSnapshotListResponse(snapshots=items, total=len(items))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list file snapshots: {e}") from e

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 
 interface FileSnapshotCardProps {
   snapshot: FileSnapshotInfo;
+  agentName?: string;
   onRestore: (snapshotId: string) => void;
   onViewDiff: (snapshotId: string) => void;
   onDelete: (snapshotId: string) => void;
@@ -25,6 +26,7 @@ const triggerLabels: Record<string, string> = {
 
 const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   snapshot,
+  agentName,
   onRestore,
   onViewDiff,
   onDelete,
@@ -44,6 +46,11 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
               {triggerLabel}
             </span>
+            {agentName && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 truncate max-w-[120px]">
+                {agentName}
+              </span>
+            )}
             {snapshot.externalEffects?.length > 0 && (
               <span
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-600 dark:text-amber-400"
