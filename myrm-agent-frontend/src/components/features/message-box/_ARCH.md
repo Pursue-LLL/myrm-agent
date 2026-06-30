@@ -14,7 +14,7 @@
 | `ContextUsageIndicator.tsx` | 组件/模块 | — | — |
 | `CronJobSystemCard.tsx` | 组件/模块 | — | — |
 | `FileMutationWarning.tsx` | 组件/模块 | — | — |
-| `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
+| `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
 | `MemoryCitationsButton.tsx` | 组件/模块 | — | — |
 | `MemoryInsightPanel.tsx` | 组件/模块 | — | — |
 | `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/Wiki保存等按钮 | ✅ |

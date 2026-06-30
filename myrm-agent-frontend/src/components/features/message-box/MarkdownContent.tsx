@@ -2,7 +2,7 @@
  * MarkdownContent - Markdown 渲染组件
  *
  * [POS]
- * 负责将 Markdown 文本渲染为富文本，支持数学公式、代码块、图表、链接等。
+ * 负责将 Markdown 文本渲染为富文本，支持数学公式、代码块、图表、链接、GFM Alerts、脚注等。
  *
  * [关键职责]
  * - 使用 ReactMarkdown + remark/rehype 插件解析和渲染 Markdown
