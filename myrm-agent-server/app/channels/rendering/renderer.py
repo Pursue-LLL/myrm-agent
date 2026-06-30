@@ -13,25 +13,20 @@ When no sources are present, orphan citation markers in body text (【N】/[N]) 
 [INPUT]
 - channels.types::OutboundMessage, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
 - channels.rendering.splitter::split_message (POS: smart long-message splitting)
-- agent.streaming.reasoning_scrubber::THINKING_TAG_NAMES (POS: canonical thinking tag name set)
+- channels.rendering.text_utils (POS: format downgrade pure functions)
 
 [OUTPUT]
 - render(): OutboundMessage → list[str] (rendered text chunk list)
-- strip_thinking_tags(): str → str (strip LLM thinking tags)
 
 [POS]
 Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable
 plain text/Markdown, performing format downgrade (LaTeX, tables, etc.) based on Channel's
-RenderStyle capability declarations.
+RenderStyle capability declarations. Format downgrade utilities live in text_utils.py.
 """
 
 from __future__ import annotations
 
-import re
-from collections.abc import Callable
 from dataclasses import dataclass
-
-from myrm_agent_harness.core.events import THINKING_TAG_NAMES
 
 from ..types import (
     OutboundMessage,
@@ -43,64 +38,16 @@ from ..types import (
 )
 from .converter_registry import FormatConverterRegistry
 from .splitter import split_message
+from .text_utils import (
+    downgrade_content,
+    downgrade_html_fences,
+    md_to_plaintext,
+    strip_orphan_citations,
+    strip_thinking_tags,
+    with_protected_code_blocks,
+)
 
-_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
-_STRIKE_RE = re.compile(r"~~(.+?)~~")
-_CODE_FENCE_RE = re.compile(r"```[\s\S]*?```")
-_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
-_BLOCKQUOTE_RE = re.compile(r"^>\s?", re.MULTILINE)
 _EMPTY_FALLBACK = "Done."
-
-# Orphan citation markers: 【N】 (CJK) and [N] (non-link) left by LLM when sources are absent
-_CJK_CITATION_RE = re.compile(r"【\d+】")
-_BARE_CITATION_RE = re.compile(r"(?<!\])\[(\d+)\](?!\()")
-
-# HTML/SVG code fences — replaced with a short placeholder in IM channels
-_HTML_FENCE_RE = re.compile(r"```(?:html|svg)\s*\n[\s\S]*?```", re.IGNORECASE)
-
-# LaTeX: multiple delimiter styles
-_LATEX_BLOCK_RE = re.compile(r"\$\$\s*\n(.*?)\n\s*\$\$", re.DOTALL)
-_LATEX_INLINE_RE = re.compile(r"\$\$(.+?)\$\$")
-_LATEX_BRACKET_BLOCK_RE = re.compile(r"\\\[(.*?)\\\]", re.DOTALL)
-_LATEX_PAREN_INLINE_RE = re.compile(r"\\\((.+?)\\\)")
-
-# Markdown table: header row + separator row + data rows
-_TABLE_RE = re.compile(
-    r"^(\|[^\n]+\|)\n(\|[\s:|-]+\|)\n((?:\|[^\n]+\|\n?)+)",
-    re.MULTILINE,
-)
-
-_THINK_TAGS = "|".join(THINKING_TAG_NAMES)
-_THINK_PAIRED_RE = re.compile(
-    rf"<({_THINK_TAGS})>.*?</\1>",
-    re.DOTALL | re.IGNORECASE,
-)
-_THINK_ORPHAN_RE = re.compile(
-    rf"</?(?:{_THINK_TAGS})>\s*",
-    re.IGNORECASE,
-)
-
-
-def strip_thinking_tags(text: str) -> str:
-    """Remove LLM thinking/reasoning tags and their content from text.
-
-    Handles both paired blocks (``<think>…</think>``) and orphaned tags
-    (``</think>``, ``<reasoning>``).  Pure function, safe for any channel.
-    """
-    if not text:
-        return text
-    result = _THINK_PAIRED_RE.sub("", text)
-    result = _THINK_ORPHAN_RE.sub("", result)
-    return result.strip()
-
-
-def _strip_orphan_citations(text: str) -> str:
-    """Remove orphan citation markers (【N】 and [N]) when no sources are available."""
-    if not text:
-        return text
-    result = _CJK_CITATION_RE.sub("", text)
-    result = _BARE_CITATION_RE.sub("", result)
-    return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +98,7 @@ def _prepare(msg: OutboundMessage, style: RenderStyle) -> _PreparedContent:
     body = strip_thinking_tags(body)
 
     if not sources_block:
-        body = _strip_orphan_citations(body)
+        body = strip_orphan_citations(body)
 
     return _PreparedContent(
         reasoning_block=reasoning_block,
@@ -294,115 +241,15 @@ def _format(prepared: _PreparedContent, style: RenderStyle) -> str:
     if style.app_name_prefix:
         raw = f"{style.app_name_prefix} {raw}"
 
-    # HTML/SVG code fences are meaningless in IM channels — replace with placeholder
-    raw = _downgrade_html_fences(raw, style)
+    raw = downgrade_html_fences(raw, style)
 
     if not style.supports_latex or not style.supports_tables:
-        raw = _with_protected_code_blocks(raw, lambda t: _downgrade_content(t, style))
+        raw = with_protected_code_blocks(raw, lambda t: downgrade_content(t, style))
 
     if style.format == "plaintext":
-        return _md_to_plaintext(raw, style)
+        return md_to_plaintext(raw, style)
     if style.format == "mrkdwn":
         return FormatConverterRegistry.convert(raw, "markdown", "mrkdwn")
     if style.format == "whatsapp":
         return FormatConverterRegistry.convert(raw, "markdown", "whatsapp")
     return raw
-
-
-_CODE_BLOCK_PLACEHOLDER = "\x00CODEBLOCK_{}\x00"
-
-
-def _with_protected_code_blocks(
-    text: str,
-    transform: Callable[[str], str],
-) -> str:
-    """Protect code blocks from transform, then restore them afterward."""
-    blocks: list[str] = []
-
-    def _save(m: re.Match[str]) -> str:
-        blocks.append(m.group(0))
-        return _CODE_BLOCK_PLACEHOLDER.format(len(blocks) - 1)
-
-    protected = _CODE_FENCE_RE.sub(_save, text)
-    transformed = transform(protected)
-    for i, block in enumerate(blocks):
-        transformed = transformed.replace(
-            _CODE_BLOCK_PLACEHOLDER.format(i),
-            block,
-        )
-    return transformed
-
-
-def _downgrade_html_fences(text: str, style: RenderStyle) -> str:
-    """Replace HTML/SVG code fences with a short placeholder for IM channels.
-
-    HTML widgets are rendered visually in the web UI but are meaningless
-    raw markup in text-based IM channels. This replaces them with a
-    concise "[Interactive widget — view in app]" note.
-    """
-    if style.format == "markdown" and style.supports_code_fence:
-        # Web UI or rich-markdown channel — keep original
-        return text
-    placeholder = (
-        "\U0001f4ca [Interactive widget \u2014 view in app]" if style.use_emoji else "[Interactive widget \u2014 view in app]"
-    )
-    return _HTML_FENCE_RE.sub(placeholder, text)
-
-
-def _downgrade_content(text: str, style: RenderStyle) -> str:
-    """Apply latex stripping and table downgrade on non-code-block text."""
-    result = text
-    if not style.supports_latex:
-        result = _strip_latex(result)
-    if not style.supports_tables:
-        result = _downgrade_tables(result, style)
-    return result
-
-
-def _strip_latex(text: str) -> str:
-    """Remove LaTeX delimiters ($$, \\[, \\(), keeping formula body as text."""
-    result = _LATEX_BLOCK_RE.sub(r"\1", text)
-    result = _LATEX_INLINE_RE.sub(r"\1", result)
-    result = _LATEX_BRACKET_BLOCK_RE.sub(r"\1", result)
-    result = _LATEX_PAREN_INLINE_RE.sub(r"\1", result)
-    return result
-
-
-def _downgrade_tables(text: str, style: RenderStyle) -> str:
-    """Convert Markdown tables to a readable alternative for IM platforms.
-
-    When the channel supports code fences the table is wrapped in a plain
-    code block (monospace font keeps columns aligned).  Otherwise each row
-    is converted to a bullet list.
-    """
-
-    def _table_to_replacement(m: re.Match[str]) -> str:
-        header_line = m.group(1)
-        data_block = m.group(3)
-        headers = [c.strip() for c in header_line.strip("|").split("|")]
-        rows_text = [r for r in data_block.strip().splitlines() if r.strip()]
-
-        if style.supports_code_fence:
-            original = f"{m.group(1)}\n{m.group(2)}\n{m.group(3).rstrip()}"
-            return f"```\n{original}\n```"
-
-        lines: list[str] = []
-        for row_text in rows_text:
-            cells = [c.strip() for c in row_text.strip("|").split("|")]
-            parts = [f"{h}: {c}" for h, c in zip(headers, cells, strict=False) if c]
-            lines.append("• " + " | ".join(parts))
-        return "\n".join(lines)
-
-    return _TABLE_RE.sub(_table_to_replacement, text)
-
-
-def _md_to_plaintext(text: str, style: RenderStyle) -> str:
-    result = text
-    if not style.supports_code_fence:
-        result = _CODE_FENCE_RE.sub(lambda m: m.group(0).strip("`").strip(), result)
-    result = _BOLD_RE.sub(r"\1", result)
-    result = _STRIKE_RE.sub(r"\1", result)
-    result = _BLOCKQUOTE_RE.sub(" ", result)
-    if not style.supports_links:
-        result = _LINK_RE.sub(r"\1", result)
-    return result

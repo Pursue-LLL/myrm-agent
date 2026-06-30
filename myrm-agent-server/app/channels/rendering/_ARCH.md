@@ -1,7 +1,7 @@
 # rendering/
 
 ## Overview
-Outbound message formatting: Markdown/plaintext rendering and message splitting.
+Outbound message formatting: Markdown/plaintext rendering, message splitting, and cost metadata footer.
 
 ## File & Submodule Index
 
@@ -9,6 +9,6 @@ Outbound message formatting: Markdown/plaintext rendering and message splitting.
 |------|------|-------------|-------|
 | __init__.py | Package | Outbound message formatting: Markdown/plaintext rendering and message splitting. | — |
 | converter_registry.py | Core | Pluggable format conversion registry. Channels register (source_format, | ✅ |
-| renderer.py | Core | Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable | ✅ |
+| renderer.py | Core | Outbound message formatting pipeline. Converts structured OutboundMessage to platform-sendable plain text/Markdown. Includes cost metadata footer rendering via `_build_cost_footer()` when `cost_metadata` is present in message metadata. | ✅ |
 | splitter.py | Core | Smart long-message splitter. Line-by-line processing with fence state machine, | ✅ |
 | text_utils.py | Core | Universal text utilities. Provides code-block-aware text processing | ✅ |
