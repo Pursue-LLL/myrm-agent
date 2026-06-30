@@ -316,11 +316,82 @@ def resolve_context_binding(
     )
 
 
+_cascade_manager: MemoryManager | None = None
+_cascade_manager_lock = asyncio.Lock()
+
+_SEMANTIC_PREFIX = "memory_semantic_"
+
+
+async def _infer_embedding_model(vector_store: object) -> str:
+    """Infer the embedding model name from existing Qdrant collections.
+
+    Looks for a collection named 'memory_semantic_{model}' and extracts the model suffix.
+    Falls back to a sensible default if no collection is found.
+    """
+    try:
+        collections: list[str] = await vector_store.list_collections()
+        for name in collections:
+            if name.startswith(_SEMANTIC_PREFIX):
+                return name[len(_SEMANTIC_PREFIX):]
+    except Exception as e:
+        logger.warning("Failed to infer embedding model from collections: %s", e)
+    return "text-embedding-3-small"
+
+
+async def get_cascade_memory_manager() -> MemoryManager:
+    """Get a global-scope MemoryManager for cascade deletion operations.
+
+    This manager uses namespace=["global"] to reach all memories regardless of their
+    agent/channel scope. It does NOT require embeddings since cascade deletion only
+    uses metadata-based filtering (scroll + filter by source_chat_id).
+    """
+    global _cascade_manager
+    if _cascade_manager is not None:
+        return _cascade_manager
+
+    async with _cascade_manager_lock:
+        if _cascade_manager is not None:
+            return _cascade_manager
+
+        from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
+        from myrm_agent_harness.toolkits.memory.relational.sqlite_store import SQLiteRelationalStore
+
+        from app.config.settings import settings
+        from app.core.retriever.vector.defaults import create_default_vector_store
+
+        facade = ContextBundleFacade.from_state_dir(settings.database.state_dir, ensure_layout=False)
+        base_path = facade.memory_path()
+        base_path.mkdir(parents=True, exist_ok=True)
+
+        relational_store = SQLiteRelationalStore(db_path=str(base_path / "memory.db"))
+        vector_store = await create_default_vector_store()
+
+        from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+
+        embedding_model = await _infer_embedding_model(vector_store)
+        config = MemoryConfig(embedding_model=embedding_model)
+        _cascade_manager = MemoryManager(
+            config=config,
+            user_id="sandbox_user",
+            namespaces=["global"],
+            vector=vector_store,
+            relational=relational_store,
+            auto_warmup=False,
+        )
+        return _cascade_manager
+
+
 async def shutdown_cached_memory_managers() -> None:
     """Close all cached MemoryManager instances and clear the cache."""
+    global _cascade_manager
+
     async with _memory_manager_cache_lock:
         managers = list(_memory_manager_cache.values())
         _memory_manager_cache.clear()
+
+    if _cascade_manager is not None:
+        managers.append(_cascade_manager)
+        _cascade_manager = None
 
     if not managers:
         return

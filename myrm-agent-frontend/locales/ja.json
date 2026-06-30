@@ -4593,7 +4593,8 @@
       "confirmEmptyTitle": "ゴミ箱を空にする",
       "confirmEmptyDesc": "{count} 件の会話を完全に削除しますか？この操作は取り消せません。",
       "confirmDeleteTitle": "完全に削除",
-      "confirmDeleteDesc": "「{title}」を完全に削除しますか？この操作は取り消せません。"
+      "confirmDeleteDesc": "「{title}」を完全に削除しますか？この操作は取り消せません。",
+      "cascadeWarning": "関連する {count} 件の記憶も削除されます。"
     },
     "exportChat": {
       "exportHtml": "Export as HTML",
@@ -4818,7 +4819,10 @@
       "added": "メッセージをキューに追加しました — 現在のタスク完了後に送信されます",
       "sendLater": "後で送信",
       "sendLaterTooltip": "中断しない — 現在のタスク完了後に自動送信",
-      "placeholder": "次のタスクを入力（キューに追加、中断しません）..."
+      "placeholder": "次のタスクを入力（キューに追加、中断しません）...",
+      "edit": "メッセージを編集",
+      "saveEdit": "保存",
+      "cancelEdit": "キャンセル"
     },
     "fileMention": {
       "title": "ワークスペースファイル",
@@ -7142,6 +7146,13 @@
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "queued": "Action queued, will execute when current task completes"
+    },
+    "documentSelection": {
+      "modify": "AI Modify",
+      "explain": "Explain",
+      "rewrite": "Rewrite",
+      "copy": "Copy",
+      "modifyPlaceholder": "Describe what to change..."
     }
   },
   "MessageSources": {

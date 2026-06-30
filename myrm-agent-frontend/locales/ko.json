@@ -4593,7 +4593,8 @@
       "confirmEmptyTitle": "휴지통 비우기",
       "confirmEmptyDesc": "{count}개의 대화를 영구 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
       "confirmDeleteTitle": "영구 삭제",
-      "confirmDeleteDesc": "\"{title}\"을(를) 영구 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+      "confirmDeleteDesc": "\"{title}\"을(를) 영구 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+      "cascadeWarning": "관련 기억 {count}개도 함께 삭제됩니다."
     },
     "exportChat": {
       "exportHtml": "Export as HTML",
@@ -4818,7 +4819,10 @@
       "added": "메시지가 대기열에 추가됨 — 현재 작업 완료 후 전송됩니다",
       "sendLater": "나중에 보내기",
       "sendLaterTooltip": "중단하지 않음 — 현재 작업 완료 후 자동 전송",
-      "placeholder": "다음 작업 입력 (대기열에 추가, 중단하지 않음)..."
+      "placeholder": "다음 작업 입력 (대기열에 추가, 중단하지 않음)...",
+      "edit": "메시지 편집",
+      "saveEdit": "저장",
+      "cancelEdit": "취소"
     },
     "fileMention": {
       "title": "워크스페이스 파일",
@@ -7142,6 +7146,13 @@
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "queued": "Action queued, will execute when current task completes"
+    },
+    "documentSelection": {
+      "modify": "AI Modify",
+      "explain": "Explain",
+      "rewrite": "Rewrite",
+      "copy": "Copy",
+      "modifyPlaceholder": "Describe what to change..."
     }
   },
   "MessageSources": {

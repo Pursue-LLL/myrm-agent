@@ -89,9 +89,20 @@ async def restore_chat(chat_id: str) -> JSONResponse:
         raise internal_error(operation="Restore chat", exception=e) from e
 
 
+@router.get("/trash/{chat_id}/cascade-info", response_model=StandardSuccessResponse)
+async def get_cascade_info(chat_id: str) -> JSONResponse:
+    """Return count of derived memories linked to a trashed chat (for deletion preview)."""
+    try:
+        counts = await ChatService.get_cascade_info(chat_id)
+        total = sum(counts.values())
+        return success_response(data={"counts": counts, "total": total})
+    except Exception as e:
+        raise internal_error(operation="Get cascade info", exception=e) from e
+
+
 @router.delete("/trash/{chat_id}", response_model=StandardSuccessResponse)
 async def permanently_delete_chat(chat_id: str) -> JSONResponse:
-    """Permanently delete a trashed chat (irreversible)."""
+    """Permanently delete a trashed chat (irreversible), including derived memories."""
     try:
         ok = await ChatService.permanently_delete_chat(chat_id)
         if not ok:

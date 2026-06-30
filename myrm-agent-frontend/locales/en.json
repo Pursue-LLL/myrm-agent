@@ -5143,7 +5143,8 @@
       "confirmEmptyTitle": "Empty Trash",
       "confirmEmptyDesc": "Permanently delete all {count} conversations? This action cannot be undone.",
       "confirmDeleteTitle": "Delete Forever",
-      "confirmDeleteDesc": "Permanently delete \"{title}\"? This action cannot be undone."
+      "confirmDeleteDesc": "Permanently delete \"{title}\"? This action cannot be undone.",
+      "cascadeWarning": "{count} associated memories will also be deleted."
     },
     "pin": {
       "action": "Pin to Top",
@@ -5449,7 +5450,10 @@
       "added": "Message queued — will send after current task completes",
       "sendLater": "Queue for later",
       "sendLaterTooltip": "Don't interrupt — send after the current task finishes",
-      "placeholder": "Type next task (will queue, not interrupt)..."
+      "placeholder": "Type next task (will queue, not interrupt)...",
+      "edit": "Edit message",
+      "saveEdit": "Save",
+      "cancelEdit": "Cancel"
     },
     "fileMention": {
       "title": "Workspace References",
@@ -7767,6 +7771,13 @@
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "queued": "Action queued, will execute when current task completes"
+    },
+    "documentSelection": {
+      "modify": "AI Modify",
+      "explain": "Explain",
+      "rewrite": "Rewrite",
+      "copy": "Copy",
+      "modifyPlaceholder": "Describe what to change..."
     },
     "skillActions": {
       "moreActions": "More Actions",

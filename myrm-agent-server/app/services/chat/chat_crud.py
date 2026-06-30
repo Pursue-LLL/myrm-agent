@@ -255,7 +255,7 @@ class _ChatCrudMixin(_ChatServiceBase):
 
     @staticmethod
     async def permanently_delete_chat(chat_id: str) -> bool:
-        """Permanently delete a trashed chat and its workspace."""
+        """Permanently delete a trashed chat and its workspace, including derived memories."""
         sandbox_base_dir: str | None = None
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
@@ -269,6 +269,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             ok = await repo.permanently_delete_chat(chat_id)
 
         if ok:
+            await _cascade_delete_memories(chat_id)
             await _ChatCrudMixin._cleanup_checkpointer(chat_id)
             if sandbox_base_dir:
                 try:
@@ -312,7 +313,7 @@ class _ChatCrudMixin(_ChatServiceBase):
 
     @staticmethod
     async def empty_trash() -> int:
-        """Permanently delete all trashed chats and clean workspaces."""
+        """Permanently delete all trashed chats and clean workspaces, including derived memories."""
         async with UnitOfWork() as uow:
             repo = _ChatServiceBase._cr(uow)
             trashed, _ = await repo.get_trashed_chats_paginated(0, 10000)
@@ -325,6 +326,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             count = await repo.empty_trash()
 
         for cid in chat_ids:
+            await _cascade_delete_memories(cid)
             await _ChatCrudMixin._cleanup_checkpointer(cid)
             if cid in sandbox_map:
                 try:
@@ -483,6 +485,18 @@ class _ChatCrudMixin(_ChatServiceBase):
         async with UnitOfWork() as uow:
             await _ChatServiceBase._cr(uow).reorder_pinned_chats(items)
 
+    @staticmethod
+    async def get_cascade_info(chat_id: str) -> dict[str, int]:
+        """Count memories linked to a chat session (for deletion preview)."""
+        try:
+            from app.core.memory import get_cascade_memory_manager
+
+            manager = await get_cascade_memory_manager()
+            return await manager.count_by_source_chat_id(chat_id)
+        except Exception as e:
+            logger.warning("Failed to get cascade info (chat=%s): %s", chat_id, e)
+            return {}
+
 
 async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> None:
     """Remove all widget KV entries associated with a chat."""
@@ -492,3 +506,16 @@ async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> Non
 
     stmt = delete(WidgetKVEntry).where(WidgetKVEntry.chat_id == chat_id)
     await session.execute(stmt)
+
+
+async def _cascade_delete_memories(chat_id: str) -> None:
+    """Cascade-delete all memories derived from a chat session (Right to be Forgotten)."""
+    try:
+        from app.core.memory import get_cascade_memory_manager
+
+        manager = await get_cascade_memory_manager()
+        counts = await manager.purge_by_source_chat_id(chat_id)
+        if any(counts.values()):
+            logger.info("Cascade deleted memories for chat=%s: %s", chat_id, counts)
+    except Exception as e:
+        logger.warning("Cascade memory deletion failed (chat=%s): %s", chat_id, e)

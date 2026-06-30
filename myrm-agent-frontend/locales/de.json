@@ -4593,7 +4593,8 @@
       "confirmEmptyTitle": "Papierkorb leeren",
       "confirmEmptyDesc": "Alle {count} Konversationen endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
       "confirmDeleteTitle": "Endgültig löschen",
-      "confirmDeleteDesc": "\"{title}\" endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+      "confirmDeleteDesc": "\"{title}\" endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cascadeWarning": "{count} zugehörige Erinnerungen werden ebenfalls gelöscht."
     },
     "exportChat": {
       "exportHtml": "Export as HTML",
@@ -4818,7 +4819,10 @@
       "added": "Nachricht eingereiht — wird nach Abschluss der aktuellen Aufgabe gesendet",
       "sendLater": "Später senden",
       "sendLaterTooltip": "Nicht unterbrechen — nach Abschluss der aktuellen Aufgabe senden",
-      "placeholder": "Nächste Aufgabe eingeben (wird eingereiht, nicht unterbrochen)..."
+      "placeholder": "Nächste Aufgabe eingeben (wird eingereiht, nicht unterbrochen)...",
+      "edit": "Nachricht bearbeiten",
+      "saveEdit": "Speichern",
+      "cancelEdit": "Abbrechen"
     },
     "fileMention": {
       "title": "Arbeitsbereich-Dateien",
@@ -7142,6 +7146,13 @@
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "queued": "Action queued, will execute when current task completes"
+    },
+    "documentSelection": {
+      "modify": "AI Modify",
+      "explain": "Explain",
+      "rewrite": "Rewrite",
+      "copy": "Copy",
+      "modifyPlaceholder": "Describe what to change..."
     }
   },
   "MessageSources": {

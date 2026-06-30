@@ -5143,7 +5143,8 @@
       "confirmEmptyTitle": "清空回收站",
       "confirmEmptyDesc": "永久删除全部 {count} 个会话？此操作不可撤销。",
       "confirmDeleteTitle": "永久删除",
-      "confirmDeleteDesc": "永久删除「{title}」？此操作不可撤销。"
+      "confirmDeleteDesc": "永久删除「{title}」？此操作不可撤销。",
+      "cascadeWarning": "将同时删除 {count} 条关联记忆。"
     },
     "pin": {
       "action": "置顶",
@@ -5448,7 +5449,10 @@
       "added": "消息已排队 — 当前任务完成后自动发送",
       "sendLater": "排队稍后发送",
       "sendLaterTooltip": "不打断当前任务 — 任务完成后自动发送",
-      "placeholder": "输入下个任务（排队等待，不会打断）..."
+      "placeholder": "输入下个任务（排队等待，不会打断）...",
+      "edit": "编辑消息",
+      "saveEdit": "保存",
+      "cancelEdit": "取消"
     },
     "fileMention": {
       "title": "工作区引用",
@@ -7767,6 +7771,13 @@
       "copy": "复制",
       "modifyPlaceholder": "描述你想要的修改...",
       "queued": "操作已排队，当前任务完成后自动执行"
+    },
+    "documentSelection": {
+      "modify": "AI 修改",
+      "explain": "解释",
+      "rewrite": "润色重写",
+      "copy": "复制",
+      "modifyPlaceholder": "描述你想对选中内容做的修改..."
     },
     "skillActions": {
       "moreActions": "更多操作",

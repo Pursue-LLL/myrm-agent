@@ -19,6 +19,15 @@ export const getTrashCount = async (): Promise<number> => {
   return response.count;
 };
 
+export interface CascadeInfo {
+  counts: Record<string, number>;
+  total: number;
+}
+
+export const getCascadeInfo = async (chatId: string): Promise<CascadeInfo> => {
+  return apiRequest<CascadeInfo>(`/chats/trash/${chatId}/cascade-info`);
+};
+
 export const restoreChat = async (chatId: string): Promise<void> => {
   await apiRequest(`/chats/trash/${chatId}/restore`, {
     method: 'POST',

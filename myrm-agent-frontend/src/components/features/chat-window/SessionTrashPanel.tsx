@@ -1,13 +1,13 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconLoader, IconTrash } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/hooks/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import type { TrashedChatItem } from '@/services/chatTrash';
-import { emptyTrash, getTrashedChats, permanentlyDeleteChat, restoreChat } from '@/services/chatTrash';
+import type { CascadeInfo, TrashedChatItem } from '@/services/chatTrash';
+import { emptyTrash, getCascadeInfo, getTrashedChats, permanentlyDeleteChat, restoreChat } from '@/services/chatTrash';
 
 interface SessionTrashPanelProps {
   onRestored?: () => void;
@@ -23,6 +23,8 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [total, setTotal] = useState(0);
+  const [cascadeInfo, setCascadeInfo] = useState<CascadeInfo | null>(null);
+  const cascadeFetchRef = useRef<string | null>(null);
 
   const fetchTrashed = useCallback(
     async (pageNum: number, append = false) => {
@@ -73,6 +75,33 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
     } catch {
       toast({ title: t('deleteFailed'), variant: 'destructive' });
     }
+  };
+
+  const handleDeleteDialogOpen = useCallback(async (open: boolean, chatId: string) => {
+    if (open && cascadeFetchRef.current !== chatId) {
+      cascadeFetchRef.current = chatId;
+      setCascadeInfo(null);
+      try {
+        const info = await getCascadeInfo(chatId);
+        if (cascadeFetchRef.current === chatId) {
+          setCascadeInfo(info);
+        }
+      } catch {
+        setCascadeInfo({ counts: {}, total: 0 });
+      }
+    }
+    if (!open) {
+      cascadeFetchRef.current = null;
+      setCascadeInfo(null);
+    }
+  }, []);
+
+  const getDeleteDescription = (chatTitle: string) => {
+    const base = t('confirmDeleteDesc', { title: chatTitle });
+    if (cascadeInfo && cascadeInfo.total > 0) {
+      return `${base}\n${t('cascadeWarning', { count: cascadeInfo.total })}`;
+    }
+    return base;
   };
 
   const handleEmptyTrash = async () => {
@@ -183,11 +212,12 @@ const SessionTrashPanel = memo(function SessionTrashPanel({ onRestored, onCountC
                     </button>
                   }
                   title={t('confirmDeleteTitle')}
-                  description={t('confirmDeleteDesc', { title: chat.title || t('untitled') })}
+                  description={getDeleteDescription(chat.title || t('untitled'))}
                   confirmText={t('permanentDelete')}
                   cancelText={tCommon('cancel')}
                   variant="destructive"
                   onConfirm={() => handlePermanentDelete(chat.id)}
+                  onOpenChange={(open) => handleDeleteDialogOpen(open, chat.id)}
                 />
               </div>
             </div>
