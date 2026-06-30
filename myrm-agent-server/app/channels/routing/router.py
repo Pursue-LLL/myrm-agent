@@ -455,12 +455,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
             msg = await self._enrich_message_locale(msg)
 
-            await dispatch_cron_event_for_inbound_message(
-                msg.content,
-                msg.channel,
-                msg.user_id or "",
-            )
-
             if (
                 msg.metadata.get("callback_prefix") == "act"
                 and isinstance(msg.content, str)
@@ -487,6 +481,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 handled = await self._dispatch_resolved(msg, resolved)
                 if handled:
                     continue
+
+            await dispatch_cron_event_for_inbound_message(
+                msg.content,
+                msg.channel,
+                msg.user_id or "",
+            )
 
             self._gate.submit(msg)
 

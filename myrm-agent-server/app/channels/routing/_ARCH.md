@@ -91,7 +91,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 | policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. Guest mode requires `explicit_mention` metadata (entity-based only; reply-to-bot does not bypass non-enabled groups). | ✅ |
 | policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
-| router.py | Core | Core inbound message routing loop. Accepts extra_commands from business layer for agent routing. Connects MessageBus (inbound queue) to agent executor. | ✅ |
+| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
 | router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; | — |
 | router_constants.py | Core | Constants read by router.py, router_stream, and janitor/dedup logic. Includes silence reassurance thresholds. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; | — |
