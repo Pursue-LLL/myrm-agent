@@ -35,6 +35,7 @@ from app.services.memory.import_adapter_utils import (
 
 _MEMORY_LINE_PATTERN = re.compile(r"^[-*]\s+(.+)$", re.MULTILINE)
 _SECTION_HEADER_PATTERN = re.compile(r"^#{1,3}\s+(.+)$", re.MULTILINE)
+_HERMES_ENTRY_DELIMITER = "\n§\n"
 
 
 def dry_run_hermes(payload: dict[str, object]) -> MemoryImportDryRunResult:
@@ -165,88 +166,114 @@ def _parse_soul_md(content: str) -> list[dict[str, object]]:
 
 
 def _parse_memory_md(content: str) -> list[dict[str, object]]:
-    """Parse MEMORY.md into individual semantic memory items (one per bullet)."""
+    """Parse MEMORY.md into individual semantic memory items.
+
+    Handles both Hermes § delimiter format and bullet-point format.
+    """
+
+    segments = content.split(_HERMES_ENTRY_DELIMITER) if _HERMES_ENTRY_DELIMITER in content else [content]
 
     items: list[dict[str, object]] = []
     current_section = ""
 
-    for line in content.split("\n"):
-        line = line.strip()
-        section_match = _SECTION_HEADER_PATTERN.match(line)
-        if section_match:
-            current_section = section_match.group(1).strip()
+    for segment in segments:
+        segment = segment.strip()
+        if not segment:
             continue
 
-        item_match = _MEMORY_LINE_PATTERN.match(line)
-        if item_match:
-            text = item_match.group(1).strip()
-            if text:
-                tags = ["hermes_memory"]
-                if current_section:
-                    tags.append(current_section.lower().replace(" ", "_"))
-                items.append(
-                    {
-                        "content": text,
-                        "importance": 0.7,
-                        "confidence": 0.75,
-                        "tags": tags,
-                        "created_at": iso_or_now(None),
-                        "metadata": build_metadata(
-                            "hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")
-                        ),
-                    }
-                )
+        segment_has_bullets = False
+        for line in segment.split("\n"):
+            line = line.strip()
+            section_match = _SECTION_HEADER_PATTERN.match(line)
+            if section_match:
+                current_section = section_match.group(1).strip()
+                continue
 
-    if not items and content.strip():
-        items.append(
-            {
-                "content": content.strip(),
-                "importance": 0.7,
-                "confidence": 0.7,
-                "tags": ["hermes_memory"],
-                "created_at": iso_or_now(None),
-                "metadata": build_metadata("hermes", {"file": "MEMORY.md"}, ("file",)),
-            }
-        )
+            item_match = _MEMORY_LINE_PATTERN.match(line)
+            if item_match:
+                text = item_match.group(1).strip()
+                if text:
+                    segment_has_bullets = True
+                    tags = ["hermes_memory"]
+                    if current_section:
+                        tags.append(current_section.lower().replace(" ", "_"))
+                    items.append(
+                        {
+                            "content": text,
+                            "importance": 0.7,
+                            "confidence": 0.75,
+                            "tags": tags,
+                            "created_at": iso_or_now(None),
+                            "metadata": build_metadata(
+                                "hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")
+                            ),
+                        }
+                    )
+
+        if not segment_has_bullets and not _SECTION_HEADER_PATTERN.match(segment):
+            items.append(
+                {
+                    "content": segment,
+                    "importance": 0.7,
+                    "confidence": 0.75,
+                    "tags": ["hermes_memory"] + ([current_section.lower().replace(" ", "_")] if current_section else []),
+                    "created_at": iso_or_now(None),
+                    "metadata": build_metadata(
+                        "hermes", {"file": "MEMORY.md", "section": current_section}, ("file", "section")
+                    ),
+                }
+            )
 
     return items
 
 
 def _parse_user_md(content: str) -> list[dict[str, object]]:
-    """Parse USER.md into profile memory items."""
+    """Parse USER.md into profile memory items.
+
+    Handles both Hermes § delimiter format and bullet-point format.
+    """
+
+    segments = content.split(_HERMES_ENTRY_DELIMITER) if _HERMES_ENTRY_DELIMITER in content else [content]
 
     items: list[dict[str, object]] = []
 
-    for line in content.split("\n"):
-        line = line.strip()
-        item_match = _MEMORY_LINE_PATTERN.match(line)
-        if item_match:
-            text = item_match.group(1).strip()
-            if text:
-                items.append(
-                    {
-                        "content": text,
-                        "memory_type": "profile",
-                        "importance": 0.8,
-                        "confidence": 0.8,
-                        "tags": ["hermes_user", "preference"],
-                        "created_at": iso_or_now(None),
-                        "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
-                    }
-                )
+    for segment in segments:
+        segment = segment.strip()
+        if not segment:
+            continue
 
-    if not items and content.strip():
-        items.append(
-            {
-                "content": content.strip(),
-                "memory_type": "profile",
-                "importance": 0.8,
-                "confidence": 0.75,
-                "tags": ["hermes_user"],
-                "created_at": iso_or_now(None),
-                "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
-            }
-        )
+        segment_has_bullets = False
+        for line in segment.split("\n"):
+            line = line.strip()
+            item_match = _MEMORY_LINE_PATTERN.match(line)
+            if item_match:
+                text = item_match.group(1).strip()
+                if text:
+                    segment_has_bullets = True
+                    items.append(
+                        {
+                            "content": text,
+                            "memory_type": "profile",
+                            "importance": 0.8,
+                            "confidence": 0.8,
+                            "tags": ["hermes_user", "preference"],
+                            "created_at": iso_or_now(None),
+                            "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
+                        }
+                    )
+
+        if not segment_has_bullets:
+            items.append(
+                {
+                    "content": segment,
+                    "memory_type": "profile",
+                    "importance": 0.8,
+                    "confidence": 0.8,
+                    "tags": ["hermes_user", "preference"],
+                    "created_at": iso_or_now(None),
+                    "metadata": build_metadata("hermes", {"file": "USER.md"}, ("file",)),
+                }
+            )
 
     return items
 

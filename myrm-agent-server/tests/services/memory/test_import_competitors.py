@@ -99,6 +99,39 @@ class TestHermesAdapter:
         assert any("coding" in tags for tags in tags_sets)
         assert any("tools" in tags for tags in tags_sets)
 
+    def test_memory_md_section_delimiter_parsing(self) -> None:
+        """Hermes uses §-delimited entries; each should become a separate memory."""
+        md = "Project uses Python 3.12\n§\nUser prefers concise code\n§\nAlways run tests before committing"
+        result = dry_run_hermes({"memory_md": md})
+        semantic = result.normalized_data.get("semantic", [])
+        assert len(semantic) == 3
+        contents = [item["content"] for item in semantic]
+        assert "Python 3.12" in contents[0]
+        assert "concise code" in contents[1]
+        assert "tests before committing" in contents[2]
+
+    def test_user_md_section_delimiter_parsing(self) -> None:
+        """USER.md with § delimiters should produce multiple profile entries."""
+        md = "Prefers Chinese replies\n§\nLikes dark mode\n§\nSenior engineer"
+        result = dry_run_hermes({"user_md": md})
+        profile = result.normalized_data.get("profile", [])
+        assert len(profile) == 3
+        contents = [item["content"] for item in profile]
+        assert "Chinese replies" in contents[0]
+        assert "dark mode" in contents[1]
+        assert "Senior engineer" in contents[2]
+
+    def test_memory_md_mixed_section_and_bullets(self) -> None:
+        """Mixed §-delimited + bullet-point format should work correctly."""
+        md = "## Project Facts\n- Python 3.12\n- uv for deps\n§\nAlways run tests first"
+        result = dry_run_hermes({"memory_md": md})
+        semantic = result.normalized_data.get("semantic", [])
+        assert len(semantic) == 3
+        contents = [item["content"] for item in semantic]
+        assert "Python 3.12" in contents
+        assert "uv for deps" in contents
+        assert "Always run tests first" in contents
+
     def test_combined_payload_correct_counts(self) -> None:
         payload = {
             "soul_md": "I am helpful",
