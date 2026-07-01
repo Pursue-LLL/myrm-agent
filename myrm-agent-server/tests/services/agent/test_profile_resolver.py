@@ -690,7 +690,6 @@ class TestResolveBuiltinToolFlags:
             "wiki",
             "kanban",
             "canvas",
-            "llm_map",
             "answer_tool",
             "render_ui",
         )
@@ -728,7 +727,6 @@ class TestResolveBuiltinToolFlags:
             "enable_wiki",
             "enable_kanban",
             "enable_canvas",
-            "enable_llm_map",
             "enable_answer_tool",
             "enable_render_ui",
         }

@@ -285,3 +285,5 @@ reassurance_still_running = ⚓ 仍在处理中（已完成 { $steps } 个步骤
 agent_picker_no_agents = 未配置任何智能体。
 agent_picker_select = 选择一个智能体：
 agent_picker_switched = 已切换至：{ $name }
+artifact_deep_link = 💻 查看交互网页
+artifact_deep_link_named = 💻 { $filename }

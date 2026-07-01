@@ -692,7 +692,6 @@ async def build_general_agent(
         model_resolver=subagent_model_resolver,
         enable_file_tools=effective_enable_file,
         enable_bash=effective_enable_bash,
-        enable_llm_map=agent_wrapper.enable_llm_map,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
     )
 

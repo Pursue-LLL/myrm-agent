@@ -46,7 +46,6 @@ class BuiltinToolFlags(TypedDict):
     enable_wiki: bool
     enable_kanban: bool
     enable_canvas: bool
-    enable_llm_map: bool
     enable_answer_tool: bool
     enable_render_ui: bool
 
@@ -68,7 +67,6 @@ def resolve_builtin_tool_flags(
         enable_wiki="wiki" in tools,
         enable_kanban="kanban" in tools,
         enable_canvas="canvas" in tools,
-        enable_llm_map="llm_map" in tools,
         enable_answer_tool="answer_tool" in tools,
         enable_render_ui="render_ui" in tools,
     )

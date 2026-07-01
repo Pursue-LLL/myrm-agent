@@ -35,31 +35,3 @@ def test_list_templates_includes_team_type(client: TestClient):
     assert first_team.get("members")
     assert len(first_team["members"]) >= 1
 
-
-def test_list_templates_includes_batch_processing_assistant(client: TestClient):
-    """Batch processing template is exposed in Template Market."""
-    response = client.get("/api/v1/agents/templates")
-    assert response.status_code == 200
-    templates = response.json()["data"]
-    batch = next((t for t in templates if t.get("id") == "batch_processing_assistant"), None)
-    assert batch is not None, "batch_processing_assistant seed missing from catalog"
-    assert batch.get("agent_type") == "individual"
-    assert batch.get("name")
-
-
-def test_instantiate_batch_processing_assistant_enables_llm_map(client: TestClient):
-    """Instantiate batch template → agent persists llm_map in enabled_builtin_tools."""
-    response = client.post("/api/v1/agents/instantiate-template/batch_processing_assistant")
-    assert response.status_code == 200, response.text
-    agent = response.json()["data"]
-    agent_id = agent["id"]
-    try:
-        tools = agent.get("enabled_builtin_tools") or []
-        assert "llm_map" in tools
-        assert "answer_tool" in tools
-        detail = client.get(f"/api/agents/{agent_id}?show_system_prompt=true")
-        assert detail.status_code == 200
-        prompt = detail.json()["data"].get("system_prompt") or ""
-        assert "llm_map_tool" in prompt
-    finally:
-        client.delete(f"/api/agents/{agent_id}")

@@ -121,7 +121,6 @@ class GeneralAgentParams(BaseAgentParams):
     enable_kanban: bool = False
     enable_canvas: bool = False
     canvas_id: str | None = None
-    enable_llm_map: bool = False
     enable_answer_tool: bool = False
     kanban_tool_mode: str = "full"
     kanban_current_task_id: str | None = None
@@ -261,7 +260,6 @@ class AgentFactory:
             enable_kanban=params.enable_kanban,
             enable_canvas=params.enable_canvas,
             canvas_id=params.canvas_id,
-            enable_llm_map=params.enable_llm_map,
             enable_answer_tool=params.enable_answer_tool,
             kanban_tool_mode=params.kanban_tool_mode,
             kanban_current_task_id=params.kanban_current_task_id,

@@ -4698,7 +4698,6 @@
         "tts": "Text to Speech",
         "kanban": "Task Board",
         "canvas": "Canvas Workspace",
-        "llm_map": "Batch LLM Map",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI"
       },
@@ -4715,7 +4714,6 @@
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "canvas": "Read and write the infinite canvas — let the agent see your drawings, notes, and diagrams",
-        "llm_map": "Apply one instruction across many items in parallel — summarize, classify, or translate a whole list in one step (max 200 items per call; split larger lists into batches)",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction"
       },

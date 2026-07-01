@@ -13,7 +13,6 @@ import {
   BookMarked,
   KanbanSquare,
   PenTool,
-  Layers,
   Volume2,
   LayoutTemplate,
   MessageSquareCheck,
@@ -57,7 +56,6 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   tts: <Volume2 size={14} />,
   kanban: <KanbanSquare size={14} />,
   canvas: <PenTool size={14} />,
-  llm_map: <Layers size={14} />,
   answer_tool: <MessageSquareCheck size={14} />,
   render_ui: <LayoutTemplate size={14} />,
 };

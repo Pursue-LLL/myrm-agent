@@ -23,7 +23,6 @@ export type BuiltinToolId =
   | 'tts'
   | 'kanban'
   | 'canvas'
-  | 'llm_map'
   | 'answer_tool'
   | 'render_ui';
 
@@ -40,7 +39,6 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'tts',
   'kanban',
   'canvas',
-  'llm_map',
   'answer_tool',
   'render_ui',
 ] as const;

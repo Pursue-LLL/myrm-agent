@@ -20,7 +20,7 @@ scheduling, stream accumulation, and channel notifications.
 - extract_external_agents: Extract agents from UserConfig
 - suggest_quick_replies: Generate contextual quick-reply suggestions
 - step_to_label: Translate Agent step_key to progress label
-- StreamAccumulator: Lightweight response accumulator
+- StreamAccumulator: Lightweight response accumulator (tracks shareable_artifacts for deep link injection)
 
 [POS]
 ChannelAgentExecutor 的辅助模块。处理执行前后的持久化、超时调度、
@@ -393,6 +393,7 @@ class StreamAccumulator:
     last_image_mime: str = "image/jpeg"
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)
+    shareable_artifacts: list[tuple[str, str, str]] = field(default_factory=list)
     cost_usd: float = 0.0
     model_name: str = ""
     total_tokens: int = 0

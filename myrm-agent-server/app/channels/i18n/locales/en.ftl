@@ -285,3 +285,5 @@ reassurance_still_running = ⚓ Still working… ({ $steps } steps done{ $stage 
 agent_picker_no_agents = No agents configured.
 agent_picker_select = Select an agent:
 agent_picker_switched = Switched to: { $name }
+artifact_deep_link = 💻 View interactive page
+artifact_deep_link_named = 💻 { $filename }
