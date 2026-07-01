@@ -21,7 +21,7 @@ import {
   type OrgInfo,
   type OrgMember,
   type HandoffLog,
-  getOrg,
+  getMyOrg,
   listMembers,
   addMember,
   removeMember,
@@ -63,7 +63,7 @@ const EnterpriseOrgSection = memo(() => {
     try {
       setLoading(true);
       setError(null);
-      const orgData = await getOrg('current');
+      const orgData = await getMyOrg();
       setOrg(orgData);
       const [membersData, logsData] = await Promise.all([
         listMembers(orgData.id),
@@ -170,7 +170,7 @@ const EnterpriseOrgSection = memo(() => {
         description={t('description')}
       >
         {org && (
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">{t('orgId')}:</span>{' '}
               <code className="text-xs bg-muted px-1 py-0.5 rounded">{org.id}</code>

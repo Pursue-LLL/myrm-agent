@@ -3,7 +3,7 @@
 import { memo, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import {
   User,
@@ -98,6 +98,7 @@ interface MenuItem {
   labelKey: string;
   group: SettingsGroup;
   tauriOnly?: boolean;
+  sandboxOnly?: boolean;
   adminOnly?: boolean;
 }
 
@@ -136,7 +137,7 @@ const menuItems: MenuItem[] = [
   { id: 'cron', icon: Timer, labelKey: 'cron', group: 'system' },
   { id: 'kanban', icon: Columns, labelKey: 'kanban', group: 'system' },
   { id: 'checkpoint', icon: Archive, labelKey: 'checkpoint', group: 'system' },
-  { id: 'enterprise', icon: Building2, labelKey: 'enterprise', group: 'system' },
+  { id: 'enterprise', icon: Building2, labelKey: 'enterprise', group: 'system', sandboxOnly: true },
   { id: 'developer', icon: Code, labelKey: 'developer', group: 'system' },
   { id: 'system', icon: Settings, labelKey: 'system', group: 'system' },
 ];
@@ -205,6 +206,7 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin = false, className }) => {
   const t = useTranslations('settings.menu');
   const tauriMode = isLocalMode();
+  const sandboxMode = isSandbox();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<SettingsGroup>>(() => {
     return new Set(Object.keys(groupConfig) as SettingsGroup[]);
@@ -216,10 +218,11 @@ const SettingsMenu = memo<SettingsMenuProps>(({ activeTab, onTabChange, isAdmin 
     () =>
       menuItems.filter((item) => {
         if (item.tauriOnly && !tauriMode) return false;
+        if (item.sandboxOnly && !sandboxMode) return false;
         if (item.adminOnly && !isAdmin) return false;
         return true;
       }),
-    [tauriMode, isAdmin],
+    [tauriMode, sandboxMode, isAdmin],
   );
 
   const isSearching = searchQuery.trim().length > 0;

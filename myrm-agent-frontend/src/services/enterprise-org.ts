@@ -54,6 +54,12 @@ export async function getOrg(orgId: string): Promise<OrgInfo> {
   return res.json();
 }
 
+export async function getMyOrg(): Promise<OrgInfo> {
+  const res = await fetch(cpUrl('/me'));
+  if (!res.ok) throw new Error(`Get my org failed: ${res.status}`);
+  return res.json();
+}
+
 export async function listMembers(orgId: string): Promise<OrgMember[]> {
   const res = await fetch(cpUrl(`/${orgId}/members`));
   if (!res.ok) throw new Error(`List members failed: ${res.status}`);
