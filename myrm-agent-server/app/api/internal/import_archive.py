@@ -15,13 +15,19 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import secrets
+import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+_CP_TOKEN_ENV = "CONTROL_PLANE_TELEMETRY_TOKEN"
+_CP_TOKEN_HEADER = "X-Telemetry-Token"
 
 PERSISTENT_DIR = Path("/persistent")
 
@@ -37,14 +43,25 @@ class ImportArchiveResponse(BaseModel):
     message: str
 
 
+def _verify_cp_token(request: Request) -> None:
+    """Verify the Control Plane token for internal endpoints."""
+    expected = os.environ.get(_CP_TOKEN_ENV)
+    if not expected:
+        return
+    provided = request.headers.get(_CP_TOKEN_HEADER, "")
+    if not provided or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing CP token")
+
+
 @router.post("/admin/import-archive", tags=["internal"])
-async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
+async def import_archive(request: Request, body: ImportArchiveRequest) -> ImportArchiveResponse:
     """Import a tar.gz archive into the sandbox persistent volume.
 
     merge_mode:
         - "overlay": Extract on top of existing data (default)
         - "replace": Clear persistent dir first, then extract
     """
+    _verify_cp_token(request)
     archive = Path(body.archive_path)
     if not archive.exists():
         raise HTTPException(status_code=404, detail=f"Archive not found: {body.archive_path}")
@@ -59,7 +76,6 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
             if item.name.startswith("."):
                 continue
             if item.is_dir():
-                import shutil
                 shutil.rmtree(item)
             else:
                 item.unlink()
