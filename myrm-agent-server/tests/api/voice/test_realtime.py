@@ -16,11 +16,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.api.voice.realtime import (
+    REALTIME_VOICES,
     RealtimeTokenRequest,
     RealtimeToolExecRequest,
     RealtimeTranscriptRequest,
+    _build_realtime_tools,
     _extract_openai_api_key,
     _extract_openai_base_url,
+    _find_openai_provider,
     _safe_json_str,
 )
 
@@ -45,6 +48,28 @@ def _providers(
         ],
         "defaultModelConfig": {},
     }
+
+
+# ── _find_openai_provider tests ───────────────────────────────────────
+
+
+class TestFindOpenaiProvider:
+    def test_finds_by_openai_id(self) -> None:
+        assert _find_openai_provider(_providers(provider_id="openai")) is not None
+
+    def test_finds_by_openai_variant(self) -> None:
+        assert _find_openai_provider(_providers(provider_id="openai-custom")) is not None
+
+    def test_returns_none_for_other_provider(self) -> None:
+        assert _find_openai_provider(_providers(provider_id="anthropic")) is None
+
+    def test_returns_none_for_empty(self) -> None:
+        assert _find_openai_provider({}) is None
+        assert _find_openai_provider({"providers": []}) is None
+
+    def test_skips_non_dict_entries(self) -> None:
+        providers = {"providers": [42, "string", _providers(provider_id="openai")["providers"][0]]}
+        assert _find_openai_provider(providers) is not None
 
 
 # ── _extract_openai_api_key tests ─────────────────────────────────────
@@ -117,6 +142,40 @@ class TestSafeJsonStr:
         assert _safe_json_str({}) == "{}"
 
 
+# ── _build_realtime_tools tests ───────────────────────────────────────
+
+
+class TestBuildRealtimeTools:
+    def test_always_includes_background_task(self) -> None:
+        tools = _build_realtime_tools(())
+        assert len(tools) == 1
+        assert tools[0].name == "run_background_task"
+
+    def test_adds_known_tools(self) -> None:
+        tools = _build_realtime_tools(("web_search", "memory"))
+        names = [t.name for t in tools]
+        assert "run_background_task" in names
+        assert "web_search" in names
+        assert "memory_recall" in names
+        assert len(tools) == 3
+
+    def test_ignores_unknown_tools(self) -> None:
+        tools = _build_realtime_tools(("web_search", "nonexistent_tool"))
+        assert len(tools) == 2
+
+    def test_all_catalog_tools(self) -> None:
+        tools = _build_realtime_tools(("web_search", "memory", "file_ops", "code_execute", "browser", "kanban"))
+        assert len(tools) == 7
+
+    def test_tool_structure_valid(self) -> None:
+        tools = _build_realtime_tools(("web_search",))
+        ws_tool = next(t for t in tools if t.name == "web_search")
+        assert ws_tool.type == "function"
+        assert ws_tool.description
+        assert "properties" in ws_tool.parameters
+        assert "required" in ws_tool.parameters
+
+
 # ── create_realtime_token endpoint tests ──────────────────────────────
 
 
@@ -132,6 +191,7 @@ async def test_create_realtime_token_success() -> None:
     mock_profile = MagicMock()
     mock_profile.model = "gpt-realtime-2"
     mock_profile.system_prompt = "You are a helpful assistant."
+    mock_profile.enabled_builtin_tools = ("web_search",)
 
     mock_resolver = MagicMock()
     mock_resolver.resolve = AsyncMock(return_value=mock_profile)
@@ -157,9 +217,167 @@ async def test_create_realtime_token_success() -> None:
     assert result.voice == "alloy"
     assert result.expires_at == 1717000000
     assert result.instructions == "You are a helpful assistant."
+    assert len(result.tools) >= 1
+    assert any(t.name == "run_background_task" for t in result.tools)
     # The sessions URL is built from the configured apiUrl (which carries /v1) — never a second /v1.
     assert mock_client.post.await_args.args[0] == "https://api.openai.com/v1/realtime/sessions"
     assert mock_client.post.await_args.kwargs["headers"]["Authorization"] == "Bearer sk-test"
+    posted_payload = mock_client.post.await_args.kwargs["json"]
+    assert "tools" in posted_payload
+
+
+@pytest.mark.asyncio
+async def test_create_realtime_token_no_profile_returns_default_tools() -> None:
+    """When profile is None, only run_background_task should appear in tools."""
+    from app.api.voice.realtime import create_realtime_token
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.voice_dict = {}
+    mock_configs.model_cfg = MagicMock()
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=None)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-secret", "expires_at": None}}
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await create_realtime_token(RealtimeTokenRequest())
+
+    assert len(result.tools) == 1
+    assert result.tools[0].name == "run_background_task"
+    assert result.instructions is None
+    assert result.voice == "verse"
+
+
+@pytest.mark.asyncio
+async def test_create_realtime_token_voice_from_config() -> None:
+    """Voice should come from voice_dict when not in request."""
+    from app.api.voice.realtime import create_realtime_token
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.voice_dict = {"ttsVoice": "coral"}
+    mock_configs.model_cfg = MagicMock()
+
+    mock_profile = MagicMock()
+    mock_profile.model = None
+    mock_profile.system_prompt = None
+    mock_profile.enabled_builtin_tools = ()
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await create_realtime_token(RealtimeTokenRequest())
+
+    assert result.voice == "coral"
+
+
+@pytest.mark.asyncio
+async def test_create_realtime_token_invalid_voice_uses_default() -> None:
+    """If configured voice is not in REALTIME_VOICES, use default."""
+    from app.api.voice.realtime import create_realtime_token
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.voice_dict = {"ttsVoice": "invalid-voice-name"}
+    mock_configs.model_cfg = MagicMock()
+
+    mock_profile = MagicMock()
+    mock_profile.model = None
+    mock_profile.system_prompt = None
+    mock_profile.enabled_builtin_tools = ()
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await create_realtime_token(RealtimeTokenRequest())
+
+    assert result.voice == "verse"
+
+
+@pytest.mark.asyncio
+async def test_create_realtime_token_tools_payload_format() -> None:
+    """Verify the exact format of tools in the OpenAI sessions payload."""
+    from app.api.voice.realtime import create_realtime_token
+
+    mock_configs = MagicMock()
+    mock_configs.providers_dict = _providers()
+    mock_configs.voice_dict = {}
+    mock_configs.model_cfg = MagicMock()
+
+    mock_profile = MagicMock()
+    mock_profile.model = None
+    mock_profile.system_prompt = None
+    mock_profile.enabled_builtin_tools = ("web_search", "memory")
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(return_value=mock_profile)
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {"client_secret": {"value": "ek-s", "expires_at": None}}
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with (
+        patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=mock_configs)),
+        patch("app.services.agent.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await create_realtime_token(RealtimeTokenRequest())
+
+    posted_payload = mock_client.post.await_args.kwargs["json"]
+    tools_payload = posted_payload["tools"]
+    assert len(tools_payload) == 3
+    for tool in tools_payload:
+        assert "type" in tool
+        assert "name" in tool
+        assert "description" in tool
+        assert "parameters" in tool
+        assert tool["type"] == "function"
 
 
 @pytest.mark.asyncio

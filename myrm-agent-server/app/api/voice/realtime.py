@@ -12,7 +12,6 @@ The server's role is limited to:
 
 [INPUT]
 - app.core.channel_bridge.config_loader::load_user_configs (POS: user config loader)
-- app.core.channel_bridge.config_loader::load_voice_config_only (POS: voice config loader)
 - app.services.agent.profile_resolver (POS: Agent profile resolver)
 
 [OUTPUT]
@@ -26,7 +25,7 @@ by connecting browser directly to OpenAI via WebRTC.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -61,12 +60,20 @@ class RealtimeTokenRequest(BaseModel):
     model: str | None = None
 
 
+class RealtimeToolDef(BaseModel):
+    type: str = "function"
+    name: str
+    description: str
+    parameters: dict[str, Any]
+
+
 class RealtimeTokenResponse(BaseModel):
     client_secret: str
     model: str
     voice: str
     expires_at: int | None = None
     instructions: str | None = None
+    tools: list[RealtimeToolDef] = []
 
 
 class RealtimeToolExecRequest(BaseModel):
@@ -123,8 +130,25 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
     if profile and profile.system_prompt:
         instructions = profile.system_prompt
 
+    tools = _build_realtime_tools(profile.enabled_builtin_tools if profile else ())
+
     openai_base = _extract_openai_base_url(providers)
     sessions_url = f"{openai_base}/realtime/sessions" if openai_base else _OPENAI_REALTIME_SESSIONS_URL
+
+    session_payload: dict[str, Any] = {
+        "model": model,
+        "voice": voice,
+        "modalities": ["audio", "text"],
+        "input_audio_transcription": {"model": "gpt-4o-mini-transcribe"},
+        "turn_detection": {"type": "server_vad"},
+    }
+    if instructions:
+        session_payload["instructions"] = instructions
+    if tools:
+        session_payload["tools"] = [
+            {"type": t.type, "name": t.name, "description": t.description, "parameters": t.parameters}
+            for t in tools
+        ]
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.post(
@@ -133,14 +157,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
                 "Authorization": f"Bearer {openai_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "voice": voice,
-                "modalities": ["audio", "text"],
-                "input_audio_transcription": {"model": "gpt-4o-mini-transcribe"},
-                "turn_detection": {"type": "server_vad"},
-                **({"instructions": instructions} if instructions else {}),
-            },
+            json=session_payload,
         )
 
     if resp.status_code != 200:
@@ -159,6 +176,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
         voice=voice,
         expires_at=client_secret.get("expires_at") if isinstance(client_secret, dict) else None,
         instructions=instructions,
+        tools=tools,
     )
 
 
@@ -305,6 +323,55 @@ def _safe_json_str(obj: object) -> str:
         return json.dumps(obj, ensure_ascii=False, default=str)
     except Exception:
         return str(obj)
+
+
+_REALTIME_TOOL_CATALOG: dict[str, RealtimeToolDef] = {
+    "web_search": RealtimeToolDef(
+        name="web_search",
+        description="Search the web for current information. Use when the user asks about recent events, facts, or anything you're unsure about.",
+        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "Search query"}}, "required": ["query"]},
+    ),
+    "memory": RealtimeToolDef(
+        name="memory_recall",
+        description="Recall information from long-term memory about the user or previous conversations.",
+        parameters={"type": "object", "properties": {"query": {"type": "string", "description": "What to recall"}}, "required": ["query"]},
+    ),
+    "file_ops": RealtimeToolDef(
+        name="file_ops",
+        description="Read, write, or list files in the workspace.",
+        parameters={"type": "object", "properties": {"action": {"type": "string", "enum": ["read", "write", "list"], "description": "File operation"}, "path": {"type": "string", "description": "File path"}}, "required": ["action", "path"]},
+    ),
+    "code_execute": RealtimeToolDef(
+        name="code_execute",
+        description="Execute code (Python, shell, etc.) in a sandboxed environment and return the result.",
+        parameters={"type": "object", "properties": {"code": {"type": "string", "description": "Code to execute"}, "language": {"type": "string", "description": "Programming language", "default": "python"}}, "required": ["code"]},
+    ),
+    "browser": RealtimeToolDef(
+        name="browser",
+        description="Browse a webpage and extract its content.",
+        parameters={"type": "object", "properties": {"url": {"type": "string", "description": "URL to browse"}}, "required": ["url"]},
+    ),
+    "kanban": RealtimeToolDef(
+        name="kanban",
+        description="Manage tasks on the kanban board: create, update, or query tasks.",
+        parameters={"type": "object", "properties": {"action": {"type": "string", "enum": ["create", "update", "query"], "description": "Kanban action"}, "description": {"type": "string", "description": "Task description or query"}}, "required": ["action", "description"]},
+    ),
+}
+
+_ALWAYS_AVAILABLE_TOOL = RealtimeToolDef(
+    name="run_background_task",
+    description="Delegate a complex task to run in the background. Use for long-running operations that shouldn't block the voice conversation. The result will be available later.",
+    parameters={"type": "object", "properties": {"task": {"type": "string", "description": "Detailed description of the task to run"}}, "required": ["task"]},
+)
+
+
+def _build_realtime_tools(enabled_builtin_tools: tuple[str, ...] | Sequence[str]) -> list[RealtimeToolDef]:
+    """Build tool definitions for OpenAI Realtime session from agent's enabled tools."""
+    tools: list[RealtimeToolDef] = [_ALWAYS_AVAILABLE_TOOL]
+    for tool_key in enabled_builtin_tools:
+        if tool_key in _REALTIME_TOOL_CATALOG:
+            tools.append(_REALTIME_TOOL_CATALOG[tool_key])
+    return tools
 
 
 _tool_exec_model_rebuilt = False

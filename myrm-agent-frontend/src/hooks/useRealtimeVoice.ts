@@ -24,6 +24,7 @@ interface RealtimeTokenResponse {
   voice: string;
   expires_at: number | null;
   instructions: string | null;
+  tools: Array<{ type: string; name: string; description: string; parameters: Record<string, unknown> }>;
 }
 
 interface UseRealtimeVoiceOptions {
