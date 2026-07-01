@@ -6216,8 +6216,7 @@
       "skill_select_tool": "Selecting skill",
       "render_ui_tool": "Rendering UI",
       "answer_user_tool": "Generating answer",
-      "request_answer_user_tool": "Preparing response",
-      "llm_map_tool": "Batch processing"
+      "request_answer_user_tool": "Preparing response"
     },
     "categoryStageLabels": {
       "thinking": "Thinking",

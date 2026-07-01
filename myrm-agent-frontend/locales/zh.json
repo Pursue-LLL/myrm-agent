@@ -4698,7 +4698,6 @@
         "tts": "语音生成",
         "kanban": "任务看板",
         "canvas": "无限画布",
-        "llm_map": "批量 LLM 映射",
         "answer_tool": "回答质量自审",
         "render_ui": "交互式 UI"
       },
@@ -4715,7 +4714,6 @@
         "tts": "使用 TTS 模型将文本转换为语音",
         "kanban": "管理看板任务 — 报告进度、阻塞任务、标记完成",
         "canvas": "读写无限画布 — 让智能体看到你的绘图、笔记和思维导图",
-        "llm_map": "对一批条目并行施加同一指令 — 一步完成整列的总结、分类或翻译（单次最多 200 条，超出请分批调用）",
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
         "render_ui": "在对话中渲染表格、图表和表单 — 用于结构化数据展示与交互"
       },
@@ -6218,8 +6216,7 @@
       "skill_select_tool": "正在选择技能",
       "render_ui_tool": "正在渲染界面",
       "answer_user_tool": "正在生成回答",
-      "request_answer_user_tool": "正在准备回复",
-      "llm_map_tool": "批量处理中"
+      "request_answer_user_tool": "正在准备回复"
     },
     "categoryStageLabels": {
       "thinking": "思考中",
