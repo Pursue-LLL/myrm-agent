@@ -257,16 +257,29 @@ export function FlowPadModal() {
       <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
         <DialogContent className="sm:max-w-[640px] p-0 overflow-hidden bg-background/90 backdrop-blur-xl border-border/50 shadow-2xl gap-0 [&>button.absolute]:hidden">
           <VisuallyHidden>
-            <DialogTitle>{t('title')}</DialogTitle>
+            <DialogTitle>{mode === 'inline' ? t('inlineTitle') : t('title')}</DialogTitle>
           </VisuallyHidden>
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/20">
             <div className="flex items-center gap-2">
-              <Monitor className="w-3.5 h-3.5 text-muted-foreground/70" />
+              {mode === 'inline' ? (
+                <ClipboardPaste className="w-3.5 h-3.5 text-blue-500" />
+              ) : (
+                <Monitor className="w-3.5 h-3.5 text-muted-foreground/70" />
+              )}
               <span className="text-xs font-medium text-muted-foreground">
-                {hasCaptures ? t('titleWithCapture') : t('title')}
+                {mode === 'inline'
+                  ? t('inlineTitle')
+                  : hasCaptures
+                    ? t('titleWithCapture')
+                    : t('title')}
               </span>
+              {mode === 'inline' && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">
+                  Inline
+                </span>
+              )}
             </div>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={close}>
               <X className="h-3.5 w-3.5" />
@@ -308,7 +321,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => handleQuickAction('replyPrompt')}
+                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('replyPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <MessageSquareReply className="w-3 h-3" />
@@ -317,7 +330,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => handleQuickAction('summarizePrompt')}
+                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('summarizePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <FileText className="w-3 h-3" />
@@ -326,7 +339,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => handleQuickAction('translatePrompt')}
+                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('translatePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <Languages className="w-3 h-3" />
@@ -335,12 +348,50 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => handleQuickAction('explainPrompt')}
+                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('explainPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <Lightbulb className="w-3 h-3" />
                 {t('quickExplain')}
               </button>
+            </div>
+          )}
+
+          {/* Inline Result Display */}
+          {mode === 'inline' && inlineResult && (
+            <div className="px-4 py-3 border-b border-border/30 bg-muted/5 max-h-[200px] overflow-y-auto">
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {inlineResult}
+              </p>
+              {inlineGenerating && (
+                <span className="inline-flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {t('generating')}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Inline Paste/Copy Actions */}
+          {mode === 'inline' && inlineResult && !inlineGenerating && (
+            <div className="px-4 py-2.5 border-b border-border/20 flex items-center gap-2">
+              <Button
+                size="sm"
+                className="h-7 gap-1.5 text-xs"
+                onClick={handlePasteBack}
+              >
+                <ClipboardPaste className="w-3 h-3" />
+                {t('pasteBack')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 text-xs"
+                onClick={handleCopyResult}
+              >
+                <Copy className="w-3 h-3" />
+                {t('copyResult')}
+              </Button>
             </div>
           )}
 
@@ -351,7 +402,13 @@ export function FlowPadModal() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={hasCaptures ? t('placeholderWithCapture') : t('placeholder')}
+              placeholder={
+                mode === 'inline'
+                  ? t('inlinePlaceholder')
+                  : hasCaptures
+                    ? t('placeholderWithCapture')
+                    : t('placeholder')
+              }
               className={cn(
                 'w-full resize-none border-0 focus:outline-none focus-visible:ring-0',
                 'text-base bg-transparent placeholder:text-muted-foreground/40',
@@ -372,7 +429,7 @@ export function FlowPadModal() {
               <Button
                 size="icon"
                 className="h-8 w-8 rounded-full"
-                onClick={handleSubmit}
+                onClick={mode === 'inline' ? handleInlineSubmit : handleSubmit}
                 disabled={isSubmitting || (!text.trim() && !hasCaptures)}
               >
                 {isSubmitting ? (

@@ -66,6 +66,8 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
     clearPresetSelection,
     handleTypewriterComplete,
 
+    refreshSkills,
+
     // Translations
     t,
     tIndicator,
@@ -287,6 +289,7 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
           autoRestoreDomains={agentConfig?.autoRestoreDomains ?? EMPTY_AUTO_RESTORE_DOMAINS}
           ephemeralSubagents={agentConfig?.ephemeralSubagents || {}}
           onSave={handleSaveConfig}
+          onRefreshSkills={refreshSkills}
         />
       </Suspense>
     </div>

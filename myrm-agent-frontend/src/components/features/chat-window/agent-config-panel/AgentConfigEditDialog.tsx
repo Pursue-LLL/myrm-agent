@@ -13,6 +13,7 @@ import { Wand2, Plug, FileText, Wrench, Globe, Search, X } from 'lucide-react';
 import { getApiUrl } from '@/lib/api';
 import { Input } from '@/components/primitives/input';
 import { toast } from '@/hooks/useToast';
+import { runCuratorSweep } from '@/services/skill';
 import type { ConfigCardType } from './AgentConfigCards';
 import { ActionSpaceAccuracyRadar } from './ActionSpaceAccuracyRadar';
 import { AddMoreButton, SelectableCard } from './AgentConfigSelectableCard';
@@ -58,6 +59,7 @@ interface AgentConfigEditDialogProps {
   isSystemPromptHidden?: boolean;
   loadingSystemPrompt?: boolean;
   onShowSystemPrompt?: () => void;
+  onRefreshSkills?: () => Promise<void>;
   onSave: (data: {
     selectedSkillIds?: string[];
     mountedSkillIds?: string[];
@@ -101,6 +103,7 @@ const AgentConfigEditDialog = ({
   isSystemPromptHidden = false,
   loadingSystemPrompt = false,
   onShowSystemPrompt,
+  onRefreshSkills,
   onSave,
 }: AgentConfigEditDialogProps) => {
   const t = useTranslations('agent.configEditor');
@@ -134,6 +137,7 @@ const AgentConfigEditDialog = ({
 
   /* ─── AI generation ─── */
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isSmartPruning, setIsSmartPruning] = useState(false);
   const [history, setHistory] = useState<Array<{ id: string; version: number; systemPrompt: string; createdAt: string }>>([]);
 
   /* ─── sync on open ─── */
@@ -260,13 +264,28 @@ const AgentConfigEditDialog = ({
     });
   }, [localSkillIds, localSkillConfigs, enabledSkills]);
 
-  const handleSmartPrune = () => {
-    setLocalSkillConfigs((configs) => {
-      const newConfigs = { ...configs };
-      staleCoreSkills.forEach((id) => { newConfigs[id] = { ...newConfigs[id], is_core: false }; });
-      return newConfigs;
-    });
-  };
+  const handleSmartPrune = useCallback(async () => {
+    if (isSmartPruning) return;
+    setIsSmartPruning(true);
+    try {
+      toast({ title: tPanel('actionSpaceRadar.smartPruneRunning') });
+      const result = await runCuratorSweep();
+      toast({
+        title: tPanel('actionSpaceRadar.smartPruneSuccess', {
+          stale: result.stale_count,
+          archived: result.archived_count,
+        }),
+      });
+      if (onRefreshSkills) {
+        await onRefreshSkills();
+      }
+    } catch (error) {
+      console.error('Curator sweep failed', error);
+      toast({ title: tPanel('actionSpaceRadar.smartPruneFailed'), variant: 'destructive' });
+    } finally {
+      setIsSmartPruning(false);
+    }
+  }, [isSmartPruning, onRefreshSkills, tPanel]);
 
   /* ─── save handler ─── */
   const handleSave = useCallback(() => {

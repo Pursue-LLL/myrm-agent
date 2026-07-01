@@ -465,6 +465,10 @@ export const useAgentConfigPanel = () => {
     [setAgentConfig, tAgent],
   );
 
+  const refreshSkills = useCallback(async () => {
+    await Promise.all([fetchMarketSkills(), fetchLocalSkills()]);
+  }, [fetchMarketSkills, fetchLocalSkills]);
+
   // ==================== Return Values ====================
 
   return {
@@ -501,6 +505,7 @@ export const useAgentConfigPanel = () => {
     handleSelectPreset,
     clearPresetSelection,
     handleTypewriterComplete,
+    refreshSkills,
 
     // Translations
     t,

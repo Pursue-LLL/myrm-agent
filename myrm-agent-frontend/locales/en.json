@@ -4824,7 +4824,10 @@
         "statusHigh": "Balanced trade-off: many tools; similar capabilities may confuse the model.",
         "statusGood": "Excellent accuracy: action space is lean; agent can call tools with minimal hallucination.",
         "staleSkillsNotice": "Reminder: {count} dormant skill(s) are hurting accuracy.",
-        "smartPrune": "Prune dormant skills to free action space"
+        "smartPrune": "Prune dormant skills to free action space",
+        "smartPruneRunning": "Running curator sweep…",
+        "smartPruneSuccess": "Curator sweep complete — {stale} marked stale, {archived} archived",
+        "smartPruneFailed": "Curator sweep failed"
       },
       "browserSource": {
         "label": "Browser Source",
@@ -11309,7 +11312,17 @@
     "replyPrompt": "Based on the conversation in this screenshot, compose a polite and appropriate reply.",
     "summarizePrompt": "Summarize the key points from this screenshot.",
     "translatePrompt": "Translate the content in this screenshot into my language.",
-    "explainPrompt": "Explain what is shown in this screenshot."
+    "explainPrompt": "Explain what is shown in this screenshot.",
+    "inlineTitle": "Inline Input",
+    "inlinePlaceholder": "Describe what you need, result will paste back to your app...",
+    "inlineSubmitted": "Processing...",
+    "pasteBack": "Paste",
+    "pastedBack": "Pasted to original app",
+    "pasteBackFailed": "Paste failed, please copy manually",
+    "copyResult": "Copy",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed",
+    "generating": "Generating..."
   },
   "annotationEditor": {
     "arrow": "Arrow",

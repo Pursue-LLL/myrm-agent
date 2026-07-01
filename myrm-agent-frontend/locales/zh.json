@@ -4824,7 +4824,10 @@
         "statusHigh": "能力与准确率平衡：工具较多，部分相似功能可能导致模型混淆。",
         "statusGood": "极佳决策准确率：动作空间极度精简，Agent 能发挥最高级别的零幻觉调用。",
         "staleSkillsNotice": "管家提醒：发现 {count} 个沉睡技能，正在拖累您的准确度！",
-        "smartPrune": "一键净化释放动作空间"
+        "smartPrune": "一键净化释放动作空间",
+        "smartPruneRunning": "正在运行 Curator 清扫…",
+        "smartPruneSuccess": "Curator 清扫完成 — {stale} 个标记为 stale，{archived} 个已归档",
+        "smartPruneFailed": "Curator 清扫失败"
       },
       "browserSource": {
         "label": "浏览器来源",
@@ -11280,7 +11283,17 @@
     "replyPrompt": "根据截图中的对话内容，帮我生成一个得体的回复。",
     "summarizePrompt": "总结截图中的内容要点。",
     "translatePrompt": "将截图中的内容翻译成中文。",
-    "explainPrompt": "解释截图中的内容。"
+    "explainPrompt": "解释截图中的内容。",
+    "inlineTitle": "即时输入",
+    "inlinePlaceholder": "描述你的需求，结果将直接粘贴到原应用...",
+    "inlineSubmitted": "处理中...",
+    "pasteBack": "粘贴",
+    "pastedBack": "已粘贴到原应用",
+    "pasteBackFailed": "粘贴失败，请手动复制",
+    "copyResult": "复制",
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败",
+    "generating": "生成中..."
   },
   "annotationEditor": {
     "arrow": "箭头",
