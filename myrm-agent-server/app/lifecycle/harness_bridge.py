@@ -201,7 +201,7 @@ async def _handle_locator_healed_event(event: LocatorSelfHealedEvent) -> None:
 
 
 def setup_harness_bridge() -> None:
-    """Setup subscriptions from Harness EventBus to Server ServerEventBus."""
+    """Setup subscriptions from Harness EventBus to ServerEventBus."""
     bus = get_harness_bus()
     bus.start()
     bus.subscribe(SubagentLifecycleEvent, _handle_subagent_event)
