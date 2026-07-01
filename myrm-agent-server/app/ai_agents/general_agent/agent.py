@@ -90,7 +90,8 @@ class GeneralAgent(ToolSetupMixin):
         enable_kanban: bool = False,
         enable_canvas: bool = False,
         canvas_id: str | None = None,
-        enable_answer_tool: bool = True,
+        enable_answer_tool: bool = False,
+        enable_planning: bool = False,
         kanban_tool_mode: str = "full",
         kanban_current_task_id: str | None = None,
         kanban_max_runtime_seconds: int | None = None,
@@ -179,6 +180,7 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_canvas = enable_canvas
         self.canvas_id = canvas_id
         self.enable_answer_tool = enable_answer_tool
+        self.enable_planning = enable_planning
         self.kanban_tool_mode = kanban_tool_mode
         self.kanban_current_task_id = kanban_current_task_id
         self.kanban_max_runtime_seconds = kanban_max_runtime_seconds

@@ -24,7 +24,8 @@ export type BuiltinToolId =
   | 'kanban'
   | 'canvas'
   | 'answer_tool'
-  | 'render_ui';
+  | 'render_ui'
+  | 'planning';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -41,6 +42,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'canvas',
   'answer_tool',
   'render_ui',
+  'planning',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = ['web_search', 'memory'];

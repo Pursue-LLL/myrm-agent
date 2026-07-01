@@ -17,6 +17,7 @@ import {
   LayoutTemplate,
   MessageSquareCheck,
   AlertCircle,
+  ListTodo,
 } from 'lucide-react';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
@@ -58,6 +59,7 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   canvas: <PenTool size={14} />,
   answer_tool: <MessageSquareCheck size={14} />,
   render_ui: <LayoutTemplate size={14} />,
+  planning: <ListTodo size={14} />,
 };
 
 export const BuiltinToolsPanel = ({

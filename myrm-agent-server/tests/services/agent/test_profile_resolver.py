@@ -692,6 +692,7 @@ class TestResolveBuiltinToolFlags:
             "canvas",
             "answer_tool",
             "render_ui",
+            "planning",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
@@ -717,6 +718,16 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_render_ui"] is True
         assert flags["enable_browser"] is False
 
+    def test_planning_maps_to_enable_planning(self):
+        flags = resolve_builtin_tool_flags(["planning"])
+        assert flags["enable_planning"] is True
+        assert flags["enable_browser"] is False
+
+    def test_default_tools_exclude_planning_and_answer(self):
+        flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        assert flags["enable_planning"] is False
+        assert flags["enable_answer_tool"] is False
+
     def test_returns_all_flag_keys(self):
         flags = resolve_builtin_tool_flags([])
         assert set(flags.keys()) == {
@@ -729,6 +740,7 @@ class TestResolveBuiltinToolFlags:
             "enable_canvas",
             "enable_answer_tool",
             "enable_render_ui",
+            "enable_planning",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

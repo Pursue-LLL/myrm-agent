@@ -16,8 +16,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isTauriRuntime } from '@/lib/deploy-mode';
 import { Dialog, DialogContent, DialogTitle } from '@/components/primitives/dialog';
-import { useFlowPadStore, type FlowPadCapture } from '@/store/useFlowPadStore';
+import { useFlowPadStore } from '@/store/useFlowPadStore';
 import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
@@ -70,6 +71,25 @@ export function FlowPadModal() {
   useEffect(() => {
     autoResizeTextarea();
   }, [text, autoResizeTextarea]);
+
+  // Inline Mode: bridge streaming messages to inlineResult
+  useEffect(() => {
+    if (mode !== 'inline' || !isOpen) return;
+
+    const unsub = useChatStore.subscribe((state, prev) => {
+      if (!state.loading && !prev.loading) return;
+
+      const lastMsg = state.messages.findLast((m) => m.role === 'assistant');
+      if (lastMsg?.content) {
+        useFlowPadStore.setState({ inlineResult: lastMsg.content, inlineGenerating: state.loading });
+      }
+      if (prev.loading && !state.loading) {
+        useFlowPadStore.setState({ inlineGenerating: false });
+      }
+    });
+
+    return () => unsub();
+  }, [mode, isOpen]);
 
   const attachScreenshots = useCallback(() => {
     const screenshotFiles = captures
@@ -177,7 +197,6 @@ export function FlowPadModal() {
     [handleSubmit],
   );
 
-
   const handlePasteBack = useCallback(async () => {
     if (!inlineResult.trim()) return;
 
@@ -186,6 +205,10 @@ export function FlowPadModal() {
       await invoke('inline_paste_back', { content: inlineResult });
       toast.success(t('pastedBack'), { duration: 2000 });
       close();
+      if (isTauriRuntime()) {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        await getCurrentWindow().hide();
+      }
     } catch (err) {
       console.error('Paste back failed:', err);
       toast.error(t('pasteBackFailed'), { duration: 3000 });

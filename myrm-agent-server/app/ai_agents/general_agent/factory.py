@@ -222,10 +222,12 @@ async def build_general_agent(
 
     from app.services.agent.goal_registry import GoalRegistry
 
+    enable_planning = agent_wrapper.enable_planning
     goal_provider = GoalRegistry.get_provider(effective_chat_id)
     if goal_provider:
         active_goal = await goal_provider.get_active_goal(effective_chat_id)
         if active_goal:
+            enable_planning = True
             from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
                 create_goal_tools,
             )
@@ -586,6 +588,8 @@ async def build_general_agent(
         ("kanban", agent_wrapper.enable_kanban),
         ("canvas", agent_wrapper.enable_canvas),
         ("wiki", agent_wrapper.enable_wiki),
+        ("planning", enable_planning),
+        ("answer_tool", agent_wrapper.enable_answer_tool),
     ]
     active_tool_groups = [group for group, enabled in _flag_to_group if enabled]
 
@@ -694,6 +698,7 @@ async def build_general_agent(
         enable_file_tools=effective_enable_file,
         enable_bash=effective_enable_bash,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
+        enable_planning=enable_planning,
     )
 
     # 9.5 Register extensions (subagent tools, security, task-adaptive, memory)

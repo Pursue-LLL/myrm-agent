@@ -26,7 +26,7 @@
 | `local-backend-unavailable-banner.tsx` | 组件/模块 | AppLayout 内全局提示；同 session 跳过 Boot 且后端未就绪时展示 health-aware `common.configLoadError` hint，可 dismiss，后端恢复后自动隐藏 | `checkBackendReadyOnce`, `resolveLocalBackendSetupHint`, `isLocalMode` |
 | `capability-icons.tsx` | 组件/模块 | 模型能力图标行（Vision/ToolCalling/Reasoning/Audio/Video 5 种布尔能力） | `ModelCapabilities` |
 | `command-palette.tsx` | 组件/模块 | Slash 命令面板 UI（Cursor 风格弹出面板，分组展示系统行为/技能/用户命令，含 argsHint 参数提示） | `useCommandStore` |
-| `flow-pad-modal.tsx` | 组件/模块 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions快捷操作+语音/文本输入+当前 Agent 显示 | `useFlowPadStore`, `useChatStore` |
+| `flow-pad-modal.tsx` | 组件/模块 | Omni-FlowPad 全局 Dialog：截图预览+Quick Actions+语音/文本输入+Inline Mode 流式结果桥接+Paste 回写 | `useFlowPadStore`, `useChatStore`, `isTauriRuntime` |
 | `FlowPadModalParts.tsx` | 组件/模块 | FlowPad 截图预览/lightbox 与 Appshot 消息格式化 | — |
 | `config-load-error.tsx` | 组件/模块 | Settings 配置加载失败 UI；复用 `lib/local-backend-dev` hint SSOT | `formatLocalBackendSetupHint`, `fetchBackendHealth` |
 | `confirm-dialog.tsx` | 组件/模块 | — | — |

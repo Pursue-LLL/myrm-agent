@@ -5,6 +5,17 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.backends.skills.types import SkillLifecycleStatus, SkillUsageStats
 
 
+def test_curator_config_consolidation_default_false(client: TestClient, tmp_path: Path) -> None:
+    """Fresh curator config must have consolidation_enabled=false."""
+    import app.core.skills.curator_service as curator_service
+
+    curator_service._curator_config = None
+    with patch.object(curator_service, "_get_data_dir", return_value=tmp_path):
+        response = client.get("/api/v1/skills/curator/config")
+    assert response.status_code == 200
+    assert response.json()["consolidation_enabled"] is False
+
+
 def test_curator_config_get(client: TestClient):
     response = client.get("/api/v1/skills/curator/config")
     assert response.status_code == 200
