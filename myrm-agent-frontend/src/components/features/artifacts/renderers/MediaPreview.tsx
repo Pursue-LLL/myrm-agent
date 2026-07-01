@@ -9,8 +9,7 @@ import { resolveThemeVars, buildWidgetSrcdoc } from '@/lib/widget-theme-bridge';
 import { useWidgetStorage } from '@/hooks/useWidgetStorage';
 import { IconImage, IconFilm, IconHeadphones } from '@/components/features/icons/PremiumIcons';
 import { Pencil } from 'lucide-react';
-import { uploadFiles } from '@/services/file';
-import useChatStore from '@/store/useChatStore';
+import { uploadAnnotatedImage } from '@/components/features/image-editor/uploadAnnotated';
 
 const ImageEditorLazy = lazy(() => import('@/components/features/image-editor/ImageEditor'));
 
@@ -229,17 +228,7 @@ export const ImagePreview: React.FC<{ url: string; filename: string; errorMessag
     const handleEditComplete = useCallback(async (blob: Blob) => {
       setEditing(false);
       try {
-        const file = new File([blob], `annotated_${Date.now()}.png`, { type: 'image/png' });
-        const result = await uploadFiles([file]);
-        if (result.uploaded_count > 0 && result.files?.[0]) {
-          const { files, setFiles } = useChatStore.getState();
-          setFiles([...files, {
-            fileName: result.files[0].fileName,
-            fileExtension: 'png',
-            fileUrl: result.files[0].fileUrl,
-            fileType: 'uploaded',
-          }]);
-        }
+        await uploadAnnotatedImage(blob);
       } catch (err) {
         console.error('Failed to upload annotated image:', err);
       }

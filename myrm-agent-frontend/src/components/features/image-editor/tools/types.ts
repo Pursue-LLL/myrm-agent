@@ -1,4 +1,4 @@
-export type ToolType = 'select' | 'crop' | 'rect' | 'ellipse' | 'arrow' | 'freehand' | 'text' | 'blur';
+export type ToolType = 'rect' | 'ellipse' | 'arrow' | 'freehand' | 'text' | 'blur';
 
 export interface Point {
   x: number;

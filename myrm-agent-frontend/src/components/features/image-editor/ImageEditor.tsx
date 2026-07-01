@@ -101,8 +101,13 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
   }, [onCancel, undo, redo]);
 
   useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [handleKeyDown]);
 
   const cursorClass = tool === 'text' ? 'cursor-text' : 'cursor-crosshair';
@@ -206,7 +211,7 @@ const ImageEditor: React.FC<ImageEditorProps> = ({ imageSrc, onComplete, onCance
       {/* Bottom toolbar */}
       <div className="flex flex-col items-center gap-2 px-4 py-3 bg-black/60">
         {/* Tool buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap justify-center">
           {TOOLS.map(({ type, icon: Icon, labelKey }) => (
             <button
               key={type}

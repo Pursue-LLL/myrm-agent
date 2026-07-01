@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ToolType, DrawOperation, Point } from './tools/types';
 import { PALETTE_COLORS, LINE_WIDTHS, MAX_UNDO_STEPS, MAX_IMAGE_DIMENSION } from './tools/types';
 import { renderAllOperations, renderOperation } from './tools/drawingEngine';
@@ -123,18 +123,23 @@ export function useImageEditor(): UseImageEditorReturn {
     tCtx.rotate(Math.PI / 2);
     tCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
 
-    const rotatedImg = new Image();
-    rotatedImg.onload = () => {
-      canvas.width = tempCanvas.width;
-      canvas.height = tempCanvas.height;
-      baseImageRef.current = rotatedImg;
-      setOperations([]);
-      setRedoStack([]);
-      setRotation((r) => (r + 90) % 360);
-      const ctx = canvas.getContext('2d');
-      if (ctx) ctx.drawImage(rotatedImg, 0, 0);
-    };
-    rotatedImg.src = tempCanvas.toDataURL();
+    tempCanvas.toBlob((blob) => {
+      if (!blob) return;
+      const blobUrl = URL.createObjectURL(blob);
+      const rotatedImg = new Image();
+      rotatedImg.onload = () => {
+        canvas.width = tempCanvas.width;
+        canvas.height = tempCanvas.height;
+        baseImageRef.current = rotatedImg;
+        setOperations([]);
+        setRedoStack([]);
+        setRotation((r) => (r + 90) % 360);
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(rotatedImg, 0, 0);
+        URL.revokeObjectURL(blobUrl);
+      };
+      rotatedImg.src = blobUrl;
+    });
   }, []);
 
   const getCanvasPoint = useCallback((e: React.PointerEvent): Point | null => {
@@ -157,8 +162,6 @@ export function useImageEditor(): UseImageEditorReturn {
       setPendingTextPosition(pt);
       return;
     }
-
-    if (tool === 'select' || tool === 'crop') return;
 
     setIsDrawing(true);
     currentOpRef.current = { tool, color, lineWidth, points: [pt] };
@@ -222,13 +225,9 @@ export function useImageEditor(): UseImageEditorReturn {
     });
   }, [operations]);
 
-  // Trigger redraw when operations change
-  // Using a separate effect-like pattern via the ref
-  const prevOpsLenRef = useRef(0);
-  if (prevOpsLenRef.current !== operations.length) {
-    prevOpsLenRef.current = operations.length;
-    requestAnimationFrame(redraw);
-  }
+  useEffect(() => {
+    redraw();
+  }, [redraw]);
 
   return {
     canvasRef,
