@@ -27,6 +27,7 @@ import { toast } from '@/hooks/useToast';
 import { getApiUrl } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
 import { Textarea } from '@/components/primitives/textarea';
+import { useSkillStore } from '@/store/skill';
 
 type ConfigTab = 'basic' | 'capabilities' | 'security' | 'secrets' | 'inbox';
 
@@ -44,6 +45,12 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
   const [timeMachineExpanded, setTimeMachineExpanded] = useState(false);
 
   const editor = useAgentEditor(agentId, isNew, t);
+
+  const fetchMarketSkills = useSkillStore((state) => state.fetchMarketSkills);
+  const fetchLocalSkills = useSkillStore((state) => state.fetchLocalSkills);
+  const refreshSkills = useCallback(async () => {
+    await Promise.all([fetchMarketSkills(), fetchLocalSkills()]);
+  }, [fetchMarketSkills, fetchLocalSkills]);
 
   const [aiIntent, setAiIntent] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -460,6 +467,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
           editor.handleConfigChange(data);
           editor.setEditDialogOpen(false);
         }}
+        onRefreshSkills={refreshSkills}
       />
     </div>
   );
