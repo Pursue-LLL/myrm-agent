@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from myrm_agent_harness.agent.observability.catchup import CatchupBriefExtractor
+from myrm_agent_harness.agent.streaming.broadcast.catchup import CatchupBriefExtractor
 from sqlalchemy import select
 
 from app.api.dependencies import get_deploy_identity

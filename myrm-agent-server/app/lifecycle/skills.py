@@ -16,12 +16,12 @@ _ab_test_manager: "ABTestManager | None" = None
 async def start_skill_optimization_listeners() -> None:
     """Initialize A/B testing and shadow testing listeners.
 
-    Subscribes the ABTestManager to the global EventBus to handle
+    Subscribes the ABTestManager to the global ToolBroadcastBus to handle
     tool completion events and trigger background shadow tests.
     """
     global _ab_test_manager
     try:
-        from myrm_agent_harness.agent.observability.event_bus import EventBus
+        from myrm_agent_harness.agent.streaming.broadcast.event_bus import ToolBroadcastBus
         from myrm_agent_harness.agent.skills.optimization.event_emitter import EventEmitter
 
         from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
@@ -46,7 +46,7 @@ async def start_skill_optimization_listeners() -> None:
         _ab_test_manager = ABTestManager(storage=storage, shadow_tester=shadow_tester)
         await _ab_test_manager.start()
 
-        bus = await EventBus.get_instance()
+        bus = await ToolBroadcastBus.get_instance()
         bus.subscribe(_ab_test_manager.handle_tool_completion)
 
         logger.info("Skill optimization listeners successfully started")

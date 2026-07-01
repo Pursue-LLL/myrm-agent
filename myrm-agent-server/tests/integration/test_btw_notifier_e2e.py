@@ -1,6 +1,6 @@
-"""Integration test: _emit_btw_done → real EventBus → BtwTaskNotifier → channel.send.
+"""Integration test: _emit_btw_done → real PubSubBus → BtwTaskNotifier → channel.send.
 
-Uses real EventBus (no mock on pub/sub path) and a fake channel adapter to
+Uses real PubSubBus (no mock on pub/sub path) and a fake channel adapter to
 capture the OutboundMessage that BtwTaskNotifier delivers.
 """
 
@@ -15,7 +15,7 @@ from app.channels.reliability.retry import RetryConfig
 from app.channels.types.status import ChannelStatus
 from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
-from myrm_agent_harness.infra.events.event_bus import EventBus
+from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 
 
 def _fake_channel(captured: list[object]) -> MagicMock:
@@ -36,10 +36,10 @@ def _fake_channel(captured: list[object]) -> MagicMock:
 
 @pytest.mark.asyncio
 async def test_emit_to_notifier_full_chain() -> None:
-    """Publish BACKGROUND_TASK_DONE on real EventBus → BtwTaskNotifier delivers."""
+    """Publish BACKGROUND_TASK_DONE on real PubSubBus → BtwTaskNotifier delivers."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -88,7 +88,7 @@ async def test_emit_btw_done_to_notifier_failed_task() -> None:
     """Publish a failed BACKGROUND_TASK_DONE → notifier delivers failure message."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -132,10 +132,10 @@ async def test_emit_btw_done_to_notifier_failed_task() -> None:
 
 @pytest.mark.asyncio
 async def test_emit_btw_done_callback_publishes_to_bus() -> None:
-    """_emit_btw_done on real EventBus → event arrives on subscriber queue."""
+    """_emit_btw_done on real PubSubBus → event arrives on subscriber queue."""
     from app.services.kanban.service import _emit_btw_done
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     queue = bus.subscribe()
 
     task = MagicMock()
@@ -169,7 +169,7 @@ async def test_notifier_ignores_unrelated_events() -> None:
     """BtwTaskNotifier skips non-BACKGROUND_TASK_DONE events."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -201,7 +201,7 @@ async def test_notifier_skips_disabled_channel() -> None:
     """BtwTaskNotifier skips delivery when channel status is DISABLED."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -238,11 +238,11 @@ async def test_notifier_skips_disabled_channel() -> None:
 
 @pytest.mark.asyncio
 async def test_full_chain_emit_callback_to_notifier() -> None:
-    """End-to-end: _emit_btw_done callback → real EventBus → BtwTaskNotifier → channel.send."""
+    """End-to-end: _emit_btw_done callback → real PubSubBus → BtwTaskNotifier → channel.send."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
     from app.services.kanban.service import _emit_btw_done
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -291,7 +291,7 @@ async def test_concurrent_events_all_delivered() -> None:
     """Multiple events published rapidly are all delivered."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 
@@ -334,7 +334,7 @@ async def test_send_failure_does_not_crash_notifier() -> None:
     """channel.send raising does not crash the notifier loop."""
     from app.core.channel_bridge.btw_notifier import BtwTaskNotifier
 
-    bus: ServerEventBus = EventBus()
+    bus: ServerEventBus = PubSubBus()
     notifier = BtwTaskNotifier(bus)
     await notifier.start()
 

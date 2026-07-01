@@ -49,6 +49,7 @@ ConfigKey = Literal[
     "securityDashboardSettings",
     "browserCloudProvider",
     "browserProxy",
+    "captchaSolverConfig",
 ]
 
 # ============================================================================

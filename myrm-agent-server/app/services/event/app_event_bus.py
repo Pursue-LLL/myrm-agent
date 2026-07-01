@@ -1,7 +1,7 @@
 """Global in-process event bus for real-time SSE notifications.
 
 [INPUT]
-- myrm_agent_harness.infra.events.event_bus::EventBus (POS: Harness generic pub/sub)
+- myrm_agent_harness.infra.pubsub.event_bus::PubSubBus (POS: Harness generic pub/sub)
 
 [OUTPUT]
 - AppEventType, AppEvent, get_event_bus: Server-side SSE event bus singleton
@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
 
-from myrm_agent_harness.infra.events.event_bus import EventBus
+from myrm_agent_harness.infra.pubsub.event_bus import PubSubBus
 
 
 class AppEventType(StrEnum):
@@ -73,7 +73,7 @@ class AppEvent:
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
-ServerEventBus = EventBus[AppEvent]
+ServerEventBus = PubSubBus[AppEvent]
 
 _bus: ServerEventBus | None = None
 
@@ -82,5 +82,5 @@ def get_event_bus() -> ServerEventBus:
     """Singleton accessor — lazily created on first call."""
     global _bus  # noqa: PLW0603
     if _bus is None:
-        _bus = EventBus()
+        _bus = PubSubBus()
     return _bus

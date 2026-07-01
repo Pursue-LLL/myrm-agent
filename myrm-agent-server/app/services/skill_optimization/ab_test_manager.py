@@ -12,7 +12,7 @@ import logging
 import random
 from typing import TypedDict
 
-from myrm_agent_harness.agent.observability.types import ToolCallEventData
+from myrm_agent_harness.agent.streaming.broadcast.types import ToolCallEventData
 
 from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus

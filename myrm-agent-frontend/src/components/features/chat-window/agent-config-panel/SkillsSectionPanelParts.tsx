@@ -1,6 +1,6 @@
 'use client';
 
-import { Wand2, Bot, Link2, Layers, Sparkles, AlertTriangle, Info } from 'lucide-react';
+import { Wand2, Bot, Link2, Layers, Sparkles, AlertTriangle, Info, Plus } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Skill } from '@/store/skill/types';
