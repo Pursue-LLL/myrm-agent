@@ -10,12 +10,12 @@ only mocking external IO (DB, config loader).
 
 from __future__ import annotations
 
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from app.services.agent.params.models import AgentConfigRequest, AgentRequest
+from tests.api.agent.utils import get_model_selection
 
 
 @pytest.fixture
@@ -25,11 +25,7 @@ def base_request() -> dict:
         "message_id": "test-msg-dialog-policy",
         "chat_id": "test-chat-dialog",
         "query": "hello",
-        "model_selection": {
-            "providerId": "xiaomi_mimo",
-            "model": os.environ.get("BASIC_MODEL", "xiaomi_mimo/mimo-v2.5-pro"),
-            "baseUrl": os.environ.get("BASIC_BASE_URL", "https://example.com/v1"),
-        },
+        "model_selection": get_model_selection(),
     }
 
 

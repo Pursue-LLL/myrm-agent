@@ -25,7 +25,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.memory.integration.protocols import IntegrationProvider
+from myrm_agent_harness.api import IntegrationProvider
 from myrm_agent_harness.toolkits.memory.integration.types import IntegrationLeaf
 
 if TYPE_CHECKING:

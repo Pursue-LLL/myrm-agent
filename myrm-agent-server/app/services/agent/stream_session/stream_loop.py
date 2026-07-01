@@ -84,7 +84,7 @@ async def iter_agent_stream_chunks(
             # called from its cleanup hook.
             if session.request.chat_id:
                 try:
-                    from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
+                    from myrm_agent_harness.api.hooks import (
                         get_background_registry,
                     )
 
@@ -216,7 +216,7 @@ async def iter_agent_stream_chunks(
                         if citations:
                             chunk["citations"] = citations
 
-                        from myrm_agent_harness.agent._skill_agent_context import get_memory_manager
+                        from myrm_agent_harness.api.hooks import get_memory_manager
 
                         manager = get_memory_manager()
                         if manager and hasattr(manager, "_last_budget"):

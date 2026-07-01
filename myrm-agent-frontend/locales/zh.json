@@ -3184,7 +3184,9 @@
           "pwaInstall": "安装应用",
           "pwaInstalled": "已添加到主屏幕",
           "e2eeBadge": "端到端加密",
-          "e2eeHint": "隧道开启时，移动端链接自动启用端到端加密；配对令牌与实时流对隧道中继不可读。"
+          "e2eeHint": "隧道开启时，移动端链接自动启用端到端加密；配对令牌与实时流对隧道中继不可读。",
+          "e2eeAlgorithm": "算法",
+          "e2eeFingerprint": "指纹"
         }
       }
     },
@@ -12113,5 +12115,13 @@
     "justCreated": "刚刚创建",
     "loadingCanvas": "加载画布中...",
     "back": "返回"
+  },
+  "e2ee": {
+    "secured": "端到端加密",
+    "handshakeFailed": "加密建立失败",
+    "securityInfo": "安全信息",
+    "algorithm": "算法",
+    "fingerprint": "指纹",
+    "sessionId": "会话"
   }
 }

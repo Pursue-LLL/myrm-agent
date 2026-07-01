@@ -21,7 +21,7 @@ import os
 import sqlite3
 from pathlib import Path
 
-from myrm_agent_harness.agent.config import ConfigIncompleteError
+from myrm_agent_harness.api import ConfigIncompleteError
 
 from app.core.types import ModelConfig
 
@@ -114,7 +114,7 @@ async def load_platform_retrieval_configs() -> tuple[object | None, object | Non
 
 async def require_platform_embedding_config() -> object:
     """Embedding config from WebUI; raises if not configured."""
-    from myrm_agent_harness.agent.config import ConfigIncompleteError
+    from myrm_agent_harness.api import ConfigIncompleteError
 
     embedding_cfg, _ = await load_platform_retrieval_configs()
     if embedding_cfg is None:

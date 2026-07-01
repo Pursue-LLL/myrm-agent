@@ -21,6 +21,7 @@ import { systemService } from '@/services/system';
 import { fetchWebuiProtection } from '@/services/webui-auth';
 import { remoteAccessService, type TunnelStatus } from '@/services/remoteAccess';
 import { buildMobileHubUrl } from '@/lib/mobileRemote';
+import { computeE2EEFingerprintFromB64 } from '@/lib/e2ee/fingerprint';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { Button } from '@/components/primitives/button';
 import useConfigStore from '@/store/useConfigStore';
@@ -87,6 +88,7 @@ export const AccessCard = memo<{
   const [tunnelStatus, setTunnelStatus] = useState<TunnelStatus | null>(null);
   const [tunnelBusy, setTunnelBusy] = useState(false);
   const [mobileHubUrl, setMobileHubUrl] = useState('');
+  const [e2eePublicKeyB64, setE2eePublicKeyB64] = useState<string | null>(null);
   const localeIsZh = locale.startsWith('zh');
   const { isInstallable, isInstalled, promptInstall } = usePWAInstall();
 
@@ -203,6 +205,7 @@ export const AccessCard = memo<{
         e2eeKey?.publicKeyB64,
       );
       setMobileHubUrl(hubUrl);
+      if (e2eeKey?.publicKeyB64) setE2eePublicKeyB64(e2eeKey.publicKeyB64);
       writeToClipboard(hubUrl);
       toast.success(t('access.tunnel.shareCopied'));
     } catch {
@@ -429,6 +432,18 @@ export const AccessCard = memo<{
                     {t('access.tunnel.e2eeBadge')}
                   </span>
                   <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.e2eeHint')}</p>
+                  {e2eePublicKeyB64 && (
+                    <dl className="mt-1 space-y-1 text-[11px]">
+                      <div className="flex gap-2">
+                        <dt className="text-muted-foreground shrink-0">{t('access.tunnel.e2eeAlgorithm')}</dt>
+                        <dd className="font-mono text-emerald-300">NaCl Box (Curve25519)</dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="text-muted-foreground shrink-0">{t('access.tunnel.e2eeFingerprint')}</dt>
+                        <dd className="font-mono tracking-wider text-emerald-300">{computeE2EEFingerprintFromB64(e2eePublicKeyB64)}</dd>
+                      </div>
+                    </dl>
+                  )}
                 </div>
               ) : null}
               {mobileHubQrSrc ? (

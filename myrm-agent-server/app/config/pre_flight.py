@@ -19,7 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.agent.config import AgentConfig, check_config_health
+from myrm_agent_harness.api import AgentConfig
+from myrm_agent_harness.agent.config import check_config_health
 
 from .settings import settings
 
@@ -95,7 +96,7 @@ def preflight_check_config() -> PreflightResult:
 
     # 3. Call harness-layer config health check (if AgentConfig available)
     try:
-        from myrm_agent_harness.agent.config import LLMConfig
+        from myrm_agent_harness.api import LLMConfig
 
         # Create minimal AgentConfig for validation
         agent_config = AgentConfig(

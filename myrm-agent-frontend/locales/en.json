@@ -3184,7 +3184,9 @@
           "pwaInstall": "Install app",
           "pwaInstalled": "Installed on home screen",
           "e2eeBadge": "E2EE protected",
-          "e2eeHint": "Mobile links include end-to-end encryption when the tunnel is active. Pair tokens and live streams stay unreadable to the tunnel relay."
+          "e2eeHint": "Mobile links include end-to-end encryption when the tunnel is active. Pair tokens and live streams stay unreadable to the tunnel relay.",
+          "e2eeAlgorithm": "Algorithm",
+          "e2eeFingerprint": "Fingerprint"
         }
       }
     },
@@ -12113,5 +12115,13 @@
     "justCreated": "Just created",
     "loadingCanvas": "Loading canvas...",
     "back": "Back"
+  },
+  "e2ee": {
+    "secured": "E2EE",
+    "handshakeFailed": "E2EE failed",
+    "securityInfo": "Security Info",
+    "algorithm": "Algorithm",
+    "fingerprint": "Fingerprint",
+    "sessionId": "Session"
   }
 }

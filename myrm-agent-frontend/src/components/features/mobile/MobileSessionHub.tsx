@@ -4,8 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { IconActivity, IconArrowRight } from '@/components/features/icons/PremiumIcons';
-import { ensureMobileE2EE, scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
-import { E2EEHandshakeRequiredError } from '@/lib/e2ee/client';
+import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
+import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
+import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import type { ActiveSession } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 
@@ -18,6 +19,7 @@ export default function MobileSessionHub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openingChatId, setOpeningChatId] = useState<string | null>(null);
+  const e2ee = useE2EEStatus();
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -26,11 +28,7 @@ export default function MobileSessionHub() {
       const data = await remoteAccessService.getMobileSessions(pairToken);
       setSessions(data.activeSessions ?? []);
     } catch (err) {
-      if (err instanceof E2EEHandshakeRequiredError) {
-        setError(t('e2eeHandshakeFailed'));
-      } else {
-        setError(err instanceof Error ? err.message : t('loadFailed'));
-      }
+      setError(err instanceof Error ? err.message : t('loadFailed'));
       setSessions([]);
     } finally {
       setLoading(false);
@@ -38,7 +36,6 @@ export default function MobileSessionHub() {
   }, [pairToken, t]);
 
   useEffect(() => {
-    void ensureMobileE2EE();
     return scheduleMobilePairRefresh();
   }, []);
 
@@ -76,6 +73,7 @@ export default function MobileSessionHub() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">{t('subtitle')}</p>
+          <E2EESecurityPanel {...e2ee} />
         </header>
 
         {loading && sessions.length === 0 ? (

@@ -36,7 +36,7 @@ from .tool_setup import ToolSetupMixin
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
     from myrm_agent_harness.agent.event_log.protocols import EventLogBackend
-    from myrm_agent_harness.agent.skill_agent import SkillAgent
+    from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
     from myrm_agent_harness.toolkits.browser import (
         BrowserCheckpointHelper,

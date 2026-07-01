@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from myrm_agent_harness.agent.middlewares._session_context import get_terminal_errors
+from myrm_agent_harness.api.hooks import get_terminal_errors
 from pydantic import BaseModel
 
 router = APIRouter()

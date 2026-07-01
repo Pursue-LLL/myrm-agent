@@ -236,7 +236,7 @@ async def revoke_permissions(
     clear_permission_cache(skill_id)
 
     # Notify framework layer to invalidate permissions (real-time revocation)
-    from myrm_agent_harness.agent._skill_agent_context import invalidate_permissions
+    from myrm_agent_harness.api.hooks import invalidate_permissions
 
     invalidate_permissions("default", skill_id)
     logger.info(f"Notified framework to invalidate permissions: user=sandbox, skill={skill_id}")
@@ -386,7 +386,7 @@ async def bulk_revoke_by_permission_type(
         clear_permission_cache(skill_id)
 
     # Notify framework layer to invalidate permissions for all affected skills
-    from myrm_agent_harness.agent._skill_agent_context import invalidate_permissions
+    from myrm_agent_harness.api.hooks import invalidate_permissions
 
     for skill_id in affected_skill_ids:
         invalidate_permissions("default", skill_id)

@@ -242,7 +242,7 @@ async def toggle_evolution_lock(skill_id: str, locked: bool = True) -> dict[str,
         if skill.storage_path:
             from pathlib import Path
 
-            from myrm_agent_harness.backends.skills._utils import update_frontmatter_evolution_lock
+            from myrm_agent_harness.api.skills import update_frontmatter_evolution_lock
 
             skill_md_path = Path(skill.storage_path) / "SKILL.md"
             if skill_md_path.exists():

@@ -4,8 +4,8 @@
 - app.core.skills.store.service::skills_service (POS: skill CRUD service)
 - app.core.skills.models::Skill (POS: skill data model)
 - app.core.skills.prebuilt_sync::SEEDS_DIR (POS: bundled seeds directory)
-- myrm_agent_harness.backends.skills._runtime::compute_content_hash (POS: SHA-256 content hashing)
-- myrm_agent_harness.backends.skills._utils::parse_skill_frontmatter (POS: SKILL.md frontmatter parser)
+- myrm_agent_harness.api.skills::compute_content_hash (POS: SHA-256 content hashing)
+- myrm_agent_harness.api.skills::parse_skill_frontmatter (POS: SKILL.md frontmatter parser)
 
 [OUTPUT]
 - create_prebuilt_skill: admin upload endpoint
@@ -24,9 +24,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.backends.skills._runtime import compute_content_hash
-from myrm_agent_harness.backends.skills._utils import (
+from myrm_agent_harness.api.skills import (
     SkillMetadataError,
+    compute_content_hash,
     parse_skill_frontmatter,
 )
 from myrm_agent_harness.toolkits.storage.paths import (

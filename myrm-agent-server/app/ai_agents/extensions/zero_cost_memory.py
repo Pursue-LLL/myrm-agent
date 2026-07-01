@@ -68,7 +68,7 @@ class ZeroCostMemoryExtension(AgentExtension):
             logger.info("🧠 [Zero-Cost Memory] Skipped for subagent to prevent global memory pollution.")
             return None
 
-        from myrm_agent_harness.agent._internals.memory_extraction import (
+        from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
             persist_extracted_memories,
         )

@@ -33,7 +33,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 from myrm_agent_harness.agent.sub_agents.types import MemoryIsolationPolicy, SubagentConfig
-from myrm_agent_harness.agent.types import AgentRuntimeSpec
+from myrm_agent_harness.api import AgentRuntimeSpec
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -390,7 +390,7 @@ class EphemeralAgentFactory:
     ) -> BaseAgent:
 
         from myrm_agent_harness.api import create_skill_agent
-        from myrm_agent_harness.agent.types import AgentRuntimeSpec
+        from myrm_agent_harness.api import AgentRuntimeSpec
         from myrm_agent_harness.toolkits.llms import llm_manager
 
         from app.platform_utils import get_storage_provider

@@ -62,7 +62,7 @@ async def get_bash_audit_logs(
         审计日志列表
     """
     try:
-        from myrm_agent_harness.agent.middlewares._session_context import get_event_logger
+        from myrm_agent_harness.api.hooks import get_event_logger
 
         event_logger = get_event_logger()
         if not event_logger:
@@ -118,7 +118,7 @@ async def get_bash_execution_stats() -> BashExecutionStatsResponse:
         bash执行统计数据
     """
     try:
-        from myrm_agent_harness.agent.middlewares._session_context import get_event_logger
+        from myrm_agent_harness.api.hooks import get_event_logger
 
         event_logger = get_event_logger()
         if not event_logger:
@@ -149,7 +149,7 @@ async def export_bash_audit_logs(
         导出的文件内容
     """
     try:
-        from myrm_agent_harness.agent.middlewares._session_context import get_event_logger
+        from myrm_agent_harness.api.hooks import get_event_logger
 
         event_logger = get_event_logger()
         if not event_logger:
@@ -227,7 +227,7 @@ async def detect_bash_anomalies(
         异常告警列表
     """
     try:
-        from myrm_agent_harness.agent.middlewares._session_context import get_event_logger
+        from myrm_agent_harness.api.hooks import get_event_logger
 
         from .anomaly_detector import BashAnomalyDetector
 

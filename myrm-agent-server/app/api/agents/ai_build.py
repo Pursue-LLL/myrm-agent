@@ -28,7 +28,7 @@ from collections.abc import AsyncGenerator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage, SystemMessage
-from myrm_agent_harness.agent.config import ConfigIncompleteError
+from myrm_agent_harness.api import ConfigIncompleteError
 from myrm_agent_harness.toolkits.llms import llm_manager
 from pydantic import BaseModel
 

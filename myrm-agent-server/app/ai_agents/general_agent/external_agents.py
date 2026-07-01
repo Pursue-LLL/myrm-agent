@@ -199,7 +199,7 @@ class ExternalAgentsMixin:
         Bypasses the LangChain Agent entirely. Converts RuntimeEvents to
         the frontend SSE event format (AgentEventType).
         """
-        from myrm_agent_harness.agent.streaming.types import AgentEventType
+        from myrm_agent_harness.api import AgentEventType
         from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
 
         assert self._runtime_pool is not None

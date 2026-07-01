@@ -16,7 +16,7 @@ from myrm_agent_harness.backends.skills import (
     StorageSkillBackend,
     VersionAwareSkillBackend,
 )
-from myrm_agent_harness.backends.skills.protocols import SkillBackend
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata, SkillTrust
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 

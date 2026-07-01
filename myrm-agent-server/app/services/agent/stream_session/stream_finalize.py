@@ -62,7 +62,7 @@ async def yield_stream_exception_chunks(
         session.cancel_token.cancel(CancelReason.DISCONNECT)
         if session.request.chat_id:
             try:
-                from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
+                from myrm_agent_harness.api.hooks import (
                     get_background_registry,
                 )
 
@@ -128,7 +128,7 @@ async def finalize_agent_stream_session(
         import asyncio
         import re
 
-        from myrm_agent_harness.agent._skill_agent_context import get_memory_manager
+        from myrm_agent_harness.api.hooks import get_memory_manager
 
         from app.services.chat.chat_service import ChatService
 

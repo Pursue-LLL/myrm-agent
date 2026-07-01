@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
-    from myrm_agent_harness.agent.skill_agent import SkillAgent
+    from myrm_agent_harness.api import SkillAgent
 
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.services.agent.params.models import MCPConfig
@@ -322,7 +322,7 @@ async def build_general_agent(
     archive_checkpoint_notifier = archive_checkpoint_ext.build_archive_checkpoint_notifier()
 
     # 6. Create middlewares
-    from myrm_agent_harness.agent._skill_agent_context import (
+    from myrm_agent_harness.api.hooks import (
         set_permission_invalidation_callback,
     )
     from myrm_agent_harness.agent.middlewares import (
@@ -548,7 +548,8 @@ async def build_general_agent(
     except Exception as e:
         logger.warning(f"Failed to initialize SkillStateManager for agent: {e}")
 
-    from myrm_agent_harness.agent.types import AgentRuntimeSpec, WorkspaceBinding
+    from myrm_agent_harness.api import AgentRuntimeSpec
+    from myrm_agent_harness.agent.types import WorkspaceBinding
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
@@ -870,7 +871,7 @@ def _build_session_cleanup_callback(
     if lite_llm is None:
         return None
 
-    from myrm_agent_harness.agent._internals.memory_extraction import (
+    from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
 

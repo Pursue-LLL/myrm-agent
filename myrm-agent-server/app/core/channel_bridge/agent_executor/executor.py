@@ -38,8 +38,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.channels.types.components import ComponentRow
 
-from myrm_agent_harness.agent.config import ConfigIncompleteError
-from myrm_agent_harness.agent.middlewares._session_context import (
+from myrm_agent_harness.api import ConfigIncompleteError
+from myrm_agent_harness.api.hooks import (
     set_approval_user_id,
 )
 from myrm_agent_harness.agent.middlewares.approval.scheduler import (

@@ -33,7 +33,7 @@ from .external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
-    from myrm_agent_harness.agent.skill_agent import SkillAgent
+    from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.llms.image.models import MediaCallback, MediaMeta
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -142,7 +142,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             sufficiency_cfg = None
             sufficiency_llm = None
             if self.search_depth == "deep":
-                from myrm_agent_harness.core.config.llm import LLMConfig
+                from myrm_agent_harness.api import LLMConfig
                 from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
 
                 sufficiency_cfg = SufficiencyConfig(enabled=True)

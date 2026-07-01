@@ -1,8 +1,8 @@
 """Sync prebuilt skill seeds to storage on startup.
 
 [INPUT]
-myrm_agent_harness.backends.skills._utils::parse_skill_frontmatter (POS: SKILL.md frontmatter parser)
-myrm_agent_harness.backends.skills._runtime::compute_content_hash (POS: SHA-256 content hashing)
+myrm_agent_harness.api.skills::parse_skill_frontmatter (POS: SKILL.md frontmatter parser)
+myrm_agent_harness.api.skills::compute_content_hash (POS: SHA-256 content hashing)
 myrm_agent_harness.toolkits.storage.base::StorageProvider (POS: unified storage abstraction)
 
 [OUTPUT]
@@ -28,9 +28,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from myrm_agent_harness.agent.skills.discovery.sanitizer import SKILL_MD_FILE
-from myrm_agent_harness.backends.skills._runtime import compute_content_hash
-from myrm_agent_harness.backends.skills._utils import (
+from myrm_agent_harness.api.skills import (
     SkillMetadataError,
+    compute_content_hash,
     parse_skill_frontmatter,
 )
 from myrm_agent_harness.toolkits.storage.base import StorageProvider

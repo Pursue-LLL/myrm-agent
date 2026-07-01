@@ -27,7 +27,7 @@ import logging
 import time
 
 from myrm_agent_harness.toolkits.kanban.context_builder import build_task_context
-from myrm_agent_harness.toolkits.kanban.protocols import KanbanStore
+from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutError
 
 from app.services.agent.profile_resolver import (

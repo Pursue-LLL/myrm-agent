@@ -19,9 +19,9 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from myrm_agent_harness.backends.skills._runtime import build_skill_metadata
-from myrm_agent_harness.backends.skills._utils import (
+from myrm_agent_harness.api.skills import (
     SkillMetadataError,
+    build_skill_metadata,
     parse_skill_frontmatter,
 )
 from myrm_agent_harness.backends.skills.types import SkillTrust, SkillUsageStats

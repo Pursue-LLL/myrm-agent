@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
     from myrm_agent_harness.agent.security.types import PrivacyRoutingConfig
-    from myrm_agent_harness.backends.skills.protocols import SkillBackend as SkillBackendProtocol
+    from myrm_agent_harness.api import SkillBackend as SkillBackendProtocol
     from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
     from myrm_agent_harness.toolkits.llms.routing import PrivacyRoutingModel
 

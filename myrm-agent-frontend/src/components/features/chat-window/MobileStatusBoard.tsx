@@ -29,8 +29,9 @@ import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send }
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
-import { scheduleMobilePairRefresh, ensureMobileE2EE } from '@/lib/mobileRemote';
-import { E2EEHandshakeRequiredError } from '@/lib/e2ee/client';
+import { scheduleMobilePairRefresh } from '@/lib/mobileRemote';
+import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
+import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { Button } from '@/components/primitives/button';
 import ProgressSteps from '@/components/features/message-box/progress-steps/ProgressSteps';
@@ -47,7 +48,6 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
   const t = useTranslations('agent.mobileCommand');
-  const tHub = useTranslations('mobileHub');
   const tToolApproval = useTranslations('toolApproval');
   const tAgent = useTranslations('agent');
 
@@ -69,7 +69,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
   const [quickInput, setQuickInput] = useState('');
-  const [e2eeError, setE2eeError] = useState<string | null>(null);
+  const e2ee = useE2EEStatus();
 
   const chatApprovalQueue = useMemo(
     () => approvalQueue.filter((request) => request.chatId === chatId),
@@ -89,13 +89,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, [chatId]);
 
   useEffect(() => {
-    void ensureMobileE2EE().catch((err: unknown) => {
-      if (err instanceof E2EEHandshakeRequiredError) {
-        setE2eeError(tHub('e2eeHandshakeFailed'));
-      }
-    });
     return scheduleMobilePairRefresh();
-  }, [tHub]);
+  }, []);
 
   const handleSendQuickCommand = useCallback(() => {
     const text = quickInput.trim();
@@ -136,6 +131,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           <span className="text-xs text-muted-foreground">{loading ? t('running') : t('finished')}</span>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <E2EESecurityPanel {...e2ee} />
           {pendingCount > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
               {pendingCount}
@@ -149,12 +145,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
           )}
         </div>
       </div>
-
-      {e2eeError ? (
-        <div className="mx-4 mt-3 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {e2eeError}
-        </div>
-      ) : null}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {pendingCount > 0 && (

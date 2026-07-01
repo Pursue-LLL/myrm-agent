@@ -26,7 +26,7 @@ import os
 import shutil
 from typing import cast
 
-from myrm_agent_harness.backends.skills.protocols import SkillBackend
+from myrm_agent_harness.api import SkillBackend
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -460,7 +460,7 @@ async def _process_image_item(
             return item
 
         if not supports_vision and vision_fallback_model_cfg:
-            from myrm_agent_harness.agent.config.llm import LLMConfig
+            from myrm_agent_harness.api import LLMConfig
             from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
                 VisionFallbackEngine,
             )
@@ -570,7 +570,7 @@ async def _process_video_item(
             }
 
         if vision_fallback_model_cfg:
-            from myrm_agent_harness.agent.config.llm import LLMConfig
+            from myrm_agent_harness.api import LLMConfig
             from myrm_agent_harness.toolkits.llms.vision.video_analysis_engine import (
                 VideoAnalysisEngine,
             )

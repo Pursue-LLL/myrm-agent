@@ -19,7 +19,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.kanban.protocols import KanbanStore
+from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind
 
 logger = logging.getLogger(__name__)

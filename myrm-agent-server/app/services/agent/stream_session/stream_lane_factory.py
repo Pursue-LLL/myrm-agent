@@ -52,7 +52,7 @@ async def create_dynamic_workflow_stream(
     catalog, budget, and security policies.
     """
     from myrm_agent_harness.agent.dynamic_workflow import run_dynamic_workflow_stream
-    from myrm_agent_harness.agent.streaming.types import AgentEventType
+    from myrm_agent_harness.api import AgentEventType
     from myrm_agent_harness.utils.token_economics.tracker import (
         get_token_tracker,
         init_token_tracker,
@@ -182,7 +182,7 @@ async def create_fast_lane_stream(
     Uses a bare-bones LLM chain with 0 tools and a minimal system prompt.
     """
     from langchain_core.messages import HumanMessage, SystemMessage
-    from myrm_agent_harness.agent.streaming.types import AgentEventType
+    from myrm_agent_harness.api import AgentEventType
     from myrm_agent_harness.toolkits.llms import llm_manager
 
     from app.core.utils.chat_utils import convert_chat_history
@@ -288,7 +288,7 @@ async def create_consensus_stream(
     for reference and aggregator models.  Falls back to the main LLM
     when specific models are unavailable.
     """
-    from myrm_agent_harness.agent.streaming.types import AgentEventType
+    from myrm_agent_harness.api import AgentEventType
     from myrm_agent_harness.toolkits.llms import llm_manager
     from myrm_agent_harness.toolkits.llms.consensus import (
         ConsensusConfig,

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.extractor::extract_goal_learnings (POS: LLM-based goal learnings extraction)
-- myrm_agent_harness.agent._internals.memory_extraction::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities)
+- myrm_agent_harness.api.hooks::create_extraction_llm_func, persist_extracted_memories (POS: LLM wrapper and persistence utilities)
 - myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 
 [OUTPUT]
@@ -75,7 +75,7 @@ def build_goal_terminal_callback(
             logger.warning("Failed to publish goal terminal event (non-fatal): %s", e)
 
         try:
-            from myrm_agent_harness.agent._internals.memory_extraction import (
+            from myrm_agent_harness.api.hooks import (
                 create_extraction_llm_func,
                 persist_extracted_memories,
             )

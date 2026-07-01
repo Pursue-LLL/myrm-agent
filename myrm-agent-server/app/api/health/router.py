@@ -495,7 +495,7 @@ async def system_doctor() -> dict[str, object]:
     聚合底层 Harness 框架与 Server 业务层的健康检查报告，
     返回给前端的“系统状态大屏”呈现。
     """
-    from myrm_agent_harness.agent.middlewares._session_context import (
+    from myrm_agent_harness.api.hooks import (
         get_terminal_errors,
     )
     from myrm_agent_harness.observability.diagnostics.protocols import HealthReport, redact_health_report
