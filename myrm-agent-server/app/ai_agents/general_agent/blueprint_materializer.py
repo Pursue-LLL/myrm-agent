@@ -34,6 +34,27 @@ def _optional_string_field(data: Mapping[str, object], key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _optional_int_field(data: Mapping[str, object], key: str) -> int | None:
+    value = data.get(key)
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_auto_vault_threshold(data: Mapping[str, object]) -> int | None:
+    """Read auto_vault_threshold from top-level or nested ``config`` (JIT UI shape)."""
+    top = _optional_int_field(data, "auto_vault_threshold")
+    if top is not None:
+        return top
+    nested = data.get("config")
+    if isinstance(nested, Mapping):
+        return _optional_int_field(nested, "auto_vault_threshold")
+    return None
+
+
 def _int_field(data: Mapping[str, object], key: str, default: int) -> int:
     value = data.get(key)
     if value is None or isinstance(value, bool):
@@ -115,24 +136,29 @@ def materialize_jit_configs(
             if control_scope == ControlScope.ORCHESTRATOR:
                 max_spawn_depth = max(1, _int_field(data, "max_spawn_depth", 1))
 
-            configs[type_id] = SubagentConfig(
-                system_prompt=_string_field(data, "system_prompt"),
-                description=_string_field(data, "description"),
-                display_name=_string_field(data, "display_name", type_id),
-                theme_color=_string_field(data, "theme_color"),
-                model=_optional_string_field(data, "model"),
-                tools=tools,
-                max_turns=_int_field(data, "max_turns", 25),
-                max_children_per_agent=_int_field(data, "max_children_per_agent", 5),
-                max_descendants_per_run=_int_field(data, "max_descendants_per_run", 20),
-                max_batch_size=_int_field(data, "max_batch_size", 5),
-                control_scope=control_scope,
-                memory_isolation=memory_policy,
-                context_mode=context_mode,
-                max_fork_tokens=max_fork_tokens,
-                max_spawn_depth=max_spawn_depth,
-                agent_factory=factory,
-            )
+            auto_vault = _resolve_auto_vault_threshold(data)
+            config_kwargs: dict[str, object] = {
+                "system_prompt": _string_field(data, "system_prompt"),
+                "description": _string_field(data, "description"),
+                "display_name": _string_field(data, "display_name", type_id),
+                "theme_color": _string_field(data, "theme_color"),
+                "model": _optional_string_field(data, "model"),
+                "tools": tools,
+                "max_turns": _int_field(data, "max_turns", 25),
+                "max_children_per_agent": _int_field(data, "max_children_per_agent", 5),
+                "max_descendants_per_run": _int_field(data, "max_descendants_per_run", 20),
+                "max_batch_size": _int_field(data, "max_batch_size", 5),
+                "control_scope": control_scope,
+                "memory_isolation": memory_policy,
+                "context_mode": context_mode,
+                "max_fork_tokens": max_fork_tokens,
+                "max_spawn_depth": max_spawn_depth,
+                "agent_factory": factory,
+            }
+            if auto_vault is not None:
+                config_kwargs["auto_vault_threshold"] = auto_vault
+
+            configs[type_id] = SubagentConfig(**config_kwargs)  # type: ignore[arg-type]
         except Exception as e:
             logger.warning(f"Failed to materialize ephemeral subagent '{type_id}': {e}")
             continue

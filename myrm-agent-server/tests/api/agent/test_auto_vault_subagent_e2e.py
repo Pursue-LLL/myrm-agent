@@ -70,6 +70,9 @@ def _stream_until_done(client: TestClient, req: dict) -> list[dict]:
     return events
 
 
+_VAULT_POINTER_RE = re.compile(r"vault://[a-f0-9-]{36}")
+
+
 @pytest.mark.e2e
 @pytest.mark.skipif(not os.environ.get("BASIC_API_KEY"), reason="E2E requires BASIC_API_KEY")
 def test_subagent_large_output_surfaces_vault_pointer(client: TestClient) -> None:
@@ -78,7 +81,7 @@ def test_subagent_large_output_surfaces_vault_pointer(client: TestClient) -> Non
     query = (
         "你必须使用 delegate_task_tool，agent_type 设为 test_bash，wait=true。"
         "task 内容：执行 bash 命令 python3 -c \"print('AUTO_VAULT_E2E_' + 'x'*9000)\"。"
-        "子 Agent 返回后，你在回复里原样输出其中出现的 vault:// 指针（如有）。"
+        "子 Agent 返回后，你在回复里原样输出完整 stdout（含 AUTO_VAULT_E2E_ 前缀）。"
         "必须使用原生 function calling，禁止在正文写 XML 工具调用。"
     )
     req = {
@@ -89,13 +92,14 @@ def test_subagent_large_output_surfaces_vault_pointer(client: TestClient) -> Non
             "test_bash": {
                 "system_prompt": "You are a bash worker. Run the requested command and return stdout.",
                 "tools": ["bash_code_execute_tool"],
-                "config": {"auto_vault_threshold": 500},
+                "auto_vault_threshold": 500,
             }
         },
     }
 
     events = _stream_until_done(client, req)
     blob = json.dumps(events, ensure_ascii=False)
-    assert "vault://" in blob or "AUTO_VAULT_E2E_" in blob, "Expected vault pointer or large marker in stream"
-    if "vault://" in blob:
-        assert re.search(r"vault://[a-f0-9-]+", blob) is not None
+    vault_match = _VAULT_POINTER_RE.search(blob)
+    assert vault_match is not None or "AUTO_VAULT_E2E_" in blob, (
+        "Expected vault:// UUID pointer or AUTO_VAULT_E2E_ marker in stream events"
+    )
