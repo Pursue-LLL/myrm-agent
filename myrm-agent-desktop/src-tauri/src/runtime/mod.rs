@@ -6,9 +6,10 @@
 //!
 //! [OUTPUT]
 //! - PythonBackend / NextJSFrontend 进程状态与 IPC 命令
-//! - 全局快捷键处理（Appshot 截屏、Voice PTT、窗口 toggle）
+//! - 全局快捷键处理（Appshot 截屏、Voice PTT、Inline Input、窗口 toggle）
 //! - SetupTokenState / get_setup_token
 //! - bootstrap_agent_runner / resolve_agent_runner_path
+//! - Inline Input: handle_inline_input_shortcut / paste_back / INLINE_INPUT_SHORTCUT_STR
 //!
 //! [POS]
 //! Tauri 主进程内的 Sidecar 与系统运行时层，承接 Python/Next.js/Agent Runner 进程生命周期。

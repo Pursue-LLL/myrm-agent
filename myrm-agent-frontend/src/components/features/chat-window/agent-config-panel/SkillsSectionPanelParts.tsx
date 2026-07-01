@@ -1,6 +1,6 @@
 'use client';
 
-import { Wand2, Bot, Link2, Layers, Sparkles, AlertTriangle, Info, Plus } from 'lucide-react';
+import { Wand2, Bot, Link2, Layers, Sparkles, AlertTriangle, Info, Plus, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/primitives/switch';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Skill } from '@/store/skill/types';
@@ -14,6 +14,7 @@ export function NoiseGauge({
   coreSkillsTokenCost,
   maxCoreTokens,
   staleCoreSkillCount,
+  isSmartPruning = false,
   onSmartPrune,
   tPanel,
 }: {
@@ -23,6 +24,7 @@ export function NoiseGauge({
   coreSkillsTokenCost: number;
   maxCoreTokens: number;
   staleCoreSkillCount: number;
+  isSmartPruning?: boolean;
   onSmartPrune: () => void;
   tPanel: (key: string, values?: Record<string, string | number>) => string;
 }) {
@@ -72,10 +74,16 @@ export function NoiseGauge({
               {tRadar('staleSkillsNotice', { count: staleCoreSkillCount })}
             </p>
             <button
+              type="button"
+              disabled={isSmartPruning}
               onClick={onSmartPrune}
-              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline mt-1"
+              className={cn(
+                'text-xs font-medium text-blue-600 dark:text-blue-400 mt-1 inline-flex items-center gap-1',
+                isSmartPruning ? 'opacity-60 cursor-not-allowed' : 'hover:underline',
+              )}
             >
-              {tRadar('smartPrune')}
+              {isSmartPruning ? <Loader2 size={12} className="animate-spin" /> : null}
+              {isSmartPruning ? tRadar('smartPruneRunning') : tRadar('smartPrune')}
             </button>
           </div>
         </div>

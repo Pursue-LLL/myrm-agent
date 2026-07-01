@@ -1,6 +1,7 @@
 //! Inline Input：全局快捷键唤起 FlowPad Inline Mode + 结果回写原应用
 //!
 //! [INPUT]
+//! - appshot (POS: 全局快捷键处理中心，提供截屏和公共工具函数)
 //! - ConfigManager (POS: 配置管理，提供 inline_input_shortcut)
 //! - Tauri AppHandle (IPC 事件、窗口管理、剪贴板)
 //! - enigo (跨平台键盘模拟)
@@ -19,7 +20,7 @@ use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::config::ConfigManager;
+use super::appshot::{current_timestamp_ms, get_frontmost_app_name, is_app_excluded, load_excluded_apps};
 
 /// 用于在全局快捷键 handler 中识别 Inline Input 绑定
 pub static INLINE_INPUT_SHORTCUT_STR: Mutex<String> = Mutex::new(String::new());
@@ -101,7 +102,6 @@ pub fn paste_back(app: &AppHandle, content: String) -> Result<(), String> {
     Ok(())
 }
 
-/// 显示主窗口（Inline 模式：不抢焦点，仅显示）
 fn show_main_window_inline(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(target_os = "macos")]
@@ -112,30 +112,6 @@ fn show_main_window_inline(app: &AppHandle) {
         let _ = window.unminimize();
         let _ = window.set_focus();
     }
-}
-
-fn current_timestamp_ms() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-}
-
-fn load_excluded_apps(app: &AppHandle) -> std::collections::HashSet<String> {
-    let config_manager = app.state::<ConfigManager>();
-    let config = config_manager.load();
-    config
-        .appshot_excluded_apps
-        .into_iter()
-        .map(|s| s.to_lowercase())
-        .collect()
-}
-
-fn is_app_excluded(app_name: &str, excluded: &std::collections::HashSet<String>) -> bool {
-    if app_name.is_empty() || excluded.is_empty() {
-        return false;
-    }
-    excluded.contains(&app_name.to_lowercase())
 }
 
 // ─── Platform-specific implementations ───────────────────────────────────────
@@ -168,20 +144,23 @@ fn save_clipboard() -> Option<String> {
     }
 }
 
-fn set_clipboard_text(app: &AppHandle, text: &str) {
-    // Use Tauri clipboard plugin via IPC (synchronous for this thread context)
+fn set_clipboard_text(_app: &AppHandle, text: &str) {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        let mut child = Command::new("pbcopy")
+        match Command::new("pbcopy")
             .stdin(std::process::Stdio::piped())
             .spawn()
-            .expect("Failed to spawn pbcopy");
-        if let Some(stdin) = child.stdin.as_mut() {
-            use std::io::Write;
-            let _ = stdin.write_all(text.as_bytes());
+        {
+            Ok(mut child) => {
+                if let Some(stdin) = child.stdin.as_mut() {
+                    use std::io::Write;
+                    let _ = stdin.write_all(text.as_bytes());
+                }
+                let _ = child.wait();
+            }
+            Err(e) => eprintln!("Failed to spawn pbcopy: {}", e),
         }
-        let _ = child.wait();
     }
     #[cfg(target_os = "windows")]
     {
@@ -195,7 +174,7 @@ fn set_clipboard_text(app: &AppHandle, text: &str) {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        let _ = (app, text);
+        let _ = text;
     }
 }
 
@@ -301,29 +280,3 @@ fn activate_pid(pid: u32) {
     }
 }
 
-fn get_frontmost_app_name() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        use std::process::Command;
-        if let Ok(output) = Command::new("osascript")
-            .args([
-                "-e",
-                r#"tell application "System Events" to get name of first application process whose frontmost is true"#,
-            ])
-            .output()
-        {
-            if output.status.success() {
-                return String::from_utf8_lossy(&output.stdout).trim().to_string();
-            }
-        }
-        String::new()
-    }
-    #[cfg(target_os = "windows")]
-    {
-        super::appshot::win_get_foreground_app_name()
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        String::new()
-    }
-}

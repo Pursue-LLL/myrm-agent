@@ -356,6 +356,7 @@ const AgentConfigEditDialog = ({
             setLocalSkillConfigs={setLocalSkillConfigs}
             noiseData={{ isNoiseHigh, isNoiseCritical, noiseLevel, coreSkillsTokenCost: actionSpaceScore, maxCoreTokens: maxSafeScore }}
             staleCoreSkills={staleCoreSkills}
+            isSmartPruning={isSmartPruning}
             onSmartPrune={handleSmartPrune}
             onOpenSettingsSheet={handleOpenSettingsSheet}
             t={t}
@@ -486,6 +487,7 @@ const AgentConfigEditDialog = ({
                 isNoiseHigh={isNoiseHigh}
                 isNoiseCritical={isNoiseCritical}
                 staleCoreSkillCount={staleCoreSkills.length}
+                isSmartPruning={isSmartPruning}
                 onSmartPrune={handleSmartPrune}
               />
             )}

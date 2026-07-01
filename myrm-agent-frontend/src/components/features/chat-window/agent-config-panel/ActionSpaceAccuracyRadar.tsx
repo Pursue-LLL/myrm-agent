@@ -1,6 +1,6 @@
 'use client';
 
-import { Wand2 } from 'lucide-react';
+import { Wand2, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -10,6 +10,7 @@ export interface ActionSpaceAccuracyRadarProps {
   isNoiseHigh: boolean;
   isNoiseCritical: boolean;
   staleCoreSkillCount: number;
+  isSmartPruning?: boolean;
   onSmartPrune: () => void;
 }
 
@@ -19,6 +20,7 @@ export function ActionSpaceAccuracyRadar({
   isNoiseHigh,
   isNoiseCritical,
   staleCoreSkillCount,
+  isSmartPruning = false,
   onSmartPrune,
 }: ActionSpaceAccuracyRadarProps) {
   const t = useTranslations('agent.configEditor.actionSpaceRadar');
@@ -102,10 +104,15 @@ export function ActionSpaceAccuracyRadar({
             </p>
             <button
               type="button"
+              disabled={isSmartPruning}
               onClick={onSmartPrune}
-              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline mt-1"
+              className={cn(
+                'text-xs font-bold text-blue-600 dark:text-blue-400 mt-1 inline-flex items-center gap-1',
+                isSmartPruning ? 'opacity-60 cursor-not-allowed' : 'hover:underline',
+              )}
             >
-              {t('smartPrune')}
+              {isSmartPruning ? <Loader2 size={12} className="animate-spin" /> : null}
+              {isSmartPruning ? t('smartPruneRunning') : t('smartPrune')}
             </button>
           </div>
         </div>

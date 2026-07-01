@@ -364,8 +364,9 @@ async def run_async_warmup() -> None:
             logger.error(f"Warmup task {i} failed: {result}", exc_info=result)
 
     try:
-        from app.core.skills.curator_service import start_curator_background_task
+        from app.core.skills.curator_service import get_stats_collector, start_curator_background_task
 
+        get_stats_collector()  # inject shared collector into harness usage_recorder
         start_curator_background_task()
     except Exception as e:
         logger.warning("[Startup] Curator background task failed to start: %s", e)

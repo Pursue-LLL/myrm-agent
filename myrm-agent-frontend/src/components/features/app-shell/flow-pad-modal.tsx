@@ -22,7 +22,7 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Send, X, ChevronDown, ChevronUp, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2 } from 'lucide-react';
+import { Send, X, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
@@ -41,8 +41,6 @@ export function FlowPadModal() {
     inlineGenerating,
     close,
     removeCapture,
-    appendInlineResult,
-    finishInlineResult,
   } = useFlowPadStore();
   const { agentConfig, sendMessage, setFiles } = useChatStore();
 
@@ -115,16 +113,20 @@ export function FlowPadModal() {
         await sendMessage(message);
       }
 
-      const agentLabel = agentConfig?.name || t('defaultAgent');
-      toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
-      close();
+      if (mode === 'inline') {
+        toast.success(t('inlineSubmitted'), { duration: 2000 });
+      } else {
+        const agentLabel = agentConfig?.name || t('defaultAgent');
+        toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
+        close();
+      }
     } catch (err) {
       console.error('FlowPad submit failed:', err);
       toast.error(t('submitFailed'), { duration: 3000 });
     } finally {
       setIsSubmitting(false);
     }
-  }, [captures, text, attachScreenshots, sendMessage, close, agentConfig, t, isSubmitting]);
+  }, [captures, text, attachScreenshots, sendMessage, close, agentConfig, t, isSubmitting, mode]);
 
   const handleSpeechTranscript = useCallback(
     (transcript: string) => {
@@ -146,9 +148,13 @@ export function FlowPadModal() {
         const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
         await sendMessage(message);
 
-        const agentLabel = agentConfig?.name || t('defaultAgent');
-        toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
-        close();
+        if (mode === 'inline') {
+          toast.success(t('inlineSubmitted'), { duration: 2000 });
+        } else {
+          const agentLabel = agentConfig?.name || t('defaultAgent');
+          toast.success(t('submitted', { agent: agentLabel }), { duration: 3000 });
+          close();
+        }
       } catch (err) {
         console.error('FlowPad quick action failed:', err);
         toast.error(t('submitFailed'), { duration: 3000 });
@@ -156,7 +162,7 @@ export function FlowPadModal() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, captures, attachScreenshots, sendMessage, close, agentConfig, t],
+    [isSubmitting, captures, attachScreenshots, sendMessage, close, agentConfig, t, mode],
   );
 
   const handleKeyDown = useCallback(
@@ -171,59 +177,6 @@ export function FlowPadModal() {
     [handleSubmit],
   );
 
-  const handleInlineSubmit = useCallback(async () => {
-    const hasCaptures = captures.length > 0;
-    const hasText = text.trim().length > 0;
-    if (!hasCaptures && !hasText) return;
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-    try {
-      const parts: string[] = [];
-      if (hasCaptures) {
-        parts.push(formatAppshotMessage(captures));
-      }
-      if (hasText) {
-        parts.push(text.trim());
-      }
-      const message = parts.join('\n\n');
-      if (!message) return;
-
-      if (hasCaptures) {
-        attachScreenshots();
-      }
-
-      await sendMessage(message);
-      toast.success(t('inlineSubmitted'), { duration: 2000 });
-    } catch (err) {
-      console.error('Inline submit failed:', err);
-      toast.error(t('submitFailed'), { duration: 3000 });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [captures, text, attachScreenshots, sendMessage, t, isSubmitting]);
-
-  const handleInlineQuickAction = useCallback(
-    async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
-      if (isSubmitting || captures.length === 0) return;
-
-      setIsSubmitting(true);
-      try {
-        attachScreenshots();
-
-        const prompt = t(promptKey);
-        const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
-        await sendMessage(message);
-        toast.success(t('inlineSubmitted'), { duration: 2000 });
-      } catch (err) {
-        console.error('Inline quick action failed:', err);
-        toast.error(t('submitFailed'), { duration: 3000 });
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [isSubmitting, captures, attachScreenshots, sendMessage, t],
-  );
 
   const handlePasteBack = useCallback(async () => {
     if (!inlineResult.trim()) return;
@@ -321,7 +274,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('replyPrompt')}
+                onClick={() => handleQuickAction('replyPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <MessageSquareReply className="w-3 h-3" />
@@ -330,7 +283,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('summarizePrompt')}
+                onClick={() => handleQuickAction('summarizePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <FileText className="w-3 h-3" />
@@ -339,7 +292,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('translatePrompt')}
+                onClick={() => handleQuickAction('translatePrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <Languages className="w-3 h-3" />
@@ -348,7 +301,7 @@ export function FlowPadModal() {
               <button
                 type="button"
                 disabled={isSubmitting}
-                onClick={() => (mode === 'inline' ? handleInlineQuickAction : handleQuickAction)('explainPrompt')}
+                onClick={() => handleQuickAction('explainPrompt')}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-border/50 bg-background hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:pointer-events-none"
               >
                 <Lightbulb className="w-3 h-3" />
@@ -429,7 +382,7 @@ export function FlowPadModal() {
               <Button
                 size="icon"
                 className="h-8 w-8 rounded-full"
-                onClick={mode === 'inline' ? handleInlineSubmit : handleSubmit}
+                onClick={handleSubmit}
                 disabled={isSubmitting || (!text.trim() && !hasCaptures)}
               >
                 {isSubmitting ? (

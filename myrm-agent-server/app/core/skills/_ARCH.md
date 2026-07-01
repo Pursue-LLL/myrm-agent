@@ -36,7 +36,7 @@
 | `providers/local.py` | 核心 | 本地文件系统技能提供者 | — |
 | `config_version.py` | 核心 | 技能配置版本号管理（bump/get，Agent 热重载检测） | ✅ |
 | `state_manager_instance.py` | 核心 | 全局 SkillStateManager 单例（init/get） | ✅ |
-| `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation (Umbrella Merge) 集成与 agent 引用重写 | ✅ |
+| `curator_service.py` | 核心 | Skill Curator 业务服务 — 配置持久化、sweep 执行、background task 编排、审计历史、consolidation 集成；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
 
 ---
 

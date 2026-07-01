@@ -32,6 +32,7 @@ export interface SkillsSectionPanelProps {
     maxCoreTokens: number;
   };
   staleCoreSkills: string[];
+  isSmartPruning?: boolean;
   onSmartPrune: () => void;
   onOpenSettingsSheet: (type: 'skills' | 'mcp') => void;
   t: (key: string) => string;
@@ -49,6 +50,7 @@ export const SkillsSectionPanel = ({
   setLocalSkillConfigs,
   noiseData,
   staleCoreSkills,
+  isSmartPruning = false,
   onSmartPrune,
   onOpenSettingsSheet,
   t,
@@ -130,6 +132,7 @@ export const SkillsSectionPanel = ({
         coreSkillsTokenCost={coreSkillsTokenCost}
         maxCoreTokens={maxCoreTokens}
         staleCoreSkillCount={staleCoreSkills.length}
+        isSmartPruning={isSmartPruning}
         onSmartPrune={onSmartPrune}
         tPanel={tPanel}
       />

@@ -173,14 +173,14 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
-fn current_timestamp_ms() -> u128 {
+pub(super) fn current_timestamp_ms() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis()
 }
 
-fn load_excluded_apps(app: &AppHandle) -> HashSet<String> {
+pub(super) fn load_excluded_apps(app: &AppHandle) -> HashSet<String> {
     let config_manager = app.state::<ConfigManager>();
     let config = config_manager.load();
     config
@@ -190,7 +190,7 @@ fn load_excluded_apps(app: &AppHandle) -> HashSet<String> {
         .collect()
 }
 
-fn is_app_excluded(app_name: &str, excluded: &HashSet<String>) -> bool {
+pub(super) fn is_app_excluded(app_name: &str, excluded: &HashSet<String>) -> bool {
     if app_name.is_empty() || excluded.is_empty() {
         return false;
     }
@@ -220,7 +220,7 @@ fn ensure_screenshot_size_limit(buf: Vec<u8>) -> Vec<u8> {
     buf
 }
 
-fn get_frontmost_app_name() -> String {
+pub(super) fn get_frontmost_app_name() -> String {
     #[cfg(target_os = "macos")]
     {
         if let Ok(output) = Command::new("osascript")
@@ -579,11 +579,6 @@ foreach ($el in $elements) {
 #[cfg(target_os = "windows")]
 pub(super) fn capture_windows() -> (String, String, String, bool) {
     win::capture_appshot()
-}
-
-#[cfg(target_os = "windows")]
-pub(super) fn win_get_foreground_app_name() -> String {
-    win::get_foreground_app_name()
 }
 
 #[cfg(target_os = "windows")]
