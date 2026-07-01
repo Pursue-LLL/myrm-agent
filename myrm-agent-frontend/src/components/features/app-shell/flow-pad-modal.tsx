@@ -11,7 +11,8 @@
  *
  * [POS]
  * Omni-FlowPad 核心 UI 组件。全局居中 Dialog，
- * 同时服务 Appshot 截屏、语音输入和 deep link Quick Ask 场景。
+ * 同时服务 Appshot 截屏、语音输入、deep link Quick Ask 和 Inline Input 场景。
+ * Inline Mode 下 AI 结果局部流式显示，支持一键 Paste 回写原应用。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -21,7 +22,7 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Send, X, ChevronDown, ChevronUp, Monitor, MessageSquareReply, FileText, Languages, Lightbulb } from 'lucide-react';
+import { Send, X, ChevronDown, ChevronUp, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
@@ -31,7 +32,18 @@ import { formatAppshotMessage, CapturePreview, ImageLightbox } from './FlowPadMo
 
 export function FlowPadModal() {
   const t = useTranslations('flowPad');
-  const { isOpen, captures, initialText, close, removeCapture } = useFlowPadStore();
+  const {
+    isOpen,
+    mode,
+    captures,
+    initialText,
+    inlineResult,
+    inlineGenerating,
+    close,
+    removeCapture,
+    appendInlineResult,
+    finishInlineResult,
+  } = useFlowPadStore();
   const { agentConfig, sendMessage, setFiles } = useChatStore();
 
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
