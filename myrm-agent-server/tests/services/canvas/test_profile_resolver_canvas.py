@@ -25,7 +25,8 @@ class TestResolveBuiltinToolFlagsCanvas:
     def test_all_tools_enabled(self) -> None:
         all_tools = [
             "browser", "computer_use", "file_ops", "code_execute",
-            "wiki", "kanban", "canvas", "answer_tool", "render_ui", "planning",
+            "wiki", "kanban", "canvas", "answer_tool", "render_ui",
+            "planning", "task_tracking",
         ]
         flags = resolve_builtin_tool_flags(all_tools)
         for key in BuiltinToolFlags.__annotations__:
