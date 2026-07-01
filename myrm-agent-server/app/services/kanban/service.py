@@ -1,12 +1,12 @@
 """Kanban business service facade.
 
-Orchestrates store, dispatcher, and EventBus for kanban operations.
+Orchestrates store, dispatcher, and ServerEventBus for kanban operations.
 Provides a clean API for the HTTP layer.
 
 [INPUT]
 - core.kanban.adapters::SqlAlchemyKanbanStore (POS: KanbanStore persistence adapter.)
 - myrm_agent_harness.toolkits.kanban (POS: Kanban toolkit framework layer.)
-- api.events.event_bus::AppEvent, AppEventType, get_event_bus (POS: Global SSE event bus.)
+- app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: Global SSE event bus.)
 
 [OUTPUT]
 - KanbanService: Singleton business orchestration service.

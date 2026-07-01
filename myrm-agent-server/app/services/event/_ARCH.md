@@ -13,7 +13,7 @@ Agent 事件系统：Turn 生命周期持久化 + 全局 SSE AppEvent 总线（K
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `app_event_bus.py` | ✅ 核心 | AppEventType / AppEvent / get_event_bus 单例 | ✅ |
+| `app_event_bus.py` | ✅ 核心 | AppEventType / AppEvent / ServerEventBus / get_event_bus 单例 | ✅ |
 | `types.py` | ✅ 核心 | Turn 事件类型枚举 | ✅ |
 | `recorder.py` | ✅ 核心 | EventRecorder — 单 Turn 事件持久化 | ✅ |
 | `turn_manager.py` | ✅ 核心 | TurnManager — Turn 生命周期 | ✅ |

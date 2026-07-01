@@ -24,6 +24,6 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 ## 模块依赖
 
 - `app.database.models.approval` -> 访问 `ApprovalRecord` 存储拦截任务。
-- `app.api.events.event_bus` -> 下发 SSE 实时通信唤醒 Web/Desktop 卡片。
+- `app.services.event.app_event_bus` -> `ServerEventBus` 下发 SSE 实时通信唤醒 Web/Desktop 卡片。
 - `app.channels` -> 下发 `OutboundMessage` Native Blocks 推送。
 - `myrm_agent_harness.agent.types` -> 使用 `Command` 恢复挂起的 Agent State。

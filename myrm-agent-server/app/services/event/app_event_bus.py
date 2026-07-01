@@ -4,10 +4,10 @@
 - myrm_agent_harness.infra.pubsub.event_bus::PubSubBus (POS: Harness generic pub/sub)
 
 [OUTPUT]
-- AppEventType, AppEvent, get_event_bus: Server-side SSE event bus singleton
+- AppEventType, AppEvent, ServerEventBus, get_event_bus: Server-side SSE event bus singleton
 
 [POS]
-Business-layer event bus. Kanban, memory, skills, channels publish AppEvent;
+Business-layer SSE bus (`ServerEventBus = PubSubBus[AppEvent]`). Kanban, memory, skills, channels publish AppEvent;
 api/events/router streams to WebUI clients. Must not live under app/api/.
 """
 
