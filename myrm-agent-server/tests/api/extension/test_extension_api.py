@@ -243,14 +243,15 @@ class TestConnectToDomainWildcard:
         bridge._connected = True
         bridge._ws = MagicMock()
         bridge._authorized_domains = ["*.google.com"]
+        bridge._cdp_endpoint = "ws://127.0.0.1:9222/devtools/browser/abc"
 
         mock_pw = MagicMock()
         mock_browser = MagicMock()
         mock_pw.chromium.connect_over_cdp = AsyncMock(return_value=mock_browser)
         bridge._playwright = mock_pw
 
-        with patch.object(bridge, "_request_cdp_target", new_callable=AsyncMock) as mock_cdp:
-            mock_cdp.return_value = "ws://127.0.0.1:9222/devtools/browser/abc"
+        with patch.object(bridge, "_request_debugger_attach", new_callable=AsyncMock) as mock_attach:
+            mock_attach.return_value = 42
             result = await bridge.connect_to_domain("mail.google.com")
 
         assert result.browser is mock_browser
@@ -485,32 +486,30 @@ class TestReceiveLoop:
         assert bridge._last_heartbeat > 0.0
 
 
-class TestRequestCdpTarget:
-    """Test _request_cdp_target helper."""
+class TestRequestDebuggerAttach:
+    """Test _request_debugger_attach helper."""
 
     @pytest.mark.asyncio
-    async def test_returns_cdp_url(self) -> None:
+    async def test_returns_tab_id(self) -> None:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         mock_ws = MagicMock()
         mock_ws.send_text = AsyncMock()
         bridge._ws = mock_ws
 
-        loop = asyncio.get_running_loop()
-
         async def set_result_later():
             await asyncio.sleep(0.01)
             req_id = list(bridge._pending_requests.keys())[0]
-            bridge._pending_requests[req_id].set_result({"cdp_ws_url": "ws://127.0.0.1:9222/x"})
+            bridge._pending_requests[req_id].set_result({"tabId": 42})
 
         task = asyncio.create_task(set_result_later())
-        url = await bridge._request_cdp_target(timeout=2.0)
+        tab_id = await bridge._request_debugger_attach(domain="example.com", timeout=2.0)
         await task
 
-        assert url == "ws://127.0.0.1:9222/x"
+        assert tab_id == 42
 
     @pytest.mark.asyncio
-    async def test_raises_if_no_url_in_response(self) -> None:
+    async def test_raises_if_no_tab_id_in_response(self) -> None:
         bridge = ExtensionBridgeService()
         bridge._connected = True
         mock_ws = MagicMock()
@@ -523,8 +522,8 @@ class TestRequestCdpTarget:
             bridge._pending_requests[req_id].set_result({"something": "else"})
 
         task = asyncio.create_task(set_result_later())
-        with pytest.raises(ExtensionBridgeNotAvailable, match="did not return CDP"):
-            await bridge._request_cdp_target(timeout=2.0)
+        with pytest.raises(ExtensionBridgeNotAvailable, match="did not return attached tab ID"):
+            await bridge._request_debugger_attach(domain="example.com", timeout=2.0)
         await task
 
 
