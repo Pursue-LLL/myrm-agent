@@ -9891,6 +9891,8 @@
     "voiceModeAudioOnly": "Standard (STT → Agent → TTS)",
     "voiceModeAgentBridge": "Agent Bridge (Server-side)",
     "voiceModeRealtime": "Realtime (OpenAI WebRTC, ~200ms)",
+    "voiceModeGeminiLive": "Gemini Live (WebSocket, ~200ms, Video)",
+    "geminiLiveModel": "Gemini Live Model",
     "realtimeVoice": "Realtime Voice",
     "saved": "Voice settings saved",
     "saveError": "Failed to save voice settings"

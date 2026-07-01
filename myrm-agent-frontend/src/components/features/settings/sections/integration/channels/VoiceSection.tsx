@@ -34,6 +34,7 @@ interface VoiceFormState {
   ttsSummaryEnabled: boolean;
   ttsSummaryThreshold: number;
   ttsSummaryModel: string;
+  geminiLiveModel: string;
 }
 
 const DEFAULT_STATE: VoiceFormState = {
@@ -57,6 +58,7 @@ const DEFAULT_STATE: VoiceFormState = {
   ttsSummaryEnabled: true,
   ttsSummaryThreshold: 1500,
   ttsSummaryModel: '',
+  geminiLiveModel: 'gemini-2.5-flash-preview-native-audio-dialog',
 };
 
 const STT_PROVIDERS = [
@@ -450,6 +452,9 @@ const VoiceSection = memo(() => {
                 <SelectItem value="openai_realtime">
                   {t('voiceModeRealtime') ?? 'Realtime (OpenAI WebRTC, ~200ms)'}
                 </SelectItem>
+                <SelectItem value="gemini_live">
+                  {t('voiceModeGeminiLive') ?? 'Gemini Live (WebSocket, ~200ms, Video)'}
+                </SelectItem>
               </SelectContent>
             </Select>
           </FieldRow>
@@ -466,6 +471,25 @@ const VoiceSection = memo(() => {
                       {v.charAt(0).toUpperCase() + v.slice(1)}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </FieldRow>
+          )}
+
+          {voiceMode === 'gemini_live' && (
+            <FieldRow label={t('geminiLiveModel') ?? 'Gemini Live Model'}>
+              <Select
+                value={form.geminiLiveModel || 'gemini-2.5-flash-preview-native-audio-dialog'}
+                onValueChange={(v) => update({ geminiLiveModel: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash-preview-native-audio-dialog">
+                    Gemini 2.5 Flash (Native Audio)
+                  </SelectItem>
+                  <SelectItem value="gemini-2.0-flash-live-001">Gemini 2.0 Flash Live</SelectItem>
                 </SelectContent>
               </Select>
             </FieldRow>

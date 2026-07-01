@@ -76,6 +76,7 @@ from app.api.system.shutdown import router as system_shutdown_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.tasks.router import router as tasks_router
 from app.api.tts.router import router as tts_router
+from app.api.voice.gemini_live import router as voice_gemini_live_router
 from app.api.voice.realtime import router as voice_realtime_router
 from app.api.voice.ws_session import router as voice_ws_router
 from app.api.wiki import router as wiki_router
@@ -204,6 +205,7 @@ api_router.include_router(
 api_router.include_router(tts_router, prefix="/tts", tags=["tts"])
 api_router.include_router(voice_ws_router, prefix="/ws/voice", tags=["voice"])
 api_router.include_router(voice_realtime_router, prefix="/voice", tags=["voice"])
+api_router.include_router(voice_gemini_live_router, prefix="/voice", tags=["voice"])
 api_router.include_router(artifact_mappings_router, prefix="/config", tags=["config"])
 api_router.include_router(build_statistics_router(), prefix="/statistics", tags=["statistics"])
 api_router.include_router(system_router, prefix="/system", tags=["system"])

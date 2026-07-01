@@ -23,11 +23,12 @@ import { useCameraInput } from './useCameraInput';
 import { useVisionIntent } from './useVisionIntent';
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
+import { useGeminiLiveVoice } from './useGeminiLiveVoice';
 import type { VisualFrame } from '@/lib/vision/frameSelector';
 import type { PttScreenContext } from './useVoicePttListener';
 
 export type VoiceSessionState = 'inactive' | 'listening' | 'processing' | 'speaking' | 'paused';
-export type VoiceSessionMode = 'audio_only' | 'agent_bridge' | 'openai_realtime';
+export type VoiceSessionMode = 'audio_only' | 'agent_bridge' | 'openai_realtime' | 'gemini_live';
 
 interface UseVoiceSessionOptions {
   enabled: boolean;
@@ -198,6 +199,37 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }, [onError]),
   });
 
+  const geminiLive = useGeminiLiveVoice({
+    enabled: mode === 'gemini_live',
+    agentId,
+    chatId,
+    model: undefined,
+    onTranscript: useCallback(
+      (entry: { role: 'user' | 'assistant'; text: string }) => {
+        if (entry.role === 'assistant') {
+          onAgentResponse?.(entry.text, true);
+        }
+      },
+      [onAgentResponse],
+    ),
+    onToolCall: useCallback(
+      (name: string) => {
+        onAgentToolUse?.(name);
+      },
+      [onAgentToolUse],
+    ),
+    onError,
+    onFallback: useCallback(() => {
+      onError?.('Gemini Live connection failed, please switch to Agent Bridge mode');
+    }, [onError]),
+    getVideoFrame: cameraEnabled
+      ? () => {
+          const frame = camera.captureSnapshot();
+          return frame?.base64 ? `data:image/jpeg;base64,${frame.base64}` : null;
+        }
+      : undefined,
+  });
+
   const camera = useCameraInput({
     onError: (err) => onError?.(`Camera: ${err}`),
   });
@@ -356,6 +388,12 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
       return;
     }
 
+    if (mode === 'gemini_live') {
+      if (cameraEnabled) void camera.startCamera();
+      geminiLive.connect();
+      return;
+    }
+
     if (mode === 'agent_bridge') {
       agentBridge.connect();
       return;
@@ -366,7 +404,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
 
     speech.startRecording();
-  }, [enabled, cameraEnabled, camera, speech, mode, agentBridge, realtimeVoice]);
+  }, [enabled, cameraEnabled, camera, speech, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const stopSession = useCallback(() => {
     sessionActiveRef.current = false;
@@ -376,6 +414,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
     if (mode === 'openai_realtime') {
       realtimeVoice.disconnect();
+    } else if (mode === 'gemini_live') {
+      geminiLive.disconnect();
     } else if (mode === 'agent_bridge') {
       agentBridge.disconnect();
     } else {
@@ -387,11 +427,11 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     camera.stopCamera();
 
     setSessionState('inactive');
-  }, [speech, tts, camera, mode, agentBridge, realtimeVoice]);
+  }, [speech, tts, camera, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const interruptTTS = useCallback(() => {
-    if (mode === 'openai_realtime') {
-      // Realtime mode: VAD handles interruption natively
+    if (mode === 'openai_realtime' || mode === 'gemini_live') {
+      // Realtime/Gemini Live: server-side VAD handles interruption natively
       return;
     }
 
@@ -468,6 +508,31 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
   }, [mode, realtimeVoice.state]);
 
+  // Sync Gemini Live state → session state
+  useEffect(() => {
+    if (mode !== 'gemini_live') return;
+    const glState = geminiLive.state;
+    switch (glState) {
+      case 'connecting':
+      case 'listening':
+        setSessionState('listening');
+        break;
+      case 'thinking':
+        setSessionState('processing');
+        break;
+      case 'speaking':
+        setSessionState('speaking');
+        break;
+      case 'error':
+      case 'idle':
+        if (sessionActiveRef.current) {
+          sessionActiveRef.current = false;
+          setSessionState('inactive');
+        }
+        break;
+    }
+  }, [mode, geminiLive.state]);
+
   useEffect(() => {
     return () => {
       sessionActiveRef.current = false;
@@ -476,6 +541,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, []);
 
   const isRealtime = mode === 'openai_realtime';
+  const isGeminiLive = mode === 'gemini_live';
   const isAgentBridge = mode === 'agent_bridge';
 
   return {
@@ -484,7 +550,13 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     startSession,
     stopSession,
     interruptTTS,
-    interimText: isRealtime ? realtimeVoice.interimText : isAgentBridge ? agentBridge.interimText : speech.interimText,
+    interimText: isRealtime
+      ? realtimeVoice.interimText
+      : isGeminiLive
+        ? geminiLive.interimText
+        : isAgentBridge
+          ? agentBridge.interimText
+          : speech.interimText,
     audioLevel: isAgentBridge ? agentBridge.audioLevel : speech.audioLevel,
     cameraState: camera.cameraState,
     facingMode: camera.facingMode,
@@ -494,9 +566,11 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     speakResponse,
     agentResponseText: isRealtime
       ? realtimeVoice.responseText
-      : isAgentBridge
-        ? agentBridge.agentResponseText
-        : agentResponseText,
+      : isGeminiLive
+        ? geminiLive.responseText
+        : isAgentBridge
+          ? agentBridge.agentResponseText
+          : agentResponseText,
     agentToolName: isAgentBridge ? agentBridge.agentToolName : agentToolName,
   };
 }

@@ -26,6 +26,7 @@ app/api/statistics/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/voice/agent_bridge.py
+app/api/voice/realtime.py
 app/api/voice/ws_session.py
 app/api/webui/router.py
 app/api/wiki/router.py

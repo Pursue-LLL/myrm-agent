@@ -10,5 +10,6 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `agent_bridge.py` | 模块 | Agent execution bridge for voice sessions. | ✅ |
+| `gemini_live.py` | 模块 | Gemini Live API integration endpoints (ephemeral token + WebSocket URL). | ✅ |
 | `realtime.py` | 模块 | OpenAI Realtime API integration endpoints. | ✅ |
 | `ws_session.py` | 模块 | Full-duplex voice session WebSocket endpoint. | ✅ |

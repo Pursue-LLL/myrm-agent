@@ -9891,6 +9891,8 @@
     "voiceModeAudioOnly": "标准模式（STT → Agent → TTS）",
     "voiceModeAgentBridge": "Agent 桥接（服务端处理）",
     "voiceModeRealtime": "实时模式（OpenAI WebRTC，约 200ms）",
+    "voiceModeGeminiLive": "Gemini Live（WebSocket，约 200ms，支持视频）",
+    "geminiLiveModel": "Gemini Live 模型",
     "realtimeVoice": "实时音色",
     "saved": "语音设置已保存",
     "saveError": "保存语音设置失败"
