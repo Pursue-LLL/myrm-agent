@@ -41,6 +41,18 @@ def _load_baseline() -> frozenset[str]:
 
 
 @pytest.mark.architecture
+def test_no_server_harness_private_module_imports() -> None:
+    """Server must not import harness private modules (paths containing ``._``)."""
+    current = _collect_harness_imports()
+    private = sorted(path for path in current if "._" in path)
+    assert not private, (
+        "Private harness module imports detected in myrm-agent-server. "
+        "Use myrm_agent_harness.api.hooks or myrm_agent_harness.api.skills:\n"
+        + "\n".join(private)
+    )
+
+
+@pytest.mark.architecture
 def test_no_new_server_deep_harness_imports() -> None:
     """Open-source server must not grow new direct harness internal import paths."""
     baseline = _load_baseline()

@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.mcp.connection_manager (POS: MCP persistent session pool)
-- myrm_agent_harness.toolkits.memory.integration.protocols (POS: IntegrationProvider Protocol)
+- myrm_agent_harness.api::IntegrationProvider (POS: IntegrationProvider Protocol)
 
 [OUTPUT]
 - MCPBridgeProvider: Concrete IntegrationProvider that fetches data via MCP tool calls.

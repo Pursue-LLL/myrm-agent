@@ -26,7 +26,7 @@ function decodeStandardBase64(value: string): Uint8Array {
   return bytes;
 }
 
-function decodeUrlBase64(value: string): Uint8Array {
+export function decodeUrlBase64(value: string): Uint8Array {
   const padded = value + '='.repeat((4 - (value.length % 4)) % 4);
   const normalized = padded.replace(/-/g, '+').replace(/_/g, '/');
   const binary = atob(normalized);

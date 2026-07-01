@@ -1,4 +1,5 @@
 import nacl from 'tweetnacl';
+import { decodeUrlBase64 } from '@/lib/e2ee/client';
 
 /**
  * Compute a human-readable fingerprint from a raw public key using SHA-512.
@@ -16,12 +17,5 @@ export function computeE2EEFingerprint(publicKey: Uint8Array): string {
  * Compute fingerprint from a URL-safe or standard base64-encoded public key.
  */
 export function computeE2EEFingerprintFromB64(publicKeyB64: string): string {
-  const padded = publicKeyB64 + '='.repeat((4 - (publicKeyB64.length % 4)) % 4);
-  const normalized = padded.replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(normalized);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return computeE2EEFingerprint(bytes);
+  return computeE2EEFingerprint(decodeUrlBase64(publicKeyB64));
 }
