@@ -730,3 +730,9 @@ class TestResolveBuiltinToolFlags:
             "enable_answer_tool",
             "enable_render_ui",
         }
+
+    def test_legacy_llm_map_tool_id_is_ignored(self):
+        """Stale DB metadata may still list llm_map; it must not map to any flag."""
+        flags = resolve_builtin_tool_flags(["web_search", "llm_map"])
+        assert "enable_llm_map" not in flags
+        assert flags == resolve_builtin_tool_flags(["web_search"])
