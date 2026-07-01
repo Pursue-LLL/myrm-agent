@@ -171,6 +171,85 @@ export function FlowPadModal() {
     [handleSubmit],
   );
 
+  const handleInlineSubmit = useCallback(async () => {
+    const hasCaptures = captures.length > 0;
+    const hasText = text.trim().length > 0;
+    if (!hasCaptures && !hasText) return;
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const parts: string[] = [];
+      if (hasCaptures) {
+        parts.push(formatAppshotMessage(captures));
+      }
+      if (hasText) {
+        parts.push(text.trim());
+      }
+      const message = parts.join('\n\n');
+      if (!message) return;
+
+      if (hasCaptures) {
+        attachScreenshots();
+      }
+
+      await sendMessage(message);
+      toast.success(t('inlineSubmitted'), { duration: 2000 });
+    } catch (err) {
+      console.error('Inline submit failed:', err);
+      toast.error(t('submitFailed'), { duration: 3000 });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [captures, text, attachScreenshots, sendMessage, t, isSubmitting]);
+
+  const handleInlineQuickAction = useCallback(
+    async (promptKey: 'replyPrompt' | 'summarizePrompt' | 'translatePrompt' | 'explainPrompt') => {
+      if (isSubmitting || captures.length === 0) return;
+
+      setIsSubmitting(true);
+      try {
+        attachScreenshots();
+
+        const prompt = t(promptKey);
+        const message = `${formatAppshotMessage(captures)}\n\n${prompt}`;
+        await sendMessage(message);
+        toast.success(t('inlineSubmitted'), { duration: 2000 });
+      } catch (err) {
+        console.error('Inline quick action failed:', err);
+        toast.error(t('submitFailed'), { duration: 3000 });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [isSubmitting, captures, attachScreenshots, sendMessage, t],
+  );
+
+  const handlePasteBack = useCallback(async () => {
+    if (!inlineResult.trim()) return;
+
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('inline_paste_back', { content: inlineResult });
+      toast.success(t('pastedBack'), { duration: 2000 });
+      close();
+    } catch (err) {
+      console.error('Paste back failed:', err);
+      toast.error(t('pasteBackFailed'), { duration: 3000 });
+    }
+  }, [inlineResult, close, t]);
+
+  const handleCopyResult = useCallback(async () => {
+    if (!inlineResult.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(inlineResult);
+      toast.success(t('copied'), { duration: 2000 });
+    } catch {
+      toast.error(t('copyFailed'), { duration: 3000 });
+    }
+  }, [inlineResult, t]);
+
   const hasCaptures = captures.length > 0;
 
   return (
