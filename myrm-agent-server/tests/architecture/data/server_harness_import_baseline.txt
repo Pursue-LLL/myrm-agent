@@ -159,6 +159,7 @@ myrm_agent_harness.backends.skills.snapshot
 myrm_agent_harness.backends.skills.state_manager
 myrm_agent_harness.backends.skills.stats_collector
 myrm_agent_harness.backends.skills.types
+myrm_agent_harness.backends.skills.usage_recorder
 myrm_agent_harness.backends.skills.versioning
 myrm_agent_harness.backends.skills.watcher
 myrm_agent_harness.core.artifacts.constants
