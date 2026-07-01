@@ -367,17 +367,62 @@ def suggest_quick_replies(*, is_first_message: bool) -> tuple[QuickReply, ...]:
     return ()
 
 
+_SUMMARY_MAX_CHARS = 80
+
+
 def step_to_label(step_key: str, event: dict[str, object]) -> str | None:
-    """Translate an Agent step_key into a human-readable progress label."""
+    """Translate an Agent step_key into a human-readable progress label.
+
+    Falls back to a generic label with input summary when step_key is not
+    in _STEP_LABELS, ensuring all tool calls produce visible progress in IM.
+    """
     if step_key.endswith("_tool_error"):
         return "⚠️ Tool error, retrying..."
 
     label = _STEP_LABELS.get(step_key)
-    if label and step_key == "reviewing_sources":
-        count = event.get("count")
-        if isinstance(count, int) and count > 0:
-            return f"📖 Reviewing {count} sources..."
-    return label
+    if label:
+        if step_key == "reviewing_sources":
+            count = event.get("count")
+            if isinstance(count, int) and count > 0:
+                return f"📖 Reviewing {count} sources..."
+            return label
+        summary = _extract_input_summary(event.get("data"))
+        if summary:
+            prefix = label.removesuffix("...").rstrip()
+            return f"{prefix}: {summary}"
+        return label
+
+    tool_name = str(event.get("tool_name") or "") or step_key.removesuffix("_tool")
+    summary = _extract_input_summary(event.get("data"))
+    if summary:
+        return f"⏳ **{tool_name}** — {summary}"
+    return f"⏳ **{tool_name}**"
+
+
+def _extract_input_summary(data: object) -> str:
+    """Extract a concise one-line summary from the step event data field."""
+    if not isinstance(data, list) or not data:
+        return ""
+    first = data[0]
+    if not isinstance(first, dict):
+        return ""
+
+    raw = (
+        first.get("query")
+        or first.get("url")
+        or first.get("file_path")
+        or first.get("code")
+        or first.get("skill_name")
+        or first.get("text")
+        or ""
+    )
+    if not isinstance(raw, str) or not raw:
+        return ""
+
+    one_line = raw.replace("\n", " ").strip()
+    if len(one_line) > _SUMMARY_MAX_CHARS:
+        return f"{one_line[:_SUMMARY_MAX_CHARS]}…"
+    return one_line
 
 
 class ShareableArtifact(NamedTuple):

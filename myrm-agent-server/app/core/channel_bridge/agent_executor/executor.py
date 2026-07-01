@@ -779,7 +779,7 @@ class ChannelAgentExecutor:
                     label = step_to_label(step_key, event)
                     if label:
                         yield ProgressUpdate(label=label)
-                        tool_name = str(event.get("tool_name", "")) or step_key
+                        tool_name = str(event.get("tool_name") or "") or step_key
                         acc.tool_steps.append(ToolStep(name=tool_name, label=label))
 
                 elif event_type == "reasoning" and isinstance(event.get("data"), str):
