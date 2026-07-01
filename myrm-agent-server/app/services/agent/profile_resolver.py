@@ -49,6 +49,7 @@ class BuiltinToolFlags(TypedDict):
     enable_answer_tool: bool
     enable_render_ui: bool
     enable_planning: bool
+    enable_task_tracking: bool
 
 
 def resolve_builtin_tool_flags(
@@ -71,6 +72,7 @@ def resolve_builtin_tool_flags(
         enable_answer_tool="answer_tool" in tools,
         enable_render_ui="render_ui" in tools,
         enable_planning="planning" in tools,
+        enable_task_tracking="task_tracking" in tools,
     )
 
 

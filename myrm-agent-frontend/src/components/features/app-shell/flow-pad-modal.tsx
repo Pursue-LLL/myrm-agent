@@ -23,7 +23,7 @@ import useChatStore from '@/store/useChatStore';
 import { useTranslations } from 'next-intl';
 import { toast } from '@/lib/utils/toast';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Send, X, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2 } from 'lucide-react';
+import { Send, X, Monitor, MessageSquareReply, FileText, Languages, Lightbulb, ClipboardPaste, Copy, Loader2, TextSelect } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
@@ -227,6 +227,7 @@ export function FlowPadModal() {
   }, [inlineResult, t]);
 
   const hasCaptures = captures.length > 0;
+  const selectedTextPreview = captures.find((c) => c.selectedText?.trim())?.selectedText?.trim();
 
   return (
     <>
@@ -277,6 +278,20 @@ export function FlowPadModal() {
                     }
                   />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Selected Text Chip */}
+          {selectedTextPreview && (
+            <div className="px-4 py-2 border-b border-border/30">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-primary/8 border border-primary/15">
+                <TextSelect className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-xs font-medium text-primary/80 truncate">
+                  {selectedTextPreview.length > 80
+                    ? `${selectedTextPreview.slice(0, 80)}...`
+                    : selectedTextPreview}
+                </span>
               </div>
             </div>
           )}

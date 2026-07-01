@@ -4709,7 +4709,8 @@
         "canvas": "Canvas Workspace",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI",
-        "planning": "Structured Task Planning"
+        "planning": "Structured Task Planning",
+        "task_tracking": "Lightweight Task Tracking"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4726,7 +4727,8 @@
         "canvas": "Read and write the infinite canvas — let the agent see your drawings, notes, and diagrams",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction",
-        "planning": "Break complex tasks into trackable steps — shows progress tree in chat (without Goal mode)"
+        "planning": "Break complex tasks into trackable steps — shows progress tree in chat (without Goal mode)",
+        "task_tracking": "Light checklist for multi-step tasks — no planner LLM cost; shows progress in chat (mutually exclusive with Planning when plan exists)"
       },
       "cuPermission": {
         "checking": "Checking desktop permissions…",

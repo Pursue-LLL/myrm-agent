@@ -53,14 +53,14 @@ fn capture_screen_context_for_ptt(app: &AppHandle) {
         let timestamp = current_timestamp_ms();
 
         #[cfg(target_os = "macos")]
-        let (screenshot_b64, window_title, extracted_text, _) = capture_appshot_macos();
+        let (screenshot_b64, window_title, extracted_text, _, _selected) = capture_appshot_macos();
 
         #[cfg(target_os = "windows")]
-        let (screenshot_b64, window_title, extracted_text, _) = capture_appshot_windows();
+        let (screenshot_b64, window_title, extracted_text, _, _selected) = capture_appshot_windows();
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let (screenshot_b64, window_title, extracted_text) =
-            (String::new(), String::new(), String::new());
+        let (screenshot_b64, window_title, extracted_text, _selected) =
+            (String::new(), String::new(), String::new(), String::new());
 
         let payload = serde_json::json!({
             "screenshot": screenshot_b64,
@@ -136,15 +136,16 @@ fn do_capture_and_emit(app: &AppHandle) {
     let timestamp = current_timestamp_ms();
 
     #[cfg(target_os = "macos")]
-    let (screenshot_b64, window_title, extracted_text, needs_permission) = capture_appshot_macos();
+    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
+        capture_appshot_macos();
 
     #[cfg(target_os = "windows")]
-    let (screenshot_b64, window_title, extracted_text, needs_permission) =
+    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
         capture_appshot_windows();
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let (screenshot_b64, window_title, extracted_text, needs_permission) =
-        (String::new(), String::new(), String::new(), false);
+    let (screenshot_b64, window_title, extracted_text, needs_permission, _selected) =
+        (String::new(), String::new(), String::new(), false, String::new());
 
     let payload = serde_json::json!({
         "screenshot": screenshot_b64,
@@ -244,12 +245,12 @@ pub(super) fn get_frontmost_app_name() -> String {
 }
 
 #[cfg(target_os = "macos")]
-pub(super) fn capture_macos() -> (String, String, String, bool) {
+pub(super) fn capture_macos() -> (String, String, String, bool, String) {
     capture_appshot_macos()
 }
 
 #[cfg(target_os = "macos")]
-fn capture_appshot_macos() -> (String, String, String, bool) {
+fn capture_appshot_macos() -> (String, String, String, bool, String) {
     use base64::Engine;
     use std::io::Read;
 
@@ -286,6 +287,12 @@ tell application "System Events"
     try
         set winTitle to name of window 1 of frontApp
     end try
+    set selectedText to ""
+    try
+        set focusedElem to focused UI element of frontApp
+        set selectedText to value of attribute "AXSelectedText" of focusedElem
+        if selectedText is missing value then set selectedText to ""
+    end try
     set textParts to {}
     try
         set uiElements to entire contents of window 1 of frontApp
@@ -305,17 +312,24 @@ tell application "System Events"
         end repeat
     end try
     set AppleScript's text item delimiters to linefeed
-    return appName & "|||" & winTitle & "|||" & (textParts as string)
+    return appName & "|||" & winTitle & "|||" & (textParts as string) & "|||" & selectedText
 end tell
 "#;
 
-    let (mut window_title, mut extracted_text, mut needs_permission) =
-        (String::new(), String::new(), false);
+    let (mut window_title, mut extracted_text, mut needs_permission, mut selected_text) =
+        (String::new(), String::new(), false, String::new());
 
     if let Ok(output) = Command::new("osascript").args(["-e", ax_script]).output() {
         if output.status.success() {
             let result = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let parts: Vec<&str> = result.splitn(3, "|||").collect();
+            let (main_part, sel_raw) = match result.rsplit_once("|||") {
+                Some((main, sel)) => (main, sel.trim()),
+                None => (result.as_str(), ""),
+            };
+            if !sel_raw.is_empty() {
+                selected_text = truncate_utf8(sel_raw, 10_000);
+            }
+            let parts: Vec<&str> = main_part.splitn(3, "|||").collect();
             window_title = parts.first().unwrap_or(&"").to_string();
             if parts.len() > 1 {
                 window_title = format!("{} - {}", window_title, parts[1]);
@@ -346,6 +360,7 @@ end tell
         window_title,
         extracted_text,
         needs_permission,
+        selected_text,
     )
 }
 
@@ -574,14 +589,93 @@ foreach ($el in $elements) {
 
         (screenshot_b64, window_title, extracted_text, false)
     }
+
+    pub fn get_selected_text_via_clipboard() -> String {
+        use std::thread;
+        use std::time::Duration;
+
+        let saved = {
+            let mut cmd = Command::new("powershell");
+            cmd.args(["-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard"]);
+            super::suppress_console_window(&mut cmd);
+            cmd.output().ok().and_then(|o| {
+                if o.status.success() {
+                    Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+                } else {
+                    None
+                }
+            })
+        };
+
+        {
+            let mut cmd = Command::new("powershell");
+            cmd.args(["-NoProfile", "-NonInteractive", "-Command",
+                "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^c')"]);
+            super::suppress_console_window(&mut cmd);
+            let _ = cmd.output();
+        }
+
+        thread::sleep(Duration::from_millis(100));
+
+        let selected = {
+            let mut cmd = Command::new("powershell");
+            cmd.args(["-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard"]);
+            super::suppress_console_window(&mut cmd);
+            cmd.output().ok().and_then(|o| {
+                if o.status.success() {
+                    let text = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    if !text.is_empty() && saved.as_deref() != Some(&text) {
+                        Some(text)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }).unwrap_or_default()
+        };
+
+        if let Some(original) = saved {
+            let mut cmd = Command::new("powershell");
+            cmd.args([
+                "-NoProfile", "-NonInteractive", "-Command",
+                &format!(
+                    "$input | Set-Clipboard"),
+            ]);
+            cmd.stdin(std::process::Stdio::piped());
+            super::suppress_console_window(&mut cmd);
+            if let Ok(mut child) = cmd.spawn() {
+                if let Some(stdin) = child.stdin.as_mut() {
+                    use std::io::Write;
+                    let _ = stdin.write_all(original.as_bytes());
+                }
+                let _ = child.wait();
+            }
+        }
+
+        super::truncate_utf8(&selected, 10_000)
+    }
+}
+
+fn truncate_utf8(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s[..end].to_string()
 }
 
 #[cfg(target_os = "windows")]
-pub(super) fn capture_windows() -> (String, String, String, bool) {
-    win::capture_appshot()
+pub(super) fn capture_windows() -> (String, String, String, bool, String) {
+    let (screenshot, title, text, perm) = win::capture_appshot();
+    let selected = win::get_selected_text_via_clipboard();
+    (screenshot, title, text, perm, selected)
 }
 
 #[cfg(target_os = "windows")]
-fn capture_appshot_windows() -> (String, String, String, bool) {
-    win::capture_appshot()
+fn capture_appshot_windows() -> (String, String, String, bool, String) {
+    capture_windows()
 }

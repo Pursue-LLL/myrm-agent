@@ -21,6 +21,7 @@ interface InlineInputPayload {
   screenshot: string;
   windowTitle: string;
   extractedText: string;
+  selectedText?: string;
   sourcePid: number;
   timestamp: number;
 }
@@ -35,6 +36,7 @@ export function useInlineInputListener() {
           screenshot: payload.screenshot,
           windowTitle: payload.windowTitle,
           extractedText: payload.extractedText,
+          selectedText: payload.selectedText || undefined,
           timestamp: payload.timestamp,
         },
         payload.sourcePid,

@@ -48,19 +48,22 @@ pub fn handle_inline_input_shortcut(app: &AppHandle) {
         let timestamp = current_timestamp_ms();
 
         #[cfg(target_os = "macos")]
-        let (screenshot_b64, window_title, extracted_text, _) = super::appshot::capture_macos();
+        let (screenshot_b64, window_title, extracted_text, _, selected_text) =
+            super::appshot::capture_macos();
 
         #[cfg(target_os = "windows")]
-        let (screenshot_b64, window_title, extracted_text, _) = super::appshot::capture_windows();
+        let (screenshot_b64, window_title, extracted_text, _, selected_text) =
+            super::appshot::capture_windows();
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let (screenshot_b64, window_title, extracted_text) =
-            (String::new(), String::new(), String::new());
+        let (screenshot_b64, window_title, extracted_text, selected_text) =
+            (String::new(), String::new(), String::new(), String::new());
 
         let payload = serde_json::json!({
             "screenshot": screenshot_b64,
             "windowTitle": window_title,
             "extractedText": extracted_text,
+            "selectedText": selected_text,
             "sourcePid": pid,
             "timestamp": timestamp,
         });

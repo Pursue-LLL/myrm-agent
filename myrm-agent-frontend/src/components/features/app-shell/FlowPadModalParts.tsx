@@ -15,10 +15,14 @@ export function formatAppshotMessage(captures: FlowPadCapture[]): string {
   for (const cap of captures) {
     const header = cap.windowTitle ? `**${cap.windowTitle}**` : 'Screen Capture';
     parts.push(`\n---\n${header}`);
+    if (cap.selectedText?.trim()) {
+      parts.push(`\n[Selected Context - Priority]\n\`\`\`\n${cap.selectedText.trim()}\n\`\`\``);
+    }
     if (cap.extractedText.trim()) {
+      const maxLen = cap.selectedText?.trim() ? 2000 : MAX_TEXT_PER_CAPTURE;
       const truncated =
-        cap.extractedText.length > MAX_TEXT_PER_CAPTURE
-          ? cap.extractedText.slice(0, MAX_TEXT_PER_CAPTURE) + '\n...(truncated)'
+        cap.extractedText.length > maxLen
+          ? cap.extractedText.slice(0, maxLen) + '\n...(truncated)'
           : cap.extractedText;
       parts.push(`\`\`\`\n${truncated}\n\`\`\``);
     }

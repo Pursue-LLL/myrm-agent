@@ -20,6 +20,7 @@ export interface FlowPadCapture {
   screenshot: string;
   windowTitle: string;
   extractedText: string;
+  selectedText?: string;
   timestamp: number;
 }
 
