@@ -14,15 +14,18 @@
 import { memo, useEffect, useRef } from 'react';
 import type { InputHistoryEntry, InputHistoryPopupState } from '@/hooks/useInputHistory';
 
+const rtf = typeof Intl !== 'undefined' ? new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }) : null;
+
 function formatRelativeTime(timestamp: number): string {
   const diff = Date.now() - timestamp;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return '刚刚';
-  if (minutes < 60) return `${minutes}分钟前`;
+  if (!rtf) return new Date(timestamp).toLocaleString();
+  if (minutes < 1) return rtf.format(0, 'minute');
+  if (minutes < 60) return rtf.format(-minutes, 'minute');
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}小时前`;
+  if (hours < 24) return rtf.format(-hours, 'hour');
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}天前`;
+  if (days < 7) return rtf.format(-days, 'day');
   return new Date(timestamp).toLocaleDateString();
 }
 

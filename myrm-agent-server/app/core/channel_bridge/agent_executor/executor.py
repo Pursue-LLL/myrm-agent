@@ -80,6 +80,7 @@ from app.core.channel_bridge.config_parsers import (
     verify_search_service_available,
 )
 from app.core.channel_bridge.executor_helpers import (
+    ShareableArtifact,
     StreamAccumulator,
     build_chat_history_with_metadata,
     extract_external_agents,
@@ -155,7 +156,9 @@ def _collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator)
         if isinstance(artifact_id, str) and artifact_id:
             atype = str(artifact_type) if artifact_type else None
             if is_shareable_artifact(fname, atype):
-                acc.shareable_artifacts.append((artifact_id, fname, atype or ""))
+                acc.shareable_artifacts.append(
+                    ShareableArtifact(artifact_id, fname, atype or ""),
+                )
 
 
 async def _build_artifact_deep_links(
@@ -251,13 +254,12 @@ async def _fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:
             )
             result = await db.execute(stmt)
             artifacts = result.scalars().all()
-
-        version_map: dict[str, str] = {}
-        for artifact in artifacts:
-            if artifact.versions:
-                latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-                version_map[artifact.id] = latest.id
-        return version_map
+            version_map: dict[str, str] = {}
+            for artifact in artifacts:
+                if artifact.versions:
+                    latest = max(artifact.versions, key=lambda v: v.created_at)
+                    version_map[artifact.id] = latest.id
+            return version_map
     except Exception:
         logger.warning("Failed to fetch artifact versions for deep links", exc_info=True)
         return {}

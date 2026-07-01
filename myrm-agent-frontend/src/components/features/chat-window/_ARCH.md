@@ -23,6 +23,7 @@
 | `LifeStatusCapsule.tsx` | 组件/模块 | — | — |
 | `LinkDetectionDialog.tsx` | 组件/模块 | — | — |
 | `LocalCapabilitiesBanner.tsx` | 组件/模块 | — | — |
+| `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、Intl 相对时间 tooltip、click-outside 关闭） | ✅ |
 | `MessageInput.tsx` | 组件/模块 | — | — |
 | `MessageListSkeleton.tsx` | 组件/模块 | — | — |
 | `MobileActionSheet.tsx` | 组件/模块 | — | — |

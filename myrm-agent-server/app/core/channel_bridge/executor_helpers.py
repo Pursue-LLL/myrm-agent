@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import NamedTuple
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -379,6 +380,14 @@ def step_to_label(step_key: str, event: dict[str, object]) -> str | None:
     return label
 
 
+class ShareableArtifact(NamedTuple):
+    """Metadata for an artifact eligible for public share link injection."""
+
+    artifact_id: str
+    filename: str
+    artifact_type: str
+
+
 @dataclass
 class StreamAccumulator:
     """Lightweight accumulator for channel agent responses."""
@@ -393,7 +402,7 @@ class StreamAccumulator:
     last_image_mime: str = "image/jpeg"
     last_image_tool: str = ""
     file_attachments: list[MediaAttachment] = field(default_factory=list)
-    shareable_artifacts: list[tuple[str, str, str]] = field(default_factory=list)
+    shareable_artifacts: list[ShareableArtifact] = field(default_factory=list)
     cost_usd: float = 0.0
     model_name: str = ""
     total_tokens: int = 0
