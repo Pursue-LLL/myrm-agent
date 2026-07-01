@@ -25,7 +25,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `AccessCard.tsx` | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导 |
+| `AccessCard.tsx` | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情 |
 | `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置 |
 | `ProxySettingsCard.tsx` | 网络代理设置 |
 

@@ -85,4 +85,6 @@
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
+- `@/lib/e2ee/useE2EEStatus` — MobileStatusBoard E2EE 状态
+- `@/components/features/e2ee/E2EESecurityPanel` — MobileStatusBoard E2EE badge
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

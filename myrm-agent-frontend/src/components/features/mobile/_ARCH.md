@@ -17,6 +17,8 @@
 
 - `@/services/remoteAccess` — pairing token / sessions API
 - `@/lib/mobileRemote` — pair header、token 存储与 refresh
+- `@/lib/e2ee/useE2EEStatus` — E2EE 握手状态 Hook
+- `@/components/features/e2ee/E2EESecurityPanel` — E2EE 安全状态 badge
 - `@/services/chat::cancelActiveChatAgent` — Mobile Stop（`POST /agents/chats/{chatId}/cancel`）
 - `@/services/i18nToastService::showI18nToast` — Stop 成功/失败 toast（desktop Multi-Pane + mobile 远程，`stopTaskSuccess` / `stopTaskFailed`）
 - `@/lib/api::fetchWithTimeout` — pair header SSOT
