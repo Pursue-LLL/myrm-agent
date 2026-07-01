@@ -78,6 +78,10 @@ pub struct SystemConfig {
     #[serde(default = "default_voice_ptt_shortcut")]
     pub voice_ptt_shortcut: String,
 
+    /// Inline Input 全局快捷键：在任意应用中唤起轻量 FlowPad，AI 结果可一键粘贴回原应用
+    #[serde(default = "default_inline_input_shortcut")]
+    pub inline_input_shortcut: String,
+
     /// 自定义数据存储目录（为 None 时 Server 使用默认 ~/.myrm）
     #[serde(default)]
     pub custom_data_dir: Option<String>,
@@ -114,6 +118,10 @@ fn default_voice_ptt_shortcut() -> String {
     "CommandOrControl+Shift+V".to_string()
 }
 
+fn default_inline_input_shortcut() -> String {
+    "Option+I".to_string()
+}
+
 impl Default for SystemConfig {
     fn default() -> Self {
         Self {
@@ -131,6 +139,7 @@ impl Default for SystemConfig {
             locked_use_enabled: false,
             appshot_excluded_apps: default_appshot_excluded_apps(),
             voice_ptt_shortcut: default_voice_ptt_shortcut(),
+            inline_input_shortcut: default_inline_input_shortcut(),
             custom_data_dir: None,
         }
     }
@@ -283,6 +292,7 @@ mod tests {
         assert_eq!(config.enable_webui_mode, deserialized.enable_webui_mode);
         assert_eq!(config.global_shortcut, deserialized.global_shortcut);
         assert_eq!(config.voice_ptt_shortcut, deserialized.voice_ptt_shortcut);
+        assert_eq!(config.inline_input_shortcut, deserialized.inline_input_shortcut);
     }
 
     #[test]

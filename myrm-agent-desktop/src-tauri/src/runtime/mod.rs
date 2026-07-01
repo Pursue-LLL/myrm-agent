@@ -15,6 +15,7 @@
 
 mod agent_runner;
 mod appshot;
+mod inline_input;
 mod nextjs_frontend;
 mod port;
 mod python_backend;
@@ -26,6 +27,7 @@ pub use appshot::{
     force_capture, handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start,
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
+pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
 pub use nextjs_frontend::{start_frontend, NextJSFrontend, stop_frontend};
 pub use python_backend::{
     check_backend_health, get_backend_status, start_backend, start_backend_with_config,

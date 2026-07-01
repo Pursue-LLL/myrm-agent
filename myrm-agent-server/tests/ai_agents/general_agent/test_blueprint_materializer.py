@@ -252,3 +252,28 @@ class TestMaterializeJitConfigs:
         result = materialize_jit_configs(raw_configs)
         config = result["test_agent"]
         assert config.max_fork_tokens is None
+
+    def test_auto_vault_threshold_top_level_and_nested_config(self):
+        """JIT ephemeral subagents must pass auto_vault_threshold into SubagentConfig."""
+        top_level = materialize_jit_configs(
+            {
+                "bash_worker": {
+                    "system_prompt": "Run bash.",
+                    "auto_vault_threshold": 500,
+                }
+            }
+        )
+        assert top_level["bash_worker"].auto_vault_threshold == 500
+
+        nested = materialize_jit_configs(
+            {
+                "bash_worker": {
+                    "system_prompt": "Run bash.",
+                    "config": {"auto_vault_threshold": 1200},
+                }
+            }
+        )
+        assert nested["bash_worker"].auto_vault_threshold == 1200
+
+        default = materialize_jit_configs({"bash_worker": {"system_prompt": "Run bash."}})
+        assert default["bash_worker"].auto_vault_threshold == 8000

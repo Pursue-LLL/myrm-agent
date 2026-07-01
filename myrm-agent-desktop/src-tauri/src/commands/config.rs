@@ -100,7 +100,7 @@ pub async fn force_appshot_capture(app: tauri::AppHandle) -> Result<(), String> 
     Ok(())
 }
 
-/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT）。
+/// 动态更新全局快捷键（注销所有旧快捷键后重新注册 toggle + appshot + voice PTT + inline input）。
 /// 注册失败时自动回滚到旧配置，保证原子性。
 #[tauri::command]
 pub fn update_global_shortcut(
@@ -108,6 +108,7 @@ pub fn update_global_shortcut(
     shortcut: String,
     appshot_shortcut: Option<String>,
     voice_ptt_shortcut: Option<String>,
+    inline_input_shortcut: Option<String>,
 ) -> Result<(), String> {
     use tauri::Manager;
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
@@ -118,7 +119,13 @@ pub fn update_global_shortcut(
         eprintln!("Failed to unregister old shortcuts: {}", e);
     }
 
-    let result = register_shortcuts(&app, &shortcut, &appshot_shortcut, &voice_ptt_shortcut);
+    let result = register_shortcuts(
+        &app,
+        &shortcut,
+        &appshot_shortcut,
+        &voice_ptt_shortcut,
+        &inline_input_shortcut,
+    );
 
     if let Err(ref err_msg) = result {
         eprintln!("Shortcut registration failed: {err_msg}, rolling back to old config");
@@ -128,6 +135,7 @@ pub fn update_global_shortcut(
             &old_config.global_shortcut,
             &Some(old_config.appshot_shortcut),
             &Some(old_config.voice_ptt_shortcut),
+            &Some(old_config.inline_input_shortcut),
         );
     }
 
@@ -233,6 +241,7 @@ fn register_shortcuts(
     shortcut: &str,
     appshot_shortcut: &Option<String>,
     voice_ptt_shortcut: &Option<String>,
+    inline_input_shortcut: &Option<String>,
 ) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
     use std::str::FromStr;
@@ -273,6 +282,21 @@ fn register_shortcuts(
                 }
             } else {
                 return Err(format!("Invalid voice PTT shortcut format: {}", voice_ptt));
+            }
+        }
+    }
+
+    if let Some(ref inline_input) = inline_input_shortcut {
+        if !inline_input.is_empty() {
+            if let Ok(s) = tauri_plugin_global_shortcut::Shortcut::from_str(inline_input) {
+                if let Err(e) = app.global_shortcut().register(s) {
+                    return Err(format!("Failed to register inline input shortcut: {}", e));
+                }
+                if let Ok(mut guard) = crate::runtime::INLINE_INPUT_SHORTCUT_STR.lock() {
+                    *guard = format!("{s}");
+                }
+            } else {
+                return Err(format!("Invalid inline input shortcut format: {}", inline_input));
             }
         }
     }

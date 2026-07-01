@@ -244,6 +244,11 @@ fn get_frontmost_app_name() -> String {
 }
 
 #[cfg(target_os = "macos")]
+pub(super) fn capture_macos() -> (String, String, String, bool) {
+    capture_appshot_macos()
+}
+
+#[cfg(target_os = "macos")]
 fn capture_appshot_macos() -> (String, String, String, bool) {
     use base64::Engine;
     use std::io::Read;
@@ -569,6 +574,16 @@ foreach ($el in $elements) {
 
         (screenshot_b64, window_title, extracted_text, false)
     }
+}
+
+#[cfg(target_os = "windows")]
+pub(super) fn capture_windows() -> (String, String, String, bool) {
+    win::capture_appshot()
+}
+
+#[cfg(target_os = "windows")]
+pub(super) fn win_get_foreground_app_name() -> String {
+    win::get_foreground_app_name()
 }
 
 #[cfg(target_os = "windows")]

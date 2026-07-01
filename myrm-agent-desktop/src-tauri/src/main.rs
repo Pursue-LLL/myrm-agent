@@ -52,10 +52,12 @@ use config::{BackendConfig, ConfigManager, FrontendConfig};
 pub use runtime::{
     check_backend_health, get_backend_status, get_setup_token, start_backend,
     start_backend_with_config, stop_backend, stop_frontend, APPSHOT_SHORTCUT_STR,
-    NextJSFrontend, PythonBackend, SetupTokenState, VOICE_PTT_SHORTCUT_STR,
+    INLINE_INPUT_SHORTCUT_STR, NextJSFrontend, PythonBackend, SetupTokenState,
+    VOICE_PTT_SHORTCUT_STR,
 };
 pub use runtime::{
-    handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start, handle_voice_ptt_stop,
+    handle_appshot_shortcut, handle_inline_input_shortcut, handle_toggle_window,
+    handle_voice_ptt_start, handle_voice_ptt_stop,
 };
 
 /// WebKitGTK + NVIDIA GPU + Wayland = blank window / Error 71 crash.
@@ -93,6 +95,12 @@ fn apply_linux_gpu_workarounds() {
 #[tauri::command]
 async fn fix_quarantine_with_auth() -> Result<bool, String> {
     utils::auth::fix_quarantine_with_auth()
+}
+
+/// Inline Input: 将 AI 生成内容粘贴回触发时的原应用
+#[tauri::command]
+async fn inline_paste_back(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    runtime::paste_back(&app, content)
 }
 
 fn main() {
@@ -138,8 +146,14 @@ fn main() {
                         .lock()
                         .map_or(false, |saved| *saved == shortcut_str);
 
+                    let is_inline_input = INLINE_INPUT_SHORTCUT_STR
+                        .lock()
+                        .map_or(false, |saved| !saved.is_empty() && *saved == shortcut_str);
+
                     if is_appshot {
                         handle_appshot_shortcut(app);
+                    } else if is_inline_input {
+                        handle_inline_input_shortcut(app);
                     } else {
                         handle_toggle_window(app);
                     }
@@ -244,6 +258,30 @@ fn main() {
                     println!(
                         "⚠️ Invalid voice PTT shortcut format: {}",
                         system_config.voice_ptt_shortcut
+                    );
+                }
+            }
+
+            if !system_config.inline_input_shortcut.is_empty() {
+                use std::str::FromStr;
+                if let Ok(shortcut) =
+                    tauri_plugin_global_shortcut::Shortcut::from_str(&system_config.inline_input_shortcut)
+                {
+                    if let Ok(mut guard) = INLINE_INPUT_SHORTCUT_STR.lock() {
+                        *guard = format!("{shortcut}");
+                    }
+                    if let Err(e) = app.global_shortcut().register(shortcut) {
+                        println!("⚠️ Failed to register inline input shortcut: {}", e);
+                    } else {
+                        println!(
+                            "✏️  Inline input shortcut registered: {}",
+                            system_config.inline_input_shortcut
+                        );
+                    }
+                } else {
+                    println!(
+                        "⚠️ Invalid inline input shortcut format: {}",
+                        system_config.inline_input_shortcut
                     );
                 }
             }
@@ -441,6 +479,7 @@ fn main() {
             open_session_window,
             close_session_window,
             force_appshot_capture,
+            inline_paste_back,
             commands::config::migrate_data_dir,
             tray::set_tray_status
         ])
