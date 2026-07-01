@@ -46,6 +46,8 @@ import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import useChatStore from '@/store/useChatStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import { QuoteCard } from './QuoteCard';
+import { useInputHistory, addInputHistory } from '@/hooks/useInputHistory';
+import InputHistoryPopup from './InputHistoryPopup';
 
 const KEYTERM_PATTERN =
   /(?:[A-Z][a-z]+(?:[A-Z][a-z]+)+|[A-Z]{2,}[a-z]*|[a-zA-Z][\w.-]{2,}(?:\.[\w]+)+|[\u4e00-\u9fff]{2,4}(?:[\u4e00-\u9fff]+)?)/g;
@@ -138,6 +140,11 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     editMessage,
     removeMessage,
   } = useMessageInput();
+
+  const inputHistory = useInputHistory({
+    agentId: agentConfig?.id,
+    getInputValue: () => inputMessage,
+  });
 
   const [editingQueueId, setEditingQueueId] = React.useState<string | null>(null);
   const [editingQueueText, setEditingQueueText] = React.useState('');
@@ -251,6 +258,15 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               return;
             }
             if (showReferenceMention && handleReferenceMentionKeyDown(e)) {
+              return;
+            }
+
+            // 输入历史弹窗键盘处理
+            if (inputHistory.handleKeyDown(e)) {
+              if (inputHistory.popup.open && (e.key === 'Tab' || e.key === 'Enter')) {
+                const text = inputHistory.confirm();
+                if (text) setInputMessage(text);
+              }
               return;
             }
 
@@ -414,6 +430,16 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
           <ActiveWorkingMemoryPanel />
 
           <div className="flex flex-col bg-secondary px-3 sm:px-5 pt-5 pb-2 rounded-lg w-full border border-border relative">
+            {/* 输入历史弹窗 */}
+            <InputHistoryPopup
+              popup={inputHistory.popup}
+              onSelect={(index) => {
+                const text = inputHistory.confirm(index);
+                if (text) setInputMessage(text);
+              }}
+              onHover={inputHistory.setActiveIndex}
+              onClose={inputHistory.close}
+            />
             <QuoteCard />
             <TextareaAutosize
               ref={inputRef}
@@ -422,6 +448,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               onChange={(e) => {
                 handleInputChange(e);
                 updateCursorPosition();
+                if (inputHistory.popup.open) inputHistory.close();
               }}
               onPaste={handlePaste}
               onKeyUp={updateCursorPosition}
@@ -429,11 +456,13 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               minRows={2}
               className="bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full max-h-24 lg:max-h-36 xl:max-h-48"
               placeholder={
-                isUploadingPaste
-                  ? chatT('input.uploadingImage')
-                  : loading
-                    ? chatT('queue.placeholder')
-                    : chatT('input.placeholder')
+                inputHistory.ghostText
+                  ? inputHistory.ghostText
+                  : isUploadingPaste
+                    ? chatT('input.uploadingImage')
+                    : loading
+                      ? chatT('queue.placeholder')
+                      : chatT('input.placeholder')
               }
               readOnly={isUploadingPaste}
             />

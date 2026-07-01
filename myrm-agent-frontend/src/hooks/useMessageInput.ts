@@ -27,6 +27,7 @@ import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilienc
 import { useMessageQueue } from '@/hooks/useMessageQueue';
 import { useInputFileUpload } from '@/hooks/useInputFileUpload';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
+import { addInputHistory } from '@/hooks/useInputHistory';
 
 export const useMessageInput = () => {
   const t = useTranslations('chat');
@@ -312,6 +313,7 @@ export const useMessageInput = () => {
     }
 
     clearDraft();
+    addInputHistory(inputMessage, useChatStore.getState().agentConfig?.id);
     setHideAttachList(true);
 
     const finalMessage = _injectDirtyArtifacts(inputMessage);
