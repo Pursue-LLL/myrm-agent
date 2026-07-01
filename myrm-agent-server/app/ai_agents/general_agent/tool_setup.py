@@ -649,9 +649,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             from app.services.config.service import config_service
 
             record = await config_service.get("captchaSolverConfig")
-            if record and isinstance(record.config_value, dict):
-                if record.config_value.get("enabled") and record.config_value.get("api_key"):
-                    return str(record.config_value["api_key"])
+            if record and isinstance(record.value, dict):
+                if record.value.get("enabled") and record.value.get("api_key"):
+                    return str(record.value["api_key"])
         except Exception:
             pass
         return None
