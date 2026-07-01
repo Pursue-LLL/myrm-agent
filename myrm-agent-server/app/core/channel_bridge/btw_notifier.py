@@ -1,6 +1,6 @@
 """BtwTaskNotifier — pushes /btw task results back to the originating channel.
 
-Subscribes to the global EventBus and filters for BACKGROUND_TASK_DONE events
+Subscribes to the global ServerEventBus and filters for BACKGROUND_TASK_DONE events
 (published by ``_emit_btw_done`` in the Kanban service). For each event it
 sends a localised summary to the channel/chat_id/thread_id stored in the
 task metadata, using the existing ``send_with_retry`` infrastructure.
@@ -10,14 +10,14 @@ user-configured notification targets); this notifier specifically addresses
 the "reply in the original conversation" use case.
 
 [INPUT]
-- services.event.app_event_bus::EventBus, AppEvent, AppEventType
+- services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
 - core.channel_bridge::channel_gateway
 
 [OUTPUT]
 - BtwTaskNotifier: start()/stop() lifecycle, registered in setup.py
 
 [POS]
-Business-layer EventBus subscriber. Does NOT modify the Kanban pipeline,
+Business-layer ServerEventBus subscriber. Does NOT modify the Kanban pipeline,
 dispatcher callbacks, or NotificationDispatcher.
 """
 

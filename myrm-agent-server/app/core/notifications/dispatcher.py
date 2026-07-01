@@ -1,12 +1,12 @@
-"""IM Notification Dispatcher — listens to EventBus and pushes to IM channels.
+"""IM Notification Dispatcher — listens to ServerEventBus and pushes to IM channels.
 
-Subscribes to the global EventBus as an independent consumer (parallel to SSE).
+Subscribes to the global ServerEventBus as an independent consumer (parallel to SSE).
 When a relevant event fires, loads the user's notification delivery config from
 personalSettings, formats a human-readable message, and publishes it via
 ChannelGateway.
 
 [INPUT]
-- api.events.event_bus::EventBus, AppEvent, AppEventType
+- app.services.event.app_event_bus::ServerEventBus, AppEvent, AppEventType
 - core.channel_bridge::channel_gateway (ChannelGateway singleton)
 - database.connection::get_session / database.models::UserConfigModel
 
@@ -15,7 +15,7 @@ ChannelGateway.
 
 [POS]
 Decoupled notification layer. Does NOT modify pairing_store, SSE endpoint,
-or EventBus — only adds a new subscriber alongside the existing SSE consumer.
+or ServerEventBus — only adds a new subscriber alongside the existing SSE consumer.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import logging
 from dataclasses import dataclass
 
 from app.channels.types import OutboundMessage
-from app.services.event.app_event_bus import AppEvent, AppEventType, EventBus
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +65,14 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
 
 
 class NotificationDispatcher:
-    """Subscribes to EventBus and pushes notifications to a configured IM channel.
+    """Subscribes to ServerEventBus and pushes notifications to a configured IM channel.
 
     Lifecycle:
-      start()  — subscribe to EventBus, spawn dispatch task
+      start()  — subscribe to ServerEventBus, spawn dispatch task
       stop()   — unsubscribe, cancel task
     """
 
-    def __init__(self, event_bus: EventBus) -> None:
+    def __init__(self, event_bus: ServerEventBus) -> None:
         self._bus = event_bus
         self._queue: asyncio.Queue[AppEvent] | None = None
         self._task: asyncio.Task[None] | None = None
@@ -87,7 +87,7 @@ class NotificationDispatcher:
             try:
                 self._bus.unsubscribe(self._queue)
             except Exception as e:
-                logger.warning("Failed to unsubscribe from EventBus: %s", e)
+                logger.warning("Failed to unsubscribe from ServerEventBus: %s", e)
             self._queue = None
         if self._task:
             self._task.cancel()

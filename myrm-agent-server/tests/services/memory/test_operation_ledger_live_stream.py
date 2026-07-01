@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 from unittest.mock import patch
 
 from app.database.models.memory import MemoryOperationEventModel
-from app.services.event.app_event_bus import AppEventType, EventBus
+from app.services.event.app_event_bus import AppEventType, ServerEventBus
 from app.services.memory.operation_ledger import _publish_memory_operation_event
 
 
 def test_publish_memory_operation_event_emits_timeline_payload() -> None:
-    bus = EventBus()
+    bus = ServerEventBus()
     queue = bus.subscribe()
     row = MemoryOperationEventModel(
         id="evt-1",

@@ -11,14 +11,14 @@ from app.services.budget.enforcer import (
     _BudgetGuardWrapper,
     _emit_budget_sse,
 )
-from app.services.event.app_event_bus import AppEventType, EventBus
+from app.services.event.app_event_bus import AppEventType, ServerEventBus
 
 
 class TestEmitBudgetSse:
     """Verify _emit_budget_sse publishes correct AppEvent to EventBus."""
 
     def test_emits_warning_event(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
 
         with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
@@ -35,7 +35,7 @@ class TestEmitBudgetSse:
         assert event.data["eco_mode"] is True
 
     def test_emits_exceeded_event(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
 
         with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
@@ -50,7 +50,7 @@ class TestEmitBudgetSse:
         assert event.data["eco_mode"] is True
 
     def test_ok_status_eco_mode_false(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
 
         with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
@@ -60,7 +60,7 @@ class TestEmitBudgetSse:
         assert event.data["eco_mode"] is False
 
     def test_handles_zero_budget_gracefully(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
 
         with patch("app.services.event.app_event_bus.get_event_bus", return_value=bus):
@@ -110,7 +110,7 @@ class TestBudgetGuardWrapper:
         assert wrapper.guard.daily_cost == 0.0
 
     def test_wrapper_emits_sse_on_warning(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
         policy = BudgetPolicy(
             enabled=True,
@@ -129,7 +129,7 @@ class TestBudgetGuardWrapper:
         assert event.data["eco_mode"] is True
 
     def test_wrapper_emits_sse_on_exceeded(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         q = bus.subscribe()
         policy = BudgetPolicy(enabled=True, daily_limit_usd=10.0, session_limit_usd=None)
 

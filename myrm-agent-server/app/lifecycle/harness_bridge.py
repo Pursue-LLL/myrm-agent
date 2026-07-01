@@ -2,7 +2,7 @@
 [INPUT] myrm_agent_harness.runtime.events::EventBus (POS: 框架层内部事件总线)
 [INPUT] myrm_agent_harness.runtime.events.skill_events::SkillFailureEvent (POS: Framework-level skill failure event DTOs. They carry runtime evidence for business layers without importing product, GUI, approval, or tenant concepts.)
 [INPUT] myrm_agent_harness.toolkits.mcp.lifecycle::mcp_lifecycle (POS: MCP lifecycle management for connection pool startup/shutdown)
-[INPUT] app.services.event.app_event_bus::EventBus (POS: 业务层 SSE 应用级事件总线)
+[INPUT] app.services.event.app_event_bus::ServerEventBus (POS: 业务层 SSE 应用级事件总线)
 [INPUT] app.services.agent.gateway::AgentGateway (POS: 获取会话信息和智能体实例)
 [INPUT] app.services.agent.evolution.skill_immune_service::handle_skill_failure_event (POS: 技能免疫业务服务。负责运行时技能失败的业务分类、幂等去重、修复提案生成与审批落地，不向 Harness 或 Control Plane 泄露产品语义。)
 [OUTPUT] setup_harness_bridge: 启动事件桥接订阅
@@ -201,7 +201,7 @@ async def _handle_locator_healed_event(event: LocatorSelfHealedEvent) -> None:
 
 
 def setup_harness_bridge() -> None:
-    """Setup subscriptions from Harness EventBus to Server EventBus."""
+    """Setup subscriptions from Harness EventBus to Server ServerEventBus."""
     bus = get_harness_bus()
     bus.start()
     bus.subscribe(SubagentLifecycleEvent, _handle_subagent_event)

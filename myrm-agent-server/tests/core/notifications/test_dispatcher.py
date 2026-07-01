@@ -12,7 +12,7 @@ from app.core.notifications.dispatcher import (
     NotificationTarget,
     _format_message,
 )
-from app.services.event.app_event_bus import AppEvent, AppEventType, EventBus
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
 class TestFormatMessage:
@@ -425,7 +425,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_start_stop_lifecycle(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         await dispatcher.start()
@@ -440,7 +440,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_sends_to_targets(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         mock_targets = [NotificationTarget(channel="telegram", target="123")]
@@ -482,7 +482,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_skips_no_targets(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         with (
@@ -519,7 +519,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_skips_unregistered_event(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         mock_targets = [NotificationTarget(channel="telegram", target="123")]
@@ -551,7 +551,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_handles_exception_gracefully(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         with (
@@ -588,7 +588,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_stop_handles_unsubscribe_error(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
         await dispatcher.start()
 
@@ -600,7 +600,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_kanban_terminal_event_to_targets(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         mock_targets = [NotificationTarget(channel="telegram", target="123")]
@@ -634,7 +634,7 @@ class TestNotificationDispatcher:
 
     @pytest.mark.asyncio
     async def test_dispatch_kanban_lifecycle_event_skipped(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         mock_targets = [NotificationTarget(channel="telegram", target="123")]
@@ -773,7 +773,7 @@ class TestMultiTargetDispatch:
 
     @pytest.mark.asyncio
     async def test_dispatch_sends_to_multiple_targets(self) -> None:
-        bus = EventBus()
+        bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)
 
         targets = [

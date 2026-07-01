@@ -30,4 +30,4 @@ Agent 事件系统：Turn 生命周期持久化 + 全局 SSE AppEvent 总线（K
 - `app/api/events/`：事件 API 路由
 - `app/server/warmup.py`：启动时 stale turn recovery（PENDING/RUNNING → INTERRUPTED）
 - `app/core/channel_bridge/btw_notifier.py`：订阅 `BACKGROUND_TASK_DONE` 事件回推结果到原始渠道
-- `app/core/notifications/dispatcher.py`：订阅多类 EventBus 事件推送到用户配置的通知渠道
+- `app/core/notifications/dispatcher.py`：订阅多类 ServerEventBus 事件推送到用户配置的通知渠道

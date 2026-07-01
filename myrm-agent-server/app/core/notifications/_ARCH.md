@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Event-driven IM notification dispatch. Subscribes to the global `EventBus`
+Event-driven IM notification dispatch. Subscribes to the global `ServerEventBus`
 and pushes human-readable notifications to user-configured IM channels
 (multi-channel) via `ChannelGateway.publish()`.
 
@@ -16,7 +16,7 @@ and pushes human-readable notifications to user-configured IM channels
 ```
  pairing_store / approvals / health / budget / skills / channels / ...
        ↓ publish(AppEvent)
-    EventBus (fan-out)
+    ServerEventBus (fan-out)
      ↓               ↓
   SSE (Web)    NotificationDispatcher (IM)
                       ↓ _format_message()
@@ -49,7 +49,7 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 
 | File | Role | Description |
 |------|------|-------------|
-| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to EventBus, formats messages, sends to all configured targets via Gateway |
+| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats messages, sends to all configured targets via Gateway |
 
 ## Configuration
 

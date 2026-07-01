@@ -9,7 +9,7 @@ singleton, and provides the guard to agent factory for injection.
 - myrm_agent_harness.utils.token_economics::BudgetDimension (POS: Budget dimension config)
 - app.database.models.chat::Message (POS: 消息域模型)
 - app.database.models.config::UserConfig (POS: 用户配置域模型)
-- app.services.event.app_event_bus::EventBus (POS: In-process SSE event bus)
+- app.services.event.app_event_bus::ServerEventBus (POS: In-process SSE event bus)
 
 [OUTPUT]
 - BudgetPolicy: Pydantic model for budget policy configuration

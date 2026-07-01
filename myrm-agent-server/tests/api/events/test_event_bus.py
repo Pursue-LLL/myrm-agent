@@ -1,13 +1,13 @@
-"""Tests for EventBus dedup and deque optimizations."""
+"""Tests for ServerEventBus dedup and deque optimizations."""
 
 import pytest
 
-from app.services.event.app_event_bus import AppEvent, AppEventType, EventBus
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 
 @pytest.fixture
 def bus():
-    return EventBus(max_backlog=5)
+    return ServerEventBus(max_backlog=5)
 
 
 def _make_event(event_type: AppEventType = AppEventType.STATUS, data: dict | None = None) -> AppEvent:
