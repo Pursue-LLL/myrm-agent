@@ -61,9 +61,6 @@ myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context_middleware
 myrm_agent_harness.agent.middlewares.task_adaptive_middleware
-myrm_agent_harness.agent.observability.catchup
-myrm_agent_harness.agent.observability.event_bus
-myrm_agent_harness.agent.observability.types
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
 myrm_agent_harness.agent.security
@@ -121,6 +118,9 @@ myrm_agent_harness.agent.skills.packaging.validator
 myrm_agent_harness.agent.skills.runtime.loader
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
+myrm_agent_harness.agent.streaming.broadcast.catchup
+myrm_agent_harness.agent.streaming.broadcast.event_bus
+myrm_agent_harness.agent.streaming.broadcast.types
 myrm_agent_harness.agent.streaming.stream_buffer
 myrm_agent_harness.agent.streaming.types
 myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
@@ -179,10 +179,10 @@ myrm_agent_harness.eval.builder
 myrm_agent_harness.eval.protocols
 myrm_agent_harness.infra.delivery.dead_letter
 myrm_agent_harness.infra.delivery.storage
-myrm_agent_harness.infra.events.event_bus
 myrm_agent_harness.infra.health
 myrm_agent_harness.infra.health.health_checker
 myrm_agent_harness.infra.incremental.types
+myrm_agent_harness.infra.pubsub.event_bus
 myrm_agent_harness.infra.security
 myrm_agent_harness.infra.sqlite_backup
 myrm_agent_harness.infra.tls_compat
