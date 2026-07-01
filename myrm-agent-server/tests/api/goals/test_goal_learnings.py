@@ -36,13 +36,13 @@ class TestBuildGoalTerminalCallback:
         llm = MagicMock()
 
         with (
-            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
+            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
             ) as mock_extract,
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 new_callable=AsyncMock,
             ) as mock_persist,
         ):
@@ -100,7 +100,7 @@ class TestBuildGoalTerminalCallback:
         llm = MagicMock()
 
         with (
-            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
+            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
@@ -178,13 +178,13 @@ class TestGoalTerminalEventPublishing:
                 "app.services.event.app_event_bus.get_event_bus",
                 side_effect=RuntimeError("EventBus unavailable"),
             ),
-            patch("myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func") as mock_create_llm,
+            patch("myrm_agent_harness.api.hooks.create_extraction_llm_func") as mock_create_llm,
             patch(
                 "myrm_agent_harness.toolkits.memory.strategies.extractor.extract_goal_learnings",
                 new_callable=AsyncMock,
             ) as mock_extract,
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 new_callable=AsyncMock,
             ) as mock_persist,
         ):

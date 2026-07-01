@@ -259,7 +259,7 @@ async def test_sync_updates_unmodified_skill_silently(
 
     md_path = get_skill_file_path(SkillType.PREBUILT, skill_id, SKILL_MD_FILE)
     old_content = await storage.read_text(md_path)
-    from myrm_agent_harness.backends.skills._runtime import compute_content_hash
+    from myrm_agent_harness.api.skills import compute_content_hash
 
     old_meta["origin_hash"] = compute_content_hash(old_content)
     fake_origin = "sha256:0000000000000000000000000000000000000000000000000000000000000000"

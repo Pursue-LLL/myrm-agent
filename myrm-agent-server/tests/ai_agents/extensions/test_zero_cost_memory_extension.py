@@ -111,11 +111,11 @@ class TestEvictionCallbackUsesOriginalContent:
                 return_value=mock_extractor_instance,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 new_callable=AsyncMock,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                "myrm_agent_harness.api.hooks.create_extraction_llm_func",
                 return_value=AsyncMock(),
             ),
         ):
@@ -166,11 +166,11 @@ class TestEvictionCallbackPublishesSSE:
                 return_value=mock_extractor_instance,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 new_callable=AsyncMock,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                "myrm_agent_harness.api.hooks.create_extraction_llm_func",
                 return_value=AsyncMock(),
             ),
             patch(
@@ -219,11 +219,11 @@ class TestEvictionCallbackPublishesSSE:
                 return_value=mock_extractor_instance,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 new_callable=AsyncMock,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                "myrm_agent_harness.api.hooks.create_extraction_llm_func",
                 return_value=AsyncMock(),
             ),
             patch(
@@ -269,11 +269,11 @@ class TestEvictionCallbackPublishesSSE:
                 return_value=mock_extractor_instance,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.persist_extracted_memories",
+                "myrm_agent_harness.api.hooks.persist_extracted_memories",
                 mock_persist,
             ),
             patch(
-                "myrm_agent_harness.agent._internals.memory_extraction.create_extraction_llm_func",
+                "myrm_agent_harness.api.hooks.create_extraction_llm_func",
                 return_value=AsyncMock(),
             ),
             patch(

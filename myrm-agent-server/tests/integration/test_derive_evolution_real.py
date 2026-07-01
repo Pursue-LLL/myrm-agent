@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.agent._skill_agent_context import set_task_intent
+from myrm_agent_harness.api.hooks import set_task_intent
 from myrm_agent_harness.agent.config.parsers import to_litellm_model
 from myrm_agent_harness.agent.skills.evolution import (
     EvolutionIntegration,

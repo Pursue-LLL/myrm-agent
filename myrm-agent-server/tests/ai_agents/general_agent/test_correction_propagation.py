@@ -23,7 +23,7 @@ load_dotenv(override=False)
 @pytest.fixture()
 def lite_llm_func():
     """Build a real LLM function using LITE_MODEL for integration tests."""
-    from myrm_agent_harness.agent._internals.memory_extraction import (
+    from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
 

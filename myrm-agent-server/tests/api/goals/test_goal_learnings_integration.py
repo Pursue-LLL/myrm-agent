@@ -74,7 +74,7 @@ class TestGoalLearningsIntegrationReal:
 
     async def test_extract_goal_learnings_real_llm(self):
         """Full pipeline: real LLM extracts actionable learnings from goal trace."""
-        from myrm_agent_harness.agent._internals.memory_extraction import (
+        from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
         )
         from myrm_agent_harness.toolkits.memory.strategies.extractor import (
@@ -127,7 +127,7 @@ class TestGoalLearningsIntegrationReal:
 
     async def test_extract_learnings_quality_filtering(self):
         """Verify that low-quality conversations yield fewer/no learnings."""
-        from myrm_agent_harness.agent._internals.memory_extraction import (
+        from myrm_agent_harness.api.hooks import (
             create_extraction_llm_func,
         )
         from myrm_agent_harness.toolkits.memory.strategies.extractor import (

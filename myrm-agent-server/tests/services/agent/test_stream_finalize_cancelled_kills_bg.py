@@ -35,7 +35,7 @@ async def test_cancelled_error_kills_session_background_jobs() -> None:
     fake_registry.kill_session_jobs = AsyncMock(return_value=3)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background_registry.get_background_registry",
+        "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
         chunks = [chunk async for chunk in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError())]
@@ -52,7 +52,7 @@ async def test_cancelled_error_skips_kill_when_no_chat_id() -> None:
     fake_registry.kill_session_jobs = AsyncMock()
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background_registry.get_background_registry",
+        "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
         async for _ in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError()):
@@ -69,7 +69,7 @@ async def test_cancelled_error_swallows_kill_failure() -> None:
     fake_registry.kill_session_jobs = AsyncMock(side_effect=RuntimeError("registry down"))
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background_registry.get_background_registry",
+        "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
         async for _ in stream_finalize.yield_stream_exception_chunks(session, asyncio.CancelledError()):  # must NOT raise

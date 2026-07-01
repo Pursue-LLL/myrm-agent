@@ -81,7 +81,7 @@ async def test_evolution_triggered_when_tools_used() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "myrm_agent_harness.agent._skill_agent_context.get_memory_manager",
+            "myrm_agent_harness.api.hooks.get_memory_manager",
             return_value=None,
         ),
         patch(
@@ -131,7 +131,7 @@ async def test_evolution_passes_dw_content_when_workflow() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "myrm_agent_harness.agent._skill_agent_context.get_memory_manager",
+            "myrm_agent_harness.api.hooks.get_memory_manager",
             return_value=None,
         ),
         patch(
@@ -252,7 +252,7 @@ async def test_evolution_trigger_exception_swallowed() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "myrm_agent_harness.agent._skill_agent_context.get_memory_manager",
+            "myrm_agent_harness.api.hooks.get_memory_manager",
             return_value=None,
         ),
         patch(
@@ -298,7 +298,7 @@ async def test_evolution_not_triggered_when_cancelled() -> None:
             new_callable=AsyncMock,
         ),
         patch(
-            "myrm_agent_harness.agent._skill_agent_context.get_memory_manager",
+            "myrm_agent_harness.api.hooks.get_memory_manager",
             return_value=None,
         ),
         patch(
