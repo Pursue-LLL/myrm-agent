@@ -36,7 +36,8 @@
 | `BrowserPoolCard.tsx` | 本地浏览器池管理 |
 | `CloudBrowserCard.tsx` | 云端浏览器配置 |
 | `BrowserProxyCard.tsx` | 浏览器代理配置 |
-| `LockedUseCard.tsx` | 锁定使用模式 |
+| `LockedUseCard.tsx` | 锁定使用模式（Computer Use 锁屏管理） |
+| `DesktopPermissionsCard.tsx` | 桌面自动化就绪检测（调用 /webui/desktop/permissions 展示 OS 权限/依赖状态） |
 
 ### 安全策略
 

@@ -19,6 +19,7 @@ import BrowserProxyCard from './BrowserProxyCard';
 import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
 import LockedUseCard from './LockedUseCard';
+import DesktopPermissionsCard from './DesktopPermissionsCard';
 import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
 import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-auth';
@@ -659,6 +660,9 @@ const SystemSection = memo(() => {
 
       {/* Locked Use (Computer Use + Screen Lock) */}
       <LockedUseCard enabled={config.lockedUseEnabled} onToggle={(v) => handleChange('lockedUseEnabled', v)} />
+
+      {/* Desktop Permissions Diagnostic */}
+      <DesktopPermissionsCard />
 
       {/* Browser Pool */}
       <BrowserPoolCard />

@@ -143,6 +143,20 @@
       "toastDeleted": "Password deleted from Keychain",
       "toastDeleteFailed": "Failed to delete: {error}"
     },
+    "desktopPermissions": {
+      "title": "Desktop Automation Readiness",
+      "allReady": "All capabilities ready",
+      "actionRequired": "Setup required for desktop automation",
+      "checking": "Checking environment...",
+      "platform": "Platform: {name}",
+      "accessibility": "Input Control",
+      "accessibilityDesc": "Keyboard & mouse automation tools available",
+      "screenRecording": "Screen Capture",
+      "screenRecordingDesc": "Screenshot and screen recording tools available",
+      "fixHints": "How to fix",
+      "checkFailed": "Unable to check desktop permissions",
+      "copiedToClipboard": "Command copied to clipboard"
+    },
     "rate_limits": {
       "title": "Rate Limit Monitor",
       "no_data": "No rate limit data available yet. Make a request to start tracking.",
