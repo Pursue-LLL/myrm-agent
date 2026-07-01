@@ -52,7 +52,7 @@ def build_goal_terminal_callback(
             summary.total_cost_usd,
         )
 
-        # Publish goal terminal notification to EventBus
+        # Publish goal terminal notification to ServerEventBus
         try:
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 

@@ -85,7 +85,7 @@ def test_subagent_large_output_surfaces_vault_pointer(client: TestClient) -> Non
         "query": query,
         "chatId": chat_id,
         "messageId": message_id,
-        "jitSubagents": {
+        "ephemeralSubagents": {
             "test_bash": {
                 "system_prompt": "You are a bash worker. Run the requested command and return stdout.",
                 "tools": ["bash_code_execute_tool"],

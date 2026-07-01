@@ -119,7 +119,7 @@ class SqlPairingStore:
 
     @staticmethod
     def _emit_pending_event(channel: str, sender_id: str, display_name: str | None = None) -> None:
-        """Best-effort publish to EventBus when a new pending pairing is created."""
+        """Best-effort publish to ServerEventBus when a new pending pairing is created."""
         try:
             from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 

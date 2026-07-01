@@ -238,7 +238,7 @@ async def pause_orphaned_active_goals() -> None:
 
 
 async def start_idle_task_listeners() -> None:
-    """Forward IdleTaskProgressEvent from Harness to Server EventBus."""
+    """Forward IdleTaskProgressEvent from Harness to ServerEventBus."""
     try:
         from myrm_agent_harness.runtime.events.bus import get_event_bus as get_harness_bus
         from myrm_agent_harness.runtime.events.idle_events import IdleTaskProgressEvent

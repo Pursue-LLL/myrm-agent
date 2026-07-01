@@ -2,7 +2,7 @@
 
 Wraps the framework-layer BaseSkillDiscoveryService to add:
 - Integration with app.config.settings (e.g., GitHub token)
-- SSE EventBus progress emission
+- SSE ServerEventBus progress emission
 - Auto-enabling of skills in user_config
 - Integration with installed versions
 """

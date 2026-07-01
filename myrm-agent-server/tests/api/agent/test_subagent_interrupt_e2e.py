@@ -15,7 +15,7 @@ def get_test_request(query: str, chat_id: str, message_id: str, resume_value=Non
         "messageId": message_id,
         "modelSelection": get_model_selection(),
         "actionMode": "general",
-        "jitSubagents": {"test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}},
+        "ephemeralSubagents": {"test_bash": {"system_prompt": "You are a bash execution worker.", "tools": ["bash_code_execute_tool"]}},
     }
     if resume_value is not None:
         req["resumeValue"] = {"decisions": resume_value}

@@ -16,7 +16,7 @@
 - **Playwright 单例**：`_ensure_playwright()` 跨连接复用实例，`disconnect()` 时释放。
 - **域名授权**：`_match_domain()` 支持 `*.example.com`；`connect_to_domain()` 与 `list_tabs()` 均经此过滤。
 - **认证**：WS 端点校验 `settings.extension_auth_token`（SecretStr）。
-- **SSE 状态广播**：连接/断开时通过 `AppEventBus` 发布 `EXTENSION_STATUS_CHANGED` 事件，前端 NavBar 实时显示连接状态。
+- **SSE 状态广播**：连接/断开时通过 `ServerEventBus` 发布 `EXTENSION_STATUS_CHANGED` 事件，前端 NavBar 实时显示连接状态。
 - **后台窗口隔离**：`_request_cdp_target(background=True)` 默认指示 Extension 在非聚焦后台窗口中执行自动化，避免抢占用户焦点。
 
 ## 依赖
