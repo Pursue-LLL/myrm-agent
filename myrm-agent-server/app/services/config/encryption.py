@@ -49,6 +49,9 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "googlechatCredentials",
         "smsCredentials",
         "vercelDeployCredentials",
+        "browserCloudProvider",
+        "browserProxy",
+        "captchaSolverConfig",
     }
 )
 

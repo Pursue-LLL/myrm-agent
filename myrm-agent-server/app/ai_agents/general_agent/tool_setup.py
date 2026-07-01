@@ -34,6 +34,7 @@ from .external_agents import ExternalAgentsMixin
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.browser.captcha.protocols import CaptchaSolver
     from myrm_agent_harness.toolkits.llms.image.models import MediaCallback, MediaMeta
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
@@ -625,7 +626,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning(f"Browser tools load failed (degraded): {e}")
 
-    async def _build_captcha_solver(self) -> object:
+    async def _build_captcha_solver(self) -> CaptchaSolver:
         """Build the CAPTCHA solver based on user configuration.
 
         Returns FallbackSolver(ApiSolver, ManualSolver) if configured,

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout, getApiUrl } from '../api';
+import { fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
 
 vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => 'http://127.0.0.1:8080/api/v1',
@@ -17,6 +17,26 @@ describe('getApiUrl', () => {
   it('keeps /api/v1 prefix for standard API endpoints', () => {
     expect(getApiUrl('/integrations/mcp/options')).toBe(
       'http://127.0.0.1:8080/api/v1/integrations/mcp/options',
+    );
+  });
+});
+
+describe('getStorageUrl', () => {
+  it('maps vault:// pointers to vault content API', () => {
+    expect(getStorageUrl('vault://550e8400-e29b-41d4-a716-446655440000')).toBe(
+      'http://127.0.0.1:8080/api/v1/files/vault/550e8400-e29b-41d4-a716-446655440000/content',
+    );
+  });
+
+  it('strips line-range suffix from vault URIs', () => {
+    expect(getStorageUrl('vault://550e8400-e29b-41d4-a716-446655440000:1-50')).toBe(
+      'http://127.0.0.1:8080/api/v1/files/vault/550e8400-e29b-41d4-a716-446655440000/content',
+    );
+  });
+
+  it('prefixes relative storage paths with backend base URL', () => {
+    expect(getStorageUrl('/api/v1/files/storage/abc')).toBe(
+      'http://127.0.0.1:8080/api/v1/files/storage/abc',
     );
   });
 });

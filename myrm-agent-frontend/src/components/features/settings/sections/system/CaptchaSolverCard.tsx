@@ -7,7 +7,7 @@
 
 'use client';
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconShield } from '@/components/features/icons/PremiumIcons';
 import { Switch } from '@/components/primitives/switch';
@@ -22,20 +22,25 @@ const DEFAULT_CONFIG: CaptchaSolverConfigValue = {
 const CaptchaSolverCard = memo(() => {
   const t = useTranslations('settings.captchaSolver');
   const [config, setConfig] = useState<CaptchaSolverConfigValue>(DEFAULT_CONFIG);
+  const [apiKeyText, setApiKeyText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     try {
       const syncManager = getConfigSyncManager();
       const record = syncManager.get('captchaSolverConfig');
       if (record) {
-        setConfig({ ...DEFAULT_CONFIG, ...(record as CaptchaSolverConfigValue) });
+        const loaded = { ...DEFAULT_CONFIG, ...(record as CaptchaSolverConfigValue) };
+        setConfig(loaded);
+        setApiKeyText(loaded.api_key);
       }
     } catch {
       // Not yet configured
     } finally {
       setIsLoading(false);
     }
+    return () => clearTimeout(debounceRef.current);
   }, []);
 
   const handleSave = useCallback(
@@ -50,6 +55,17 @@ const CaptchaSolverCard = memo(() => {
       }
     },
     [config, t],
+  );
+
+  const handleApiKeyChange = useCallback(
+    (text: string) => {
+      setApiKeyText(text);
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        handleSave({ api_key: text });
+      }, 500);
+    },
+    [handleSave],
   );
 
   if (isLoading) return null;
@@ -76,8 +92,8 @@ const CaptchaSolverCard = memo(() => {
             <input
               type="password"
               placeholder={t('apiKeyPlaceholder')}
-              value={config.api_key}
-              onChange={(e) => handleSave({ api_key: e.target.value })}
+              value={apiKeyText}
+              onChange={(e) => handleApiKeyChange(e.target.value)}
               className="w-full bg-background font-mono text-xs rounded-lg border border-border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
             <p className="text-[10px] text-muted-foreground">{t('apiKeyHint')}</p>
