@@ -16,6 +16,7 @@ import { useSystemConfig } from '@/hooks/useSystemConfig';
 import { useDirtyGuard } from '@/hooks/useDirtyGuard';
 import BrowserPoolCard from './BrowserPoolCard';
 import BrowserProxyCard from './BrowserProxyCard';
+import CaptchaSolverCard from './CaptchaSolverCard';
 import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
 import LockedUseCard from './LockedUseCard';
@@ -672,6 +673,9 @@ const SystemSection = memo(() => {
 
       {/* Browser Proxy */}
       <BrowserProxyCard />
+
+      {/* CAPTCHA Auto-Solver */}
+      <CaptchaSolverCard />
 
       {/* Memory Monitor */}
       <MemoryMonitorCard />

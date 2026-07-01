@@ -15,7 +15,7 @@
 | `SystemStatusBanner.tsx` | 组件/模块 | — | — |
 | `VaultUnlockModal.tsx` | 组件/模块 | — | — |
 | `VisualDesktop.tsx` | 组件/模块 | — | — |
-| `VisualDesktopToggle.tsx` | 组件/模块 | — | — |
+| `VisualDesktopToggle.tsx` | 组件/模块 | VNC 实时桌面面板 + 浏览器 HITL takeover UI（Agent 请求人工介入时自动弹出，显示原因并提供「完成」/「无法完成」操作按钮） | `useBrowserTakeoverStore`, `useChatStore`, `useFeatureEntitlements` |
 | `app-update-prompt.tsx` | 组件/模块 | Tauri 桌面端更新提示浮层（静默下载，ready/error 时展示；dismissed 持久化到 localStorage） | `useAppUpdate` |
 | `whats-new-modal.tsx` | 组件/模块 | 版本更新后 What's New 弹窗（从 GitHub Release API 拉取完整 Release Notes，Markdown 渲染） | `useWhatsNew` |
 | `appshot-initializer.tsx` | 组件/模块 | — | — |

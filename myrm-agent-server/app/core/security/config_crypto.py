@@ -17,6 +17,7 @@ SENSITIVE_KEYS: set[str] = {
 SENSITIVE_CONFIG_KEY_EXACT: set[str] = {
     "browserCloudProvider",
     "browserProxy",
+    "captchaSolverConfig",
 }
 
 

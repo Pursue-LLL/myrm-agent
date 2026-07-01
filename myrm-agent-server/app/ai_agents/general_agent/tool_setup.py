@@ -566,7 +566,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 browser_context_key = thread_id
 
             from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-            from myrm_agent_harness.toolkits.browser.captcha import ManualSolver
             from myrm_agent_harness.toolkits.browser.observability import (
                 BrowserObservability,
                 RecordingConfig,
@@ -598,7 +597,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 session_vault=self._session_vault,
                 observability=observability,
                 domain_allowlist=domain_allowlist,
-                captcha_solver=ManualSolver(),
+                captcha_solver=await self._build_captcha_solver(),
                 content_vault=ArtifactVault(os.getcwd()),
                 vision_llm=vision_llm,
                 extension_bridge=ext_bridge,
@@ -625,6 +624,36 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.info(f"Loaded {len(browser_tools)} browser tools")
         except Exception as e:
             logger.warning(f"Browser tools load failed (degraded): {e}")
+
+    async def _build_captcha_solver(self) -> object:
+        """Build the CAPTCHA solver based on user configuration.
+
+        Returns FallbackSolver(ApiSolver, ManualSolver) if configured,
+        otherwise plain ManualSolver (preserving existing behavior).
+        """
+        from myrm_agent_harness.toolkits.browser.captcha import (
+            ApiSolver,
+            FallbackSolver,
+            ManualSolver,
+        )
+
+        capsolver_key = await self._get_capsolver_api_key()
+        if capsolver_key:
+            return FallbackSolver(ApiSolver(capsolver_key), ManualSolver())
+        return ManualSolver()
+
+    async def _get_capsolver_api_key(self) -> str | None:
+        """Read CapSolver API key from user config (DB-stored, encrypted)."""
+        try:
+            from app.services.config.service import config_service
+
+            record = await config_service.get("captchaSolverConfig")
+            if record and isinstance(record.config_value, dict):
+                if record.config_value.get("enabled") and record.config_value.get("api_key"):
+                    return str(record.config_value["api_key"])
+        except Exception:
+            pass
+        return None
 
     def _setup_computer_use_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up system-wide computer use tools (screenshot + action)."""

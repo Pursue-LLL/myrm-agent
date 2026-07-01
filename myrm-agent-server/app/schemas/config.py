@@ -245,6 +245,13 @@ class BrowserProxyConfigValue(BaseModel):
     )
 
 
+class CaptchaSolverConfigValue(BaseModel):
+    """CAPTCHA auto-solver configuration for automated CAPTCHA resolution."""
+
+    enabled: bool = Field(default=False, description="Whether auto CAPTCHA solving is enabled")
+    api_key: str = Field(default="", description="CapSolver API key")
+
+
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
@@ -252,6 +259,7 @@ OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "securityDashboardSettings": SecurityDashboardSettingsConfigValue,
     "browserCloudProvider": BrowserCloudProviderConfigValue,
     "browserProxy": BrowserProxyConfigValue,
+    "captchaSolverConfig": CaptchaSolverConfigValue,
 }
 
 # ============================================================================

@@ -3231,6 +3231,13 @@
       "testConnection": "测试连接",
       "saveFailed": "保存浏览器代理设置失败"
     },
+    "captchaSolver": {
+      "title": "验证码自动解决",
+      "apiKey": "CapSolver API Key",
+      "apiKeyPlaceholder": "CAP-XXXXXXXXXXXXXXXXXXXXXXXX",
+      "apiKeyHint": "从 capsolver.com 获取 API Key。启用后可自动解决云端/无头浏览器遇到的验证码，每次约 $0.002。",
+      "saveFailed": "保存验证码设置失败"
+    },
     "mcpServiceStatusAvailable": "延迟: {latency}ms",
     "mcpServiceStatusChecking": "检查中...",
     "mcpExtraParams": "额外参数",
@@ -11321,6 +11328,7 @@
       "disconnectedHint": "Agent 沙箱可能处于休眠或不可用状态。",
       "reconnect": "重新连接",
       "takeoverDone": "完成",
+      "takeoverSkip": "无法完成",
       "takeoverLearned": "操作已记录 — Agent 将从你的示范中学习",
       "takeoverResumeFailed": "恢复 Agent 失败，请重试"
     },

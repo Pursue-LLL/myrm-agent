@@ -47,6 +47,19 @@ export const VisualDesktopToggle = () => {
     }
   }, [takeoverMessageId, completeTakeover, t]);
 
+  const handleTakeoverSkip = useCallback(async () => {
+    const storedMessageId = takeoverMessageId;
+    completeTakeover();
+    if (storedMessageId) {
+      try {
+        await useChatStore.getState().sendMessage('', storedMessageId, undefined, { action: 'skipped', message: '' });
+      } catch (error) {
+        console.error('[TAKEOVER] Skip failed:', error);
+        toast.error(t('takeoverResumeFailed'));
+      }
+    }
+  }, [takeoverMessageId, completeTakeover, t]);
+
   useEffect(() => {
     if (takeoverPending && !isOpen) {
       setIsOpen(true);
@@ -146,13 +159,22 @@ export const VisualDesktopToggle = () => {
               <p className="text-sm text-amber-800 dark:text-amber-200 flex-1 line-clamp-2">
                 {takeoverReason}
               </p>
-              <button
-                onClick={handleTakeoverComplete}
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                <CheckCircle2 size={14} />
-                {t('takeoverDone')}
-              </button>
+              <div className="shrink-0 flex items-center gap-2">
+                <button
+                  onClick={handleTakeoverSkip}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-md hover:bg-muted/80 transition-colors"
+                >
+                  <XCircle size={14} />
+                  {t('takeoverSkip')}
+                </button>
+                <button
+                  onClick={handleTakeoverComplete}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  <CheckCircle2 size={14} />
+                  {t('takeoverDone')}
+                </button>
+              </div>
             </div>
           )}
           <div className="flex-1 relative bg-muted/30">

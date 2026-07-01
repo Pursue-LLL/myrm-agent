@@ -72,7 +72,8 @@ export type ConfigKey =
   | 'proxySettings'
   | 'securityDashboardSettings'
   | 'browserCloudProvider'
-  | 'browserProxy';
+  | 'browserProxy'
+  | 'captchaSolverConfig';
 
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
@@ -105,6 +106,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'securityDashboardSettings',
   'browserCloudProvider',
   'browserProxy',
+  'captchaSolverConfig',
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
@@ -444,6 +446,11 @@ export interface BrowserProxyConfigValue {
   proxies: string[];
 }
 
+export interface CaptchaSolverConfigValue {
+  enabled: boolean;
+  api_key: string;
+}
+
 /**
  * 配置键到值类型的映射
  */
@@ -477,6 +484,7 @@ export interface ConfigValueMap {
   securityDashboardSettings: SecurityDashboardSettingsConfigValue;
   browserCloudProvider: BrowserCloudProviderConfigValue;
   browserProxy: BrowserProxyConfigValue;
+  captchaSolverConfig: CaptchaSolverConfigValue;
 }
 
 /**
@@ -502,6 +510,7 @@ export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
   'backupSync',
   'browserCloudProvider',
   'browserProxy',
+  'captchaSolverConfig',
 ];
 
 /**

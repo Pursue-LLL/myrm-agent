@@ -3231,6 +3231,13 @@
       "testConnection": "Test Connection",
       "saveFailed": "Failed to save browser proxy settings"
     },
+    "captchaSolver": {
+      "title": "CAPTCHA Auto-Solver",
+      "apiKey": "CapSolver API Key",
+      "apiKeyPlaceholder": "CAP-XXXXXXXXXXXXXXXXXXXXXXXX",
+      "apiKeyHint": "Get your API key from capsolver.com. Enables automatic CAPTCHA solving for cloud/headless browsing. Costs ~$0.002 per solve.",
+      "saveFailed": "Failed to save CAPTCHA solver settings"
+    },
     "mcpServiceStatusAvailable": "Latency: {latency}ms",
     "mcpServiceStatusChecking": "Checking...",
     "mcpExtraParams": "Extra Parameters",
@@ -11350,6 +11357,7 @@
       "disconnectedHint": "The agent sandbox may be sleeping or unavailable.",
       "reconnect": "Reconnect",
       "takeoverDone": "Done",
+      "takeoverSkip": "Can't do this",
       "takeoverLearned": "Behavior recorded — Agent will learn from your demonstration",
       "takeoverResumeFailed": "Failed to resume agent, please try again"
     },

@@ -83,6 +83,10 @@ export const getStorageUrl = (url: string): string => {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
+  if (url.startsWith('vault://')) {
+    const vaultId = url.slice('vault://'.length).split(':')[0];
+    return `${BACKEND_BASE_URL}/api/v1/files/vault/${vaultId}/content`;
+  }
   // 相对路径直接拼接到后端基础 URL
   return `${BACKEND_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };
