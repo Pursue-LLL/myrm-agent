@@ -5,6 +5,7 @@ Routes cron job results through the application's existing
 
 Webhook delivery is delegated to the framework's ``WebhookDelivery``.
 Feishu/Lark custom bot hook URLs use ``feishu_bot_webhook`` (``msg_type=text`` JSON).
+WeCom group bot hook URLs use ``wecom_bot_webhook`` (``msgtype=markdown`` JSON).
 Channel delivery uses the channel's own ``send_with_retry`` for
 synchronous error propagation (delivery_status=FAILED on failure).
 """
@@ -23,6 +24,7 @@ from app.channels.reliability.retry import send_with_retry
 from app.channels.types.status import ChannelStatus
 
 from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
+from .wecom_bot_webhook import deliver_wecom_bot_webhook, is_wecom_bot_hook_url
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +49,18 @@ class ChannelResultDelivery:
         if job.delivery.channel == "webhook":
             if is_feishu_bot_hook_url(target):
                 await deliver_feishu_bot_webhook(job, result)
+            elif is_wecom_bot_hook_url(target):
+                await deliver_wecom_bot_webhook(job, result)
             else:
                 await _webhook_delivery.deliver(job, result)
             return
 
         if job.delivery.channel == "feishu" and is_feishu_bot_hook_url(target):
             await deliver_feishu_bot_webhook(job, result)
+            return
+
+        if job.delivery.channel == "wecom" and is_wecom_bot_hook_url(target):
+            await deliver_wecom_bot_webhook(job, result)
             return
 
         await self._deliver_channel(job, result)
