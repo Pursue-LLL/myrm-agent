@@ -22,15 +22,19 @@ export function useE2EEStatus(): E2EEStatus {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     void ensureMobileE2EE()
       .then((session) => {
-        if (session) setEstablished(true);
+        if (!cancelled && session) setEstablished(true);
       })
       .catch((err: unknown) => {
-        if (err instanceof E2EEHandshakeRequiredError) {
+        if (!cancelled && err instanceof E2EEHandshakeRequiredError) {
           setError(err.message);
         }
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const session = useMemo(() => (established ? loadStoredE2EESession() : null), [established]);

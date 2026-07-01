@@ -236,6 +236,7 @@ export const AccessCard = memo<{
           serverKey = undefined;
         }
       }
+      if (serverKey) setE2eePublicKeyB64(serverKey);
       setMobileHubUrl(
         buildMobileHubUrl(mobilePath, tunnelStatus.publicUrl ?? '', publicIngressBaseUrl ?? '', serverKey),
       );
