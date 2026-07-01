@@ -485,47 +485,30 @@ class TestDownloadViaChannelApi:
 class TestDownloadViaHttp:
     @pytest.mark.asyncio
     async def test_http_error_returns_none(self) -> None:
-        with patch("app.channels.media.image_enrichment.httpx.AsyncClient") as mock_cls:
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status.side_effect = Exception("404 Not Found")
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_resp
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_cls.return_value = mock_client
-
+        mock_secure_get = AsyncMock(side_effect=Exception("404 Not Found"))
+        with patch("myrm_agent_harness.core.security.http.secure_fetch.secure_get", mock_secure_get):
             result = await _download_via_http("https://example.com/missing.jpg")
         assert result is None
 
     @pytest.mark.asyncio
     async def test_http_success_returns_data(self) -> None:
         payload = b"\xff\xd8\xff\xe0" + b"\x00" * 100
-        with patch("app.channels.media.image_enrichment.httpx.AsyncClient") as mock_cls:
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.content = payload
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_resp
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_cls.return_value = mock_client
-
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.content = payload
+        mock_secure_get = AsyncMock(return_value=mock_resp)
+        with patch("myrm_agent_harness.core.security.http.secure_fetch.secure_get", mock_secure_get):
             result = await _download_via_http("https://cdn.example.com/img.jpg")
         assert result == payload
 
     @pytest.mark.asyncio
     async def test_http_oversized_returns_none(self) -> None:
         oversized = b"\x00" * (MAX_IMAGE_BYTES * 2 + 1)
-        with patch("app.channels.media.image_enrichment.httpx.AsyncClient") as mock_cls:
-            mock_resp = MagicMock()
-            mock_resp.raise_for_status = MagicMock()
-            mock_resp.content = oversized
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_resp
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_cls.return_value = mock_client
-
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.content = oversized
+        mock_secure_get = AsyncMock(return_value=mock_resp)
+        with patch("myrm_agent_harness.core.security.http.secure_fetch.secure_get", mock_secure_get):
             result = await _download_via_http("https://example.com/huge.jpg")
         assert result is None
 
