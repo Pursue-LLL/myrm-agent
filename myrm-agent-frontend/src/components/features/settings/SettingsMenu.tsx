@@ -31,6 +31,7 @@ import {
   Database,
   Cable,
   Share2,
+  Building2,
 } from 'lucide-react';
 import { AiNetworkIcon } from 'hugeicons-react';
 
@@ -87,6 +88,7 @@ export type SettingsTab =
   | 'extensionBridge'
   | 'connect'
   | 'workspaceRules'
+  | 'enterprise'
   | 'system'
   | 'about';
 
@@ -134,6 +136,7 @@ const menuItems: MenuItem[] = [
   { id: 'cron', icon: Timer, labelKey: 'cron', group: 'system' },
   { id: 'kanban', icon: Columns, labelKey: 'kanban', group: 'system' },
   { id: 'checkpoint', icon: Archive, labelKey: 'checkpoint', group: 'system' },
+  { id: 'enterprise', icon: Building2, labelKey: 'enterprise', group: 'system' },
   { id: 'developer', icon: Code, labelKey: 'developer', group: 'system' },
   { id: 'system', icon: Settings, labelKey: 'system', group: 'system' },
 ];

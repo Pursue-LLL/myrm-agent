@@ -48,6 +48,7 @@ const VALID_TABS = [
   'experimentalFeatures',
   'memory-backup',
   'memory-archival',
+  'enterprise',
   'system',
   'about',
 ] as const;

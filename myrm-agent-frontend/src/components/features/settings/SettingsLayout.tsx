@@ -82,6 +82,9 @@ const DeveloperCenterSection = dynamic(() => import('./sections/system/Developer
 const SystemCenterSection = dynamic(() => import('./sections/system/SystemCenterSection'), {
   loading: () => <SettingsSkeleton />,
 });
+const EnterpriseOrgSection = dynamic(() => import('./sections/enterprise/EnterpriseOrgSection'), {
+  loading: () => <SettingsSkeleton />,
+});
 
 /**
  * SettingsLayout - 配置页面布局组件
@@ -132,6 +135,7 @@ const BASE_TABS: SettingsTab[] = [
   'memory-cloud-backup',
   'memory-archival',
   'memory-migration',
+  'enterprise',
   'system',
   'about',
 ];
@@ -202,6 +206,7 @@ const SECTION_COMPONENTS: Record<SettingsTab, ComponentType> = {
   workspaceRules: WorkspaceRulesSection,
   developer: DeveloperCenterSection,
   importExport: DeveloperCenterSection,
+  enterprise: EnterpriseOrgSection,
   system: SystemCenterSection,
   about: SystemCenterSection,
 };
