@@ -27,6 +27,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
+import { AGENT_LIST_BUILTIN_PAGE_SIZE } from '@/services/agent';
 import useAgentStore from '@/store/useAgentStore';
 import useProviderStore from '@/store/useProviderStore';
 import { isLocalMode } from '@/lib/deploy-mode';
@@ -86,7 +87,7 @@ export function useAgentGallery({
       initProviders();
     }
     // 24 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
-    fetchAgents(1, 50, true);
+    fetchAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
   }, [isInitialized, initProviders, fetchAgents]);
 
   const isCLIVisualAgent = (agent: PresetAgent) => {

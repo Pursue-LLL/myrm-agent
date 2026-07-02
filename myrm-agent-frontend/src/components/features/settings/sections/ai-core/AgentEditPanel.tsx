@@ -22,7 +22,7 @@ import { AgentProfileTimeMachine } from './agent/AgentProfileTimeMachine';
 import { AgentInstinctInboxTab } from './agent/AgentInstinctInboxTab';
 import { AgentCapabilitiesTab } from './agent/AgentCapabilitiesTab';
 import { IconKey } from '@/components/features/icons/PremiumIcons';
-import { exportAgent } from '@/services/agent';
+import { AGENT_LIST_BUILTIN_PAGE_SIZE, exportAgent } from '@/services/agent';
 import { toast } from '@/hooks/useToast';
 import { getApiUrl } from '@/lib/api';
 import type { BuiltinToolId } from '@/store/chat/types';
@@ -148,7 +148,7 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
       await editor.reloadAgent();
       import('@/store/useAgentStore').then((mod) => {
         const store = mod.default.getState();
-        store.fetchAgents(1, 20, true);
+        store.fetchAgents(1, AGENT_LIST_BUILTIN_PAGE_SIZE, true);
         store.fetchAgent(agentId);
       });
     } catch (e: unknown) {

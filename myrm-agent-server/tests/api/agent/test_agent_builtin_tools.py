@@ -198,6 +198,34 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
 
+    def test_update_agent_rejects_legacy_builtin_tool_id(
+        self, auth_headers: dict[str, str], created_agent_id: str
+    ) -> None:
+        """Legacy task_tracking must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "task_tracking"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("task_tracking" in str(item.get("msg", "")) for item in detail)
+
+    def test_update_agent_rejects_unknown_builtin_tool_id(
+        self, auth_headers: dict[str, str], created_agent_id: str
+    ) -> None:
+        """Unknown tool IDs must be rejected on PUT with 422."""
+        resp = _e2e_request(
+            "PUT",
+            f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
+            json={"enabled_builtin_tools": ["web_search", "not_a_real_tool"]},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
+
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
         """Gallery SSOT: all 24 built-in agents expose canonical tool matrices."""
         from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
