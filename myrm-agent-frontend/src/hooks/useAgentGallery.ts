@@ -114,7 +114,7 @@ export function useAgentGallery({
           icon: bp.avatar_url?.replace('icon:', '') || 'MessageCircle',
           systemPrompt: '', // Only fetched when activated
           skillIds: [],
-          tools: [],
+          tools: bp.enabled_builtin_tools ?? [],
           requiresWorkingDirectory: isCli,
           isAvailable: true,
         };

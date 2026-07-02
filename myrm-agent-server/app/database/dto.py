@@ -9,6 +9,8 @@ from myrm_agent_harness.toolkits.memory.config import (
 )
 from pydantic import BaseModel, Field, model_validator
 
+from app.services.agent.builtin_tool_validation import OptionalBuiltinTools, RequiredBuiltinTools
+
 PersonalityStyleLiteral = Literal[
     # 实用型
     "professional",
@@ -413,7 +415,7 @@ class AgentBase(BaseModel):
     skill_ids: list[str] = Field(default=[], description="关联的技能 ID 列表")
     mounted_skill_ids: list[str] = Field(default=[], description="挂载的其他 Agent 专属技能 ID 列表")
     skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
-    enabled_builtin_tools: list[str] | None = Field(None, description="启用的内置工具 ID 列表")
+    enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
     browser_engine: str | None = Field(
         None, description="浏览器引擎偏好 (如 'chromium_patchright', 'firefox_camoufox')。为空则使用系统默认。"
     )
@@ -504,7 +506,7 @@ class AgentUpdate(BaseModel):
     skill_ids: list[str] | None = Field(None, description="关联的技能 ID 列表")
     mounted_skill_ids: list[str] | None = Field(None, description="挂载的其他 Agent 专属技能 ID 列表")
     skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
-    enabled_builtin_tools: list[str] | None = Field(None, description="启用的内置工具 ID 列表")
+    enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
     browser_engine: str | None = Field(
         None,
         description="浏览器引擎偏好: 'chromium_patchright'/'firefox_camoufox'。None=不修改。",
@@ -613,6 +615,10 @@ class AgentListItem(BaseModel):
     avatar_url: str | None = Field(None, description="智能体头像/图标 URL")
     is_built_in: bool = Field(False, description="是否为内置 Agent")
     agent_type: AgentTypeLiteral = Field(default="individual", description="Agent type")
+    enabled_builtin_tools: list[str] | None = Field(
+        None,
+        description="Enabled builtin tool IDs for gallery preview",
+    )
     model_selection: ModelSelection | None = Field(None, description="绑定的模型选择")
     created_at: datetime | None = Field(None, description="创建时间")
     updated_at: datetime | None = Field(None, description="更新时间")

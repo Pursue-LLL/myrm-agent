@@ -125,6 +125,7 @@ export interface AgentListItem {
   agent_type?: AgentType;
   skill_ids?: string[];
   mcp_ids?: string[];
+  enabled_builtin_tools?: string[] | null;
   model_selection?: AgentModelSelection | null;
   created_at: string;
   updated_at: string;

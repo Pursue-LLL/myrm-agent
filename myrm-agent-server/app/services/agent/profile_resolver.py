@@ -32,8 +32,7 @@ from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = ("web_search", "memory")
-"""Canonical default for enabled_builtin_tools across all entry points (kanban not included)."""
+from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 
 class BuiltinToolFlags(TypedDict):

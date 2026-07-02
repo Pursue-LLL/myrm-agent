@@ -7,6 +7,9 @@ from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from pydantic import BaseModel, Field, field_validator
 from pydantic.alias_generators import to_camel
 
+from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+from app.services.agent.builtin_tool_validation import RequiredBuiltinTools
+
 MultimodalQuery = str | list[dict[str, object]]
 
 logger = logging.getLogger(__name__)
@@ -48,7 +51,9 @@ class AgentConfigRequest(BaseModel):
 
     skill_ids: list[str] = []
     skill_configs: dict[str, dict] | None = None
-    enabled_builtin_tools: list[str] = ["web_search", "memory"]
+    enabled_builtin_tools: RequiredBuiltinTools = Field(
+        default_factory=lambda: list(DEFAULT_ENABLED_BUILTIN_TOOLS),
+    )
     browser_engine: str | None = Field(
         default=None, description="Default browser engine (e.g. chromium_patchright, firefox_camoufox)"
     )

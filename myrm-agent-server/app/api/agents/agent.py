@@ -57,6 +57,7 @@ from app.database.dto import (
 from app.database.standard_responses import StandardSuccessResponse
 from app.services.agent.agent_service import HIDDEN_SYSTEM_PROMPT, AgentService
 from app.services.agent.backends import DatabaseSecretBackend
+from app.services.agent.builtin_tool_validation import RequiredBuiltinTools
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +294,7 @@ async def get_agents(
                 avatar_url=agent.avatar,
                 is_built_in=agent.built_in,
                 agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
+                enabled_builtin_tools=agent.enabled_builtin_tools,
                 model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
                 created_at=agent.created_at,
                 updated_at=agent.updated_at,
@@ -930,7 +932,7 @@ class ActionSpaceEvalRequest(BaseModel):
     skill_ids: list[str]
     skill_configs: dict[str, dict] = {}
     mcp_servers: list[str]
-    enabled_builtin_tools: list[str]
+    enabled_builtin_tools: RequiredBuiltinTools
 
 
 @router.post("/evaluate-action-space")

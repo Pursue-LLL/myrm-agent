@@ -12,7 +12,7 @@ const makeAgent = (overrides: Partial<Agent> = {}): Agent => ({
   skill_ids: ['skill-a'],
   mcp_ids: ['mcp-b'],
   skill_configs: { 'skill-a': { is_core: true } },
-  enabled_builtin_tools: ['web_search', 'code_interpreter'],
+  enabled_builtin_tools: ['web_search', 'code_execute'],
   browser_engine: 'puppeteer',
   browser_source: 'built_in',
   dialog_policy: 'smart',

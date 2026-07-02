@@ -257,8 +257,8 @@ async def apply_permission_template(
     """应用权限模板（批量授予权限）
 
     用于快速授予一组标准权限。例如：
-    - developer_tools: file_read, file_write, shell_exec
-    - data_analysis: file_read, code_interpreter
+    - developer_tools: file_read, file_write, shell (via PermissionTemplate)
+    - data_analysis: file_read, code_execute
     - readonly: file_read only
 
     这是用户体验优化，避免手动逐个勾选权限。

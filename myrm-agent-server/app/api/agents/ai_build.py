@@ -40,19 +40,11 @@ from app.core.channel_bridge.model_resolver import (
 )
 from app.core.skills.store.service import skills_service
 from app.schemas.streaming import SSE_RESPONSE_HEADERS, SSEEnvelope
+from app.services.agent.builtin_tool_ids import BUILTIN_TOOL_CATALOG
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-BUILTIN_TOOL_CATALOG: list[dict[str, str]] = [
-    {"id": "browser", "desc": "Web browser for browsing pages and extracting content"},
-    {"id": "shell_exec", "desc": "Execute shell commands on the system"},
-    {"id": "code_exec", "desc": "Execute code snippets in a sandboxed environment"},
-    {"id": "file_ops", "desc": "Read, write, and manage files"},
-    {"id": "search", "desc": "Search the web for information"},
-    {"id": "image_gen", "desc": "Generate images from text descriptions"},
-]
 
 
 class AIBuildRequest(BaseModel):
@@ -136,7 +128,12 @@ async def _ai_build_stream(intent: str, locale: str | None) -> AsyncGenerator[st
         llm = await llm_manager.get_llm_from_config(model_cfg, api_keys=api_keys)
 
         skill_catalog, mcp_catalog = await _collect_available_resources()
-        system_prompt = _build_system_prompt(locale, skill_catalog, mcp_catalog, BUILTIN_TOOL_CATALOG)
+        system_prompt = _build_system_prompt(
+            locale,
+            skill_catalog,
+            mcp_catalog,
+            list(BUILTIN_TOOL_CATALOG),
+        )
 
         messages = [
             SystemMessage(content=system_prompt),

@@ -31,6 +31,11 @@ def _peripheral_skill_configs(skill_ids: tuple[str, ...]) -> dict[str, dict[str,
     return {skill_id: {"is_core": False} for skill_id in skill_ids}
 
 
+_TOOL_MINIMAL: tuple[str, ...] = ("web_search", "memory")
+_TOOL_CODING: tuple[str, ...] = ("web_search", "memory", "file_ops", "code_execute")
+_TOOL_RESEARCH: tuple[str, ...] = ("web_search", "memory", "answer_tool")
+_TOOL_FILE: tuple[str, ...] = ("web_search", "memory", "file_ops")
+_TOOL_DESIGN: tuple[str, ...] = ("web_search", "memory", "image_generation")
 @dataclass(frozen=True)
 class _BuiltInAgentSpec:
     """Built-in agent specification (business layer definition)."""
@@ -62,6 +67,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "When the request is ambiguous, ask one focused clarifying question before proceeding. "
             "Prefer structured output (lists, tables, headings) for complex answers."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-writer",
@@ -77,6 +83,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always propose a structure outline before drafting long-form content."
         ),
         default_skill_ids=("content-creation",),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-researcher",
@@ -92,6 +99,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Deliverables: executive summary → findings → analysis → recommendations."
         ),
         default_skill_ids=("deep-research", "competitive-analysis"),
+        enabled_builtin_tools=_TOOL_RESEARCH,
     ),
     _BuiltInAgentSpec(
         id="builtin-developer",
@@ -111,6 +119,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "test-driven-development",
             "code-review",
         ),
+        enabled_builtin_tools=_TOOL_CODING,
     ),
     # ─── Search 2 ─────────────────────────────────────────────────────────
     _BuiltInAgentSpec(
@@ -153,6 +162,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "For ambiguous terms, provide the chosen translation with a brief parenthetical note. "
             "Output format: translation first, then optional translator notes if context-critical."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-social-media",
@@ -168,6 +178,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Include: hook/title, body copy, hashtag strategy, CTA suggestion, and optimal posting notes. "
             "Ask which platform the user targets before creating content."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-data-analyst",
@@ -184,6 +195,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Flag data quality issues or insufficient sample sizes proactively."
         ),
         default_skill_ids=("data-analysis",),
+        enabled_builtin_tools=_TOOL_CODING,
     ),
     _BuiltInAgentSpec(
         id="builtin-product-manager",
@@ -199,6 +211,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider edge cases, technical feasibility, and measurable success metrics."
         ),
         default_skill_ids=("task-planning", "competitive-analysis"),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-tutor",
@@ -214,6 +227,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Adapt difficulty and vocabulary to the learner's demonstrated level. "
             "Celebrate progress; never make the learner feel inadequate for not knowing something."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     # ─── Vertical Templates ───────────────────────────────────────────────
     _BuiltInAgentSpec(
@@ -229,6 +243,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always suggest subject lines (3 options), preview text, and optimal send timing. "
             "Know email formatting constraints: short paragraphs, scannable structure, mobile-first."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-designer",
@@ -242,7 +257,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "When critiquing designs, provide specific, actionable feedback on layout, color, and typography. "
             "Always consider accessibility and responsive behavior."
         ),
-        enabled_builtin_tools=("image_gen",),
+        enabled_builtin_tools=_TOOL_DESIGN,
     ),
     _BuiltInAgentSpec(
         id="builtin-seo",
@@ -257,6 +272,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider E-E-A-T signals and user intent (informational/transactional/navigational). "
             "Provide specific metrics targets and timeframes for expected results."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-scheduler",
@@ -272,6 +288,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Suggest review cadences (daily, weekly) and adjustment triggers. "
             "Never overpack a schedule — sustainable productivity beats burnout."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-meeting",
@@ -287,6 +304,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Flag unresolved conflicts or ambiguous assignments that need clarification."
         ),
         default_skill_ids=("meeting-summary",),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-career",
@@ -302,6 +320,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always tailor advice to the specific industry, seniority level, and cultural context. "
             "Be honest about trade-offs — don't sugarcoat difficult realities."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-finance",
@@ -317,6 +336,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Present numbers clearly with tables and comparisons. "
             "Adapt complexity to the user's financial literacy level."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-travel",
@@ -332,6 +352,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Build flexible itineraries with alternatives for weather or mood changes. "
             "Always note practical tips: best booking timing, safety considerations, packing essentials."
         ),
+        enabled_builtin_tools=_TOOL_RESEARCH,
     ),
     _BuiltInAgentSpec(
         id="builtin-email",
@@ -347,6 +368,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "For cold outreach: personalize genuinely, provide value upfront, keep under 150 words. "
             "For follow-ups: add new value each time, never guilt-trip, suggest a concrete next step."
         ),
+        enabled_builtin_tools=_TOOL_MINIMAL,
     ),
     _BuiltInAgentSpec(
         id="builtin-automation",
@@ -362,6 +384,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider: failure modes, edge cases, maintenance burden, and cost-benefit. "
             "Prefer simple, reliable automations over complex fragile ones."
         ),
+        enabled_builtin_tools=_TOOL_CODING,
     ),
     _BuiltInAgentSpec(
         id="builtin-cli_visual",
@@ -374,6 +397,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Use your command execution tools to list files, read code, and run tests. Ensure you stay within your designated working directory."
         ),
         default_skill_ids=("systematic-debugging", "test-driven-development"),
+        enabled_builtin_tools=_TOOL_CODING,
     ),
     _BuiltInAgentSpec(
         id="builtin-hr_screener",
@@ -386,6 +410,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Extract candidate skills, experience years, education, and contact info into a clean structured format (CSV or JSON). "
             "Highlight missing required skills or red flags like large employment gaps."
         ),
+        enabled_builtin_tools=_TOOL_FILE,
     ),
     _BuiltInAgentSpec(
         id="builtin-speaker",
