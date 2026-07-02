@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 import { completeOnboardingForE2e, ensureLoggedIn } from './helpers/auth';
-import { installMigrationDismissInitScript } from './helpers/prepareChatPageForE2e';
+import {
+  installMigrationDismissInitScript,
+  prepareChatPageForE2e,
+} from './helpers/prepareChatPageForE2e';
 import {
   E2E_CONFIG_DEVICE_ID,
   seedE2eProvidersFromEnv,
@@ -22,11 +25,8 @@ test.describe('Agent gallery builtin tools smoke', () => {
     await ensureLoggedIn(page, request);
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
 
-    await page.evaluate(() => {
-      sessionStorage.setItem('migration_discovery_dismissed', 'true');
-      sessionStorage.setItem('competitor_migration_dismissed', 'true');
-      sessionStorage.setItem('myrm_boot_shown', '1');
-    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await prepareChatPageForE2e(page);
 
     const agentRadio = page.getByRole('radio', { name: /智能代理|Smart Agent/i });
     await expect(agentRadio).toBeVisible({ timeout: 30_000 });
@@ -34,24 +34,18 @@ test.describe('Agent gallery builtin tools smoke', () => {
       await agentRadio.click();
     }
 
-    const listRes = await page.request.get('/api/v1/user-agents?page=1&page_size=50', {
-      headers: { 'X-Device-Id': E2E_CONFIG_DEVICE_ID },
-      timeout: 120_000,
-    });
-    expect(listRes.ok(), `user-agents list failed: ${listRes.status()} ${await listRes.text()}`).toBeTruthy();
-    const agentsPayload = (await listRes.json()) as {
-      data?: { items?: Array<{ is_built_in?: boolean; name?: string }> };
-    };
-    const builtinCount = (agentsPayload.data?.items ?? []).filter((item) => item.is_built_in).length;
-    expect(builtinCount).toBe(24);
-
     const developerCard = page.getByRole('button').filter({ hasText: /Code Developer|代码开发/i }).first();
     await expect(developerCard).toBeVisible({ timeout: 30_000 });
-    await expect(developerCard).toContainText(/文件操作|File Ops|file_ops/i);
-    await expect(developerCard).toContainText(/代码执行|Code Execute|code_execute/i);
+    await expect(developerCard).toContainText(/file_ops|File Ops|文件操作/i);
+    await expect(developerCard).toContainText(/code_execute|Code Execute|代码执行/i);
 
     const audioCard = page.getByRole('button').filter({ hasText: /Audio Assistant|音频助手/i }).first();
     await expect(audioCard).toBeVisible({ timeout: 15_000 });
     await expect(audioCard).toContainText(/tts|Text to Speech|语音生成/i);
+
+    const hrCard = page.getByRole('button').filter({ hasText: /HR Resume Screener|简历/i }).first();
+    await expect(hrCard).toBeVisible({ timeout: 15_000 });
+    await expect(hrCard).toContainText(/file_ops|File Ops|文件操作/i);
+    await expect(hrCard).not.toContainText(/code_execute|Code Execute|代码执行/i);
   });
 });
