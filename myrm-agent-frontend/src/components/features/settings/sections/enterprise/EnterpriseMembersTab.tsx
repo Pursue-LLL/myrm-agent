@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock } from 'lucide-react';
@@ -30,6 +30,9 @@ import {
   transferVolume,
   listHandoffLogs,
 } from '@/services/enterprise-org';
+import useAuthStore from '@/store/useAuthStore';
+
+const ORG_ADMIN_ROLES = new Set(['owner', 'admin']);
 
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
@@ -59,6 +62,13 @@ const EnterpriseMembersTab = memo(() => {
   const [transferTargetId, setTransferTargetId] = useState('');
 
   const orgId = org?.id ?? '';
+  const authUserId = useAuthStore((s) => s.user?.id);
+
+  const isOrgAdmin = useMemo(() => {
+    if (!authUserId) return false;
+    const member = members.find((m) => m.user_id === authUserId);
+    return member !== undefined && ORG_ADMIN_ROLES.has(member.role);
+  }, [authUserId, members]);
 
   const loadData = useCallback(async () => {
     try {
@@ -189,7 +199,7 @@ const EnterpriseMembersTab = memo(() => {
         )}
       </SettingsSection>
 
-      {orgId && <OrgMcpAdminPanel orgId={orgId} />}
+      {orgId && isOrgAdmin && <OrgMcpAdminPanel orgId={orgId} />}
 
       {/* Members */}
       <SettingsSection
