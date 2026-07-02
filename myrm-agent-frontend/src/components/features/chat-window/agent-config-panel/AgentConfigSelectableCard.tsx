@@ -27,6 +27,7 @@ export function SelectableCard({
 }: SelectableCardProps) {
   return (
     <div
+      data-testid={id}
       className={cn(
         'group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer',
         'border transition-all duration-200',

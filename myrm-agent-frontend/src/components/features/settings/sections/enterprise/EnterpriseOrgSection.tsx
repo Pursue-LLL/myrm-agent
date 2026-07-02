@@ -1,9 +1,9 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock } from 'lucide-react';
+import { Building2, UserMinus, UserPlus, ArrowRightLeft, Shield, Clock, ShieldAlert, BarChart3 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -31,6 +31,11 @@ import {
   listHandoffLogs,
 } from '@/services/enterprise-org';
 
+const EnterpriseAuditTab = lazy(() => import('./EnterpriseAuditTab'));
+const EnterpriseUsageTab = lazy(() => import('./EnterpriseUsageTab'));
+
+type EnterpriseTab = 'members' | 'usage' | 'audit';
+
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
   admin: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -43,6 +48,7 @@ function formatTimestamp(ts: number): string {
 
 const EnterpriseOrgSection = memo(() => {
   const t = useTranslations('settings.enterprise');
+  const [activeTab, setActiveTab] = useState<EnterpriseTab>('members');
   const [org, setOrg] = useState<OrgInfo | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [logs, setLogs] = useState<HandoffLog[]>([]);
@@ -160,6 +166,44 @@ const EnterpriseOrgSection = memo(() => {
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
+      <nav className="flex gap-1 rounded-lg bg-muted/50 p-1 border border-border/40">
+        {([
+          { key: 'members' as const, icon: Shield, label: t('membersTab') },
+          { key: 'usage' as const, icon: BarChart3, label: t('usageTab') },
+          { key: 'audit' as const, icon: ShieldAlert, label: t('auditTab') },
+        ]).map(({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setActiveTab(key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeTab === key
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Lazy Tab Content */}
+      {activeTab === 'audit' && (
+        <Suspense fallback={<div className="animate-pulse h-48 bg-muted rounded" />}>
+          <EnterpriseAuditTab />
+        </Suspense>
+      )}
+      {activeTab === 'usage' && (
+        <Suspense fallback={<div className="animate-pulse h-48 bg-muted rounded" />}>
+          <EnterpriseUsageTab />
+        </Suspense>
+      )}
+
+      {/* Members Tab (inline, original content) */}
+      {activeTab === 'members' && (
+        <>
       {/* Organization Info */}
       <SettingsSection
         title={
@@ -383,6 +427,8 @@ const EnterpriseOrgSection = memo(() => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 });

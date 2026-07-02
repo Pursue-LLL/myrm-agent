@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.channels.types.status import ChannelStatus
 from app.services.agent.outbound_notify import (
     ChannelNotificationSender,
     NotifyTarget,
@@ -53,8 +54,15 @@ class TestChannelNotificationSender:
         target = NotifyTarget(channel="telegram", recipient_id="123")
         sender = ChannelNotificationSender((target,))
 
-        mock_gateway = AsyncMock()
-        mock_gateway.publish = AsyncMock()
+        mock_channel = MagicMock()
+        mock_channel.status = ChannelStatus.RUNNING
+
+        mock_bus = MagicMock()
+        mock_bus.channels = {"telegram": mock_channel}
+        mock_bus.send_tracked = AsyncMock(return_value="msg-abc")
+
+        mock_gateway = MagicMock()
+        mock_gateway.bus = mock_bus
 
         mock_channel_bridge = MagicMock()
         mock_channel_bridge.channel_gateway = mock_gateway
@@ -69,7 +77,9 @@ class TestChannelNotificationSender:
 
         assert result.success is True
         assert result.channel == "telegram"
+        assert result.message_id == "msg-abc"
         assert result.error == ""
+        mock_bus.send_tracked.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_send_fails_when_gateway_none(self) -> None:
@@ -86,12 +96,39 @@ class TestChannelNotificationSender:
         assert "not initialized" in result.error
 
     @pytest.mark.asyncio
-    async def test_send_handles_publish_error(self) -> None:
+    async def test_send_fails_when_channel_not_registered(self) -> None:
+        target = NotifyTarget(channel="telegram", recipient_id="123")
+        sender = ChannelNotificationSender((target,))
+
+        mock_bus = MagicMock()
+        mock_bus.channels = {}
+
+        mock_gateway = MagicMock()
+        mock_gateway.bus = mock_bus
+
+        mock_channel_bridge = MagicMock()
+        mock_channel_bridge.channel_gateway = mock_gateway
+
+        with patch.dict("sys.modules", {"app.core.channel_bridge": mock_channel_bridge}):
+            result = await sender.send(target, "Hello")
+
+        assert result.success is False
+        assert "No channel registered" in result.error
+
+    @pytest.mark.asyncio
+    async def test_send_fails_when_send_tracked_returns_none(self) -> None:
         target = NotifyTarget(channel="slack", recipient_id="C456")
         sender = ChannelNotificationSender((target,))
 
-        mock_gateway = AsyncMock()
-        mock_gateway.publish = AsyncMock(side_effect=RuntimeError("network error"))
+        mock_channel = MagicMock()
+        mock_channel.status = ChannelStatus.RUNNING
+
+        mock_bus = MagicMock()
+        mock_bus.channels = {"slack": mock_channel}
+        mock_bus.send_tracked = AsyncMock(return_value=None)
+
+        mock_gateway = MagicMock()
+        mock_gateway.bus = mock_bus
 
         mock_channel_bridge = MagicMock()
         mock_channel_bridge.channel_gateway = mock_gateway
@@ -105,5 +142,29 @@ class TestChannelNotificationSender:
             result = await sender.send(target, "Hello")
 
         assert result.success is False
-        assert "network error" in result.error
+        assert "delivery failed" in result.error.lower()
+        assert result.channel == "slack"
+
+    @pytest.mark.asyncio
+    async def test_send_handles_send_tracked_error(self) -> None:
+        target = NotifyTarget(channel="slack", recipient_id="C456")
+        sender = ChannelNotificationSender((target,))
+
+        mock_channel = MagicMock()
+        mock_channel.status = ChannelStatus.STOPPED
+
+        mock_bus = MagicMock()
+        mock_bus.channels = {"slack": mock_channel}
+
+        mock_gateway = MagicMock()
+        mock_gateway.bus = mock_bus
+
+        mock_channel_bridge = MagicMock()
+        mock_channel_bridge.channel_gateway = mock_gateway
+
+        with patch.dict("sys.modules", {"app.core.channel_bridge": mock_channel_bridge}):
+            result = await sender.send(target, "Hello")
+
+        assert result.success is False
+        assert "stopped" in result.error.lower()
         assert result.channel == "slack"

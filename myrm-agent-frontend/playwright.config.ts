@@ -12,6 +12,9 @@ export default defineConfig({
     // Next.js dev keeps HMR sockets open — never wait for full "load".
     navigationTimeout: 15_000,
     actionTimeout: 10_000,
+    launchOptions: {
+      executablePath: process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    },
   },
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined

@@ -23,7 +23,7 @@ pipeline — all registered channel providers already handle `msg.media`.
 | `types.py` | Core | NotifyTarget, NotifyToolConfig, NotifyResult, NotifySessionState, system appendix | ✅ |
 | `protocols.py` | Core | NotificationSender protocol (with media support) | ✅ |
 | `target_resolver.py` | Core | resolve_notify_target whitelist resolution | ✅ |
-| `sender.py` | Core | ChannelNotificationSender + create_notification_sender | ✅ |
+| `sender.py` | Core | ChannelNotificationSender + create_notification_sender; uses `bus.send_tracked` for reliable delivery | ✅ |
 | `factory_wiring.py` | Core | append_channel_notify_tool — GeneralAgent Turn1 wiring SSOT | ✅ |
 | `channel_notify_tool.py` | Adapter | create_channel_notify_tool LangChain factory (with attachments) | ✅ |
 | `__init__.py` | Package | Public exports | ✅ |
