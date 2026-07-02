@@ -9,6 +9,16 @@ export async function installMigrationDismissInitScript(page: Page): Promise<voi
   });
 }
 
+/** Agent-mode chats use POST /agents/agent-stream; fast search does not. */
+export async function ensureAgentMode(page: Page): Promise<void> {
+  const agentRadio = page.getByRole('radio', { name: /智能代理|Smart Agent/i });
+  if (await agentRadio.isVisible().catch(() => false)) {
+    if (!(await agentRadio.isChecked())) {
+      await agentRadio.click();
+    }
+  }
+}
+
 export async function prepareChatPageForE2e(page: Page): Promise<void> {
   await page.evaluate(() => {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -57,6 +67,7 @@ async function assertNoRiskBlockToast(page: Page): Promise<void> {
 }
 
 export async function sendChatMessage(page: Page, message: string): Promise<void> {
+  await ensureAgentMode(page);
   const input = page.locator('textarea[data-chat-input]');
   await input.fill(message);
   await expect(page.locator('button.message-send-btn')).toBeEnabled({ timeout: 15_000 });

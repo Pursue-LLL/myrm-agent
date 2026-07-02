@@ -1,18 +1,12 @@
 import { test, expect } from '@playwright/test';
 
 import { completeOnboardingForE2e, ensureLoggedIn } from './helpers/auth';
-import { ensureWebUiBrowserSession } from './helpers/ensureWebUiBrowserSession';
-import {
-  installMigrationDismissInitScript,
-  prepareChatPageForE2e,
-} from './helpers/prepareChatPageForE2e';
+import { installMigrationDismissInitScript } from './helpers/prepareChatPageForE2e';
 import {
   E2E_CONFIG_DEVICE_ID,
   seedE2eProvidersFromEnv,
   hasE2eLlmEnv,
 } from './helpers/seedE2eProviders';
-
-const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 
 test.describe('Agent gallery builtin tools smoke', () => {
   test.describe.configure({ timeout: 120_000 });
@@ -23,12 +17,17 @@ test.describe('Agent gallery builtin tools smoke', () => {
   );
 
   test('preset gallery loads 24 builtins and shows developer tool chips', async ({ page, request }) => {
+    await installMigrationDismissInitScript(page);
     await completeOnboardingForE2e(request);
     await ensureLoggedIn(page, request);
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
-    await installMigrationDismissInitScript(page);
-    await ensureWebUiBrowserSession(page);
-    await prepareChatPageForE2e(page);
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      sessionStorage.setItem('migration_discovery_dismissed', 'true');
+      sessionStorage.setItem('competitor_migration_dismissed', 'true');
+      sessionStorage.setItem('myrm_boot_shown', '1');
+    });
 
     const agentRadio = page.getByRole('radio', { name: /智能代理|Smart Agent/i });
     await expect(agentRadio).toBeVisible({ timeout: 30_000 });
@@ -36,7 +35,7 @@ test.describe('Agent gallery builtin tools smoke', () => {
       await agentRadio.click();
     }
 
-    const listRes = await request.get(`${apiBase}/api/v1/user-agents?page=1&page_size=50`, {
+    const listRes = await page.request.get('/api/v1/user-agents?page=1&page_size=50', {
       headers: { 'X-Device-Id': E2E_CONFIG_DEVICE_ID },
       timeout: 120_000,
     });

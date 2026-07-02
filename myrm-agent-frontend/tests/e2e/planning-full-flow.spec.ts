@@ -7,6 +7,7 @@ import {
   installMigrationDismissInitScript,
   prepareChatPageForE2e,
   sendChatMessage,
+  waitForChatHydration,
 } from './helpers/prepareChatPageForE2e';
 import { E2E_CONFIG_DEVICE_ID, hasE2eLlmEnv, seedE2eProvidersFromEnv } from './helpers/seedE2eProviders';
 
@@ -87,8 +88,10 @@ test.describe('Planning full UI flow', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
     await prepareChatPageForE2e(page);
+    await waitForChatHydration(page, chatId);
 
     await sendChatMessage(page, 'Reply OK only.');
+    await expect(page.getByText('OK').first()).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('UI E2E Plan').first()).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(/Verify sidebar|Verify mobile/i).first()).toBeVisible({ timeout: 15_000 });
 
