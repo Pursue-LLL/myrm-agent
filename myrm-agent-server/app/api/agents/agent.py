@@ -197,6 +197,13 @@ def _build_model_selection(model: str | None, metadata: dict[str, object]) -> Mo
     return None
 
 
+def _resolve_enabled_builtin_tools(agent: AgentProfile) -> list[str] | None:
+    """Resolve enabled builtin tool IDs from AgentProfile (tools_allowed or metadata)."""
+    if agent.tools_allowed is not None:
+        return list(agent.tools_allowed)
+    return _meta_str_list_or_none(_metadata_as_mapping(agent), "enabled_builtin_tools")
+
+
 def _to_agent_response(
     agent: AgentProfile,
     show_system_prompt: bool = False,
@@ -214,12 +221,7 @@ def _to_agent_response(
     """
     metadata = _metadata_as_mapping(agent)
     system_prompt = agent.system_prompt
-
-    enabled_tools: list[str] | None
-    if agent.tools_allowed is not None:
-        enabled_tools = list(agent.tools_allowed)
-    else:
-        enabled_tools = _meta_str_list_or_none(metadata, "enabled_builtin_tools")
+    enabled_tools = _resolve_enabled_builtin_tools(agent)
 
     return AgentResponse(
         id=agent.id,
@@ -294,7 +296,7 @@ async def get_agents(
                 avatar_url=agent.avatar,
                 is_built_in=agent.built_in,
                 agent_type=_metadata_as_mapping(agent).get("agent_type", "individual") or "individual",
-                enabled_builtin_tools=agent.enabled_builtin_tools,
+                enabled_builtin_tools=_resolve_enabled_builtin_tools(agent),
                 model_selection=_build_model_selection(agent.model, _metadata_as_mapping(agent)),
                 created_at=agent.created_at,
                 updated_at=agent.updated_at,

@@ -29,10 +29,9 @@ from typing import Sequence, TypedDict
 
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
-logger = logging.getLogger(__name__)
-
-
 from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+
+logger = logging.getLogger(__name__)
 
 
 class BuiltinToolFlags(TypedDict):
