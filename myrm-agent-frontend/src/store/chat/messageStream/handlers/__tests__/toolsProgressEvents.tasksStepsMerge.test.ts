@@ -108,6 +108,40 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     expect(state.messages[0].progressSteps![0].status).toBe('success');
   });
 
+  it('merges checklist_root summary updates', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    for (const status of ['in_progress', 'success'] as const) {
+      const ctx = makeTasksStepsCtx(status, 'checklist_root');
+      ctx.data = {
+        ...ctx.data,
+        data: [{ text: 'Execution checklist (1/2 done)' }],
+      } as never;
+      ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+      await toolsProgressEvents(ctx);
+    }
+
+    expect(state.messages[0].progressSteps).toHaveLength(1);
+    expect(state.messages[0].progressSteps![0].step_key).toBe('checklist_root');
+    expect(state.messages[0].progressSteps![0].status).toBe('success');
+  });
+
+  it('maps skipped harness status to cancelled on merge', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const ctx = makeTasksStepsCtx('skipped', 'checklist_9');
+    ctx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    await toolsProgressEvents(ctx);
+
+    expect(state.messages[0].progressSteps![0].status).toBe('cancelled');
+  });
+
   it('keeps distinct step_keys as separate progress items', async () => {
     const state = makeMessagesState();
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {

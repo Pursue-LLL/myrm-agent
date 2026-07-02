@@ -5,7 +5,7 @@
  * Only available in cloud-hosted enterprise edition.
  */
 
-import { getApiUrl } from './config/getApiUrl';
+import { getApiUrl } from '@/lib/api';
 
 export interface OrgInfo {
   id: string;
