@@ -258,6 +258,8 @@ const SubagentTreeNode = ({ node, chatId, setOpen }: TreeNodeProps) => {
                 className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 onClick={() => setCancelOpen(true)}
                 title={t('cancelTitle')}
+                data-testid="subagent-cancel-btn"
+                data-task-id={node.task_id}
               >
                 <StopCircle className="w-4 h-4" />
               </Button>
@@ -487,7 +489,10 @@ export const SubagentDashboard = () => {
           <span>{runningCount > 0 ? t('activeCount', { count: runningCount }) : t('dashboardButton')}</span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex w-full max-w-[100vw] flex-col p-0 sm:w-[540px] sm:max-w-[540px]">
+      <SheetContent
+        data-testid="subagent-dashboard-panel"
+        className="flex w-full max-w-[100vw] flex-col p-0 sm:w-[540px] sm:max-w-[540px]"
+      >
         <SheetHeader className="p-6 pb-2 border-b">
           <div className="flex items-start justify-between gap-3">
             <div>

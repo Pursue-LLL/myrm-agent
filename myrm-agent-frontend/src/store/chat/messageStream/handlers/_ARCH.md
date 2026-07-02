@@ -25,6 +25,8 @@
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级通知 | — |
 | `completionEvents.ts` | 核心 | MESSAGE_END、完成态、建议与自动保存 | — |
+| `gapEvents.ts` | 核心 | CAPABILITY_GAP / SKILL_GAP SSE → toast 一键开启/绑定 | ✅ |
+| `gapEvents.test.ts` | 测试 | gap handler 回归 | — |
 
 ## 依赖
 

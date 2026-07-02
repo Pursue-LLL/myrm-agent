@@ -1,6 +1,11 @@
 import { defineConfig } from '@playwright/test';
+import { existsSync } from 'node:fs';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
+const chromePath =
+  process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH ??
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const launchOptions = existsSync(chromePath) ? { executablePath: chromePath } : undefined;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -12,9 +17,7 @@ export default defineConfig({
     // Next.js dev keeps HMR sockets open — never wait for full "load".
     navigationTimeout: 15_000,
     actionTimeout: 10_000,
-    launchOptions: {
-      executablePath: process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    },
+    ...(launchOptions ? { launchOptions } : {}),
   },
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
     ? undefined
