@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
 /**
- * P2c Subagent Dashboard E2E — API prepare phase (no Playwright).
- * UI phase: use MCP chrome-devtools on real Chrome (:3000) with existing login session.
- *
- * Usage: bun scripts/dev/subagent-dashboard-e2e-prepare.mjs
- * Output: JSON { chatId, taskId, treeRow, uiUrl, apiBase }
+ * [POS] P2c Subagent Dashboard E2E — API prepare (delegate + SSE subagent_start).
+ * [OUTPUT] stdout JSON: { chatId, taskId, treeRow, uiUrl, apiBase }
+ * UI phase: MCP chrome-devtools on real Chrome :3000 (not Playwright).
  */
 
 import { randomUUID } from 'node:crypto';

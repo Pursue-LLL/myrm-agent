@@ -11,6 +11,8 @@ import {
   hasE2eLlmEnv,
 } from './helpers/seedE2eProviders';
 
+const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
+
 test.describe('Agent gallery builtin tools smoke', () => {
   test.describe.configure({ timeout: 120_000 });
 
@@ -25,21 +27,21 @@ test.describe('Agent gallery builtin tools smoke', () => {
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
     await installMigrationDismissInitScript(page);
 
-    const agentsListPromise = page.waitForResponse(
-      (response) =>
-        response.url().includes('/api/v1/user-agents') &&
-        response.url().includes('page_size=50') &&
-        response.ok(),
-      { timeout: 60_000 },
-    );
-
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await prepareChatPageForE2e(page);
 
-    await page.getByRole('radio', { name: /智能代理|Smart Agent|Agent mode/i }).click();
+    const agentRadio = page.getByRole('radio', { name: /智能代理|Smart Agent/i });
+    await expect(agentRadio).toBeVisible({ timeout: 30_000 });
+    if (!(await agentRadio.isChecked())) {
+      await agentRadio.click();
+    }
 
-    const agentsResponse = await agentsListPromise;
-    const agentsPayload = (await agentsResponse.json()) as {
+    const listRes = await request.get(`${apiBase}/api/v1/user-agents?page=1&page_size=50`, {
+      headers: { 'X-Device-Id': E2E_CONFIG_DEVICE_ID },
+      timeout: 60_000,
+    });
+    expect(listRes.ok()).toBeTruthy();
+    const agentsPayload = (await listRes.json()) as {
       data?: { items?: Array<{ is_built_in?: boolean; name?: string }> };
     };
     const builtinCount = (agentsPayload.data?.items ?? []).filter((item) => item.is_built_in).length;

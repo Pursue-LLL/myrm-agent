@@ -64,10 +64,15 @@ async def _emit_subagent_tree(session_id: str) -> None:
         info = gateway._session_info.get(session_id)
 
         children_data: list[dict[str, object]] = []
+        gateway_children: list[dict[str, object]] = []
         if info and info.agent and info.agent() is not None:
             agent = info.agent()
             if hasattr(agent, "subagent_manager"):
-                children_data.extend(agent.subagent_manager.list_children())
+                gateway_children = agent.subagent_manager.list_children()
+
+        from myrm_agent_harness.agent.sub_agents.session_tree import merge_active_subagent_children
+
+        children_data.extend(merge_active_subagent_children(session_id, gateway_children))
 
         # Also get checkpoints to build the full tree
         from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
