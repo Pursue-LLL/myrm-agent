@@ -2,17 +2,57 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.builtin_tool_ids import (
+    BUILTIN_TOOL_IDS,
     BUILTIN_TOOL_ID_SET,
     DEFAULT_ENABLED_BUILTIN_TOOLS,
     InvalidBuiltinToolIdsError,
     normalize_enabled_builtin_tools,
 )
 from app.services.agent.params.models import AgentConfigRequest
+
+_FRONTEND_BUILTIN_TOOLS_TS = (
+    Path(__file__).resolve().parents[4]
+    / "myrm-agent-frontend"
+    / "src"
+    / "store"
+    / "chat"
+    / "types"
+    / "builtinTools.ts"
+)
+
+
+def _parse_frontend_builtin_tool_contract() -> tuple[list[str], list[str]]:
+    text = _FRONTEND_BUILTIN_TOOLS_TS.read_text(encoding="utf-8")
+    ids_block = re.search(
+        r"export const BUILTIN_TOOL_IDS:.*?=\s*\[(.*?)\]\s*as const;",
+        text,
+        re.DOTALL,
+    )
+    defaults_block = re.search(
+        r"export const DEFAULT_ENABLED_BUILTIN_TOOLS.*?=\s*\[(.*?)\];",
+        text,
+        re.DOTALL,
+    )
+    assert ids_block is not None, "BUILTIN_TOOL_IDS block missing in frontend SSOT"
+    assert defaults_block is not None, "DEFAULT_ENABLED_BUILTIN_TOOLS block missing"
+    ids = re.findall(r"'([^']+)'", ids_block.group(1))
+    defaults = re.findall(r"'([^']+)'", defaults_block.group(1))
+    return ids, defaults
+
+
+def test_frontend_builtin_tool_ids_match_server_ssot() -> None:
+    frontend_ids, frontend_defaults = _parse_frontend_builtin_tool_contract()
+    assert list(BUILTIN_TOOL_IDS) == frontend_ids
+    assert set(frontend_ids) == BUILTIN_TOOL_ID_SET
+    assert list(DEFAULT_ENABLED_BUILTIN_TOOLS) == frontend_defaults
 
 
 def test_default_tools_match_frontend_contract() -> None:
