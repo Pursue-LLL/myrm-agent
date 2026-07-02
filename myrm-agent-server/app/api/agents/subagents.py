@@ -1,3 +1,19 @@
+"""Subagent REST control plane for chat sessions.
+
+[INPUT]
+- services.agent.gateway::get_agent_gateway (POS: active agent session registry for streaming runs)
+- services.chat.chat_service::ChatService (POS: workspace dir for teammate mailbox hydrate)
+- sub_agents.session_tree::merge_active_subagent_children, cancel_active_children_for_session (POS: ACTIVE_SUBAGENTS registry SSOT)
+- sub_agents.checkpoint.saver::SubagentCheckpointStorage (POS: interrupted subagent checkpoint persistence)
+- coordination.mailbox::list_teammate_history, group_history_by_task (POS: P2P teammate message history)
+
+[OUTPUT]
+GET list / POST cancel-all / POST steer / POST cancel / POST resume for /chats/{chat_id}/subagents
+
+[POS]
+Server HTTP facade for Task Tray observability and subagent control; delegates registry merge/cancel to harness session_tree.
+"""
+
 import asyncio
 import logging
 from typing import Annotated
