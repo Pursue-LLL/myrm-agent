@@ -3160,6 +3160,20 @@
       "description": "WebUI service access and system-level configuration",
       "desktopModeOnly": "Desktop mode only",
       "desktopModeDescription": "System settings are only available in Tauri desktop client",
+      "sandboxReset": {
+        "title": "Reset Container Environment",
+        "description": "Recreate the sandbox container to reset system-level state (global packages, system config). Your workspace files and chat history are preserved.",
+        "button": "Reset Environment",
+        "confirmTitle": "Reset Container Environment?",
+        "confirmDescription": "This will destroy the current container and create a fresh one. Your workspace files (on the persistent volume), chat history, memory, and settings are preserved. Global packages and system-level changes will be reset. The environment will restart — this takes about 10-30 seconds.",
+        "confirm": "Reset",
+        "cancel": "Cancel",
+        "preserved": "Preserved: workspace files, chat history, memory, settings",
+        "reset": "Reset: global packages (pip/apt), system config, container state",
+        "resetting": "Resetting...",
+        "success": "Container recreation initiated. The environment will restart shortly.",
+        "failed": "Failed to reset container environment"
+      },
       "status": {
         "currentMode": "Current Mode"
       },
@@ -5236,7 +5250,8 @@
       "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start. Ensure .env.local has API_PORT=8080.",
       "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
       "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
-    }
+    },
+    "operationFailed": "Operation failed"
   },
   "chat": {
     "jumpBar": {
@@ -12225,6 +12240,11 @@
     "workspaceCleared": "Workspace cleared",
     "moveSuccess": "Moved {count, plural, one {# chat} other {# chats}} successfully",
     "moveFailed": "Failed to move chats"
+  },
+  "milestone": {
+    "title": "Milestones",
+    "add": "Add milestone",
+    "addPlaceholder": "Milestone title"
   },
   "cliAgent": {
     "modeAgent": "AI Agent",

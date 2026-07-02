@@ -48,6 +48,7 @@ async def build_general_agent(
 
     from app.ai_agents.agent_middlewares import (
         memory_context_middleware,
+        project_roadmap_middleware,
         user_instructions_middleware,
         widget_capability_middleware,
     )
@@ -368,6 +369,7 @@ async def build_general_agent(
         RateLimitMiddleware(warning_threshold_pct=0.8, debounce_seconds=300.0),
         user_instructions_middleware,
         workspace_rules_middleware,
+        project_roadmap_middleware,
         memory_context_middleware,
         widget_capability_middleware,
         citation_rules_middleware,

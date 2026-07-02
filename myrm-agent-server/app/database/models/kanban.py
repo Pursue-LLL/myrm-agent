@@ -34,6 +34,18 @@ class KanbanBoardModel(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    project_id: Mapped[str | None] = mapped_column(
+        String(255),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    milestone_id: Mapped[str | None] = mapped_column(
+        String(32),
+        ForeignKey("project_milestones.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     max_concurrent_tasks: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     heartbeat_interval_seconds: Mapped[int] = mapped_column(Integer, default=30, nullable=False)

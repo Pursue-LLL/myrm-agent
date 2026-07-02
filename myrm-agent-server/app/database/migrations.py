@@ -485,6 +485,27 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN sandbox_base_dir VARCHAR(1024)",
     # Drop calendar_events table; calendar reads use Google Workspace OAuth + prebuilt skills.
     "DROP TABLE IF EXISTS calendar_events",
+    # Project milestone system
+    "ALTER TABLE projects ADD COLUMN description TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE projects ADD COLUMN goal_summary TEXT NOT NULL DEFAULT ''",
+    """CREATE TABLE IF NOT EXISTS project_milestones (
+        id VARCHAR(32) PRIMARY KEY,
+        project_id VARCHAR(255) NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title VARCHAR(500) NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        acceptance_criteria TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP
+    )""",
+    "CREATE INDEX IF NOT EXISTS ix_milestones_project_status ON project_milestones(project_id, status)",
+    "CREATE INDEX IF NOT EXISTS ix_milestones_project_order ON project_milestones(project_id, sort_order)",
+    "ALTER TABLE kanban_boards ADD COLUMN project_id VARCHAR(255) REFERENCES projects(id) ON DELETE SET NULL",
+    "ALTER TABLE kanban_boards ADD COLUMN milestone_id VARCHAR(32) REFERENCES project_milestones(id) ON DELETE SET NULL",
+    "CREATE INDEX IF NOT EXISTS ix_kanban_boards_project_id ON kanban_boards(project_id)",
+    "CREATE INDEX IF NOT EXISTS ix_kanban_boards_milestone_id ON kanban_boards(milestone_id)",
 ]
 
 # 创建索引的SQL语句列表

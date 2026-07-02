@@ -1,14 +1,17 @@
 """
 @input: 依赖 app.core.infra.ingress 与 entitlement 模块、DatabaseSettings
-@output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息端点
+@output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息、沙箱容器重建端点
 @pos: HTTP 入口层的 System API
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
+import logging
+import os
 import shutil
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
@@ -16,7 +19,10 @@ from pydantic import BaseModel
 from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
+from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_public_ingress_entitlement
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -130,3 +136,75 @@ def get_storage_info() -> StorageInfoResponse:
         disk_free_bytes=usage.free,
         subdirs=subdirs,
     )
+
+
+# ---------------------------------------------------------------------------
+# Sandbox Container Recreate (SaaS only)
+# ---------------------------------------------------------------------------
+
+
+class SandboxRecreateResponse(BaseModel):
+    status: str
+    message: str
+
+
+@router.post("/sandbox/recreate", response_model=SandboxRecreateResponse)
+async def recreate_sandbox_container() -> SandboxRecreateResponse:
+    """Trigger container recreation via the Control Plane.
+
+    Preserves the persistent volume (workspace files) while resetting
+    system-level state (global packages, OS config). SaaS mode only.
+
+    The server process will terminate when the old container is destroyed,
+    so this endpoint fires the CP request and returns immediately.
+    """
+    caps = get_deployment_capabilities()
+    if not caps.is_sandbox_instance:
+        raise HTTPException(
+            status_code=403,
+            detail="Container recreate is only available in sandbox mode",
+        )
+
+    settings = get_settings()
+    cp_url = settings.control_plane.effective_url()
+    sandbox_id = settings.control_plane.sandbox_id
+    token = settings.control_plane.telemetry_token.get_secret_value()
+
+    if not sandbox_id or not token:
+        raise HTTPException(
+            status_code=503,
+            detail="Control plane connectivity not configured",
+        )
+
+    recreate_url = f"{cp_url}/api/sandboxes/{sandbox_id}/recreate"
+    headers = {
+        "Authorization": f"Bearer {os.getenv('CP_JWT_TOKEN', token)}",
+        "X-Telemetry-Token": token,
+        "X-Sandbox-Id": sandbox_id,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(recreate_url, headers=headers)
+
+        if resp.status_code >= 400:
+            logger.error(
+                "CP recreate request failed: %s %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"Control plane returned {resp.status_code}",
+            )
+
+        return SandboxRecreateResponse(
+            status="accepted",
+            message="Container recreation initiated. The environment will restart shortly.",
+        )
+    except httpx.HTTPError as exc:
+        logger.error("CP recreate request error: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to reach control plane",
+        ) from exc

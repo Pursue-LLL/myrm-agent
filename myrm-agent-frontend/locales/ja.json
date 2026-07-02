@@ -4538,7 +4538,8 @@
     "model": "Model",
     "selectModel": "Select Model",
     "goalMode": "Goal Mode",
-    "enabled": "Enabled"
+    "enabled": "Enabled",
+    "operationFailed": "操作に失敗しました"
   },
   "chat": {
     "jumpBar": {
@@ -10243,6 +10244,11 @@
     "workspaceCleared": "作業ディレクトリをクリアしました",
     "moveSuccess": "{count}件のチャットを移動しました",
     "moveFailed": "チャットの移動に失敗しました"
+  },
+  "milestone": {
+    "title": "マイルストーン",
+    "add": "マイルストーンを追加",
+    "addPlaceholder": "マイルストーン名"
   },
   "Goal": {
     "branchSwitchedStashed": "Switched to branch {branch}. Active goal stashed.",

@@ -27,6 +27,7 @@ import { fetchWebuiProtection, updateWebuiProtection } from '@/services/webui-au
 import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
 import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/useIngressRequirement';
+import SandboxResetCard from './SandboxResetCard';
 
 /**
  * 系统设置 Section
@@ -352,12 +353,8 @@ const SystemSection = memo(() => {
 
   if (!isLocal) {
     return (
-      <div className="max-w-4xl mx-auto py-4">
-        <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
-          <IconSettings className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
-          <h3 className="text-lg font-bold text-foreground mb-2">{t('desktopModeOnly')}</h3>
-          <p className="text-sm text-muted-foreground">{t('desktopModeDescription')}</p>
-        </div>
+      <div className="space-y-12 max-w-4xl mx-auto py-4">
+        <SandboxResetCard />
       </div>
     );
   }

@@ -9,9 +9,11 @@ import { apiRequest } from '@/lib/api';
 export interface Project {
   id: string;
   name: string;
+  description: string;
   color: string;
   sortOrder: number;
   workspacePath?: string;
+  goalSummary: string;
   createdAt: string | null;
   updatedAt: string | null;
 }

@@ -19,6 +19,7 @@ from .config import ConfigAuditLog, UserConfig
 from .cron import CronJobModel, CronRunModel, MonitorStateModel
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
+from .milestone import Milestone
 from .media import BatchImageJob, MediaLibrary
 from .memory import (
     MemoryArchiveRestoreBatchModel,
@@ -133,8 +134,9 @@ __all__ = [
     "ApprovalRecord",
     # Commitment
     "CommitmentModel",
-    # Project
+    # Project & Milestone
     "Project",
+    "Milestone",
     # Notification
     "SystemNotification",
     # Message Filter

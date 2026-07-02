@@ -31,6 +31,20 @@ PROJECT_COLORS = [
 ]
 
 
+def _project_to_dict(p: Project) -> dict[str, object]:
+    return {
+        "id": p.id,
+        "name": p.name,
+        "description": p.description,
+        "color": p.color,
+        "sortOrder": p.sort_order,
+        "workspacePath": p.workspace_path,
+        "goalSummary": p.goal_summary,
+        "createdAt": p.created_at.isoformat() if p.created_at else None,
+        "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
+    }
+
+
 class ProjectService:
     """项目管理服务"""
 
@@ -47,40 +61,28 @@ class ProjectService:
             stmt = select(Project).order_by(Project.sort_order.asc(), Project.created_at.asc())
             result = await db.execute(stmt)
             projects = result.scalars().all()
-            return [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "color": p.color,
-                    "sortOrder": p.sort_order,
-                    "workspacePath": p.workspace_path,
-                    "createdAt": p.created_at.isoformat() if p.created_at else None,
-                    "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
-                }
-                for p in projects
-            ]
+            return [_project_to_dict(p) for p in projects]
 
     @staticmethod
-    async def create_project(name: str, color: str | None = None) -> dict[str, object]:
+    async def create_project(name: str, color: str | None = None, description: str = "") -> dict[str, object]:
         async with get_session() as db:
             count_stmt = select(func.count(Project.id))
             count_result = await db.execute(count_stmt)
             count = count_result.scalar_one()
 
             project_id = uuid4().hex[:12]
-            # Default workspace path for the project
             workspace_path = f"/persistent/workspace/project_{project_id}"
 
             project = Project(
                 id=project_id,
                 name=name.strip(),
+                description=description.strip(),
                 color=color or PROJECT_COLORS[count % len(PROJECT_COLORS)],
                 sort_order=count,
                 workspace_path=workspace_path,
             )
             db.add(project)
 
-            # Create and bind a shared memory context for the project
             from app.services.memory.shared_context import SharedContextService
 
             shared_context_svc = SharedContextService(db)
@@ -91,19 +93,16 @@ class ProjectService:
 
             await db.commit()
             await db.refresh(project)
-            return {
-                "id": project.id,
-                "name": project.name,
-                "color": project.color,
-                "sortOrder": project.sort_order,
-                "workspacePath": project.workspace_path,
-                "createdAt": project.created_at.isoformat() if project.created_at else None,
-                "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
-            }
+            return _project_to_dict(project)
 
     @staticmethod
     async def update_project(
-        project_id: str, name: str | None = None, color: str | None = None, workspace_path: str | None = None
+        project_id: str,
+        name: str | None = None,
+        color: str | None = None,
+        workspace_path: str | None = None,
+        description: str | None = None,
+        goal_summary: str | None = None,
     ) -> dict[str, object] | None:
         async with get_session() as db:
             stmt = select(Project).where(Project.id == project_id)
@@ -118,18 +117,14 @@ class ProjectService:
                 project.color = color
             if workspace_path is not None:
                 project.workspace_path = workspace_path
+            if description is not None:
+                project.description = description.strip()
+            if goal_summary is not None:
+                project.goal_summary = goal_summary.strip()
 
             await db.commit()
             await db.refresh(project)
-            return {
-                "id": project.id,
-                "name": project.name,
-                "color": project.color,
-                "sortOrder": project.sort_order,
-                "workspacePath": project.workspace_path,
-                "createdAt": project.created_at.isoformat() if project.created_at else None,
-                "updatedAt": project.updated_at.isoformat() if project.updated_at else None,
-            }
+            return _project_to_dict(project)
 
     @staticmethod
     async def delete_project(project_id: str) -> bool:

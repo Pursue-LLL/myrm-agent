@@ -16,6 +16,7 @@ AI Agents 共享中间件。为 GeneralAgent 提供可复用的 LangGraph Agent 
 |------|------|------|
 | `user_instructions_middleware.py` | ✅ 核心 | 用户指令注入（首次 LLM 调用，标记检测去重，优化缓存） |
 | `self_update_prompt_middleware.py` | ✅ 核心 | 智能体自更新指导注入（仅对自定义 Agent 注入 `<self_update>` 指导消息，防变砖、防幻觉，持久化同步） |
+| `project_roadmap_middleware.py` | ✅ 核心 | 项目路线图注入（从 DB 加载 project milestones，首次 LLM 调用注入 `<project_roadmap>` SystemMessage） |
 | `widget_capability_middleware.py` | ✅ 辅助 | Widget 能力声明注入；naked 模式跳过 |
 
 ---
@@ -36,6 +37,7 @@ System Prompt (固定, 跨用户缓存)              ← KV Cache ✅
 user_instructions (用户指令, 同用户稳定)        ← KV Cache ✅
 self_update (智能体自更新指导词, 同 Agent 稳定)  ← KV Cache ✅ (高效率二级缓存)
 workspace_context (工作区规则, 同workspace稳定) ← KV Cache ✅
+project_roadmap (项目路线图, 同项目稳定)       ← KV Cache ✅
 Stable `<user_memory_context>` (System, 同用户稳定) ← KV Cache ✅；可选 Learned(`<<<UNTRUSTED_DATA>>>` Human advisory)
 对话消息...                                   ← 每轮变化
 ```

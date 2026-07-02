@@ -340,8 +340,7 @@ async function main() {
 
   if (keepStreamAlive && streamHoldMs > 0) {
     await keepStreamAlive();
-    // Keep the prepare process alive after the parent stream ends so UI E2E can
-    // reach the dashboard while registry rows remain (client disconnect kills jobs).
+    // Parent stream may finish before streamHoldMs; keep prepare alive so UI/MCP can reach list/cancel.
     await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
   }
 }

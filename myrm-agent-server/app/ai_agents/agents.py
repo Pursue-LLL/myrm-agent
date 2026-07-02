@@ -244,6 +244,7 @@ class AgentFactory:
             search_service_cfg=params.search_service_cfg,
             user_instructions=params.user_instructions,
             chat_id=params.chat_id,
+            project_id=params.project_id,
             enable_memory=params.enable_memory,
             memory_require_confirmation=params.memory_require_confirmation,
             enable_memory_auto_extraction=params.enable_memory_auto_extraction,

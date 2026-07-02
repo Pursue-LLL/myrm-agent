@@ -3160,6 +3160,20 @@
       "description": "WebUI 服务访问与系统级配置",
       "desktopModeOnly": "仅桌面模式可用",
       "desktopModeDescription": "系统设置仅在 Tauri 桌面客户端中可用",
+      "sandboxReset": {
+        "title": "重置容器环境",
+        "description": "重建沙箱容器以重置系统级状态（全局包、系统配置）。您的工作区文件和聊天历史将被保留。",
+        "button": "重置环境",
+        "confirmTitle": "确定要重置容器环境吗？",
+        "confirmDescription": "此操作将销毁当前容器并创建一个全新的容器。您的工作区文件（持久化卷上的）、聊天历史、记忆和设置将被保留。全局安装的包和系统级更改将被重置。环境将重启，大约需要 10-30 秒。",
+        "confirm": "确认重置",
+        "cancel": "取消",
+        "preserved": "保留项：工作区文件、聊天历史、记忆、设置",
+        "reset": "重置项：全局包 (pip/apt)、系统配置、容器状态",
+        "resetting": "重置中...",
+        "success": "容器重建已启动，环境即将重启。",
+        "failed": "重置容器环境失败"
+      },
       "status": {
         "currentMode": "当前模式"
       },
@@ -5236,7 +5250,8 @@
       "hintUnreachable": "后端未响应。请运行 myrm dev 或 myrm start，并确认 .env.local 含 API_PORT=8080。",
       "hintSplitDev": "后端已就绪 http://{host}:{port}。请运行 myrm start，或 bun run dev 后打开 http://localhost:3000（API_PORT={proxyPort}）",
       "hintStandalone": "后端已就绪 http://{host}:{port}。请运行 myrm start，或设置 .env.local 的 API_PORT={proxyPort}"
-    }
+    },
+    "operationFailed": "操作失败"
   },
   "chat": {
     "jumpBar": {
@@ -11709,6 +11724,11 @@
     "workspaceCleared": "工作目录已清除",
     "moveSuccess": "已成功移动 {count} 个会话",
     "moveFailed": "移动会话失败"
+  },
+  "milestone": {
+    "title": "里程碑",
+    "add": "添加里程碑",
+    "addPlaceholder": "里程碑标题"
   },
   "cliAgent": {
     "modeAgent": "AI 智能体",

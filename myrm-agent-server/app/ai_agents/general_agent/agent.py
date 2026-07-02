@@ -69,6 +69,7 @@ class GeneralAgent(ToolSetupMixin):
         search_service_cfg: SearchServiceConfig | None = None,
         user_instructions: str | None = None,
         chat_id: str | None = None,
+        project_id: str | None = None,
         lite_model_cfg: ModelConfig | None = None,
         fallback_model_cfg: ModelConfig | None = None,
         safety_fallback_model_cfg: ModelConfig | None = None,
@@ -157,6 +158,7 @@ class GeneralAgent(ToolSetupMixin):
         self.search_service_cfg = search_service_cfg
         self.user_instructions = user_instructions
         self.chat_id = chat_id
+        self.project_id = project_id
         self.agent_id = agent_id
         self.subagent_ids = subagent_ids
         self.jit_subagents = jit_subagents
@@ -337,6 +339,8 @@ class GeneralAgent(ToolSetupMixin):
             context["approval_session_key"] = self.approval_session_key
 
         context["chat_id"] = effective_chat_id
+        if self.project_id:
+            context["project_id"] = self.project_id
         if self.model_cfg.max_context_tokens:
             context["max_context_tokens"] = self.model_cfg.max_context_tokens
 

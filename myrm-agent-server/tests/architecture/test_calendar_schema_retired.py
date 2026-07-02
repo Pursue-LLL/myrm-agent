@@ -10,10 +10,10 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 @pytest.mark.architecture
-def test_migration_tail_drops_calendar_events_table() -> None:
+def test_migration_drops_calendar_events_table() -> None:
     from app.database import migrations
 
-    assert migrations.MIGRATION_STATEMENTS[-1] == "DROP TABLE IF EXISTS calendar_events"
+    assert "DROP TABLE IF EXISTS calendar_events" in migrations.MIGRATION_STATEMENTS
 
 
 @pytest.mark.architecture

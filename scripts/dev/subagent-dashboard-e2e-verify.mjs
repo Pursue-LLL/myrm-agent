@@ -20,5 +20,16 @@ if (res.status === 404) {
   console.log(JSON.stringify({ ok: true, reason: 'not_running' }));
   process.exit(0);
 }
-console.error(JSON.stringify({ ok: false, status: res.status, body: await res.json().catch(() => ({})) }));
+const body = await res.json().catch(() => ({}));
+if (res.status === 200 && body?.data?.cancelled === true) {
+  console.error(
+    JSON.stringify({
+      ok: false,
+      reason: 'still_cancellable',
+      hint: 'Run verify after UI cancel (expect 404), not after a successful REST cancel.',
+    }),
+  );
+  process.exit(1);
+}
+console.error(JSON.stringify({ ok: false, status: res.status, body }));
 process.exit(1);

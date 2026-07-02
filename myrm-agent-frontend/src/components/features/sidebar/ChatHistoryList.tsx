@@ -26,6 +26,7 @@ import { HandoffDialog } from './HandoffDialog';
 import { groupChatsByDate, useCollapsedGroups } from './dateGroupUtils';
 import BatchOperationBar from './BatchOperationBar';
 import ProjectBar from './ProjectBar';
+import ProjectMilestonePanel from './ProjectMilestonePanel';
 import { useBatchMode } from './useBatchMode';
 import { useChatActions } from './useChatActions';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -317,6 +318,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
       )}
 
       <ProjectBar isMobile={isMobile} />
+      <ProjectMilestonePanel />
 
       {batch.batchMode && (
         <div className="px-2 pb-1">
