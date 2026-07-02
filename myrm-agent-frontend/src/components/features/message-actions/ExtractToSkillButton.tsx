@@ -29,6 +29,10 @@ export default function ExtractToSkillButton({ message }: { message: Message }) 
 
   const handleExtract = useCallback(async () => {
     if (state !== 'idle') return;
+    if (useChatStore.getState().loading) {
+      toast.warning(t('extractToSkill.busy'));
+      return;
+    }
     setState('sending');
     try {
       const learnInput = `/learn ${t('extractToSkill.learnContext')}\n\n${message.content}`;

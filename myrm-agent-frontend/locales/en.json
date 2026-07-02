@@ -5274,7 +5274,8 @@
       "learnContext": "Please extract a reusable skill from the following message:",
       "success": "Skill extraction initiated",
       "error": "Failed to extract skill",
-      "sent": "Submitted"
+      "sent": "Submitted",
+      "busy": "Please wait for the current conversation to finish"
     },
     "fork": {
       "title": "Fork Conversation",

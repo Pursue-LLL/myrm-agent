@@ -338,7 +338,7 @@ async function main() {
   };
   console.log(JSON.stringify(result, null, 2));
 
-  if (keepStreamAlive) {
+  if (keepStreamAlive && streamHoldMs > 0) {
     await keepStreamAlive();
   }
 }
