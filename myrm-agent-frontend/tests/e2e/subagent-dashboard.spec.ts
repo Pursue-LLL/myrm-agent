@@ -32,7 +32,15 @@ test.describe('Subagent Dashboard', () => {
     await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /MiniMax|M2\.7/i })).toBeVisible({ timeout: 30_000 });
+
+    const modelButton = page.getByRole('button', { name: /未配置|Not configured|MiniMax|M2\.7/i }).first();
+    await expect(modelButton).toBeVisible({ timeout: 30_000 });
+    const modelLabel = await modelButton.innerText();
+    if (/未配置|Not configured/i.test(modelLabel)) {
+      await modelButton.click();
+      await page.getByText(/MiniMax-M2\.7|M2\.7/i).first().click({ timeout: 15_000 });
+      await expect(page.getByRole('button', { name: /MiniMax|M2\.7/i })).toBeVisible({ timeout: 15_000 });
+    }
 
     const input = page.locator('textarea[data-chat-input]');
     await input.fill(DELEGATE_SLEEP_QUERY);

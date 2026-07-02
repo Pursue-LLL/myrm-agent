@@ -44,6 +44,9 @@ import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
 import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
+import { GoalPlanStepsList } from '@/components/features/chat-window/goals/GoalPlanStepsList';
+import { useGoalPlanSync } from '@/components/features/chat-window/goals/useGoalPlanSync';
+import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
@@ -70,6 +73,9 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
   const [quickInput, setQuickInput] = useState('');
   const e2ee = useE2EEStatus();
+  const { plan } = usePlanStore();
+
+  useGoalPlanSync(chatId);
 
   const chatApprovalQueue = useMemo(
     () => approvalQueue.filter((request) => request.chatId === chatId),
@@ -213,6 +219,12 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
 
         {lastAssistantMessage ? (
           <>
+            {plan && plan.steps.length > 0 && (
+              <div className="bg-card rounded-2xl border overflow-hidden">
+                <GoalPlanStepsList goal={plan.goal} steps={plan.steps} compact />
+              </div>
+            )}
+
             {hasProgress && (
               <div className="bg-card rounded-2xl border overflow-hidden">
                 <div className="p-3 border-b bg-muted/20 flex items-center gap-2">

@@ -483,7 +483,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
           )}
         </div>
         {isGoalsEnabled && (
-          <div className="hidden xl:flex h-full shrink-0">
+          <div className="hidden lg:flex h-full shrink-0">
             <GoalControlPlane />
           </div>
         )}
@@ -527,7 +527,7 @@ const Chat = ({ loading, messageAppeared }: { loading: boolean; messageAppeared:
         )}
       </div>
       {isGoalsEnabled && (
-        <div className="hidden xl:flex h-full shrink-0">
+        <div className="hidden lg:flex h-full shrink-0">
           <GoalControlPlane />
         </div>
       )}
