@@ -1,9 +1,7 @@
 """Agent execution lifecycle: prepare context, run effects, stream, deliver, cleanup.
 
-[POS]
-`RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance;
-methods use `RouterExecutionHost` to constrain `self` attributes.
-containslevelbyfallback(Thread -> Chat -> Channel)andmetadataautomaticallydiscovers(sync_topic_metadata)logic.
+[POS] RouterExecutionMixin is composed into AgentRouter via multiple inheritance;
+methods use RouterExecutionHost to constrain self attributes.
 """
 
 from __future__ import annotations
@@ -22,6 +20,7 @@ from app.channels.routing.placeholder_strategy import (
 )
 from app.channels.routing.router_constants import (
     _MIN_PROGRESS_INTERVAL,
+    _is_silent_content,
 )
 from app.channels.routing.router_host import RouterExecutionHost
 from app.channels.routing.router_keys import routing_session_key
@@ -227,6 +226,12 @@ class RouterExecutionMixin:
     ) -> None:
         """Deliver agent result: TTS processing, edit placeholder or send new message."""
         placeholder_id = await deferred.resolve_for_delivery(result) if deferred else None
+
+        if result and _is_silent_content(result.content):
+            if placeholder_id:
+                await self._fx.cleanup_placeholder(msg.channel, chat_id, placeholder_id, "\u200b")
+            return
+
         if result:
             result = await maybe_tts(result, inbound_had_voice, self._voice)
             result = with_final_notify(result)
@@ -288,6 +293,7 @@ class RouterExecutionMixin:
             channel=ctx.exec_msg.channel,
             chat_id=ctx.chat_id,
             placeholder_id=None,
+            started_at=time.monotonic(),
             requester_id=ctx.exec_msg.sender_id or "",
             steering_token=steering_token,
         )
