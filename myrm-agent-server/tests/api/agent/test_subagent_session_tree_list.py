@@ -52,3 +52,39 @@ async def test_list_subagents_includes_registry_when_gateway_inactive(client: As
     assert len(data) == 1
     assert data[0]["task_id"] == "bg-worker"
     mock_merge.assert_called_once_with(chat_id, [])
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_uses_registry_when_gateway_inactive(client: AsyncClient) -> None:
+    chat_id = "registry-cancel-all-e2e"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=2,
+        ) as mock_cancel,
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] == 2
+    mock_cancel.assert_called_once_with(chat_id)
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_returns_404_when_registry_empty(client: AsyncClient) -> None:
+    chat_id = "registry-cancel-all-empty"
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=0,
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = None
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 404
