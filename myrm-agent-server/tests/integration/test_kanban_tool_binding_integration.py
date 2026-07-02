@@ -162,3 +162,71 @@ def test_agent_factory_default_kanban_tool_mode_is_orchestrator() -> None:
     agent = AgentFactory.create_general_agent(params)
     assert agent.kanban_tool_mode == "orchestrator"
     assert agent.kanban_current_task_id is None
+
+
+@pytest.mark.integration
+def test_default_profile_excludes_kanban_from_auto_bind() -> None:
+    from app.services.agent.profile_resolver import (
+        DEFAULT_ENABLED_BUILTIN_TOOLS,
+        resolve_builtin_tool_flags,
+    )
+
+    assert "kanban" not in DEFAULT_ENABLED_BUILTIN_TOOLS
+    flags = resolve_builtin_tool_flags(list(DEFAULT_ENABLED_BUILTIN_TOOLS))
+    assert flags["enable_kanban"] is False
+
+
+@pytest.mark.integration
+def test_task_runner_params_pattern_forces_worker_mode() -> None:
+    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+    flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+    params = GeneralAgentParams(
+        query="kanban task context",
+        model_cfg=_minimal_model_cfg(),
+        kanban_tool_mode="worker",
+        kanban_current_task_id="task-runner-1",
+        **flags,
+    )
+    agent = AgentFactory.create_general_agent(params)
+    assert agent.kanban_tool_mode == "worker"
+    assert agent.kanban_current_task_id == "task-runner-1"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_invalid_whitespace_mode_falls_back_to_orchestrator_tools() -> None:
+    from app.ai_agents.general_agent.factory import _setup_kanban_tools
+
+    svc = KanbanService.get_instance()
+    await svc.create_board("Invalid Mode Board")
+
+    agent_wrapper = SimpleNamespace(
+        kanban_tool_mode="  not-a-real-mode  ",
+        kanban_current_task_id=None,
+        agent_id="agent-integ-invalid",
+    )
+    tools: list[object] = []
+    await _setup_kanban_tools(agent_wrapper, tools)
+
+    bound_names = {getattr(tool, "name", None) for tool in tools}
+    assert len(tools) == 8
+    assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
+
+
+@pytest.mark.integration
+def test_kanban_in_enabled_builtin_tools_maps_enable_kanban() -> None:
+    from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+    flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+    assert flags["enable_kanban"] is True
+
+    agent = AgentFactory.create_general_agent(
+        GeneralAgentParams(
+            query="flag probe",
+            model_cfg=_minimal_model_cfg(),
+            **flags,
+        )
+    )
+    assert agent.enable_kanban is True
+    assert agent.kanban_tool_mode == "orchestrator"

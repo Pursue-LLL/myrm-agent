@@ -251,6 +251,34 @@ class TestResolveBuiltinToolFlagsRenderUi:
         assert flags["enable_browser"] is False
 
 
+class TestResolveBuiltinToolFlagsKanban:
+    """Verify kanban in enabled_builtin_tools maps to enable_kanban + orchestrator default."""
+
+    def test_resolve_builtin_tool_flags_kanban(self) -> None:
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+        assert flags["enable_kanban"] is True
+        assert flags["enable_wiki"] is False
+
+    def test_factory_passes_enable_kanban_and_orchestrator_default(self) -> None:
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["web_search", "memory", "kanban"])
+        agent = AgentFactory.create_general_agent(
+            GeneralAgentParams(
+                query="test",
+                model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+                **flags,
+            )
+        )
+        assert agent.enable_kanban is True
+        assert agent.kanban_tool_mode == "orchestrator"
+        assert agent.kanban_current_task_id is None
+
+
 class TestGeneralAgentOptionalToolFlags:
     """Verify GeneralAgent stores optional builtin tool flags from GeneralAgentParams."""
 

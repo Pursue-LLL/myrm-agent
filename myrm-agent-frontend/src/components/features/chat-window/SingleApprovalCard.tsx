@@ -156,7 +156,7 @@ export default function SingleApprovalCard({
   const permissionTypeLabel =
     request.toolName === 'bash_code_execute_tool' || request.toolName === 'execute_code'
       ? t('permissionTypes.codeInterpreter')
-      : request.toolName === 'bash_tool'
+      : request.toolName === 'bash_code_execute_tool'
         ? t('permissionTypes.shellExec')
         : request.toolName.startsWith('browser_')
           ? t('permissionTypes.browser')
