@@ -493,13 +493,13 @@ export function useGlobalEvents(): void {
             toast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
           } else if (action === 'force_push') {
             toast.info(
-              t('forcePushReceived') || 'Agent profile updated by organization',
+              t('forcePushReceived'),
               {
-                description: t('forcePushRollbackHint') || 'A snapshot was saved. You can rollback from agent settings.',
+                description: t('forcePushRollbackHint'),
                 duration: 10_000,
                 dismissible: true,
                 action: {
-                  label: t('viewAgent') || 'View',
+                  label: t('viewAgent'),
                   onClick: () => router.push(`/?agent_id=${agentId}`),
                 },
               },

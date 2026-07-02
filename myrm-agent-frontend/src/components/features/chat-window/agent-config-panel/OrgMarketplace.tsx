@@ -3,7 +3,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { isSandbox } from '@/lib/deploy-mode';
-import { getMyOrg } from '@/services/enterprise-org';
+import { getMyOrg, listMembers } from '@/services/enterprise-org';
+import useAuthStore from '@/store/useAuthStore';
 import {
   forcePushUpdate,
   importMarketplaceAgent,
@@ -40,6 +41,8 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [pushingId, setPushingId] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [isOrgAdmin, setIsOrgAdmin] = useState(false);
+  const currentUserId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
     if (!isSandbox()) {
@@ -53,8 +56,16 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
         const org = await getMyOrg();
         if (cancelled) return;
         setOrgId(org.id);
-        const data = await listMarketplaceEntries(org.id);
-        if (!cancelled) setEntries(data);
+        const [data, members] = await Promise.all([
+          listMarketplaceEntries(org.id),
+          listMembers(org.id).catch(() => [] as Awaited<ReturnType<typeof listMembers>>),
+        ]);
+        if (cancelled) return;
+        setEntries(data);
+        if (currentUserId) {
+          const me = members.find((m) => m.user_id === currentUserId);
+          setIsOrgAdmin(me?.role === 'admin' || me?.role === 'owner');
+        }
       } catch {
         // Marketplace is optional; silently hide when CP unavailable
       } finally {
@@ -63,7 +74,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     };
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [currentUserId]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -113,8 +124,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     if (pushingId) return;
 
     const confirmed = window.confirm(
-      t('forcePushConfirm') ||
-      `Force-push "${entry.name}" v${entry.latest_version} to all installed users? This will overwrite their current configuration (a snapshot will be saved for rollback).`,
+      t('forcePushConfirm', { name: entry.name, version: entry.latest_version }),
     );
     if (!confirmed) return;
 
@@ -122,7 +132,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     try {
       const result: ForcePushResult = await forcePushUpdate(entry.id);
       toast.success(
-        t('forcePushSuccess') || 'Force push completed',
+        t('forcePushSuccess'),
         {
           description: `v${result.version} → ${result.synced} synced, ${result.buffered} buffered, ${result.failed} failed (${result.total} total)`,
           duration: 8_000,
@@ -130,7 +140,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       );
     } catch (e) {
       console.error(e);
-      toast.error(t('forcePushError') || 'Force push failed');
+      toast.error(t('forcePushError'));
     } finally {
       setPushingId(null);
     }
@@ -226,7 +236,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
                   </span>
                 </>
               )}
-              {entry.install_count > 0 && (
+              {isOrgAdmin && entry.install_count > 0 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleForcePush(entry); }}
                   disabled={!!pushingId}
@@ -236,14 +246,14 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
                     'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10',
                     'disabled:opacity-50 disabled:cursor-not-allowed',
                   )}
-                  title={t('forcePushTooltip') || 'Force-push latest version to all installed users'}
+                  title={t('forcePushTooltip')}
                 >
                   {pushingId === entry.id ? (
                     <Loader2 size={10} className="animate-spin" />
                   ) : (
                     <RefreshCw size={10} />
                   )}
-                  {t('forcePush') || 'Push'}
+                  {t('forcePush')}
                 </button>
               )}
             </div>
