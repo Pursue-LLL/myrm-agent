@@ -97,6 +97,17 @@ class TestExecutionChecklistLiveE2E:
             ]
             assert len(checklist_steps) >= 1, "Expected checklist or tool tasks_steps on live backend"
 
+            root_or_item = [
+                e
+                for e in events
+                if e.get("type") == "tasks_steps"
+                and (
+                    e.get("step_key") == "checklist_root"
+                    or str(e.get("step_key", "")).startswith("checklist_")
+                )
+            ]
+            assert len(root_or_item) >= 2, "Expected checklist_root + checklist_* ProgressSteps events"
+
             tool_steps = [
                 e
                 for e in events

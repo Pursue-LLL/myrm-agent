@@ -80,9 +80,16 @@ def _make_tool(
     return create_channel_notify_tool(sender, limited), ch
 
 
+class FailingSendChannel(RecordingChannel):
+    """Channel whose send() always fails (send_tracked returns None)."""
+
+    async def send(self, msg: OutboundMessage) -> str | None:
+        return None
+
+
 @pytest.mark.asyncio
 async def test_tool_delivery_through_real_channel_gateway() -> None:
-    """channel_notify_tool → ChannelNotificationSender → real ChannelGateway.publish."""
+    """channel_notify_tool → ChannelNotificationSender → bus.send_tracked."""
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
@@ -165,6 +172,18 @@ async def test_body_truncation_through_gateway() -> None:
         assert len(channel.sent) == 1
         assert channel.sent[0].content.endswith("[...truncated]")
         assert len(channel.sent[0].content) <= 50 + len("\n\n[...truncated]")
+
+
+@pytest.mark.asyncio
+async def test_send_tracked_failure_surfaces_delivery_error() -> None:
+    """AB' guard: send_tracked returning None must not report success."""
+    channel = FailingSendChannel()
+    async with wired_gateway(channel):
+        tool, _ = _make_tool(channel=channel)
+        result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "hello"})
+        assert "error" in result.lower()
+        assert "failed" in result.lower()
+        assert len(channel.sent) == 0
 
 
 @pytest.mark.asyncio

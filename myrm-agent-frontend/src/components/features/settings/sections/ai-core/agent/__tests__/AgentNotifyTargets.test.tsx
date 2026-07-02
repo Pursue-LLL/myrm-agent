@@ -73,6 +73,30 @@ describe('AgentNotifyTargets', () => {
     ]);
   });
 
+  it('shows manual input when saved recipient is not in pairings', async () => {
+    mockListPairings.mockResolvedValue([
+      {
+        id: 'p1',
+        channel: 'telegram',
+        sender_id: 'chat_other',
+        user_id: 'sandbox',
+        status: 'active',
+        display_name: 'Other',
+        created_at: '2026-01-01',
+        updated_at: '2026-01-01',
+      },
+    ]);
+    const targets: NotifyTarget[] = [
+      { channel: 'telegram', recipient_id: 'legacy_manual_id', label: 'Legacy' },
+    ];
+    render(<AgentNotifyTargets targets={targets} onChange={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('legacy_manual_id')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('notifySelectRecipient')).not.toBeInTheDocument();
+  });
+
   it('updates recipient_id field in manual mode', async () => {
     const targets: NotifyTarget[] = [{ channel: 'telegram', recipient_id: '', label: '' }];
     const onChange = vi.fn();
