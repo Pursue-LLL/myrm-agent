@@ -311,46 +311,42 @@ async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) 
 
 @router.get("/{session_id}/dag")
 async def get_goal_dag(session_id: str) -> dict[str, object]:
-    """Get the DAG structure of the current plan."""
+    """Flat todo nodes for legacy DAG consumers (linear todos, no dependency edges)."""
     try:
-        from myrm_agent_harness.agent.sub_agents.planner import PlannerStorage
+        from pathlib import Path
 
-        from app.platform_utils import get_storage_provider
+        from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
+        from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-        storage_provider = get_storage_provider()
-        planner_storage = PlannerStorage(storage_provider, prefix="planner_")
-        plan = await planner_storage.load_plan()
+        from app.config.settings import get_settings
+        from app.platform_utils.workspace_session import to_workspace_session_id
 
-        if not plan:
+        workspace_svc = create_workspace_service(
+            root_dir=Path(get_settings().database.harness_dir),
+        )
+        workspace_session_id = to_workspace_session_id(session_id)
+        workspace = await workspace_svc.get_or_create(session_id=workspace_session_id)
+        workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
+
+        store = read_todos_sync_from_workspace(workspace_root)
+        if not store or not store.todos:
             return {"nodes": [], "edges": []}
 
-        nodes = []
-        edges = []
-
-        for step in plan.steps:
-            nodes.append(
-                {
-                    "id": step.step_id,
-                    "data": {
-                        "label": step.description,
-                        "status": step.status,
-                        "expected_output": step.expected_output,
-                        "risk_level": step.risk_level,
-                    },
-                }
-            )
-            for dep in step.dependencies:
-                edges.append(
-                    {
-                        "id": f"e_{dep}_{step.step_id}",
-                        "source": dep,
-                        "target": step.step_id,
-                    }
-                )
-
-        return {"nodes": nodes, "edges": edges}
+        nodes = [
+            {
+                "id": item.id,
+                "data": {
+                    "label": item.content,
+                    "status": item.status.value,
+                    "expected_output": "",
+                    "risk_level": "low",
+                },
+            }
+            for item in store.todos
+        ]
+        return {"nodes": nodes, "edges": []}
     except Exception as e:
-        logger.error(f"Failed to get goal DAG: {e}")
+        logger.error("Failed to get goal DAG: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

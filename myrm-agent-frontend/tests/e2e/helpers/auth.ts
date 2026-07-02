@@ -33,10 +33,46 @@ export async function ensureLoggedIn(page: Page, request: APIRequestContext): Pr
     data: { username: 'admin', password: adminPassword },
   });
   expect(loginRes.ok()).toBeTruthy();
-  const storage = await request.storageState();
-  if (storage.cookies.length > 0) {
-    await page.context().addCookies(storage.cookies);
-  }
 
+  await syncBrowserAuthSession(page, adminPassword);
+}
+
+/** Login on the Playwright page origin so httpOnly cookies work with Next.js API rewrites (:3000). */
+async function syncBrowserAuthSession(page: Page, adminPassword: string): Promise<void> {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const loginOk = await page.evaluate(async (password: string) => {
+    const res = await fetch('/webui/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username: 'admin', password }),
+    });
+    if (!res.ok) {
+      return false;
+    }
+    localStorage.setItem('auth_token', 'local_user_token');
+    localStorage.setItem(
+      'auth_user',
+      JSON.stringify({
+        id: 'local-user',
+        email: 'local@tauri.app',
+        display_name: 'admin',
+        role: 'admin',
+      }),
+    );
+    return true;
+  }, adminPassword);
+  expect(loginOk, 'Browser-origin /webui/auth/login failed').toBeTruthy();
+
+  const onboardingOk = await page.evaluate(async () => {
+    const res = await fetch('/api/v1/config/onboarding/complete', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return res.ok;
+  });
+  expect(onboardingOk, 'Browser-origin onboarding complete failed').toBeTruthy();
+
+  await expect(page.getByRole('button', { name: /新对话|New chat|New Chat/i })).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 60_000 });
 }

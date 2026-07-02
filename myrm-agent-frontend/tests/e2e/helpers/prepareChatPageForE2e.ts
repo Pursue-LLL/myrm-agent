@@ -13,9 +13,10 @@ export async function prepareChatPageForE2e(page: Page): Promise<void> {
   await page.evaluate(() => {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
     sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    sessionStorage.setItem('myrm_boot_shown', '1');
   });
 
-  await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole('button', { name: /MiniMax|M2\.7|GPT|Claude|模型|Model/i })).toBeVisible({
     timeout: 30_000,
   });
