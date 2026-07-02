@@ -392,13 +392,14 @@ function buildTree(nodes: Record<string, SubagentNode>) {
   return rootNodes;
 }
 
-export const SubagentDashboard = () => {
+export const SubagentDashboard = ({ chatId: chatIdProp }: { chatId?: string }) => {
   const t = useTranslations('subagentDashboard');
   const [open, setOpen] = useState(false);
   const [stopAllOpen, setStopAllOpen] = useState(false);
   const nodes = useSubagentStore((s) => s.nodes);
   const fissionBatch = useSubagentStore((s) => s.fissionBatch);
-  const chatId = useChatStore((s) => s.chatId);
+  const storeChatId = useChatStore((s) => s.chatId);
+  const chatId = chatIdProp ?? storeChatId;
   const treeNodes = useMemo(() => buildTree(nodes), [nodes]);
 
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);

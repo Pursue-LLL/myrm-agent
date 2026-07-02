@@ -5269,6 +5269,13 @@
       "error": "Failed to save to memory",
       "saved": "Already saved"
     },
+    "extractToSkill": {
+      "title": "Extract as Skill",
+      "learnContext": "Please extract a reusable skill from the following message:",
+      "success": "Skill extraction initiated",
+      "error": "Failed to extract skill",
+      "sent": "Submitted"
+    },
     "fork": {
       "title": "Fork Conversation",
       "description": "Create a new conversation branch from message #{index}. The forked conversation will preserve the complete state at this point.",

@@ -440,7 +440,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         {/* Subagent 智能提示按钮 */}
         <SubagentPromptButton />
 
-        <SubagentDashboard />
+        <SubagentDashboard chatId={id} />
 
         {/* Goal Status Card */}
         {isGoalsEnabled && <GoalStatusCard />}
@@ -464,7 +464,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <EStopBanner />
       <ExtensionDisconnectedBanner />
       <EmptyChat />
-      <SubagentDashboard />
+        <SubagentDashboard chatId={id} />
       <LifeStatusCapsule currentSessionId={id || null} />
       <PetOverlay />
     </>

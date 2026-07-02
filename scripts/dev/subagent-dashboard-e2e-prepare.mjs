@@ -8,8 +8,9 @@
 import { randomUUID } from 'node:crypto';
 import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
-const uiBase = process.env.PLAYWRIGHT_BASE_URL ?? process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
+const uiBase = process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
+const streamHoldMs = Number(process.env.E2E_HOLD_MS ?? 120_000);
 
 const E2E_BASH_EPHEMERAL = {
   bash_worker: {
@@ -225,24 +226,39 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
 
       capturedSeed = extractRunningSubagent(events);
       if (capturedSeed) {
-        controller.abort();
-        return { seed: capturedSeed, events, needsResume: false };
+        const keepStreamAlive = async () => {
+          const until = Date.now() + streamHoldMs;
+          try {
+            while (Date.now() < until) {
+              const next = await reader.read();
+              if (next.done) break;
+              if (next.value) {
+                buffer += decoder.decode(next.value, { stream: true });
+                const chunk = consumeSseBuffer(buffer);
+                buffer = chunk.remainder;
+              }
+            }
+          } catch {
+            /* stream closed */
+          }
+        };
+        return { seed: capturedSeed, events, needsResume: false, keepStreamAlive };
       }
       if (extractApprovalActionType(events) !== null) {
         needsResume = true;
         controller.abort();
-        return { seed: null, events, needsResume: true };
+        return { seed: null, events, needsResume: true, keepStreamAlive: null };
       }
       if (events.some((event) => event?.type === 'error')) {
         controller.abort();
-        return { seed: null, events, needsResume: false };
+        return { seed: null, events, needsResume: false, keepStreamAlive: null };
       }
     }
-    return { seed: null, events, needsResume: false };
+    return { seed: null, events, needsResume: false, keepStreamAlive: null };
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      if (capturedSeed) return { seed: capturedSeed, events, needsResume: false };
-      if (needsResume) return { seed: null, events, needsResume: true };
+      if (capturedSeed) return { seed: capturedSeed, events, needsResume: false, keepStreamAlive: null };
+      if (needsResume) return { seed: null, events, needsResume: true, keepStreamAlive: null };
       throw new Error(`agent-stream timed out after ${timeoutMs}ms without subagent_start`);
     }
     throw error;
@@ -261,8 +277,8 @@ async function delegateSubagentViaAgentStream(chatId, timeoutMs = 180_000) {
   while (Date.now() < deadline) {
     const payload = buildAgentStreamPayload(chatId, query, messageId, resumeDecisions);
     const streamBudget = Math.min(120_000, deadline - Date.now());
-    const { seed, events, needsResume } = await readAgentStreamUntilSubagentStart(payload, streamBudget);
-    if (seed) return seed;
+    const { seed, events, needsResume, keepStreamAlive } = await readAgentStreamUntilSubagentStart(payload, streamBudget);
+    if (seed) return { ...seed, keepStreamAlive };
 
     const errorEvent = events.find((event) => event?.type === 'error');
     if (errorEvent) {
@@ -297,6 +313,11 @@ async function assertListSubagents(chatId, taskId) {
   }
 }
 
+async function assertListSubagentsStillRunning(chatId, taskId, delayMs = 2000) {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  await assertListSubagents(chatId, taskId);
+}
+
 async function main() {
   requireEnv('BASIC_API_KEY');
   requireEnv('BASIC_MODEL');
@@ -304,8 +325,9 @@ async function main() {
   await seedProviders();
   await seedYoloSecurity();
   const chatId = await seedSubagentChat();
-  const { taskId, treeRow } = await delegateSubagentViaAgentStream(chatId);
+  const { taskId, treeRow, keepStreamAlive } = await delegateSubagentViaAgentStream(chatId);
   await assertListSubagents(chatId, taskId);
+  await assertListSubagentsStillRunning(chatId, taskId);
 
   const result = {
     chatId,
@@ -315,6 +337,10 @@ async function main() {
     apiBase,
   };
   console.log(JSON.stringify(result, null, 2));
+
+  if (keepStreamAlive) {
+    await keepStreamAlive();
+  }
 }
 
 main().catch((error) => {

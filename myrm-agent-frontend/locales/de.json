@@ -4946,6 +4946,13 @@
       "error": "Speichern fehlgeschlagen",
       "saved": "Bereits gespeichert"
     },
+    "extractToSkill": {
+      "title": "Als Skill extrahieren",
+      "learnContext": "Bitte extrahieren Sie einen wiederverwendbaren Skill aus der folgenden Nachricht:",
+      "success": "Skill-Extraktion gestartet",
+      "error": "Skill-Extraktion fehlgeschlagen",
+      "sent": "Eingereicht"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

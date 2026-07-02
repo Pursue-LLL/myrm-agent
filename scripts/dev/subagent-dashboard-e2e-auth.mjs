@@ -2,8 +2,8 @@
  * Shared WebUI auth + fetch helpers for P2c subagent dashboard E2E scripts.
  */
 
-export const apiBase = process.env.PLAYWRIGHT_API_BASE ?? process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
-export const adminPassword = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'Playwright1234!';
+export const apiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
+export const adminPassword = process.env.E2E_ADMIN_PASSWORD ?? 'Playwright1234!';
 
 /** @type {import('node:http').Cookie[]} */
 let cookies = [];

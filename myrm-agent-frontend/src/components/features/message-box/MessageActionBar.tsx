@@ -28,6 +28,7 @@ import SiblingNav from '../message-actions/SiblingNav';
 import SourcesButton from '../message-actions/SourcesButton';
 import Undo from '../message-actions/Undo';
 import SaveToMemoryButton from '../message-actions/SaveToMemoryButton';
+import ExtractToSkillButton from '../message-actions/ExtractToSkillButton';
 import SaveToWikiButton from '../message-actions/SaveToWikiButton';
 import TokenUsageDisplay from './TokenUsageDisplay';
 import ConsensusMetaDisplay from './ConsensusMetaDisplay';
@@ -114,6 +115,7 @@ export default function MessageActionBar({
           <ForkButton chatId={chatId} messageIndex={messageIndex} />
         )}
         {!isStreaming && <SaveToMemoryButton message={message} />}
+        {!isStreaming && <ExtractToSkillButton message={message} />}
         {!isStreaming && <SaveToWikiButton message={message} />}
         {!isStreaming && <Copy message={message} markdownRef={markdownRef} />}
         {!isStreaming && <ExportMenu message={message} markdownRef={markdownRef} />}

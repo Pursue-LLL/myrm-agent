@@ -4946,6 +4946,13 @@
       "error": "記憶への保存に失敗しました",
       "saved": "保存済み"
     },
+    "extractToSkill": {
+      "title": "スキルとして抽出",
+      "learnContext": "以下のメッセージから再利用可能なスキルを抽出してください：",
+      "success": "スキル抽出を開始しました",
+      "error": "スキル抽出に失敗しました",
+      "sent": "送信済み"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

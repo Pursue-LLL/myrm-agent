@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `Copy.tsx` | 组件/模块 | — | — |
+| `ExtractToSkillButton.tsx` | 组件/模块 | 一键提炼 assistant 消息为可复用技能（通过 /learn 命令触发技能进化管线） | — |
 | `ExportMenu.tsx` | 组件/模块 | — | — |
 | `MemoryFeedback.tsx` | 组件/模块 | — | — |
 | `ReadAloud.tsx` | 组件/模块 | — | — |

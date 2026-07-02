@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-GitHub Actions 工作流定义。关键流水线包括 server 架构守门（`server-architecture.yml`）、server 默认 pytest（`server-unit-tests.yml`）、`frontend-build.yml`（PR `next build`）、`frontend-e2e.yml`（PR Playwright）、安装脚本冒烟、`desktop-release.yml`（`v*` tag → 四平台包 + OTA `latest.json`）；官网部署在 `myrm-agent-brand` 打 `website-v*` tag，不在 agent 仓。
+GitHub Actions 工作流定义。关键流水线包括 server 架构守门（`server-architecture.yml`）、server 默认 pytest（`server-unit-tests.yml`）、`frontend-build.yml`（PR `next build`）、安装脚本冒烟、`desktop-release.yml`（`v*` tag → 四平台包 + OTA `latest.json`）；官网部署在 `myrm-agent-brand` 打 `website-v*` tag，不在 agent 仓。WebUI E2E 走 MCP chrome-devtools，禁止 `@playwright/test` CI 流水线。
 
 ## 约束
 

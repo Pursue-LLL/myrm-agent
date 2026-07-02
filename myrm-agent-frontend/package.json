@@ -28,8 +28,6 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "test:e2e": "playwright test",
-    "test:e2e:ci": "PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_RUN_WEBUI_E2E=1 PLAYWRIGHT_RUN_INSTINCT_INBOX_E2E=1 PLAYWRIGHT_RUN_MCP_SCAN_E2E=1 playwright test",
     "verify:i18n": "bun scripts/verify-i18n.mjs",
     "pretest": "bun run verify:i18n"
   },
@@ -138,7 +136,6 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.4",
-    "@playwright/test": "1.60.0",
     "@shadcn/ui": "^0.0.4",
     "@tailwindcss/postcss": "^4.2.4",
     "@tailwindcss/typography": "^0.5.19",
@@ -159,7 +156,6 @@
     "@vitest/ui": "^4.1.5",
     "jsdom": "^29.1.1",
     "oxlint": "^1.62.0",
-    "playwright": "^1.60.0",
     "postcss": "^8.5.13",
     "prettier": "^3.8.3",
     "puppeteer": "^24.42.0",

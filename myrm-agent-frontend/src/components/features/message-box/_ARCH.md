@@ -17,7 +17,7 @@
 | `MarkdownContent.tsx` | 组件/模块 | Markdown 渲染（数学公式/代码块/图表/GFM Alerts/脚注/citation），支持 web/mcp/kb/conversation 四种 citation 类型 | ✅ |
 | `MemoryCitationsButton.tsx` | 组件/模块 | — | — |
 | `MemoryInsightPanel.tsx` | 组件/模块 | — | — |
-| `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/Wiki保存等按钮 | ✅ |
+| `MessageActionBar.tsx` | 组件 | 消息操作栏：复制/朗读/Fork/记忆保存/技能提炼/Wiki保存等按钮 | ✅ |
 | `MessageBox.tsx` | 组件/模块 | — | — |
 | `MessageBoxLoading.tsx` | 组件/模块 | — | — |
 | `MessageSources.tsx` | 组件/模块 | 消息引用来源卡片网格（web/mcp/kb/conversation 四种类型差异化图标和 hover 预览） | ✅ |

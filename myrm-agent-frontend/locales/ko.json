@@ -4946,6 +4946,13 @@
       "error": "기억 저장 실패",
       "saved": "저장됨"
     },
+    "extractToSkill": {
+      "title": "스킬로 추출",
+      "learnContext": "다음 메시지에서 재사용 가능한 스킬을 추출하세요:",
+      "success": "스킬 추출이 시작되었습니다",
+      "error": "스킬 추출 실패",
+      "sent": "제출됨"
+    },
     "pin": {
       "action": "Pin to Top",
       "section": "Pinned",

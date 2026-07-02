@@ -45,7 +45,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 - E2E（真实 LLM API）：`uv run pytest -m e2e`（含 `tests/api/agent/test_auto_capture_hooks_e2e.py`、`test_bash_terminal_streaming_e2e.py`）
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
-- Playwright UI 测试在 `myrm-agent-frontend/tests/e2e/`（`bun run test:e2e`；CI：`scripts/ci/run_frontend_e2e.sh`；Instinct Inbox 依赖 `POST /api/v1/skills/drafts/test/seed-mock?agent_id=`，**不** mock `/approvals`）
+- WebUI E2E：MCP **chrome-devtools**（真实 Chrome `:3000`）；禁止 `@playwright/test`。API prepare 见 `scripts/dev/subagent-dashboard-e2e-*.mjs`、`test-instinct-inbox-e2e.sh`（Instinct Inbox 依赖 `POST /api/v1/skills/drafts/test/seed-mock?agent_id=`，**不** mock `/approvals`）
 - CI 默认套件：`scripts/ci/run_default_tests.sh`（`-m 'not e2e and not performance' -n0`，workflow `server-unit-tests.yml`）
 - `tests/api/skills/test_drafts_seed_mock.py`：seed-mock HTTP 单测（含 `agent_id` 查询参数，默认套件执行）
 - `tests/api/approvals/test_list_pending_growth_filter.py`：`GET /approvals` 排除后台 growth、保留 inline `thread_id` skill_draft

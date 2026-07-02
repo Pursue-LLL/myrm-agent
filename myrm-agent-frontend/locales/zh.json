@@ -5269,6 +5269,13 @@
       "error": "保存到记忆失败",
       "saved": "已保存"
     },
+    "extractToSkill": {
+      "title": "提炼为技能",
+      "learnContext": "请基于以下消息内容提炼一个可复用的技能：",
+      "success": "已发起技能提炼",
+      "error": "技能提炼失败",
+      "sent": "已提交"
+    },
     "fork": {
       "title": "分支对话",
       "description": "从消息 #{index} 创建新的对话分支。分支对话将保留此时刻的完整状态。",
