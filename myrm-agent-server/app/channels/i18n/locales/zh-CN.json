@@ -109,5 +109,6 @@
     "尝试使用其他模型或服务商"
   ],
   "cooldown_hint_single": " 请等待{seconds}秒后重试。",
-  "cooldown_hint_plural": " 请等待{seconds}秒后重试。"
+  "cooldown_hint_plural": " 请等待{seconds}秒后重试。",
+  "stuck_task_timeout_user_message": "⏱ 任务在 {elapsed} 秒后无响应，已自动取消。请重新发送消息重试。"
 }

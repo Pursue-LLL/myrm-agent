@@ -100,5 +100,6 @@
     "다른 모델이나 제공업체를 사용해 보세요"
   ],
   "cooldown_hint_single": " {seconds}초 후에 다시 시도하세요.",
-  "cooldown_hint_plural": " {seconds}초 후에 다시 시도하세요."
+  "cooldown_hint_plural": " {seconds}초 후에 다시 시도하세요.",
+  "stuck_task_timeout_user_message": "⏱ 작업이 {elapsed}초 동안 응답이 없어 자동 취소되었습니다. 메시지를 다시 보내주세요."
 }

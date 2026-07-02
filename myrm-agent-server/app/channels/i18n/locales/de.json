@@ -100,5 +100,6 @@
     "Versuchen Sie ein anderes Modell oder einen anderen Anbieter"
   ],
   "cooldown_hint_single": " Versuchen Sie es nach {seconds} Sekunde erneut.",
-  "cooldown_hint_plural": " Versuchen Sie es nach {seconds} Sekunden erneut."
+  "cooldown_hint_plural": " Versuchen Sie es nach {seconds} Sekunden erneut.",
+  "stuck_task_timeout_user_message": "⏱ Aufgabe nach {elapsed}s Inaktivität abgelaufen und automatisch abgebrochen. Bitte senden Sie Ihre Nachricht erneut."
 }

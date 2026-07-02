@@ -76,6 +76,21 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
    with a `resume_value` payload, or publishes `APPROVAL_RESOLVED` event
    if no active task exists in the router (e.g. WebUI concurrent resolve).
 
+## Stuck Task Watchdog
+
+`_janitor_loop` (60s interval) calls `_reap_stuck_tasks` to detect IM agent
+tasks exceeding `_STUCK_TASK_TIMEOUT` (600s). For each stuck task:
+
+1. **Cancel** — `cancel_token.cancel()` + `task.cancel()`.
+2. **Resource cleanup** — stop typing indicators, clean up placeholder message
+   with a localized timeout notification (`stuck_task_timeout_user_message`).
+3. **State cleanup** — remove from `_active_tasks`, `_cleanups`, `_approval_msg_ids`.
+4. **SessionGate release** — call `on_task_complete()` to unblock the session
+   and allow pending messages to be processed.
+
+This prevents semaphore exhaustion (max 5 concurrent tasks) and session
+deadlocks when an agent execution hangs without crashing.
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |
@@ -97,7 +112,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
-| router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token + `requester_id` for reaction approval auth, ReactionPolicy, etc.) | — |
+| router_models.py | Core | Data models referenced by AgentRouter in router.py and router_commands (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes parallel reassurance loop for long-task silence detection. | — |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. | ✅ |

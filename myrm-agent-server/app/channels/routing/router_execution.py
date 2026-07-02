@@ -14,7 +14,7 @@ import time
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-from app.channels.i18n import channel_t, get_text
+from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.routing.placeholder_strategy import (
     DeferredPlaceholder,
 )
@@ -295,6 +295,7 @@ class RouterExecutionMixin:
             placeholder_id=None,
             started_at=time.monotonic(),
             requester_id=ctx.exec_msg.sender_id or "",
+            locale=resolve_message_locale(ctx.exec_msg),
             steering_token=steering_token,
         )
 

@@ -178,6 +178,7 @@ from app.channels.routing.router_constants import (
     _DEDUP_MAX_SIZE,
     _DEDUP_TTL,
     _MAX_CONCURRENT_AGENTS,
+    _STUCK_TASK_TIMEOUT,
 )
 from app.channels.routing.router_execution import (
     RouterExecutionMixin,
@@ -429,6 +430,71 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     coordinator_cleaned,
                     estimator_cleaned,
                 )
+
+            await self._reap_stuck_tasks(now)
+
+    async def _reap_stuck_tasks(self, now: float) -> None:
+        """Cancel agent tasks that exceed _STUCK_TASK_TIMEOUT and release all held resources.
+
+        For each stuck task: cancel the CancellationToken + asyncio.Task, stop typing
+        indicators, clean up placeholders, remove from _active_tasks, release SessionGate,
+        and notify the user with a localized timeout message.
+        """
+        stuck_entries: list[tuple[str, _ActiveTask]] = [
+            (key, entry)
+            for key, entry in self._active_tasks.items()
+            if now - entry.started_at > _STUCK_TASK_TIMEOUT and not entry.task.done()
+        ]
+        for state_key, entry in stuck_entries:
+            elapsed = int(now - entry.started_at)
+            logger.warning(
+                "[JANITOR] Stuck task detected: key=%s channel=%s chat=%s elapsed=%ds (limit=%ds), cancelling",
+                state_key,
+                entry.channel,
+                entry.chat_id,
+                elapsed,
+                int(_STUCK_TASK_TIMEOUT),
+            )
+            entry.cancel_token.cancel("Stuck task watchdog timeout")
+            if not entry.task.done():
+                entry.task.cancel()
+
+            self._active_tasks.pop(state_key, None)
+            self._cleanups.pop(state_key, None)
+            self._approval_msg_ids.pop(state_key, None)
+
+            synthetic_msg = InboundMessage(
+                channel=entry.channel,
+                sender_id="",
+                content="",
+                chat_id=entry.chat_id,
+                metadata={"locale": entry.locale} if entry.locale else None,
+            )
+
+            try:
+                await self._fx.stop_typing_keepalive(entry.channel, entry.chat_id)
+                await self._fx.set_typing(entry.channel, entry.chat_id, composing=False)
+            except Exception:
+                logger.debug("[JANITOR] Typing cleanup failed for %s (non-critical)", state_key)
+
+            if entry.placeholder_id:
+                timeout_msg = get_text(
+                    synthetic_msg,
+                    "stuck_task_timeout_user_message",
+                    elapsed=elapsed,
+                )
+                try:
+                    await self._fx.cleanup_placeholder(
+                        entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg
+                    )
+                except Exception:
+                    logger.debug("[JANITOR] Placeholder cleanup failed for %s (non-critical)", state_key)
+
+            self._gate.on_task_complete(synthetic_msg)
+            logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)
+
+        if stuck_entries:
+            logger.warning("[JANITOR] Reaped %d stuck task(s)", len(stuck_entries))
 
     async def _consume_loop(self) -> None:
         """Continuously consume inbound messages and dispatch via SessionGate.

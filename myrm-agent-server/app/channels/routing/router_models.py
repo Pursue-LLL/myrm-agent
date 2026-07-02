@@ -75,6 +75,7 @@ class _ActiveTask:
     placeholder_id: str | None
     started_at: float
     requester_id: str = ""
+    locale: str = ""
     steering_token: SteeringToken | None = None
     deferred_placeholder: object | None = None
 

@@ -109,5 +109,6 @@
     "Try a different model or provider"
   ],
   "cooldown_hint_single": " Retry after {seconds} second.",
-  "cooldown_hint_plural": " Retry after {seconds} seconds."
+  "cooldown_hint_plural": " Retry after {seconds} seconds.",
+  "stuck_task_timeout_user_message": "⏱ Task timed out after {elapsed}s of inactivity and was automatically cancelled. Please resend your message to retry."
 }

@@ -108,5 +108,6 @@
     "別のモデルまたはプロバイダーをお試しください"
   ],
   "cooldown_hint_single": " {seconds}秒後に再試行してください。",
-  "cooldown_hint_plural": " {seconds}秒後に再試行してください。"
+  "cooldown_hint_plural": " {seconds}秒後に再試行してください。",
+  "stuck_task_timeout_user_message": "⏱ タスクが{elapsed}秒間無応答のため自動キャンセルされました。メッセージを再送信してください。"
 }

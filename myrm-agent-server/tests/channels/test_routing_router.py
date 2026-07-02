@@ -262,6 +262,363 @@ class TestJanitor:
         await router._stop_janitor()
 
 
+class TestReapStuckTasks:
+    """Stuck task watchdog: detection, cancellation, resource cleanup, and SessionGate release."""
+
+    @pytest.mark.asyncio
+    async def test_stuck_task_cancelled_and_removed(self) -> None:
+        """A task exceeding _STUCK_TASK_TIMEOUT is cancelled and removed from _active_tasks."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_task.cancel = MagicMock()
+        mock_token = MagicMock()
+
+        state_key = "test:chat-1"
+        router._active_tasks[state_key] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        mock_token.cancel.assert_called_once()
+        mock_task.cancel.assert_called_once()
+        assert state_key not in router._active_tasks
+
+    @pytest.mark.asyncio
+    async def test_non_stuck_task_untouched(self) -> None:
+        """A task within timeout is not cancelled."""
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        state_key = "test:chat-1"
+        router._active_tasks[state_key] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - 10,
+        )
+
+        router._fx = MagicMock()
+        router._gate = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        mock_token.cancel.assert_not_called()
+        mock_task.cancel.assert_not_called()
+        assert state_key in router._active_tasks
+
+    @pytest.mark.asyncio
+    async def test_already_done_task_skipped(self) -> None:
+        """A task that has already completed (done=True) is not reaped even if old."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = True
+        mock_token = MagicMock()
+
+        state_key = "test:chat-1"
+        router._active_tasks[state_key] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 100,
+        )
+
+        router._fx = MagicMock()
+        router._gate = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        mock_token.cancel.assert_not_called()
+        assert state_key in router._active_tasks
+
+    @pytest.mark.asyncio
+    async def test_session_gate_released(self) -> None:
+        """SessionGate.on_task_complete is called to unblock the session."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        router._gate.on_task_complete.assert_called_once()
+        call_msg = router._gate.on_task_complete.call_args[0][0]
+        assert call_msg.channel == "test"
+        assert call_msg.chat_id == "chat-1"
+
+    @pytest.mark.asyncio
+    async def test_locale_preserved_in_synthetic_msg(self) -> None:
+        """Synthetic msg carries the original locale so i18n resolves correctly."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+            locale="ja",
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        call_msg = router._gate.on_task_complete.call_args[0][0]
+        assert call_msg.metadata is not None
+        assert call_msg.metadata["locale"] == "ja"
+
+    @pytest.mark.asyncio
+    async def test_typing_and_placeholder_cleaned(self) -> None:
+        """Typing indicators are stopped and placeholder is cleaned up for stuck tasks."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id="ph-123",
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._fx.cleanup_placeholder = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        router._fx.stop_typing_keepalive.assert_called_once_with("test", "chat-1")
+        router._fx.set_typing.assert_called_once_with("test", "chat-1", composing=False)
+        router._fx.cleanup_placeholder.assert_called_once()
+        ph_args = router._fx.cleanup_placeholder.call_args
+        assert ph_args[0][0] == "test"
+        assert ph_args[0][1] == "chat-1"
+        assert ph_args[0][2] == "ph-123"
+
+    @pytest.mark.asyncio
+    async def test_multiple_stuck_tasks_all_reaped(self) -> None:
+        """Multiple stuck tasks are all reaped in a single pass."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        for i in range(3):
+            mock_task = MagicMock()
+            mock_task.done.return_value = False
+            mock_token = MagicMock()
+            router._active_tasks[f"test:chat-{i}"] = _ActiveTask(
+                task=mock_task,
+                cancel_token=mock_token,
+                channel="test",
+                chat_id=f"chat-{i}",
+                placeholder_id=None,
+                started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+            )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        assert len(router._active_tasks) == 0
+        assert router._gate.on_task_complete.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_approval_state_cleaned_on_stuck(self) -> None:
+        """Pending approval state for a stuck task is cleaned up."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        state_key = "test:chat-1"
+        router._active_tasks[state_key] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+        router._approval_msg_ids[state_key] = "approval-msg-1"
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        assert state_key not in router._active_tasks
+        assert state_key not in router._approval_msg_ids
+
+    @pytest.mark.asyncio
+    async def test_empty_locale_fallback_no_metadata(self) -> None:
+        """Empty locale produces synthetic msg with metadata=None (i18n falls back to English)."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+            locale="",
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        call_msg = router._gate.on_task_complete.call_args[0][0]
+        assert call_msg.metadata is None
+
+    @pytest.mark.asyncio
+    async def test_typing_error_does_not_block_gate_release(self) -> None:
+        """Typing cleanup failure does not prevent SessionGate release."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock(side_effect=RuntimeError("network down"))
+        router._fx.set_typing = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        router._gate.on_task_complete.assert_called_once()
+        assert "test:chat-1" not in router._active_tasks
+
+    @pytest.mark.asyncio
+    async def test_no_placeholder_skips_placeholder_cleanup(self) -> None:
+        """When placeholder_id is None, cleanup_placeholder is not called."""
+        from app.channels.routing.router_constants import _STUCK_TASK_TIMEOUT
+        from app.channels.routing.router_models import _ActiveTask
+
+        router = _make_router()
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        mock_token = MagicMock()
+
+        router._active_tasks["test:chat-1"] = _ActiveTask(
+            task=mock_task,
+            cancel_token=mock_token,
+            channel="test",
+            chat_id="chat-1",
+            placeholder_id=None,
+            started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
+        )
+
+        router._fx = MagicMock()
+        router._fx.stop_typing_keepalive = AsyncMock()
+        router._fx.set_typing = AsyncMock()
+        router._fx.cleanup_placeholder = AsyncMock()
+        router._gate = MagicMock()
+        router._gate.on_task_complete = MagicMock()
+
+        await router._reap_stuck_tasks(time.monotonic())
+
+        router._fx.cleanup_placeholder.assert_not_called()
+
+
 class TestHandleMerged:
     @pytest.mark.asyncio
     async def test_channel_capabilities_populated(self) -> None:
