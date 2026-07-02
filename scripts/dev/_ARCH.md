@@ -16,8 +16,9 @@
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（pytest）；UI 用 MCP chrome-devtools |
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — API prepare（delegate via agent-stream） |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
-| `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言 → JSON |
+| `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
+| `subagent-dashboard-e2e-poll.mjs` | 双平台 | 诊断：prepare 后 list 持久性轮询 + cancel |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source） |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 

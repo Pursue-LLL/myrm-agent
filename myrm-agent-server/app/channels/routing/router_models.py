@@ -56,13 +56,16 @@ class _CleanupEntry:
 
 @dataclasses.dataclass(slots=True)
 class _ActiveTask:
-    """Running agent task metadata for /stop, /steer, and placeholder cleanup.
+    """Running agent task metadata for /stop, /steer, stuck watchdog, and placeholder cleanup.
 
     ``requester_id`` is the channel-level sender identifier (e.g. Slack user
     id, Telegram user id) of the message that initiated this turn. It is
     captured at task creation time so reaction-based approvals can verify that
     the reacting user is either the original requester or an explicitly
     permitted co-approver.
+
+    ``started_at`` is a monotonic timestamp used by the janitor's stuck-task
+    watchdog to detect tasks that exceed ``_STUCK_TASK_TIMEOUT``.
     """
 
     task: asyncio.Task[None]
@@ -70,6 +73,7 @@ class _ActiveTask:
     channel: str
     chat_id: str
     placeholder_id: str | None
+    started_at: float
     requester_id: str = ""
     steering_token: SteeringToken | None = None
     deferred_placeholder: object | None = None

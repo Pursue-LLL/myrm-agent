@@ -340,6 +340,9 @@ async function main() {
 
   if (keepStreamAlive && streamHoldMs > 0) {
     await keepStreamAlive();
+    // Keep the prepare process alive after the parent stream ends so UI E2E can
+    // reach the dashboard while registry rows remain (client disconnect kills jobs).
+    await new Promise((resolve) => setTimeout(resolve, streamHoldMs));
   }
 }
 

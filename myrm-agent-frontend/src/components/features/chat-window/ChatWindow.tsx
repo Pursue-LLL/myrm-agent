@@ -371,7 +371,12 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   }, [pendingMemories, openConfirmDialog]);
 
   if (!isMessagesLoaded) {
-    return <MessageListSkeleton />;
+    return (
+      <>
+        {id ? <SubagentDashboard chatId={id} /> : null}
+        <MessageListSkeleton />
+      </>
+    );
   }
 
   if (notFound) {
