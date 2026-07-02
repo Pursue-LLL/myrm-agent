@@ -35,10 +35,9 @@ _COALESCE_DELAY_SECONDS = 0.25
 
 def _rest_chat_id(session_id: str) -> str:
     """Map harness session_id (often chat_{uuid}) to REST/WebUI chat_id."""
-    normalized = session_id.strip()
-    if normalized.startswith("chat_"):
-        return normalized.removeprefix("chat_")
-    return normalized
+    from myrm_agent_harness.agent.sub_agents.session_tree import _normalize_rest_chat_id
+
+    return _normalize_rest_chat_id(session_id)
 
 
 def _subagent_lifecycle_data_to_node(

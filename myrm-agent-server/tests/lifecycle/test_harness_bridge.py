@@ -123,6 +123,7 @@ async def test_policy_denial_event_publishes_synthetic_node():
 
 def test_rest_chat_id_strips_chat_prefix() -> None:
     assert _rest_chat_id("chat_abc-123") == "abc-123"
+    assert _rest_chat_id("chat_chat_abc-123") == "abc-123"
     assert _rest_chat_id("abc-123") == "abc-123"
 
 
