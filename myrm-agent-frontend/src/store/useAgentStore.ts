@@ -5,6 +5,7 @@ import {
   AgentListItem,
   AgentCreate,
   AgentUpdate,
+  AGENT_LIST_BUILTIN_PAGE_SIZE,
   listAgents,
   createAgent,
   updateAgent,
@@ -44,7 +45,7 @@ const useAgentStore = create<AgentState>()(
     error: null,
     pagination: null,
 
-    fetchAgents: async (page = 1, pageSize = 20, forceRefresh = false) => {
+    fetchAgents: async (page = 1, pageSize = AGENT_LIST_BUILTIN_PAGE_SIZE, forceRefresh = false) => {
       const { loading, agents } = get();
       // Skip duplicate fetches unless caller forces refresh (gallery needs page_size=50 for 24 presets).
       if (!forceRefresh && (loading || agents.length > 0)) {

@@ -361,7 +361,10 @@ export async function listAgentSnapshots(agentId: string): Promise<AgentProfileS
   return result.data as AgentProfileSnapshotItem[];
 }
 
-export async function listAgents(page: number = 1, pageSize: number = 20): Promise<AgentListResponse> {
+export async function listAgents(
+  page: number = 1,
+  pageSize: number = AGENT_LIST_BUILTIN_PAGE_SIZE,
+): Promise<AgentListResponse> {
   const response = await fetch(`${getBackendUrl()}/api/v1/user-agents?page=${page}&page_size=${pageSize}`, {
     method: 'GET',
     headers: {
