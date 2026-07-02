@@ -10,6 +10,7 @@
 
 [POS]
 领域数据仓储层。负责 Agent 的 SQLAlchemy 交互，隔离服务层与数据库结构耦合。
+所有写入 `Agent.enabled_builtin_tools` 的路径均经 `builtin_tool_ids.persist_enabled_builtin_tools` 校验。
 """
 
 import uuid
@@ -26,6 +27,7 @@ from app.core.memory.adapters.policy import (
     memory_policy_to_dict,
 )
 from app.database.models import Agent
+from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
 
 
 class AgentRepository:
@@ -188,7 +190,9 @@ class AgentRepository:
             mcp_servers=meta.get("mcp_ids", []),
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
-            enabled_builtin_tools=meta.get("enabled_builtin_tools", profile.tools_allowed),
+            enabled_builtin_tools=persist_enabled_builtin_tools(
+                meta.get("enabled_builtin_tools", profile.tools_allowed)
+            ),
             browser_engine=meta.get("browser_engine"),
             browser_source=meta.get("browser_source"),
             dialog_policy=meta.get("dialog_policy"),
@@ -284,7 +288,9 @@ class AgentRepository:
         if "max_iterations" in updates:
             agent.max_iterations = cast(int, updates["max_iterations"])
         if "tools_allowed" in updates:
-            agent.enabled_builtin_tools = cast(list[str], updates["tools_allowed"])
+            agent.enabled_builtin_tools = persist_enabled_builtin_tools(
+                updates["tools_allowed"]
+            )
         if "memory_policy" in updates:
             agent.memory_policy = memory_policy_to_dict(cast(AgentMemoryPolicy | None, updates["memory_policy"]))
         if "workspace_policy" in updates:
@@ -315,7 +321,9 @@ class AgentRepository:
                 raw_sel = metadata["mcp_tool_selections"]
                 agent.mcp_tool_selections = cast(dict[str, list[str]], raw_sel) if isinstance(raw_sel, dict) else None
             if "enabled_builtin_tools" in metadata:
-                agent.enabled_builtin_tools = cast(list[str], metadata["enabled_builtin_tools"])
+                agent.enabled_builtin_tools = persist_enabled_builtin_tools(
+                    metadata["enabled_builtin_tools"]
+                )
             if "home_directory" in metadata:
                 agent.home_directory = cast(str | None, metadata["home_directory"])
             if "prompt_mode" in metadata:

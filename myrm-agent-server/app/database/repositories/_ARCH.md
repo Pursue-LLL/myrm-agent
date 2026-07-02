@@ -15,7 +15,7 @@
 | `conversation_recall_lookup_repo.py` | 辅助 | Conversation Recall 只读可见性查找仓储，按 scope/exclusion/lineage 策略为 semantic 命中补齐源消息证据。 | ✅ |
 | `conversation_recall_sql.py` | 核心 | Conversation Recall SQLite/FTS5 SQL 契约，定义 schema、bootstrap、rebuild 和参数化过滤片段。 | ✅ |
 | `conversation_recall_types.py` | 辅助 | Conversation Recall DTO 与 SQLAlchemy row mapper，集中维护仓储返回值转换。 | ✅ |
-| `agent_repo.py` | 核心 | Agent 领域仓储，负责 ORM ↔ AgentProfile 转换、metadata 持久化与运行时字段透传（含 `engine_params`、`auto_restore_domains` 列与 metadata）；`AgentProfileHistory.snapshot_data` 含 `auto_restore_domains` 便于审计 | ✅ |
+| `agent_repo.py` | 核心 | Agent 领域仓储；ORM ↔ AgentProfile；`enabled_builtin_tools` 写路径经 `persist_enabled_builtin_tools` 校验 | ✅ |
 | `uow.py` | 核心 | 全局工作单元模式 (UnitOfWork)，管理异步会话上下文与多仓储原子事务 | ✅ |
 
 ## 模块依赖

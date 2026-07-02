@@ -11,8 +11,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.dto import AgentCreate, AgentUpdate
 from app.database.migrations import ensure_raw_sql_schema
-from app.database.models import AgentProfileSnapshot, Base
+from app.database.models import Agent, AgentProfileSnapshot, Base
+from app.database.repositories.agent_repo import AgentRepository
 from app.services.agent.agent_service import AgentService
+from app.services.agent.builtin_tool_ids import InvalidBuiltinToolIdsError
 from app.services.agent.profile_resolver import get_agent_profile_resolver
 from app.services.agent.profile_snapshot_service import ProfileSnapshotService
 
@@ -241,3 +243,80 @@ async def test_rollback_preserves_mcp_ids(agent_db) -> None:
     assert agent is not None
     metadata = agent.metadata or {}
     assert metadata.get("mcp_ids") == ["mcp-a"]
+
+
+@pytest.mark.asyncio
+async def test_repo_update_profile_rejects_legacy_enabled_builtin_tools(agent_db) -> None:
+    agent_id = await _create_test_agent()
+    session_factory = agent_db
+    async with session_factory() as session:
+        with pytest.raises(InvalidBuiltinToolIdsError):
+            await AgentRepository.update_profile(
+                session,
+                agent_id,
+                {"metadata": {"enabled_builtin_tools": ["web_search", "image_gen"]}},
+            )
+
+
+@pytest.mark.asyncio
+async def test_rollback_rejects_legacy_enabled_builtin_tools_in_snapshot(agent_db) -> None:
+    agent_id = await _create_test_agent()
+    session_factory = agent_db
+    async with session_factory() as session:
+        session.add(
+            AgentProfileSnapshot(
+                id="snap-legacy-tools",
+                agent_id=agent_id,
+                snapshot_data={
+                    "display_name": "Snapshot Test Agent",
+                    "system_prompt": "You are a professional assistant.",
+                    "skill_ids": [],
+                    "enabled_builtin_tools": ["web_search", "image_gen"],
+                },
+                reason="legacy-tools",
+            )
+        )
+        await session.commit()
+
+    with pytest.raises(InvalidBuiltinToolIdsError):
+        await ProfileSnapshotService.rollback_profile_to_snapshot(agent_id, "snap-legacy-tools")
+
+
+@pytest.mark.asyncio
+async def test_resolver_rejects_legacy_enabled_builtin_tools_in_db(agent_db, monkeypatch) -> None:
+    import app.platform_utils as platform_utils
+
+    monkeypatch.setattr(platform_utils, "get_session_factory", lambda: agent_db)
+
+    agent_id = await _create_test_agent()
+    session_factory = agent_db
+    async with session_factory() as session:
+        result = await session.execute(select(Agent).where(Agent.id == agent_id))
+        agent_row = result.scalar_one()
+        agent_row.enabled_builtin_tools = ["web_search", "image_gen"]
+        await session.commit()
+
+    resolver = get_agent_profile_resolver()
+    resolver._cache.clear()  # noqa: SLF001
+
+    with pytest.raises(InvalidBuiltinToolIdsError):
+        await resolver.resolve(agent_id)
+
+
+@pytest.mark.asyncio
+async def test_resolver_reads_canonical_enabled_builtin_tools(agent_db, monkeypatch) -> None:
+    import app.platform_utils as platform_utils
+
+    monkeypatch.setattr(platform_utils, "get_session_factory", lambda: agent_db)
+
+    agent_id = await _create_test_agent()
+    await AgentService.update_agent(
+        agent_id,
+        AgentUpdate(enabled_builtin_tools=["file_ops", "code_execute", "web_search"]),
+    )
+
+    resolver = get_agent_profile_resolver()
+    resolver._cache.clear()  # noqa: SLF001
+    resolved = await resolver.resolve(agent_id)
+    assert resolved is not None
+    assert resolved.enabled_builtin_tools == ("file_ops", "code_execute", "web_search")

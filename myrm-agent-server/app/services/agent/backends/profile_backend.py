@@ -11,6 +11,7 @@ from app.ai_agents.personality_templates import DEFAULT_PERSONALITY_STYLE
 from app.core.memory.adapters.policy import memory_policy_from_dict, memory_policy_to_dict
 from app.database.connection import get_session
 from app.database.models import Agent
+from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,9 @@ class DatabaseProfileBackend:
                 mcp_servers=meta.get("mcp_ids", []),
                 mcp_tool_selections=meta.get("mcp_tool_selections"),
                 subagent_ids=meta.get("subagent_ids", []),
-                enabled_builtin_tools=meta.get("enabled_builtin_tools", profile.tools_allowed),
+                enabled_builtin_tools=persist_enabled_builtin_tools(
+                    meta.get("enabled_builtin_tools", profile.tools_allowed)
+                ),
                 prompt_mode=meta.get("prompt_mode", "full"),
                 personality_style=meta.get("personality_style", DEFAULT_PERSONALITY_STYLE),
                 security_overrides=meta.get("security_overrides"),
@@ -164,7 +167,7 @@ class DatabaseProfileBackend:
             if "tools_allowed" in updates:
                 v = updates["tools_allowed"]
                 if isinstance(v, list):
-                    agent.enabled_builtin_tools = [str(x) for x in v]
+                    agent.enabled_builtin_tools = persist_enabled_builtin_tools(v)
             if "memory_policy" in updates:
                 agent.memory_policy = memory_policy_to_dict(cast(AgentMemoryPolicy | None, updates["memory_policy"]))
             if "workspace_policy" in updates:
@@ -182,7 +185,9 @@ class DatabaseProfileBackend:
                         sel = metadata["mcp_tool_selections"]
                         agent.mcp_tool_selections = cast(dict[str, list[str]], sel) if isinstance(sel, dict) else None
                     if "enabled_builtin_tools" in metadata and isinstance(metadata["enabled_builtin_tools"], list):
-                        agent.enabled_builtin_tools = [str(x) for x in metadata["enabled_builtin_tools"]]
+                        agent.enabled_builtin_tools = persist_enabled_builtin_tools(
+                            metadata["enabled_builtin_tools"]
+                        )
                     if "home_directory" in metadata:
                         hd = metadata["home_directory"]
                         if hd is None or isinstance(hd, str):

@@ -10,6 +10,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 - DEFAULT_ENABLED_BUILTIN_TOOLS: default profile tool list
 - BUILTIN_TOOL_IDS / BUILTIN_TOOL_ID_SET: canonical ID catalog
 - normalize_enabled_builtin_tools / coerce_enabled_builtin_tools: validation helpers
+- persist_enabled_builtin_tools: DB column write validation
 
 [POS]
 Server-side SSOT for enabled_builtin_tools IDs and legacy rejection.
@@ -125,3 +126,13 @@ def coerce_enabled_builtin_tools(
     if tools is None:
         return list(default)
     return normalize_enabled_builtin_tools(tools)
+
+
+def persist_enabled_builtin_tools(raw: object) -> list[str]:
+    """Validate enabled_builtin_tools before writing Agent.enabled_builtin_tools column."""
+    if raw is None:
+        return list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+    if not isinstance(raw, (list, tuple)):
+        msg = "enabled_builtin_tools must be a list of tool IDs"
+        raise ValueError(msg)
+    return normalize_enabled_builtin_tools([str(item) for item in raw])

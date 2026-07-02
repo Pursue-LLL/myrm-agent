@@ -29,7 +29,11 @@ from typing import Sequence, TypedDict
 
 from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
 
-from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+from app.services.agent.builtin_tool_ids import (
+    DEFAULT_ENABLED_BUILTIN_TOOLS,
+    InvalidBuiltinToolIdsError,
+    normalize_enabled_builtin_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,16 +200,26 @@ class AgentProfileResolver:
                 raw_mcp_ids = metadata.get("mcp_ids", [])
                 raw_security = metadata.get("security_overrides")
                 raw_personality = metadata.get("personality_style")
-                raw_builtin_tools = metadata.get("enabled_builtin_tools", list(DEFAULT_ENABLED_BUILTIN_TOOLS))
+                if agent.tools_allowed is not None:
+                    raw_builtin_tools: object = list(agent.tools_allowed)
+                else:
+                    raw_builtin_tools = metadata.get(
+                        "enabled_builtin_tools", list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+                    )
+                coerced_tools = (
+                    _coerce_str_tuple(raw_builtin_tools)
+                    if raw_builtin_tools is not None
+                    else DEFAULT_ENABLED_BUILTIN_TOOLS
+                )
+                tools_tuple = tuple(
+                    normalize_enabled_builtin_tools(list(coerced_tools))
+                )
                 raw_workspace_policy = metadata.get("workspace_policy")
                 raw_engine_params = metadata.get("engine_params")
 
                 mcp_tuple = _coerce_str_tuple(raw_mcp_ids)
                 mcp_tool_selections = _coerce_tool_selections(metadata.get("mcp_tool_selections"))
                 sub_tuple = _coerce_str_tuple(raw_subagent_ids) if raw_subagent_ids is not None else ()
-                tools_tuple = (
-                    _coerce_str_tuple(raw_builtin_tools) if raw_builtin_tools is not None else DEFAULT_ENABLED_BUILTIN_TOOLS
-                )
                 raw_auto_restore = metadata.get("auto_restore_domains")
                 auto_domains_tuple = _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
 
@@ -272,6 +286,8 @@ class AgentProfileResolver:
                     ),
                     built_in=bool(getattr(agent, "is_built_in", False) or getattr(agent, "is_public", False)),
                 )
+        except InvalidBuiltinToolIdsError:
+            raise
         except Exception:
             logger.error("Failed to resolve agent profile for '%s'", agent_id, exc_info=True)
             return None
