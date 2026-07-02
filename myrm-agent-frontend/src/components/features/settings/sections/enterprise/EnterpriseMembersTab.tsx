@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from '@/components/primitives/dialog';
 import OrgMcpAdminPanel from './OrgMcpAdminPanel';
+import { canManageOrgMcp } from './orgMcpAccess';
 import {
   type OrgInfo,
   type OrgMember,
@@ -31,8 +32,6 @@ import {
   listHandoffLogs,
 } from '@/services/enterprise-org';
 import useAuthStore from '@/store/useAuthStore';
-
-const ORG_ADMIN_ROLES = new Set(['owner', 'admin']);
 
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
@@ -64,11 +63,10 @@ const EnterpriseMembersTab = memo(() => {
   const orgId = org?.id ?? '';
   const authUserId = useAuthStore((s) => s.user?.id);
 
-  const isOrgAdmin = useMemo(() => {
-    if (!authUserId) return false;
-    const member = members.find((m) => m.user_id === authUserId);
-    return member !== undefined && ORG_ADMIN_ROLES.has(member.role);
-  }, [authUserId, members]);
+  const isOrgAdmin = useMemo(
+    () => canManageOrgMcp(members, authUserId),
+    [authUserId, members],
+  );
 
   const loadData = useCallback(async () => {
     try {

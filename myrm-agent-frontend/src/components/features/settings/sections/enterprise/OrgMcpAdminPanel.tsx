@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Plug, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plug, Plus, Trash2 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -21,6 +21,7 @@ import {
 import {
   type OrgMCPDelivery,
   type OrgMCPServer,
+  type UpdateOrgMCPServerInput,
   createOrgMcpServer,
   deleteOrgMcpServer,
   listOrgMcpServers,
@@ -52,6 +53,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   const [servers, setServers] = useState<OrgMCPServer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<OrgMCPServer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrgMCPServer | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +62,12 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
   const [authHeader, setAuthHeader] = useState('');
+
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState<'sse' | 'streamable_http'>('sse');
+  const [editUrl, setEditUrl] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editAuthHeader, setEditAuthHeader] = useState('');
 
   const loadServers = useCallback(async () => {
     try {
@@ -104,6 +112,49 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
       setSaving(false);
     }
   }, [orgId, name, type, url, description, authHeader, t, loadServers]);
+
+  const openEditDialog = useCallback((server: OrgMCPServer) => {
+    setEditTarget(server);
+    setEditName(server.name);
+    setEditType(server.type as 'sse' | 'streamable_http');
+    setEditUrl(server.url ?? '');
+    setEditDescription(server.description ?? '');
+    setEditAuthHeader('');
+  }, []);
+
+  const handleEdit = useCallback(async () => {
+    if (!editTarget || !editName.trim() || !editUrl.trim()) return;
+    try {
+      setSaving(true);
+      const payload: UpdateOrgMCPServerInput = {
+        name: editName.trim(),
+        type: editType,
+        url: editUrl.trim(),
+        description: editDescription.trim(),
+      };
+      if (editAuthHeader.trim()) {
+        payload.headers = { Authorization: editAuthHeader.trim() };
+      }
+      const result = await updateOrgMcpServer(orgId, editTarget.id, payload);
+      showDeliveryToast(t, result.delivery);
+      setEditTarget(null);
+      await loadServers();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('mcpUpdateFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    orgId,
+    editTarget,
+    editName,
+    editType,
+    editUrl,
+    editDescription,
+    editAuthHeader,
+    t,
+    loadServers,
+  ]);
 
   const handleToggle = useCallback(
     async (server: OrgMCPServer) => {
@@ -200,8 +251,17 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                 <Button
                   size="sm"
                   variant="ghost"
+                  onClick={() => openEditDialog(server)}
+                  aria-label={t('mcpEdit')}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
                   className="text-destructive hover:text-destructive"
                   onClick={() => setDeleteTarget(server)}
+                  aria-label={t('mcpDeleteTitle')}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -266,6 +326,73 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
               {t('cancel')}
             </Button>
             <Button onClick={() => void handleCreate()} disabled={saving || !name.trim() || !url.trim()}>
+              {t('confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editTarget !== null} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('mcpEdit')}</DialogTitle>
+            <DialogDescription>{t('mcpEditDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t('mcpName')}</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('mcpType')}</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                value={editType}
+                onChange={(e) => setEditType(e.target.value as 'sse' | 'streamable_http')}
+              >
+                <option value="sse">SSE</option>
+                <option value="streamable_http">Streamable HTTP</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('mcpUrl')}</Label>
+              <Input
+                value={editUrl}
+                onChange={(e) => setEditUrl(e.target.value)}
+                placeholder="https://mcp.example.com/sse"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('mcpServerDescription')}</Label>
+              <Input
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder={t('mcpServerDescriptionPlaceholder')}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('mcpAuthHeader')}</Label>
+              <Input
+                value={editAuthHeader}
+                onChange={(e) => setEditAuthHeader(e.target.value)}
+                placeholder={t('mcpAuthHeaderPlaceholder')}
+                type="password"
+                autoComplete="off"
+              />
+              {editTarget?.headers_configured && (
+                <p className="text-xs text-muted-foreground">{t('mcpAuthHeaderKeepHint')}</p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{t('mcpSleepingHint')}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
+              {t('cancel')}
+            </Button>
+            <Button
+              onClick={() => void handleEdit()}
+              disabled={saving || !editName.trim() || !editUrl.trim()}
+            >
               {t('confirm')}
             </Button>
           </DialogFooter>

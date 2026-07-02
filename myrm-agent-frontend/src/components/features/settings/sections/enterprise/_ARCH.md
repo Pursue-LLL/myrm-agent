@@ -11,10 +11,11 @@ SaaS / sandbox 部署下的 Enterprise Org 管理 Section（`SettingsMenu` 中 `
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `EnterpriseOrgSection.tsx` | 核心入口 | 轻量 Tab 容器，lazy 加载三个子 Tab | ✅ |
-| `EnterpriseMembersTab.tsx` | 子 Tab | 组织信息、成员 CRUD、离职交接、Volume 转移 | ✅ |
+| `EnterpriseMembersTab.tsx` | 子 Tab | 组织信息、成员 CRUD、离职交接、Volume 转移；org owner/admin 可见 Org MCP 面板 | ✅ |
 | `EnterpriseAuditTab.tsx` | 子 Tab | 安全审计大盘：KPI 卡片、时间线图表、事件列表、导出 | ✅ |
 | `EnterpriseUsageTab.tsx` | 子 Tab | 成本报表：月度用量进度、成员排行、分类分布、预算设置 | ✅ |
-| `OrgMcpAdminPanel.tsx` | 子模块 | Org 级 MCP 服务器管理面板（嵌入 Members Tab） | ✅ |
+| `OrgMcpAdminPanel.tsx` | 子模块 | Org 级 MCP CRUD（create/edit/toggle/delete + delivery toast） | ✅ |
+| `orgMcpAccess.ts` | 工具 | `canManageOrgMcp` — 前端 RBAC，与 CP `require_admin` 对齐 | ✅ |
 
 ## Tab 结构
 
