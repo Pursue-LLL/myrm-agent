@@ -37,7 +37,7 @@ const TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string }> = {
 };
 
 export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
-  const { data, actions } = ctx;
+  const { data } = ctx;
   const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
   const isZh = lang?.startsWith('zh');
 
@@ -59,9 +59,10 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       action: {
         label: actionLabel,
         onClick: () => {
-          const prev = H.useChatStore.getState().currentBuiltinTools;
+          const store = H.useChatStore.getState();
+          const prev = store.currentBuiltinTools;
           if (!prev.includes(toolId)) {
-            actions.setCurrentBuiltinTools([...prev, toolId]);
+            store.setCurrentBuiltinTools([...prev, toolId]);
             toast.success(isZh ? '已开启，请重试刚才的请求' : 'Enabled. Please retry your request.');
           }
         },
@@ -78,10 +79,24 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
     }
 
     const message = isZh
-      ? `此 Agent 未绑定技能「${skillId}」。请打开 Agent 配置勾选该技能后重试。`
-      : `Skill "${skillId}" is not bound to this Agent. Open Agent settings, enable it, then retry.`;
+      ? `完成此任务需要绑定技能「${skillId}」`
+      : `Bind skill "${skillId}" to complete this task`;
+    const actionLabel = isZh ? '一键绑定' : 'Bind now';
 
-    toast.info(message, { duration: 12000 });
+    toast.info(message, {
+      duration: 12000,
+      action: {
+        label: actionLabel,
+        onClick: () => {
+          const store = H.useChatStore.getState();
+          const prev = store.agentConfig?.selectedSkillIds ?? [];
+          if (!prev.includes(skillId)) {
+            store.updateAgentConfig({ selectedSkillIds: [...prev, skillId] });
+            toast.success(isZh ? '已绑定，请重试刚才的请求' : 'Skill bound. Please retry your request.');
+          }
+        },
+      },
+    });
     return done(ctx);
   }
 

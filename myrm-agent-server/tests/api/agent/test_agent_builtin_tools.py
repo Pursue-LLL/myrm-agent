@@ -114,7 +114,9 @@ class TestAgentBuiltinToolsCRUD:
         assert set(agent["enabled_builtin_tools"]) == {"web_search", "video_generation"}
 
     def test_create_agent_without_builtin_tools(self, auth_headers: dict[str, str]) -> None:
-        """Create an agent without specifying builtin tools — defaults to web_search + memory."""
+        """Create an agent without specifying builtin tools — defaults to sandbox baseline."""
+        from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+
         payload = {
             "name": "No Builtin Tools Agent",
             "system_prompt": "",
@@ -130,7 +132,7 @@ class TestAgentBuiltinToolsCRUD:
         assert resp.status_code == 200
         agent = resp.json()["data"]
         agent_id = agent["id"]
-        assert agent["enabled_builtin_tools"] == ["web_search", "memory"]
+        assert agent["enabled_builtin_tools"] == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
         _e2e_request(
             "DELETE",
@@ -202,11 +204,12 @@ class TestAgentConfigRequestBuiltinTools:
     """Test enabled_builtin_tools in AgentConfigRequest model."""
 
     def test_agent_config_request_default(self) -> None:
-        """Verify AgentConfigRequest defaults to ['web_search', 'memory']."""
+        """Verify AgentConfigRequest defaults to sandbox baseline builtin tools."""
+        from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
         from app.services.agent.params import AgentConfigRequest
 
         cfg = AgentConfigRequest()
-        assert cfg.enabled_builtin_tools == ["web_search", "memory"]
+        assert cfg.enabled_builtin_tools == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
     def test_agent_config_request_custom(self) -> None:
         """Verify AgentConfigRequest accepts custom builtin tools."""

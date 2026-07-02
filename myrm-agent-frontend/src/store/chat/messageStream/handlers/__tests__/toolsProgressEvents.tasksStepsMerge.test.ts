@@ -142,6 +142,38 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     expect(state.messages[0].progressSteps![0].status).toBe('cancelled');
   });
 
+  it('merges is_plan todo tree by step_key (progress_root + todo_step_*)', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: typeof state) => void) => {
+      updater(state);
+    });
+
+    const rootCtx = makeTasksStepsCtx('in_progress', 'progress_root');
+    rootCtx.data = {
+      ...rootCtx.data,
+      is_plan: true,
+      data: [{ text: 'Launch checklist' }],
+    } as never;
+    rootCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    await toolsProgressEvents(rootCtx);
+
+    const childCtx = makeTasksStepsCtx('pending', 'todo_step_a');
+    childCtx.data = {
+      ...childCtx.data,
+      is_plan: true,
+      parent_step_key: 'progress_root',
+      data: [{ text: 'Draft outline' }],
+    } as never;
+    childCtx.actions.setMessages = setMessages as StreamCtx['actions']['setMessages'];
+    await toolsProgressEvents(childCtx);
+
+    expect(state.messages[0].progressSteps).toHaveLength(2);
+    const root = state.messages[0].progressSteps!.find((s) => s.step_key === 'progress_root');
+    const child = state.messages[0].progressSteps!.find((s) => s.step_key === 'todo_step_a');
+    expect(root?.is_plan).toBe(true);
+    expect(child?.parent_step_key).toBe('progress_root');
+  });
+
   it('keeps distinct step_keys as separate progress items', async () => {
     const state = makeMessagesState();
     const setMessages = vi.fn((updater: (s: typeof state) => void) => {

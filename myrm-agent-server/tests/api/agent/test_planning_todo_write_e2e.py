@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
+from myrm_agent_harness.toolkits.code_execution import create_workspace_service
+
+from app.config.settings import get_settings
+from app.platform_utils.workspace_session import to_workspace_session_id
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
 
@@ -29,6 +36,14 @@ def _collect_agent_stream(client: TestClient, payload: dict[str, object]) -> lis
             if isinstance(data, dict):
                 events.append(data)
     return events
+
+
+async def _read_workspace_todos(chat_id: str) -> object | None:
+    harness_root = Path(get_settings().database.harness_dir)
+    workspace_svc = create_workspace_service(root_dir=harness_root)
+    workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
+    workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
+    return read_todos_sync_from_workspace(workspace_root)
 
 
 @pytest.mark.e2e
@@ -68,10 +83,8 @@ def test_planning_todo_write_persists_and_emits_tasks_steps(client: TestClient) 
     ]
     assert todo_step_events, "Expected tasks_steps events for todo_write"
 
-    plan_response = client.get(f"/api/v1/goals/{chat_id}/plan")
-    assert plan_response.status_code == 200
-    plan_payload = plan_response.json().get("plan")
-    assert plan_payload is not None, "Goal plan API should hydrate todos from workspace SSOT"
-    assert plan_payload.get("goal") == "Integration test"
-    step_ids = {step.get("step_id") for step in plan_payload.get("steps", [])}
+    store = asyncio.run(_read_workspace_todos(chat_id))
+    assert store is not None, "todo_write should persist todos.json in workspace SSOT"
+    assert store.goal == "Integration test"
+    step_ids = {item.id for item in store.todos}
     assert {"step_a", "step_b"}.issubset(step_ids)

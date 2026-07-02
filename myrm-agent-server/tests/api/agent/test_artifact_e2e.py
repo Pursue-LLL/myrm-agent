@@ -108,7 +108,7 @@ class TestArtifactE2E:
                 "query": query,
                 "modelSelection": model_selection,
                 "searchServiceCfg": search_config,
-                "agentConfig": {"enabledBuiltinTools": ["file_ops"]},
+                "agentConfig": {"enabledBuiltinTools": ["file_ops", "code_execute"]},
             }
             _run_agent_until_settled(client, req_data)
             target_artifact = _poll_target_artifact(client, filename="hello_artifact.md")

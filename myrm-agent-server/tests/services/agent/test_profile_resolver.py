@@ -381,7 +381,12 @@ class TestFalsyEdgeCases:
             workspace_policy=None,
             memory_policy=None,
             memory_decay_profile=None,
-            enabled_builtin_tools=("web_search", "memory"),
+            enabled_builtin_tools=(
+                "web_search",
+                "memory",
+                "file_ops",
+                "code_execute",
+            ),
         )
         with patch.object(
             AgentProfileResolver,
@@ -392,7 +397,12 @@ class TestFalsyEdgeCases:
             result = await resolver.resolve("agent-default-tools")
 
         assert result is not None
-        assert result.enabled_builtin_tools == ("web_search", "memory")
+        assert result.enabled_builtin_tools == (
+            "web_search",
+            "memory",
+            "file_ops",
+            "code_execute",
+        )
 
     @pytest.mark.asyncio
     async def test_empty_subagent_ids_preserved(self, resolver: AgentProfileResolver):

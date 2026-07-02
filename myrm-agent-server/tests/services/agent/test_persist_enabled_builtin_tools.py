@@ -65,7 +65,9 @@ def test_persist_enabled_builtin_tools_rejects_non_list() -> None:
 
 
 def test_persist_enabled_builtin_tools_defaults_when_none() -> None:
-    assert persist_enabled_builtin_tools(None) == ["web_search", "memory"]
+    from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+
+    assert persist_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
 
 
 @pytest.mark.asyncio
