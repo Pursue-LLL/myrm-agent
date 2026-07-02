@@ -109,18 +109,18 @@ async def cancel_all_subagents(
     chat_id: Annotated[str, Path(..., description="The chat session ID")],
 ) -> JSONResponse:
     """Cancel all running subagents for the current chat session."""
+    from myrm_agent_harness.agent.sub_agents.session_tree import cancel_active_children_for_session
+
     gateway = get_agent_gateway()
     info = gateway._session_info.get(chat_id)
 
+    cancelled = 0
     if info and info.agent and info.agent() is not None:
         agent = info.agent()
         if hasattr(agent, "cancel_all_children"):
-            cancelled = agent.cancel_all_children()
-            return success_response(data={"cancelled": cancelled, "chat_id": chat_id})
+            cancelled += agent.cancel_all_children()
 
-    from myrm_agent_harness.agent.sub_agents.session_tree import cancel_active_children_for_session
-
-    cancelled = cancel_active_children_for_session(chat_id)
+    cancelled += cancel_active_children_for_session(chat_id)
     if cancelled == 0:
         return error_response(
             message=f"No running subagents found for chat session {chat_id}.",

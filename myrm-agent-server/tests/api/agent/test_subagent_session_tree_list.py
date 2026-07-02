@@ -88,3 +88,99 @@ async def test_cancel_all_subagents_returns_404_when_registry_empty(client: Asyn
         resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
 
     assert resp.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_chains_registry_when_gateway_active(client: AsyncClient) -> None:
+    """New agent per message leaves orphan managers in ACTIVE_SUBAGENTS; cancel-all must still reach registry."""
+    chat_id = "registry-cancel-all-gateway-active"
+
+    mock_agent = MagicMock()
+    mock_agent.cancel_all_children.return_value = 0
+
+    mock_info = SimpleNamespace(agent=lambda: mock_agent)
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=2,
+        ) as mock_cancel,
+    ):
+        mock_gateway.return_value._session_info.get.return_value = mock_info
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] == 2
+    mock_agent.cancel_all_children.assert_called_once()
+    mock_cancel.assert_called_once_with(chat_id)
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_sums_gateway_and_registry(client: AsyncClient) -> None:
+    chat_id = "registry-cancel-all-sum"
+
+    mock_agent = MagicMock()
+    mock_agent.cancel_all_children.return_value = 1
+    mock_info = SimpleNamespace(agent=lambda: mock_agent)
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=2,
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = mock_info
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] == 3
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_chains_registry_when_gateway_active(client: AsyncClient) -> None:
+    """New agent per message leaves orphan managers in ACTIVE_SUBAGENTS; cancel-all must still reach registry."""
+    chat_id = "registry-cancel-all-gateway-active"
+
+    mock_agent = MagicMock()
+    mock_agent.cancel_all_children.return_value = 0
+
+    mock_info = SimpleNamespace(agent=lambda: mock_agent)
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=2,
+        ) as mock_cancel,
+    ):
+        mock_gateway.return_value._session_info.get.return_value = mock_info
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] == 2
+    mock_agent.cancel_all_children.assert_called_once()
+    mock_cancel.assert_called_once_with(chat_id)
+
+
+@pytest.mark.anyio
+async def test_cancel_all_subagents_sums_gateway_and_registry(client: AsyncClient) -> None:
+    chat_id = "registry-cancel-all-sum"
+
+    mock_agent = MagicMock()
+    mock_agent.cancel_all_children.return_value = 1
+    mock_info = SimpleNamespace(agent=lambda: mock_agent)
+
+    with (
+        patch("app.api.agents.subagents.get_agent_gateway") as mock_gateway,
+        patch(
+            "myrm_agent_harness.agent.sub_agents.session_tree.cancel_active_children_for_session",
+            return_value=2,
+        ),
+    ):
+        mock_gateway.return_value._session_info.get.return_value = mock_info
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/cancel-all")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] == 3
