@@ -4951,7 +4951,8 @@
       "learnContext": "Bitte extrahieren Sie einen wiederverwendbaren Skill aus der folgenden Nachricht:",
       "success": "Skill-Extraktion gestartet",
       "error": "Skill-Extraktion fehlgeschlagen",
-      "sent": "Eingereicht"
+      "sent": "Eingereicht",
+      "busy": "Bitte warten Sie, bis das aktuelle Gespräch abgeschlossen ist"
     },
     "pin": {
       "action": "Pin to Top",
