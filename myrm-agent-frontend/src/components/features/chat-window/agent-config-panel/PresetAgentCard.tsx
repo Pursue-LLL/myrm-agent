@@ -161,14 +161,18 @@ const PresetAgentCard = ({
               </p>
               {agent.tools && agent.tools.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {agent.tools.slice(0, 4).map((toolId) => (
-                    <span
-                      key={toolId}
-                      className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted/40 text-[10px] text-muted-foreground"
-                    >
-                      {tPanel(`builtinToolNames.${toolId}` as never)}
-                    </span>
-                  ))}
+                  {agent.tools.slice(0, 4).map((toolId) => {
+                    const labelKey = `builtinToolNames.${toolId}` as const;
+                    const label = tPanel.has(labelKey) ? tPanel(labelKey) : toolId;
+                    return (
+                      <span
+                        key={toolId}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted/40 text-[10px] text-muted-foreground"
+                      >
+                        {label}
+                      </span>
+                    );
+                  })}
                   {agent.tools.length > 4 && (
                     <span className="text-[10px] text-muted-foreground/70">
                       +{agent.tools.length - 4}

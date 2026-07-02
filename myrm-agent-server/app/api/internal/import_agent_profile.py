@@ -141,7 +141,11 @@ async def _force_update_agent(
     if "skill_configs" in profile_data:
         updates["skill_configs"] = profile_data["skill_configs"]
     if "enabled_builtin_tools" in profile_data:
-        updates["tools_allowed"] = profile_data["enabled_builtin_tools"]
+        from app.services.agent.builtin_tool_ids import normalize_enabled_builtin_tools
+
+        updates["tools_allowed"] = normalize_enabled_builtin_tools(
+            profile_data["enabled_builtin_tools"]
+        )
 
     metadata_keys = (
         "mcp_ids", "mcp_tool_selections", "subagent_ids",

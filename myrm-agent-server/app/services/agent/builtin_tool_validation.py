@@ -12,7 +12,6 @@ Reusable Pydantic BeforeValidator hooks for enabled_builtin_tools fields.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import Annotated
 
 from pydantic import BeforeValidator

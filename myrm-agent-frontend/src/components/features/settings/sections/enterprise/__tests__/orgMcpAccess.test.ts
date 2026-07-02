@@ -19,4 +19,8 @@ describe('canManageOrgMcp', () => {
     expect(canManageOrgMcp(members, 'unknown')).toBe(false);
     expect(canManageOrgMcp(members, undefined)).toBe(false);
   });
+
+  it('denies when members list is empty', () => {
+    expect(canManageOrgMcp([], 'owner-1')).toBe(false);
+  });
 });
