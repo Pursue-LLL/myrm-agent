@@ -46,8 +46,8 @@ const useAgentStore = create<AgentState>()(
 
     fetchAgents: async (page = 1, pageSize = 20, forceRefresh = false) => {
       const { loading, agents } = get();
-      // 去重：如果正在加载或已有数据且非强制刷新，跳过请求
-      if (loading || (!forceRefresh && agents.length > 0)) {
+      // Skip duplicate fetches unless caller forces refresh (gallery needs page_size=50 for 24 presets).
+      if (!forceRefresh && (loading || agents.length > 0)) {
         return;
       }
       set({ loading: true, error: null });
