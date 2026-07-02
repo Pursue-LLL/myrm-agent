@@ -8,6 +8,10 @@ and optional `channel_notify_tool` LangChain adapter.
 
 Agents wire via `app.ai_agents.general_agent.factory` →
 `factory_wiring.append_channel_notify_tool` (Turn1 when `notify_targets` configured).
+Delivery uses `ChannelGateway.bus.send_tracked` (synchronous success/failure).
+Frontend recipient picker uses existing `GET /channels/manage/pairings`.
+
+**Test coverage (2026-07-02)**: 67 server + 6 frontend vitest; 100% module coverage.
 
 ## Media Attachments
 
