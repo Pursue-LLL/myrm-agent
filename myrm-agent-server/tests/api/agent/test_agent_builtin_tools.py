@@ -19,14 +19,18 @@ _skip_e2e = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def auth_headers() -> dict[str, str]:
     """Attempt login; return empty headers for local mode (no auth)."""
-    resp = httpx.post(
-        f"{BASE_URL}/api/v1/auth/login",
-        json={
-            "username": os.getenv("TEST_USERNAME", "test"),
-            "password": os.getenv("TEST_PASSWORD", "test"),
-        },
-        timeout=10,
-    )
+    try:
+        resp = httpx.post(
+            f"{BASE_URL}/api/v1/auth/login",
+            json={
+                "username": os.getenv("TEST_USERNAME", "test"),
+                "password": os.getenv("TEST_PASSWORD", "test"),
+            },
+            timeout=2.0,
+        )
+    except (httpx.TimeoutException, httpx.ConnectError):
+        return {}
+
     if resp.status_code == 200:
         token = resp.json().get("data", {}).get("access_token")
         if token:

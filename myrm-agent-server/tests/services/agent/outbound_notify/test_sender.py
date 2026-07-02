@@ -168,3 +168,21 @@ class TestChannelNotificationSender:
         assert result.success is False
         assert "stopped" in result.error.lower()
         assert result.channel == "slack"
+
+    @pytest.mark.asyncio
+    async def test_send_handles_unexpected_exception(self) -> None:
+        target = NotifyTarget(channel="telegram", recipient_id="123")
+        sender = ChannelNotificationSender((target,))
+
+        mock_channel_bridge = MagicMock()
+        mock_channel_bridge.channel_gateway = MagicMock()
+
+        with (
+            patch.dict("sys.modules", {"app.core.channel_bridge": mock_channel_bridge}),
+            patch("app.channels.types.OutboundMessage", side_effect=RuntimeError("boom")),
+        ):
+            result = await sender.send(target, "Hello")
+
+        assert result.success is False
+        assert result.error == "boom"
+        assert result.channel == "telegram"

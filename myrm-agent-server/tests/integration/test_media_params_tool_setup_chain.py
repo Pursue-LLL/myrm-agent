@@ -90,3 +90,96 @@ def test_adm_media_tools_absent_without_credentials() -> None:
     assert "image_tool" not in all_names
     assert "video_tool" not in all_names
     assert "tts_generate" not in all_names
+
+
+def test_image_gateway_only_chain_mounts_image_tool() -> None:
+    """Gateway-only credentials must mount image_tool (backend ADM path)."""
+    enabled = ["image_generation"]
+    personal_settings = {
+        "imageGeneration": {
+            "model": "dall-e-3",
+            "gatewayConfig": {
+                "useGateway": True,
+                "authToken": "gw-token",
+                "gatewayUrl": "https://gateway.example.com",
+            },
+        }
+    }
+    image_params, _, _ = _extract_media_generation_params(personal_settings, None, enabled, None)
+    assert image_params is not None
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.image_generation_params = image_params
+    tools: list[object] = []
+    mixin._setup_image_generation_tools(tools)
+
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "image_tool"
+
+
+def test_video_fallback_only_chain_mounts_video_tool() -> None:
+    """Video with fallback-only API key must still mount video_tool."""
+    enabled = ["video_generation"]
+    providers_dict = {
+        "providers": [
+            {
+                "id": "openai",
+                "isEnabled": True,
+                "apiKeys": [{"key": "sk-fallback-only", "isActive": True}],
+            }
+        ]
+    }
+    _, video_params, _ = _extract_media_generation_params(
+        {"videoGeneration": {"provider": "openai", "model": "sora", "fallbackProviders": [{"provider": "openai", "model": "sora"}]}},
+        providers_dict,
+        enabled,
+        None,
+    )
+    assert video_params is not None
+    assert video_params.api_key == "sk-fallback-only"
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.video_generation_params = video_params
+    tools: list[object] = []
+    mixin._setup_video_generation_tools(tools)
+
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "video_tool"
+
+
+def test_tts_chain_from_voice_config_mounts_tts_generate() -> None:
+    """TTS enabled + voice config api key must mount tts_generate."""
+    enabled = ["tts"]
+    voice_dict = {
+        "ttsProvider": "openai",
+        "ttsModel": "tts-1",
+        "ttsVoice": "alloy",
+        "ttsApiKey": "sk-tts-voice",
+    }
+    _, _, tts_params = _extract_media_generation_params(None, None, enabled, voice_dict)
+    assert tts_params is not None
+    assert tts_params.api_key == "sk-tts-voice"
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.tts_params = tts_params
+    tools: list[object] = []
+    mixin._setup_tts_tools(tools)
+
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "tts_generate"
+
+
+def test_media_extraction_skipped_when_tool_not_enabled() -> None:
+    """enabled_builtin_tools without media flags must not produce params."""
+    image_params, video_params, tts_params = _extract_media_generation_params(
+        {"imageGeneration": {"model": "dall-e-3", "apiKey": "sk-x"}},
+        {"providers": [{"id": "openai", "isEnabled": True, "apiKeys": [{"key": "sk-x", "isActive": True}]}]},
+        ["web_search", "memory"],
+        {"ttsApiKey": "sk-tts"},
+    )
+    assert image_params is None
+    assert video_params is None
+    assert tts_params is None

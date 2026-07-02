@@ -245,10 +245,10 @@ const EnterpriseAuditTab = memo(() => {
             {events.map((ev, idx) => (
               <div
                 key={`${ev.timestamp}-${idx}`}
-                className="flex items-center justify-between py-1.5 px-3 rounded-lg bg-background/50 border border-border/30 text-xs"
+                className="flex flex-wrap items-center gap-2 py-1.5 px-3 rounded-lg bg-background/50 border border-border/30 text-xs sm:flex-nowrap sm:justify-between"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Badge className={`text-[10px] ${SEVERITY_COLORS[ev.severity] ?? SEVERITY_COLORS.info}`}>
+                  <Badge className={`text-[10px] shrink-0 ${SEVERITY_COLORS[ev.severity] ?? SEVERITY_COLORS.info}`}>
                     {ev.severity}
                   </Badge>
                   <span className="font-mono truncate max-w-32">{ev.event_type.replace(/_/g, ' ')}</span>
@@ -258,7 +258,7 @@ const EnterpriseAuditTab = memo(() => {
                   <Badge variant={ev.result === 'success' ? 'default' : 'destructive'} className="text-[10px]">
                     {ev.result}
                   </Badge>
-                  <span className="text-muted-foreground">{new Date(ev.timestamp).toLocaleString()}</span>
+                  <span className="text-muted-foreground whitespace-nowrap">{new Date(ev.timestamp).toLocaleString()}</span>
                 </div>
               </div>
             ))}
