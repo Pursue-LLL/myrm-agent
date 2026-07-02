@@ -93,7 +93,15 @@ const useChatStore = create<ChatState>()(
         const stored = localStorage.getItem('currentBuiltinTools');
         if (stored) {
           try {
-            return JSON.parse(stored) as BuiltinToolId[];
+            const parsed = JSON.parse(stored) as BuiltinToolId[];
+            const legacyMinimal: BuiltinToolId[] = ['web_search', 'memory'];
+            const isLegacyMinimal =
+              parsed.length === legacyMinimal.length &&
+              legacyMinimal.every((toolId) => parsed.includes(toolId));
+            if (isLegacyMinimal) {
+              return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
+            }
+            return parsed;
           } catch {
             return [...DEFAULT_ENABLED_BUILTIN_TOOLS];
           }

@@ -759,7 +759,7 @@ const SkillsSection = memo(() => {
                     count: blockedSkill?.scanFindings.length || 0,
                   })}
                 </p>
-                <div className="space-y-2 max-h-48 overflow-y-auto rounded-full border p-3 bg-muted/30">
+                <div className="space-y-2 max-h-48 overflow-y-auto rounded-md border p-3 bg-muted/30">
                   {blockedSkill?.scanFindings.map((finding, idx) => (
                     <div key={idx} className="flex items-start gap-2 text-sm">
                       <Badge
@@ -777,7 +777,14 @@ const SkillsSection = memo(() => {
                         {finding.severity === 3 && 'HIGH'}
                         {finding.severity === 4 && 'CRITICAL'}
                       </Badge>
-                      <span className="text-foreground">{finding.description}</span>
+                      <span className="text-foreground">
+                        {finding.line_number != null && (
+                          <span className="font-mono text-[11px] text-muted-foreground mr-1">
+                            L{finding.line_number}
+                          </span>
+                        )}
+                        {finding.description}
+                      </span>
                     </div>
                   ))}
                 </div>

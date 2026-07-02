@@ -23,6 +23,7 @@ class SecurityFindingResponse(BaseModel):
     threat_type: str
     severity: str
     description: str
+    line_number: int | None = None
 
 
 class SecurityScanSummaryResponse(BaseModel):
@@ -250,6 +251,7 @@ def skill_to_response(skill: Skill) -> SkillResponse:
                     threat_type=f.threat_type,
                     severity=f.severity,
                     description=f.description,
+                    line_number=getattr(f, "line_number", None),
                 )
                 for f in skill.security.findings
             ],

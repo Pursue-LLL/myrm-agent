@@ -160,3 +160,54 @@ def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
     check_e2e_errors(events2)
     blob2 = _stream_blob(events2)
     assert "BLUEFISH" in blob2.upper() or "bluefish" in blob2.lower()
+
+
+@pytest.mark.integration
+def test_agent_stream_deferred_discover_then_conversation_search_path(client: TestClient) -> None:
+    """Real multi-turn: explicit discover + conversation_search must mount and return passphrase."""
+    import uuid
+
+    model_selection = get_model_selection()
+    chat_id = f"test_deferred_real_{uuid.uuid4().hex[:8]}"
+    codeword = "PELICAN-7742"
+
+    turn1 = {
+        "query": f"Remember this exact passphrase for this chat: {codeword}. Reply ACK only.",
+        "message_id": "test-deferred-real-1",
+        "chat_id": chat_id,
+        "action_mode": "agent",
+        "model_selection": model_selection,
+        "enable_memory": True,
+        "timezone": "UTC",
+    }
+    events1 = _collect_agent_stream(client, turn1)
+    check_e2e_errors(events1)
+
+    turn2 = {
+        "query": (
+            "What was the exact passphrase I gave in this chat? "
+            "If conversation_search_tool is not available, call discover_capability_tool "
+            "with query 'conversation' first, then call conversation_search_tool to search for PELICAN."
+        ),
+        "message_id": "test-deferred-real-2",
+        "chat_id": chat_id,
+        "action_mode": "agent",
+        "model_selection": model_selection,
+        "enable_memory": True,
+        "timezone": "UTC",
+        "chat_history": [
+            {"role": "user", "content": f"Remember passphrase {codeword}"},
+            {"role": "assistant", "content": "ACK"},
+        ],
+    }
+    events2 = _collect_agent_stream(client, turn2)
+    check_e2e_errors(events2)
+    invoked = _invoked_tool_names(events2)
+    blob2 = _stream_blob(events2)
+
+    assert "discover_capability_tool" in invoked or "conversation_search_tool" in invoked, (
+        f"expected discover or conversation_search on explicit deferred path; invoked={sorted(invoked)}"
+    )
+    assert codeword in blob2 or "PELICAN" in blob2.upper(), (
+        "expected passphrase in stream after search/recall path"
+    )

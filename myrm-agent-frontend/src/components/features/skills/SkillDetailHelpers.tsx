@@ -121,6 +121,9 @@ export function SecurityScanSection({ security, t }: SecurityScanSectionProps) {
                   {items.map((finding, i) => (
                     <div key={`${finding.threat_type}-${i}`} className="text-xs text-muted-foreground">
                       <span className="font-mono text-[11px] opacity-70">[{finding.threat_type}]</span>{' '}
+                      {finding.line_number != null && (
+                        <span className="font-mono text-[11px] opacity-70">L{finding.line_number} </span>
+                      )}
                       {finding.description}
                     </div>
                   ))}
@@ -157,7 +160,7 @@ export function KnownPitfallsSection({ traps }: { traps: SkillTrap[] }) {
         {traps.map((trap, i) => {
           const cfg = trapSeverityConfig[trap.severity] || trapSeverityConfig.medium;
           return (
-            <div key={`${trap.description}-${i}`} className="rounded-full border bg-muted/30 p-2.5 text-sm">
+            <div key={`${trap.description}-${i}`} className="rounded-lg border bg-muted/30 p-2.5 text-sm">
               <div className="flex items-start gap-2">
                 <span className={cn('font-mono text-xs font-bold shrink-0 mt-0.5', cfg.color)}>[{cfg.icon}]</span>
                 <div className="flex-1 min-w-0">

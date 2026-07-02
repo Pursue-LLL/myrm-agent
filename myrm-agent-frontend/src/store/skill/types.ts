@@ -32,6 +32,7 @@ export interface SecurityFinding {
   threat_type: string;
   severity: string;
   description: string;
+  line_number: number | null;
 }
 
 export interface SecurityScanSummary {

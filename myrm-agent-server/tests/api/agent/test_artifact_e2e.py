@@ -95,8 +95,8 @@ class TestArtifactE2E:
         model_selection = get_model_selection()
         search_config = get_search_service_config()
         query = (
-            "Call file_write_tool NOW. Write exactly '# Hello Artifact' to hello_artifact.md. "
-            "Do NOT use bash_code_execute_tool or todo_write."
+            "Write exactly '# Hello Artifact' to the file hello_artifact.md using the file write tool. "
+            "Do NOT use bash or todo_write."
         )
 
         target_artifact: dict[str, object] | None = None
@@ -108,7 +108,7 @@ class TestArtifactE2E:
                 "query": query,
                 "modelSelection": model_selection,
                 "searchServiceCfg": search_config,
-                "agentConfig": {"enabledBuiltinTools": ["file_write_tool"]},
+                "agentConfig": {"enabledBuiltinTools": ["file_ops"]},
             }
             _run_agent_until_settled(client, req_data)
             target_artifact = _poll_target_artifact(client, filename="hello_artifact.md")

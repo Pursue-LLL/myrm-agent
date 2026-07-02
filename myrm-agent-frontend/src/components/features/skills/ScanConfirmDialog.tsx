@@ -68,7 +68,14 @@ const ScanConfirmDialog = memo(({ open, previewResult, onConfirm, onCancel }: Sc
                     >
                       {SEVERITY_LABELS[finding.severity] ?? 'UNKNOWN'}
                     </Badge>
-                    <span className="text-foreground">{finding.description}</span>
+                    <span className="text-foreground">
+                      {finding.line_number != null && (
+                        <span className="font-mono text-[11px] text-muted-foreground mr-1">
+                          L{finding.line_number}
+                        </span>
+                      )}
+                      {finding.description}
+                    </span>
                   </div>
                 ))}
               </div>

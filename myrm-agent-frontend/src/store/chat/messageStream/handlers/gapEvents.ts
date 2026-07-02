@@ -6,28 +6,35 @@
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
-import type { BuiltinToolId } from '@/store/chat/types/builtinTools';
+import {
+  BUILTIN_TOOL_IDS,
+  type BuiltinToolId,
+} from '@/store/chat/types/builtinTools';
 import { toast } from '@/lib/utils/toast';
 
+const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);
+
 function isBuiltinToolId(value: string): value is BuiltinToolId {
-  return (
-    value === 'web_search' ||
-    value === 'memory' ||
-    value === 'file_ops' ||
-    value === 'code_execute' ||
-    value === 'wiki' ||
-    value === 'browser' ||
-    value === 'computer_use' ||
-    value === 'image_generation' ||
-    value === 'video_generation' ||
-    value === 'tts' ||
-    value === 'kanban' ||
-    value === 'canvas' ||
-    value === 'answer_tool' ||
-    value === 'render_ui' ||
-    value === 'planning'
-  );
+  return BUILTIN_TOOL_ID_SET.has(value);
 }
+
+const TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string }> = {
+  web_search: { en: 'Web Search', zh: '网页搜索' },
+  memory: { en: 'Memory', zh: '记忆' },
+  file_ops: { en: 'File Operations', zh: '文件操作' },
+  code_execute: { en: 'Code Execute', zh: '代码执行' },
+  wiki: { en: 'Wiki', zh: 'Wiki' },
+  browser: { en: 'Browser', zh: '浏览器' },
+  computer_use: { en: 'Computer Use', zh: '桌面控制' },
+  image_generation: { en: 'Image Generation', zh: '图片生成' },
+  video_generation: { en: 'Video Generation', zh: '视频生成' },
+  tts: { en: 'Text to Speech', zh: '语音合成' },
+  kanban: { en: 'Kanban', zh: '看板' },
+  canvas: { en: 'Canvas', zh: '画布' },
+  answer_tool: { en: 'Answer Tool', zh: '答案工具' },
+  render_ui: { en: 'Render UI', zh: 'UI 渲染' },
+  planning: { en: 'Planning', zh: '任务规划' },
+};
 
 export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data, actions } = ctx;
@@ -41,20 +48,21 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       return null;
     }
 
-    const label = toolId;
+    const label = isZh ? TOOL_LABELS[toolId].zh : TOOL_LABELS[toolId].en;
     const message = isZh
-      ? `完成此任务需要开启内置工具「${label}」`
-      : `This task requires enabling builtin tool "${label}"`;
-    const actionLabel = isZh ? '一键开启' : 'Enable';
+      ? `完成此任务需要开启「${label}」`
+      : `Enable "${label}" to complete this task`;
+    const actionLabel = isZh ? '一键开启' : 'Enable now';
 
     toast.info(message, {
       duration: 12000,
       action: {
         label: actionLabel,
         onClick: () => {
-          const prev = H.default.useChatStore.getState().currentBuiltinTools;
+          const prev = H.useChatStore.getState().currentBuiltinTools;
           if (!prev.includes(toolId)) {
             actions.setCurrentBuiltinTools([...prev, toolId]);
+            toast.success(isZh ? '已开启，请重试刚才的请求' : 'Enabled. Please retry your request.');
           }
         },
       },
@@ -70,8 +78,8 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
     }
 
     const message = isZh
-      ? `此 Agent 未绑定技能「${skillId}」，请在 Agent 设置中勾选后重试`
-      : `Skill "${skillId}" is not bound to this Agent. Enable it in Agent settings and retry.`;
+      ? `此 Agent 未绑定技能「${skillId}」。请打开 Agent 配置勾选该技能后重试。`
+      : `Skill "${skillId}" is not bound to this Agent. Open Agent settings, enable it, then retry.`;
 
     toast.info(message, { duration: 12000 });
     return done(ctx);
