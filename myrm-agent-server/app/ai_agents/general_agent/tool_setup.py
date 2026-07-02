@@ -11,8 +11,8 @@
 - _setup_x_live_search_tool: skill-gated deferred x_search_tool（独立于 enable_web_search）
 
 [POS]
-GeneralAgent 的工具初始化混入。将搜索、图片/视频生成、
-定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
+GeneralAgent 的工具初始化混入。将搜索、媒体生成（AgentDeclared eager →
+`media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
 """

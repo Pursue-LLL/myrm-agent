@@ -49,7 +49,7 @@ def test_image_generation_skipped_without_api_key_or_gateway() -> None:
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key=None)
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     mixin._setup_image_generation_tools(tools)
 
@@ -70,16 +70,16 @@ def test_image_generation_accepts_gateway_only() -> None:
             "gateway_url": "https://gateway.example.com",
         },
     )
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     with patch(
         "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
         return_value=None,
     ):
-        mixin._setup_image_generation_tools(deferred_tools)
+        mixin._setup_image_generation_tools(tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "image_tool"
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "image_tool"
 
 
 def test_video_generation_skipped_without_api_key() -> None:
@@ -91,11 +91,11 @@ def test_video_generation_skipped_without_api_key() -> None:
         model="sora",
         api_key=None,
     )
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
-    mixin._setup_video_generation_tools(deferred_tools)
+    mixin._setup_video_generation_tools(tools)
 
-    assert deferred_tools == []
+    assert tools == []
 
 
 def test_video_generation_registers_basetool() -> None:
@@ -109,18 +109,18 @@ def test_video_generation_registers_basetool() -> None:
         model="sora",
         api_key="test-key",
     )
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     with patch(
         "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
         return_value=None,
     ):
-        mixin._setup_video_generation_tools(deferred_tools)
+        mixin._setup_video_generation_tools(tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "video_tool"
-    assert isinstance(deferred_tools[0], BaseTool)
-    assert len(normalize_tool_names(deferred_tools)) == 1
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "video_tool"
+    assert isinstance(tools[0], BaseTool)
+    assert len(normalize_tool_names(tools)) == 1
 
 
 def test_video_generation_accepts_fallback_provider_key_only() -> None:
@@ -134,15 +134,15 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
         api_key=None,
         fallback_providers=[{"provider": "openai", "model": "sora", "api_key": "fallback-only-key"}],
     )
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     with patch(
         "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
         return_value=None,
     ):
-        mixin._setup_video_generation_tools(deferred_tools)
+        mixin._setup_video_generation_tools(tools)
 
-    assert len(deferred_tools) == 1
+    assert len(tools) == 1
 
 
 def test_local_browser_factory_gate_respects_deploy_mode() -> None:

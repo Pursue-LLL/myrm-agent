@@ -1,4 +1,12 @@
-"""LangChain adapter for harness AsyncTTSEngine (product layer)."""
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.tts.tts_engine::AsyncTTSEngine (POS: TTS synthesis engine)
+
+[OUTPUT]
+- create_tts_tool(): LangChain BaseTool adapter for text-to-speech
+
+[POS]
+LangChain adapter for harness AsyncTTSEngine (product layer).
+"""
 
 from __future__ import annotations
 

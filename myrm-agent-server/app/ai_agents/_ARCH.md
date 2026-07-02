@@ -31,6 +31,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `custom_agent_factory.py` | ✅ 核心 | CustomAgentFactory — AgentFactory Protocol 实现，从 DB Profile 构建完整 SkillAgent（技能、记忆、MCP），并为子 Agent 装配 Server-governed `conversation_search_tool`。通过 `apply_agent_mcp_selection()` 统一执行 server-level + tool-level MCP 过滤。支持大上下文静态前缀锁定、资源缓存和 asyncio.Lock 并发初始化保护。 |
 | `subagent_presets.py` | ✅ 核心 | 子 Agent 配置预置（adversarial-reviewer/analysis/browser/coding/deep-audit/search），启动时注册 |
 | `general_agent/` | ✅ 核心 | 通用对话 Agent（配置、中间件、工具） |
+| `media_tools/` | ✅ 核心 | 产品层媒体 LangChain 适配器（image/video/tts）；引擎在 harness `toolkits/llms/` |
 | `prompts/fast_search_agent_prompt.py` | ✅ 核心 | 搜索模式提示词（供 general_agent_prompt.py search 模式 + builtin_initializer 动态解析） |
 | `extensions/` | ✅ 核心 | AgentExtension 具体实现（ZeroCostMemory、Security、Subagent、TaskAdaptive），由 factory.py 注册到 BaseAgent |
 | `prompts/` | ✅ 辅助 | 共享提示词（通用 Agent 多模式提示词、搜索建议、共享规则） |

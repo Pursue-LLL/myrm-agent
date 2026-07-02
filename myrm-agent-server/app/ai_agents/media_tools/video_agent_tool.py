@@ -1,4 +1,12 @@
-"""LangChain adapter for harness VideoGenerationTools (product layer)."""
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.video.video_engine::VideoGenerationTools (POS: video generation engine)
+
+[OUTPUT]
+- create_video_generation_tool(): LangChain BaseTool adapter for video generation
+
+[POS]
+LangChain adapter for harness VideoGenerationTools (product layer).
+"""
 
 from __future__ import annotations
 

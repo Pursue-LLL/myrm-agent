@@ -68,34 +68,34 @@ def test_video_generation_credential_from_fallback() -> None:
 def test_tts_tools_skipped_without_credentials() -> None:
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.tts_params = TTSParams(api_key=None)
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
-    mixin._setup_tts_tools(deferred_tools)
+    mixin._setup_tts_tools(tools)
 
-    assert deferred_tools == []
+    assert tools == []
 
 
 def test_tts_tools_registered_with_api_key() -> None:
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
     mixin.tts_params = TTSParams(api_key="tts-key")
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     with patch(
         "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
         return_value=None,
     ):
-        mixin._setup_tts_tools(deferred_tools)
+        mixin._setup_tts_tools(tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "tts_generate"
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "tts_generate"
 
 
 def test_image_tools_skipped_without_credentials() -> None:
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key=None)
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
-    mixin._setup_image_generation_tools(deferred_tools)
+    mixin._setup_image_generation_tools(tools)
 
-    assert deferred_tools == []
+    assert tools == []

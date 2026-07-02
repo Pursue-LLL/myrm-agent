@@ -1,4 +1,13 @@
-"""LangChain adapter for harness ImageGenerationTools (product layer)."""
+"""[INPUT]
+- myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: image generation engine)
+- myrm_agent_harness.toolkits.llms.image.validator::ImageValidator (POS: prompt safety validation)
+
+[OUTPUT]
+- create_image_generation_tool(): LangChain BaseTool adapter for image generation
+
+[POS]
+LangChain adapter for harness ImageGenerationTools (product layer).
+"""
 
 from __future__ import annotations
 

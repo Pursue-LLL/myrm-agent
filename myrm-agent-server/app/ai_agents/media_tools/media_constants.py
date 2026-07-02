@@ -1,4 +1,12 @@
-"""Product media tool name SSOT (server business layer)."""
+"""[INPUT]
+(none)
+
+[OUTPUT]
+- PRODUCT_MEDIA_TOOL_NAMES: frozenset of media tool names for registration checks
+
+[POS]
+Product media tool name SSOT (server business layer).
+"""
 
 from __future__ import annotations
 
