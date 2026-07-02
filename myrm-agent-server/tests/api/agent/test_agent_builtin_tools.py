@@ -107,7 +107,7 @@ class TestAgentBuiltinToolsCRUD:
         assert set(agent["enabled_builtin_tools"]) == {"web_search", "video_generation"}
 
     def test_create_agent_without_builtin_tools(self, auth_headers: dict[str, str]) -> None:
-        """Create an agent without specifying builtin tools — should be null."""
+        """Create an agent without specifying builtin tools — defaults to web_search + memory."""
         payload = {
             "name": "No Builtin Tools Agent",
             "system_prompt": "",
@@ -123,7 +123,7 @@ class TestAgentBuiltinToolsCRUD:
         assert resp.status_code == 200
         agent = resp.json()["data"]
         agent_id = agent["id"]
-        assert agent["enabled_builtin_tools"] is None
+        assert agent["enabled_builtin_tools"] == ["web_search", "memory"]
 
         httpx.delete(
             f"{BASE_URL}/api/v1/user-agents/{agent_id}",
