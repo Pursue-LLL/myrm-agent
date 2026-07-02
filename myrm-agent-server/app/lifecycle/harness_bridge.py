@@ -33,6 +33,14 @@ _pending_subagent_events: dict[str, asyncio.TimerHandle] = {}
 _COALESCE_DELAY_SECONDS = 0.25
 
 
+def _rest_chat_id(session_id: str) -> str:
+    """Map harness session_id (often chat_{uuid}) to REST/WebUI chat_id."""
+    normalized = session_id.strip()
+    if normalized.startswith("chat_"):
+        return normalized.removeprefix("chat_")
+    return normalized
+
+
 def _subagent_lifecycle_data_to_node(
     event: SubagentLifecycleEvent,
 ) -> dict[str, object] | None:
@@ -59,9 +67,12 @@ def _subagent_lifecycle_data_to_node(
 
 async def _emit_subagent_tree(session_id: str) -> None:
     """Fetch the full tree and publish. Invoked after debounce period."""
+    rest_chat_id = _rest_chat_id(session_id)
     try:
         gateway = get_agent_gateway()
-        info = gateway._session_info.get(session_id)
+        info = gateway._session_info.get(rest_chat_id)
+        if info is None and rest_chat_id != session_id:
+            info = gateway._session_info.get(session_id)
 
         children_data: list[dict[str, object]] = []
         gateway_children: list[dict[str, object]] = []
@@ -72,7 +83,7 @@ async def _emit_subagent_tree(session_id: str) -> None:
 
         from myrm_agent_harness.agent.sub_agents.session_tree import merge_active_subagent_children
 
-        children_data.extend(merge_active_subagent_children(session_id, gateway_children))
+        children_data.extend(merge_active_subagent_children(rest_chat_id, gateway_children))
 
         # Also get checkpoints to build the full tree
         from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
@@ -81,7 +92,7 @@ async def _emit_subagent_tree(session_id: str) -> None:
 
         storage = SubagentCheckpointStorage()
         try:
-            checkpoints = await storage.list_checkpoints(session_id=session_id)
+            checkpoints = await storage.list_checkpoints(session_id=rest_chat_id)
             active_task_ids = {c.get("task_id") for c in children_data if isinstance(c, dict)}
             for c in checkpoints:
                 if c.task_id not in active_task_ids:
@@ -113,8 +124,8 @@ async def _emit_subagent_tree(session_id: str) -> None:
 
             from app.services.chat.chat_service import ChatService
 
-            workspace_dir = await ChatService.ensure_default_workspace_dir(session_id)
-            history = list_teammate_history(session_id, workspace_dir, limit=200)
+            workspace_dir = await ChatService.ensure_default_workspace_dir(rest_chat_id)
+            history = list_teammate_history(rest_chat_id, workspace_dir, limit=200)
             if history:
                 grouped = group_history_by_task(history)
                 for child in children_data:
@@ -129,7 +140,7 @@ async def _emit_subagent_tree(session_id: str) -> None:
         get_server_bus().publish(
             AppEvent(
                 event_type=AppEventType.SUBAGENTS_UPDATED,
-                data={"chat_id": session_id, "tree": children_data},
+                data={"chat_id": rest_chat_id, "tree": children_data},
             )
         )
     except Exception as e:
@@ -148,7 +159,7 @@ async def _handle_subagent_event(event: SubagentLifecycleEvent) -> None:
         get_server_bus().publish(
             AppEvent(
                 event_type=AppEventType.SUBAGENTS_UPDATED,
-                data={"chat_id": session_id, "tree": [policy_node]},
+                data={"chat_id": _rest_chat_id(session_id), "tree": [policy_node]},
             )
         )
         return

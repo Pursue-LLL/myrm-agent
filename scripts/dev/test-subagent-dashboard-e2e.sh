@@ -19,5 +19,8 @@ if ! curl -sf --max-time 2 http://127.0.0.1:8080/api/v1/health >/dev/null; then
 fi
 
 echo "==> API prepare (delegate subagent via agent-stream)"
-echo "==> UI phase: use MCP chrome-devtools on real Chrome at :3000 (existing login session)"
+echo "==> UI phase: MCP chrome-devtools on real Chrome at :3000"
+echo "    1) Open uiUrl from JSON below"
+echo "    2) Click [data-testid=subagent-dashboard-trigger], cancel running row"
+echo "    3) bun scripts/dev/subagent-dashboard-e2e-verify.mjs <chatId> <taskId>"
 bun "$ROOT/scripts/dev/subagent-dashboard-e2e-prepare.mjs"

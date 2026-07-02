@@ -179,6 +179,25 @@ class TestAgentBuiltinToolsCRUD:
         detail = resp.json()["detail"]
         assert any("image_gen" in str(item.get("msg", "")) for item in detail)
 
+    def test_create_agent_rejects_unknown_builtin_tool_id(self, auth_headers: dict[str, str]) -> None:
+        """Unknown tool IDs must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Unknown Builtin Tools Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "not_a_real_tool"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
+
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
         """Gallery SSOT: all 24 built-in agents expose canonical tool matrices."""
         from app.services.agent.builtin_initializer import _BUILTIN_AGENTS

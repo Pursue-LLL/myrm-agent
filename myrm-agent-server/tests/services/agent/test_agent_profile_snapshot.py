@@ -283,7 +283,8 @@ async def test_rollback_rejects_legacy_enabled_builtin_tools_in_snapshot(agent_d
 
 
 @pytest.mark.asyncio
-async def test_resolver_rejects_legacy_enabled_builtin_tools_in_db(agent_db, monkeypatch) -> None:
+async def test_resolver_strips_legacy_enabled_builtin_tools_on_read(agent_db, monkeypatch) -> None:
+    """Read path silently drops legacy IDs (write path still 422)."""
     import app.platform_utils as platform_utils
 
     monkeypatch.setattr(platform_utils, "get_session_factory", lambda: agent_db)
@@ -299,8 +300,9 @@ async def test_resolver_rejects_legacy_enabled_builtin_tools_in_db(agent_db, mon
     resolver = get_agent_profile_resolver()
     resolver._cache.clear()  # noqa: SLF001
 
-    with pytest.raises(InvalidBuiltinToolIdsError):
-        await resolver.resolve(agent_id)
+    resolved = await resolver.resolve(agent_id)
+    assert resolved is not None
+    assert resolved.enabled_builtin_tools == ("web_search",)
 
 
 @pytest.mark.asyncio

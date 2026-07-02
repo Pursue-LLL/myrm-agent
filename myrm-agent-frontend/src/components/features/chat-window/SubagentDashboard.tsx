@@ -403,6 +403,19 @@ export const SubagentDashboard = () => {
 
   const runningCount = useMemo(() => Object.values(nodes).filter((n) => n.status === 'running').length, [nodes]);
 
+  const fetchSubagents = useCallback(async () => {
+    if (!chatId) return;
+    try {
+      const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
+      const json = await res.json();
+      if (json.data && Array.isArray(json.data)) {
+        useSubagentStore.getState().setNodes(json.data);
+      }
+    } catch (e) {
+      console.error(t('fetchFailed'), e);
+    }
+  }, [chatId, t]);
+
   const handleStopAll = useCallback(async () => {
     if (!chatId) return;
     try {
@@ -458,21 +471,10 @@ export const SubagentDashboard = () => {
     };
   }, [chatId]);
 
-  React.useEffect(() => {
-    if (!chatId || !open) return;
-    const fetchSubagents = async () => {
-      try {
-        const res = await fetchWithTimeout(`/chats/${chatId}/subagents`);
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          useSubagentStore.getState().setNodes(json.data);
-        }
-      } catch (e) {
-        console.error(t('fetchFailed'), e);
-      }
-    };
-    fetchSubagents();
-  }, [chatId, open, t]);
+  useEffect(() => {
+    if (!chatId) return;
+    void fetchSubagents();
+  }, [chatId, open, fetchSubagents]);
 
   if (treeNodes.length === 0 && !(fissionBatch && fissionBatch.total > 0)) return null;
 

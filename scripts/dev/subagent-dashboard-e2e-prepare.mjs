@@ -6,11 +6,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { apiBase, apiFetch, authCookieHeader, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
 
-const apiBase = process.env.PLAYWRIGHT_API_BASE ?? process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
 const uiBase = process.env.PLAYWRIGHT_BASE_URL ?? process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000';
 const deviceId = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
-const adminPassword = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'Playwright1234!';
 
 const E2E_BASH_EPHEMERAL = {
   bash_worker: {
@@ -42,55 +41,6 @@ function stripProviderPrefix(model) {
     return model;
   }
   return model.split('/').slice(1).join('/');
-}
-
-/** @type {import('node:http').Cookie[]} */
-let cookies = [];
-
-function cookieHeader() {
-  return cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-}
-
-async function apiFetch(path, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers ?? {}),
-  };
-  if (cookieHeader()) {
-    headers.Cookie = cookieHeader();
-  }
-  const res = await fetch(`${apiBase}${path}`, {
-    ...options,
-    headers,
-  });
-  const setCookie = res.headers.getSetCookie?.() ?? [];
-  for (const raw of setCookie) {
-    const name = raw.split('=')[0];
-    const value = raw.split('=')[1]?.split(';')[0];
-    if (name && value) {
-      cookies = cookies.filter((c) => c.name !== name);
-      cookies.push({ name, value });
-    }
-  }
-  return res;
-}
-
-async function ensureLoggedIn() {
-  const statusRes = await apiFetch('/webui/auth/status');
-  if (!statusRes.ok) {
-    throw new Error(`auth status failed: ${statusRes.status}`);
-  }
-  const status = await statusRes.json();
-  if (!status.is_setup_done) {
-    throw new Error('WebUI setup not complete; log in via Chrome first');
-  }
-  const loginRes = await apiFetch('/webui/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username: 'admin', password: adminPassword }),
-  });
-  if (!loginRes.ok) {
-    throw new Error(`login failed: ${loginRes.status} ${await loginRes.text()}`);
-  }
 }
 
 async function putConfig(configKey, value) {
@@ -249,7 +199,7 @@ async function readAgentStreamUntilSubagentStart(payload, timeoutMs) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(cookieHeader() ? { Cookie: cookieHeader() } : {}),
+        ...(authCookieHeader() ? { Cookie: authCookieHeader() } : {}),
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -331,6 +281,22 @@ async function delegateSubagentViaAgentStream(chatId, timeoutMs = 180_000) {
   throw new Error(`Timed out waiting for subagent_start on chat ${chatId}`);
 }
 
+async function assertListSubagents(chatId, taskId) {
+  const res = await apiFetch(`/api/v1/chats/${chatId}/subagents`);
+  if (!res.ok) {
+    throw new Error(`GET /subagents failed: ${res.status} ${(await res.text()).slice(0, 400)}`);
+  }
+  const json = await res.json();
+  const rows = Array.isArray(json.data) ? json.data : [];
+  const row = rows.find((entry) => entry?.task_id === taskId);
+  if (!row) {
+    throw new Error(`GET /subagents missing task ${taskId}; rows=${JSON.stringify(rows).slice(0, 400)}`);
+  }
+  if (row.status !== 'running') {
+    throw new Error(`GET /subagents expected running status for ${taskId}, got ${String(row.status)}`);
+  }
+}
+
 async function main() {
   requireEnv('BASIC_API_KEY');
   requireEnv('BASIC_MODEL');
@@ -339,6 +305,7 @@ async function main() {
   await seedYoloSecurity();
   const chatId = await seedSubagentChat();
   const { taskId, treeRow } = await delegateSubagentViaAgentStream(chatId);
+  await assertListSubagents(chatId, taskId);
 
   const result = {
     chatId,

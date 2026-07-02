@@ -12,6 +12,6 @@
 | `pattern_discovery_trigger.py` | 辅助 | 行为模式发现触发器。管理 Pattern Discovery 的定时/手动执行，将结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示 | ✅ |
 | `browser.py` | 核心 | 浏览器生命周期：池预热（config + proxy pool + launch_options）/关闭、线程清理、会话预热（可选）。代理池从 DB 配置或 `MYRM_PROXIES` 环境变量解析 | ✅ |
 | `monitors.py` | 辅助 | 后台监控器（内存压力、认证告警、健康历史等） | — |
-| `harness_bridge.py` | 辅助 | 框架事件桥接器。监听 Harness 状态事件与 SkillFailureEvent，将 subagent 生命周期/策略拒绝状态广播为 AppEvent，并把技能失败证据交给 Server 免疫服务处理；关闭时经 `close_harness_resources` 统一释放 Harness 资源（事件总线 + MCP 持久连接池） | ✅ |
+| `harness_bridge.py` | 辅助 | 框架事件桥接器。监听 Harness 状态事件，debounce 合并 subagent 树并通过 `subagents_updated` 广播（`chat_id` 归一为 REST uuid）；关闭时释放 Harness 资源 | ✅ |
 | `skills.py` | 辅助 | 技能系统初始化（发现、加载） | — |
 | `task_worker.py` | 辅助 | 异步任务 worker 生命周期（SQLite 任务存储、Vault GC 定时清理） | ✅ |

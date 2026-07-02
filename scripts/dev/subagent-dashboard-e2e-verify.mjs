@@ -4,7 +4,8 @@
  * Usage: bun scripts/dev/subagent-dashboard-e2e-verify.mjs <chatId> <taskId>
  */
 
-const apiBase = process.env.PLAYWRIGHT_API_BASE ?? process.env.E2E_API_BASE ?? 'http://127.0.0.1:8080';
+import { cancelSubagent, ensureLoggedIn } from './subagent-dashboard-e2e-auth.mjs';
+
 const chatId = process.argv[2];
 const taskId = process.argv[3];
 
@@ -13,9 +14,8 @@ if (!chatId || !taskId) {
   process.exit(1);
 }
 
-const res = await fetch(`${apiBase}/api/v1/chats/${chatId}/subagents/${taskId}/cancel`, {
-  method: 'POST',
-});
+await ensureLoggedIn();
+const res = await cancelSubagent(chatId, taskId);
 if (res.status === 404) {
   console.log(JSON.stringify({ ok: true, reason: 'not_running' }));
   process.exit(0);

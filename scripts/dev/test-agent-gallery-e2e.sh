@@ -39,5 +39,10 @@ if ! curl -sf --max-time 2 -o /dev/null http://127.0.0.1:3000/; then
 fi
 
 sleep 2
+curl -sf --max-time 90 "http://127.0.0.1:8080/api/v1/user-agents?page=1&page_size=1" -H "X-Device-Id: tauri-local" >/dev/null || {
+  echo "ERROR: backend user-agents warmup failed" >&2
+  exit 1
+}
+
 cd "$FRONTEND"
 bunx playwright test tests/e2e/agent-gallery-builtin-tools-smoke.spec.ts --reporter=line --workers=1

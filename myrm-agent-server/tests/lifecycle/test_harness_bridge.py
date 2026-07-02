@@ -16,6 +16,7 @@ from app.lifecycle.harness_bridge import (
     _handle_resource_event,
     _handle_subagent_event,
     _pending_subagent_events,
+    _rest_chat_id,
     setup_harness_bridge,
     stop_harness_bridge,
 )
@@ -118,6 +119,44 @@ async def test_policy_denial_event_publishes_synthetic_node():
         assert node["task_id"] == "denied-1"
         assert node["policy_reason"] == "role_escalation_denied"
         assert node["role"] == "orchestrator"
+
+
+def test_rest_chat_id_strips_chat_prefix() -> None:
+    assert _rest_chat_id("chat_abc-123") == "abc-123"
+    assert _rest_chat_id("abc-123") == "abc-123"
+
+
+@pytest.mark.asyncio
+async def test_policy_denial_publishes_rest_chat_id():
+    session_id = "chat_policy-session"
+    decision = DelegationPolicyDecision(
+        allowed=False,
+        reason="role_escalation_denied",
+        requested_role="orchestrator",
+        effective_scope="leaf",
+        agent_type="worker",
+        details="denied",
+    )
+    event = SubagentLifecycleEvent(
+        session_id=session_id,
+        event_name="policy_denied",
+        task_id="denied-2",
+        data=SubagentLifecycleData(
+            agent_type="worker",
+            role="orchestrator",
+            control_scope="leaf",
+            policy=decision,
+        ),
+    )
+
+    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+
+        await _handle_subagent_event(event)
+
+        published_event = mock_bus.publish.call_args.args[0]
+        assert published_event.data["chat_id"] == "policy-session"
 
 
 @pytest.mark.asyncio

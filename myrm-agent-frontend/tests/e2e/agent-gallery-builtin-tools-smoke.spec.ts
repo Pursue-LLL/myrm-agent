@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-import { ensureLoggedIn, completeOnboardingForE2e } from './helpers/auth';
+import { completeOnboardingForE2e, ensureLoggedIn } from './helpers/auth';
+import { ensureWebUiBrowserSession } from './helpers/ensureWebUiBrowserSession';
 import {
   installMigrationDismissInitScript,
   prepareChatPageForE2e,
@@ -26,8 +27,7 @@ test.describe('Agent gallery builtin tools smoke', () => {
     await ensureLoggedIn(page, request);
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
     await installMigrationDismissInitScript(page);
-
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await ensureWebUiBrowserSession(page);
     await prepareChatPageForE2e(page);
 
     const agentRadio = page.getByRole('radio', { name: /智能代理|Smart Agent/i });
@@ -38,9 +38,9 @@ test.describe('Agent gallery builtin tools smoke', () => {
 
     const listRes = await request.get(`${apiBase}/api/v1/user-agents?page=1&page_size=50`, {
       headers: { 'X-Device-Id': E2E_CONFIG_DEVICE_ID },
-      timeout: 60_000,
+      timeout: 120_000,
     });
-    expect(listRes.ok()).toBeTruthy();
+    expect(listRes.ok(), `user-agents list failed: ${listRes.status()} ${await listRes.text()}`).toBeTruthy();
     const agentsPayload = (await listRes.json()) as {
       data?: { items?: Array<{ is_built_in?: boolean; name?: string }> };
     };
