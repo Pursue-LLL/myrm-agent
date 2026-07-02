@@ -129,6 +129,7 @@ myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader
 myrm_agent_harness.agent.sub_agents.manager
 myrm_agent_harness.agent.sub_agents.registry
+myrm_agent_harness.agent.sub_agents.session_tree
 myrm_agent_harness.agent.sub_agents.types
 myrm_agent_harness.agent.tool_management
 myrm_agent_harness.agent.tool_management.action_space
