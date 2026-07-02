@@ -259,9 +259,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     if (primaryToolName === 'bash_code_execute_tool' || primaryToolName === 'execute_code') {
       return t('permissionTypes.codeInterpreter');
     }
-    if (primaryToolName === 'bash_code_execute_tool') {
-      return t('permissionTypes.shellExec');
-    }
     if (primaryToolName.startsWith('browser_')) {
       return t('permissionTypes.browser');
     }

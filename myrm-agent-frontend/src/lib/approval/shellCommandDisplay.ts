@@ -1,7 +1,6 @@
 /** Shell tool names that carry executable command text in approval payloads. */
 const SHELL_APPROVAL_TOOL_NAMES = new Set([
   'bash_code_execute_tool',
-  'bash_code_execute_tool',
   'execute_code',
   'shell',
   'execute_command',
