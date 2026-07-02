@@ -50,6 +50,8 @@ myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools
 myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
+myrm_agent_harness.agent.meta_tools.progress.schemas
+myrm_agent_harness.agent.meta_tools.progress.storage
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
 myrm_agent_harness.agent.meta_tools.spawn_subagent
 myrm_agent_harness.agent.middlewares
@@ -128,8 +130,6 @@ myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader
 myrm_agent_harness.agent.sub_agents.manager
 myrm_agent_harness.agent.sub_agents.planner
-myrm_agent_harness.agent.sub_agents.planner.schemas
-myrm_agent_harness.agent.sub_agents.planner.storage
 myrm_agent_harness.agent.sub_agents.registry
 myrm_agent_harness.agent.sub_agents.types
 myrm_agent_harness.agent.tool_management
