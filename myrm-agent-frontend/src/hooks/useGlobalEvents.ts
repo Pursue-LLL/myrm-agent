@@ -488,9 +488,22 @@ export function useGlobalEvents(): void {
       } else if (payload.type === 'agent_config_updated') {
         const agentId = String(payload.data.agent_id ?? '');
         const action = String(payload.data.action ?? 'updated');
-        if (agentId && (action === 'updated' || action === 'rollback')) {
+        if (agentId && (action === 'updated' || action === 'rollback' || action === 'force_push')) {
           if (action === 'rollback') {
             toast.success(t('rollbackSuccess') || 'Successfully rolled back agent profile.');
+          } else if (action === 'force_push') {
+            toast.info(
+              t('forcePushReceived') || 'Agent profile updated by organization',
+              {
+                description: t('forcePushRollbackHint') || 'A snapshot was saved. You can rollback from agent settings.',
+                duration: 10_000,
+                dismissible: true,
+                action: {
+                  label: t('viewAgent') || 'View',
+                  onClick: () => router.push(`/?agent_id=${agentId}`),
+                },
+              },
+            );
           }
 
           if (debouncedRefetches.current[agentId]) {

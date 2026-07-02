@@ -500,6 +500,45 @@ async def export_agent(
         raise internal_error(operation="Export agent", exception=e) from e
 
 
+@router.get("/{agent_id}/marketplace-export", response_model=StandardSuccessResponse)
+async def marketplace_export_agent(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Export Agent as a marketplace-ready package with bundled dependencies."""
+    from app.database.repositories.uow import UnitOfWork
+    from app.services.agent.marketplace_export import export_agent_package
+
+    try:
+        async with UnitOfWork() as uow:
+            package = await export_agent_package(uow, agent_id)
+        return success_response(data=package)
+    except ValueError as e:
+        raise not_found_error(str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Marketplace export", exception=e) from e
+
+
+@router.post("/marketplace-import", response_model=StandardSuccessResponse)
+async def marketplace_import_agent(
+    body: dict[str, Any],
+) -> JSONResponse:
+    """Import Agent from marketplace package (with bundled dependencies + ID remapping)."""
+    from app.core.skills.creation.service import skill_creation_service
+    from app.services.agent.marketplace_import import import_agent_package
+
+    try:
+        agent_id = await import_agent_package(skill_creation_service, body)
+        agent = await AgentService.get_agent_by_id(agent_id)
+        if not agent:
+            raise not_found_error("Imported agent")
+        return success_response(data=_to_agent_response(agent).model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Marketplace import", exception=e) from e
+
+
 @router.post("/{agent_id}/clone", response_model=StandardSuccessResponse)
 async def clone_agent(
     agent_id: str,

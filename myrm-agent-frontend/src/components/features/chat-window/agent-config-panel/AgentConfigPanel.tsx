@@ -17,6 +17,7 @@ import { Switch } from '@/components/primitives/switch';
 // 懒加载大型组件，减少初始加载时间
 const AgentConfigEditDialog = lazy(() => import('./AgentConfigEditDialog'));
 const PresetAgentGallery = lazy(() => import('./PresetAgentGallery'));
+const PublishToOrgButton = lazy(() => import('./PublishToOrgButton'));
 const EMPTY_AUTO_RESTORE_DOMAINS: string[] = [];
 
 interface AgentConfigPanelProps {
@@ -191,6 +192,17 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
             <MemoryDecaySelector />
 
             {/* 保存按钮逻辑 */}
+            {/* Publish to Org (sandbox only, saved agents) */}
+            {agentConfig?.agentId && !hasConfigChanges && (
+              <Suspense fallback={null}>
+                <PublishToOrgButton
+                  agentId={agentConfig.agentId}
+                  agentName={agentConfig.agentName || 'Agent'}
+                  className="mt-3"
+                />
+              </Suspense>
+            )}
+
             {(() => {
               const hasConfig =
                 (agentConfig?.selectedSkillIds?.length || 0) > 0 ||

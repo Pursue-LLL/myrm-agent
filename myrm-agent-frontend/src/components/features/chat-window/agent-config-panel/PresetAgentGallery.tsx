@@ -13,6 +13,7 @@ import { GalleryBackground } from './GalleryBackground';
 import PresetAgentCard from './PresetAgentCard';
 import CustomAgentCard from './CustomAgentCard';
 import TemplateMarket from './TemplateMarket';
+import OrgMarketplace from './OrgMarketplace';
 
 interface PresetAgentGalleryProps {
   onSelectPreset: (agent: PresetAgent, workingDirectory?: string) => void;
@@ -100,6 +101,9 @@ const PresetAgentGallery = ({
 
         {/* 模板市场 */}
         <TemplateMarket />
+
+        {/* 组织 Agent 集市（sandbox 模式下可见） */}
+        <OrgMarketplace />
 
         {/* 用户自定义智能体区块 */}
         {customAgents.length > 0 && (
