@@ -22,15 +22,14 @@ export async function ensureLoggedIn(page: Page, request: APIRequestContext): Pr
     return;
   }
 
-  if (!status.is_authenticated) {
-    const loginRes = await request.post(`${apiBase}/webui/auth/login`, {
-      data: { username: 'admin', password: adminPassword },
-    });
-    expect(loginRes.ok()).toBeTruthy();
-    const storage = await request.storageState();
-    if (storage.cookies.length > 0) {
-      await page.context().addCookies(storage.cookies);
-    }
+  // Always login on the APIRequestContext so config/agent APIs share the session cookie.
+  const loginRes = await request.post(`${apiBase}/webui/auth/login`, {
+    data: { username: 'admin', password: adminPassword },
+  });
+  expect(loginRes.ok()).toBeTruthy();
+  const storage = await request.storageState();
+  if (storage.cookies.length > 0) {
+    await page.context().addCookies(storage.cookies);
   }
 
   await page.goto('/', { waitUntil: 'domcontentloaded' });

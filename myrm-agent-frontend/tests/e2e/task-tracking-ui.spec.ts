@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 import { ensureLoggedIn } from './helpers/auth';
+import { hasE2eLlmEnv, seedE2eProvidersFromEnv } from './helpers/seedE2eProviders';
+import { enableTaskTrackingInDialog, openBuiltinToolsDialog } from './helpers/taskTrackingUi';
 
 test.describe('Task Tracking UI (TSM v1.5)', () => {
   test.skip(
@@ -16,11 +18,7 @@ test.describe('Task Tracking UI (TSM v1.5)', () => {
 
     await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
 
-    // Dismiss optional migration / onboarding banners that intercept clicks.
-    await page.getByRole('button', { name: /稍后再说|Later/i }).click({ timeout: 3_000 }).catch(() => {});
-
-    await page.getByRole('button', { name: /内置工具|Built-in [Tt]ools/ }).click({ timeout: 20_000 });
-    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
+    await openBuiltinToolsDialog(page);
     await expect(page.getByTestId('builtin-task_tracking')).toBeVisible({ timeout: 10_000 });
 
     await page.evaluate(() => {
@@ -37,5 +35,30 @@ test.describe('Task Tracking UI (TSM v1.5)', () => {
 
     await expect(taskCard).toHaveClass(/border-primary/);
     await expect(page.getByTestId('builtin-planning')).not.toHaveClass(/border-primary/);
+  });
+
+  test('WebUI chat flow renders Execution checklist ProgressSteps', async ({ page, request }) => {
+    test.skip(!hasE2eLlmEnv(), 'Requires BASIC_API_KEY and BASIC_MODEL in env (.env.test)');
+    test.setTimeout(240_000);
+
+    await ensureLoggedIn(page, request);
+    await seedE2eProvidersFromEnv(request);
+
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
+
+    await enableTaskTrackingInDialog(page);
+
+    const query =
+      'You MUST use update_execution_checklist_tool. ' +
+      'Create a 2-item checklist (both pending), mark item 1 completed, mark item 2 completed. ' +
+      'Then reply with exactly: TSM_WEBUI_OK';
+
+    const input = page.getByPlaceholder(/输入消息|Type a message/i);
+    await input.fill(query);
+    await page.getByRole('button', { name: /^发送$|^Send$/i }).click();
+
+    await expect(page.getByText(/Execution checklist/i)).toBeVisible({ timeout: 180_000 });
+    await expect(page.getByText(/TSM_WEBUI_OK/i)).toBeVisible({ timeout: 180_000 });
   });
 });

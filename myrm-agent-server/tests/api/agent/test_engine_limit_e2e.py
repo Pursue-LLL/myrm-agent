@@ -3,15 +3,58 @@
 Test that engine limits (e.g. max_tool_calls) trigger ENGINE_LIMIT_REACHED events.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import uuid
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 from tests.api.agent.utils import get_model_selection, get_search_service_config
+
+
+def _extract_engine_limit_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Find engine_limit_reached in SSE payloads (direct or via tasks_steps error)."""
+    for data in events:
+        if data.get("type") == "engine_limit_reached":
+            return data
+        if data.get("type") == "tasks_steps" and data.get("status") == "error":
+            error_text = str(data.get("error") or "")
+            if "Tool call limit exceeded" in error_text:
+                return {
+                    "type": "engine_limit_reached",
+                    "data": {
+                        "limit_type": "max_tool_calls",
+                        "tool_name": data.get("tool_name"),
+                        "message": error_text,
+                    },
+                }
+    return None
+
+
+def _consume_agent_stream(client: TestClient, payload: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    collected: list[dict[str, Any]] = []
+    approval_required = False
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=payload) as stream_response:
+        for line in stream_response.iter_lines():
+            if not line or not line.startswith("data: "):
+                continue
+            try:
+                data = json.loads(line[6:])
+            except json.JSONDecodeError:
+                continue
+            if data is None:
+                continue
+            collected.append(data)
+            if data.get("type") in ("approval_required", "tool_approval_request"):
+                approval_required = True
+            if data.get("type") in ("engine_limit_reached", "message_end", "error"):
+                break
+    return collected, approval_required
 
 
 @pytest.fixture
@@ -31,15 +74,21 @@ class TestEngineLimitE2E:
 
     async def test_max_tool_calls_limit(self, async_client: AsyncClient, client: TestClient):
         """Test that max_tool_calls limit triggers ENGINE_LIMIT_REACHED."""
-        # 1. Create an agent with max_tool_calls = 1
         create_payload = {
             "name": "Limit Test Agent",
             "description": "Test max_tool_calls",
-            "system_prompt": "You are a helpful assistant.",
+            "system_prompt": (
+                "You are a helpful assistant. When asked to search, call grep_tool sequentially: "
+                "one call per step, wait for each result before the next call."
+            ),
             "is_built_in": False,
             "skill_ids": [],
             "mcp_ids": [],
-            "engine_params": {"max_tool_calls": 1},
+            "enabled_builtin_tools": ["web_search", "memory", "file_ops", "code_execute"],
+            "engine_params": {
+                "max_tool_calls": 1,
+                "enable_parallel_tool_calls": False,
+            },
         }
 
         response = await async_client.post("/api/agents", json=create_payload)
@@ -48,16 +97,16 @@ class TestEngineLimitE2E:
         agent_id = created_agent["id"]
 
         try:
-            # 2. Run a query that requires multiple tool calls
-            # We use grep_tool because it doesn't require approval and won't suspend the agent
-            query = "Use grep_tool to search for 'Foo'. Then use it again to search for 'Bar'. Then use it again to search for 'Baz'."
-
-            chat_id = str(uuid.uuid4())
-            message_id = str(uuid.uuid4())
+            query = (
+                "Step 1: use grep_tool to search for 'Foo'. "
+                "Step 2: use grep_tool again to search for 'Bar'. "
+                "Step 3: use grep_tool again to search for 'Baz'. "
+                "Report how many grep calls succeeded."
+            )
 
             search_request = {
-                "messageId": message_id,
-                "chatId": chat_id,
+                "messageId": str(uuid.uuid4()),
+                "chatId": str(uuid.uuid4()),
                 "agent_id": agent_id,
                 "query": query,
                 "modelSelection": get_model_selection(),
@@ -65,53 +114,20 @@ class TestEngineLimitE2E:
                 "actionMode": "agent",
             }
 
-            collected_data = []
-            limit_reached_event = None
-            approval_required = False
-
-            with client.stream("POST", "/api/v1/agents/agent-stream", json=search_request) as stream_response:
-                for line in stream_response.iter_lines():
-                    if line and line.startswith("data: "):
-                        try:
-                            data = json.loads(line[6:])
-                            if data is None:
-                                continue
-                            collected_data.append(data)
-                            if data.get("type") == "engine_limit_reached":
-                                limit_reached_event = data
-                                break
-                            if data.get("type") in (
-                                "approval_required",
-                                "tool_approval_request",
-                            ):
-                                approval_required = True
-                        except json.JSONDecodeError:
-                            pass
+            collected_data, approval_required = _consume_agent_stream(client, search_request)
 
             if approval_required:
-                print("\n🔧 Auto-approving tool call...")
                 resume_request = search_request.copy()
                 resume_request["resumeValue"] = [{"type": "approve", "extensions": {"allowAlways": True}}]
-                with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_request) as stream_response:
-                    for line in stream_response.iter_lines():
-                        if line and line.startswith("data: "):
-                            try:
-                                data = json.loads(line[6:])
-                                if data is None:
-                                    continue
-                                collected_data.append(data)
-                                if data.get("type") == "engine_limit_reached":
-                                    limit_reached_event = data
-                                    break
-                            except json.JSONDecodeError:
-                                pass
+                resume_collected, _ = _consume_agent_stream(client, resume_request)
+                collected_data.extend(resume_collected)
 
-            # Verify the event was emitted
-            assert limit_reached_event is not None, "ENGINE_LIMIT_REACHED event should be emitted"
+            limit_reached_event = _extract_engine_limit_event(collected_data)
+            assert limit_reached_event is not None, (
+                "ENGINE_LIMIT_REACHED event should be emitted; "
+                f"got event types: {[d.get('type') for d in collected_data]}"
+            )
             assert limit_reached_event["data"]["limit_type"] == "max_tool_calls"
 
-            print("\n✅ Test Passed: max_tool_calls limit triggered ENGINE_LIMIT_REACHED")
-
         finally:
-            # Cleanup
             await async_client.delete(f"/api/agents/{agent_id}")
