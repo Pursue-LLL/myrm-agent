@@ -9,6 +9,13 @@ import httpx
 import pytest
 
 BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:8080")
+_E2E_TIMEOUT = httpx.Timeout(10.0)
+
+
+def _e2e_request(method: str, url: str, **kwargs: object) -> httpx.Response:
+    """Live E2E requests must bypass shell SOCKS proxy env (httpx trust_env)."""
+    with httpx.Client(trust_env=False, timeout=_E2E_TIMEOUT) as client:
+        return client.request(method, url, **kwargs)
 
 _skip_e2e = pytest.mark.skipif(
     not os.getenv("RUN_E2E_TESTS"),
@@ -20,13 +27,13 @@ _skip_e2e = pytest.mark.skipif(
 def auth_headers() -> dict[str, str]:
     """Attempt login; return empty headers for local mode (no auth)."""
     try:
-        resp = httpx.post(
+        resp = _e2e_request(
+            "POST",
             f"{BASE_URL}/api/v1/auth/login",
             json={
                 "username": os.getenv("TEST_USERNAME", "test"),
                 "password": os.getenv("TEST_PASSWORD", "test"),
             },
-            timeout=2.0,
         )
     except (httpx.TimeoutException, httpx.ConnectError):
         return {}
@@ -49,19 +56,19 @@ def created_agent_id(auth_headers: dict[str, str]):
         "skill_ids": [],
         "enabled_builtin_tools": ["web_search", "browser", "image_generation"],
     }
-    resp = httpx.post(
+    resp = _e2e_request(
+        "POST",
         f"{BASE_URL}/api/v1/user-agents",
         json=payload,
         headers=auth_headers,
-        timeout=10,
     )
     assert resp.status_code == 200, f"Create agent failed: {resp.text}"
     agent_id = resp.json()["data"]["id"]
     yield agent_id
-    httpx.delete(
+    _e2e_request(
+        "DELETE",
         f"{BASE_URL}/api/v1/user-agents/{agent_id}",
         headers=auth_headers,
-        timeout=10,
     )
 
 
@@ -71,10 +78,10 @@ class TestAgentBuiltinToolsCRUD:
 
     def test_create_agent_with_builtin_tools(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
         """Create an agent with specific builtin tools and verify persistence."""
-        resp = httpx.get(
+        resp = _e2e_request(
+            "GET",
             f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
         agent = resp.json()["data"]
@@ -89,18 +96,18 @@ class TestAgentBuiltinToolsCRUD:
         update_payload = {
             "enabled_builtin_tools": ["web_search", "video_generation"],
         }
-        resp = httpx.put(
+        resp = _e2e_request(
+            "PUT",
             f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
             json=update_payload,
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
 
-        resp = httpx.get(
+        resp = _e2e_request(
+            "GET",
             f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
         agent = resp.json()["data"]
@@ -114,42 +121,81 @@ class TestAgentBuiltinToolsCRUD:
             "mcp_ids": [],
             "skill_ids": [],
         }
-        resp = httpx.post(
+        resp = _e2e_request(
+            "POST",
             f"{BASE_URL}/api/v1/user-agents",
             json=payload,
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
         agent = resp.json()["data"]
         agent_id = agent["id"]
         assert agent["enabled_builtin_tools"] == ["web_search", "memory"]
 
-        httpx.delete(
+        _e2e_request(
+            "DELETE",
             f"{BASE_URL}/api/v1/user-agents/{agent_id}",
             headers=auth_headers,
-            timeout=10,
         )
 
     def test_update_builtin_tools_to_empty(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
         """Update builtin tools to empty list — agent should have no tools enabled."""
         update_payload = {"enabled_builtin_tools": []}
-        resp = httpx.put(
+        resp = _e2e_request(
+            "PUT",
             f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
             json=update_payload,
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
 
-        resp = httpx.get(
+        resp = _e2e_request(
+            "GET",
             f"{BASE_URL}/api/v1/user-agents/{created_agent_id}",
             headers=auth_headers,
-            timeout=10,
         )
         assert resp.status_code == 200
         agent = resp.json()["data"]
         assert agent["enabled_builtin_tools"] == []
+
+    def test_create_agent_rejects_legacy_builtin_tool_id(self, auth_headers: dict[str, str]) -> None:
+        """Legacy image_gen must be rejected at API boundary with 422."""
+        payload = {
+            "name": "Legacy Builtin Tools Agent",
+            "system_prompt": "",
+            "mcp_ids": [],
+            "skill_ids": [],
+            "enabled_builtin_tools": ["web_search", "image_gen"],
+        }
+        resp = _e2e_request(
+            "POST",
+            f"{BASE_URL}/api/v1/user-agents",
+            json=payload,
+            headers=auth_headers,
+        )
+        assert resp.status_code == 422
+        detail = resp.json()["detail"]
+        assert any("image_gen" in str(item.get("msg", "")) for item in detail)
+
+    def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
+        """Gallery SSOT: all 24 built-in agents expose canonical tool matrices."""
+        from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+
+        resp = _e2e_request(
+            "GET",
+            f"{BASE_URL}/api/v1/user-agents?page=1&page_size=50",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        items = resp.json()["data"]["items"]
+        api_by_id = {
+            item["id"]: item["enabled_builtin_tools"]
+            for item in items
+            if item.get("is_built_in")
+        }
+        assert len(api_by_id) == len(_BUILTIN_AGENTS)
+        for spec in _BUILTIN_AGENTS:
+            assert api_by_id[spec.id] == list(spec.enabled_builtin_tools or ())
 
 
 class TestAgentConfigRequestBuiltinTools:

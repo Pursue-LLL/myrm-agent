@@ -85,7 +85,8 @@ export function useAgentGallery({
     if (!isInitialized) {
       initProviders();
     }
-    fetchAgents();
+    // 24 built-in presets exceed default page_size=20; fetch enough for gallery SSOT.
+    fetchAgents(1, 50, true);
   }, [isInitialized, initProviders, fetchAgents]);
 
   const isCLIVisualAgent = (agent: PresetAgent) => {
