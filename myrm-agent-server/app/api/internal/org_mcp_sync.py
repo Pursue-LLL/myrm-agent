@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+from app.config.settings import settings
 from app.services.config.service import ConfigService
 
 logger = logging.getLogger(__name__)
@@ -50,13 +51,30 @@ def _verify_cp_token(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Invalid CP token")
 
 
+def _filter_mcp_servers_for_sandbox(servers: list[dict]) -> list[dict]:
+    """Drop stdio org MCP entries when sandbox policy disables stdio."""
+    if settings.mcp.allow_stdio:
+        return servers
+    allowed: list[dict] = []
+    for server in servers:
+        if server.get("type") == "stdio":
+            logger.warning(
+                "Org MCP sync skipped stdio server %s: stdio disabled in sandbox",
+                server.get("name", server.get("id", "unknown")),
+            )
+            continue
+        allowed.append(server)
+    return allowed
+
+
 @router.post("/api/admin/org-mcp-sync", response_model=OrgMCPSyncResponse)
 async def org_mcp_sync(request: Request, body: OrgMCPSyncRequest) -> OrgMCPSyncResponse:
     """Receive org-level MCP servers from Control Plane and persist locally."""
     _verify_cp_token(request)
 
+    filtered_servers = _filter_mcp_servers_for_sandbox(body.mcp_servers)
     config_svc = ConfigService()
-    servers_data = {"servers": body.mcp_servers}
+    servers_data = {"servers": filtered_servers}
 
     await config_svc.set(
         config_key=_ORG_MCP_CONFIG_KEY,
@@ -66,5 +84,5 @@ async def org_mcp_sync(request: Request, body: OrgMCPSyncRequest) -> OrgMCPSyncR
 
     invalidate_user_configs_cache()
 
-    logger.info("Org MCP sync: received %d servers", len(body.mcp_servers))
-    return OrgMCPSyncResponse(status="synced", count=len(body.mcp_servers))
+    logger.info("Org MCP sync: received %d servers", len(filtered_servers))
+    return OrgMCPSyncResponse(status="synced", count=len(filtered_servers))

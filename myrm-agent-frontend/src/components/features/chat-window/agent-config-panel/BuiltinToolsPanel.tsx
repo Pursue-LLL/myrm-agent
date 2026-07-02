@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BUILTIN_TOOL_IDS, type BuiltinToolId } from '@/store/chat/types';
 import { SelectableCard } from './AgentConfigSelectableCard';
 import { CuPermissionInline } from './CuPermissionInline';
+import { MediaCredentialInline } from './MediaCredentialInline';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];
@@ -113,6 +114,8 @@ export const BuiltinToolsPanel = ({
           />
         ))}
       </div>
+
+      <MediaCredentialInline enabledBuiltinTools={localBuiltinTools} tPanel={tPanel} />
 
       {localBuiltinTools.includes('browser') && (
         <BrowserConfigSection

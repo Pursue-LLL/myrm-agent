@@ -12,8 +12,7 @@
 
 [POS]
 Registers server-layer business tools (third-party SDKs, ChannelGateway outbound,
-Canvas SDK) into the harness registry at import time.  Framework-native tools
-(request_answer_user_tool, render_ui_tool, etc.) live in harness directly.
+Canvas SDK, product media LangChain adapters) into the harness registry at import time.
 """
 
 from __future__ import annotations
@@ -28,6 +27,9 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "canvas_get_selection": ToolLayer.EXTENDED,
     "canvas_insert_element": ToolLayer.EXTENDED,
     "channel_notify_tool": ToolLayer.EXTENDED,
+    "image_tool": ToolLayer.EXTENDED,
+    "video_tool": ToolLayer.EXTENDED,
+    "tts_generate": ToolLayer.EXTENDED,
 }
 
 

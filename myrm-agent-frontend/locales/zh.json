@@ -4774,6 +4774,15 @@
         "recheckBtn": "重新检查",
         "hint": "桌面控制需要 macOS 辅助功能和屏幕录制权限。"
       },
+      "mediaCredential": {
+        "title": "媒体工具需要 API 凭证",
+        "imageMissing": "图片生成：当前图片模型对应的服务商未配置 API Key",
+        "videoMissing": "视频生成：当前视频服务商未配置 API Key",
+        "ttsMissing": "语音合成：当前 TTS 服务商未配置 API Key",
+        "hint": "未配置凭证时，运行时不会挂载对应媒体工具。请在设置中配置（图片/视频见模型服务；TTS 见渠道 > 语音）。",
+        "openSettings": "打开设置",
+        "recheck": "重新检查"
+      },
       "memoryDecay": "记忆遗忘速度",
       "memoryDecayDesc": "控制智能体长期记忆的衰减速度",
       "memoryDecayPermanent": "永久记忆",

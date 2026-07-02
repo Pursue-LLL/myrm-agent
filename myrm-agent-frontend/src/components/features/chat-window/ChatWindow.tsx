@@ -131,13 +131,19 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     setPendingArchiveRestoreActions([{ type: 'archive_restore', restoreArg: restoreArgFromUrl }]);
     setInputMessage(sessionAnalyticsT('contextHealth.pruning.restorePrompt', { restoreArg: restoreArgFromUrl }));
     router.replace(`/${encodeURIComponent(id)}`, { scroll: false });
-    window.setTimeout(() => {
+    const focusTimer = window.setTimeout(() => {
+      if (typeof document === 'undefined') {
+        return;
+      }
       const inputElement = document.querySelector('textarea');
       if (inputElement instanceof HTMLTextAreaElement) {
         inputElement.focus();
         inputElement.setSelectionRange(inputElement.value.length, inputElement.value.length);
       }
     }, 100);
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
   }, [
     id,
     isMessagesLoaded,

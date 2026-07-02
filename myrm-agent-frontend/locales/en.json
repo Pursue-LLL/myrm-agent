@@ -4774,6 +4774,15 @@
         "recheckBtn": "Recheck",
         "hint": "Desktop Control requires macOS Accessibility and Screen Recording permissions."
       },
+      "mediaCredential": {
+        "title": "Media tools need API credentials",
+        "imageMissing": "Image Generation: no API key for the selected image provider",
+        "videoMissing": "Video Generation: no API key for the selected video provider",
+        "ttsMissing": "Text to Speech: no API key for the selected TTS provider",
+        "hint": "Without credentials the agent will not receive media tools at runtime. Configure keys in Settings (Model Service for image/video; Channels > Voice for TTS).",
+        "openSettings": "Open Settings",
+        "recheck": "Recheck"
+      },
       "memoryDecay": "Memory Decay",
       "memoryDecayDesc": "Control the decay speed of long-term memory",
       "memoryDecayPermanent": "Permanent",

@@ -19,6 +19,11 @@ import useProviderStore from '@/store/useProviderStore';
 import { toast } from '@/hooks/useToast';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import type { ImageGenerationConfig, VideoGenerationConfig, VideoGenerationProvider } from '@/services/config/types';
+import {
+  fetchMediaProviderStatus,
+  VIDEO_PROVIDER_CONFIG_IDS,
+  type MediaProviderStatus,
+} from '@/lib/utils/mediaProviderStatus';
 import OptionSelect from '../../OptionSelect';
 import SettingsSection from '../SettingsSection';
 
@@ -43,12 +48,7 @@ const FALLBACK_VIDEO_PROVIDERS: {
   { value: 'minimax', label: 'MiniMax Hailuo', description: 'MiniMax-Hailuo-2.3' },
 ];
 
-const PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> = {
-  openai: 'openai',
-  gemini: 'gemini',
-  qwen: 'dashscope',
-  minimax: 'minimax',
-};
+const PROVIDER_CONFIG_IDS = VIDEO_PROVIDER_CONFIG_IDS;
 
 const DEFAULT_IMAGE_CONFIG: ImageGenerationConfig = {
   model: 'dall-e-3',
@@ -69,14 +69,7 @@ const DEFAULT_VIDEO_CONFIG: VideoGenerationConfig = {
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
-interface ProviderStatus {
-  name: string;
-  hasApiKey: boolean;
-  healthy: boolean;
-  configured: boolean;
-  defaultModel?: string;
-  models?: Array<{ id: string; name: string }>;
-}
+type ProviderStatus = MediaProviderStatus;
 
 async function testMediaConfig(
   mediaType: 'image' | 'video',
@@ -93,21 +86,6 @@ async function testMediaConfig(
     return { ok: true, message: data.data?.message ?? 'OK' };
   }
   return { ok: false, message: data.message ?? 'Test failed' };
-}
-
-async function fetchProviderStatus(): Promise<Record<string, ProviderStatus>> {
-  try {
-    const resp = await fetch(`${getBackendUrl()}/api/v1/agents/media-provider-status`, {
-      headers: getAuthHeaders(),
-    });
-    const data = await resp.json();
-    if (data.success && data.data?.providers) {
-      return data.data.providers as Record<string, ProviderStatus>;
-    }
-  } catch {
-    /* network error — silently fall back to empty */
-  }
-  return {};
 }
 
 function ProviderStatusBadge({
@@ -176,7 +154,7 @@ const MediaGenerationSection = memo(() => {
   const addApiKey = useProviderStore((s) => s.addApiKey);
 
   useEffect(() => {
-    fetchProviderStatus().then((statuses) => {
+    fetchMediaProviderStatus().then((statuses) => {
       setProviderStatuses(statuses);
       setImageProviderStatus(statuses['openai']);
     });

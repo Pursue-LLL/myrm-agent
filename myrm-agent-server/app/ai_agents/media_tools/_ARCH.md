@@ -9,7 +9,6 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 
 | File | Role |
 |------|------|
-| `media_constants.py` | `PRODUCT_MEDIA_TOOL_NAMES` SSOT |
 | `image_agent_tool.py` | `create_image_generation_tool` → `image_tool` |
 | `video_agent_tool.py` | `create_video_generation_tool` → `video_tool` |
 | `tts_agent_tool.py` | `create_tts_tool` → `tts_generate` |
