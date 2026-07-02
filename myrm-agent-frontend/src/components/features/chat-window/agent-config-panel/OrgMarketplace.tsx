@@ -101,7 +101,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
     try {
       const result = await installFromMarketplace(entry.id);
       const agent = await importMarketplaceAgent(result.profile_data);
-      toast.success(t('installSuccess') || `Installed "${entry.name}"`);
+      toast.success(t('installSuccess'));
       if (onInstalled) {
         onInstalled(agent.id);
       } else {
@@ -114,7 +114,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       ));
     } catch (e) {
       console.error(e);
-      toast.error(t('installError') || 'Failed to install agent');
+      toast.error(t('installError'));
     } finally {
       setInstallingId(null);
     }
@@ -162,7 +162,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
         <div className="flex-1 h-px bg-border/50" />
         <Store size={12} className="text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
-          {t('orgMarketplace') || 'Org Marketplace'}
+          {t('orgMarketplace')}
         </span>
         <div className="flex-1 h-px bg-border/50" />
       </div>
@@ -174,7 +174,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
             type="text"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder={t('searchMarketplace') || 'Search agents...'}
+            placeholder={t('searchMarketplace')}
             className={cn(
               'w-full pl-8 pr-3 py-1.5 text-xs rounded-lg',
               'bg-muted/30 border border-border/40',
@@ -187,7 +187,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
 
       {search && entries.length === 0 && !loading && (
         <p className="text-center text-xs text-muted-foreground py-3">
-          {t('noResults') || 'No agents found'}
+          {t('noResults')}
         </p>
       )}
 
@@ -227,12 +227,12 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
               <span>v{entry.latest_version}</span>
               <span>·</span>
-              <span>{entry.install_count} {t('installs') || 'installs'}</span>
+              <span>{entry.install_count} {t('installs')}</span>
               {entry.is_installed && (
                 <>
                   <span>·</span>
                   <span className="text-green-600 font-medium">
-                    {t('installed') || 'Installed'}
+                    {t('installed')}
                   </span>
                 </>
               )}
