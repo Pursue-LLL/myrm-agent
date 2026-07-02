@@ -2,12 +2,11 @@ import { defineConfig } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
-const preferBundledChromium = process.env.PLAYWRIGHT_RUN_SUBAGENT_DASHBOARD_E2E === '1';
 const chromePath =
   process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH?.trim() ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const launchOptions =
-  !preferBundledChromium && existsSync(chromePath) ? { executablePath: chromePath } : undefined;
+  existsSync(chromePath) ? { executablePath: chromePath } : undefined;
 
 export default defineConfig({
   testDir: './tests/e2e',
