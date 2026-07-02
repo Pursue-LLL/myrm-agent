@@ -21,6 +21,8 @@ class TestIsSilentContent:
             "```\n[SILENT]\n```",
             "```text\n[SILENT]\n```",
             "[SILENT]\n[SILENT]",
+            "[SILENT]\n\n[SILENT]",
+            "\t[SILENT]\t",
         ],
     )
     def test_silent_variants(self, text: str) -> None:
@@ -38,6 +40,9 @@ class TestIsSilentContent:
             "SILENT",
             "[silent]",
             "[SILENT] \n extra content",
+            "[SILENT].",
+            "> [SILENT]",
+            "```\n[SILENT]\n```\nExtra after fence",
         ],
     )
     def test_non_silent_variants(self, text: str) -> None:
@@ -165,3 +170,115 @@ class TestDeliverAgentResultSilentFilter:
         )
 
         bus.publish_outbound.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_markdown_fence_silent_suppressed_at_deliver_level(self) -> None:
+        """Markdown-wrapped [SILENT] is filtered at the routing delivery layer."""
+        from app.channels.types import InboundMessage, OutboundMessage
+
+        mixin, fx, bus = self._make_mixin()
+
+        result = OutboundMessage(
+            channel="feishu",
+            recipient_id="group-42",
+            content="```\n[SILENT]\n```",
+            user_id="u2",
+        )
+
+        deferred = AsyncMock()
+        deferred.resolve_for_delivery = AsyncMock(return_value="ph_md")
+
+        msg = InboundMessage(
+            channel="feishu",
+            sender_id="u2",
+            content="@bot 定期报告",
+            message_id="m2",
+            is_group=True,
+        )
+
+        await mixin._deliver_agent_result(
+            result=result,
+            deferred=deferred,
+            msg=msg,
+            chat_id="group-42",
+            last_progress_at=0.0,
+            inbound_had_voice=False,
+        )
+
+        fx.cleanup_placeholder.assert_called_once_with(
+            "feishu", "group-42", "ph_md", "\u200b"
+        )
+        bus.publish_outbound.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_silent_with_voice_flag_skips_tts(self) -> None:
+        """Even when inbound had voice, silent output must not trigger TTS."""
+        from app.channels.types import InboundMessage, OutboundMessage
+
+        mixin, fx, bus = self._make_mixin()
+        mixin._voice = AsyncMock()  # type: ignore[attr-defined]
+
+        result = OutboundMessage(
+            channel="telegram",
+            recipient_id="chat3",
+            content="[SILENT]",
+            user_id="u3",
+        )
+
+        deferred = AsyncMock()
+        deferred.resolve_for_delivery = AsyncMock(return_value=None)
+
+        msg = InboundMessage(
+            channel="telegram",
+            sender_id="u3",
+            content="@bot status",
+            message_id="m3",
+        )
+
+        await mixin._deliver_agent_result(
+            result=result,
+            deferred=deferred,
+            msg=msg,
+            chat_id="chat3",
+            last_progress_at=0.0,
+            inbound_had_voice=True,
+        )
+
+        bus.publish_outbound.assert_not_called()
+        fx.edit_placeholder.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_normal_result_with_placeholder_edits_message(self) -> None:
+        """Non-silent result with placeholder goes through edit_placeholder path."""
+        from app.channels.types import InboundMessage, OutboundMessage
+
+        mixin, fx, bus = self._make_mixin()
+
+        result = OutboundMessage(
+            channel="discord",
+            recipient_id="ch-5",
+            content="Task completed successfully.",
+            user_id="u5",
+        )
+
+        deferred = AsyncMock()
+        deferred.resolve_for_delivery = AsyncMock(return_value="ph_edit")
+
+        msg = InboundMessage(
+            channel="discord",
+            sender_id="u5",
+            content="!run task",
+            message_id="m5",
+        )
+
+        await mixin._deliver_agent_result(
+            result=result,
+            deferred=deferred,
+            msg=msg,
+            chat_id="ch-5",
+            last_progress_at=0.0,
+            inbound_had_voice=False,
+        )
+
+        fx.edit_placeholder.assert_called_once()
+        bus.publish_outbound.assert_not_called()

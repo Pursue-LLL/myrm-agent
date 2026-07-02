@@ -97,6 +97,7 @@ def _make_active_task(
         channel=channel,
         chat_id=chat_id,
         placeholder_id=None,
+        started_at=0.0,
         requester_id=requester_id,
     )
 

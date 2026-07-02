@@ -27,6 +27,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 | `wecom_bot_webhook.py` | WeCom (企业微信) 群机器人 hook：`msgtype=markdown` JSON POST |
 | `inbound_event_dispatch.py` | 入站 IM 消息 → `CronScheduler.dispatch_event`（SSOT：`AgentRouter` 过滤后调用） |
 | `sqlalchemy_trigger_provider.py` | TriggerProvider 实现：event/system/webhook 匹配 |
+| `stream_listener.py` | StreamListener 实现：出站 WS/SSE 长连接管理（重连 + 心跳 + filter 匹配 + 资源限制） |
+| `poll_listener.py` | PollListener 实现：定时 HTTP 拉取 + 内容哈希变更检测 |
 
 ---
 

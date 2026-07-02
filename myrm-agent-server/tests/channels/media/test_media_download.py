@@ -29,15 +29,26 @@ def patch_ssrf_and_pinning():
             method="GET",
         )
 
+    _pin_mock = AsyncMock(side_effect=lambda url, _allowed=None: (url, {}))
+    _resolve_mock = AsyncMock(side_effect=_resolve_target)
+
     with (
         patch("app.channels.media.validators.async_validate_url_for_ssrf") as mock_ssrf,
         patch(
             "myrm_agent_harness.core.security.http.secure_fetch.resolve_secure_http_target",
-            new=AsyncMock(side_effect=_resolve_target),
+            new=_resolve_mock,
+        ),
+        patch(
+            "app.channels.media.ssrf_target.resolve_secure_http_target",
+            new=_resolve_mock,
         ),
         patch(
             "myrm_agent_harness.core.security.guards.ssrf.async_pin_url",
-            new=AsyncMock(side_effect=lambda url, _allowed=None: (url, {})),
+            new=_pin_mock,
+        ),
+        patch(
+            "app.channels.media.ssrf_target.async_pin_url",
+            new=_pin_mock,
         ),
     ):
         mock_ssrf.return_value = MagicMock(safe=True)

@@ -134,6 +134,7 @@ class TestCancelActiveTask:
             channel="telegram",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
         )
 
         msg = _msg(content="/stop", sender_id="user1")
@@ -169,6 +170,7 @@ class TestCancelActiveTask:
             channel="telegram",
             chat_id="user1",
             placeholder_id="placeholder-123",
+            started_at=0.0,
         )
 
         msg = _msg(content="/stop", sender_id="user1")
@@ -193,6 +195,7 @@ class TestCancelActiveTask:
             channel="telegram",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
         )
 
         msg = _msg(content="/stop", sender_id="user1")
@@ -214,6 +217,7 @@ class TestCancelActiveTask:
             channel="telegram",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
         )
 
         msg = _msg(content="/stop", sender_id="user1")
@@ -289,6 +293,7 @@ class TestRouterStopCleansActiveTasks:
             channel="telegram",
             chat_id="chat1",
             placeholder_id=None,
+            started_at=0.0,
         )
         router._active_tasks["whatsapp:chat2"] = _ActiveTask(
             task=task2,
@@ -296,6 +301,7 @@ class TestRouterStopCleansActiveTasks:
             channel="whatsapp",
             chat_id="chat2",
             placeholder_id=None,
+            started_at=0.0,
         )
 
         await router.stop()

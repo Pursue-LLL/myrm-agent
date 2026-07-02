@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import type { CronJob } from '@/services/cron';
 import { updateCronJob } from '@/services/cron';
 import { CronTriggerWebhookDisplay, isValidCronTriggerRegex } from './CronTriggerWebhookDisplay';
+import { StreamTriggerSection, type StreamDraft } from './StreamTriggerSection';
+import { PollTriggerSection, type PollDraft } from './PollTriggerSection';
 
 interface EditorProps {
   job: CronJob;
@@ -30,7 +32,14 @@ interface SystemEventDraft {
 export function TriggerEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
   const tc = job.triggers;
-  const hasAny = !!(tc && (tc.webhooks.length > 0 || tc.events.length > 0 || tc.system_events.length > 0));
+  const hasAny = !!(
+    tc &&
+    (tc.webhooks.length > 0 ||
+      tc.events.length > 0 ||
+      tc.system_events.length > 0 ||
+      (tc.streams?.length ?? 0) > 0 ||
+      (tc.polls?.length ?? 0) > 0)
+  );
 
   const [enabled, setEnabled] = useState(hasAny);
   const [saving, setSaving] = useState(false);
@@ -48,12 +57,31 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
     })) ?? [],
   );
   const [webhookCount, setWebhookCount] = useState(tc?.webhooks.length ?? 0);
+  const [streamDrafts, setStreamDrafts] = useState<StreamDraft[]>(
+    tc?.streams?.map((s) => ({
+      url: s.url,
+      protocol: s.protocol,
+      filter_json_path: s.filter_json_path ?? '',
+      filter_regex: s.filter_regex ?? '',
+    })) ?? [],
+  );
+  const [pollDrafts, setPollDrafts] = useState<PollDraft[]>(
+    tc?.polls?.map((p) => ({
+      url: p.url,
+      json_path: p.json_path ?? '',
+      interval_seconds: p.interval_seconds,
+    })) ?? [],
+  );
 
   useEffect(() => {
     const newTc = job.triggers;
     const newHas = !!(
       newTc &&
-      (newTc.webhooks.length > 0 || newTc.events.length > 0 || newTc.system_events.length > 0)
+      (newTc.webhooks.length > 0 ||
+        newTc.events.length > 0 ||
+        newTc.system_events.length > 0 ||
+        (newTc.streams?.length ?? 0) > 0 ||
+        (newTc.polls?.length ?? 0) > 0)
     );
     setEnabled(newHas);
     setEventDrafts(newTc?.events.map((e) => ({ pattern: e.pattern, channel: e.channel ?? '' })) ?? []);
@@ -67,6 +95,21 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
       })) ?? [],
     );
     setWebhookCount(newTc?.webhooks.length ?? 0);
+    setStreamDrafts(
+      newTc?.streams?.map((s) => ({
+        url: s.url,
+        protocol: s.protocol,
+        filter_json_path: s.filter_json_path ?? '',
+        filter_regex: s.filter_regex ?? '',
+      })) ?? [],
+    );
+    setPollDrafts(
+      newTc?.polls?.map((p) => ({
+        url: p.url,
+        json_path: p.json_path ?? '',
+        interval_seconds: p.interval_seconds,
+      })) ?? [],
+    );
   }, [job.triggers]);
 
   const handleToggle = useCallback(
@@ -96,12 +139,8 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
     }
     setSaving(true);
     try {
-      const triggers: {
-        webhooks: Record<string, never>[];
-        events: { pattern: string; channel?: string }[];
-        system_events: { source: string; event_type: string; filters?: Record<string, string> }[];
-      } = {
-        webhooks: Array.from({ length: webhookCount }, () => ({})),
+      const triggers = {
+        webhooks: Array.from({ length: webhookCount }, () => ({})) as Record<string, never>[],
         events: eventDrafts
           .filter((e) => e.pattern.trim())
           .map((e) => ({ pattern: e.pattern.trim(), ...(e.channel ? { channel: e.channel } : {}) })),
@@ -115,6 +154,21 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
             });
             return { source: s.source.trim(), event_type: s.event_type.trim(), filters };
           }),
+        streams: streamDrafts
+          .filter((s) => s.url.trim())
+          .map((s) => ({
+            url: s.url.trim(),
+            protocol: s.protocol,
+            ...(s.filter_json_path ? { filter_json_path: s.filter_json_path.trim() } : {}),
+            ...(s.filter_regex ? { filter_regex: s.filter_regex.trim() } : {}),
+          })),
+        polls: pollDrafts
+          .filter((p) => p.url.trim())
+          .map((p) => ({
+            url: p.url.trim(),
+            ...(p.json_path ? { json_path: p.json_path.trim() } : {}),
+            interval_seconds: p.interval_seconds || 300,
+          })),
       };
       await updateCronJob(job.id, { triggers });
       onUpdated();
@@ -124,7 +178,7 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
     } finally {
       setSaving(false);
     }
-  }, [job.id, webhookCount, eventDrafts, systemDrafts, onUpdated, t]);
+  }, [job.id, webhookCount, eventDrafts, systemDrafts, streamDrafts, pollDrafts, onUpdated, t]);
 
   return (
     <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
@@ -308,6 +362,12 @@ export function TriggerEditor({ job, onUpdated }: EditorProps) {
               <Plus className="h-3 w-3" /> {t('triggerSystemEventAdd')}
             </Button>
           </div>
+
+          {/* Stream Triggers */}
+          <StreamTriggerSection drafts={streamDrafts} onChange={setStreamDrafts} />
+
+          {/* Poll Triggers */}
+          <PollTriggerSection drafts={pollDrafts} onChange={setPollDrafts} />
 
           {/* Save / Clear */}
           <div className="flex items-center gap-2 pt-1">

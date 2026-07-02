@@ -120,6 +120,7 @@ class TestHandleSteerCommand:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=SteeringToken(),
         )
         loop.close()
@@ -155,6 +156,7 @@ class TestHandleSteerCommand:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=steering_token,
         )
         host = self._make_host(active)
@@ -231,6 +233,7 @@ class TestHandleQueueCommand:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=SteeringToken(),
         )
         host = self._make_host(active)
@@ -277,6 +280,7 @@ class TestSteeringTokenInActiveTask:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=token,
         )
         assert active.steering_token is token
@@ -289,6 +293,7 @@ class TestSteeringTokenInActiveTask:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
         )
         assert active.steering_token is None
 
@@ -369,6 +374,7 @@ class TestSteerCommandEdgeCases:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=steering_token,
         )
         host = self._make_host(active)
@@ -409,6 +415,7 @@ class TestSteerCommandEdgeCases:
             channel="test",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=None,
         )
         host = self._make_host(active)
@@ -520,6 +527,7 @@ class TestRouterSteerDispatch:
             channel="telegram",
             chat_id="user1",
             placeholder_id=None,
+            started_at=0.0,
             steering_token=steering_token,
         )
 

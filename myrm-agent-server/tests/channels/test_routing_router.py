@@ -132,6 +132,7 @@ class TestRouterLifecycle:
             channel="test",
             chat_id="chat-1",
             placeholder_id=None,
+            started_at=0.0,
         )
         await router.stop()
         mock_token.cancel.assert_called_once()

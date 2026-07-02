@@ -58,10 +58,27 @@ export interface WebhookTrigger {
   secret?: string | null;
 }
 
+export interface PollTrigger {
+  url: string;
+  json_path?: string | null;
+  interval_seconds: number;
+  change_detection: boolean;
+}
+
+export interface StreamTrigger {
+  url: string;
+  protocol: 'ws' | 'sse';
+  filter_json_path?: string | null;
+  filter_regex?: string | null;
+  headers?: Record<string, string>;
+}
+
 export interface TriggerConfig {
   webhooks: WebhookTrigger[];
   events: EventTrigger[];
   system_events: SystemEventTrigger[];
+  polls: PollTrigger[];
+  streams: StreamTrigger[];
 }
 
 export interface CronJob {
@@ -185,6 +202,14 @@ export interface TriggerConfigRequest {
   webhooks?: Record<string, never>[];
   events?: { pattern: string; channel?: string }[];
   system_events?: { source: string; event_type: string; filters?: Record<string, string> }[];
+  polls?: { url: string; json_path?: string; interval_seconds?: number; change_detection?: boolean }[];
+  streams?: {
+    url: string;
+    protocol?: 'ws' | 'sse';
+    filter_json_path?: string;
+    filter_regex?: string;
+    headers?: Record<string, string>;
+  }[];
 }
 
 export interface CreateCronJobRequest {
