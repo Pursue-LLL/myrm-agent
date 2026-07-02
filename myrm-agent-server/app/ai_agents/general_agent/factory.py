@@ -820,14 +820,16 @@ async def _setup_kanban_tools(
     """Load kanban tools according to agent_wrapper.kanban_tool_mode."""
     from myrm_agent_harness.toolkits.kanban import create_kanban_tools
 
+    from app.ai_agents.general_agent.kanban_tool_mode import resolve_kanban_tool_mode
     from app.services.kanban.service import KanbanService
 
     kanban_svc = KanbanService.get_instance()
     store = kanban_svc.store
 
-    mode = agent_wrapper.kanban_tool_mode or "full"
-    if mode not in ("worker", "orchestrator", "full"):
-        mode = "full"
+    mode = resolve_kanban_tool_mode(
+        kanban_tool_mode=agent_wrapper.kanban_tool_mode,
+        kanban_current_task_id=agent_wrapper.kanban_current_task_id,
+    )
 
     # Resolve default board and active dispatcher for wake signals
     default_board_id: str | None = None
@@ -848,7 +850,7 @@ async def _setup_kanban_tools(
     kanban_tools = create_kanban_tools(
         store,
         dispatcher,
-        mode=mode,  # type: ignore[arg-type]
+        mode=mode,
         default_board_id=default_board_id,
         agent_id=agent_wrapper.agent_id,
         current_task_id=agent_wrapper.kanban_current_task_id,

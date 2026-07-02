@@ -142,9 +142,10 @@ class TestPlannerDecisionLogE2E:
             "Finally, get the plan using planner_tool(action='get') and tell me if 'FastAPI' is in the key_findings."
         )
 
-        # Mock the model resolver to use deepseek-v4-flash via openai provider to ensure tool calling works
+        # Use configured [T] model so the E2E matches .env.test credentials.
+        model_name = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M2.7")
         mock_model_config = ModelConfig(
-            model="openai/deepseek-v4-flash",
+            model=model_name,
             api_key=os.environ.get("BASIC_API_KEY", ""),
             base_url=os.environ.get("BASIC_BASE_URL", ""),
         )

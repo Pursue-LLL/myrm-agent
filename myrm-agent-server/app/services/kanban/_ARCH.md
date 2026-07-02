@@ -24,7 +24,7 @@ SqlAlchemy 持久化适配器，对 API 层暴露干净的业务 API。
 | `dependency_ops.py` | ✅ 核心 | 依赖边 CRUD、promote | ❌ |
 | `board_summary.py` | ✅ 核心 | `build_board_summary` | ❌ |
 | `dispatcher_lifecycle.py` | ✅ 核心 | Dispatcher 启停、boot recovery | ❌ |
-| `task_runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口 | ✅ |
+| `task_runner.py` | ✅ 核心 | KanbanTaskRunner 编排入口；`kanban_current_task_id` 触发 worker 工具 bind（5 工具） | ✅ |
 | `task_runner_stream.py` | ✅ 核心 | Stream 累积、附件、multimodal query | ❌ |
 | `task_runner_worktree.py` | ✅ 核心 | Git worktree 隔离 | ❌ |
 | `task_runner_profile.py` | ✅ 核心 | Agent profile 解析 | ❌ |

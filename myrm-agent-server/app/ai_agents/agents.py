@@ -124,7 +124,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_answer_tool: bool = False
     enable_planning: bool = False
     enable_task_tracking: bool = False
-    kanban_tool_mode: str = "full"
+    kanban_tool_mode: str = "orchestrator"
     kanban_current_task_id: str | None = None
     kanban_max_runtime_seconds: int | None = None
     kanban_zombie_timeout_seconds: int = 120
