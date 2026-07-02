@@ -93,7 +93,7 @@ if msg.metadata.get("callback_prefix") == "act" and msg.content.startswith("appr
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
 | router_commands.py | Core | RouterCommandsMixin composed into AgentRouter (router.py) via multiple inheritance; | — |
-| router_constants.py | Core | Constants read by router.py, router_stream, and janitor/dedup logic. Includes silence reassurance thresholds. Unit tests can import directly. | — |
+| router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; | — |
 | router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
 | router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"`` for DM/group peer maps | — |
