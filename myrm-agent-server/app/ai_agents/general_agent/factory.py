@@ -194,7 +194,7 @@ async def build_general_agent(
         )
 
         append_conversation_search_tool(
-            tools,
+            deferred_tools,
             current_chat_id=effective_chat_id,
             agent_id=agent_wrapper.agent_id,
             memory_manager=memory_manager,
@@ -223,13 +223,11 @@ async def build_general_agent(
     from app.services.agent.goal_registry import GoalRegistry
 
     enable_planning = agent_wrapper.enable_planning
-    enable_task_tracking = agent_wrapper.enable_task_tracking
     goal_provider = GoalRegistry.get_provider(effective_chat_id)
     if goal_provider:
         active_goal = await goal_provider.get_active_goal(effective_chat_id)
         if active_goal:
             enable_planning = True
-            enable_task_tracking = False
             from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
                 create_goal_tools,
             )
@@ -599,7 +597,6 @@ async def build_general_agent(
         ("canvas", agent_wrapper.enable_canvas),
         ("wiki", agent_wrapper.enable_wiki),
         ("planning", enable_planning),
-        ("task_tracking", enable_task_tracking),
         ("answer_tool", agent_wrapper.enable_answer_tool),
     ]
     active_tool_groups = [group for group, enabled in _flag_to_group if enabled]
@@ -648,6 +645,14 @@ async def build_general_agent(
     from app.services.skills.growth_lifecycle import set_similarity_checker
 
     set_similarity_checker(sim_checker)
+
+    library_skill_names: frozenset[str] = frozenset()
+    if skill_backend is not None:
+        try:
+            library_skills = await skill_backend.list_skills()
+            library_skill_names = frozenset(skill.name for skill in library_skills)
+        except Exception as e:
+            logger.warning("Failed to load skill library names for gap detection (non-blocking): %s", e)
 
     from app.core.subagents.resolver import SubagentModelResolver
 
@@ -710,7 +715,7 @@ async def build_general_agent(
         enable_bash=effective_enable_bash,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,
-        enable_task_tracking=enable_task_tracking,
+        library_skill_names=library_skill_names,
     )
 
     # 9.5 Register extensions (subagent tools, security, task-adaptive, memory)

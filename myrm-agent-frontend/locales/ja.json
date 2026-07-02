@@ -10266,7 +10266,7 @@
     "notificationDenied": "Notification permission denied",
     "pendingIssues": "Pending Confirmation",
     "goalPlan": "Goal Plan",
-    "approveAndExecute": "Approve & Execute",
+    "loadingProgress": "Loading progress...",
     "architecturalDecisions": "Architectural Decisions",
     "keyDecisions": "Key Decisions",
     "executionSummary": "Execution Summary",

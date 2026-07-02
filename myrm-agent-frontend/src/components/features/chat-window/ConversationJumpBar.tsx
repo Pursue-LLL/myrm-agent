@@ -140,7 +140,7 @@ const ConversationJumpBar = memo<ConversationJumpBarProps>(({ messages, onJump, 
         'hidden md:flex',
         'transition-opacity duration-300',
         loading ? 'opacity-40' : 'opacity-100',
-        hasGoalPanel ? 'right-[340px]' : 'right-3',
+        hasGoalPanel ? 'right-3 xl:right-[340px]' : 'right-3',
       )}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}

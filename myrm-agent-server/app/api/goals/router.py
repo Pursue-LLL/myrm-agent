@@ -238,75 +238,30 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
 
 @router.get("/{session_id}/plan")
 async def get_goal_plan(session_id: str) -> dict[str, object]:
-    """Get the current plan for a session's goal."""
+    """Get the current todo progress for a session's goal (plan-compat shape)."""
     try:
-        from myrm_agent_harness.agent.sub_agents.planner import PlannerStorage
+        from pathlib import Path
 
-        from app.platform_utils import get_storage_provider
+        from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
+        from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-        storage_provider = get_storage_provider()
-        planner_storage = PlannerStorage(storage_provider, prefix="planner_")
-        plan = await planner_storage.load_plan()
+        from app.config.settings import get_settings
+        from app.platform_utils.workspace_session import to_workspace_session_id
 
-        if not plan:
+        workspace_svc = create_workspace_service(
+            root_dir=Path(get_settings().database.harness_dir),
+        )
+        workspace_session_id = to_workspace_session_id(session_id)
+        workspace = await workspace_svc.get_or_create(session_id=workspace_session_id)
+        workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
+
+        store = read_todos_sync_from_workspace(workspace_root)
+        if not store or not store.todos:
             return {"plan": None}
 
-        return {"plan": plan.model_dump()}
+        return {"plan": store.to_plan_compat()}
     except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).error(f"Failed to get goal plan: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/{session_id}/approve_plan")
-async def approve_goal_plan(session_id: str) -> dict[str, str]:
-    """Approve the plan and resume the goal execution."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    goal = await provider.get_latest_goal(session_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail="No goal found for this session")
-
-    if goal.status != GoalStatus.PENDING_APPROVAL:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Goal is not pending approval (current status: {goal.status.value})",
-        )
-
-    try:
-        # Update status back to ACTIVE
-        await provider.update_status(goal.goal_id, GoalStatus.ACTIVE)
-
-        # Resume the harness state machine
-        # We use the standard chat resume mechanism by sending a Command
-        import asyncio
-
-        from app.services.agent.stream_handler import stream_agent_run
-        from langgraph.types import Command
-
-        # Fire and forget the resume command
-        # The frontend should already be listening to the SSE stream
-        asyncio.create_task(
-            stream_agent_run(
-                session_id=session_id,
-                query=Command(resume="approved"),
-                message_id=f"resume_{goal.goal_id}",
-                context={"session_id": session_id},
-            )
-        )
-
-        return {"status": "success", "goal_id": goal.goal_id}
-    except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).error(f"Failed to approve goal plan: {e}")
+        logger.error("Failed to get goal progress: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

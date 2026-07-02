@@ -56,13 +56,34 @@ def test_frontend_builtin_tool_ids_match_server_ssot() -> None:
 
 
 def test_default_tools_match_frontend_contract() -> None:
-    assert DEFAULT_ENABLED_BUILTIN_TOOLS == ("web_search", "memory")
-    assert len(BUILTIN_TOOL_ID_SET) == 16
+    assert DEFAULT_ENABLED_BUILTIN_TOOLS == (
+        "web_search",
+        "memory",
+        "file_ops",
+        "code_execute",
+    )
+    assert len(BUILTIN_TOOL_ID_SET) == 15
 
 
 def test_normalize_rejects_legacy_ids() -> None:
     with pytest.raises(InvalidBuiltinToolIdsError, match="image_gen"):
         normalize_enabled_builtin_tools(["web_search", "image_gen"])
+
+
+def test_strip_legacy_task_tracking_on_read_path() -> None:
+    from app.services.agent.builtin_tool_ids import (
+        normalize_enabled_builtin_tools,
+        strip_legacy_builtin_tool_ids,
+    )
+
+    assert normalize_enabled_builtin_tools(
+        strip_legacy_builtin_tool_ids(["web_search", "task_tracking"])
+    ) == ["web_search"]
+
+
+def test_normalize_rejects_legacy_task_tracking() -> None:
+    with pytest.raises(InvalidBuiltinToolIdsError, match="task_tracking"):
+        normalize_enabled_builtin_tools(["web_search", "task_tracking"])
 
 
 def test_normalize_rejects_unknown_ids() -> None:

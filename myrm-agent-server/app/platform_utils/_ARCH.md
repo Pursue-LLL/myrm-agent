@@ -20,6 +20,7 @@
 | `execution.py` | ✅ 核心 | Agent 执行策略抽象（ExecutionStrategy Protocol + LocalExecutionStrategy） | 永远返回本地执行策略 |
 | `protocols.py` | ✅ 核心 | 平台协议接口定义（FileService, ExecutionStrategy 等） |
 | `workspace_root.py` | ✅ 辅助 | 工作区根路径解析（`get_workspace_root`，供 core/services/api 共用） | ✅ |
+| `workspace_session.py` | ✅ 辅助 | chat_id → `chat_{id}` workspace session SSOT（Goal progress hydrate） | ✅ |
 
 ---
 

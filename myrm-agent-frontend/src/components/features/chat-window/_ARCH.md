@@ -15,7 +15,7 @@
 | `ChatWindow.tsx` | 核心 | 主对话窗口入口：消息列表 + 输入框 + Banner 集成（含 ParentChatLink、PendingMemoryBadge、PendingMemoryDialog） | — |
 | `CompactedSummaryView.tsx` | 组件/模块 | — | — |
 | `MigrationDiscoveryBanner.tsx` | 组件 | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=` | ✅ |
-| `ConversationJumpBar.tsx` | 组件/模块 | — | — |
+| `ConversationJumpBar.tsx` | 组件 | 消息跳转条；Goal 侧栏 xl+ 时 `xl:right-[340px]` 避让 | ✅ |
 | `DeleteChat.tsx` | 组件/模块 | — | — |
 | `EmptyChat.tsx` | 组件/模块 | — | — |
 | `ForkButton.tsx` | 组件 | 触发 ForkDialog 的按钮（集成在 MessageActionBar） | ✅ |
@@ -58,7 +58,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `GoalControlPlane.tsx` | 核心 | Goal 队列与控制面板 | ✅ |
+| `GoalControlPlane.tsx` | 核心 | Goal 运行时 todo 侧栏（xl+ 显示；移动端用聊天气泡 ProgressSteps） | ✅ |
 | `GoalQueueSection.tsx` | 核心 | Goal 队列区块 | ✅ |
 | `GoalStatusCard.tsx` | 核心 | 单 Goal 状态卡片 | ✅ |
 | `goal-icons.tsx` | 辅助 | Goal 图标集 | ✅ |

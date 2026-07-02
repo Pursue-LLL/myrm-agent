@@ -5,6 +5,7 @@ from __future__ import annotations
 from app.services.agent.builtin_initializer import (
     _BUILTIN_AGENTS,
     _TOOL_CODING,
+    _TOOL_DEFAULT,
     _TOOL_DESIGN,
     _TOOL_MINIMAL,
     _TOOL_RESEARCH,
@@ -40,6 +41,8 @@ def test_research_analyst_has_answer_tool() -> None:
     assert researcher.enabled_builtin_tools == _TOOL_RESEARCH
 
 
-def test_general_assistant_stays_minimal() -> None:
+def test_general_assistant_has_sandbox_baseline() -> None:
     general = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-general")
-    assert general.enabled_builtin_tools == _TOOL_MINIMAL
+    assert general.enabled_builtin_tools == _TOOL_DEFAULT
+    assert "file_ops" in general.enabled_builtin_tools
+    assert "code_execute" in general.enabled_builtin_tools

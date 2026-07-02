@@ -17,7 +17,6 @@ _FACTORY_ACTIVE_TOOL_GROUPS: tuple[str, ...] = (
     "canvas",
     "wiki",
     "planning",
-    "task_tracking",
     "answer_tool",
 )
 

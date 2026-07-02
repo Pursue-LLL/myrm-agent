@@ -740,7 +740,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   enableCostEstimation: true,
   enableCacheBreakNotification: false,
   showContextUsage: true,
-  enableMemory: false,
+  enableMemory: true,
   memoryRequireConfirmation: false,
   enableMemoryAutoExtraction: true,
   preCompactEnabled: true,

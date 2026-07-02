@@ -28,11 +28,13 @@ import { captchaEvents } from "./captchaEvents";
 import { sessionRecordingEvents } from "./sessionRecordingEvents";
 import { modelNotifyEvents } from "./modelNotifyEvents";
 import { completionEvents } from "./completionEvents";
+import { gapEvents } from "./gapEvents";
 
 export const STREAM_EVENT_HANDLERS: Array<(ctx: StreamCtx) => Promise<StreamTurn | null>> = [
   companionEvents,
   riskEvents,
   rateLimitEvents,
+  gapEvents,
   agentControlEvents,
   toolsProgressEvents,
   statusStreamEvents,

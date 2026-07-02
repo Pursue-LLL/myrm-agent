@@ -661,9 +661,11 @@ class TestNotifyTargetsFiltering:
 class TestDefaultEnabledBuiltinTools:
     """Verify the canonical default contains expected tools."""
 
-    def test_contains_web_search_and_memory(self):
+    def test_contains_sandbox_baseline_tools(self):
         assert "web_search" in DEFAULT_ENABLED_BUILTIN_TOOLS
         assert "memory" in DEFAULT_ENABLED_BUILTIN_TOOLS
+        assert "file_ops" in DEFAULT_ENABLED_BUILTIN_TOOLS
+        assert "code_execute" in DEFAULT_ENABLED_BUILTIN_TOOLS
 
     def test_is_tuple(self):
         assert isinstance(DEFAULT_ENABLED_BUILTIN_TOOLS, tuple)
@@ -672,12 +674,12 @@ class TestDefaultEnabledBuiltinTools:
 class TestResolveBuiltinToolFlags:
     """Verify enabled_builtin_tools → enable_xxx flag mapping."""
 
-    def test_default_tools_disable_all_optional(self):
+    def test_default_tools_enable_sandbox_baseline_only(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        assert flags["enable_file_ops"] is True
+        assert flags["enable_code_execute"] is True
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
-        assert flags["enable_file_ops"] is False
-        assert flags["enable_code_execute"] is False
         assert flags["enable_wiki"] is False
         assert flags["enable_render_ui"] is False
 
@@ -693,7 +695,6 @@ class TestResolveBuiltinToolFlags:
             "answer_tool",
             "render_ui",
             "planning",
-            "task_tracking",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
@@ -724,16 +725,10 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_planning"] is True
         assert flags["enable_browser"] is False
 
-    def test_task_tracking_maps_to_enable_task_tracking(self):
-        flags = resolve_builtin_tool_flags(["task_tracking"])
-        assert flags["enable_task_tracking"] is True
-        assert flags["enable_planning"] is False
-
     def test_default_tools_exclude_planning_and_answer(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
         assert flags["enable_planning"] is False
         assert flags["enable_answer_tool"] is False
-        assert flags["enable_task_tracking"] is False
 
     def test_returns_all_flag_keys(self):
         flags = resolve_builtin_tool_flags([])
@@ -748,7 +743,6 @@ class TestResolveBuiltinToolFlags:
             "enable_answer_tool",
             "enable_render_ui",
             "enable_planning",
-            "enable_task_tracking",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

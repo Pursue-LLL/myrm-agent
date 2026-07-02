@@ -84,6 +84,8 @@ export const AgentEventType = {
   RISK_BLOCKED: 'risk_blocked',
   CORRECTION_LEARNED: 'correction_learned',
   VERIFICATION_VERDICT: 'verification_verdict',
+  CAPABILITY_GAP: 'capability_gap',
+  SKILL_GAP: 'skill_gap',
 } as const;
 
 export interface BaseAgentEvent {

@@ -127,140 +127,9 @@ class ServerGoalManager(GoalManager):
         return goal
 
     async def _consolidate_decisions_on_completion(self, goal: "Goal") -> None:
-        """Write active architectural decisions to Shared Context when a goal completes."""
-        try:
-            from myrm_agent_harness.agent.sub_agents.planner.storage import (
-                PlannerStorage,
-            )
-
-            planner_storage = PlannerStorage(self._storage._storage, prefix="planner_")
-            plan = await planner_storage.load_plan()
-
-            if not plan or not plan.decisions:
-                return
-
-            active_decisions = [d for d in plan.decisions if d.status == "active"]
-            if not active_decisions:
-                return
-
-            decision_text = "## Architectural Decisions\n\n"
-            for dec in active_decisions:
-                decision_text += f"### {dec.topic}\n- **Decision:** {dec.decision}\n- **Rationale:** {dec.rationale}\n\n"
-
-            from app.platform_utils import get_session_factory
-            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-            from app.services.memory.shared_context import SharedContextService
-            from app.services.memory.shared_context_materializer import (
-                SharedContextProposalMaterializer,
-            )
-
-            context_ids = await _resolve_shared_context_ids_for_goal(goal.session_id)
-            if not context_ids:
-                logger.info(
-                    "No SharedContext binding for session %s; skip decision consolidation",
-                    goal.session_id,
-                )
-                return
-
-            session_factory = get_session_factory()
-            materialized_count = 0
-            pending_count = 0
-            async with session_factory() as db:
-                service = SharedContextService(db)
-                materializer = SharedContextProposalMaterializer(db)
-                for context_id in context_ids:
-                    context = await service.get_context(context_id)
-                    if context is None or context.status != "active":
-                        continue
-
-                    proposal = await service.create_write_proposal(
-                        context_id=context_id,
-                        memory_type="semantic",
-                        content=decision_text,
-                        metadata={
-                            "source": "goal_completion",
-                            "goal_id": goal.goal_id,
-                            "tags": ["Architecture", "Auto-Consolidated"],
-                        },
-                        source_type="goal_completion",
-                        source_id=goal.goal_id,
-                    )
-                    if proposal is None:
-                        logger.warning(
-                            "SharedContext %s not found; skip decision write proposal",
-                            context_id,
-                        )
-                        continue
-
-                    if proposal.status in ("approved", "rejected"):
-                        logger.info(
-                            "Decision consolidation idempotent skip: context=%s proposal=%s status=%s",
-                            context_id,
-                            proposal.id,
-                            proposal.status,
-                        )
-                        continue
-
-                    policy = context.policy or {}
-                    auto_approve = policy.get("goal_completion_auto_approve") is not False
-
-                    if auto_approve:
-                        await materializer.approve_write_proposal(proposal.id)
-                        materialized_count += 1
-                        logger.info(
-                            "Decision consolidation auto-materialized: context=%s proposal=%s",
-                            context_id,
-                            proposal.id,
-                        )
-                    else:
-                        pending_count += 1
-                        logger.info(
-                            "Decision consolidation proposal pending approval: context=%s proposal=%s",
-                            context_id,
-                            proposal.id,
-                        )
-
-                    get_event_bus().publish(
-                        AppEvent(
-                            event_type=AppEventType.MEMORY_OPERATION,
-                            data={
-                                "operation": "goal_completion_consolidation",
-                                "context_id": context_id,
-                                "context_name": context.name,
-                                "proposal_id": proposal.id,
-                                "goal_id": goal.goal_id,
-                                "auto_approved": bool(auto_approve),
-                                "decision_count": len(active_decisions),
-                            },
-                        )
-                    )
-            logger.info(
-                "Memory consolidation: %d decisions → %d materialized, %d pending",
-                len(active_decisions),
-                materialized_count,
-                pending_count,
-            )
-        except Exception as e:
-            logger.warning("Failed to consolidate memory on goal completion: %s", e)
-            try:
-                from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
-
-                get_event_bus().publish(
-                    AppEvent(
-                        event_type=AppEventType.MEMORY_OPERATION,
-                        data={
-                            "operation": "goal_completion_consolidation_failed",
-                            "goal_id": goal.goal_id,
-                            "session_id": goal.session_id,
-                            "error": str(e),
-                        },
-                    )
-                )
-            except Exception:
-                logger.warning(
-                    "Failed to publish goal completion consolidation failure event",
-                    exc_info=True,
-                )
+        """Architectural decision consolidation removed with planner sub-agent deletion."""
+        _ = goal
+        return
 
     async def evaluate_semantic(
         self, criteria: str, content: str, context_messages: list[object] | None = None
@@ -517,7 +386,7 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
 
 
 async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | None = None) -> None:
-    """Perceive git branch changes, auto stash/restore/migrate goals and planner progress."""
+    """Perceive git branch changes, auto stash/restore/migrate goals and todo progress."""
     branch = await get_current_git_branch(workspace_dir)
     if not branch:
         return
@@ -550,31 +419,34 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
     if last_branch:
         active_goal = await provider.get_active_goal(session_id)
         if active_goal:
-            from myrm_agent_harness.agent.sub_agents.planner import PlannerStorage
+            from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
 
-            planner_storage = PlannerStorage(storage, prefix="planner_")
-            plan = await planner_storage.load_plan()
-            plan_dict = plan.dict() if plan else None
+            ws_root = workspace_dir or ""
+            progress_state: dict[str, object] | None = None
+            if ws_root:
+                store = read_todos_sync_from_workspace(ws_root)
+                if store is not None:
+                    progress_state = store.model_dump()
 
-            # Intent-Aware Migration: If the target branch has no stash, we assume it's a new branch
-            # or a branch where the user wants to continue the current goal (MIGRATE).
             if not has_stash:
                 logger.info("Intent-Aware Migration: Migrating active goal to new branch %s", branch)
                 migrated = True
             else:
-                # Target branch has its own stash, so we STASH the current goal
                 stashed = await provider.stash_goal(
                     session_id=session_id,
                     branch_name=last_branch,
-                    planner_state=plan_dict,
+                    progress_state=progress_state,
                     chat_history=None,
                 )
                 if stashed:
                     logger.info(
-                        "Branch switch perceived: stashed active goal and plan for branch %s",
+                        "Branch switch perceived: stashed active goal and todos for branch %s",
                         last_branch,
                     )
-                    await planner_storage.delete_plan()
+                    if ws_root:
+                        from myrm_agent_harness.agent.meta_tools.progress.storage import delete_todos_sync_from_workspace
+
+                        delete_todos_sync_from_workspace(ws_root)
 
     # Update the last perceived branch
     await storage.write(last_branch_key, branch.encode("utf-8"))
@@ -593,20 +465,20 @@ async def check_and_handle_branch_stash(session_id: str, workspace_dir: str | No
         # Restore stashed goal for the new branch if exists
         restored = await provider.restore_goal(session_id, branch)
         if restored:
-            if restored.get("planner_state"):
-                from myrm_agent_harness.agent.sub_agents.planner import PlannerStorage
-                from myrm_agent_harness.agent.sub_agents.planner.schemas import Plan
+            progress_raw = restored.get("progress_state")
+            if isinstance(progress_raw, dict) and workspace_dir:
+                from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoStore
+                from myrm_agent_harness.agent.meta_tools.progress.storage import write_todos_sync_to_workspace
 
-                planner_storage = PlannerStorage(storage, prefix="planner_")
                 try:
-                    plan = Plan.model_validate(restored["planner_state"])
-                    await planner_storage.save_plan(plan)
+                    store = TodoStore.model_validate(progress_raw)
+                    write_todos_sync_to_workspace(workspace_dir, store)
                     logger.info(
-                        "Branch switch perceived: restored goal and plan for branch %s",
+                        "Branch switch perceived: restored goal and todos for branch %s",
                         branch,
                     )
                 except Exception as e:
-                    logger.error("Failed to restore plan for branch %s: %s", branch, e)
+                    logger.error("Failed to restore todos for branch %s: %s", branch, e)
 
     try:
         from app.services.event.app_event_bus import AppEvent, get_event_bus

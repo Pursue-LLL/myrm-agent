@@ -123,7 +123,6 @@ class GeneralAgentParams(BaseAgentParams):
     canvas_id: str | None = None
     enable_answer_tool: bool = False
     enable_planning: bool = False
-    enable_task_tracking: bool = False
     kanban_tool_mode: str = "orchestrator"
     kanban_current_task_id: str | None = None
     kanban_max_runtime_seconds: int | None = None
@@ -264,7 +263,6 @@ class AgentFactory:
             canvas_id=params.canvas_id,
             enable_answer_tool=params.enable_answer_tool,
             enable_planning=params.enable_planning,
-            enable_task_tracking=params.enable_task_tracking,
             kanban_tool_mode=params.kanban_tool_mode,
             kanban_current_task_id=params.kanban_current_task_id,
             kanban_max_runtime_seconds=params.kanban_max_runtime_seconds,

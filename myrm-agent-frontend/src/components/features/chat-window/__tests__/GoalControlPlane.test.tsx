@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 'use client';
 
 import { render, screen } from '@testing-library/react';
@@ -7,12 +8,12 @@ import type { Plan } from '@/store/chat/goals/usePlanStore';
 
 const basePlan: Plan = {
   goal: 'Add user auth',
-  reasoning: 'Need authentication for security',
+  reasoning: '',
   steps: [
     {
       step_id: 'step_1',
       description: 'Explore current code',
-      expected_output: 'Understanding of existing patterns',
+      expected_output: '',
       status: 'pending',
       dependencies: [],
     },
@@ -21,13 +22,10 @@ const basePlan: Plan = {
 
 let mockPlanState = {
   plan: basePlan as Plan | null,
-  isApproved: false,
   isLoading: false,
   fetchPlan: vi.fn(),
-  approvePlan: vi.fn(),
   updateStepStatus: vi.fn(),
   setPlan: vi.fn(),
-  setApproved: vi.fn(),
 };
 
 let mockGoalState = {
@@ -66,25 +64,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock('@/components/primitives/button', () => ({
-  Button: ({
-    children,
-    ...props
-  }: {
-    children: React.ReactNode;
-    className?: string;
-    onClick?: () => void;
-    variant?: string;
-    size?: string;
-  }) => <button {...props}>{children}</button>,
-}));
-
 vi.mock('@/components/primitives/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div data-testid="scroll-area">{children}</div>,
-}));
-
-vi.mock('@/components/features/kanban/KanbanGraphView', () => ({
-  default: () => <div data-testid="kanban-graph" />,
 }));
 
 describe('GoalControlPlane', () => {
@@ -92,13 +73,10 @@ describe('GoalControlPlane', () => {
     vi.clearAllMocks();
     mockPlanState = {
       plan: { ...basePlan },
-      isApproved: false,
       isLoading: false,
       fetchPlan: vi.fn(),
-      approvePlan: vi.fn(),
       updateStepStatus: vi.fn(),
       setPlan: vi.fn(),
-      setApproved: vi.fn(),
     };
     mockGoalState = {
       activeGoal: null,
@@ -109,53 +87,12 @@ describe('GoalControlPlane', () => {
     };
   });
 
-  it('renders pending_issues when not approved and data exists', async () => {
-    mockPlanState.plan = {
-      ...basePlan,
-      pending_issues: ['Use JWT or Session?', 'Need OAuth support?'],
-    };
-
+  it('renders todo steps from plan', async () => {
     const { GoalControlPlane } = await import('../goals/GoalControlPlane');
     render(<GoalControlPlane />);
 
-    expect(screen.getByText('pendingIssues')).toBeDefined();
-    expect(screen.getByText('Use JWT or Session?')).toBeDefined();
-    expect(screen.getByText('Need OAuth support?')).toBeDefined();
-  });
-
-  it('does NOT render pending_issues when approved', async () => {
-    mockPlanState.plan = {
-      ...basePlan,
-      pending_issues: ['Use JWT or Session?'],
-    };
-    mockPlanState.isApproved = true;
-
-    const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
-
-    expect(screen.queryByText('pendingIssues')).toBeNull();
-    expect(screen.queryByText('Use JWT or Session?')).toBeNull();
-  });
-
-  it('does NOT render pending_issues section when array is empty', async () => {
-    mockPlanState.plan = {
-      ...basePlan,
-      pending_issues: [],
-    };
-
-    const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
-
-    expect(screen.queryByText('pendingIssues')).toBeNull();
-  });
-
-  it('does NOT render pending_issues section when field is undefined', async () => {
-    mockPlanState.plan = { ...basePlan };
-
-    const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
-
-    expect(screen.queryByText('pendingIssues')).toBeNull();
+    expect(screen.getByText('1. Explore current code')).toBeDefined();
+    expect(screen.getByText('goalPlan')).toBeDefined();
   });
 
   it('renders null when plan is null and not loading', async () => {
@@ -175,24 +112,6 @@ describe('GoalControlPlane', () => {
     const { GoalControlPlane } = await import('../goals/GoalControlPlane');
     render(<GoalControlPlane />);
 
-    expect(screen.getByText('Loading plan...')).toBeDefined();
-  });
-
-  it('renders approve button when not approved', async () => {
-    mockPlanState.isApproved = false;
-
-    const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
-
-    expect(screen.getByText('approveAndExecute')).toBeDefined();
-  });
-
-  it('does NOT render approve button when approved', async () => {
-    mockPlanState.isApproved = true;
-
-    const { GoalControlPlane } = await import('../goals/GoalControlPlane');
-    render(<GoalControlPlane />);
-
-    expect(screen.queryByText('approveAndExecute')).toBeNull();
+    expect(screen.getByText('loadingProgress')).toBeDefined();
   });
 });

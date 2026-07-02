@@ -96,7 +96,7 @@ class TestArtifactE2E:
         search_config = get_search_service_config()
         query = (
             "Call file_write_tool NOW. Write exactly '# Hello Artifact' to hello_artifact.md. "
-            "Do NOT use bash_code_execute_tool or planner_tool."
+            "Do NOT use bash_code_execute_tool or todo_write."
         )
 
         target_artifact: dict[str, object] | None = None

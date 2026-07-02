@@ -51,7 +51,6 @@ class BuiltinToolFlags(TypedDict):
     enable_answer_tool: bool
     enable_render_ui: bool
     enable_planning: bool
-    enable_task_tracking: bool
 
 
 def resolve_builtin_tool_flags(
@@ -74,7 +73,6 @@ def resolve_builtin_tool_flags(
         enable_answer_tool="answer_tool" in tools,
         enable_render_ui="render_ui" in tools,
         enable_planning="planning" in tools,
-        enable_task_tracking="task_tracking" in tools,
     )
 
 
@@ -211,8 +209,11 @@ class AgentProfileResolver:
                     if raw_builtin_tools is not None
                     else DEFAULT_ENABLED_BUILTIN_TOOLS
                 )
+                from app.services.agent.builtin_tool_ids import strip_legacy_builtin_tool_ids
+
+                stripped_tools = strip_legacy_builtin_tool_ids(coerced_tools)
                 tools_tuple = tuple(
-                    normalize_enabled_builtin_tools(list(coerced_tools))
+                    normalize_enabled_builtin_tools(stripped_tools)
                 )
                 raw_workspace_policy = metadata.get("workspace_policy")
                 raw_engine_params = metadata.get("engine_params")

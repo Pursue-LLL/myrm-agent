@@ -73,3 +73,29 @@ def test_append_scoped_conversation_search_uses_server_provider(monkeypatch) -> 
     assert provider.current_chat_id == "chat-123"
     assert provider.agent_id == "agent-a"
     assert provider.memory_manager is memory_manager
+
+
+def test_append_scoped_conversation_search_skips_when_memory_manager_none() -> None:
+    tools: list[object] = [SimpleNamespace(name="bash")]
+
+    _append_scoped_conversation_search(
+        tools,
+        current_chat_id="chat-123",
+        agent_id="agent-a",
+        memory_manager=None,
+    )
+
+    assert [tool.name for tool in tools] == ["bash"]
+
+
+def test_append_scoped_conversation_search_skips_when_memory_manager_wrong_type() -> None:
+    tools: list[object] = []
+
+    _append_scoped_conversation_search(
+        tools,
+        current_chat_id="chat-123",
+        agent_id="agent-a",
+        memory_manager=object(),
+    )
+
+    assert tools == []

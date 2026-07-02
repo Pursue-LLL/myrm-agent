@@ -29,7 +29,7 @@
     "notificationDenied": "Notification permission denied",
     "pendingIssues": "Pending Confirmation",
     "goalPlan": "Goal Plan",
-    "approveAndExecute": "Approve & Execute",
+    "loadingProgress": "Loading progress...",
     "architecturalDecisions": "Architectural Decisions",
     "keyDecisions": "Key Decisions",
     "executionSummary": "Execution Summary",
@@ -4824,8 +4824,7 @@
         "canvas": "Canvas Workspace",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI",
-        "planning": "Structured Task Planning",
-        "task_tracking": "Lightweight Task Tracking"
+        "planning": "Multi-Step Progress"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4842,8 +4841,7 @@
         "canvas": "Read and write the infinite canvas — let the agent see your drawings, notes, and diagrams",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction",
-        "planning": "Break complex tasks into trackable steps — shows progress tree in chat (without Goal mode)",
-        "task_tracking": "Light checklist for multi-step tasks — no planner LLM cost; shows progress in chat (mutually exclusive with Planning when plan exists)"
+        "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)"
       },
       "cuPermission": {
         "checking": "Checking desktop permissions…",

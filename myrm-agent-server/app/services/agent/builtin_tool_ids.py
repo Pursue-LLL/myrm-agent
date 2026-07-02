@@ -10,6 +10,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 - DEFAULT_ENABLED_BUILTIN_TOOLS: default profile tool list
 - BUILTIN_TOOL_IDS / BUILTIN_TOOL_ID_SET: canonical ID catalog
 - normalize_enabled_builtin_tools / coerce_enabled_builtin_tools: validation helpers
+- strip_legacy_builtin_tool_ids: silent read-path migration for retired tool IDs
 - persist_enabled_builtin_tools: DB column write validation
 
 [POS]
@@ -20,8 +21,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = ("web_search", "memory")
-"""Default profile for agents without an explicit tool list."""
+DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
+    "web_search",
+    "memory",
+    "file_ops",
+    "code_execute",
+)
+"""Default profile for agents without an explicit tool list (sandbox baseline)."""
 
 BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "web_search",
@@ -39,7 +45,6 @@ BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "answer_tool",
     "render_ui",
     "planning",
-    "task_tracking",
 )
 
 BUILTIN_TOOL_ID_SET: frozenset[str] = frozenset(BUILTIN_TOOL_IDS)
@@ -52,6 +57,7 @@ LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
         "shell_exec",
         "search",
         "bash_tool",
+        "task_tracking",
     }
 )
 
@@ -70,13 +76,21 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "canvas", "desc": "Read and update the visual canvas workspace"},
     {"id": "answer_tool", "desc": "Structured final-answer gate for search agents"},
     {"id": "render_ui", "desc": "Render interactive UI artifacts in chat"},
-    {"id": "planning", "desc": "Multi-step task planning"},
-    {"id": "task_tracking", "desc": "Lightweight execution checklist tracking"},
+    {"id": "planning", "desc": "Multi-step task progress (main-agent todo_write)"},
 )
 
 
 class InvalidBuiltinToolIdsError(ValueError):
     """Raised when enabled_builtin_tools contains unknown or legacy IDs."""
+
+
+def strip_legacy_builtin_tool_ids(tools: Sequence[str]) -> list[str]:
+    """Drop legacy IDs when loading persisted profiles (silent read-path migration)."""
+    return [
+        tool_id
+        for raw in tools
+        if (tool_id := str(raw).strip()) and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS
+    ]
 
 
 def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:

@@ -17,7 +17,6 @@ import {
   MessageSquareCheck,
   AlertCircle,
   ListTodo,
-  ClipboardList,
 } from 'lucide-react';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
@@ -61,7 +60,6 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   answer_tool: <MessageSquareCheck size={14} />,
   render_ui: <LayoutTemplate size={14} />,
   planning: <ListTodo size={14} />,
-  task_tracking: <ClipboardList size={14} />,
 };
 
 export const BuiltinToolsPanel = ({
@@ -86,12 +84,6 @@ export const BuiltinToolsPanel = ({
       const isEnabled = prev.includes(id);
       if (isEnabled) {
         return prev.filter((x) => x !== id);
-      }
-      if (id === 'planning') {
-        return [...prev.filter((x) => x !== 'task_tracking'), id];
-      }
-      if (id === 'task_tracking') {
-        return [...prev.filter((x) => x !== 'planning'), id];
       }
       return [...prev, id];
     });

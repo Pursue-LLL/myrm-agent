@@ -73,6 +73,8 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'correction_learned',
   'verification_verdict',
   'council_phase',
+  'capability_gap',
+  'skill_gap',
 ] as const;
 
 /** Harness name → frontend handler type (same payload shape). */

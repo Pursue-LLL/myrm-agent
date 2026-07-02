@@ -242,7 +242,7 @@ async def test_real_artifact_generation_e2e() -> None:
     search_config = get_search_service_config()
     query = (
         "Call file_write_tool NOW. Write exactly '# Hello Integration Test' to "
-        "real_test_artifact.md. Do NOT use bash_code_execute_tool or planner_tool."
+        "real_test_artifact.md. Do NOT use bash_code_execute_tool or todo_write."
     )
 
     target_artifact: dict[str, object] | None = None

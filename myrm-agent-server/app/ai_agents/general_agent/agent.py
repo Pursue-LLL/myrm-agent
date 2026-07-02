@@ -92,7 +92,6 @@ class GeneralAgent(ToolSetupMixin):
         canvas_id: str | None = None,
         enable_answer_tool: bool = False,
         enable_planning: bool = False,
-        enable_task_tracking: bool = False,
         kanban_tool_mode: str = "orchestrator",
         kanban_current_task_id: str | None = None,
         kanban_max_runtime_seconds: int | None = None,
@@ -182,7 +181,6 @@ class GeneralAgent(ToolSetupMixin):
         self.canvas_id = canvas_id
         self.enable_answer_tool = enable_answer_tool
         self.enable_planning = enable_planning
-        self.enable_task_tracking = enable_task_tracking
         self.kanban_tool_mode = kanban_tool_mode
         self.kanban_current_task_id = kanban_current_task_id
         self.kanban_max_runtime_seconds = kanban_max_runtime_seconds
