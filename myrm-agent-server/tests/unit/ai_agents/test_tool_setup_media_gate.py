@@ -171,3 +171,86 @@ def test_tts_tools_skipped_when_params_unset() -> None:
     mixin._setup_tts_tools(tools)
 
     assert tools == []
+
+
+def test_video_tools_skipped_when_params_unset() -> None:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.video_generation_params = None
+    tools: list[object] = []
+
+    mixin._setup_video_generation_tools(tools)
+
+    assert tools == []
+
+
+def test_video_tools_registered_with_fallback_providers() -> None:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.video_generation_params = VideoGenerationParams(
+        api_key="video-key",
+        fallback_providers=[{"provider": "openai", "model": "sora-2", "api_key": "fb-key"}],
+    )
+    tools: list[object] = []
+
+    with patch(
+        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        return_value=None,
+    ):
+        mixin._setup_video_generation_tools(tools)
+
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "video_tool"
+
+
+def test_image_tools_load_failure_is_swallowed() -> None:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="img-key")
+    tools: list[object] = []
+
+    with patch(
+        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        return_value=None,
+    ), patch(
+        "myrm_agent_harness.toolkits.llms.image.ImageGenerationTools",
+        side_effect=RuntimeError("engine init failed"),
+    ):
+        mixin._setup_image_generation_tools(tools)
+
+    assert tools == []
+
+
+def test_video_tools_load_failure_is_swallowed() -> None:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.video_generation_params = VideoGenerationParams(api_key="video-key")
+    tools: list[object] = []
+
+    with patch(
+        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        return_value=None,
+    ), patch(
+        "myrm_agent_harness.toolkits.llms.video.VideoGenerationTools",
+        side_effect=RuntimeError("engine init failed"),
+    ):
+        mixin._setup_video_generation_tools(tools)
+
+    assert tools == []
+
+
+def test_tts_tools_load_failure_is_swallowed() -> None:
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.chat_id = None
+    mixin.tts_params = TTSParams(api_key="tts-key")
+    tools: list[object] = []
+
+    with patch(
+        "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
+        return_value=None,
+    ), patch(
+        "app.ai_agents.media_tools.tts_agent_tool.create_tts_tool",
+        side_effect=RuntimeError("tts init failed"),
+    ):
+        mixin._setup_tts_tools(tools)
+
+    assert tools == []
