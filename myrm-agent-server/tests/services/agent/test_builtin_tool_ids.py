@@ -89,3 +89,67 @@ def test_agent_create_rejects_legacy_id() -> None:
 def test_agent_update_accepts_canonical_ids() -> None:
     updated = AgentUpdate(enabled_builtin_tools=["file_ops", "code_execute"])
     assert updated.enabled_builtin_tools == ["file_ops", "code_execute"]
+
+
+def test_normalize_skips_empty_strings() -> None:
+    assert normalize_enabled_builtin_tools(["web_search", "", "  ", "memory"]) == [
+        "web_search",
+        "memory",
+    ]
+
+
+def test_coerce_enabled_builtin_tools_none_uses_default() -> None:
+    from app.services.agent.builtin_tool_ids import coerce_enabled_builtin_tools
+
+    assert coerce_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+
+
+def test_coerce_enabled_builtin_tools_normalizes() -> None:
+    from app.services.agent.builtin_tool_ids import coerce_enabled_builtin_tools
+
+    assert coerce_enabled_builtin_tools(["file_ops", "file_ops"]) == ["file_ops"]
+
+
+def test_persist_enabled_builtin_tools_none_uses_default() -> None:
+    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+
+    assert persist_enabled_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+
+
+def test_persist_enabled_builtin_tools_rejects_non_list() -> None:
+    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+
+    with pytest.raises(ValueError, match="must be a list"):
+        persist_enabled_builtin_tools("web_search")
+
+
+def test_persist_enabled_builtin_tools_normalizes_list() -> None:
+    from app.services.agent.builtin_tool_ids import persist_enabled_builtin_tools
+
+    assert persist_enabled_builtin_tools(["wiki", "kanban"]) == ["wiki", "kanban"]
+
+
+def test_optional_builtin_tools_validator_accepts_none() -> None:
+    from app.services.agent.builtin_tool_validation import _validate_optional_builtin_tools
+
+    assert _validate_optional_builtin_tools(None) is None
+
+
+def test_optional_builtin_tools_validator_rejects_non_list() -> None:
+    from app.services.agent.builtin_tool_validation import _validate_optional_builtin_tools
+
+    with pytest.raises(TypeError, match="must be a list"):
+        _validate_optional_builtin_tools("web_search")
+
+
+def test_required_builtin_tools_validator_defaults_when_none() -> None:
+    from app.services.agent.builtin_tool_validation import _validate_required_builtin_tools
+
+    assert _validate_required_builtin_tools(None) == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+
+
+def test_required_builtin_tools_validator_rejects_non_list() -> None:
+    from app.services.agent.builtin_tool_validation import _validate_required_builtin_tools
+
+    with pytest.raises(TypeError, match="must be a list"):
+        _validate_required_builtin_tools({"web_search"})
