@@ -70,7 +70,8 @@ class UserConfigs:
     retrieval_dict: dict[str, object] | None
     personal_settings_dict: dict[str, object] | None
     mcp_dict: dict[str, object] | None
-    providers_dict: dict[str, object] | None
+    org_mcp_dict: dict[str, object] | None = None
+    providers_dict: dict[str, object] | None = None
     voice_dict: dict[str, object] | None = None
     security_config_dict: dict[str, object] | None = None
     external_agents_dict: dict[str, object] | None = None
@@ -118,6 +119,7 @@ async def load_user_configs() -> UserConfigs:
                                 "retrieval",
                                 "personalSettings",
                                 "mcpServers",
+                                "orgMcpServers",
                                 "providers",
                                 "voice",
                                 "securityConfig",
@@ -206,6 +208,7 @@ async def load_user_configs() -> UserConfigs:
         retrieval_dict=_coerce_config_dict(config_map.get("retrieval")),
         personal_settings_dict=_coerce_config_dict(config_map.get("personalSettings")),
         mcp_dict=_coerce_config_dict(config_map.get("mcpServers")),
+        org_mcp_dict=_coerce_config_dict(config_map.get("orgMcpServers")),
         providers_dict=providers_dict,
         voice_dict=config_map.get("voice"),
         security_config_dict=config_map.get("securityConfig"),
