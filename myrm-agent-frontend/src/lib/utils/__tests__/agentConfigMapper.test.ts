@@ -80,7 +80,7 @@ describe('buildAgentConfig', () => {
   it('maps builtin tools and browser config', () => {
     const config = buildAgentConfig(makeAgent());
 
-    expect(config.enabledBuiltinTools).toEqual(['web_search', 'code_interpreter']);
+    expect(config.enabledBuiltinTools).toEqual(['web_search', 'code_execute']);
     expect(config.browserEngine).toBe('puppeteer');
     expect(config.browserSource).toBe('built_in');
   });
