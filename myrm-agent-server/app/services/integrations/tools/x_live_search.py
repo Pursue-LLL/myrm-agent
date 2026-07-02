@@ -44,7 +44,7 @@ def _resolve_xai_config_from_ctx() -> XSearchProviderConfig | None:
 
 
 def create_x_live_search_tool() -> BaseTool:
-    """Create deferred x_search_tool that resolves xAI credentials at execution time."""
+    """Create x_search_tool that resolves xAI credentials at execution time."""
 
     @tool("x_search_tool", description=_X_SEARCH_DESCRIPTION, args_schema=XSearchInput)
     async def x_search_func(

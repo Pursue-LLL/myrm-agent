@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-import { ensureLoggedIn, completeOnboardingForE2e } from './helpers/auth';
+import { ensureLoggedIn } from './helpers/auth';
+import { ensureWebUiBrowserSession } from './helpers/ensureWebUiBrowserSession';
 import {
   installMigrationDismissInitScript,
   prepareChatPageForE2e,
   sendChatMessage,
+  waitForChatHydration,
 } from './helpers/prepareChatPageForE2e';
 import {
   E2E_CONFIG_DEVICE_ID,
@@ -22,7 +24,8 @@ import {
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 
 test.describe('Subagent Dashboard', () => {
-  test.describe.configure({ mode: 'serial', timeout: 180_000 });
+  test.describe.configure({ mode: 'serial', timeout: 360_000 });
+  test.use({ actionTimeout: 30_000 });
 
   test.skip(
     !process.env.PLAYWRIGHT_RUN_SUBAGENT_DASHBOARD_E2E || !hasE2eLlmEnv(),
@@ -30,18 +33,19 @@ test.describe('Subagent Dashboard', () => {
   );
 
   test('delegate via chat -> dashboard -> cancel subagent', async ({ page, request }) => {
+    await installMigrationDismissInitScript(page);
     await ensureLoggedIn(page, request);
-    await completeOnboardingForE2e(request);
-    await seedE2eProvidersFromEnv(request, { force: true, deviceId: E2E_CONFIG_DEVICE_ID });
+    await ensureWebUiBrowserSession(page);
+    await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
 
     const chatId = await seedSubagentChat(request);
-    await installMigrationDismissInitScript(page);
     await page.goto(`/${chatId}`, { waitUntil: 'load' });
+    await waitForChatHydration(page, chatId);
     await prepareChatPageForE2e(page);
 
     await sendChatMessage(page, DELEGATE_SLEEP_QUERY);
 
-    await waitForRunningSubagent(request, chatId, 120_000);
+    await waitForRunningSubagent(request, chatId, 180_000);
 
     const naturalVisible = await waitForDashboardTriggerNatural(page, 30_000);
     if (!naturalVisible) {

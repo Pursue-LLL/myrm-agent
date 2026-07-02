@@ -29,7 +29,7 @@ and the REST API layer.
 frontend agent_config.enabled_builtin_tools["canvas"]
   → profile_resolver.resolve_builtin_tool_flags → enable_canvas=True
   → agent_config.canvas_id → GeneralAgentParams.canvas_id
-  → tool_setup._setup_canvas_tools(deferred_tools)
+  → tool_setup._setup_canvas_tools(tools)  # Turn1 eager when enable_canvas + canvas_id
   → factory.py: _flag_to_group includes "canvas"
   → _tool_layer_bootstrap.py: EXTENDED layer
 ```

@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-通用 Agent 业务层专属工具。`x_search_provider.py` 提供 xAI API 客户端；deferred tool 工厂在 `app/services/integrations/tools/x_live_search.py`，由 `tool_setup._setup_x_live_search_tool` 按 skill_ids 注册（不依赖 enable_web_search）。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时经 `tool_setup.py` 延迟加载。
+通用 Agent 业务层专属工具。`x_search_provider.py` 提供 xAI API 客户端；eager tool 工厂在 `app/services/integrations/tools/x_live_search.py`，由 `tool_setup._setup_x_live_search_tool` 在 skill 绑定后进 Turn1 `tools`（不依赖 `enable_web_search`）。UI 渲染（`render_ui_tool`）在 harness `agent/meta_tools/interaction/`，由 `enabled_builtin_tools` 含 `render_ui` 时 Turn1 eager 加载。
 
 ---
 

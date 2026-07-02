@@ -22,43 +22,43 @@ def _make_stub(**attrs: object) -> ToolSetupMixin:
 class TestSetupCanvasToolsGuard:
     def test_skips_when_canvas_disabled(self) -> None:
         stub = _make_stub(enable_canvas=False, canvas_id="12345678-1234-1234-1234-123456789abc")
-        deferred: list[object] = []
-        stub._setup_canvas_tools(deferred)
-        assert deferred == []
+        tools: list[object] = []
+        stub._setup_canvas_tools(tools)
+        assert tools == []
 
     def test_skips_when_canvas_id_none(self) -> None:
         stub = _make_stub(enable_canvas=True, canvas_id=None)
-        deferred: list[object] = []
-        stub._setup_canvas_tools(deferred)
-        assert deferred == []
+        tools: list[object] = []
+        stub._setup_canvas_tools(tools)
+        assert tools == []
 
     def test_skips_when_both_missing(self) -> None:
         stub = _make_stub()
-        deferred: list[object] = []
-        stub._setup_canvas_tools(deferred)
-        assert deferred == []
+        tools: list[object] = []
+        stub._setup_canvas_tools(tools)
+        assert tools == []
 
     def test_loads_tools_when_enabled_and_id_present(self) -> None:
         fake_tools = [MagicMock(name="t1"), MagicMock(name="t2"), MagicMock(name="t3")]
         stub = _make_stub(enable_canvas=True, canvas_id="12345678-1234-1234-1234-123456789abc")
-        deferred: list[object] = []
+        tools: list[object] = []
 
         with patch(
             "app.services.canvas.canvas_agent_tools.create_canvas_tools",
             return_value=fake_tools,
         ):
-            stub._setup_canvas_tools(deferred)
+            stub._setup_canvas_tools(tools)
 
-        assert len(deferred) == 3
+        assert len(tools) == 3
 
     def test_degrades_gracefully_on_import_error(self) -> None:
         stub = _make_stub(enable_canvas=True, canvas_id="12345678-1234-1234-1234-123456789abc")
-        deferred: list[object] = []
+        tools: list[object] = []
 
         with patch(
             "app.services.canvas.canvas_agent_tools.create_canvas_tools",
             side_effect=ImportError("no langchain"),
         ):
-            stub._setup_canvas_tools(deferred)
+            stub._setup_canvas_tools(tools)
 
-        assert deferred == []
+        assert tools == []

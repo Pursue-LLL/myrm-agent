@@ -8,10 +8,11 @@
 
 [OUTPUT]
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
-- _setup_x_live_search_tool: skill-gated deferred x_search_tool（独立于 enable_web_search）
+- _setup_x_live_search_tool: skill 绑定后 Turn1 eager x_search_tool（独立于 enable_web_search）
 
 [POS]
-GeneralAgent 的工具初始化混入。将搜索、媒体生成（AgentDeclared eager →
+GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
+无独立开关的能力（cron、local_browser）→ deferred + discover。搜索、媒体生成（AgentDeclared eager →
 `media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
@@ -114,18 +115,19 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _current_chat_id: str | None
         skill_ids: list[str]
 
-    def _setup_x_live_search_tool(self, deferred_tools: list[object]) -> None:
-        """Register deferred x_search_tool when x-live-search skill is enabled.
+    def _setup_x_live_search_tool(self, tools: list[object]) -> None:
+        """Register eager x_search_tool when x-live-search skill is enabled.
 
         Independent of enable_web_search — xAI Live Search does not require Tavily/Brave.
+        Skill binding is user opt-in; mounted Turn1 like other enabled capabilities.
         """
         if X_LIVE_SEARCH_SKILL_ID not in (self.skill_ids or []):
             return
         try:
             from app.services.integrations.tools.x_live_search import create_x_live_search_tool
 
-            deferred_tools.append(create_x_live_search_tool())
-            logger.info("Loaded x_search_tool (%s skill) [Deferred]", X_LIVE_SEARCH_SKILL_ID)
+            tools.append(create_x_live_search_tool())
+            logger.info("Loaded x_search_tool (%s skill) [Turn1]", X_LIVE_SEARCH_SKILL_ID)
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
@@ -179,15 +181,15 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 f"(advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})"
             )
 
-        self._setup_x_live_search_tool(deferred_tools)
+        self._setup_x_live_search_tool(tools)
 
         if self.enable_render_ui:
             from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
                 render_ui_tool,
             )
 
-            deferred_tools.append(render_ui_tool)
-            logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Deferred]")
+            tools.append(render_ui_tool)
+            logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Turn1]")
 
         self._setup_image_generation_tools(tools)
         self._setup_video_generation_tools(tools)
@@ -653,7 +655,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             pass
         return None
 
-    def _setup_computer_use_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
+    def _setup_computer_use_tools(self, tools: list[object]) -> None:
         """Set up system-wide computer use tools (screenshot + action)."""
         try:
             from myrm_agent_harness.toolkits.computer_use import (
@@ -668,10 +670,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             config = ComputerUseConfig(image_constraints=constraints) if constraints else None
             session = create_desktop_session(config=config)
             computer_tools = create_desktop_tools(session)
-            deferred_tools.extend(computer_tools)
+            tools.extend(computer_tools)
             self._desktop_session = session
             logger.warning(
-                "Loaded %d desktop control tools (model=%s, max_edge=%dpx) [Deferred]",
+                "Loaded %d desktop control tools (model=%s, max_edge=%dpx) [Turn1]",
                 len(computer_tools),
                 self.model_cfg.model,
                 session._config.image_constraints.max_edge_px,
@@ -679,7 +681,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
-    def _setup_canvas_tools(self, deferred_tools: list[object]) -> None:
+    def _setup_canvas_tools(self, tools: list[object]) -> None:
         """Set up canvas interaction tools when canvas is enabled and bound."""
         if not getattr(self, "enable_canvas", False) or not getattr(self, "canvas_id", None):
             return
@@ -687,8 +689,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             from app.services.canvas.canvas_agent_tools import create_canvas_tools
 
             canvas_tools = create_canvas_tools(self.canvas_id)
-            deferred_tools.extend(canvas_tools)
-            logger.info("Loaded %d canvas tool(s) [Deferred]", len(canvas_tools))
+            tools.extend(canvas_tools)
+            logger.info("Loaded %d canvas tool(s) [Turn1]", len(canvas_tools))
         except Exception as e:
             logger.warning("Canvas tools load failed (degraded): %s", e)
 

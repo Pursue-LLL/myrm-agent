@@ -107,7 +107,7 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
 
 @pytest.mark.integration
 def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: TestClient) -> None:
-    """Turn1 trivial query should not call conversation_search (L2 path; tool eager but unused)."""
+    """Turn1 trivial query should not call conversation_search (tool eager but unused on simple OK prompts)."""
     payload = {
         "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-no-conv-search",
@@ -127,7 +127,7 @@ def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: T
 
 @pytest.mark.integration
 def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
-    """Two-turn chat: continue prior topic should complete (L2 / memory path)."""
+    """Two-turn chat: continue prior topic via chat_history should complete."""
     model_selection = get_model_selection()
     chat_id = "test_memory_e2e_multi_turn"
 

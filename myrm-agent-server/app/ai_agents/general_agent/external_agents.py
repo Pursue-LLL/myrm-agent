@@ -164,10 +164,10 @@ class ExternalAgentsMixin:
 
         if pool.available_backends:
             delegate_tool = create_delegate_to_agent_tool(pool)
-            deferred_tools.append(delegate_tool)
+            tools.append(delegate_tool)
             self._runtime_pool = pool
             logger.info(
-                "delegate_to_agent loaded (%d backends) [Deferred]",
+                "delegate_to_agent loaded (%d backends) [Turn1]",
                 len(pool.available_backends),
             )
 

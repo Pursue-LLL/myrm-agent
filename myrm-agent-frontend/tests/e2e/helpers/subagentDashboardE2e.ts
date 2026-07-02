@@ -2,16 +2,18 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
+const SUBAGENT_REST_TIMEOUT_MS = 60_000;
 
-export const TEST_BASH_EPHEMERAL = {
-  test_bash: {
+export const E2E_BASH_EPHEMERAL = {
+  bash_worker: {
     system_prompt: 'You are a bash execution worker.',
     tools: ['bash_code_execute_tool'],
   },
 } as const;
 
+/** agent_type must avoid `test_*` — risk policy blocks internal_hostname_pattern on WebUI stream. */
 export const DELEGATE_SLEEP_QUERY =
-  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，wait 设为 false，让它执行 bash 命令: `sleep 120`。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
+  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'bash_worker'，wait 设为 false，让它执行 bash 命令 sleep 120。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
 
 export async function seedSubagentChat(request: APIRequestContext): Promise<string> {
   const chatId = randomUUID();
@@ -21,7 +23,7 @@ export async function seedSubagentChat(request: APIRequestContext): Promise<stri
       title: `E2E Subagent Dashboard ${Date.now()}`,
       action_mode: 'agent',
       agent_id: 'builtin-general',
-      ephemeral_subagents: TEST_BASH_EPHEMERAL,
+      ephemeral_subagents: E2E_BASH_EPHEMERAL,
       messages: [],
     },
   });
@@ -36,7 +38,9 @@ export async function waitForRunningSubagent(
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`);
+    const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`, {
+      timeout: SUBAGENT_REST_TIMEOUT_MS,
+    });
     if (res.ok()) {
       const body = (await res.json()) as { data?: Array<{ task_id?: string; status?: string }> };
       const running = (body.data ?? []).find((row) => row.status === 'running' && row.task_id);
@@ -65,7 +69,9 @@ export async function injectSubagentsUpdatedFromRest(
   request: APIRequestContext,
   chatId: string,
 ): Promise<void> {
-  const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`);
+  const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`, {
+    timeout: SUBAGENT_REST_TIMEOUT_MS,
+  });
   expect(res.ok(), `GET subagents failed: ${await res.text()}`).toBeTruthy();
   const body = (await res.json()) as { data?: Array<Record<string, unknown>> };
   const rows = body.data ?? [];

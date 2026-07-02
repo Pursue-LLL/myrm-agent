@@ -84,23 +84,19 @@ function buildProvidersConfigValue(
   };
 }
 
-/** Seed LLM provider + default model from process.env (BASIC_* from .env.test). */
-export async function seedE2eProvidersFromEnv(
-  request: APIRequestContext,
-  options?: { force?: boolean; deviceId?: string },
-): Promise<void> {
-  const deviceId = options?.deviceId ?? E2E_CONFIG_DEVICE_ID;
-
-  if (!options?.force) {
-    const readinessRes = await request.get(`${apiBase}/api/v1/config/readiness`, { timeout: 60_000 });
-    if (readinessRes.ok()) {
-      const readiness = (await readinessRes.json()) as { provider?: { is_ready?: boolean } };
-      if (readiness.provider?.is_ready) {
-        return;
-      }
-    }
+async function isProviderReady(request: APIRequestContext): Promise<boolean> {
+  const readinessRes = await request.get(`${apiBase}/api/v1/config/readiness`, { timeout: 60_000 });
+  if (!readinessRes.ok()) {
+    return false;
   }
+  const readiness = (await readinessRes.json()) as { provider?: { is_ready?: boolean } };
+  return Boolean(readiness.provider?.is_ready);
+}
 
+async function seedProvidersOnce(
+  request: APIRequestContext,
+  deviceId: string,
+): Promise<void> {
   const basicModel = requireEnv('BASIC_MODEL');
   const basicKey = requireEnv('BASIC_API_KEY');
   const basicUrl = process.env.BASIC_BASE_URL;
@@ -120,6 +116,28 @@ export async function seedE2eProvidersFromEnv(
     value?: { defaultModelConfig?: { baseModel?: { primary?: { model?: string } } } };
   };
   expect(verifyBody.value?.defaultModelConfig?.baseModel?.primary?.model).toBe(modelId);
+}
+
+/** Seed LLM provider + default model from process.env (BASIC_* from .env.test). */
+export async function seedE2eProvidersFromEnv(
+  request: APIRequestContext,
+  options?: { force?: boolean; deviceId?: string },
+): Promise<void> {
+  const deviceId = options?.deviceId ?? E2E_CONFIG_DEVICE_ID;
+
+  if (!options?.force && (await isProviderReady(request))) {
+    return;
+  }
+
+  try {
+    await seedProvidersOnce(request, deviceId);
+  } catch (firstError) {
+    try {
+      await seedProvidersOnce(request, deviceId);
+    } catch {
+      throw firstError;
+    }
+  }
 }
 
 export function hasE2eLlmEnv(): boolean {

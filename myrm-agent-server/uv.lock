@@ -16,7 +16,7 @@ prerelease-mode = "allow"
 overrides = [
     { name = "aiohttp", specifier = ">=3.13.5" },
     { name = "click", specifier = ">=8.4.2" },
-    { name = "mcp", specifier = ">=1.28.1,<2" },
+    { name = "mcp", specifier = ">=1.28.1" },
     { name = "openai", specifier = ">=2.44.0" },
     { name = "opentelemetry-semantic-conventions", specifier = ">=0.61b0" },
     { name = "patchright", specifier = ">=1.60.1" },

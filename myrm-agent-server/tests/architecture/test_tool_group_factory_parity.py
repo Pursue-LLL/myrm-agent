@@ -5,20 +5,9 @@ from __future__ import annotations
 import pytest
 from myrm_agent_harness.core.security.tool_registry import TOOL_GROUP_MAP, TOOL_GROUP_NAMES
 
-# Mirrors general_agent/factory.py _flag_to_group keys (server product groups).
-_FACTORY_ACTIVE_TOOL_GROUPS: tuple[str, ...] = (
-    "web",
-    "browser",
-    "file_ops",
-    "shell",
-    "computer_use",
-    "memory",
-    "kanban",
-    "canvas",
-    "wiki",
-    "planning",
-    "answer_tool",
-)
+from app.ai_agents.general_agent.active_tool_groups import ACTIVE_TOOL_GROUP_KEYS
+
+_FACTORY_ACTIVE_TOOL_GROUPS = ACTIVE_TOOL_GROUP_KEYS
 
 
 @pytest.mark.architecture

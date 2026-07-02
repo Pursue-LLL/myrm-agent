@@ -1,6 +1,6 @@
-"""Integration test: x-live-search skill-gated deferred tool registration.
+"""Integration test: x-live-search skill-gated eager tool registration.
 
-Verifies _setup_x_live_search_tool() loads x_search_tool into deferred_tools when the
+Verifies _setup_x_live_search_tool() loads x_search_tool into Turn1 tools when the
 x-live-search prebuilt skill is enabled, independent of enable_web_search.
 """
 
@@ -32,7 +32,7 @@ def _make_search_mixin(*, skill_ids: list[str] | None) -> object:
 
 
 def test_x_search_tool_registers_when_skill_enabled() -> None:
-    """x_search_tool must land in deferred_tools, not eager tools, when skill is enabled."""
+    """x_search_tool must land in Turn1 tools when skill is bound."""
     mixin = _make_search_mixin(skill_ids=[X_LIVE_SEARCH_SKILL_ID])
     tools: list[object] = []
     deferred_tools: list[object] = []
@@ -40,8 +40,8 @@ def test_x_search_tool_registers_when_skill_enabled() -> None:
     with patch("app.config.deploy_mode.is_local_mode", return_value=True):
         mixin._setup_search_and_basic_tools(tools, deferred_tools)
 
-    assert any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+    assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
 
 
 def test_x_search_tool_skipped_without_skill() -> None:
@@ -67,6 +67,6 @@ def test_x_search_tool_registers_when_web_search_disabled() -> None:
 
     mixin._setup_search_and_basic_tools(tools, deferred_tools)
 
-    assert any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+    assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
     assert not any(getattr(t, "name", None) == "web_search_tool" for t in tools)

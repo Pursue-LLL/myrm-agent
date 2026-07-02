@@ -47,7 +47,6 @@ async def build_general_agent(
     )
 
     from app.ai_agents.agent_middlewares import (
-        auto_session_recall_middleware,
         memory_context_middleware,
         user_instructions_middleware,
         widget_capability_middleware,
@@ -207,7 +206,7 @@ async def build_general_agent(
         )
 
     if agent_wrapper.enable_computer_use:
-        agent_wrapper._setup_computer_use_tools(tools, deferred_tools)
+        agent_wrapper._setup_computer_use_tools(tools)
 
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
@@ -216,7 +215,7 @@ async def build_general_agent(
 
     if is_local_mode():
         agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
-    agent_wrapper._setup_canvas_tools(deferred_tools)
+    agent_wrapper._setup_canvas_tools(tools)
 
     await agent_wrapper._setup_external_agents(tools, deferred_tools)
 
@@ -369,7 +368,6 @@ async def build_general_agent(
         RateLimitMiddleware(warning_threshold_pct=0.8, debounce_seconds=300.0),
         user_instructions_middleware,
         workspace_rules_middleware,
-        auto_session_recall_middleware,
         memory_context_middleware,
         widget_capability_middleware,
         citation_rules_middleware,
@@ -583,23 +581,9 @@ async def build_general_agent(
         if isinstance(raw_name, str):
             allowed_tool_names.append(raw_name)
 
-    # Derive active tool groups from GeneralAgent boolean flags.
-    # Maps server-layer enable_xxx flags to harness-defined canonical group names
-    # (see myrm_agent_harness.core.security.tool_registry.TOOL_GROUP_MAP).
-    _flag_to_group: list[tuple[str, bool]] = [
-        ("web", agent_wrapper.enable_web_search),
-        ("browser", agent_wrapper.enable_browser),
-        ("file_ops", agent_wrapper.enable_file_ops),
-        ("shell", agent_wrapper.enable_code_execute),
-        ("computer_use", agent_wrapper.enable_computer_use),
-        ("memory", agent_wrapper.enable_memory),
-        ("kanban", agent_wrapper.enable_kanban),
-        ("canvas", agent_wrapper.enable_canvas),
-        ("wiki", agent_wrapper.enable_wiki),
-        ("planning", enable_planning),
-        ("answer_tool", agent_wrapper.enable_answer_tool),
-    ]
-    active_tool_groups = [group for group, enabled in _flag_to_group if enabled]
+    from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups
+
+    active_tool_groups = derive_active_tool_groups(agent_wrapper, enable_planning=enable_planning)
 
     spec = AgentRuntimeSpec(
         agent_id=agent_wrapper.agent_id,

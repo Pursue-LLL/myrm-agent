@@ -8,8 +8,7 @@ myrm_agent_harness.toolkits.memory.conversation_search::create_conversation_sear
 append_conversation_search_tool: Attach the read-only conversation_search tool to eager tools for GeneralAgent.
 
 [POS]
-GeneralAgent 会话搜索装配辅助模块。L2 auto_session_recall_middleware 覆盖常见首 turn 召回；
-conversation_search 与 memory_recall 对称 eager 挂载，稳定 tools 前缀以利 prompt cache。
+GeneralAgent 会话搜索装配辅助模块。与 memory_recall 对称 eager 挂载，稳定 tools 前缀以利 prompt cache。
 """
 
 from __future__ import annotations

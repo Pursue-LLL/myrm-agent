@@ -104,6 +104,71 @@ async def test_discover_miss_emits_capability_gap_block_and_sse(monkeypatch: pyt
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_discover_miss_does_not_emit_render_ui_gap_when_group_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When render_ui is in active_tool_groups, miss must not emit false capability_gap."""
+    registry = ToolRegistry()
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    discover = sync_discover_capability_tool(
+        registry,
+        active_tool_groups=frozenset(
+            {"web", "memory", "file_ops", "shell", "render_ui"},
+        ),
+    )
+    assert discover is not None
+
+    captured: list[tuple[str, object]] = []
+
+    async def _capture(name: str, data: object, config: object | None = None) -> None:
+        captured.append((name, data))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+        _capture,
+    )
+
+    result = await discover.ainvoke({"query": "please render ui interactive form"})
+    assert "No capabilities found" in result
+    assert "<CapabilityGap>" not in result
+    assert not any(name == "capability_gap" for name, _ in captured)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When render_ui is NOT in active_tool_groups, miss must emit capability_gap."""
+    registry = ToolRegistry()
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    discover = sync_discover_capability_tool(
+        registry,
+        active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
+    )
+    assert discover is not None
+
+    captured: list[tuple[str, object]] = []
+
+    async def _capture(name: str, data: object, config: object | None = None) -> None:
+        captured.append((name, data))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+        _capture,
+    )
+
+    result = await discover.ainvoke({"query": "please render ui interactive form"})
+    assert "No capabilities found" in result
+    assert "<CapabilityGap>" in result
+    assert any(name == "capability_gap" for name, _ in captured)
+    cap_payload = next(payload for name, payload in captured if name == "capability_gap")
+    assert isinstance(cap_payload, dict)
+    assert cap_payload.get("tool_id") == "render_ui"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_discover_miss_emits_skill_gap_block_and_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Deterministic: unbound skill in query → SkillGap block + skill_gap SSE."""
     registry = ToolRegistry()
