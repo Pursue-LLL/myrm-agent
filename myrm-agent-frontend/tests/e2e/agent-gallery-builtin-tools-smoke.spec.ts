@@ -22,7 +22,6 @@ test.describe('Agent gallery builtin tools smoke', () => {
     await ensureLoggedIn(page, request);
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
 
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => {
       sessionStorage.setItem('migration_discovery_dismissed', 'true');
       sessionStorage.setItem('competitor_migration_dismissed', 'true');

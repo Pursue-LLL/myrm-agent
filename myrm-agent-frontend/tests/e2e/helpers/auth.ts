@@ -32,6 +32,7 @@ export async function syncBrowserWebUiSession(page: Page, password: string = adm
     return true;
   }, password);
   expect(loginOk, 'Browser-origin /webui/auth/login failed').toBeTruthy();
+  await page.reload({ waitUntil: 'domcontentloaded' });
 }
 
 /** Skip first-run onboarding wizard so chat routes render MessageInput. */
