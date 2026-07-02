@@ -5,7 +5,7 @@
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 
 [OUTPUT]
-- resolve_base_dir, setup_worktree, cleanup_worktree
+- resolve_base_dir, resolve_workspace, cleanup_worktree
 
 [POS]
 Git worktree isolation: resolve workspace path, create/cleanup per-task worktrees.
@@ -21,6 +21,13 @@ from pathlib import Path
 
 from myrm_agent_harness.api import KanbanStore
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskEventKind
+
+from app.services.chat.sandbox_worktree import (
+    WorktreeCreateError,
+    WorktreeErrorReason,
+    _classify_git_error,
+    _GIT_ENV,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +50,43 @@ def worktree_dir(base_dir: str, branch: str, task_id: str) -> str:
     return os.path.join(base_dir, WORKTREE_DIR_NAME, f"{safe_name}-{task_id[:8]}")
 
 
-async def create_worktree(base_dir: str, branch: str, task_id: str) -> str | None:
+def _ensure_worktrees_dir_excluded(base_dir: str) -> None:
+    """Ensure .worktrees/ is listed in .git/info/exclude."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            env=_GIT_ENV,
+        )
+        if result.returncode != 0:
+            return
+        common_dir = result.stdout.strip()
+        exclude_path = os.path.join(common_dir, "info", "exclude")
+
+        line = f"/{WORKTREE_DIR_NAME}/"
+        current = ""
+        try:
+            current = Path(exclude_path).read_text(encoding="utf-8")
+        except OSError:
+            pass
+
+        if any(l.strip() == line for l in current.split("\n")):
+            return
+
+        prefix = "\n" if current and not current.endswith("\n") else ""
+        with open(exclude_path, "a", encoding="utf-8") as f:
+            f.write(f"{prefix}{line}\n")
+    except Exception:
+        pass
+
+
+async def create_worktree(
+    base_dir: str, branch: str, task_id: str
+) -> str | WorktreeCreateError:
+    """Create a per-task worktree. Returns path on success or structured error."""
     worktree_path = worktree_dir(base_dir, branch, task_id)
 
     if Path(worktree_path).exists():
@@ -51,6 +94,9 @@ async def create_worktree(base_dir: str, branch: str, task_id: str) -> str | Non
         return worktree_path
 
     try:
+        os.makedirs(os.path.dirname(worktree_path), exist_ok=True)
+        _ensure_worktrees_dir_excluded(base_dir)
+
         result = await asyncio.to_thread(
             subprocess.run,
             ["git", "worktree", "add", "--force", "-B", branch, worktree_path, "HEAD"],
@@ -58,14 +104,18 @@ async def create_worktree(base_dir: str, branch: str, task_id: str) -> str | Non
             capture_output=True,
             text=True,
             timeout=30,
+            env=_GIT_ENV,
         )
         if result.returncode != 0:
+            stderr = result.stderr.strip()
+            reason = _classify_git_error(stderr)
             logger.warning(
-                "git worktree add failed (rc=%d): %s",
+                "git worktree add failed (rc=%d, reason=%s): %s",
                 result.returncode,
-                result.stderr.strip(),
+                reason.value,
+                stderr[:300],
             )
-            return None
+            return WorktreeCreateError(reason=reason, message=stderr[:300])
 
         logger.info(
             "Created worktree at %s (branch=%s) for task %s",
@@ -76,7 +126,7 @@ async def create_worktree(base_dir: str, branch: str, task_id: str) -> str | Non
         return worktree_path
     except Exception as exc:
         logger.warning("Failed to create worktree for task %s: %s", task_id[:8], exc)
-        return None
+        return WorktreeCreateError(reason=WorktreeErrorReason.ERROR, message=str(exc)[:300])
 
 
 async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
@@ -87,18 +137,19 @@ async def resolve_workspace(store: KanbanStore, task: KanbanTask) -> str | None:
     if not task.branch:
         return base_dir
 
-    worktree_path = await create_worktree(base_dir, task.branch, task.task_id)
-    if worktree_path:
+    result = await create_worktree(base_dir, task.branch, task.task_id)
+    if isinstance(result, str):
         await store.add_event(
             task.task_id,
             TaskEventKind.BRANCH_SWITCHED,
-            payload={"branch": task.branch, "worktree_path": worktree_path},
+            payload={"branch": task.branch, "worktree_path": result},
         )
-        return worktree_path
+        return result
 
     logger.warning(
-        "Worktree creation failed for task %s, falling back to base_dir",
+        "Worktree creation failed for task %s (reason=%s), falling back to base_dir",
         task.task_id[:8],
+        result.reason.value,
     )
     return base_dir
 
@@ -123,6 +174,7 @@ async def cleanup_worktree(store: KanbanStore, task: KanbanTask) -> None:
             capture_output=True,
             text=True,
             timeout=30,
+            env=_GIT_ENV,
         )
         if result.returncode == 0:
             logger.info("Cleaned up worktree at %s for archived task %s", path, task.task_id[:8])

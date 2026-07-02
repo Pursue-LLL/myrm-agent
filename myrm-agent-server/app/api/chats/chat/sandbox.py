@@ -99,18 +99,18 @@ async def enable_sandbox(chat_id: str):
         if not await is_git_repository(base_dir):
             raise HTTPException(status_code=400, detail="Workspace is not a git repository")
 
-        worktree_path = await create_sandbox_worktree(base_dir, chat_id)
-        if not worktree_path:
-            raise HTTPException(status_code=500, detail="Failed to create sandbox worktree")
+        result = await create_sandbox_worktree(base_dir, chat_id)
+        if not isinstance(result, str):
+            raise HTTPException(status_code=500, detail=f"Failed to create sandbox worktree: {result.reason.value}")
 
         await ChatService.update_chat_fields(chat_id, {
-            "workspace_dir": worktree_path,
+            "workspace_dir": result,
             "sandbox_base_dir": base_dir,
         })
 
         return success_response({
             "active": True,
-            "worktree_path": worktree_path,
+            "worktree_path": result,
             "branch": f"sandbox/chat-{chat_id[:12]}",
             "base_dir": base_dir,
         })

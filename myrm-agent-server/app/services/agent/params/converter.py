@@ -712,8 +712,9 @@ async def convert_to_general_agent_params(
         from app.services.chat.sandbox_worktree import create_sandbox_worktree
 
         original_workspace = chat_workspace_dir
-        sandbox_worktree_dir = await create_sandbox_worktree(chat_workspace_dir, request.chat_id)
-        if sandbox_worktree_dir:
+        result = await create_sandbox_worktree(chat_workspace_dir, request.chat_id)
+        if isinstance(result, str):
+            sandbox_worktree_dir = result
             chat_workspace_dir = sandbox_worktree_dir
             await ChatService.update_chat_fields(request.chat_id, {
                 "workspace_dir": sandbox_worktree_dir,
