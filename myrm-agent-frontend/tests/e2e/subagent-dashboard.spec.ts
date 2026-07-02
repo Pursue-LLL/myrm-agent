@@ -18,16 +18,25 @@ test.describe('Subagent Dashboard', () => {
   );
 
   test('delegate via chat -> dashboard -> cancel subagent', async ({ page, request }) => {
-    await seedE2eProvidersFromEnv(request);
     await ensureLoggedIn(page, request);
+    const deviceId = await page.evaluate(() => {
+      const existing = localStorage.getItem('config-device-id');
+      if (existing) return existing;
+      const id = crypto.randomUUID();
+      localStorage.setItem('config-device-id', id);
+      return id;
+    });
+    await seedE2eProvidersFromEnv(request, { force: true, deviceId });
 
     const chatId = await seedSubagentChat(request);
     await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /MiniMax|M2\.7/i })).toBeVisible({ timeout: 30_000 });
 
     const input = page.locator('textarea[data-chat-input]');
     await input.fill(DELEGATE_SLEEP_QUERY);
-    await page.getByRole('button', { name: /Send|发送/ }).click();
+    await input.press('Enter');
 
     await expect(page.getByTestId('subagent-dashboard-trigger')).toBeVisible({ timeout: 120_000 });
     await expect(page.getByTestId('subagent-dashboard-trigger')).toContainText(/1|active|running|活跃/i, {

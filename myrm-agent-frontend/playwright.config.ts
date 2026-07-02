@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 const chromePath =
-  process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH ??
+  process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH?.trim() ||
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const launchOptions = existsSync(chromePath) ? { executablePath: chromePath } : undefined;
 
