@@ -7,9 +7,11 @@ src/app/subscription/page.tsx
 src/components/agent/AgentEditForm.tsx
 src/components/approval/PolymorphicApprovalCard.tsx
 src/components/billing/QuotaDisplay.tsx
+src/components/features/app-shell/flow-pad-modal.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
 src/components/features/artifacts/PublishModal.tsx
+src/components/features/artifacts/renderers/MediaPreview.tsx
 src/components/features/chat-window/Chat.tsx
 src/components/features/chat-window/ChatWindow.tsx
 src/components/features/chat-window/MessageInput.tsx
@@ -59,6 +61,7 @@ src/components/features/settings/sections/ai-core/AgentsSection.tsx
 src/components/features/settings/sections/ai-core/DefaultModelSection.tsx
 src/components/features/settings/sections/ai-core/agent/AgentOpenAPIServicesTab.tsx
 src/components/features/settings/sections/ai-tools/SkillsSection.tsx
+src/components/features/settings/sections/hosting/HostingTargetsPanel.tsx
 src/components/features/settings/sections/integration/ConnectSection.tsx
 src/components/features/settings/sections/integration/CredentialsSection.tsx
 src/components/features/settings/sections/integration/ExternalAgentsConfig.tsx
@@ -72,6 +75,7 @@ src/components/features/settings/sections/knowledge/MemorySection.tsx
 src/components/features/settings/sections/knowledge/MigrationWizardSteps.tsx
 src/components/features/settings/sections/knowledge/RemoteBackupSection.tsx
 src/components/features/settings/sections/knowledge/WikiSection.tsx
+src/components/features/settings/sections/system/AboutSection.tsx
 src/components/features/settings/sections/system/AccessCard.tsx
 src/components/features/settings/sections/system/AdvancedPiiConfig.tsx
 src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx

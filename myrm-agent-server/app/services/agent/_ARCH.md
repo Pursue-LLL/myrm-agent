@@ -20,7 +20,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`）、pre-rollback 保险快照、10 条 retention 裁剪。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
 | `templates.py` | ✅ 核心 | 预置智能体模板市场 API — 提供基于 YAML 种子的原子化实例化（`instantiate-template`），在克隆模板的同时强一致性自动 Enable 所需依赖技能（如 `prebuilt_skill_ids`），供 WebUI /templates 端点实现快速 Onboarding，解决空白画布冷启动痛点。 |
-| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析服务 — 提供 `ResolvedAgentProfile` 数据类、带 TTL 缓存的 `AgentProfileResolver` 全局单例、`DEFAULT_ENABLED_BUILTIN_TOOLS` 默认工具集常量和 `resolve_builtin_tool_flags()` 统一映射函数（含 `enable_render_ui` ← `render_ui`、`enable_planning` ← `planning`、`enable_task_tracking` ← `task_tracking`、`enable_answer_tool` ← `answer_tool`）。消除 Web/Channel/Cron/Kanban/Eval/Voice 六入口的重复 agent profile 解析和工具 flag 映射逻辑，统一返回 `subagent_ids`、`enabled_builtin_tools`、`mcp_tool_selections`、`workspace_policy`、`memory_policy`、`engine_params`、`model_kwargs`、`session_policy`、`notify_targets`、`built_in` 等完整运行时契约。 |
+| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析服务 — 提供 `ResolvedAgentProfile` 数据类、带 TTL 缓存的 `AgentProfileResolver` 全局单例、`DEFAULT_ENABLED_BUILTIN_TOOLS`（`web_search`+`memory` only，不含 kanban）和 `resolve_builtin_tool_flags()` 统一映射函数（含 `enable_kanban` ← `kanban`、`enable_render_ui` ← `render_ui`、`enable_planning` ← `planning`、`enable_task_tracking` ← `task_tracking`、`enable_answer_tool` ← `answer_tool`）。Kanban LLM bind 模式由 `general_agent/kanban_tool_mode.py` 解析（chat 默认 orchestrator 8，TaskRunner worker 5）。消除 Web/Channel/Cron/Kanban/Eval/Voice 六入口的重复 agent profile 解析和工具 flag 映射逻辑，统一返回 `subagent_ids`、`enabled_builtin_tools`、`mcp_tool_selections`、`workspace_policy`、`memory_policy`、`engine_params`、`model_kwargs`、`session_policy`、`notify_targets`、`built_in` 等完整运行时契约。 |
 | `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — 服务启动时（lifespan Phase 1b）幂等创建 24 个预置智能体（4 核心 + 2 搜索 + 5 扩展 + 13 垂直领域）到数据库，使用定制 SVG 几何符号视觉标识（`icon:{id}` 格式）。搜索智能体走统一 SkillAgent 路径，提示词由 `prompt_mode="search"` 单一提供（system_prompt 留空避免重复注入），享有记忆 + PWA 断连恢复能力 |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换） |
 | `stream_session/orchestrator.py` | ✅ 核心 | General Agent 流式会话主编排（setup + session 装配） |
@@ -49,7 +49,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置；`build_platform_litellm_kwargs()`、`webui_model_preflight_warning()`、`resolve_xai_search_config()`；业务禁止读进程 env |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume |
-| `outbound_notify/` | ✅ 辅助 | Agent 主动出站通知 — 类型、target 解析、rate limit、ChannelGateway 投递、可选 channel_notify_tool | ✅ |
+| `outbound_notify/` | ✅ 辅助 | Agent 主动出站通知 — 类型、target 解析、rate limit、ChannelGateway 投递、`channel_notify_tool`（Turn1，notify_targets 配置时） | ✅ |
 
 ---
 

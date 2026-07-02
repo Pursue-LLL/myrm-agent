@@ -189,9 +189,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             deferred_tools.append(render_ui_tool)
             logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Deferred]")
 
-        self._setup_image_generation_tools(deferred_tools)
-        self._setup_video_generation_tools(deferred_tools)
-        self._setup_tts_tools(deferred_tools)
+        self._setup_image_generation_tools(tools)
+        self._setup_video_generation_tools(tools)
+        self._setup_tts_tools(tools)
 
     def _setup_clarification_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
         """Set up ask_question HITL clarification tool."""
@@ -224,8 +224,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning(f"⚠️ ask_question_tool 加载失败: {e}")
 
-    def _setup_image_generation_tools(self, deferred_tools: list[object]) -> None:
-        """Register image generation/editing tools if configured."""
+    def _setup_image_generation_tools(self, tools: list[object]) -> None:
+        """Register image generation/editing tools if configured (AgentDeclared eager mount)."""
         if not self.image_generation_params:
             return
 
@@ -240,9 +240,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 ImageGenerationConfig,
                 ImageGenerationTools,
             )
-            from myrm_agent_harness.toolkits.llms.image.image_langchain_tool import (
-                create_image_generation_tool,
-            )
+            from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
 
             config = ImageGenerationConfig(
                 model=params.model,
@@ -259,11 +257,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            deferred_tools.append(
+            tools.append(
                 create_image_generation_tool(img_engine, allow_private_networks=is_local_mode())
             )
             logger.warning(
-                "🖼️ Image generation tool loaded (model=%s, fallbacks=%s) [Deferred]",
+                "🖼️ Image generation tool loaded (model=%s, fallbacks=%s) [AgentDeclared]",
                 params.model,
                 params.fallback_models,
             )
@@ -277,8 +275,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             source="generate",
         )
 
-    def _setup_video_generation_tools(self, deferred_tools: list[object]) -> None:
-        """Register video generation tools if configured."""
+    def _setup_video_generation_tools(self, tools: list[object]) -> None:
+        """Register video generation tools if configured (AgentDeclared eager mount)."""
         if not self.video_generation_params:
             return
 
@@ -292,9 +290,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 VideoGenerationConfig,
                 VideoGenerationTools,
             )
-            from myrm_agent_harness.toolkits.llms.video.video_langchain_tool import (
-                create_video_generation_tool,
-            )
+            from app.ai_agents.media_tools.video_agent_tool import create_video_generation_tool
 
             fallback_configs = []
             for fb in params.fallback_providers:
@@ -324,9 +320,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            deferred_tools.append(create_video_generation_tool(video_engine))
+            tools.append(create_video_generation_tool(video_engine))
             logger.warning(
-                "🎬 Video generation tool loaded (provider=%s, model=%s) [Deferred]",
+                "🎬 Video generation tool loaded (provider=%s, model=%s) [AgentDeclared]",
                 params.provider,
                 params.model,
             )
@@ -340,8 +336,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             source="video_generate",
         )
 
-    def _setup_tts_tools(self, deferred_tools: list[object]) -> None:
-        """Register TTS tools if configured."""
+    def _setup_tts_tools(self, tools: list[object]) -> None:
+        """Register TTS tools if configured (AgentDeclared eager mount)."""
         if not self.tts_params:
             return
 
@@ -351,7 +347,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
-            from myrm_agent_harness.toolkits.llms.tts import TTSConfig, create_tts_tool
+            from app.ai_agents.media_tools.tts_agent_tool import create_tts_tool
+            from myrm_agent_harness.toolkits.llms.tts import TTSConfig
 
             config = TTSConfig(
                 provider=params.provider,
@@ -367,9 +364,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
-            deferred_tools.append(tts_tool)
+            tools.append(tts_tool)
             logger.warning(
-                "🔊 TTS tool loaded (provider=%s, model=%s, voice=%s) [Deferred]",
+                "🔊 TTS tool loaded (provider=%s, model=%s, voice=%s) [AgentDeclared]",
                 params.provider,
                 params.model,
                 params.voice,

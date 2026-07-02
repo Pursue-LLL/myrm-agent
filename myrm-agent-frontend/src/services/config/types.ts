@@ -73,7 +73,8 @@ export type ConfigKey =
   | 'securityDashboardSettings'
   | 'browserCloudProvider'
   | 'browserProxy'
-  | 'captchaSolverConfig';
+  | 'captchaSolverConfig'
+  | 'orgMcpServers';
 
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
@@ -107,6 +108,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'browserCloudProvider',
   'browserProxy',
   'captchaSolverConfig',
+  'orgMcpServers',
 ] as const;
 
 /** 首屏核心配置（优先加载以加快启动） */
@@ -235,6 +237,10 @@ export interface PersonalSettingsConfigValue {
  */
 export interface MCPServersConfigValue {
   mcpConfigs: MCPServiceConfig[];
+}
+
+export interface OrgMcpServersConfigValue {
+  servers: MCPServiceConfig[];
 }
 
 /**
@@ -485,6 +491,7 @@ export interface ConfigValueMap {
   browserCloudProvider: BrowserCloudProviderConfigValue;
   browserProxy: BrowserProxyConfigValue;
   captchaSolverConfig: CaptchaSolverConfigValue;
+  orgMcpServers: OrgMcpServersConfigValue;
 }
 
 /**

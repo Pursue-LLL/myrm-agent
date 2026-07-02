@@ -11,8 +11,8 @@
   `@tool` into the harness `_TOOL_LAYERS` registry.
 
 [POS]
-Registers server-layer tools that depend on third-party SDKs (xAI) into the
-harness registry at import time.  Framework-native tools
+Registers server-layer business tools (third-party SDKs, ChannelGateway outbound,
+Canvas SDK) into the harness registry at import time.  Framework-native tools
 (request_answer_user_tool, render_ui_tool, etc.) live in harness directly.
 """
 
@@ -27,6 +27,7 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "canvas_get_state": ToolLayer.EXTENDED,
     "canvas_get_selection": ToolLayer.EXTENDED,
     "canvas_insert_element": ToolLayer.EXTENDED,
+    "channel_notify_tool": ToolLayer.EXTENDED,
 }
 
 

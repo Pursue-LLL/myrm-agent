@@ -9,7 +9,7 @@
 | 路径 | 职责 | 模式 |
 |------|------|------|
 | `/`, `/chat`, `/[chatId]` | 主对话 | 全模式 |
-| `/settings`, `/settings/[tab]` | 设置页 | 全模式 |
+| `/settings`, `/settings/[tab]` | 设置页（`DEPRECATED_TAB_MAP` 别名永久重定向，如 `persona→personalization`） | 全模式 |
 | `/auth/login`, `/auth/setup` | WebUI 本地管理员 | local / desktop |
 | `/auth/oauth/callback` | CP OAuth | SaaS 构建 |
 | `/workspace`, `/library`, `/brain` | 工作区 / 资料库 | 全模式 |

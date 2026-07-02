@@ -1,7 +1,4 @@
-"""Tests for canvas tool layer registration in _tool_layer_bootstrap.py.
-
-Verifies canvas tools are registered as EXTENDED layer.
-"""
+"""Tests for server tool layer registration in _tool_layer_bootstrap.py."""
 
 from __future__ import annotations
 
@@ -11,7 +8,13 @@ from app.ai_agents.general_agent.tools._tool_layer_bootstrap import (
 )
 
 
-class TestCanvasToolLayerRegistration:
+class TestServerToolLayerRegistration:
+    def test_x_search_tool_registered(self) -> None:
+        assert _SERVER_TOOL_LAYERS.get("x_search_tool") == ToolLayer.EXTENDED
+
+    def test_browser_local_search_tool_registered(self) -> None:
+        assert _SERVER_TOOL_LAYERS.get("browser_local_search_tool") == ToolLayer.EXTENDED
+
     def test_canvas_get_state_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("canvas_get_state") == ToolLayer.EXTENDED
 
@@ -20,3 +23,6 @@ class TestCanvasToolLayerRegistration:
 
     def test_canvas_insert_element_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("canvas_insert_element") == ToolLayer.EXTENDED
+
+    def test_channel_notify_tool_registered(self) -> None:
+        assert _SERVER_TOOL_LAYERS.get("channel_notify_tool") == ToolLayer.EXTENDED

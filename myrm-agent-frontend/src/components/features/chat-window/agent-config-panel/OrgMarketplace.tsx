@@ -134,7 +134,7 @@ const OrgMarketplace = ({ className, onInstalled }: OrgMarketplaceProps) => {
       toast.success(
         t('forcePushSuccess'),
         {
-          description: `v${result.version} → ${result.synced} synced, ${result.buffered} buffered, ${result.failed} failed (${result.total} total)`,
+          description: `v${result.version} → ${result.synced} synced, ${result.skipped} skipped, ${result.failed} failed (${result.total} total)`,
           duration: 8_000,
         },
       );

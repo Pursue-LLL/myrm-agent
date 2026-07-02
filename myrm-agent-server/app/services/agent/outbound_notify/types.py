@@ -36,6 +36,13 @@ class NotifyToolConfig:
     max_body_length: int = 4000
 
 
+CHANNEL_NOTIFY_SYSTEM_APPENDIX = (
+    "\n\n[Outbound Notifications] This agent has pre-configured notification targets. "
+    "Use channel_notify_tool to push task results, alerts, or attachments to those "
+    "external channels when the user asks to be notified or when async delivery is needed."
+)
+
+
 @dataclass(frozen=True, slots=True)
 class NotifyResult:
     """Result of a notification send attempt."""

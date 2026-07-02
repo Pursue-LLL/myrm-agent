@@ -3413,6 +3413,8 @@
     "mcpDeleteSuccessDesc": "已从配置中移除该 MCP 服务",
     "mcpTabInstalled": "已安装",
     "mcpTabRegistry": "注册中心",
+    "mcpOrgManaged": "组织统一管理",
+    "mcpOrgBadge": "组织",
     "mcpRegistrySearchPlaceholder": "搜索 MCP 服务器...",
     "mcpRegistryLoading": "加载服务器中...",
     "mcpRegistryLoadFailed": "加载注册中心失败",
@@ -5935,6 +5937,10 @@
         "title": "记忆归档",
         "description": "归档旧记忆以提升搜索性能"
       },
+      "enterprise": {
+        "title": "企业管理",
+        "description": "管理企业组织、团队成员与员工离职交接"
+      },
       "system": {
         "title": "系统设置",
         "description": "系统级配置与偏好"
@@ -7642,7 +7648,9 @@
     "blur": "马赛克",
     "textPlaceholder": "输入文字标注...",
     "editButton": "标注",
-    "editTooltip": "打开图片编辑器进行标注"
+    "editTooltip": "打开图片编辑器进行标注",
+    "applyFailedTitle": "标注失败",
+    "applyFailedDesc": "无法应用您的编辑，原图未改动，请重试。"
   },
   "artifacts": {
     "title": "工件",
@@ -11354,21 +11362,6 @@
     "copied": "已复制到剪贴板",
     "copyFailed": "复制失败",
     "generating": "生成中..."
-  },
-  "annotationEditor": {
-    "arrow": "箭头",
-    "rectangle": "矩形",
-    "ellipse": "椭圆",
-    "text": "文字",
-    "freehand": "画笔",
-    "highlight": "高亮",
-    "blur": "模糊",
-    "crop": "裁剪",
-    "undo": "撤销",
-    "redo": "重做",
-    "clear": "清除全部",
-    "save": "保存",
-    "cancel": "取消"
   },
   "billing": {
     "wuBalance": "Work Units",

@@ -28,13 +28,14 @@ from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError, Encry
 
 logger = logging.getLogger(__name__)
 
-# Sensitive config keys that require encryption (same as before)
+# Config keys whose values are encrypted at rest in SQLite
 SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
     {
         "providers",
         "retrieval",
         "searchServices",
         "mcpServers",
+        "orgMcpServers",
         "feishuCredentials",
         "dingtalkCredentials",
         "slackCredentials",

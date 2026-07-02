@@ -55,7 +55,7 @@ Before writing any code, climb this ladder. Stop at the first rung that holds:
 | Rung | Check | Action |
 |------|-------|--------|
 | 1 | Does this need to exist at all? | Skip it. Say why in one line. (YAGNI) |
-| 2 | Does it already exist in this codebase? | Reuse. Search with `grep` / `glob` / `ast_search` before writing. |
+| 2 | Does it already exist in this codebase? | Reuse. Search with `grep` / `glob` before writing. |
 | 3 | Does the standard library do this? | Use it. No wrapper. |
 | 4 | Does a native platform feature cover it? | Use it. CSS over JS, DB constraint over app code, `<input type="date">` over a picker lib. |
 | 5 | Does an already-installed dependency solve it? | Use it. Never add a new dep for what a few lines can do. |

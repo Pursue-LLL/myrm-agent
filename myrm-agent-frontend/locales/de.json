@@ -92,6 +92,7 @@
       "integrationMemory": "Integration Memory",
       "connect": "External Agents",
       "workspaceRules": "Workspace Rules",
+      "enterprise": "Enterprise",
       "memory-backup": "Memory Backup",
       "memory-cloud-backup": "Cloud Sync",
       "memory-archival": "Memory Archival",
@@ -4073,7 +4074,7 @@
       "publishSuccess": "Im Org-Marktplatz veröffentlicht!",
       "publishError": "Veröffentlichung im Org-Marktplatz fehlgeschlagen",
       "forcePush": "Push",
-      "forcePushConfirm": "„{name}" v{version} an alle installierten Benutzer erzwingen? Ihre aktuelle Konfiguration wird überschrieben (ein Snapshot wird zur Wiederherstellung gespeichert).",
+      "forcePushConfirm": "„{name}“ v{version} an alle installierten Benutzer erzwingen? Ihre aktuelle Konfiguration wird überschrieben (ein Snapshot wird zur Wiederherstellung gespeichert).",
       "forcePushSuccess": "Force-Push abgeschlossen",
       "forcePushError": "Push fehlgeschlagen",
       "forcePushTooltip": "Neueste Version an alle installierten Benutzer erzwingen",
@@ -5286,6 +5287,10 @@
       "memory-archival": {
         "title": "Memory Archival",
         "description": "Archive old memories to improve search performance"
+      },
+      "enterprise": {
+        "title": "Enterprise Organization",
+        "description": "Manage your enterprise organization, team members, and employee offboarding"
       },
       "toolQuality": {
         "title": "Execution Quality",
@@ -6944,7 +6949,9 @@
     "blur": "Mosaik",
     "textPlaceholder": "Textanmerkung eingeben...",
     "editButton": "Annotieren",
-    "editTooltip": "Bildeditor zum Annotieren öffnen"
+    "editTooltip": "Bildeditor zum Annotieren öffnen",
+    "applyFailedTitle": "Annotation failed",
+    "applyFailedDesc": "Could not apply your edits. The original image is unchanged — please try again."
   },
   "artifacts": {
     "title": "Artifacts",
@@ -10772,21 +10779,6 @@
     "privacyBlocked": "Capture blocked: {app} is in privacy blacklist",
     "privacyBlockedDescription": "This app is excluded from screen capture for privacy protection.",
     "captureAnyway": "Capture Anyway"
-  },
-  "annotationEditor": {
-    "arrow": "Arrow",
-    "rectangle": "Rectangle",
-    "ellipse": "Ellipse",
-    "text": "Text",
-    "freehand": "Freehand",
-    "highlight": "Highlight",
-    "blur": "Blur",
-    "crop": "Crop",
-    "undo": "Undo",
-    "redo": "Redo",
-    "clear": "Clear All",
-    "save": "Save",
-    "cancel": "Cancel"
   },
   "billing": {
     "wuBalance": "Work Units",

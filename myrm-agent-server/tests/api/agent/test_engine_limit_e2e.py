@@ -49,8 +49,8 @@ class TestEngineLimitE2E:
 
         try:
             # 2. Run a query that requires multiple tool calls
-            # We use ast_search_tool because it doesn't require approval and won't suspend the agent
-            query = "Use the ast_search_tool to search for 'Foo'. Then use it again to search for 'Bar'. Then use it again to search for 'Baz'."
+            # We use grep_tool because it doesn't require approval and won't suspend the agent
+            query = "Use grep_tool to search for 'Foo'. Then use it again to search for 'Bar'. Then use it again to search for 'Baz'."
 
             chat_id = str(uuid.uuid4())
             message_id = str(uuid.uuid4())

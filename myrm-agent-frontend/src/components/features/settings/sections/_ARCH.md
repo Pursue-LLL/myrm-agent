@@ -14,6 +14,7 @@
 | `knowledge/` | knowledge | 记忆、Wiki（含 `wiki/`）、迁移向导 |
 | `integration/` | integration | 凭证、外部 Agent、浏览器扩展桥、渠道（含 `channels/`、`integrations/`） |
 | `system/` | system | 安全、健康、开发者、关于（见 [system/_ARCH.md](system/_ARCH.md)） |
+| `enterprise/` | system（sandboxOnly） | Enterprise Org 成员与 Volume 交接（见 [enterprise/_ARCH.md](enterprise/_ARCH.md)） |
 
 ## 相对 import 铁律
 
@@ -57,6 +58,7 @@
 | `system/` | [system/_ARCH.md](system/_ARCH.md) |
 | `knowledge/wiki/` | [knowledge/wiki/_ARCH.md](knowledge/wiki/_ARCH.md) |
 | `knowledge/` | [knowledge/_ARCH.md](knowledge/_ARCH.md) |
+| `enterprise/` | [enterprise/_ARCH.md](enterprise/_ARCH.md) |
 
 ## 依赖
 

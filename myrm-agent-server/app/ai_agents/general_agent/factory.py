@@ -238,25 +238,20 @@ async def build_general_agent(
             tools.extend(goal_tools)
             logger.info("🎯 已加载目标导向工具: get_goal_status_tool, update_goal_status_tool")
 
-    # 4.5 Channel notification tool
-    if agent_wrapper.notify_targets:
-        try:
-            from app.services.agent.outbound_notify import (
-                create_channel_notify_tool,
-                create_notification_sender,
-            )
+    # 4.5 Channel notification tool (Turn1 when notify_targets configured)
+    channel_notify_tool_loaded = False
+    try:
+        from app.services.agent.outbound_notify.factory_wiring import append_channel_notify_tool
 
-            sender_result = create_notification_sender(agent_wrapper.notify_targets)
-            if sender_result:
-                sender, notify_config = sender_result
-                notify_tool = create_channel_notify_tool(sender, notify_config)
-                deferred_tools.append(notify_tool)
-                logger.info(
-                    "Loaded channel_notify_tool (%d targets) [Deferred]",
-                    len(notify_config.allowed_targets),
-                )
-        except Exception as e:
-            logger.warning("channel_notify_tool load failed (degraded): %s", e)
+        target_count = append_channel_notify_tool(agent_wrapper.notify_targets, tools)
+        if target_count:
+            channel_notify_tool_loaded = True
+            logger.info(
+                "Loaded channel_notify_tool (%d targets) [Turn1]",
+                target_count,
+            )
+    except Exception as e:
+        logger.warning("channel_notify_tool load failed (degraded): %s", e)
 
     # 5. Create sandbox executor
     from myrm_agent_harness.toolkits.code_execution.factory import create_executor
@@ -439,7 +434,15 @@ async def build_general_agent(
             "Make reasonable decisions independently and proceed to completion."
         )
 
-    if getattr(agent_wrapper, "kanban_tool_mode", None) == "worker":
+    from app.ai_agents.general_agent.kanban_tool_mode import resolve_kanban_tool_mode
+
+    if (
+        resolve_kanban_tool_mode(
+            kanban_tool_mode=getattr(agent_wrapper, "kanban_tool_mode", None),
+            kanban_current_task_id=getattr(agent_wrapper, "kanban_current_task_id", None),
+        )
+        == "worker"
+    ):
         from myrm_agent_harness.toolkits.kanban import get_worker_lifecycle_guidance
 
         system_prompt += get_worker_lifecycle_guidance(
@@ -463,6 +466,11 @@ async def build_general_agent(
                 system_prompt += cli_ctx
         except Exception as e:
             logger.warning("CLI tool discovery failed (degraded): %s", e)
+
+    if channel_notify_tool_loaded:
+        from app.services.agent.outbound_notify.types import CHANNEL_NOTIFY_SYSTEM_APPENDIX
+
+        system_prompt += CHANNEL_NOTIFY_SYSTEM_APPENDIX
 
     # 9. Call framework API
     from app.core.skills.creation.service import skill_creation_service

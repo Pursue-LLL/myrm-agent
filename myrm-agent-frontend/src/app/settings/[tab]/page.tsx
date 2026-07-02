@@ -14,7 +14,6 @@ const VALID_TABS = [
   'account',
   'preferences',
   'personalization',
-  'persona',
   'agents',
   'security',
   'riskRules',
@@ -54,6 +53,7 @@ const VALID_TABS = [
 ] as const;
 
 const DEPRECATED_TAB_MAP: Record<string, { parent: string; sub?: string }> = {
+  persona: { parent: 'personalization' },
   toolCapabilities: { parent: 'models' },
   defaultModel: { parent: 'models', sub: 'default' },
   evolutionPending: { parent: 'skills', sub: 'pending' },

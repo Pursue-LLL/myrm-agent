@@ -2,43 +2,28 @@
 
 from __future__ import annotations
 
-from app.services.agent.outbound_notify import (
-    create_channel_notify_tool,
-    create_notification_sender,
-)
-
-
-def _wire_notify_tool(
-    notify_targets: tuple[dict[str, str], ...],
-    deferred_tools: list[object],
-) -> None:
-    """Same logic as general_agent/factory.py channel notification block."""
-    if notify_targets:
-        sender_result = create_notification_sender(notify_targets)
-        if sender_result:
-            sender, notify_config = sender_result
-            notify_tool = create_channel_notify_tool(sender, notify_config)
-            deferred_tools.append(notify_tool)
+from app.services.agent.outbound_notify.factory_wiring import append_channel_notify_tool
 
 
 def test_factory_registers_channel_notify_tool_when_targets_present() -> None:
-    deferred_tools: list[object] = []
+    tools: list[object] = []
     targets = ({"channel": "telegram", "recipient_id": "chat_1", "label": "Alerts"},)
 
-    _wire_notify_tool(targets, deferred_tools)
+    target_count = append_channel_notify_tool(targets, tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "channel_notify_tool"
+    assert target_count == 1
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "channel_notify_tool"
 
 
 def test_factory_skips_when_notify_targets_empty() -> None:
-    deferred_tools: list[object] = []
-    _wire_notify_tool((), deferred_tools)
-    assert deferred_tools == []
+    tools: list[object] = []
+    assert append_channel_notify_tool((), tools) == 0
+    assert tools == []
 
 
 def test_factory_tool_is_async_invokable() -> None:
-    deferred_tools: list[object] = []
-    _wire_notify_tool(({"channel": "slack", "recipient_id": "C1"},), deferred_tools)
-    tool = deferred_tools[0]
+    tools: list[object] = []
+    append_channel_notify_tool(({"channel": "slack", "recipient_id": "C1"},), tools)
+    tool = tools[0]
     assert tool.coroutine is not None

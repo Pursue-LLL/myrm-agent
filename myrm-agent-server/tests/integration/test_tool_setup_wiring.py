@@ -30,18 +30,18 @@ def test_image_generation_registers_basetool() -> None:
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
     mixin.chat_id = None
     mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key="test-key")
-    deferred_tools: list[object] = []
+    tools: list[object] = []
 
     with patch(
         "app.ai_agents.general_agent.tool_setup._get_artifact_push_fn",
         return_value=None,
     ):
-        mixin._setup_image_generation_tools(deferred_tools)
+        mixin._setup_image_generation_tools(tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "image_tool"
-    assert isinstance(deferred_tools[0], BaseTool)
-    assert len(normalize_tool_names(deferred_tools)) == 1
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "image_tool"
+    assert isinstance(tools[0], BaseTool)
+    assert len(normalize_tool_names(tools)) == 1
 
 
 def test_image_generation_skipped_without_api_key_or_gateway() -> None:
@@ -51,9 +51,9 @@ def test_image_generation_skipped_without_api_key_or_gateway() -> None:
     mixin.image_generation_params = ImageGenerationParams(model="dall-e-3", api_key=None)
     deferred_tools: list[object] = []
 
-    mixin._setup_image_generation_tools(deferred_tools)
+    mixin._setup_image_generation_tools(tools)
 
-    assert deferred_tools == []
+    assert tools == []
 
 
 def test_image_generation_accepts_gateway_only() -> None:

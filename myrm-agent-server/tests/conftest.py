@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+# coverage/pytest-cov patches imports before mcp.types builds RootModel generics.
+import pydantic.root_model  # noqa: F401
+
 import asyncio
 import atexit
 import logging

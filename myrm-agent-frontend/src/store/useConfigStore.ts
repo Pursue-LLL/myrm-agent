@@ -99,6 +99,7 @@ const useConfigStore = create<ConfigState>()(
       publicIngressBaseUrl: DEFAULT_PERSONAL_SETTINGS.publicIngressBaseUrl ?? '',
       searchServiceConfigs: DEFAULT_SEARCH_SERVICES.searchServiceConfigs,
       mcpConfigs: DEFAULT_MCP_SERVERS.mcpConfigs,
+      orgMcpConfigs: [],
 
       // ============ 基础设置 Actions ============
 
@@ -437,6 +438,7 @@ const useConfigStore = create<ConfigState>()(
           // 应用后端配置到 Store
           const personalSettings = syncManager.get('personalSettings');
           const mcpServers = syncManager.get('mcpServers');
+          const orgMcpServers = syncManager.get('orgMcpServers') as { servers?: MCPServiceConfig[] } | null;
           const searchServices = syncManager.get('searchServices');
 
           const mergedPersonal: PersonalSettingsConfigValue = {
@@ -452,10 +454,18 @@ const useConfigStore = create<ConfigState>()(
             role: c.role || 'primary',
           }));
 
+          const orgConfigs: MCPServiceConfig[] = (orgMcpServers?.servers ?? []).map((s) => ({
+            ...s,
+            enabled: true,
+            description: s.description || '',
+            extra_params: { ...(s.extra_params ?? {}), scope: 'org' },
+          })) as MCPServiceConfig[];
+
           set({
             ...migratedPersonal,
             personalSettings: migratedPersonal,
             mcpConfigs: mcpServers?.mcpConfigs ?? [],
+            orgMcpConfigs: orgConfigs,
             searchServiceConfigs: validatedSearchConfigs,
           });
 
@@ -469,6 +479,17 @@ const useConfigStore = create<ConfigState>()(
           syncManager.subscribe('mcpServers', (_key, value) => {
             const v = value as MCPServersConfigValue;
             set({ mcpConfigs: v.mcpConfigs });
+          });
+
+          syncManager.subscribe('orgMcpServers', (_key, value) => {
+            const v = value as { servers?: MCPServiceConfig[] } | null;
+            const configs: MCPServiceConfig[] = (v?.servers ?? []).map((s) => ({
+              ...s,
+              enabled: true,
+              description: s.description || '',
+              extra_params: { ...(s.extra_params ?? {}), scope: 'org' },
+            })) as MCPServiceConfig[];
+            set({ orgMcpConfigs: configs });
           });
 
           syncManager.subscribe('searchServices', (_key, value) => {

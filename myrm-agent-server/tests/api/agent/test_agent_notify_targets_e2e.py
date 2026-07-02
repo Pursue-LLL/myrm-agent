@@ -93,20 +93,14 @@ async def test_notify_targets_flows_to_profile_resolver(async_client: AsyncClien
     assert resolved is not None
     assert resolved.notify_targets == ({"channel": "telegram", "recipient_id": "chat_resolver"},)
 
-    deferred_tools: list[object] = []
-    if resolved.notify_targets:
-        from app.services.agent.outbound_notify import (
-            create_channel_notify_tool,
-            create_notification_sender,
-        )
+    from app.services.agent.outbound_notify.factory_wiring import append_channel_notify_tool
 
-        sender_result = create_notification_sender(resolved.notify_targets)
-        assert sender_result is not None
-        sender, notify_config = sender_result
-        deferred_tools.append(create_channel_notify_tool(sender, notify_config))
+    tools: list[object] = []
+    target_count = append_channel_notify_tool(resolved.notify_targets, tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "channel_notify_tool"
+    assert target_count == 1
+    assert len(tools) == 1
+    assert getattr(tools[0], "name", None) == "channel_notify_tool"
 
     await async_client.delete(f"/api/agents/{agent_id}")
 
@@ -132,10 +126,10 @@ async def test_profile_resolver_empty_notify_skips_factory_tool(async_client: As
     assert resolved is not None
     assert resolved.notify_targets == ()
 
-    deferred_tools: list[object] = []
-    if resolved.notify_targets:
-        deferred_tools.append(object())
+    from app.services.agent.outbound_notify.factory_wiring import append_channel_notify_tool
 
-    assert deferred_tools == []
+    tools: list[object] = []
+    assert append_channel_notify_tool(resolved.notify_targets, tools) == 0
+    assert tools == []
 
     await async_client.delete(f"/api/agents/{agent_id}")

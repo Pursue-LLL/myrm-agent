@@ -1,5 +1,4 @@
 # src-relative directories grandfathered without _ARCH.md (one per line)
-src/components/features/annotation-editor/hooks
 src/components/features/artifacts/components
 src/components/features/artifacts/constants
 src/components/features/artifacts/portal

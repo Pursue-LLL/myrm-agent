@@ -3374,6 +3374,8 @@
     "mcpDeleteSuccessDesc": "MCP service removed from configuration",
     "mcpTabInstalled": "Installed",
     "mcpTabRegistry": "Registry",
+    "mcpOrgManaged": "Organization Managed",
+    "mcpOrgBadge": "Org",
     "mcpRegistrySearchPlaceholder": "Search MCP servers...",
     "mcpRegistryLoading": "Loading servers...",
     "mcpRegistryLoadFailed": "Failed to load registry",
@@ -5935,6 +5937,10 @@
         "title": "Memory Archival",
         "description": "Archive old memories to improve search performance"
       },
+      "enterprise": {
+        "title": "Enterprise Organization",
+        "description": "Manage your enterprise organization, team members, and employee offboarding"
+      },
       "system": {
         "title": "System Settings",
         "description": "System-level configuration and preferences"
@@ -7642,7 +7648,9 @@
     "blur": "Mosaic",
     "textPlaceholder": "Type text annotation...",
     "editButton": "Annotate",
-    "editTooltip": "Open image editor to annotate"
+    "editTooltip": "Open image editor to annotate",
+    "applyFailedTitle": "Annotation failed",
+    "applyFailedDesc": "Could not apply your edits. The original image is unchanged — please try again."
   },
   "artifacts": {
     "title": "Artifacts",
@@ -11383,21 +11391,6 @@
     "copied": "Copied to clipboard",
     "copyFailed": "Copy failed",
     "generating": "Generating..."
-  },
-  "annotationEditor": {
-    "arrow": "Arrow",
-    "rectangle": "Rectangle",
-    "ellipse": "Ellipse",
-    "text": "Text",
-    "freehand": "Freehand",
-    "highlight": "Highlight",
-    "blur": "Blur",
-    "crop": "Crop",
-    "undo": "Undo",
-    "redo": "Redo",
-    "clear": "Clear All",
-    "save": "Save",
-    "cancel": "Cancel"
   },
   "billing": {
     "wuBalance": "Work Units",

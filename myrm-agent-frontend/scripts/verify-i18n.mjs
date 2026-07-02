@@ -21,7 +21,7 @@ const VALID_TABS = [
   'riskRules', 'models', 'defaultModel', 'search', 'mcp', 'skills',
   'skillQuality', 'credentials', 'cron', 'checkpoint',
   'channels', 'voice', 'developer', 'importExport', 'companion',
-  'usageStatistics', 'system', 'about',
+  'usageStatistics', 'system', 'about', 'enterprise',
 ];
 
 // 支持的语言

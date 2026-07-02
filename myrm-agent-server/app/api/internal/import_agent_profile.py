@@ -37,6 +37,7 @@ class ImportAgentProfileRequest(BaseModel):
     package: dict
     force: bool = False
     target_agent_id: str | None = None
+    marketplace_entry_id: str | None = None
 
 
 class ImportAgentProfileResponse(BaseModel):
@@ -76,10 +77,16 @@ async def import_agent_profile_endpoint(
     try:
         from app.core.skills.creation.service import skill_creation_service
 
-        if body.force and body.target_agent_id:
-            return await _force_update_agent(
-                body.target_agent_id, body.package,
-            )
+        if body.force:
+            target_id = body.target_agent_id
+            if not target_id:
+                target_id = await _resolve_force_push_agent_id(body.package)
+            if not target_id:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Installed marketplace agent not found for force-push",
+                )
+            return await _force_update_agent(target_id, body.package)
 
         agent_id = await import_agent_package(skill_creation_service, body.package)
         return ImportAgentProfileResponse(agent_id=agent_id, status="installed")
@@ -88,6 +95,20 @@ async def import_agent_profile_endpoint(
     except Exception:
         logger.exception("Failed to import agent profile from marketplace")
         raise HTTPException(status_code=500, detail="Import failed")
+
+
+async def _resolve_force_push_agent_id(package: dict) -> str | None:
+    """Find the locally installed agent matching a marketplace package display name."""
+    from app.services.agent.agent_service import AgentService
+
+    profile = package.get("agent_profile")
+    if not isinstance(profile, dict):
+        return None
+    name = profile.get("display_name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    existing = await AgentService.get_agent_by_name(name.strip())
+    return existing.id if existing else None
 
 
 async def _force_update_agent(

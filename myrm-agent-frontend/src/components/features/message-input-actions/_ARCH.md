@@ -12,7 +12,7 @@
 | `AgentIndicator.tsx` | 组件/模块 | — | — |
 | `AgentToolsToggle.tsx` | 组件/模块 | — | — |
 | `AttachButton.tsx` | 组件 | 文件附件按钮：Tauri 走原生对话框 / Web 走 `<input type="file">`；支持 image/video/audio/doc/text；含模型能力检查、SHA-256 去重、视频 100MB / 音频 25MB 大小校验 | ✅ |
-| `AttachList.tsx` | 组件 | 附件预览列表：ImageThumbnail（含 Lightbox + AnnotationEditor）/ VideoThumbnail / FilePill（按文件类型显示对应图标） | ✅ |
+| `AttachList.tsx` | 组件 | 附件预览列表：ImageThumbnail（含 Lightbox + ImageEditor 标注，失败 toast）/ VideoThumbnail / FilePill | ✅ |
 | `BaseModelSelector.tsx` | 组件/模块 | — | — |
 | `CameraInputButton.tsx` | 组件/模块 | — | — |
 | `CameraPreview.tsx` | 组件/模块 | — | — |

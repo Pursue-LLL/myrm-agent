@@ -11,7 +11,7 @@ GeneralAgent factory 的 Kanban 工具 bind 解析辅助模块；TaskRunner 强�
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.kanban.kanban_agent_tools import KanbanToolMode
+from myrm_agent_harness.toolkits.kanban import KanbanToolMode
 
 _KANBAN_TOOL_MODES: frozenset[KanbanToolMode] = frozenset({"worker", "orchestrator", "full"})
 

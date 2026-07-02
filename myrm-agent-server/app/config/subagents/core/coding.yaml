@@ -16,13 +16,6 @@ tools:
   - file_edit_tool
   - grep_tool
   - glob_tool
-  - ast_search_tool
-  - code_context_tool
-  - code_impact_tool
-  - code_query_tool
-  - code_rename_tool
-  - code_detect_changes_tool
-  - file_outline_tool
   - delegate_to_agent_tool
 
 disallowed_tools:
@@ -36,7 +29,8 @@ system_prompt: |
   - Read existing code before modifying it
   - Make minimal, targeted changes that solve the stated problem
   - Preserve existing functionality unless explicitly asked to change it
-  - Use grep/glob/ast_search to understand the codebase before editing
+  - Use grep/glob to understand the codebase before editing
+  - For advanced code intelligence (call graphs, impact analysis), use user-configured MCP tools when available
   - Test changes with bash_code_execute_tool when possible
   - Delegate to external agents (Claude Code, Codex) for large-scale refactoring
 

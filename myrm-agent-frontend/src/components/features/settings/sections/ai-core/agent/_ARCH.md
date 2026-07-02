@@ -21,7 +21,7 @@
 | `AgentOpenAPIServicesTab.tsx` | OpenAPI 服务 |
 | `AgentProfileTimeMachine.tsx` | 配置时光机 |
 | `AgentBrowserConfigSection.tsx` | 浏览器配置卡片（引擎、来源、弹窗策略、录制） |
-| `AgentNotifyTargets.tsx` | 通知目标 |
+| `AgentNotifyTargets.tsx` | 通知目标（`notify_targets` → server Turn1 加载 `channel_notify_tool`） |
 | `AgentPreviewCard.tsx` | 预览卡片 |
 
 ## 与全局审批的区别

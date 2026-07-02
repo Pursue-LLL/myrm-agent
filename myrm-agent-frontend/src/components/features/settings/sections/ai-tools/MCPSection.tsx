@@ -16,7 +16,7 @@ type MCPTab = 'installed' | 'registry';
 
 const MCPSection = memo(() => {
   const t = useTranslations('settings');
-  const { mcpConfigs, setMCPConfigs, addMCPConfig, initConfig } = useConfigStore();
+  const { mcpConfigs, orgMcpConfigs, setMCPConfigs, addMCPConfig, initConfig } = useConfigStore();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -105,7 +105,7 @@ const MCPSection = memo(() => {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t('mcpTabInstalled')} ({mcpConfigs.length})
+            {t('mcpTabInstalled')} ({mcpConfigs.length + orgMcpConfigs.length})
           </button>
           <button
             onClick={() => { setActiveTab('registry'); setInstallTarget(null); }}
@@ -120,7 +120,35 @@ const MCPSection = memo(() => {
         </div>
 
         {activeTab === 'installed' && (
-          <MCPConfigForm currentConfigs={mcpConfigs} onSave={setMCPConfigs} />
+          <>
+            {orgMcpConfigs.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  {t('mcpOrgManaged')}
+                </p>
+                {orgMcpConfigs.map((cfg) => (
+                  <div
+                    key={cfg.name}
+                    className="flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <div>
+                        <p className="text-sm font-medium">{cfg.name}</p>
+                        {cfg.description && (
+                          <p className="text-xs text-muted-foreground">{cfg.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                      {t('mcpOrgBadge')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <MCPConfigForm currentConfigs={mcpConfigs} onSave={setMCPConfigs} />
+          </>
         )}
 
         {activeTab === 'registry' && !installTarget && (

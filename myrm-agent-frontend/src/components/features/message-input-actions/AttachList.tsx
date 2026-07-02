@@ -1,11 +1,14 @@
 import { FileText, FileSpreadsheet, Trash2, X, ImageOff, Play, Pencil, Music } from 'lucide-react';
 import { File as FileType } from '@/store/useChatStore';
 import { isImageFile, isVideoFile, isAudioFile, isPdfFile, getDisplayUrl } from '@/lib/utils/fileUtils';
-import { useMemo, useRef, useState, useEffect, lazy, Suspense } from 'react';
+import { useMemo, useRef, useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
+import { toast } from '@/hooks/useToast';
 import { ImageLightbox } from './ImageLightbox';
+import { blobToDataUrl } from '@/components/features/image-editor/uploadAnnotated';
 
-const AnnotationEditor = lazy(() => import('@/components/features/annotation-editor/AnnotationEditor'));
+const ImageEditor = lazy(() => import('@/components/features/image-editor/ImageEditor'));
 
 interface AttachListProps {
   files: FileType[];
@@ -184,6 +187,7 @@ const AttachList: React.FC<AttachListProps> = ({
   clearCurrentSessionMessageId,
   setHideAttachList,
 }) => {
+  const tEditor = useTranslations('imageEditor');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [editingFile, setEditingFile] = useState<FileType | null>(null);
 
@@ -196,14 +200,26 @@ const AttachList: React.FC<AttachListProps> = ({
     }
   };
 
-  const handleAnnotationSave = (result: { dataUrl: string; textAnnotations: string[] }) => {
-    if (!editingFile) return;
-    const updatedFiles = files.map((f) =>
-      f.fileName === editingFile.fileName ? { ...f, fileUrl: result.dataUrl, fileExtension: 'png' } : f,
-    );
-    setFiles(updatedFiles);
-    setEditingFile(null);
-  };
+  const handleAnnotationComplete = useCallback(
+    async (blob: Blob) => {
+      if (!editingFile) return;
+      try {
+        const dataUrl = await blobToDataUrl(blob);
+        const updatedFiles = files.map((f) =>
+          f.fileName === editingFile.fileName ? { ...f, fileUrl: dataUrl, fileExtension: 'png' } : f,
+        );
+        setFiles(updatedFiles);
+        setEditingFile(null);
+      } catch (err) {
+        console.error('Failed to apply annotated image:', err);
+        toast({
+          title: tEditor('applyFailedTitle'),
+          description: tEditor('applyFailedDesc'),
+        });
+      }
+    },
+    [editingFile, files, setFiles, tEditor],
+  );
 
   if (files.length === 0) return null;
 
@@ -247,10 +263,10 @@ const AttachList: React.FC<AttachListProps> = ({
 
       {editingFile && (
         <Suspense fallback={null}>
-          <AnnotationEditor
+          <ImageEditor
             imageSrc={getDisplayUrl(editingFile) || ''}
-            onSave={handleAnnotationSave}
-            onClose={() => setEditingFile(null)}
+            onComplete={handleAnnotationComplete}
+            onCancel={() => setEditingFile(null)}
           />
         </Suspense>
       )}

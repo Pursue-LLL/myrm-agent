@@ -398,6 +398,22 @@ async def convert_to_general_agent_params(
     elif configs and configs.mcp_dict:
         mcp_configs = extract_mcp_configs(configs.mcp_dict) or None
 
+    # Merge org-level MCP servers (read-only, pushed by Control Plane)
+    if configs and configs.org_mcp_dict:
+        org_servers = configs.org_mcp_dict.get("servers")
+        if isinstance(org_servers, list):
+            org_mcp_list: list[MCPServerConfig] = []
+            for raw in org_servers:
+                if not isinstance(raw, dict) or not raw.get("name"):
+                    continue
+                cfg = {**raw, "extra_params": {**(raw.get("extra_params") or {}), "scope": "org"}}
+                try:
+                    org_mcp_list.append(MCPServerConfig.model_validate(cfg))
+                except Exception:
+                    logger.debug("Skipping invalid org MCP config: %s", raw.get("name"))
+            if org_mcp_list:
+                mcp_configs = (mcp_configs or []) + org_mcp_list
+
     user_instructions = request.user_instructions
     agent_skill_ids: list[str] = []
     agent_skill_configs: dict[str, dict] | None = None

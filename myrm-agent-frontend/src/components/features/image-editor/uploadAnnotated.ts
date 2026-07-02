@@ -1,6 +1,15 @@
 import { uploadFiles } from '@/services/file';
 import useChatStore from '@/store/useChatStore';
 
+export async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read annotated image'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 /**
  * Uploads an annotated image blob and inserts it into the current chat as an attachment.
  * Shared by ToolImageGallery and MediaPreview integration points.

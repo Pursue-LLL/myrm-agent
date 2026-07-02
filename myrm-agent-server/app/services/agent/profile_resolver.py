@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = ("web_search", "memory")
-"""Canonical default for enabled_builtin_tools across all entry points."""
+"""Canonical default for enabled_builtin_tools across all entry points (kanban not included)."""
 
 
 class BuiltinToolFlags(TypedDict):

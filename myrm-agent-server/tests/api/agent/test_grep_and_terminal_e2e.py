@@ -1,6 +1,6 @@
-"""AST Code Search and Terminal Streaming E2E Tests.
+"""Grep search and terminal streaming E2E tests.
 
-Test /api/v1/agents/agent-stream endpoint for AST codebase indexing
+Tests /api/v1/agents/agent-stream for grep-based workspace search
 and DDOS-protected terminal streaming.
 """
 
@@ -89,13 +89,16 @@ def perform_agent_search_with_auto_approve(client: TestClient, query: str):
     not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
-class TestAstAndTerminalE2E:
-    """End-to-End tests for AST Indexer and Terminal Streaming capabilities."""
+class TestGrepAndTerminalE2E:
+    """End-to-end tests for grep-based search and terminal streaming."""
 
-    def test_ast_search_tool_e2e(self, client: TestClient):
-        """Test AST codebase search tool directly."""
-        # 1. Provide a query that forces the agent to use ast_search_tool
-        query = "First, use bash_code_execute_tool to create a file named `test_ast.py` containing `class TestAstClass: pass`. Then, use the ast_search_tool to find where 'TestAstClass' is defined. Only return the file path and line number."
+    def test_grep_tool_e2e(self, client: TestClient):
+        """Test grep-based codebase search after creating a file."""
+        query = (
+            "First, use bash_code_execute_tool to create a file named `test_ast.py` "
+            "containing `class TestAstClass: pass`. Then, use grep_tool to find where "
+            "'TestAstClass' is defined. Only return the file path and line number."
+        )
 
         full_answer, collected_data, message_chunks, tool_results = perform_agent_search_with_auto_approve(client, query)
 
@@ -108,7 +111,7 @@ class TestAstAndTerminalE2E:
             pytest.fail(f"Agent execution error: {error_events[0].get('error')}")
 
         assert "test_ast.py" in full_answer or len(tool_results) > 0, "Agent should find TestAstClass in test_ast.py"
-        print("\n✅ Test Passed: AST Search E2E completed successfully")
+        print("\n✅ Test Passed: Grep Search E2E completed successfully")
 
     def test_terminal_ddos_defense_e2e(self, client: TestClient):
         """Test terminal DDOS defense (SSE Throttle & Valve) with large output."""

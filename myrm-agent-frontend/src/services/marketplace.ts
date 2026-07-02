@@ -121,7 +121,7 @@ export interface ForcePushResult {
   version: number;
   total: number;
   synced: number;
-  buffered: number;
+  skipped: number;
   failed: number;
 }
 

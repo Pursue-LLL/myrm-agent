@@ -181,6 +181,7 @@ export interface ConfigState {
 
   // MCP服务配置
   mcpConfigs: MCPServiceConfig[];
+  orgMcpConfigs: MCPServiceConfig[];
 
   // 设置方法
   setFetchRawWebpage: (fetch: boolean) => void;

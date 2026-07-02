@@ -92,6 +92,7 @@
       "integrationMemory": "Integration Memory",
       "connect": "External Agents",
       "workspaceRules": "Workspace Rules",
+      "enterprise": "Enterprise",
       "memory-backup": "Memory Backup",
       "memory-cloud-backup": "Cloud Sync",
       "memory-archival": "Memory Archival",
@@ -5287,6 +5288,10 @@
         "title": "Memory Archival",
         "description": "Archive old memories to improve search performance"
       },
+      "enterprise": {
+        "title": "Enterprise Organization",
+        "description": "Manage your enterprise organization, team members, and employee offboarding"
+      },
       "toolQuality": {
         "title": "Execution Quality",
         "description": "Monitor and analyze the execution quality and stability of skills and tools"
@@ -6944,7 +6949,9 @@
     "blur": "モザイク",
     "textPlaceholder": "テキスト注釈を入力...",
     "editButton": "注釈",
-    "editTooltip": "画像エディタを開いて注釈"
+    "editTooltip": "画像エディタを開いて注釈",
+    "applyFailedTitle": "Annotation failed",
+    "applyFailedDesc": "Could not apply your edits. The original image is unchanged — please try again."
   },
   "artifacts": {
     "title": "Artifacts",
@@ -10772,21 +10779,6 @@
     "privacyBlocked": "Capture blocked: {app} is in privacy blacklist",
     "privacyBlockedDescription": "This app is excluded from screen capture for privacy protection.",
     "captureAnyway": "Capture Anyway"
-  },
-  "annotationEditor": {
-    "arrow": "Arrow",
-    "rectangle": "Rectangle",
-    "ellipse": "Ellipse",
-    "text": "Text",
-    "freehand": "Freehand",
-    "highlight": "Highlight",
-    "blur": "Blur",
-    "crop": "Crop",
-    "undo": "Undo",
-    "redo": "Redo",
-    "clear": "Clear All",
-    "save": "Save",
-    "cancel": "Cancel"
   },
   "billing": {
     "wuBalance": "Work Units",
