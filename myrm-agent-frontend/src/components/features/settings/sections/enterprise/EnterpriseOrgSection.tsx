@@ -17,6 +17,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/primitives/dialog';
+import OrgMcpAdminPanel from './OrgMcpAdminPanel';
 import {
   type OrgInfo,
   type OrgMember,
@@ -187,6 +188,8 @@ const EnterpriseOrgSection = memo(() => {
           </div>
         )}
       </SettingsSection>
+
+      {orgId && <OrgMcpAdminPanel orgId={orgId} />}
 
       {/* Members */}
       <SettingsSection

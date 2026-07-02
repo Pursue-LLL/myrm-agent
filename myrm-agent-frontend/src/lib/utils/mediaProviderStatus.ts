@@ -1,3 +1,11 @@
+/**
+ * [OUTPUT]
+ * - fetchMediaProviderStatus, resolveImageProviderId, VIDEO_PROVIDER_CONFIG_IDS
+ *
+ * [POS]
+ * Shared media provider status fetch + provider id mapping for Settings and Agent config panels.
+ */
+
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import type { VideoGenerationProvider } from '@/services/config/types';

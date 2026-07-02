@@ -6,7 +6,6 @@ import {
   Monitor,
   Image,
   Video,
-  Search,
   FolderOpen,
   TerminalSquare,
   BrainCircuit,

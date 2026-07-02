@@ -230,7 +230,7 @@ const MediaGenerationSection = memo(() => {
 
       await getConfigSyncManager().forceSync();
 
-      const newStatuses = await fetchProviderStatus();
+      const newStatuses = await fetchMediaProviderStatus();
       setProviderStatuses(newStatuses);
       setVideoApiKey('');
 
@@ -252,7 +252,7 @@ const MediaGenerationSection = memo(() => {
 
       await getConfigSyncManager().forceSync();
 
-      const newStatuses = await fetchProviderStatus();
+      const newStatuses = await fetchMediaProviderStatus();
       setImageProviderStatus(newStatuses['openai']);
       setImageApiKey('');
 

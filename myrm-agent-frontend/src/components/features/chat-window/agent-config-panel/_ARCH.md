@@ -16,6 +16,8 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 | `SkillsSectionPanelParts.tsx` | Helper | NoiseGauge + skill zone subcomponents (`actionSpaceRadar.*` i18n) |
 | `ActionSpaceAccuracyRadar.tsx` | Helper | Decision-accuracy forecast bar; Smart Prune calls `runCuratorSweep()` (real curator sweep, not is_core-only) |
 | `AgentConfigSelectableCard.tsx` | Helper | Selectable card + add-more control for config sections |
+| `BuiltinToolsPanel.tsx` | Core | Built-in tool toggles; browser sub-config; `MediaCredentialInline` when media tools enabled without API keys |
+| `MediaCredentialInline.tsx` | Helper | Amber inline warning when image/video/tts enabled but provider credentials missing (links to Settings) |
 | `OrgMarketplace.tsx` | Feature | Org marketplace browse/install grid + admin force-push button (sandbox-only) |
 | `PublishToOrgButton.tsx` | Feature | One-click publish current agent to org marketplace (sandbox-only) |
 

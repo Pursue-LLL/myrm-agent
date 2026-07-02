@@ -107,3 +107,93 @@ export async function listHandoffLogs(orgId: string): Promise<HandoffLog[]> {
   if (!res.ok) throw new Error(`List handoff logs failed: ${res.status}`);
   return res.json();
 }
+
+export interface OrgMCPDelivery {
+  synced: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface OrgMCPServer {
+  id: string;
+  name: string;
+  type: 'sse' | 'streamable_http';
+  url: string | null;
+  command: string | null;
+  args: string[] | null;
+  headers_configured: boolean;
+  description: string;
+  enabled: boolean;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface OrgMCPMutateResult {
+  server: OrgMCPServer;
+  delivery: OrgMCPDelivery;
+}
+
+export interface CreateOrgMCPServerInput {
+  name: string;
+  type: 'sse' | 'streamable_http';
+  url: string;
+  description?: string;
+  headers?: Record<string, string>;
+}
+
+export interface UpdateOrgMCPServerInput {
+  name?: string;
+  type?: 'sse' | 'streamable_http';
+  url?: string;
+  description?: string;
+  headers?: Record<string, string>;
+  enabled?: boolean;
+}
+
+function mcpUrl(orgId: string, serverId?: string): string {
+  const base = cpUrl(`/${orgId}/mcp-servers`);
+  return serverId ? `${base}/${serverId}` : base;
+}
+
+export async function listOrgMcpServers(orgId: string): Promise<OrgMCPServer[]> {
+  const res = await fetch(mcpUrl(orgId));
+  if (!res.ok) throw new Error(`List org MCP servers failed: ${res.status}`);
+  return res.json();
+}
+
+export async function createOrgMcpServer(
+  orgId: string,
+  input: CreateOrgMCPServerInput,
+): Promise<OrgMCPMutateResult> {
+  const res = await fetch(mcpUrl(orgId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Create org MCP server failed: ${res.status}`);
+  return res.json();
+}
+
+export async function updateOrgMcpServer(
+  orgId: string,
+  serverId: string,
+  input: UpdateOrgMCPServerInput,
+): Promise<OrgMCPMutateResult> {
+  const res = await fetch(mcpUrl(orgId, serverId), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw new Error(`Update org MCP server failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteOrgMcpServer(
+  orgId: string,
+  serverId: string,
+): Promise<{ delivery: OrgMCPDelivery }> {
+  const res = await fetch(mcpUrl(orgId, serverId), { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Delete org MCP server failed: ${res.status}`);
+  return res.json();
+}

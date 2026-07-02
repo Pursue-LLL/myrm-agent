@@ -126,6 +126,35 @@ async def test_image_tool_edit_fetch_failure_returns_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_fetch_image_bytes_uses_httpx_in_local_mode() -> None:
+    from app.ai_agents.media_tools.image_agent_tool import _fetch_image_bytes
+
+    response = MagicMock()
+    response.raise_for_status = MagicMock()
+    response.headers = {"content-type": "image/jpeg"}
+    response.content = b"jpeg"
+
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(return_value=response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch(
+        "app.ai_agents.media_tools.image_agent_tool.httpx.AsyncClient",
+        return_value=mock_client,
+    ):
+        body, mime, size = await _fetch_image_bytes(
+            "http://localhost:8080/x.jpg",
+            allow_private_networks=True,
+        )
+
+    assert body == b"jpeg"
+    assert mime == "image/jpeg"
+    assert size == 4
+    mock_client.get.assert_awaited_once_with("http://localhost:8080/x.jpg")
+
+
+@pytest.mark.asyncio
 async def test_fetch_image_bytes_reads_response() -> None:
     from app.ai_agents.media_tools.image_agent_tool import _fetch_image_bytes
 
@@ -224,17 +253,22 @@ async def test_image_tool_edit_mask_url_ssrf_blocked() -> None:
     engine = MagicMock()
     tool = create_image_generation_tool(engine, allow_private_networks=False)
 
-    result = await tool.ainvoke(
-        {
-            "action": "edit",
-            "prompt": "edit",
-            "image_url": "https://example.com/source.png",
-            "mask_url": "http://10.0.0.1/mask.png",
-        }
-    )
+    with patch(
+        "app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes",
+        new=AsyncMock(return_value=(b"img", "image/png", 3)),
+    ):
+        result = await tool.ainvoke(
+            {
+                "action": "edit",
+                "prompt": "edit",
+                "image_url": "https://example.com/source.png",
+                "mask_url": "http://10.0.0.1/mask.png",
+            }
+        )
 
     payload = json.loads(result)
     assert "error" in payload
+    engine.edit_image.assert_not_called()
 
 
 def test_create_image_generation_tool_returns_basetool() -> None:

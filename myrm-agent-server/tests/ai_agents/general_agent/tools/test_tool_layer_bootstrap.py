@@ -26,3 +26,7 @@ class TestServerToolLayerRegistration:
 
     def test_channel_notify_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("channel_notify_tool") == ToolLayer.EXTENDED
+
+    def test_media_tools_registered(self) -> None:
+        for name in ("image_tool", "video_tool", "tts_generate"):
+            assert _SERVER_TOOL_LAYERS.get(name) == ToolLayer.EXTENDED, name

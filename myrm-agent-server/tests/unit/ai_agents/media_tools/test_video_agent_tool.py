@@ -35,6 +35,56 @@ async def test_video_tool_list_action() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_video_tool_generate_action() -> None:
+    engine = MagicMock()
+    engine.execute = AsyncMock(return_value='{"task_id":"t1"}')
+    engine.tool_description = "Video generation tool."
+    tool = create_video_generation_tool(engine)
+
+    result = await tool.ainvoke({"action": "generate", "prompt": "a sunset"})
+
+    assert "task_id" in result
+    engine.execute.assert_awaited_once_with(
+        "generate",
+        prompt="a sunset",
+        provider=None,
+        model=None,
+        duration_seconds=None,
+        aspect_ratio=None,
+        resolution=None,
+        enable_audio=None,
+        reference_images=None,
+        reference_videos=None,
+        force=False,
+    )
+
+
+@pytest.mark.asyncio
+async def test_video_tool_status_action() -> None:
+    engine = MagicMock()
+    engine.execute = AsyncMock(return_value='{"status":"completed"}')
+    engine.tool_description = "Video generation tool."
+    tool = create_video_generation_tool(engine)
+
+    result = await tool.ainvoke({"action": "status"})
+
+    assert "completed" in result
+    engine.execute.assert_awaited_once_with(
+        "status",
+        prompt=None,
+        provider=None,
+        model=None,
+        duration_seconds=None,
+        aspect_ratio=None,
+        resolution=None,
+        enable_audio=None,
+        reference_images=None,
+        reference_videos=None,
+        force=False,
+    )
+
+
 def test_create_video_generation_tool_returns_basetool() -> None:
     engine = MagicMock()
     engine.tool_description = "desc"

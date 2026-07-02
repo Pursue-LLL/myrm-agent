@@ -114,6 +114,34 @@ async def test_tts_tool_arun_error(mock_config, mock_engine_generate):
 
 
 @pytest.mark.asyncio
+async def test_tts_tool_push_artifact_skipped_without_callback(mock_config, mock_engine_generate):
+    tool = TTSTool(config=mock_config, on_artifact_created=None)
+
+    mock_result = MagicMock()
+    mock_result.provider = "openai"
+    mock_result.model = "tts-1"
+    mock_result.latency_ms = 10.0
+    mock_result.persisted_url = "https://cdn.example/a.mp3"
+    mock_result.mime_type = "audio/mpeg"
+    mock_engine_generate.return_value = mock_result
+
+    result_str = await tool._arun(text="hello")
+    result_dict = json.loads(result_str)
+    assert result_dict["status"] == "success"
+
+
+def test_tts_tool_push_artifact_no_url(mock_config):
+    mock_callback = MagicMock()
+    tool = TTSTool(config=mock_config, on_artifact_created=mock_callback)
+
+    mock_result = MagicMock()
+    mock_result.persisted_url = None
+
+    tool._push_artifact(mock_result)
+    mock_callback.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_tts_tool_push_artifact_callback_failure(mock_config, mock_engine_generate):
     """Artifact callback exceptions are swallowed."""
     mock_callback = MagicMock(side_effect=RuntimeError("push failed"))

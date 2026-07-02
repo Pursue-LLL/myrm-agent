@@ -1,7 +1,18 @@
+/**
+ * [INPUT]
+ * - mediaProviderStatus::resolveImageProviderId, VIDEO_PROVIDER_CONFIG_IDS (POS: provider mapping)
+ * - store/config/providerTypes::ProviderConfig (POS: WebUI provider rows)
+ *
+ * [OUTPUT]
+ * - providerHasActiveApiKey, is*MediaCredentialReady, collectMediaCredentialWarnings
+ *
+ * [POS]
+ * Client-side media credential readiness checks for Agent built-in tool toggles.
+ */
+
 import type { ProviderConfig } from '@/store/config/providerTypes';
 import type { BuiltinToolId } from '@/store/chat/types';
-import type { ImageGenerationConfig, VideoGenerationConfig } from '@/services/config/types';
-import type { VoiceConfigValue } from '@/services/config/types';
+import type { ImageGenerationConfig, VideoGenerationConfig, VoiceConfigValue } from '@/services/config/types';
 import {
   resolveImageProviderId,
   VIDEO_PROVIDER_CONFIG_IDS,
@@ -82,7 +93,10 @@ export function collectMediaCredentialWarnings(
   if (enabledBuiltinTools.includes('image_generation') && !isImageMediaCredentialReady(providers, imageGeneration)) {
     warnings.push('image_generation');
   }
-  if (enabledBuiltinTools.includes('video_generation') && !isVideoMediaCredentialReady(providers, videoGeneration, providerStatuses)) {
+  if (
+    enabledBuiltinTools.includes('video_generation') &&
+    !isVideoMediaCredentialReady(providers, videoGeneration, providerStatuses)
+  ) {
     warnings.push('video_generation');
   }
   if (enabledBuiltinTools.includes('tts') && !isTtsMediaCredentialReady(providers, voice)) {
