@@ -4,6 +4,28 @@ import { randomUUID } from 'crypto';
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 const SUBAGENT_REST_TIMEOUT_MS = 15_000;
 
+function inferProviderId(model: string): string {
+  if (model.includes('/')) {
+    return model.split('/')[0] ?? 'minimax';
+  }
+  return 'minimax';
+}
+
+function stripProviderPrefix(model: string): string {
+  if (!model.includes('/')) {
+    return model;
+  }
+  return model.split('/').slice(1).join('/');
+}
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`WebUI E2E requires ${name} (load myrm-agent-server/.env.test before running Playwright)`);
+  }
+  return value;
+}
+
 export const E2E_BASH_EPHEMERAL = {
   bash_worker: {
     system_prompt: 'You are a bash execution worker.',
@@ -29,6 +51,39 @@ export async function seedSubagentChat(request: APIRequestContext): Promise<stri
   });
   expect(saveRes.ok(), `seed chat failed: ${await saveRes.text()}`).toBeTruthy();
   return chatId;
+}
+
+/** Same payload shape as server `test_subagent_interrupt_e2e.py`; runs stream in background. */
+export async function spawnSubagentViaAgentStream(
+  request: APIRequestContext,
+  chatId: string,
+): Promise<void> {
+  const basicModel = requireEnv('BASIC_MODEL');
+  const providerId = inferProviderId(basicModel);
+  const modelId = stripProviderPrefix(basicModel);
+  const messageId = randomUUID();
+
+  const payload = {
+    query: DELEGATE_SLEEP_QUERY,
+    message_id: messageId,
+    chat_id: chatId,
+    action_mode: 'agent',
+    agent_id: 'builtin-general',
+    ephemeral_subagents: E2E_BASH_EPHEMERAL,
+    multiplexed: true,
+    model_selection: {
+      providerId,
+      model: modelId,
+      baseUrl: process.env.BASIC_BASE_URL,
+    },
+  };
+
+  void request
+    .post(`${apiBase}/api/v1/agents/agent-stream`, {
+      data: payload,
+      timeout: 300_000,
+    })
+    .catch(() => undefined);
 }
 
 export async function autoApproveIfVisible(page: Page): Promise<void> {

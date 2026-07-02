@@ -19,11 +19,11 @@
 | 文件 | 职责 |
 |------|------|
 | `instinct-inbox.spec.ts` | Agent 洞察 tab：clone → `seed-mock?agent_id=` → approve/dismiss（**不 mock `/approvals`**） |
-| `subagent-dashboard.spec.ts` | 聊天 delegate → Subagent Dashboard → cancel（`PLAYWRIGHT_RUN_SUBAGENT_DASHBOARD_E2E=1` + `.env.test` LLM） |
+| `subagent-dashboard.spec.ts` | API stream delegate（与 server subagent e2e 同 payload）→ Subagent Dashboard → cancel（`PLAYWRIGHT_RUN_SUBAGENT_DASHBOARD_E2E=1` + `.env.test` LLM） |
 | `helpers/auth.ts` | APIRequestContext 登录与 setup 状态 |
 | `helpers/ensureWebUiBrowserSession.ts` | 浏览器 origin (:3000) 登录 + onboarding（subagent 等需 page cookie 的 spec） |
 | `helpers/prepareChatPageForE2e.ts` | dismiss migration banner + 等 chat send 可点 + 发送消息 |
-| `helpers/seedE2eProviders.ts` | 从 `BASIC_*` 注入 WebUI provider 配置（deviceId=`tauri-local`，与 TauriConfigAdapter 一致） |
+| `helpers/seedE2eProviders.ts` | 从 `BASIC_*` 注入 WebUI provider + YOLO security（deviceId=`tauri-local`） |
 | `helpers/subagentDashboardE2e.ts` | 预置 ephemeral `bash_worker` chat + REST 轮询 + natural trigger / REST inject fallback |
 
 ## CI

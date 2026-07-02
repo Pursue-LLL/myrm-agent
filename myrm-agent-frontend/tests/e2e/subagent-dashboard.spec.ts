@@ -5,7 +5,6 @@ import { ensureWebUiBrowserSession } from './helpers/ensureWebUiBrowserSession';
 import {
   installMigrationDismissInitScript,
   prepareChatPageForE2e,
-  sendChatMessage,
   waitForChatHydration,
 } from './helpers/prepareChatPageForE2e';
 import {
@@ -15,10 +14,9 @@ import {
   hasE2eLlmEnv,
 } from './helpers/seedE2eProviders';
 import {
-  DELEGATE_SLEEP_QUERY,
-  E2E_BASH_EPHEMERAL,
   injectSubagentsUpdatedFromRest,
   seedSubagentChat,
+  spawnSubagentViaAgentStream,
   waitForDashboardTriggerNatural,
   waitForRunningSubagent,
 } from './helpers/subagentDashboardE2e';
@@ -43,18 +41,11 @@ test.describe('Subagent Dashboard', () => {
 
     const chatId = await seedSubagentChat(request);
 
-    await page.route('**/agents/agent-stream', async (route) => {
-      const postData = route.request().postData();
-      const body = postData ? (JSON.parse(postData) as Record<string, unknown>) : {};
-      body.ephemeral_subagents = E2E_BASH_EPHEMERAL;
-      await route.continue({ postData: JSON.stringify(body) });
-    });
-
     await page.goto(`/${chatId}`, { waitUntil: 'load' });
     await waitForChatHydration(page, chatId);
     await prepareChatPageForE2e(page);
 
-    await sendChatMessage(page, DELEGATE_SLEEP_QUERY);
+    await spawnSubagentViaAgentStream(request, chatId);
 
     await waitForRunningSubagent(request, chatId, 300_000, page);
 
