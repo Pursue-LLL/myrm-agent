@@ -2,6 +2,12 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 
+/** Skip first-run onboarding wizard so chat routes render MessageInput. */
+export async function completeOnboardingForE2e(request: APIRequestContext): Promise<void> {
+  const res = await request.post(`${apiBase}/api/v1/config/onboarding/complete`);
+  expect(res.ok(), `POST /config/onboarding/complete failed: ${await res.text()}`).toBeTruthy();
+}
+
 export async function ensureLoggedIn(page: Page, request: APIRequestContext): Promise<void> {
   const adminPassword = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? 'Playwright1234!';
 

@@ -5,6 +5,7 @@ export async function installMigrationDismissInitScript(page: Page): Promise<voi
   await page.addInitScript(() => {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
     sessionStorage.setItem('competitor_migration_dismissed', 'true');
+    sessionStorage.setItem('myrm_boot_shown', '1');
   });
 }
 

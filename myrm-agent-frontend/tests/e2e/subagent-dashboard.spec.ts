@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { ensureLoggedIn } from './helpers/auth';
+import { ensureLoggedIn, completeOnboardingForE2e } from './helpers/auth';
 import {
   installMigrationDismissInitScript,
   prepareChatPageForE2e,
@@ -31,11 +31,12 @@ test.describe('Subagent Dashboard', () => {
 
   test('delegate via chat -> dashboard -> cancel subagent', async ({ page, request }) => {
     await ensureLoggedIn(page, request);
+    await completeOnboardingForE2e(request);
     await seedE2eProvidersFromEnv(request, { force: true, deviceId: E2E_CONFIG_DEVICE_ID });
 
     const chatId = await seedSubagentChat(request);
     await installMigrationDismissInitScript(page);
-    await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`/${chatId}`, { waitUntil: 'load' });
     await prepareChatPageForE2e(page);
 
     await sendChatMessage(page, DELEGATE_SLEEP_QUERY);
