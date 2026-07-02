@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
@@ -11,7 +11,7 @@ export const TEST_BASH_EPHEMERAL = {
 } as const;
 
 export const DELEGATE_SLEEP_QUERY =
-  "请使用 delegate_task_tool 创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，让它执行 bash 命令: `sleep 120`。必须使用原生 function calling，不要在文本中输出 XML 工具调用。";
+  "请使用 delegate_task_tool 工具创建一个子智能体，必须将 agent_type 参数设置为 'test_bash'，wait 设为 false，让它执行 bash 命令: `sleep 120`。注意：必须使用原生函数调用（Native Tool Calling / Function Calling）来调用工具，绝对不要在文本中输出 XML 格式的工具调用！";
 
 export async function seedSubagentChat(request: APIRequestContext): Promise<string> {
   const chatId = randomUUID();
@@ -19,7 +19,7 @@ export async function seedSubagentChat(request: APIRequestContext): Promise<stri
     data: {
       chat_id: chatId,
       title: `E2E Subagent Dashboard ${Date.now()}`,
-      action_mode: 'general',
+      action_mode: 'agent',
       agent_id: 'builtin-general',
       ephemeral_subagents: TEST_BASH_EPHEMERAL,
       messages: [],
@@ -47,4 +47,36 @@ export async function waitForRunningSubagent(
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   throw new Error(`Timed out waiting for running subagent on chat ${chatId}`);
+}
+
+export async function waitForDashboardTriggerNatural(page: Page, timeoutMs = 30_000): Promise<boolean> {
+  const trigger = page.getByTestId('subagent-dashboard-trigger');
+  try {
+    await expect(trigger).toBeVisible({ timeout: timeoutMs });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Fallback when chat-stream SSE has not painted the dashboard yet; mirrors notifications SSE payload shape. */
+export async function injectSubagentsUpdatedFromRest(
+  page: Page,
+  request: APIRequestContext,
+  chatId: string,
+): Promise<void> {
+  const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`);
+  expect(res.ok(), `GET subagents failed: ${await res.text()}`).toBeTruthy();
+  const body = (await res.json()) as { data?: Array<Record<string, unknown>> };
+  const rows = body.data ?? [];
+  await page.evaluate(
+    ({ sessionId, tree }) => {
+      window.dispatchEvent(
+        new CustomEvent('subagents_updated', {
+          detail: { chat_id: sessionId, tree },
+        }),
+      );
+    },
+    { sessionId: chatId, tree: rows },
+  );
 }

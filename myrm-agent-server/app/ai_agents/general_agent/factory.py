@@ -194,7 +194,7 @@ async def build_general_agent(
         )
 
         append_conversation_search_tool(
-            deferred_tools,
+            tools,
             current_chat_id=effective_chat_id,
             agent_id=agent_wrapper.agent_id,
             memory_manager=memory_manager,

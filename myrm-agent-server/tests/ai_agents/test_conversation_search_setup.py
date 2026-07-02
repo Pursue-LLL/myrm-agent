@@ -1,11 +1,11 @@
-"""GeneralAgent conversation_search deferred wiring tests."""
+"""GeneralAgent conversation_search eager wiring tests."""
 
 from types import SimpleNamespace
 
 from app.ai_agents.general_agent.conversation_search_setup import append_conversation_search_tool
 
 
-def test_append_conversation_search_tool_registers_deferred(monkeypatch) -> None:
+def test_append_conversation_search_tool_registers_eager(monkeypatch) -> None:
     class FakeMemoryManager:
         pass
 
@@ -30,19 +30,19 @@ def test_append_conversation_search_tool_registers_deferred(monkeypatch) -> None
         fake_create_conversation_search_tool,
     )
 
-    eager_tools: list[object] = []
+    tools: list[object] = []
     deferred_tools: list[object] = []
     memory_manager = FakeMemoryManager()
 
     append_conversation_search_tool(
-        deferred_tools,
+        tools,
         current_chat_id="chat-456",
         agent_id="agent-b",
         memory_manager=memory_manager,
     )
 
-    assert eager_tools == []
-    assert [tool.name for tool in deferred_tools] == ["conversation_search_tool"]
+    assert deferred_tools == []
+    assert [tool.name for tool in tools] == ["conversation_search_tool"]
     provider = created["provider"]
     assert isinstance(provider, FakeProvider)
     assert provider.current_chat_id == "chat-456"

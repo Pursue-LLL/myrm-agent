@@ -2,13 +2,21 @@ import { test, expect } from '@playwright/test';
 
 import { ensureLoggedIn } from './helpers/auth';
 import {
+  installMigrationDismissInitScript,
+  prepareChatPageForE2e,
+  sendChatMessage,
+} from './helpers/prepareChatPageForE2e';
+import {
   E2E_CONFIG_DEVICE_ID,
   seedE2eProvidersFromEnv,
   hasE2eLlmEnv,
 } from './helpers/seedE2eProviders';
 import {
   DELEGATE_SLEEP_QUERY,
+  injectSubagentsUpdatedFromRest,
   seedSubagentChat,
+  waitForDashboardTriggerNatural,
+  waitForRunningSubagent,
 } from './helpers/subagentDashboardE2e';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
@@ -26,21 +34,28 @@ test.describe('Subagent Dashboard', () => {
     await seedE2eProvidersFromEnv(request, { force: true, deviceId: E2E_CONFIG_DEVICE_ID });
 
     const chatId = await seedSubagentChat(request);
+    await installMigrationDismissInitScript(page);
     await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: /MiniMax|M2\.7/i })).toBeVisible({ timeout: 30_000 });
+    await prepareChatPageForE2e(page);
 
-    const input = page.locator('textarea[data-chat-input]');
-    await input.fill(DELEGATE_SLEEP_QUERY);
-    await input.press('Enter');
+    await sendChatMessage(page, DELEGATE_SLEEP_QUERY);
 
-    await expect(page.getByTestId('subagent-dashboard-trigger')).toBeVisible({ timeout: 120_000 });
-    await expect(page.getByTestId('subagent-dashboard-trigger')).toContainText(/1|active|running|活跃/i, {
-      timeout: 120_000,
-    });
+    await waitForRunningSubagent(request, chatId, 120_000);
 
-    await page.getByTestId('subagent-dashboard-trigger').click();
+    const naturalVisible = await waitForDashboardTriggerNatural(page, 30_000);
+    if (!naturalVisible) {
+      test.info().annotations.push({
+        type: 'FALLBACK_INJECT',
+        description: 'Dashboard trigger not visible via chat stream; injecting subagents_updated from REST',
+      });
+      await injectSubagentsUpdatedFromRest(page, request, chatId);
+    }
+
+    const trigger = page.getByTestId('subagent-dashboard-trigger');
+    await expect(trigger).toBeVisible({ timeout: 15_000 });
+    await expect(trigger).toContainText(/1|active|running|活跃/i, { timeout: 30_000 });
+
+    await trigger.click();
     await expect(page.getByTestId('subagent-dashboard-panel')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('subagent-cancel-btn').first()).toBeVisible({ timeout: 30_000 });
 

@@ -1,4 +1,4 @@
-"""Memory + conversation_search deferred API integration tests (no mock on agent-stream path)."""
+"""Memory + conversation_search eager API integration tests (no mock on agent-stream path)."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
 
 @pytest.mark.integration
 def test_agent_stream_incognito_still_allows_recall_tools(client: TestClient) -> None:
-    """Incognito + memory: save/manage absent; stream still succeeds with deferred conversation_search wired."""
+    """Incognito + memory: save/manage absent; stream still succeeds with eager conversation_search wired."""
     payload = {
         "query": "What is 2+2? Answer briefly.",
         "message_id": "test-memory-e2e-incognito",
@@ -107,7 +107,7 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
 
 @pytest.mark.integration
 def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: TestClient) -> None:
-    """Turn1 trivial query should not call conversation_search (deferred + L2 path)."""
+    """Turn1 trivial query should not call conversation_search (L2 path; tool eager but unused)."""
     payload = {
         "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-no-conv-search",
@@ -121,7 +121,7 @@ def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: T
     check_e2e_errors(events)
     invoked = _invoked_tool_names(events)
     assert "conversation_search_tool" not in invoked, (
-        f"conversation_search should stay deferred on trivial turn1; invoked={sorted(invoked)}"
+        f"trivial turn1 should not invoke conversation_search; invoked={sorted(invoked)}"
     )
 
 
@@ -163,17 +163,17 @@ def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_agent_stream_deferred_discover_then_conversation_search_path(client: TestClient) -> None:
-    """Real multi-turn: passphrase recoverable; deferred tools exercised when model follows instructions."""
+def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient) -> None:
+    """Multi-turn: passphrase recoverable via chat_history, memory_recall, or conversation_search."""
     import uuid
 
     model_selection = get_model_selection()
-    chat_id = f"test_deferred_real_{uuid.uuid4().hex[:8]}"
+    chat_id = f"test_eager_conv_search_{uuid.uuid4().hex[:8]}"
     codeword = "PELICAN-7742"
 
     turn1 = {
         "query": f"Remember this exact passphrase for this chat: {codeword}. Reply ACK only.",
-        "message_id": "test-deferred-real-1",
+        "message_id": "test-eager-conv-1",
         "chat_id": chat_id,
         "action_mode": "agent",
         "model_selection": model_selection,
@@ -186,10 +186,9 @@ def test_agent_stream_deferred_discover_then_conversation_search_path(client: Te
     turn2 = {
         "query": (
             "What was the exact passphrase I gave in this chat? "
-            "If conversation_search_tool is not available, call discover_capability_tool "
-            "with query 'conversation' first, then call conversation_search_tool to search for PELICAN."
+            "Use conversation_search_tool if needed to search for PELICAN."
         ),
-        "message_id": "test-deferred-real-2",
+        "message_id": "test-eager-conv-2",
         "chat_id": chat_id,
         "action_mode": "agent",
         "model_selection": model_selection,
@@ -209,16 +208,10 @@ def test_agent_stream_deferred_discover_then_conversation_search_path(client: Te
         f"passphrase must appear in final stream; invoked={sorted(invoked)}"
     )
 
-    deferred_path = invoked & {"discover_capability_tool", "conversation_search_tool"}
-    if deferred_path:
+    if invoked & {"conversation_search_tool", "memory_recall_tool"}:
         return
 
-    recall_path = invoked & {"memory_recall_tool"}
-    if recall_path:
-        return
-
-    # Model answered purely from chat_history without tools — valid UX, not a deferred regression.
     pytest.skip(
-        "Model answered from chat_history without discover/conversation_search; "
-        "deferred wiring verified separately in test_conversation_search_deferred_integration.py"
+        "Model answered from chat_history without memory/conversation tools; "
+        "eager wiring verified in test_conversation_search_eager_integration.py"
     )
