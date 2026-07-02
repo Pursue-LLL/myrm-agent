@@ -147,11 +147,20 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
       actions.setMessages((state) => {
         const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
         if (messageIndex !== -1) {
-          // 如果消息存在但没有progressSteps，则初始化一个空数组
-          if (!state.messages[messageIndex].progressSteps) {
-            state.messages[messageIndex].progressSteps = [];
+          const msg = state.messages[messageIndex];
+          if (!msg.progressSteps) {
+            msg.progressSteps = [];
           }
-          state.messages[messageIndex].progressSteps!.push(stepItem);
+          const stepKey = stepItem.step_key;
+          const existing =
+            stepKey !== undefined && stepKey !== null
+              ? msg.progressSteps.find((s) => s.step_key === stepKey)
+              : undefined;
+          if (existing) {
+            Object.assign(existing, stepItem);
+          } else {
+            msg.progressSteps.push(stepItem);
+          }
         } else {
           console.warn('Could not find assistant message with messageId:', data.messageId);
         }

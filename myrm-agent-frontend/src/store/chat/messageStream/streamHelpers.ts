@@ -34,14 +34,18 @@ const SUBAGENT_STATUSES = new Set<SubagentStatus>([
 export function mapTaskStepStatus(status: string | undefined): ProgressItem['status'] | undefined {
   switch (status) {
     case 'completed':
+    case 'success':
       return 'success';
     case 'partial_success':
       return 'warning';
     case 'error':
+    case 'failed':
       return 'error';
     case 'cancelled':
+    case 'skipped':
       return 'cancelled';
     default:
+      // running / pending / in_progress — in-flight steps (no terminal badge)
       return undefined;
   }
 }
