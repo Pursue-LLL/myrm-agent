@@ -8,6 +8,7 @@ Tests cover:
 - Malformed skill handling (skip)
 - save_skill failure handling
 - Empty package import
+- _remap_ids preserves unmapped IDs
 """
 
 from __future__ import annotations
@@ -86,34 +87,34 @@ def mock_skill_svc() -> AsyncMock:
     return svc
 
 
+_AGENT_SVC_PATH = "app.services.agent.agent_service.AgentService"
+
+
 @pytest.fixture
-def mock_agent_service():
+def patch_agent_service():
+    """Patch AgentService class methods used by marketplace_import."""
     with patch(
-        "app.services.agent.agent_service.AgentService.get_agent_by_name",
+        f"{_AGENT_SVC_PATH}.get_agent_by_name",
         new_callable=AsyncMock,
         return_value=None,
-    ) as mock_get, patch(
-        "app.services.agent.agent_service.AgentService.create_agent",
+    ), patch(
+        f"{_AGENT_SVC_PATH}.create_agent",
         new_callable=AsyncMock,
         side_effect=lambda data: FakeAgentProfile(
             id=f"new-{data.name.lower().replace(' ', '-')}",
             display_name=data.name,
         ),
-    ) as mock_create:
-        yield MagicMock(get_agent_by_name=mock_get, create_agent=mock_create)
+    ):
+        yield
 
 
 @pytest.mark.asyncio
-async def test_full_import_flow(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_full_import_flow(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Full import: skills installed, IDs remapped, subagent + agent created."""
     from app.services.agent.marketplace_import import import_agent_package
 
     package = _make_package()
-
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        MockCreate.side_effect = lambda **kwargs: MagicMock(name=kwargs.get("name", ""), **kwargs)
-
-        result = await import_agent_package(mock_skill_svc, package)
+    result = await import_agent_package(mock_skill_svc, package)
 
     mock_skill_svc.save_skill.assert_called_once_with(
         "sales-skill", "# Sales Skill\nPrompt here.", "Sales helper"
@@ -121,86 +122,85 @@ async def test_full_import_flow(mock_skill_svc: AsyncMock, mock_agent_service: M
     mock_skill_svc.write_resource.assert_called_once_with(
         "sales-skill", "data.json", '{"key": "val"}'
     )
-    assert result.startswith("new-")
+    assert result == "new-test-agent"
 
 
 @pytest.mark.asyncio
-async def test_skill_id_remapping(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_skill_id_remapping(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Agent's skill_ids are remapped from old to new IDs."""
+    from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
     package = _make_package(bundled_subagents=[])
+    created_data: list = []
 
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        calls: list[dict] = []
+    original_create = AgentService.create_agent
 
-        def capture(**kwargs):
-            calls.append(kwargs)
-            return MagicMock(name=kwargs.get("name", ""), **kwargs)
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(id="new-agent", display_name=data.name)
 
-        MockCreate.side_effect = capture
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
         await import_agent_package(mock_skill_svc, package)
 
-    assert len(calls) == 1
-    assert calls[0]["skill_ids"] == ["local::new-skill-hash"]
+    assert len(created_data) == 1
+    assert created_data[0].skill_ids == ["local::new-skill-hash"]
 
 
 @pytest.mark.asyncio
-async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_subagent_skill_ids_remapped(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Subagent's skill_ids also get remapped."""
+    from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
     package = _make_package()
+    created_data: list = []
 
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        calls: list[dict] = []
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(
+            id=f"new-{data.name.lower().replace(' ', '-')}",
+            display_name=data.name,
+        )
 
-        def capture(**kwargs):
-            calls.append(kwargs)
-            return MagicMock(name=kwargs.get("name", ""), **kwargs)
-
-        MockCreate.side_effect = capture
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
         await import_agent_package(mock_skill_svc, package)
 
-    sub_call = calls[0]
-    assert sub_call["name"] == "Sub Agent"
-    assert sub_call["skill_ids"] == ["local::new-skill-hash"]
+    sub_data = created_data[0]
+    assert sub_data.name == "Sub Agent"
+    assert sub_data.skill_ids == ["local::new-skill-hash"]
 
 
 @pytest.mark.asyncio
 async def test_subagent_idempotent_dedup(mock_skill_svc: AsyncMock):
     """Existing subagent with same name is reused (not created again)."""
+    from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
-    with patch(
-        "app.services.agent.agent_service.AgentService.get_agent_by_name",
-        new_callable=AsyncMock,
-        return_value=FakeAgentProfile(id="existing-sub-id", display_name="Sub Agent"),
-    ), patch(
-        "app.services.agent.agent_service.AgentService.create_agent",
-        new_callable=AsyncMock,
-        side_effect=lambda data: FakeAgentProfile(
+    package = _make_package()
+    created_data: list = []
+
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(
             id=f"new-{data.name.lower().replace(' ', '-')}",
             display_name=data.name,
-        ),
-    ), patch("app.database.dto.AgentCreate") as MockCreate:
-        calls: list[dict] = []
+        )
 
-        def capture(**kwargs):
-            calls.append(kwargs)
-            return MagicMock(name=kwargs.get("name", ""), **kwargs)
+    with patch.object(
+        AgentService, "get_agent_by_name",
+        new_callable=AsyncMock,
+        return_value=FakeAgentProfile(id="existing-sub-id", display_name="Sub Agent"),
+    ), patch.object(AgentService, "create_agent", side_effect=capture_create):
+        result = await import_agent_package(mock_skill_svc, package)
 
-        MockCreate.side_effect = capture
-
-        package = _make_package()
-        await import_agent_package(mock_skill_svc, package)
-
-    agent_call = calls[0]
-    assert "existing-sub-id" in agent_call["subagent_ids"]
+    main_agent_data = created_data[0]
+    assert main_agent_data.name == "Test Agent"
+    assert "existing-sub-id" in main_agent_data.subagent_ids
 
 
 @pytest.mark.asyncio
-async def test_malformed_skill_skipped(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_malformed_skill_skipped(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Skills without name or content are skipped."""
     from app.services.agent.marketplace_import import import_agent_package
 
@@ -211,17 +211,14 @@ async def test_malformed_skill_skipped(mock_skill_svc: AsyncMock, mock_agent_ser
         ],
         bundled_subagents=[],
     )
-
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        MockCreate.side_effect = lambda **kwargs: MagicMock(name=kwargs.get("name", ""), **kwargs)
-        await import_agent_package(mock_skill_svc, package)
-
+    await import_agent_package(mock_skill_svc, package)
     mock_skill_svc.save_skill.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_save_skill_failure_handled(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_save_skill_failure_handled(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """If save_skill fails, the skill is skipped but import continues."""
+    from app.services.agent.agent_service import AgentService
     from app.services.agent.marketplace_import import import_agent_package
 
     mock_skill_svc.save_skill = AsyncMock(
@@ -229,22 +226,20 @@ async def test_save_skill_failure_handled(mock_skill_svc: AsyncMock, mock_agent_
     )
 
     package = _make_package(bundled_subagents=[])
+    created_data: list = []
 
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        calls: list[dict] = []
+    async def capture_create(data):
+        created_data.append(data)
+        return FakeAgentProfile(id="new-agent", display_name=data.name)
 
-        def capture(**kwargs):
-            calls.append(kwargs)
-            return MagicMock(name=kwargs.get("name", ""), **kwargs)
-
-        MockCreate.side_effect = capture
+    with patch.object(AgentService, "create_agent", side_effect=capture_create):
         await import_agent_package(mock_skill_svc, package)
 
-    assert calls[0]["skill_ids"] == ["old-skill-1"]
+    assert created_data[0].skill_ids == ["old-skill-1"]
 
 
 @pytest.mark.asyncio
-async def test_empty_package(mock_skill_svc: AsyncMock, mock_agent_service: MagicMock):
+async def test_empty_package(mock_skill_svc: AsyncMock, patch_agent_service: None):
     """Empty package creates agent with defaults."""
     from app.services.agent.marketplace_import import import_agent_package
 
@@ -253,12 +248,8 @@ async def test_empty_package(mock_skill_svc: AsyncMock, mock_agent_service: Magi
         bundled_skills=[],
         bundled_subagents=[],
     )
-
-    with patch("app.services.agent.marketplace_import.AgentCreate") as MockCreate:
-        MockCreate.side_effect = lambda **kwargs: MagicMock(name=kwargs.get("name", ""), **kwargs)
-        result = await import_agent_package(mock_skill_svc, package)
-
-    assert result.startswith("new-")
+    result = await import_agent_package(mock_skill_svc, package)
+    assert result == "new-empty-agent"
     mock_skill_svc.save_skill.assert_not_called()
 
 

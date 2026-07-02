@@ -24,6 +24,8 @@
 | `hosting.ts` | `/artifacts/hosting/*`、publish、publications、WS URL |
 | `artifact*.ts` | 工件相关 REST |
 | `subscription*.ts` / `entitlements*.ts` | **仅 SaaS/sandbox** 构建使用的 CP 配额 |
+| `marketplace.ts` | **仅 SaaS/sandbox** Org Marketplace CRUD：browse/install/publish/force-push |
+| `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
 | `*-api.ts` | 零散 REST 封装 |
 
 ## 依赖
