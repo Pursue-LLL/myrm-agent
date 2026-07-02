@@ -52,6 +52,14 @@ async function putConfig(
 
 /** Seed LLM provider + default model from process.env (BASIC_* from .env.test). */
 export async function seedE2eProvidersFromEnv(request: APIRequestContext): Promise<void> {
+  const readinessRes = await request.get(`${apiBase}/api/v1/config/readiness`, { timeout: 60_000 });
+  if (readinessRes.ok()) {
+    const readiness = (await readinessRes.json()) as { provider?: { is_ready?: boolean } };
+    if (readiness.provider?.is_ready) {
+      return;
+    }
+  }
+
   const basicModel = requireEnv('BASIC_MODEL');
   const basicKey = requireEnv('BASIC_API_KEY');
   const basicUrl = process.env.BASIC_BASE_URL;

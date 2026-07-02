@@ -5,6 +5,8 @@ import { hasE2eLlmEnv, seedE2eProvidersFromEnv } from './helpers/seedE2eProvider
 import { enableTaskTrackingInDialog, openBuiltinToolsDialog } from './helpers/taskTrackingUi';
 
 test.describe('Task Tracking UI (TSM v1.5)', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.skip(
     !process.env.PLAYWRIGHT_RUN_WEBUI_E2E,
     'Set PLAYWRIGHT_RUN_WEBUI_E2E=1 with backend on :8080 and frontend on :3000',
@@ -47,6 +49,8 @@ test.describe('Task Tracking UI (TSM v1.5)', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
 
+    await page.getByRole('button', { name: /新对话|New chat/i }).click({ timeout: 5_000 }).catch(() => {});
+
     await enableTaskTrackingInDialog(page);
 
     const query =
@@ -56,9 +60,16 @@ test.describe('Task Tracking UI (TSM v1.5)', () => {
 
     const input = page.getByPlaceholder(/输入消息|Type a message/i);
     await input.fill(query);
-    await page.getByRole('button', { name: /^发送$|^Send$/i }).click();
+    const sendBtn = page.locator('button.message-send-btn');
+    await expect(sendBtn).toBeEnabled({ timeout: 10_000 });
+    await sendBtn.evaluate((el) => {
+      el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      (el as HTMLButtonElement).click();
+    });
 
-    await expect(page.getByText(/Execution checklist/i)).toBeVisible({ timeout: 180_000 });
-    await expect(page.getByText(/TSM_WEBUI_OK/i)).toBeVisible({ timeout: 180_000 });
+    await expect(
+      page.locator('main').getByText(/Execution checklist|update_execution_checklist_tool/i).first(),
+    ).toBeVisible({ timeout: 180_000 });
+    await expect(page.locator('main').getByText(/TSM_WEBUI_OK/i)).toBeVisible({ timeout: 180_000 });
   });
 });
