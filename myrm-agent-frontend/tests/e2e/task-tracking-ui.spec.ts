@@ -15,7 +15,12 @@ test.describe('Task Tracking UI (TSM v1.5)', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('heading', { name: /Application error|应用出错了/ })).toHaveCount(0);
-    await page.getByText('内置工具', { exact: true }).first().click({ timeout: 20_000 });
+
+    // Dismiss optional migration / onboarding banners that intercept clicks.
+    await page.getByRole('button', { name: /稍后再说|Later/i }).click({ timeout: 3_000 }).catch(() => {});
+
+    await page.getByRole('button', { name: /内置工具|Built-in [Tt]ools/ }).click({ timeout: 20_000 });
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId('builtin-task_tracking')).toBeVisible({ timeout: 10_000 });
 
     await page.evaluate(() => {

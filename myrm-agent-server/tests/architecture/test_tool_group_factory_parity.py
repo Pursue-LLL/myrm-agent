@@ -41,6 +41,15 @@ def test_media_groups_include_server_tools() -> None:
 
 
 @pytest.mark.architecture
+def test_file_ops_group_includes_glob_and_grep() -> None:
+    """file_ops enables eager glob/grep with file_* (P1 deferred veto 2026-07-02)."""
+    file_ops_tools = TOOL_GROUP_MAP["file_ops"]
+    assert "glob_tool" in file_ops_tools
+    assert "grep_tool" in file_ops_tools
+    assert "file_read_tool" in file_ops_tools
+
+
+@pytest.mark.architecture
 def test_browser_group_includes_script_and_human_tools() -> None:
     browser_tools = TOOL_GROUP_MAP["browser"]
     assert "browser_execute_script_tool" in browser_tools

@@ -46,8 +46,6 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
       stepKey === 'loop_guard_break' ||
       stepKey === 'crawl_task_progress'
     ) {
-      const displayKey =
-        stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
       const isMediaAnalysis = stepKey === 'analyzing_image' || stepKey === 'analyzing_video';
       const isArchiveRestoreStatus = stepKey === 'archive_restore_blocked' || stepKey === 'archive_restore_result';
       const archiveRestoreBlock =
@@ -59,6 +57,16 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           ? H.parseArchiveRestoreResultPayload(data.data?.archive_restore_result)
           : undefined;
       const archiveRestoreActions = H.buildArchiveRestoreActions(archiveRestoreBlock);
+      let displayKey =
+        stepKey === 'model_failover' && data.error_kind ? `model_failover_${data.error_kind}` : stepKey;
+      if (stepKey === 'workflow_stage') {
+        const stageData = data.data as Record<string, unknown> | undefined;
+        const category =
+          stageData && typeof stageData.notify_category === 'string' && stageData.notify_category
+            ? stageData.notify_category
+            : 'default';
+        displayKey = `workflow_stage:${category}`;
+      }
       const itemText =
         (stepKey === 'model_failover' || stepKey === 'safety_fallback_active') && data.fallback_model
           ? data.fallback_model
@@ -107,12 +115,42 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           if (stepKey === 'workflow_stage') {
             const sd = data.data as Record<string, unknown> | undefined;
             if (sd) {
-              if (typeof sd.notify_message === 'string') progressStep.notify_message = sd.notify_message;
-              if (typeof sd.notify_progress === 'number' && sd.notify_progress >= 0) progressStep.notify_progress = sd.notify_progress;
-              if (typeof sd.notify_step_index === 'number') progressStep.notify_step_index = sd.notify_step_index;
-              if (typeof sd.notify_total_steps === 'number') progressStep.notify_total_steps = sd.notify_total_steps;
-              if (typeof sd.notify_category === 'string') progressStep.notify_category = sd.notify_category;
-              if (typeof sd.notify_level === 'string') progressStep.notify_level = sd.notify_level as 'info' | 'warn' | 'alert';
+              const message =
+                typeof sd.message === 'string'
+                  ? sd.message
+                  : typeof sd.notify_message === 'string'
+                    ? sd.notify_message
+                    : undefined;
+              if (message) {
+                progressStep.notify_message = message;
+              }
+              const notifyLevel = sd.notify_level;
+              if (notifyLevel === 'alert') {
+                progressStep.status = 'error';
+              } else if (notifyLevel === 'warn') {
+                progressStep.status = 'warning';
+              }
+              if (typeof sd.notify_progress === 'number' && sd.notify_progress >= 0) {
+                progressStep.notify_progress = sd.notify_progress;
+                progressStep.progress_percent = sd.notify_progress;
+              }
+              if (typeof sd.notify_step_index === 'number') {
+                progressStep.notify_step_index = sd.notify_step_index;
+              }
+              if (typeof sd.notify_total_steps === 'number') {
+                progressStep.notify_total_steps = sd.notify_total_steps;
+              }
+              if (typeof sd.notify_category === 'string') {
+                progressStep.notify_category = sd.notify_category;
+              }
+              if (typeof notifyLevel === 'string') {
+                progressStep.notify_level = notifyLevel as 'info' | 'warn' | 'alert';
+              }
+              const stepIndex = sd.notify_step_index;
+              const totalSteps = sd.notify_total_steps;
+              if (typeof stepIndex === 'number' && typeof totalSteps === 'number' && totalSteps > 0) {
+                progressStep.reason = `${stepIndex} / ${totalSteps}`;
+              }
             }
           }
           if (archiveRestoreBlock) {
@@ -124,9 +162,15 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
           if (archiveRestoreResult) {
             progressStep.archive_restore_result = archiveRestoreResult;
           }
-          if (stepKey === 'archive_restore_blocked' || stepKey === 'loop_guard_warn' || stepKey === 'loop_guard_break' || stepKey === 'crawl_task_progress') {
+          if (
+            stepKey === 'archive_restore_blocked' ||
+            stepKey === 'loop_guard_warn' ||
+            stepKey === 'loop_guard_break' ||
+            stepKey === 'crawl_task_progress' ||
+            stepKey === 'workflow_stage'
+          ) {
             const existingStep = state.messages[messageIndex].progressSteps!.find(
-              (step) => step.step_key === stepKey,
+              (step) => step.step_key === displayKey,
             );
             if (existingStep) {
               Object.assign(existingStep, progressStep);

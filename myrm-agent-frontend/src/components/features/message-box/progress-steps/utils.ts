@@ -183,6 +183,14 @@ export const getStepTitle = (step: ProgressItem, t: TranslateFn, useSemantic: bo
     return category === 'default' ? t('processing') || 'Processing...' : category;
   }
 
+  if (step_key?.startsWith('workflow_stage:')) {
+    if (step.notify_message) {
+      return step.notify_message;
+    }
+    const category = step_key.slice('workflow_stage:'.length);
+    return category === 'default' ? t('workflow_stage') || 'Workflow stage update' : category;
+  }
+
   // 验证 step_key 格式
   const isValidStepKey =
     step_key && step_key.length <= 50 && !step_key.includes('\n') && !/[\u4e00-\u9fff]/.test(step_key);
