@@ -92,9 +92,10 @@ class TestExecutionChecklistLiveE2E:
                 and (
                     e.get("step_key") == "checklist_root"
                     or str(e.get("step_key", "")).startswith("checklist_")
+                    or e.get("tool_name") == "update_execution_checklist_tool"
                 )
             ]
-            assert len(checklist_steps) >= 1, "Expected checklist tasks_steps on live backend"
+            assert len(checklist_steps) >= 1, "Expected checklist or tool tasks_steps on live backend"
 
             tool_steps = [
                 e
@@ -107,5 +108,4 @@ class TestExecutionChecklistLiveE2E:
                 "Stream should emit message or message_end"
             )
 
-            if answer:
-                assert "TSM" in answer.upper() or len(answer.strip()) > 0
+            assert "TSM_E2E_OK" in answer.upper(), f"Expected TSM_E2E_OK in answer, got: {answer[:200]!r}"

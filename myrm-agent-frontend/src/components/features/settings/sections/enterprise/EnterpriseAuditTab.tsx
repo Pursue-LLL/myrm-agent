@@ -41,12 +41,13 @@ const EnterpriseAuditTab = memo(() => {
   const [hours, setHours] = useState<number>(24);
   const [filters, setFilters] = useState<AuditLogFilters>({ limit: 50 });
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (overrideFilters?: AuditLogFilters) => {
     try {
       setLoading(true);
+      const activeFilters = overrideFilters ?? filters;
       const [statsData, logsData] = await Promise.all([
         getAuditStats(hours),
-        queryAuditLogs(filters),
+        queryAuditLogs(activeFilters),
       ]);
       setStats(statsData);
       setEvents(logsData.events);
@@ -55,7 +56,8 @@ const EnterpriseAuditTab = memo(() => {
     } finally {
       setLoading(false);
     }
-  }, [hours, filters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hours]);
 
   useEffect(() => {
     loadData();
@@ -235,7 +237,7 @@ const EnterpriseAuditTab = memo(() => {
               placeholder={t('filterEventType')}
               onChange={(e) => handleFilterChange('event_type', e.target.value)}
             />
-            <Button size="sm" variant="outline" onClick={loadData} className="h-8">
+            <Button size="sm" variant="outline" onClick={() => loadData(filters)} className="h-8">
               {t('apply')}
             </Button>
           </div>
