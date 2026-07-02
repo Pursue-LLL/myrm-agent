@@ -143,3 +143,20 @@ export async function seedE2eProvidersFromEnv(
 export function hasE2eLlmEnv(): boolean {
   return Boolean(process.env.BASIC_API_KEY && process.env.BASIC_MODEL);
 }
+
+/** Enable YOLO mode so delegate/bash tool calls do not block on approval drawer during E2E. */
+export async function seedE2eYoloSecurity(
+  request: APIRequestContext,
+  options?: { deviceId?: string },
+): Promise<void> {
+  const deviceId = options?.deviceId ?? E2E_CONFIG_DEVICE_ID;
+  await putConfig(
+    request,
+    'securityConfig',
+    {
+      yoloModeEnabled: true,
+      yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+    },
+    deviceId,
+  );
+}

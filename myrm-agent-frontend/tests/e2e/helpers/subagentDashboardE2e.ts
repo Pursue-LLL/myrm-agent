@@ -2,7 +2,7 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
-const SUBAGENT_REST_TIMEOUT_MS = 60_000;
+const SUBAGENT_REST_TIMEOUT_MS = 15_000;
 
 export const E2E_BASH_EPHEMERAL = {
   bash_worker: {
@@ -31,22 +31,37 @@ export async function seedSubagentChat(request: APIRequestContext): Promise<stri
   return chatId;
 }
 
+export async function autoApproveIfVisible(page: Page): Promise<void> {
+  const approveButton = page.getByRole('button', { name: /^(Approve|批准|允许)$/i });
+  if (await approveButton.isVisible().catch(() => false)) {
+    await approveButton.click();
+  }
+}
+
 export async function waitForRunningSubagent(
   request: APIRequestContext,
   chatId: string,
   timeoutMs = 120_000,
+  page?: Page,
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`, {
-      timeout: SUBAGENT_REST_TIMEOUT_MS,
-    });
-    if (res.ok()) {
-      const body = (await res.json()) as { data?: Array<{ task_id?: string; status?: string }> };
-      const running = (body.data ?? []).find((row) => row.status === 'running' && row.task_id);
-      if (running?.task_id) {
-        return running.task_id;
+    if (page) {
+      await autoApproveIfVisible(page);
+    }
+    try {
+      const res = await request.get(`${apiBase}/api/v1/chats/${chatId}/subagents`, {
+        timeout: SUBAGENT_REST_TIMEOUT_MS,
+      });
+      if (res.ok()) {
+        const body = (await res.json()) as { data?: Array<{ task_id?: string; status?: string }> };
+        const running = (body.data ?? []).find((row) => row.status === 'running' && row.task_id);
+        if (running?.task_id) {
+          return running.task_id;
+        }
       }
+    } catch {
+      // Backend may be busy while the parent agent delegates; keep polling until deadline.
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }

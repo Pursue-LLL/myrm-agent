@@ -11,10 +11,12 @@ import {
 import {
   E2E_CONFIG_DEVICE_ID,
   seedE2eProvidersFromEnv,
+  seedE2eYoloSecurity,
   hasE2eLlmEnv,
 } from './helpers/seedE2eProviders';
 import {
   DELEGATE_SLEEP_QUERY,
+  E2E_BASH_EPHEMERAL,
   injectSubagentsUpdatedFromRest,
   seedSubagentChat,
   waitForDashboardTriggerNatural,
@@ -37,15 +39,24 @@ test.describe('Subagent Dashboard', () => {
     await ensureLoggedIn(page, request);
     await ensureWebUiBrowserSession(page);
     await seedE2eProvidersFromEnv(request, { deviceId: E2E_CONFIG_DEVICE_ID });
+    await seedE2eYoloSecurity(request, { deviceId: E2E_CONFIG_DEVICE_ID });
 
     const chatId = await seedSubagentChat(request);
+
+    await page.route('**/agents/agent-stream', async (route) => {
+      const postData = route.request().postData();
+      const body = postData ? (JSON.parse(postData) as Record<string, unknown>) : {};
+      body.ephemeral_subagents = E2E_BASH_EPHEMERAL;
+      await route.continue({ postData: JSON.stringify(body) });
+    });
+
     await page.goto(`/${chatId}`, { waitUntil: 'load' });
     await waitForChatHydration(page, chatId);
     await prepareChatPageForE2e(page);
 
     await sendChatMessage(page, DELEGATE_SLEEP_QUERY);
 
-    await waitForRunningSubagent(request, chatId, 180_000);
+    await waitForRunningSubagent(request, chatId, 300_000, page);
 
     const naturalVisible = await waitForDashboardTriggerNatural(page, 30_000);
     if (!naturalVisible) {

@@ -169,6 +169,48 @@ async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("query", "expected_tool_id"),
+    [
+        ("open canvas whiteboard now", "canvas"),
+        ("generate video from this script", "video_generation"),
+        ("create multi-step plan for migration", "planning"),
+        ("search my personal wiki notes", "wiki"),
+    ],
+)
+async def test_discover_miss_emits_capability_gap_for_disabled_groups(
+    monkeypatch: pytest.MonkeyPatch,
+    query: str,
+    expected_tool_id: str,
+) -> None:
+    registry = ToolRegistry()
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    discover = sync_discover_capability_tool(
+        registry,
+        active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
+    )
+    assert discover is not None
+
+    captured: list[tuple[str, object]] = []
+
+    async def _capture(name: str, data: object, config: object | None = None) -> None:
+        captured.append((name, data))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+        _capture,
+    )
+
+    result = await discover.ainvoke({"query": query})
+    assert "No capabilities found" in result
+    assert "<CapabilityGap>" in result
+    cap_payload = next(payload for name, payload in captured if name == "capability_gap")
+    assert isinstance(cap_payload, dict)
+    assert cap_payload.get("tool_id") == expected_tool_id
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_discover_miss_emits_skill_gap_block_and_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Deterministic: unbound skill in query → SkillGap block + skill_gap SSE."""
     registry = ToolRegistry()

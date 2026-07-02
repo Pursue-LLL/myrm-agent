@@ -76,3 +76,11 @@ def test_derive_media_groups_from_params_presence() -> None:
 def test_derive_planning_only_when_flag_true() -> None:
     assert "planning" not in derive_active_tool_groups(_agent(), enable_planning=False)
     assert "planning" in derive_active_tool_groups(_agent(), enable_planning=True)
+
+
+def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:
+    from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap import (
+        BUILTIN_TOOL_ID_TO_GROUP,
+    )
+
+    assert set(BUILTIN_TOOL_ID_TO_GROUP.values()).issubset(set(ACTIVE_TOOL_GROUP_KEYS))

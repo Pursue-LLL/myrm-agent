@@ -12,7 +12,7 @@ classifiers = [
 requires-python = ">=3.13,<3.14"  # Limit to 3.13 to avoid apscheduler dependency resolution issues on 3.14+
 dependencies = [
   # --- Web 框架 ---
-  "fastapi>=0.138.1",         # Web API 框架 (54 文件)
+  "fastapi>=0.139.0",         # Web API 框架 (54 文件)
   "uvicorn>=0.49.0",          # ASGI 服务器，本地单进程模式 (run.py)
   # --- 数据与配置 ---
   "pydantic>=2.13.4",          # 数据模型/Schema 校验 (48 文件)
@@ -21,7 +21,7 @@ dependencies = [
   # --- HTTP & I/O ---
   "httpx>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   # --- AI & LLM ---
-  "litellm>=1.90.0",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
+  "litellm>=1.90.2",       # LLM 统一调用 API（≥1.85 修复 Python 3.13 f-string 语法）
   "langchain>=1.3.11",      # Agent 工具/链定义 (70+ 文件)
   "langchain-core>=1.4.8", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
@@ -31,7 +31,7 @@ dependencies = [
   # --- 语音处理 ---
   "faster-whisper>=1.2.1",     # CTranslate2 Whisper 推理引擎（本地 STT）
   # --- 图片处理 ---
-  "pillow>=12.2.0",    # 图片处理/压缩 (qrcode + media/service)
+  "pillow>=12.3.0",    # 图片处理/压缩 (qrcode + media/service)
   # --- 数据库 ---
   "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
@@ -62,7 +62,7 @@ dependencies = [
 # Discord + Feishu SDKs (app/channels/providers/discord/, feishu/); GUI lazy-install or --extra channels-sdk
 channels-sdk = [
   "discord-py[voice]>=2.7.1",
-  "lark-oapi>=1.6.9",
+  "lark-oapi>=1.7.0",
 ]
 # Matrix channel (app/channels/providers/matrix/); SOCKS via auth.py + aiohttp-socks
 matrix = [
@@ -87,7 +87,7 @@ prerelease = "allow"
 environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"]
 override-dependencies = [
   "click>=8.4.2",
-  "patchright>=1.60.1",
+  "patchright>=1.61.1",
   "openai>=2.44.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",
@@ -122,7 +122,7 @@ sandbox = [
   # --- 系统监控 ---
   "prometheus-fastapi-instrumentator>=8.0.2", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
-  "granian>=2.7.7", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+  "granian>=2.7.8", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
 ]
 
 [tool.ruff]
