@@ -21,7 +21,7 @@
 | `instinct-inbox.spec.ts` | Agent 洞察 tab：clone → `seed-mock?agent_id=` → approve/dismiss（**不 mock `/approvals`**） |
 | `subagent-dashboard.spec.ts` | 聊天 delegate → Subagent Dashboard → cancel（`PLAYWRIGHT_RUN_SUBAGENT_DASHBOARD_E2E=1` + `.env.test` LLM） |
 | `helpers/auth.ts` | 登录与 setup 状态 |
-| `helpers/seedE2eProviders.ts` | 从 `BASIC_*` 注入 WebUI provider 配置 |
+| `helpers/seedE2eProviders.ts` | 从 `BASIC_*` 注入 WebUI provider 配置（deviceId=`tauri-local`，与 TauriConfigAdapter 一致） |
 | `helpers/subagentDashboardE2e.ts` | 预置 ephemeral `test_bash` chat + 轮询 subagent REST |
 
 ## CI

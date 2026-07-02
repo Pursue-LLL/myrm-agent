@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 import { ensureLoggedIn } from './helpers/auth';
-import { seedE2eProvidersFromEnv, hasE2eLlmEnv } from './helpers/seedE2eProviders';
+import {
+  E2E_CONFIG_DEVICE_ID,
+  seedE2eProvidersFromEnv,
+  hasE2eLlmEnv,
+} from './helpers/seedE2eProviders';
 import {
   DELEGATE_SLEEP_QUERY,
   seedSubagentChat,
@@ -19,27 +23,13 @@ test.describe('Subagent Dashboard', () => {
 
   test('delegate via chat -> dashboard -> cancel subagent', async ({ page, request }) => {
     await ensureLoggedIn(page, request);
-    const deviceId = await page.evaluate(() => {
-      const existing = localStorage.getItem('config-device-id');
-      if (existing) return existing;
-      const id = crypto.randomUUID();
-      localStorage.setItem('config-device-id', id);
-      return id;
-    });
-    await seedE2eProvidersFromEnv(request, { force: true, deviceId });
+    await seedE2eProvidersFromEnv(request, { force: true, deviceId: E2E_CONFIG_DEVICE_ID });
 
     const chatId = await seedSubagentChat(request);
     await page.goto(`/${chatId}`, { waitUntil: 'domcontentloaded' });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.locator('textarea[data-chat-input]')).toBeVisible({ timeout: 30_000 });
-
-    const modelButton = page.getByRole('button', { name: /未配置|Not configured|MiniMax|M2\.7/i }).first();
-    await expect(modelButton).toBeVisible({ timeout: 30_000 });
-    const modelLabel = await modelButton.innerText();
-    test.skip(
-      /未配置|Not configured/i.test(modelLabel),
-      'WebUI provider not ready for this browser deviceId — configure model in Settings once, then re-run',
-    );
+    await expect(page.getByRole('button', { name: /MiniMax|M2\.7/i })).toBeVisible({ timeout: 30_000 });
 
     const input = page.locator('textarea[data-chat-input]');
     await input.fill(DELEGATE_SLEEP_QUERY);

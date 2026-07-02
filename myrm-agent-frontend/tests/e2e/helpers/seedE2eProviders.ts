@@ -2,6 +2,9 @@ import { expect, type APIRequestContext } from '@playwright/test';
 
 const apiBase = process.env.PLAYWRIGHT_API_BASE ?? 'http://127.0.0.1:8080';
 
+/** Local WebUI uses TauriConfigAdapter which always syncs with this device id. */
+export const E2E_CONFIG_DEVICE_ID = 'tauri-local';
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -12,9 +15,9 @@ function requireEnv(name: string): string {
 
 function inferProviderId(model: string): string {
   if (model.includes('/')) {
-    return model.split('/')[0] ?? 'default';
+    return model.split('/')[0] ?? 'minimax';
   }
-  return 'default';
+  return 'minimax';
 }
 
 function stripProviderPrefix(model: string): string {
@@ -22,17 +25,6 @@ function stripProviderPrefix(model: string): string {
     return model;
   }
   return model.split('/').slice(1).join('/');
-}
-
-function resolveProviderType(providerId: string): string {
-  const normalized = providerId.replace(/-/g, '_');
-  if (normalized === 'minimax') {
-    return 'minimax';
-  }
-  if (normalized === 'openai_like' || normalized === 'openai_compatible') {
-    return 'openai';
-  }
-  return normalized;
 }
 
 async function putConfig(
@@ -51,11 +43,54 @@ async function putConfig(
   expect(putRes.ok(), `PUT /config/${configKey} failed: ${await putRes.text()}`).toBeTruthy();
 }
 
+function buildProvidersConfigValue(
+  providerId: string,
+  modelId: string,
+  apiKey: string,
+  apiUrl: string | undefined,
+): Record<string, unknown> {
+  const resolvedUrl = apiUrl?.trim() || 'https://api.minimaxi.com/v1';
+  return {
+    providers: [
+      {
+        id: providerId,
+        name: providerId === 'minimax' ? 'MiniMax' : providerId,
+        routingProfile: providerId,
+        isBuiltIn: providerId === 'minimax',
+        isEnabled: true,
+        apiUrl: resolvedUrl,
+        apiKeys: [{ key: apiKey, isActive: true }],
+        enabledModels: [modelId],
+        availableModels: [modelId],
+        providerType: providerId === 'minimax' ? 'minimax' : 'openai',
+      },
+    ],
+    defaultModelConfig: {
+      baseModel: {
+        primary: { providerId, model: modelId },
+        fallback: null,
+        temperature: 0.7,
+        modelKwargs: {},
+      },
+      liteModel: {
+        primary: null,
+        fallback: null,
+      },
+      fastModeModel: null,
+      routingConfig: null,
+      visionFallbackModel: null,
+    },
+    customModelInfo: {},
+  };
+}
+
 /** Seed LLM provider + default model from process.env (BASIC_* from .env.test). */
 export async function seedE2eProvidersFromEnv(
   request: APIRequestContext,
   options?: { force?: boolean; deviceId?: string },
 ): Promise<void> {
+  const deviceId = options?.deviceId ?? E2E_CONFIG_DEVICE_ID;
+
   if (!options?.force) {
     const readinessRes = await request.get(`${apiBase}/api/v1/config/readiness`, { timeout: 60_000 });
     if (readinessRes.ok()) {
@@ -71,28 +106,20 @@ export async function seedE2eProvidersFromEnv(
   const basicUrl = process.env.BASIC_BASE_URL;
   const providerId = inferProviderId(basicModel);
   const modelId = stripProviderPrefix(basicModel);
-  const deviceId = options?.deviceId ?? 'playwright-e2e';
 
-  await putConfig(request, 'providers', {
-    providers: [
-      {
-        id: providerId,
-        providerType: resolveProviderType(providerId),
-        isEnabled: true,
-        apiUrl: basicUrl,
-        apiKeys: [{ key: basicKey, isActive: true }],
-        enabledModels: [modelId],
-      },
-    ],
-    defaultModelConfig: {
-      baseModel: {
-        primary: {
-          providerId,
-          model: modelId,
-        },
-      },
-    },
-  }, deviceId);
+  await putConfig(
+    request,
+    'providers',
+    buildProvidersConfigValue(providerId, modelId, basicKey, basicUrl),
+    deviceId,
+  );
+
+  const verifyRes = await request.get(`${apiBase}/api/v1/config/providers`);
+  expect(verifyRes.ok(), `GET /config/providers failed: ${await verifyRes.text()}`).toBeTruthy();
+  const verifyBody = (await verifyRes.json()) as {
+    value?: { defaultModelConfig?: { baseModel?: { primary?: { model?: string } } } };
+  };
+  expect(verifyBody.value?.defaultModelConfig?.baseModel?.primary?.model).toBe(modelId);
 }
 
 export function hasE2eLlmEnv(): boolean {
