@@ -349,6 +349,7 @@ class AgentJobRunner:
             agent_model_override: str | None = None
             from app.services.agent.profile_resolver import (
                 DEFAULT_ENABLED_BUILTIN_TOOLS,
+                apply_agent_baseline_tool_flags,
                 resolve_builtin_tool_flags,
             )
 
@@ -427,7 +428,7 @@ class AgentJobRunner:
                 enable_web_search="web_search" in enabled_builtin_tools
                 and user_cfgs.search_is_user_configured
                 and await verify_search_service_available(user_cfgs.search_cfg),
-                **resolve_builtin_tool_flags(enabled_builtin_tools),
+                **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
                 user_instructions=user_instructions,

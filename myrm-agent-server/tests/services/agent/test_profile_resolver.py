@@ -15,6 +15,7 @@ from app.services.agent.profile_resolver import (
     _coerce_tool_selections,
     get_agent_profile_resolver,
     resolve_builtin_tool_flags,
+    apply_agent_baseline_tool_flags,
 )
 
 
@@ -671,11 +672,15 @@ class TestNotifyTargetsFiltering:
 class TestDefaultEnabledBuiltinTools:
     """Verify the canonical default contains expected tools."""
 
-    def test_contains_sandbox_baseline_tools(self):
+    def test_contains_default_togglable_tools(self):
         assert "web_search" in DEFAULT_ENABLED_BUILTIN_TOOLS
         assert "memory" in DEFAULT_ENABLED_BUILTIN_TOOLS
-        assert "file_ops" in DEFAULT_ENABLED_BUILTIN_TOOLS
-        assert "code_execute" in DEFAULT_ENABLED_BUILTIN_TOOLS
+
+    def test_baseline_tools_not_in_default(self):
+        from app.services.agent.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
+
+        for tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
+            assert tool_id not in DEFAULT_ENABLED_BUILTIN_TOOLS
 
     def test_is_tuple(self):
         assert isinstance(DEFAULT_ENABLED_BUILTIN_TOOLS, tuple)
@@ -684,10 +689,17 @@ class TestDefaultEnabledBuiltinTools:
 class TestResolveBuiltinToolFlags:
     """Verify enabled_builtin_tools → enable_xxx flag mapping."""
 
-    def test_default_tools_enable_sandbox_baseline_only(self):
+    def test_apply_agent_baseline_forces_file_and_bash(self):
+        flags = resolve_builtin_tool_flags(["web_search", "memory"])
+        baseline = apply_agent_baseline_tool_flags(flags)
+        assert baseline["enable_file_ops"] is True
+        assert baseline["enable_code_execute"] is True
+        assert baseline["enable_browser"] is False
+
+    def test_default_tools_enable_web_and_memory_only(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
-        assert flags["enable_file_ops"] is True
-        assert flags["enable_code_execute"] is True
+        assert flags["enable_file_ops"] is False
+        assert flags["enable_code_execute"] is False
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
         assert flags["enable_wiki"] is False

@@ -132,29 +132,43 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.debug("x_search_tool skipped: %s", e)
 
     def _setup_search_and_basic_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
-        """Set up web search, web fetch, and basic utility tools."""
+        """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
         from myrm_agent_harness.toolkits import (
             create_web_fetch_tool,
             create_web_search_tool,
         )
 
+        reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
+        embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
+
+        sufficiency_cfg = None
+        sufficiency_llm = None
+        if self.search_depth == "deep":
+            from myrm_agent_harness.api import LLMConfig
+            from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
+
+            sufficiency_cfg = SufficiencyConfig(enabled=True)
+            sufficiency_llm = LLMConfig(
+                model=self.model_cfg.model,
+                api_key=self.model_cfg.api_key,
+                base_url=self.model_cfg.base_url,
+            )
+
+        from app.config.deploy_mode import is_local_mode as _is_local
+
+        tools.append(
+            create_web_fetch_tool(
+                reranker_config=reranker_cfg,
+                embedding_config=embedding_cfg,
+                use_raw_markdown=self.fetch_raw_webpage,
+                allow_private_networks=_is_local(),
+                sufficiency_config=sufficiency_cfg,
+                sufficiency_llm_config=sufficiency_llm,
+            )
+        )
+        logger.info("Loaded web_fetch_tool [Turn1 baseline, no search API required]")
+
         if self.enable_web_search and self.search_service_cfg:
-            reranker_cfg = self.reranker_config if self.enable_advanced_retrieval else None
-            embedding_cfg = self.embedding_config if self.enable_advanced_retrieval else None
-
-            sufficiency_cfg = None
-            sufficiency_llm = None
-            if self.search_depth == "deep":
-                from myrm_agent_harness.api import LLMConfig
-                from myrm_agent_harness.toolkits.retriever.sufficiency import SufficiencyConfig
-
-                sufficiency_cfg = SufficiencyConfig(enabled=True)
-                sufficiency_llm = LLMConfig(
-                    model=self.model_cfg.model,
-                    api_key=self.model_cfg.api_key,
-                    base_url=self.model_cfg.base_url,
-                )
-
             tools.append(
                 create_web_search_tool(
                     self.search_service_cfg,
@@ -163,21 +177,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     sufficiency_llm_config=sufficiency_llm,
                 )
             )
-            from app.config.deploy_mode import is_local_mode as _is_local
-
-            tools.append(
-                create_web_fetch_tool(
-                    reranker_config=reranker_cfg,
-                    embedding_config=embedding_cfg,
-                    use_raw_markdown=self.fetch_raw_webpage,
-                    allow_private_networks=_is_local(),
-                    sufficiency_config=sufficiency_cfg,
-                    sufficiency_llm_config=sufficiency_llm,
-                )
-            )
 
             logger.info(
-                f"🔍 已加载 web_search_tool 和 web_fetch_tool "
+                f"🔍 已加载 web_search_tool "
                 f"(advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})"
             )
 

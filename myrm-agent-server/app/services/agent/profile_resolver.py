@@ -11,6 +11,7 @@ core.memory.adapters.policy::memory_policy_from_dict (POS: 记忆策略字典解
 DEFAULT_ENABLED_BUILTIN_TOOLS: 自 builtin_tool_ids 再导出，供各入口引用
 BuiltinToolFlags: 工具启用标志 TypedDict
 resolve_builtin_tool_flags: enabled_builtin_tools → enable_xxx flags 统一映射
+apply_agent_baseline_tool_flags: 通用 Agent 强制 file/bash 基线（非 fast）
 ResolvedAgentProfile: 统一的智能体配置解析结果（含 auto_restore_domains 等运行时字段）
 AgentProfileResolver: 全局单例解析器（带 TTL 缓存）
 get_agent_profile_resolver: 获取全局单例
@@ -73,6 +74,26 @@ def resolve_builtin_tool_flags(
         enable_answer_tool="answer_tool" in tools,
         enable_render_ui="render_ui" in tools,
         enable_planning="planning" in tools,
+    )
+
+
+def apply_agent_baseline_tool_flags(flags: BuiltinToolFlags) -> BuiltinToolFlags:
+    """Force file/bash baseline for general agent runtimes (not fast search).
+
+    ``AGENT_BASELINE_BUILTIN_TOOLS`` are not GUI toggles; every non-fast entry
+    point must call this after ``resolve_builtin_tool_flags``.
+    """
+    return BuiltinToolFlags(
+        enable_browser=flags["enable_browser"],
+        enable_computer_use=flags["enable_computer_use"],
+        enable_file_ops=True,
+        enable_code_execute=True,
+        enable_wiki=flags["enable_wiki"],
+        enable_kanban=flags["enable_kanban"],
+        enable_canvas=flags["enable_canvas"],
+        enable_answer_tool=flags["enable_answer_tool"],
+        enable_render_ui=flags["enable_render_ui"],
+        enable_planning=flags["enable_planning"],
     )
 
 

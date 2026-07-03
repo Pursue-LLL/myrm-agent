@@ -6,8 +6,6 @@ import {
   Monitor,
   Image,
   Video,
-  FolderOpen,
-  TerminalSquare,
   BrainCircuit,
   BookMarked,
   KanbanSquare,
@@ -47,8 +45,6 @@ export interface BuiltinToolsPanelProps {
 const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   web_search: <Globe size={14} />,
   memory: <BrainCircuit size={14} />,
-  file_ops: <FolderOpen size={14} />,
-  code_execute: <TerminalSquare size={14} />,
   wiki: <BookMarked size={14} />,
   browser: <Monitor size={14} />,
   computer_use: <Monitor size={14} />,

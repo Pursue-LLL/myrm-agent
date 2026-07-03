@@ -1,13 +1,30 @@
-# api/browser_recording/
+# browser_recording/
 
-## 架构概述
+## Overview
 
-浏览器操作录制 HTTP/WebSocket 入口。将扩展侧录制事件桥接到 Harness `ActionCaptureEngine`，供技能生成与回放调试使用。
+Browser Skill Recording Wizard API. Provides WebSocket for real-time recording
+control and REST endpoints for session queries and skill generation.
 
-## 文件清单
+## File Index
 
-| 文件 | 地位 | 职责 | I/O/P |
-|------|------|------|-------|
-| `__init__.py` | 入口 | 路由导出 | ✅ |
-| `router.py` | 路由 | 录制会话 WebSocket + REST 控制 | ✅ |
-| `schemas.py` | 模型 | 请求/响应 Pydantic 契约 | ✅ |
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| `__init__.py` | Package | Module entry — exports `router` | — |
+| `schemas.py` | Contract | Pydantic request/response models | ✅ |
+| `router.py` | Core | WebSocket `/ws/recording` + REST endpoints | ✅ |
+
+## Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| WebSocket | `/ws/recording` | Real-time recording control (start/stop/pause/resume/step/delete_step) |
+| GET | `/recording/sessions` | List active recording sessions |
+| GET | `/recording/sessions/{id}` | Get session details with steps |
+| POST | `/recording/generate-skill` | Generate Browser Skill from completed session |
+
+## Dependencies
+
+- `app.services.browser_recording.session_manager` — in-memory session lifecycle
+- `app.services.browser_recording.skill_generator` — SKILL.md generation + credential detection
+- `app.core.infra.ws_origin_guard` — WebSocket origin verification
+- `myrm_agent_harness.toolkits.browser.action_capture` — action types and serialization

@@ -24,20 +24,18 @@ from collections.abc import Sequence
 DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
     "web_search",
     "memory",
+)
+"""Default togglable tools when no explicit list is stored (UI-visible switches)."""
+
+AGENT_BASELINE_BUILTIN_TOOLS: tuple[str, ...] = (
     "file_ops",
     "code_execute",
 )
-"""Default profile when no explicit tool list is stored (sandbox baseline).
+"""Agent-mode baseline tools: always Turn1 eager, no frontend toggle (maps to file/bash meta-tools)."""
 
-Fast mode (`action_mode='fast'`) overrides at runtime in params/converter.py
-to `["answer_tool"]` plus forced web_search — see params/_ARCH.md.
-"""
-
-BUILTIN_TOOL_IDS: tuple[str, ...] = (
+TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "web_search",
     "memory",
-    "file_ops",
-    "code_execute",
     "wiki",
     "browser",
     "computer_use",
@@ -50,8 +48,13 @@ BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "render_ui",
     "planning",
 )
+"""IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
-BUILTIN_TOOL_ID_SET: frozenset[str] = frozenset(BUILTIN_TOOL_IDS)
+BUILTIN_TOOL_IDS: tuple[str, ...] = TOGGLABLE_BUILTIN_TOOL_IDS
+
+BUILTIN_TOOL_ID_SET: frozenset[str] = frozenset(
+    (*TOGGLABLE_BUILTIN_TOOL_IDS, *AGENT_BASELINE_BUILTIN_TOOLS)
+)
 
 LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
     {
@@ -68,8 +71,6 @@ LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
 BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "web_search", "desc": "Search the web for real-time information"},
     {"id": "memory", "desc": "Recall and save long-term user memory"},
-    {"id": "file_ops", "desc": "Read, write, and edit files in the sandbox"},
-    {"id": "code_execute", "desc": "Run shell commands and scripts in the sandbox"},
     {"id": "browser", "desc": "Browse web pages and extract structured content"},
     {"id": "computer_use", "desc": "Interact with the desktop for native OS dialogs"},
     {"id": "image_generation", "desc": "Generate images from text descriptions"},
@@ -107,6 +108,8 @@ def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:
     for raw in tools:
         tool_id = str(raw).strip()
         if not tool_id:
+            continue
+        if tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
             continue
         if tool_id in LEGACY_REJECTED_BUILTIN_TOOL_IDS:
             legacy.append(tool_id)

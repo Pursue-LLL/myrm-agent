@@ -109,6 +109,7 @@ class LocalEvalExecutor:
         agent_model_override: str | None = None
         from app.services.agent.profile_resolver import (
             DEFAULT_ENABLED_BUILTIN_TOOLS,
+            apply_agent_baseline_tool_flags,
             resolve_builtin_tool_flags,
         )
 
@@ -197,7 +198,7 @@ class LocalEvalExecutor:
             reranker_config=reranker_cfg,
             channel_name="eval",
             enable_web_search=configs.search_is_user_configured and await verify_search_service_available(configs.search_cfg),
-            **resolve_builtin_tool_flags(enabled_builtin_tools),
+            **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
             auto_restore_domains=auto_restore_domains,
             unattended_mode=True,
             agent_skill_ids=agent_skill_ids,

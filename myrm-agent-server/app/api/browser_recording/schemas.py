@@ -1,9 +1,17 @@
-"""
-@input: Pydantic BaseModel
-@output: Browser Recording API 请求/响应 schema
-@pos: api/browser_recording 的 HTTP 契约层
+"""Request/response schemas for Browser Recording API.
 
-🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+
+[INPUT]
+- pydantic::BaseModel, Field
+
+[OUTPUT]
+- RecordingStepResponse: single recorded action step
+- RecordingSessionResponse: recording session summary
+- GenerateSkillRequest: skill generation request
+- GenerateSkillResponse: generated skill result
+
+[POS]
+Pydantic schema definitions for Browser Recording API endpoints.
 """
 
 from __future__ import annotations

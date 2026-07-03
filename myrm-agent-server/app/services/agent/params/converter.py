@@ -429,6 +429,7 @@ async def convert_to_general_agent_params(
 
     from app.services.agent.profile_resolver import (
         DEFAULT_ENABLED_BUILTIN_TOOLS,
+        apply_agent_baseline_tool_flags,
         resolve_builtin_tool_flags,
     )
 
@@ -848,7 +849,9 @@ async def convert_to_general_agent_params(
         engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
         agent_memory_policy = {"write_policy": "conversation"}
     else:
-        tool_flags = resolve_builtin_tool_flags(enabled_builtin_tools)
+        tool_flags = apply_agent_baseline_tool_flags(
+            resolve_builtin_tool_flags(enabled_builtin_tools)
+        )
         prompt_mode = resolved.prompt_mode if resolved else "full"
 
     params = GeneralAgentParams(

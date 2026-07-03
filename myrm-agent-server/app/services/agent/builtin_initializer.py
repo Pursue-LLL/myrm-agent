@@ -32,7 +32,7 @@ def _peripheral_skill_configs(skill_ids: tuple[str, ...]) -> dict[str, dict[str,
 
 
 _TOOL_MINIMAL: tuple[str, ...] = ("web_search", "memory")
-_TOOL_DEFAULT: tuple[str, ...] = ("web_search", "memory", "file_ops", "code_execute")
+_TOOL_DEFAULT: tuple[str, ...] = ("web_search", "memory")
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
 _TOOL_RESEARCH: tuple[str, ...] = ("web_search", "memory", "answer_tool")
 _TOOL_FILE: tuple[str, ...] = ("web_search", "memory", "file_ops")

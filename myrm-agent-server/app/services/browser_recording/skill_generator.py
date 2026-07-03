@@ -1,11 +1,20 @@
-"""
-@input: myrm_agent_harness.toolkits.browser.action_capture CaptureSession
-@output: 从录制步骤生成 Browser Skill 草稿（SKILL.md）
-@pos: services/browser_recording 的技能生成器
+"""Generate Browser Skills from recorded action steps.
 
-Detects credential fields and emits {{credential:label}} placeholders.
+Takes a completed CaptureSession and produces a SKILL.md file with structured
+browser instructions. Detects credential fields and replaces values with
+`{{credential:label}}` placeholders for secure replay via CredentialVault.
 
-🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+
+[INPUT]
+- types::CaptureSession (POS: completed recording session)
+- serializer::steps_to_natural_language (POS: human-readable step descriptions)
+
+[OUTPUT]
+- generate_skill_from_session: (skill_id, content, credential_labels) tuple
+
+[POS]
+Skill generation service for browser recordings. Produces SKILL.md content
+with allowed-tools, credential placeholders, and step descriptions.
 """
 
 from __future__ import annotations

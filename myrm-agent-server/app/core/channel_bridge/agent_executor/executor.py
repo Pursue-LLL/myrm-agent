@@ -378,6 +378,7 @@ class ChannelAgentExecutor:
             agent_engine_params: dict[str, object] | None = None
             from app.services.agent.profile_resolver import (
                 DEFAULT_ENABLED_BUILTIN_TOOLS,
+                apply_agent_baseline_tool_flags,
                 resolve_builtin_tool_flags,
             )
 
@@ -680,7 +681,7 @@ class ChannelAgentExecutor:
                 subagent_ids=agent_subagent_ids,
                 fetch_raw_webpage=bool(memory_settings.get("fetchRawWebpage")),
                 enable_web_search=search_available,
-                **resolve_builtin_tool_flags(enabled_builtin_tools),
+                **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
                 auto_restore_domains=auto_restore_domains,
                 enable_advanced_retrieval=bool(
                     configs.retrieval_dict.get("enableAdvancedRetrieval") if configs.retrieval_dict else False

@@ -1,17 +1,25 @@
-"""
-@input: 依赖 app.services.browser_recording.session_manager、WebSocket origin guard
-@output: 浏览器录制 WebSocket 控制与 REST 查询/技能生成端点
-@pos: HTTP 入口层的 Browser Recording API
+"""Browser Recording API — WebSocket + REST endpoints.
 
-Provides WebSocket `/ws/recording`, session list/detail REST, and generate-skill.
 
-🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+[INPUT]
+- app.services.browser_recording.session_manager (POS: session lifecycle management)
+- app.services.browser_recording.skill_generator (POS: skill generation from sessions)
+- app.core.infra.ws_origin_guard (POS: WebSocket origin verification)
+
+[OUTPUT]
+- router: FastAPI APIRouter with recording endpoints
+
+[POS]
+HTTP/WebSocket entry layer for Browser Skill Recording Wizard.
+WebSocket `/ws/recording` for real-time control, REST for session queries and skill generation.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import time
+import uuid
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -27,7 +35,6 @@ from app.services.browser_recording.session_manager import (
     get_session_export,
     list_active_sessions,
     register_session,
-    remove_session,
     step_to_dict,
 )
 from app.services.browser_recording.skill_generator import (
@@ -141,9 +148,6 @@ async def recording_websocket(ws: WebSocket) -> None:
                 await ws.send_text(json.dumps({"type": "pong"}))
 
             elif msg_type == "start":
-                import time
-                import uuid
-
                 session_id = uuid.uuid4().hex[:12]
                 current_session = CaptureSession(
                     session_id=session_id,
@@ -227,5 +231,6 @@ async def recording_websocket(ws: WebSocket) -> None:
     except Exception as exc:
         logger.error(f"Recording WebSocket error: {exc}")
     finally:
-        if current_session and current_session.status == "recording":
-            current_session.status = "stopped"
+        if current_session:
+            if current_session.status in ("recording", "paused"):
+                current_session.status = "stopped"

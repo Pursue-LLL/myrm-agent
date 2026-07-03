@@ -32,6 +32,7 @@ from myrm_agent_harness.toolkits.kanban.types import KanbanTask, TaskTimeoutErro
 
 from app.services.agent.profile_resolver import (
     DEFAULT_ENABLED_BUILTIN_TOOLS,
+    apply_agent_baseline_tool_flags,
     resolve_builtin_tool_flags,
 )
 from app.services.kanban.task_runner_profile import (
@@ -282,7 +283,7 @@ class KanbanTaskRunner:
             kanban_current_task_id=task.task_id,
             kanban_max_runtime_seconds=task.max_runtime_seconds,
             kanban_zombie_timeout_seconds=zombie_timeout,
-            **resolve_builtin_tool_flags(enabled_builtin_tools),
+            **apply_agent_baseline_tool_flags(resolve_builtin_tool_flags(enabled_builtin_tools)),
             auto_restore_domains=list(profile.auto_restore_domains) if profile else [],
             unattended_mode=True,
             user_instructions=task_user_instructions,

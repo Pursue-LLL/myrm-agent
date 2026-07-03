@@ -51,7 +51,7 @@ def _parse_frontend_builtin_tool_contract() -> tuple[list[str], list[str]]:
 def test_frontend_builtin_tool_ids_match_server_ssot() -> None:
     frontend_ids, frontend_defaults = _parse_frontend_builtin_tool_contract()
     assert list(BUILTIN_TOOL_IDS) == frontend_ids
-    assert set(frontend_ids) == BUILTIN_TOOL_ID_SET
+    assert set(frontend_ids) == set(BUILTIN_TOOL_IDS)
     assert list(DEFAULT_ENABLED_BUILTIN_TOOLS) == frontend_defaults
 
 
@@ -59,10 +59,15 @@ def test_default_tools_match_frontend_contract() -> None:
     assert DEFAULT_ENABLED_BUILTIN_TOOLS == (
         "web_search",
         "memory",
-        "file_ops",
-        "code_execute",
     )
     assert len(BUILTIN_TOOL_ID_SET) == 15
+    assert len(BUILTIN_TOOL_IDS) == 13
+
+
+def test_normalize_strips_agent_baseline_ids() -> None:
+    assert normalize_enabled_builtin_tools(
+        ["web_search", "memory", "file_ops", "code_execute"]
+    ) == ["web_search", "memory"]
 
 
 def test_normalize_rejects_legacy_ids() -> None:
@@ -94,7 +99,7 @@ def test_normalize_rejects_unknown_ids() -> None:
 def test_normalize_deduplicates_preserving_order() -> None:
     assert normalize_enabled_builtin_tools(
         ["memory", "web_search", "memory", "file_ops"]
-    ) == ["memory", "web_search", "file_ops"]
+    ) == ["memory", "web_search"]
 
 
 def test_agent_config_request_rejects_legacy_id() -> None:
@@ -108,8 +113,8 @@ def test_agent_create_rejects_legacy_id() -> None:
 
 
 def test_agent_update_accepts_canonical_ids() -> None:
-    updated = AgentUpdate(enabled_builtin_tools=["file_ops", "code_execute"])
-    assert updated.enabled_builtin_tools == ["file_ops", "code_execute"]
+    updated = AgentUpdate(enabled_builtin_tools=["wiki", "kanban"])
+    assert updated.enabled_builtin_tools == ["wiki", "kanban"]
 
 
 def test_normalize_skips_empty_strings() -> None:
@@ -128,7 +133,7 @@ def test_coerce_enabled_builtin_tools_none_uses_default() -> None:
 def test_coerce_enabled_builtin_tools_normalizes() -> None:
     from app.services.agent.builtin_tool_ids import coerce_enabled_builtin_tools
 
-    assert coerce_enabled_builtin_tools(["file_ops", "file_ops"]) == ["file_ops"]
+    assert coerce_enabled_builtin_tools(["wiki", "wiki"]) == ["wiki"]
 
 
 def test_persist_enabled_builtin_tools_none_uses_default() -> None:

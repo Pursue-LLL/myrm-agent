@@ -1,16 +1,29 @@
-"""
-@input: myrm_agent_harness.toolkits.browser.action_capture
-@output: 内存态录制 session 注册、步进序列化与查询
-@pos: services/browser_recording 的会话生命周期管理
+"""Recording session lifecycle manager.
 
-Ephemeral in-memory sessions coordinated with Harness ActionCaptureEngine.
+Maintains in-memory recording sessions and coordinates between WebSocket
+connections and the Harness ActionCaptureEngine. Sessions are ephemeral —
+they only live while the recording is active. Stopped sessions are auto-pruned
+after a configurable TTL to prevent memory leaks.
 
-🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+
+[INPUT]
+- myrm_agent_harness.toolkits.browser.action_capture (POS: capture types and serializers)
+
+[OUTPUT]
+- register_session, get_session, remove_session: session lifecycle
+- list_active_sessions: active session listing
+- get_session_export: full session data for skill generation
+- step_to_dict: single step serialization
+
+[POS]
+In-memory session store for browser recording. Auto-prunes stopped sessions
+older than 30 minutes on each register call to prevent unbounded growth.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.browser.action_capture import (
@@ -25,10 +38,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _sessions: dict[str, CaptureSession] = {}
+_SESSION_TTL_SECONDS = 1800  # 30 minutes
+
+
+def _prune_stale_sessions() -> None:
+    """Remove stopped sessions older than TTL to prevent memory leaks."""
+    now = time.time()
+    stale = [
+        sid
+        for sid, s in _sessions.items()
+        if s.status == "stopped" and (now - s.start_time) > _SESSION_TTL_SECONDS
+    ]
+    for sid in stale:
+        _sessions.pop(sid, None)
+        logger.debug(f"Auto-pruned stale session: {sid}")
 
 
 def register_session(session: CaptureSession) -> None:
     """Register a capture session for tracking."""
+    _prune_stale_sessions()
     _sessions[session.session_id] = session
     logger.info(f"Recording session registered: {session.session_id}")
 
