@@ -270,6 +270,10 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     // users notice without re-opening the activity strip.
     const isBackgroundFinish =
       category?.startsWith('background:') && progress === 100;
+    if (category?.startsWith('background:')) {
+      const { notifyBackgroundTasksChanged } = await import('@/services/backgroundTasksRefresh');
+      notifyBackgroundTasksChanged();
+    }
     if (level === 'alert' || level === 'warn' || isBackgroundFinish) {
       const { toast } = await import('@/lib/utils/toast');
       if (level === 'alert') {

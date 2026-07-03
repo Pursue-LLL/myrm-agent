@@ -251,6 +251,9 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
       if (meta?.kind === 'background_job_finish' && meta?.chat_id === id) {
         void initializeChat(id);
+        import('@/services/backgroundTasksRefresh').then(({ notifyBackgroundTasksChanged }) => {
+          notifyBackgroundTasksChanged();
+        });
       }
     };
 

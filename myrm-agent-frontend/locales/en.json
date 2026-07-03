@@ -11484,7 +11484,10 @@
     "goalStatusBudgetLimited": "Budget Limited",
     "goalStatusNeedsReview": "Needs Review",
     "goalStatusQueued": "Queued",
-    "goalActionSuccess": "Action completed"
+    "goalActionSuccess": "Action completed",
+    "shellSection": "Shell jobs",
+    "agentSection": "Agent tasks",
+    "shellPid": "PID {pid}"
   },
   "boot": {
     "title": "Perplexica",

@@ -11455,7 +11455,10 @@
     "goalStatusBudgetLimited": "预算受限",
     "goalStatusNeedsReview": "待人工审查",
     "goalStatusQueued": "排队中",
-    "goalActionSuccess": "操作成功"
+    "goalActionSuccess": "操作成功",
+    "shellSection": "Shell 任务",
+    "agentSection": "Agent 任务",
+    "shellPid": "PID {pid}"
   },
   "boot": {
     "title": "Perplexica",
