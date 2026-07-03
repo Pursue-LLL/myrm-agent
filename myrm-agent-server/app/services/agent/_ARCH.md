@@ -24,6 +24,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` canonical ID SSOT（15 IDs）+ `normalize_enabled_builtin_tools` / `persist_enabled_builtin_tools`（DB 写校验） |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
 | `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — 服务启动时（lifespan Phase 1b）幂等创建 24 个预置智能体（4 核心 + 2 搜索 + 5 扩展 + 13 垂直领域）到数据库；**每个 builtin 显式声明 `enabled_builtin_tools`**（Developer/CLI/Automation 含 `file_ops+code_execute`；Designer 用 `image_generation`）。搜索智能体走统一 SkillAgent 路径，提示词由 `prompt_mode="search"` 单一提供（system_prompt 留空避免重复注入），享有记忆 + PWA 断连恢复能力 |
+| `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换） |
 | `stream_session/orchestrator.py` | ✅ 核心 | General Agent 流式会话主编排（setup + session 装配） |
 | `stream_session/stream_session_types.py` | ✅ 核心 | `AgentStreamSession` 会话上下文数据类 |
