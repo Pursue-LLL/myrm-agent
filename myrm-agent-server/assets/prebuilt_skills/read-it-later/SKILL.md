@@ -14,7 +14,7 @@ tags:
   - cron
   - automation
   - wiki
-allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool wiki_compile_tool memory_save_tool bash_code_execute_tool
+allowed-tools: web_fetch_tool wiki_ingest_tool wiki_query_tool wiki_compile_tool memory_recall_tool memory_save_tool bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Pull — retrieve unprocessed items from the configured MCP read-it-later source"
@@ -26,7 +26,7 @@ contract:
       mitigation: "Use web_fetch_tool with stealth mode; skip and log failures without blocking other items"
       severity: medium
     - description: "Duplicate ingestion on retry after partial failure"
-      mitigation: "Always check for processed tag before ingestion; skip items already tagged"
+      mitigation: "Dual-layer dedup: check MCP processed tag first, then memory_recall for local URL records"
       severity: medium
     - description: "Extremely long articles consuming excessive tokens"
       mitigation: "Summarize articles over 10,000 words instead of ingesting verbatim"
@@ -61,6 +61,9 @@ Use the configured MCP service to list items from the designated task group or t
 ### Idempotency Rules
 
 - Never process an item that already bears the processed tag
+- Additionally, use `memory_recall_tool` to check if the URL was previously ingested.
+  Skip any URL already recorded in memory — this local fallback prevents repeated
+  processing when the MCP source does not support write-back tagging.
 - If an item has no URL, skip it with a log note
 - Cap at 10 items per run to avoid excessive token consumption
 
@@ -129,7 +132,7 @@ Ingested: {date} | Wiki: Read-it-Later/{folder}/{filename}
 | MCP service unavailable | Abort run gracefully; next cron tick will retry |
 | Single URL fetch fails | Skip item, continue with others, log failure |
 | Wiki ingestion fails | Skip item, continue with others, log failure |
-| Write-back fails | Log warning; item will be re-processed next run (safe due to idempotency) |
+| Write-back fails | Log warning; memory dedup ensures the item will NOT be re-processed next run |
 
 ## Completion Report
 
