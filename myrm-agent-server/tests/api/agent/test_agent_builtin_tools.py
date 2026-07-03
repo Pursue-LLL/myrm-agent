@@ -115,7 +115,10 @@ class TestAgentBuiltinToolsCRUD:
 
     def test_create_agent_without_builtin_tools(self, auth_headers: dict[str, str]) -> None:
         """Create an agent without specifying builtin tools — defaults to sandbox baseline."""
-        from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+        from app.services.agent.builtin_tool_ids import (
+            DEFAULT_ENABLED_BUILTIN_TOOLS,
+            normalize_enabled_builtin_tools,
+        )
 
         payload = {
             "name": "No Builtin Tools Agent",
@@ -132,7 +135,9 @@ class TestAgentBuiltinToolsCRUD:
         assert resp.status_code == 200
         agent = resp.json()["data"]
         agent_id = agent["id"]
-        assert agent["enabled_builtin_tools"] == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        assert normalize_enabled_builtin_tools(agent["enabled_builtin_tools"]) == list(
+            DEFAULT_ENABLED_BUILTIN_TOOLS
+        )
 
         _e2e_request(
             "DELETE",
@@ -229,6 +234,7 @@ class TestAgentBuiltinToolsCRUD:
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
         """Gallery SSOT: all 24 built-in agents expose canonical tool matrices."""
         from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+        from app.services.agent.builtin_tool_ids import normalize_enabled_builtin_tools
 
         resp = _e2e_request(
             "GET",
@@ -244,7 +250,9 @@ class TestAgentBuiltinToolsCRUD:
         }
         assert len(api_by_id) == len(_BUILTIN_AGENTS)
         for spec in _BUILTIN_AGENTS:
-            assert api_by_id[spec.id] == list(spec.enabled_builtin_tools or ())
+            assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(
+                spec.enabled_builtin_tools or ()
+            )
 
 
 class TestAgentConfigRequestBuiltinTools:
