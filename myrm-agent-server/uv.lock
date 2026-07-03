@@ -1500,7 +1500,7 @@ wheels = [
 
 [[package]]
 name = "langgraph"
-version = "1.2.6"
+version = "1.2.7"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "langchain-core" },
@@ -1510,9 +1510,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/02/7a/ea09b05bb0cbddfa43bd34fc581357e87fc3f21a751cc0d419688c3106da/langgraph-1.2.6.tar.gz", hash = "sha256:f9b45a34f13930c94d96cdb76277447ad2cc70ec2d18cd2764d7fdadb36cdc1b", size = 714400, upload-time = "2026-06-18T20:58:21.514Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/bf/11/c3961537ac7577125aabba68effc33ecc3dc0962e2d287d734dbd61caad7/langgraph-1.2.7.tar.gz", hash = "sha256:dcdf5b441bf8c7c7c154e603b302c9dbfbfd2d11e1b7ae7d93a5aba979dc87bd", size = 721385, upload-time = "2026-06-30T01:24:12.528Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/89/32/772db1b00a9fe42f50320d1aa20caefb76e621eff1f7218b9918093d631d/langgraph-1.2.6-py3-none-any.whl", hash = "sha256:1cf94d3ca124f84f77ce408fa1b06c3dee680a8aafffe364a8fd5d7d03eb8695", size = 246132, upload-time = "2026-06-18T20:58:20.335Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/16/5d/19de0c674cf2d8bc95b25cdb4c13ba3f4fbe0f35bf2224ef19cc46bbb4cd/langgraph-1.2.7-py3-none-any.whl", hash = "sha256:249349a5d6a32cb0aa2304a8fb6529bd0cf56db8780d21db9e086e5383668f89", size = 246930, upload-time = "2026-06-30T01:24:11.15Z" },
 ]
 
 [[package]]
@@ -1911,7 +1911,7 @@ wheels = [
 
 [[package]]
 name = "myrm-agent-harness"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "agent-client-protocol" },
@@ -1944,7 +1944,7 @@ dependencies = [
     { name = "watchdog" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/03/44/7c5ac93a3823662e6c01856115a741490b3308064b2d779462ba59fcdb73/myrm_agent_harness-0.1.0rc4-py3-none-any.whl", hash = "sha256:7a6ce9e7295b96c7f6ead54d9ca2815f61db11f7e72f62f00ebf322731fe3237", size = 3963299, upload-time = "2026-06-25T08:59:39.744Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/82/2b/c2ea40744553039fd4ab716ca3d5608a0cb38000e5822fb9265c5411ccf6/myrm_agent_harness-0.1.0rc5-py3-none-any.whl", hash = "sha256:f6686a12f04fc64f0b80dd80728414f2ebca540b204863534b39e24b8be14372", size = 3993308, upload-time = "2026-07-03T06:39:33.717Z" },
 ]
 
 [package.optional-dependencies]
@@ -1989,68 +1989,68 @@ web = [
 
 [[package]]
 name = "myrm-agent-harness-core-darwin-arm64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/40/4d/7978591014080aa89a7b6a0131344e86b87c1203d032dff447f53601f21b/myrm_agent_harness_core_darwin_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:2634ac43a4c8fcce0c0fa01548fa152ce7a44b377192e9eeef3228086aa63dbe", size = 9836271, upload-time = "2026-06-25T08:59:36.498Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e7/c8/86ac0f5c62a8c80cd6f86271d45d8d47ec75c69676cd4f003f75dac46cf3/myrm_agent_harness_core_darwin_arm64-0.1.0rc5-py3-none-any.whl", hash = "sha256:48610ccbb7acea9014ff1575383e4c3c83b242b916ffeb9389b0f1a0beddae81", size = 9013526, upload-time = "2026-07-03T06:39:33.898Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-darwin-x64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/16/70/668bc39126fc0e365375c082d08e6da870d2c829f5619fdcdb60fa6995bd/myrm_agent_harness_core_darwin_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:668a520e7b9adf6d3832e1b4b56564faaff219a3d1c1e4c89237a7f8c4286160", size = 9836100, upload-time = "2026-06-25T08:59:36.186Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/75/09/bfbad643460f333229bd4b04831bdecee87495b23e28a9ca7e47b32c2fde/myrm_agent_harness_core_darwin_x64-0.1.0rc5-py3-none-any.whl", hash = "sha256:f99dec064196e133b60c5a5712cbebc484322605212ef98104c36463c6e0e167", size = 9013367, upload-time = "2026-07-03T06:39:29.871Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-linux-arm64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/90/52/bfd828d5521cc1c06c5278e3d2374c238b56b83cb3e7c42b6d5d230abbc9/myrm_agent_harness_core_linux_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:1b91b2ac768e65ca6e4b30bb7172b8e9993e0dce54cde4b5e53c0e0403317b28", size = 23022590, upload-time = "2026-06-25T08:59:36.252Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ef/3b/069f267fbdc469547eb38b2e515c0a010a060574a2ef528e58f6ecf12419/myrm_agent_harness_core_linux_arm64-0.1.0rc5-py3-none-any.whl", hash = "sha256:a39fe3abb4c0175842d8f240a613909183f51b50ebc598b6a2226f6bab8fcdce", size = 20481390, upload-time = "2026-07-03T06:39:33.849Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-linux-x64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a7/8c/6b9de3df2e9c045c0f0c57cb3ad45f988d31f172f4449dc4ae2f45891de2/myrm_agent_harness_core_linux_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:53cf9aafbc6e8d7e791dcfd0eee009dba2ec4b7d55080177d8b5a02338edebe7", size = 25177727, upload-time = "2026-06-25T08:59:44.253Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ae/57/c8d4ef91641e2d0890f2163bbd28079c265f00b0f99de028c5f0f975e00a/myrm_agent_harness_core_linux_x64-0.1.0rc5-py3-none-any.whl", hash = "sha256:c2a4737512f5a7c77ca15cdaf01e1ff10493c03e9523aadccd887a2a313f309e", size = 22400656, upload-time = "2026-07-03T06:39:34.805Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-win32-arm64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4a/11/96d84234d77c25a50fb85267ec9217851f64aaef276d578eab1a1bc7ebde/myrm_agent_harness_core_win32_arm64-0.1.0rc4-py3-none-any.whl", hash = "sha256:51bf35898bd6407581570fdb399a81db5c22c9abeda914b8ff050a7ed377c4c1", size = 10086142, upload-time = "2026-06-25T08:59:36.59Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a0/72/158ac3c853a2d262d84430be32c0974658f74f3b926427f872347db41e21/myrm_agent_harness_core_win32_arm64-0.1.0rc5-py3-none-any.whl", hash = "sha256:57753516e19d56d5348d93cb92cea419ccdb0685f427372ac54423542d1395de", size = 9155988, upload-time = "2026-07-03T06:39:29.22Z" },
 ]
 
 [[package]]
 name = "myrm-agent-harness-core-win32-x64"
-version = "0.1.0rc4"
+version = "0.1.0rc5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "myrm-agent-harness" },
 ]
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/1a/1c/d064749ce36f3c0420dc8ae345c6b8dc76aef2c64f6c20e98198d104bdfd/myrm_agent_harness_core_win32_x64-0.1.0rc4-py3-none-any.whl", hash = "sha256:d5fe2ff3ae75ae55ad4c5bd6d3156603d305b5f90ebc8d9eb255992cb6fb1c49", size = 10075565, upload-time = "2026-06-25T08:59:41.123Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4e/51/673585f603127259b9028f6c8c297f7bc24afa1107b00c1779a55b17b9f3/myrm_agent_harness_core_win32_x64-0.1.0rc5-py3-none-any.whl", hash = "sha256:3af84857364452abca3b6ae39147864ba0e0662e697f7b6539d78f3d9cc2eda8", size = 9146431, upload-time = "2026-07-03T06:39:27.777Z" },
 ]
 
 [[package]]
@@ -2152,7 +2152,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'data-viz'", specifier = ">=3.11.0" },
     { name = "mautrix", marker = "extra == 'matrix'", specifier = ">=0.21.0" },
     { name = "mautrix", extras = ["encryption"], marker = "extra == 'matrix-e2ee'", specifier = ">=0.21.0" },
-    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc4" },
+    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc5" },
     { name = "nanoid", specifier = ">=2.0.0" },
     { name = "orjson", specifier = ">=3.11.9" },
     { name = "pandas", marker = "extra == 'data-viz'", specifier = ">=3.0.4" },
@@ -2298,14 +2298,14 @@ wheels = [
 
 [[package]]
 name = "opentelemetry-api"
-version = "1.42.1"
+version = "1.43.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b4/1c/125e1c936c0873796771b7f04f6c93b9f1bf5d424cea90fda94a99f61da8/opentelemetry_api-1.42.1.tar.gz", hash = "sha256:56c63bea9f77b62856be8c47600474acad853b2924b99b1687c4cb6297166716", size = 72296, upload-time = "2026-05-21T16:32:49.335Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ae/cc/e4c9584181f86494df0f6bdec1a4f3280c50db44704dc2a407e994fc87bb/opentelemetry_api-1.43.0.tar.gz", hash = "sha256:107d0d03857ea8fc7c5fcbbbd83f800c281f0d560553d61c1d675fccfd1761c1", size = 73476, upload-time = "2026-06-24T15:19:55.323Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a3/ca/9520cc1f3dfbbd03ac5903bbf55833e257bc64b1cf30fa8b0d6df374d821/opentelemetry_api-1.42.1-py3-none-any.whl", hash = "sha256:51a69edacadbc03a8950ace1c4c21099cacc538820ac2c9e36277e78cebba714", size = 61311, upload-time = "2026-05-21T16:32:28.822Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/17/83/6dba32b85f31868400440dc7ad2ca1eab94cbbf3a7b0459ed39f8311a9e2/opentelemetry_api-1.43.0-py3-none-any.whl", hash = "sha256:20acf45e9b21851926835292e4045d290acade1edd2ff3de86d2f069687ba1fd", size = 61912, upload-time = "2026-06-24T15:19:35.434Z" },
 ]
 
 [[package]]
