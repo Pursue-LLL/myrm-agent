@@ -152,7 +152,6 @@ class ResolvedAgentProfile:
     session_policy: dict[str, object] | None = field(default=None, kw_only=True)
     mcp_tool_selections: dict[str, tuple[str, ...]] = field(default_factory=dict, kw_only=True)
     """Per-MCP-server tool whitelist {server: (tool, ...)}; empty = no per-tool constraint."""
-    browser_engine: str | None = field(default=None, kw_only=True)
     browser_source: str | None = field(default=None, kw_only=True)
     dialog_policy: str | None = field(default=None, kw_only=True)
     session_recording: str | None = field(default=None, kw_only=True)
@@ -245,8 +244,6 @@ class AgentProfileResolver:
                 raw_auto_restore = metadata.get("auto_restore_domains")
                 auto_domains_tuple = _coerce_str_tuple(raw_auto_restore) if raw_auto_restore is not None else ()
 
-                raw_browser_engine = getattr(agent, "browser_engine", None) or metadata.get("browser_engine")
-                browser_engine = str(raw_browser_engine) if raw_browser_engine else None
                 raw_browser_source = getattr(agent, "browser_source", None) or metadata.get("browser_source")
                 browser_source = str(raw_browser_source) if raw_browser_source else None
                 raw_dialog_policy = getattr(agent, "dialog_policy", None) or metadata.get("dialog_policy")
@@ -285,7 +282,6 @@ class AgentProfileResolver:
                     subagent_ids=sub_tuple if sub_tuple else None,
                     mcp_ids=mcp_tuple,
                     mcp_tool_selections=mcp_tool_selections,
-                    browser_engine=browser_engine,
                     browser_source=browser_source,
                     dialog_policy=dialog_policy,
                     session_recording=session_recording,

@@ -4656,14 +4656,6 @@
     "sessionPolicyEnabled": "Enable per-agent session policy",
     "browserConfig": "Browser Configuration",
     "browserConfigDesc": "Configure browser source, dialogs, and session recording. Anti-bot stealth is handled automatically when the Browser tool is enabled.",
-    "browserEngine": {
-      "label": "Browser Engine",
-      "description": "Select the default browser engine for web browsing tasks. Fast mode for standard pages, stealth mode for bypassing anti-bot (e.g. Cloudflare).",
-      "chromium": "Chromium (Patchright)",
-      "chromiumDesc": "Default. Fast, low resource usage, suitable for most pages.",
-      "camoufox": "Stealth Camoufox (Firefox)",
-      "camoufoxDesc": "Firefox stealth fallback. Auto-used when Patchright hits advanced anti-bot; slower and heavier."
-    },
     "dialogPolicy": {
       "label": "Dialog Handling"
     },

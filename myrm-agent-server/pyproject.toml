@@ -26,7 +26,7 @@ dependencies = [
   "langchain-core>=1.4.8", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
   "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
-  "camoufox[async]>=0.4.11", # Stealth ladder fallback until harness rc6 publishes camoufox in [browser] extra
+  "camoufox>=0.4.11", # Stealth ladder fallback (PyPI harness rc5 [browser] extra lacks camoufox)
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.1",           # Matrix channel + alert notifier HTTP client
   # --- 语音处理 ---
@@ -89,7 +89,7 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.61.1",
-  "camoufox[async]>=0.4.11",
+  "camoufox>=0.4.11",
   "openai>=2.44.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",

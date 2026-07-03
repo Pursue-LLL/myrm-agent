@@ -54,9 +54,6 @@ class AgentConfigRequest(BaseModel):
     enabled_builtin_tools: RequiredBuiltinTools = Field(
         default_factory=lambda: list(DEFAULT_ENABLED_BUILTIN_TOOLS),
     )
-    browser_engine: str | None = Field(
-        default=None, description="Default browser engine (e.g. chromium_patchright, firefox_camoufox)"
-    )
     browser_source: str | None = Field(
         default=None, description="Browser acquisition mode (launch/connect/extension/auto/remote)"
     )
@@ -69,14 +66,6 @@ class AgentConfigRequest(BaseModel):
     auto_restore_domains: list[str] = []
     canvas_id: str | None = Field(default=None, description="Active canvas workspace ID for agent canvas tools")
     tool_gateway_config: ToolGatewayConfig | None = None
-
-    @field_validator("browser_engine")
-    @classmethod
-    def validate_browser_engine(cls, v: str | None) -> str | None:
-        valid = {"chromium_patchright", "firefox_camoufox"}
-        if v is not None and v not in valid:
-            raise ValueError(f"browser_engine must be one of {valid}, got '{v}'")
-        return v
 
     @field_validator("browser_source")
     @classmethod

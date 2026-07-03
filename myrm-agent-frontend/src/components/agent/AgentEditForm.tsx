@@ -147,7 +147,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         command_bindings: validBindings.length > 0 ? validBindings : null,
         session_policy: sessionPolicyEnabled ? sessionPolicy : null,
         tool_gateway_config: toolGatewayConfig,
-        browser_engine: null,
         browser_source: browserSource === 'auto' ? null : browserSource,
         dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
         session_recording: sessionRecording === 'off' ? null : sessionRecording,

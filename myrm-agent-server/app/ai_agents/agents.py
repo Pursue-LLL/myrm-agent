@@ -111,7 +111,6 @@ class GeneralAgentParams(BaseAgentParams):
     reranker_config: RerankerConfig | None = None
     enable_render_ui: bool = False
     enable_browser: bool = False
-    browser_engine: str | None = None
     browser_source: str | None = None
     dialog_policy: str | None = None
     session_recording: str | None = None

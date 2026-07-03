@@ -92,7 +92,6 @@ export interface Agent {
   mounted_skill_ids?: string[];
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[] | null;
-  browser_engine?: string | null;
   browser_source?: string | null;
   dialog_policy?: string | null;
   session_recording?: string | null;
@@ -148,7 +147,6 @@ export interface AgentCreate {
   mounted_skill_ids?: string[];
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[];
-  browser_engine?: string | null;
   browser_source?: string | null;
   dialog_policy?: string | null;
   session_recording?: string | null;
@@ -185,7 +183,6 @@ export interface AgentUpdate {
   mounted_skill_ids?: string[];
   skill_configs?: Record<string, { is_core?: boolean }> | null;
   enabled_builtin_tools?: string[];
-  browser_engine?: string | null;
   browser_source?: string | null;
   dialog_policy?: string | null;
   session_recording?: string | null;

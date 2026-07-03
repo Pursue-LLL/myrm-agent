@@ -49,7 +49,6 @@ export interface AgentConfig {
   safetyFallbackModelSelection?: SingleModelSelection | null;
   forceDelegateAgent?: string;
   enabledBuiltinTools?: BuiltinToolId[];
-  browserEngine?: string;
   browserSource?: string;
   dialogPolicy?: 'smart' | 'auto_accept' | 'auto_dismiss' | 'wait_for_agent';
   sessionRecording?: 'off' | 'on_failure' | 'always';

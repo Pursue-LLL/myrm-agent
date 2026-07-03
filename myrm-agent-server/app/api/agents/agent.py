@@ -238,7 +238,6 @@ def _to_agent_response(
         skill_ids=agent.skills or [],
         skill_configs=agent.skill_configs,
         enabled_builtin_tools=enabled_tools,
-        browser_engine=_meta_str(metadata, "browser_engine"),
         browser_source=_meta_str(metadata, "browser_source"),
         dialog_policy=_meta_str(metadata, "dialog_policy"),
         session_recording=_meta_str(metadata, "session_recording"),

@@ -15,7 +15,7 @@ prerelease-mode = "allow"
 [manifest]
 overrides = [
     { name = "aiohttp", specifier = ">=3.13.5" },
-    { name = "camoufox", extras = ["async"], specifier = ">=0.4.11" },
+    { name = "camoufox", specifier = ">=0.4.11" },
     { name = "click", specifier = ">=8.4.2" },
     { name = "mcp", specifier = ">=1.28.1" },
     { name = "openai", specifier = ">=2.44.0" },
@@ -2200,7 +2200,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.1" },
     { name = "aiohttp-socks", marker = "extra == 'matrix'", specifier = ">=0.11.0" },
     { name = "apscheduler", specifier = ">=4.0.0a6,<4.1.0" },
-    { name = "camoufox", extras = ["async"], specifier = ">=0.4.11" },
+    { name = "camoufox", specifier = ">=0.4.11" },
     { name = "cryptography", specifier = ">=49.0.0" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "discord-py", extras = ["voice"], marker = "extra == 'channels-sdk'", specifier = ">=2.7.1" },

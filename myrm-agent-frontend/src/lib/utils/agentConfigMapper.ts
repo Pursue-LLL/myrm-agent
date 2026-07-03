@@ -50,7 +50,6 @@ export function buildAgentConfig(agent: Agent): AgentConfig {
     fallbackModelSelection: toSingleSelection(ms, 'fallback'),
     safetyFallbackModelSelection: toSingleSelection(ms, 'safetyFallback'),
     enabledBuiltinTools: (agent.enabled_builtin_tools ?? undefined) as BuiltinToolId[] | undefined,
-    browserEngine: agent.browser_engine ?? undefined,
     browserSource: agent.browser_source ?? undefined,
     dialogPolicy: (agent.dialog_policy ?? undefined) as AgentConfig['dialogPolicy'],
     sessionRecording: (agent.session_recording ?? undefined) as AgentConfig['sessionRecording'],

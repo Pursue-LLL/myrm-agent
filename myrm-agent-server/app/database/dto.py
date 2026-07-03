@@ -416,9 +416,6 @@ class AgentBase(BaseModel):
     mounted_skill_ids: list[str] = Field(default=[], description="挂载的其他 Agent 专属技能 ID 列表")
     skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
     enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
-    browser_engine: str | None = Field(
-        None, description="浏览器引擎偏好 (如 'chromium_patchright', 'firefox_camoufox')。为空则使用系统默认。"
-    )
     browser_source: str | None = Field(
         None,
         description="浏览器获取方式: 'launch'(新建)、'connect'(CDP)、'extension'(扩展桥接)、'auto'(自动)、'remote'(远程)。为空则使用系统默认。",
@@ -507,10 +504,6 @@ class AgentUpdate(BaseModel):
     mounted_skill_ids: list[str] | None = Field(None, description="挂载的其他 Agent 专属技能 ID 列表")
     skill_configs: dict[str, SkillConfig] | None = Field(None, description="技能的个性化配置 (如 is_core)")
     enabled_builtin_tools: OptionalBuiltinTools = Field(None, description="启用的内置工具 ID 列表")
-    browser_engine: str | None = Field(
-        None,
-        description="浏览器引擎偏好: 'chromium_patchright'/'firefox_camoufox'。None=不修改。",
-    )
     browser_source: str | None = Field(
         None,
         description="浏览器获取方式: 'launch'/'connect'/'extension'/'auto'/'remote'。None=不修改。",

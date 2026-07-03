@@ -569,7 +569,6 @@ async def convert_to_general_agent_params(
         auto_restore_domains = list(cfg.auto_restore_domains)
         canvas_id = cfg.canvas_id
         browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
-        browser_engine = cfg.browser_engine if hasattr(cfg, "browser_engine") else (resolved.browser_engine if resolved else None)
         dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
         session_recording = cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
         if getattr(cfg, "tool_gateway_config", None) is not None:
@@ -577,7 +576,6 @@ async def convert_to_general_agent_params(
         else:
             tool_gateway_config = resolved.tool_gateway_config if resolved else None
     else:
-        browser_engine = resolved.browser_engine if resolved else None
         dialog_policy = resolved.dialog_policy if resolved else None
         session_recording = resolved.session_recording if resolved else None
         tool_gateway_config = resolved.tool_gateway_config if resolved else None
@@ -874,7 +872,6 @@ async def convert_to_general_agent_params(
         enable_web_search=search_available,
         **tool_flags,
         canvas_id=canvas_id,
-        browser_engine=browser_engine,
         browser_source=browser_source,
         dialog_policy=dialog_policy,
         session_recording=session_recording,

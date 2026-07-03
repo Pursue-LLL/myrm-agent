@@ -13,7 +13,6 @@ const makeAgent = (overrides: Partial<Agent> = {}): Agent => ({
   mcp_ids: ['mcp-b'],
   skill_configs: { 'skill-a': { is_core: true } },
   enabled_builtin_tools: ['web_search', 'code_execute'],
-  browser_engine: 'puppeteer',
   browser_source: 'built_in',
   dialog_policy: 'smart',
   session_recording: 'on_failure',
@@ -81,7 +80,6 @@ describe('buildAgentConfig', () => {
     const config = buildAgentConfig(makeAgent());
 
     expect(config.enabledBuiltinTools).toEqual(['web_search', 'code_execute']);
-    expect(config.browserEngine).toBe('puppeteer');
     expect(config.browserSource).toBe('built_in');
   });
 
@@ -107,7 +105,6 @@ describe('buildAgentConfig', () => {
         mcp_ids: undefined,
         skill_configs: null,
         enabled_builtin_tools: null,
-        browser_engine: null,
         auto_restore_domains: null,
         suggestion_prompts: null,
       }),
@@ -118,7 +115,6 @@ describe('buildAgentConfig', () => {
     expect(config.selectedMcpNames).toEqual([]);
     expect(config.skillConfigs).toEqual({});
     expect(config.enabledBuiltinTools).toBeUndefined();
-    expect(config.browserEngine).toBeUndefined();
     expect(config.autoRestoreDomains).toEqual([]);
     expect(config.suggestionPrompts).toBeUndefined();
   });

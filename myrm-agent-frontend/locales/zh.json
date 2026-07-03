@@ -4659,14 +4659,6 @@
     "sessionPolicyEnabled": "启用独立会话策略",
     "browserConfig": "浏览器配置",
     "browserConfigDesc": "配置浏览器来源、对话框与会话录制。启用 Browser 工具后，反爬隐身能力由系统自动处理。",
-    "browserEngine": {
-      "label": "浏览器引擎",
-      "description": "选择执行网页任务时默认使用的浏览器引擎。极速模式适合普通网页，深度隐身模式适合突破高强度反爬（如 Cloudflare）。",
-      "chromium": "极速 Chromium (Patchright)",
-      "chromiumDesc": "默认选项。速度快，资源占用低，适合绝大多数常规网页。",
-      "camoufox": "深度隐身 Camoufox (Firefox)",
-      "camoufoxDesc": "Firefox 隐身备用引擎。Patchright 遇高强度反爬时自动升级；速度较慢、资源占用较高，不保证全站通过。"
-    },
     "dialogPolicy": {
       "label": "弹窗处理"
     },

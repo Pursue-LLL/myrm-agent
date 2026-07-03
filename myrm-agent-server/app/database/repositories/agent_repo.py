@@ -113,7 +113,6 @@ class AgentRepository:
                 "notify_targets": agent.notify_targets,
                 "tool_gateway_config": agent.tool_gateway_config,
                 "mounted_skill_ids": agent.mounted_skill_ids,
-                "browser_engine": agent.browser_engine,
                 "browser_source": agent.browser_source,
                 "dialog_policy": agent.dialog_policy,
                 "session_recording": agent.session_recording,
@@ -193,7 +192,6 @@ class AgentRepository:
             enabled_builtin_tools=persist_enabled_builtin_tools(
                 meta.get("enabled_builtin_tools", profile.tools_allowed)
             ),
-            browser_engine=meta.get("browser_engine"),
             browser_source=meta.get("browser_source"),
             dialog_policy=meta.get("dialog_policy"),
             session_recording=meta.get("session_recording"),
@@ -392,8 +390,6 @@ class AgentRepository:
                 agent.tool_gateway_config = gateway_config
             if "mounted_skill_ids" in metadata:
                 agent.mounted_skill_ids = cast(list[str], metadata["mounted_skill_ids"])
-            if "browser_engine" in metadata:
-                agent.browser_engine = cast(str | None, metadata["browser_engine"])
             if "browser_source" in metadata:
                 agent.browser_source = cast(str | None, metadata["browser_source"])
             if "dialog_policy" in metadata:
