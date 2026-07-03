@@ -136,13 +136,14 @@ class TestRenderUITool:
             assert events[0].actions[0].type == "submit"
 
     def test_render_ui_outside_context(self):
-        """在 ArtifactContext 之外调用不崩溃，返回警告。"""
+        """Outside ArtifactContext must fail-closed."""
         result = render_ui(
             title="No Context",
             components=[{"id": "t", "type": "text", "props": {"text": "x"}}],
             root_ids=["t"],
         )
-        assert "No Context" in result
+        assert result.startswith("Failed to render UI")
+        assert "registry is not initialized" in result
 
     def test_render_tabs_with_default_index(self):
         """验证 tabs 的 defaultIndex prop 正确传递。"""
@@ -214,16 +215,16 @@ class TestRenderUITool:
             assert inner.type.value == "tabs"
             assert inner.children == ["t1", "t2"]
 
-    def test_render_component_missing_id(self):
-        """组件缺少 id 字段时使用空字符串，不崩溃。"""
+    def test_render_component_missing_id_fail_closed(self):
+        """Missing component id must fail-closed before rendering."""
         with ArtifactContextManager():
             result = render_ui(
                 title="No ID",
                 components=[{"type": "text", "props": {"text": "hello"}}],
                 root_ids=[""],
             )
-            assert "No ID" in result
+            assert result.startswith("Failed to render UI")
+            assert "invalid UI graph" in result
             registry = get_ui_registry()
             assert registry is not None
-            events = registry.pop_pending_events()
-            assert len(events[0].components) == 1
+            assert not registry.has_pending_events()
