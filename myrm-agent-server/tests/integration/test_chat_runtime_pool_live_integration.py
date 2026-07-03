@@ -198,3 +198,63 @@ async def test_live_facade_cancel_during_active_run_turn() -> None:
     pool._pool.run_turn = original_run_turn
     pool._pool.cancel = original_cancel
 
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_live_fingerprint_replace_deferred_while_turn_locked() -> None:
+    """Config fingerprint change during active run_turn must defer pool replace."""
+    chat_id = "live-int-chat-fp-defer"
+    registry = get_chat_runtime_pool_registry()
+
+    mixin_a = _new_mixin(chat_scope_id=chat_id)
+    await mixin_a._do_setup_external_agents([], [], mount_delegate_tool=False)
+    pool = mixin_a._runtime_pool
+    assert isinstance(pool, ChatScopedRuntimePoolFacade)
+    raw_first = pool._pool
+
+    entered = asyncio.Event()
+    unblock = asyncio.Event()
+
+    async def slow_run(
+        name: str,
+        prompt: str,
+        session_id: str,
+        *,
+        mode: str = "persistent",
+    ):
+        entered.set()
+        await unblock.wait()
+        yield MagicMock()
+
+    original_run_turn = pool._pool.run_turn
+    pool._pool.run_turn = slow_run  # type: ignore[method-assign]
+
+    async def consume() -> None:
+        async for _ in pool.run_turn("echo-cli", "hold", "sess-hold"):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.wait_for(entered.wait(), timeout=2.0)
+
+    alt_cfg: list[dict[str, object]] = [
+        {
+            "name": "echo-cli",
+            "type": "cli",
+            "command": "echo",
+            "args": ["alt"],
+        }
+    ]
+    mixin_b = _new_mixin(chat_scope_id=chat_id)
+    mixin_b.external_agents_config = alt_cfg
+    await mixin_b._do_setup_external_agents([], [], mount_delegate_tool=False)
+    assert mixin_b._runtime_pool._pool is raw_first
+
+    unblock.set()
+    await task
+    pool._pool.run_turn = original_run_turn
+
+    mixin_c = _new_mixin(chat_scope_id=chat_id)
+    mixin_c.external_agents_config = alt_cfg
+    await mixin_c._do_setup_external_agents([], [], mount_delegate_tool=False)
+    assert mixin_c._runtime_pool._pool is not raw_first
+
