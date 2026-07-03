@@ -3,10 +3,12 @@
 import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Circle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
 import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 
 const BrowserRecordingToggle: React.FC = () => {
+  const t = useTranslations('chat.browserRecording');
   const { isOpen, status, togglePanel, steps } = useBrowserRecordingStore();
   const isBrowserActive = useBrowserInspectorStore((s) => s.isBrowserActive);
 
@@ -28,8 +30,8 @@ const BrowserRecordingToggle: React.FC = () => {
             ? 'bg-destructive text-destructive-foreground animate-pulse'
             : 'bg-secondary text-secondary-foreground hover:bg-secondary/90',
       )}
-      title="Browser Recording"
-      aria-label="Toggle browser recording panel"
+      title={t('toggleLabel')}
+      aria-label={t('toggleTitle')}
     >
       <Circle size={18} fill={isActive ? 'currentColor' : 'none'} />
       {isActive && steps.length > 0 && (

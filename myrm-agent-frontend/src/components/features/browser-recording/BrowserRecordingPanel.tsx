@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   Circle,
@@ -12,10 +12,12 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
 import RecordingStepCard from './RecordingStepCard';
 
 const BrowserRecordingPanel: React.FC = () => {
+  const t = useTranslations('chat.browserRecording');
   const {
     isOpen,
     status,
@@ -35,6 +37,10 @@ const BrowserRecordingPanel: React.FC = () => {
   const [skillName, setSkillName] = useState('');
   const [skillDesc, setSkillDesc] = useState('');
   const stepsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    stepsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [steps.length]);
 
   const handleStart = useCallback(() => {
     startRecording();
@@ -68,15 +74,15 @@ const BrowserRecordingPanel: React.FC = () => {
           {isPaused && <span className="w-2 h-2 rounded-full bg-yellow-500" />}
           {!isRecording && !isPaused && <Circle size={8} className="text-muted-foreground" />}
           <span className="text-sm font-medium">
-            {status === 'idle' && 'Browser Recording'}
-            {isRecording && 'Recording...'}
-            {isPaused && 'Paused'}
-            {isStopped && 'Recording Complete'}
-            {isGenerating && 'Generating Skill...'}
+            {status === 'idle' && t('statusIdle')}
+            {isRecording && t('statusRecording')}
+            {isPaused && t('statusPaused')}
+            {isStopped && t('statusComplete')}
+            {isGenerating && t('statusGenerating')}
           </span>
           {steps.length > 0 && (
             <span className="text-xs text-muted-foreground bg-muted-foreground/10 px-1.5 py-0.5 rounded-full">
-              {steps.length} steps
+              {t('stepsCount', { count: steps.length })}
             </span>
           )}
         </div>
@@ -84,7 +90,7 @@ const BrowserRecordingPanel: React.FC = () => {
           type="button"
           onClick={closePanel}
           className="p-1 rounded hover:bg-accent text-muted-foreground"
-          aria-label="Close panel"
+          aria-label={t('closePanel')}
         >
           <X size={14} />
         </button>
@@ -102,7 +108,7 @@ const BrowserRecordingPanel: React.FC = () => {
             )}
           >
             <Circle size={14} fill="currentColor" />
-            Start Recording
+            {t('startRecording')}
           </button>
         )}
 
@@ -114,7 +120,7 @@ const BrowserRecordingPanel: React.FC = () => {
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20"
             >
               <Pause size={14} />
-              Pause
+              {t('pause')}
             </button>
             <button
               type="button"
@@ -122,7 +128,7 @@ const BrowserRecordingPanel: React.FC = () => {
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-accent text-foreground hover:bg-accent/80"
             >
               <Square size={14} />
-              Stop
+              {t('stop')}
             </button>
           </>
         )}
@@ -135,7 +141,7 @@ const BrowserRecordingPanel: React.FC = () => {
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-chart-2/10 text-chart-2 hover:bg-chart-2/20"
             >
               <Play size={14} />
-              Resume
+              {t('resume')}
             </button>
             <button
               type="button"
@@ -143,7 +149,7 @@ const BrowserRecordingPanel: React.FC = () => {
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-accent text-foreground hover:bg-accent/80"
             >
               <Square size={14} />
-              Stop
+              {t('stop')}
             </button>
           </>
         )}
@@ -154,7 +160,7 @@ const BrowserRecordingPanel: React.FC = () => {
             onClick={reset}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm bg-accent text-foreground hover:bg-accent/80"
           >
-            New Recording
+            {t('newRecording')}
           </button>
         )}
       </div>
@@ -163,13 +169,12 @@ const BrowserRecordingPanel: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5 max-h-[40vh]">
         {steps.length === 0 && status !== 'idle' && (
           <p className="text-center text-xs text-muted-foreground py-4">
-            Waiting for browser actions...
+            {t('waitingForActions')}
           </p>
         )}
         {steps.length === 0 && status === 'idle' && (
           <p className="text-center text-xs text-muted-foreground py-4">
-            Click &quot;Start Recording&quot; to begin capturing browser actions.
-            Your actions will be converted into a reusable Browser Skill.
+            {t('idleHint')}
           </p>
         )}
         {steps.map((step) => (
@@ -198,7 +203,7 @@ const BrowserRecordingPanel: React.FC = () => {
             type="text"
             value={skillName}
             onChange={(e) => setSkillName(e.target.value)}
-            placeholder="Skill name (e.g. weekly-report)"
+            placeholder={t('skillNamePlaceholder')}
             className={cn(
               'w-full px-2.5 py-1.5 rounded-lg text-sm',
               'bg-muted border border-border',
@@ -210,7 +215,7 @@ const BrowserRecordingPanel: React.FC = () => {
             type="text"
             value={skillDesc}
             onChange={(e) => setSkillDesc(e.target.value)}
-            placeholder="Description (optional)"
+            placeholder={t('descriptionPlaceholder')}
             className={cn(
               'w-full px-2.5 py-1.5 rounded-lg text-sm',
               'bg-muted border border-border',
@@ -228,7 +233,7 @@ const BrowserRecordingPanel: React.FC = () => {
             )}
           >
             <Sparkles size={14} />
-            {isGenerating ? 'Generating...' : 'Generate Browser Skill'}
+            {isGenerating ? t('generating') : t('generateSkill')}
           </button>
         </div>
       )}
@@ -238,18 +243,18 @@ const BrowserRecordingPanel: React.FC = () => {
         <div className="px-3 py-3 border-t border-border space-y-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={16} className="text-chart-2" />
-            <span className="text-sm font-medium text-chart-2">Skill Generated!</span>
+            <span className="text-sm font-medium text-chart-2">{t('skillGenerated')}</span>
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
             <p>
-              <span className="font-medium">Name:</span> {generatedSkill.skillName}
+              <span className="font-medium">{t('labelName')}</span> {generatedSkill.skillName}
             </p>
             <p>
-              <span className="font-medium">Steps:</span> {generatedSkill.stepCount}
+              <span className="font-medium">{t('labelSteps')}</span> {generatedSkill.stepCount}
             </p>
             {generatedSkill.credentialPlaceholders.length > 0 && (
               <p className="text-yellow-600">
-                {generatedSkill.credentialPlaceholders.length} credential field(s) detected
+                {t('credentialDetected', { count: generatedSkill.credentialPlaceholders.length })}
               </p>
             )}
           </div>

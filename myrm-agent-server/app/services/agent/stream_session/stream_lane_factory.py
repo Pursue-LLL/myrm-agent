@@ -373,6 +373,10 @@ async def create_consensus_stream(
     else:
         text_query = str(raw_q)
 
+    from app.core.utils.chat_utils import convert_chat_history
+
+    chat_history = await convert_chat_history(params.chat_history) if params.chat_history else None
+
     final_result: ConsensusStreamEvent | None = None
 
     # Bracket the engine run with a request-scoped token tracker. The LLM
@@ -385,6 +389,7 @@ async def create_consensus_stream(
         async for event in engine.run_stream(
             text_query,
             system_prompt=params.user_instructions,
+            chat_history=chat_history,
             cancel_token=cancel_token,
         ):
             if cancel_token and cancel_token.is_cancelled:

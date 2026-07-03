@@ -115,6 +115,7 @@ class GeneralAgent(ToolSetupMixin):
         declared_capabilities: tuple[str, ...] = (),
         declared_allowed_roots: tuple[str, ...] = (),
         external_agents_config: list[dict[str, object]] | None = None,
+        force_delegate_agent: str | None = None,
         image_generation_params: "ImageGenerationParams | None" = None,
         video_generation_params: "VideoGenerationParams | None" = None,
         tts_params: "dict[str, object] | None" = None,
@@ -200,6 +201,7 @@ class GeneralAgent(ToolSetupMixin):
         self.declared_capabilities = declared_capabilities
         self.declared_allowed_roots = declared_allowed_roots
         self.external_agents_config = external_agents_config
+        self.force_delegate_agent = force_delegate_agent
         self.image_generation_params = image_generation_params
         self.video_generation_params = video_generation_params
         self.tts_params = tts_params

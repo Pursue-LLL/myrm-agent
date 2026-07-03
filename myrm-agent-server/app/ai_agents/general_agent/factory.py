@@ -218,7 +218,17 @@ async def build_general_agent(
         agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
     agent_wrapper._setup_canvas_tools(tools)
 
-    await agent_wrapper._setup_external_agents(tools, deferred_tools)
+    from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool
+
+    mount_delegate_tool = should_mount_delegate_tool(
+        agent_id=agent_wrapper.agent_id,
+        force_delegate_agent=agent_wrapper.force_delegate_agent,
+    )
+    await agent_wrapper._setup_external_agents(
+        tools,
+        deferred_tools,
+        mount_delegate_tool=mount_delegate_tool,
+    )
 
     from app.services.agent.goal_registry import GoalRegistry
 
