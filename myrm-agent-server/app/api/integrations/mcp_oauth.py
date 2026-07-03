@@ -52,6 +52,23 @@ _MAX_PENDING = 50
 _EXPIRY_SECONDS = 600
 
 
+async def _refresh_connection_pool_auth(server_name: str, token: MCPOAuthToken) -> None:
+    """Hot-update auth headers in the MCP connection pool after re-authorization.
+
+    Ensures existing warm sessions pick up the fresh token immediately,
+    so the next tool call uses the new credentials without requiring
+    a full connection rebuild or page refresh.
+    """
+    try:
+        from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
+
+        if MCPConnectionManager._instance is not None:
+            headers = {"Authorization": f"{token.token_type} {token.access_token}"}
+            MCPConnectionManager._instance.refresh_server_auth(server_name, headers)
+    except Exception:
+        logger.debug("Connection pool auth refresh skipped for '%s'", server_name, exc_info=True)
+
+
 def _evict_expired_pending() -> None:
     """Remove pending auth entries older than 10 minutes (lazy GC)."""
     now = time.time()
@@ -210,6 +227,7 @@ async def handle_mcp_oauth_callback(
 
             _successful_auth[state] = time.time()
 
+            await _refresh_connection_pool_auth(server_name, token)
             logger.info("MCP OAuth completed for '%s'", server_name)
             return HTMLResponse(
                 content="""

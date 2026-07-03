@@ -9440,7 +9440,9 @@
     "viewMemoryCenter": "記憶を確認",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agentの応答が完了しました",
-    "clarificationNeeded": "Agentがあなたの入力を必要としています"
+    "clarificationNeeded": "Agentがあなたの入力を必要としています",
+    "mcpAuthRequired": "{server} の再認証が必要です",
+    "reauthorize": "再認証"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

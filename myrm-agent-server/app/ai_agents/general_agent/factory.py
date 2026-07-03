@@ -701,6 +701,7 @@ async def build_general_agent(
         enable_bash=effective_enable_bash,
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,
+        task_workspace_root=workspace_root,
         library_skill_names=library_skill_names,
     )
 

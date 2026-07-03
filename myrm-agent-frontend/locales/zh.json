@@ -10307,7 +10307,9 @@
     "viewMemoryCenter": "查看记忆",
     "reviewSharedContextProposal": "前往记忆中心审批",
     "streamCompleted": "Agent 回复已完成",
-    "clarificationNeeded": "Agent 需要您的输入"
+    "clarificationNeeded": "Agent 需要您的输入",
+    "mcpAuthRequired": "{server} 需要重新授权",
+    "reauthorize": "立即授权"
   },
   "configConflict": {
     "title": "配置冲突检测",

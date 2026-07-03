@@ -6,6 +6,7 @@ from myrm_agent_harness.runtime.events.skill_events import SkillFailureEvent
 from myrm_agent_harness.runtime.events.system_events import (
     DelegationPolicyDecision,
     LocatorSelfHealedEvent,
+    MCPAuthExpiredEvent,
     ResourceMetricsEvent,
     SubagentLifecycleData,
     SubagentLifecycleEvent,
@@ -260,7 +261,36 @@ async def test_setup_stop_harness_bridge():
             ResourceMetricsEvent,
             SkillFailureEvent,
             LocatorSelfHealedEvent,
+            MCPAuthExpiredEvent,
         ]
 
         await stop_harness_bridge()
         mock_bus.stop.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_mcp_auth_expired_event_publishes_app_event():
+    """MCP auth expired event should be forwarded as MCP_AUTH_REQUIRED AppEvent."""
+    from app.lifecycle.harness_bridge import _handle_mcp_auth_expired_event
+    from app.services.event.app_event_bus import AppEventType
+
+    event = MCPAuthExpiredEvent(server_name="github-mcp", error_detail="401 Unauthorized")
+    with patch("app.lifecycle.harness_bridge.get_server_bus") as mock_get_bus:
+        mock_bus = MagicMock()
+        mock_get_bus.return_value = mock_bus
+        await _handle_mcp_auth_expired_event(event)
+        mock_bus.publish.assert_called_once()
+        app_event = mock_bus.publish.call_args[0][0]
+        assert app_event.event_type == AppEventType.MCP_AUTH_REQUIRED
+        assert app_event.data["server_name"] == "github-mcp"
+        assert app_event.data["error_detail"] == "401 Unauthorized"
+
+
+@pytest.mark.asyncio
+async def test_handle_mcp_auth_expired_event_error_tolerant():
+    """Handler should not raise even if server bus fails."""
+    from app.lifecycle.harness_bridge import _handle_mcp_auth_expired_event
+
+    event = MCPAuthExpiredEvent(server_name="broken", error_detail="401")
+    with patch("app.lifecycle.harness_bridge.get_server_bus", side_effect=Exception("Bus down")):
+        await _handle_mcp_auth_expired_event(event)

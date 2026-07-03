@@ -10307,7 +10307,9 @@
     "viewMemoryCenter": "View in Memory",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent response completed",
-    "clarificationNeeded": "Agent needs your input"
+    "clarificationNeeded": "Agent needs your input",
+    "mcpAuthRequired": "{server} requires re-authorization",
+    "reauthorize": "Reauthorize"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

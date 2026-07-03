@@ -327,6 +327,22 @@ export function useGlobalEvents(): void {
       } else if (payload.type === 'locator_healed') {
         showLocatorHealedToast(payload.data);
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
+      } else if (payload.type === 'mcp_auth_required') {
+        const serverName = String(payload.data.server_name ?? 'MCP');
+        const toastId = `mcp-auth-${serverName}`;
+        toast.warning(t('mcpAuthRequired', { server: serverName }), {
+          id: toastId,
+          duration: 30_000,
+          dismissible: true,
+          action: {
+            label: t('reauthorize'),
+            onClick: () => {
+              toast.dismiss(toastId);
+              router.push('/settings/extensions');
+            },
+          },
+        });
+        notifyIfLeader(t('mcpAuthRequired', { server: serverName }));
       } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'async_agent_stream_chunk') {

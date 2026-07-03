@@ -9440,7 +9440,9 @@
     "viewMemoryCenter": "Erinnerungen anzeigen",
     "reviewSharedContextProposal": "Review in Memory",
     "streamCompleted": "Agent-Antwort abgeschlossen",
-    "clarificationNeeded": "Agent benötigt Ihre Eingabe"
+    "clarificationNeeded": "Agent benötigt Ihre Eingabe",
+    "mcpAuthRequired": "{server} erfordert erneute Autorisierung",
+    "reauthorize": "Erneut autorisieren"
   },
   "configConflict": {
     "title": "Configuration Conflict Detected",

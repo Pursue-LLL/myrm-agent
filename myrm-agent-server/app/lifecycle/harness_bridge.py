@@ -1,6 +1,7 @@
 """
 [INPUT] myrm_agent_harness.runtime.events::EventBus (POS: 框架层内部事件总线)
 [INPUT] myrm_agent_harness.runtime.events.skill_events::SkillFailureEvent (POS: Framework-level skill failure event DTOs. They carry runtime evidence for business layers without importing product, GUI, approval, or tenant concepts.)
+[INPUT] myrm_agent_harness.runtime.events.system_events::MCPAuthExpiredEvent (POS: Framework-level MCP auth expiry event DTO.)
 [INPUT] myrm_agent_harness.toolkits.mcp.lifecycle::mcp_lifecycle (POS: MCP lifecycle management for connection pool startup/shutdown)
 [INPUT] app.services.event.app_event_bus::ServerEventBus (POS: 业务层 SSE 应用级事件总线)
 [INPUT] app.services.agent.gateway::AgentGateway (POS: 获取会话信息和智能体实例)
@@ -18,6 +19,7 @@ from myrm_agent_harness.runtime.events import get_event_bus as get_harness_bus
 from myrm_agent_harness.runtime.events.skill_events import SkillFailureEvent
 from myrm_agent_harness.runtime.events.system_events import (
     LocatorSelfHealedEvent,
+    MCPAuthExpiredEvent,
     ResourceMetricsEvent,
     SubagentLifecycleEvent,
 )
@@ -215,6 +217,18 @@ async def _handle_locator_healed_event(event: LocatorSelfHealedEvent) -> None:
         logger.error("Failed to publish locator healed event: %s", e)
 
 
+async def _handle_mcp_auth_expired_event(event: MCPAuthExpiredEvent) -> None:
+    try:
+        get_server_bus().publish(
+            AppEvent(
+                event_type=AppEventType.MCP_AUTH_REQUIRED,
+                data=event.to_dict(),
+            )
+        )
+    except Exception as e:
+        logger.error("Failed to publish MCP auth expired event: %s", e)
+
+
 def setup_harness_bridge() -> None:
     """Setup subscriptions from Harness EventBus to ServerEventBus."""
     bus = get_harness_bus()
@@ -223,6 +237,7 @@ def setup_harness_bridge() -> None:
     bus.subscribe(ResourceMetricsEvent, _handle_resource_event)
     bus.subscribe(SkillFailureEvent, _handle_skill_failure_event)
     bus.subscribe(LocatorSelfHealedEvent, _handle_locator_healed_event)
+    bus.subscribe(MCPAuthExpiredEvent, _handle_mcp_auth_expired_event)
 
     from myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery import (
         OrphanRecoveryManager,

@@ -62,6 +62,7 @@ class AppEventType(StrEnum):
     GOAL_TERMINAL = "goal_terminal"
     GOAL_DEQUEUED = "goal_dequeued"
     EXTENSION_STATUS_CHANGED = "extension_status_changed"
+    MCP_AUTH_REQUIRED = "mcp_auth_required"
 
 
 @dataclass(frozen=True, slots=True)
