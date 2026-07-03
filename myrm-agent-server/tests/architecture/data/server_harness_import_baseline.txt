@@ -219,6 +219,7 @@ myrm_agent_harness.toolkits.acp.runtime.pool
 myrm_agent_harness.toolkits.acp.toolchains
 myrm_agent_harness.toolkits.acp.types
 myrm_agent_harness.toolkits.browser
+myrm_agent_harness.toolkits.browser.action_capture
 myrm_agent_harness.toolkits.browser.backends.file_backend
 myrm_agent_harness.toolkits.browser.captcha
 myrm_agent_harness.toolkits.browser.captcha.protocols
