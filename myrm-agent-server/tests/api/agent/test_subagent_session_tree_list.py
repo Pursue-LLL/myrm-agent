@@ -136,3 +136,31 @@ async def test_cancel_all_subagents_sums_gateway_and_registry(client: AsyncClien
 
     assert resp.status_code == 200
     assert resp.json()["data"]["cancelled"] == 3
+
+
+@pytest.mark.anyio
+async def test_cancel_single_subagent_via_active_registry(client: AsyncClient) -> None:
+    """POST /subagents/{task_id}/cancel must reach ACTIVE_SUBAGENTS manager."""
+    chat_id = "single-cancel-e2e"
+    task_id = "worker-1"
+
+    mock_manager = MagicMock()
+    mock_manager.cancel_child.return_value = True
+
+    with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {task_id: mock_manager}):
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")
+
+    assert resp.status_code == 200
+    assert resp.json()["data"]["cancelled"] is True
+    mock_manager.cancel_child.assert_called_once_with(task_id)
+
+
+@pytest.mark.anyio
+async def test_cancel_single_subagent_returns_404_when_not_active(client: AsyncClient) -> None:
+    chat_id = "single-cancel-missing"
+    task_id = "ghost-worker"
+
+    with patch("app.api.agents.subagents.ACTIVE_SUBAGENTS", {}):
+        resp = await client.post(f"/api/v1/chats/{chat_id}/subagents/{task_id}/cancel")
+
+    assert resp.status_code == 404

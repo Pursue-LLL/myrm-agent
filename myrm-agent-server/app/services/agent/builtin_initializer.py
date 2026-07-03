@@ -35,7 +35,6 @@ _TOOL_MINIMAL: tuple[str, ...] = ("web_search", "memory")
 _TOOL_DEFAULT: tuple[str, ...] = ("web_search", "memory")
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
 _TOOL_RESEARCH: tuple[str, ...] = ("web_search", "memory", "answer_tool")
-_TOOL_FILE: tuple[str, ...] = ("web_search", "memory", "file_ops")
 _TOOL_DESIGN: tuple[str, ...] = ("web_search", "memory", "image_generation")
 @dataclass(frozen=True)
 class _BuiltInAgentSpec:
@@ -411,7 +410,7 @@ _BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Extract candidate skills, experience years, education, and contact info into a clean structured format (CSV or JSON). "
             "Highlight missing required skills or red flags like large employment gaps."
         ),
-        enabled_builtin_tools=_TOOL_FILE,
+        enabled_builtin_tools=_TOOL_DEFAULT,
     ),
     _BuiltInAgentSpec(
         id="builtin-speaker",

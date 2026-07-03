@@ -211,6 +211,36 @@ async def test_discover_miss_emits_capability_gap_for_disabled_groups(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fast-mode groups omit file_ops; grep/bash queries must not emit file_ops entitlement gap."""
+    registry = ToolRegistry()
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    discover = sync_discover_capability_tool(
+        registry,
+        active_tool_groups=frozenset({"web", "memory", "answer_tool"}),
+    )
+    assert discover is not None
+
+    captured: list[tuple[str, object]] = []
+
+    async def _capture(name: str, data: object, config: object | None = None) -> None:
+        captured.append((name, data))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+        _capture,
+    )
+
+    result = await discover.ainvoke({"query": "grep pattern in repo files and run bash script"})
+    assert "No capabilities found" in result
+    assert "<CapabilityGap>" not in result
+    assert not any(name == "capability_gap" for name, _ in captured)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_discover_miss_emits_skill_gap_block_and_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Deterministic: unbound skill in query → SkillGap block + skill_gap SSE."""
     registry = ToolRegistry()
@@ -432,9 +462,12 @@ def test_agent_stream_accepts_enabled_builtin_tools_without_error(client: TestCl
 
 
 @pytest.mark.integration
-def test_agent_stream_default_builtin_tools_include_file_ops_and_code_execute(client: TestClient) -> None:
-    """Default sandbox baseline: agent-stream without explicit tools still has file_ops + code_execute."""
-    from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
+def test_agent_stream_default_builtin_tools_persist_togglable_only(client: TestClient) -> None:
+    """Default agent-stream persists togglable tools only; baseline is runtime-forced."""
+    from app.services.agent.builtin_tool_ids import (
+        AGENT_BASELINE_BUILTIN_TOOLS,
+        DEFAULT_ENABLED_BUILTIN_TOOLS,
+    )
 
     chat_id = f"test_default_tools_{uuid.uuid4().hex[:8]}"
     payload = {
@@ -453,7 +486,11 @@ def test_agent_stream_default_builtin_tools_include_file_ops_and_code_execute(cl
         None,
     )
     if tools_snapshot is None:
-        pytest.skip("tools_snapshot not emitted on this turn; default tools verified in unit tests")
+        invoked = _invoked_tool_names(events)
+        assert "file_read_tool" in invoked or "bash_code_execute_tool" in invoked, (
+            "baseline file/bash must be Turn1 eager when tools_snapshot absent"
+        )
+        return
 
     snapshot_data = tools_snapshot.get("data")
     if not isinstance(snapshot_data, dict):
@@ -465,3 +502,5 @@ def test_agent_stream_default_builtin_tools_include_file_ops_and_code_execute(cl
 
     for tool_id in DEFAULT_ENABLED_BUILTIN_TOOLS:
         assert tool_id in enabled, f"default tool {tool_id!r} missing from tools_snapshot"
+    for tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
+        assert tool_id not in enabled, f"baseline {tool_id!r} must not appear in persisted snapshot"

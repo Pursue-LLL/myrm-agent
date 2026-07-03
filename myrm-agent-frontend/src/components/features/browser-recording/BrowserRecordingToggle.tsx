@@ -4,11 +4,15 @@ import React from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Circle } from 'lucide-react';
 import useBrowserRecordingStore from '@/store/useBrowserRecordingStore';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
 
 const BrowserRecordingToggle: React.FC = () => {
   const { isOpen, status, togglePanel, steps } = useBrowserRecordingStore();
+  const isBrowserActive = useBrowserInspectorStore((s) => s.isBrowserActive);
 
   const isActive = status === 'recording' || status === 'paused';
+
+  if (!isBrowserActive && !isActive) return null;
 
   return (
     <button

@@ -410,3 +410,36 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
     assert agent.memory_policy == {"write_policy": "conversation"}
     # 旧的冗余 system_prompt 被同步清空，避免双重注入
     assert not agent.system_prompt
+
+
+@pytest.mark.asyncio
+async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sessionmaker) -> None:
+    """Stale file_ops in DB must be replaced with togglable-only list on startup sync."""
+    async with test_db() as session:
+        session.add(
+            Agent(
+                id="builtin-hr_screener",
+                name="HR Resume Screener",
+                description="old desc",
+                avatar="icon:Briefcase",
+                is_built_in=True,
+                is_public=True,
+                personality_style="professional",
+                system_prompt="old prompt",
+                enabled_builtin_tools=["web_search", "memory", "file_ops"],
+                prompt_mode="full",
+                skill_ids=[],
+                mcp_servers=[],
+                subagent_ids=[],
+                model_config={},
+            )
+        )
+        await session.commit()
+
+    await initialize_builtin_agents()
+
+    async with test_db() as session:
+        result = await session.execute(select(Agent).where(Agent.id == "builtin-hr_screener"))
+        agent = result.scalar_one()
+
+    assert agent.enabled_builtin_tools == ["web_search", "memory"]

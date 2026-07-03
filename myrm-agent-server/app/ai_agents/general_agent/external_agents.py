@@ -27,11 +27,28 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+BUILTIN_CLI_VISUAL_AGENT_ID = "builtin-cli_visual"
+
 _CLI_DEFAULT_ARGS: dict[str, list[str]] = {
     "claude": ["-p", "--output-format", "stream-json", "--verbose"],
     "codex": ["exec", "--json", "--full-auto"],
     "gemini": ["--output-format", "stream-json", "--yolo"],
 }
+
+_registered_runtime_pools: list[RuntimePool] = []
+
+
+def get_aggregate_health_metrics() -> dict[str, dict[str, object]]:
+    """Merge health metrics from all active RuntimePool instances."""
+    merged: dict[str, dict[str, object]] = {}
+    for pool in _registered_runtime_pools:
+        merged.update(pool.get_health_metrics())
+    return merged
+
+
+def _register_runtime_pool(pool: RuntimePool) -> None:
+    if pool not in _registered_runtime_pools:
+        _registered_runtime_pools.append(pool)
 
 
 def _default_cli_args(agent_name: str) -> list[str]:
@@ -57,6 +74,15 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
     return default
 
 
+def should_mount_delegate_tool(*, agent_id: str | None, force_delegate_agent: str | None) -> bool:
+    """Return False when direct-delegate routing makes the LLM tool redundant."""
+    if force_delegate_agent:
+        return False
+    if agent_id == BUILTIN_CLI_VISUAL_AGENT_ID:
+        return False
+    return True
+
+
 class ExternalAgentsMixin:
     """Mixin providing external agent delegation and direct-delegate streaming."""
 
@@ -64,23 +90,42 @@ class ExternalAgentsMixin:
         external_agents_config: list[dict[str, object]] | None
         _runtime_pool: RuntimePool | None
         chat_id: str | None
+        agent_id: str | None
+        force_delegate_agent: str | None
 
-    async def _setup_external_agents(self, tools: list[object], deferred_tools: list[object] = None) -> None:
+    async def _setup_external_agents(
+        self,
+        tools: list[object],
+        deferred_tools: list[object] = None,
+        *,
+        mount_delegate_tool: bool | None = None,
+    ) -> None:
         """Set up external agent delegation via RuntimePool.
 
         Parses external_agents_config (from UserConfig 'externalAgents'),
-        registers each enabled agent as a RuntimeBackend, and adds the
+        registers each enabled agent as a RuntimeBackend, and optionally adds the
         delegate_to_agent tool. In local mode, auto-discovers local CLI agents
         when no explicit config is provided.
 
         Failures are caught and logged — they never block Agent initialization.
         """
+        if mount_delegate_tool is None:
+            mount_delegate_tool = should_mount_delegate_tool(
+                agent_id=getattr(self, "agent_id", None),
+                force_delegate_agent=getattr(self, "force_delegate_agent", None),
+            )
         try:
-            await self._do_setup_external_agents(tools, deferred_tools)
+            await self._do_setup_external_agents(tools, deferred_tools, mount_delegate_tool=mount_delegate_tool)
         except Exception as e:
             logger.warning("External agent setup failed (degraded): %s", e)
 
-    async def _do_setup_external_agents(self, tools: list[object], deferred_tools: list[object] = None) -> None:
+    async def _do_setup_external_agents(
+        self,
+        tools: list[object],
+        deferred_tools: list[object] = None,
+        *,
+        mount_delegate_tool: bool = True,
+    ) -> None:
         agent_cfgs = self.external_agents_config
 
         if not agent_cfgs:
@@ -115,11 +160,10 @@ class ExternalAgentsMixin:
             if not agent_cfgs:
                 return
 
-        from myrm_agent_harness.toolkits import create_delegate_to_agent_tool
         from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
         from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
-        pool = RuntimePool(max_concurrent=4)
+        pool = RuntimePool(max_concurrent=4, enable_health_monitor=True)
 
         for cfg in agent_cfgs:
             if not cfg.get("enabled", True):
@@ -163,13 +207,24 @@ class ExternalAgentsMixin:
             logger.info("Registered external agent: %s (%s)", name, backend_type)
 
         if pool.available_backends:
-            delegate_tool = create_delegate_to_agent_tool(pool)
-            tools.append(delegate_tool)
             self._runtime_pool = pool
-            logger.info(
-                "delegate_to_agent loaded (%d backends) [Turn1]",
-                len(pool.available_backends),
-            )
+            _register_runtime_pool(pool)
+            await pool.start_monitoring()
+
+            if mount_delegate_tool:
+                from myrm_agent_harness.toolkits import create_delegate_to_agent_tool
+
+                delegate_tool = create_delegate_to_agent_tool(pool)
+                tools.append(delegate_tool)
+                logger.info(
+                    "delegate_to_agent loaded (%d backends) [Turn1]",
+                    len(pool.available_backends),
+                )
+            else:
+                logger.info(
+                    "RuntimePool ready (%d backends), delegate tool skipped [direct-only]",
+                    len(pool.available_backends),
+                )
 
     async def _ensure_runtime_pool(self) -> None:
         """Initialize RuntimePool without creating the full LangChain Agent.
@@ -182,7 +237,7 @@ class ExternalAgentsMixin:
         try:
             tools: list[object] = []
             deferred_tools: list[object] = []
-            await self._do_setup_external_agents(tools, deferred_tools)
+            await self._do_setup_external_agents(tools, deferred_tools, mount_delegate_tool=False)
         except Exception as e:
             logger.warning("RuntimePool init for direct delegate failed: %s", e)
 

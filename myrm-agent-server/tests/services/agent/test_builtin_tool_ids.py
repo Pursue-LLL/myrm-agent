@@ -155,6 +155,18 @@ def test_persist_enabled_builtin_tools_normalizes_list() -> None:
     assert persist_enabled_builtin_tools(["wiki", "kanban"]) == ["wiki", "kanban"]
 
 
+def test_builtin_initializer_specs_exclude_agent_baseline_tools() -> None:
+    from app.services.agent.builtin_initializer import _BUILTIN_AGENTS
+    from app.services.agent.builtin_tool_ids import AGENT_BASELINE_BUILTIN_TOOLS
+
+    baseline = set(AGENT_BASELINE_BUILTIN_TOOLS)
+    for spec in _BUILTIN_AGENTS:
+        if spec.enabled_builtin_tools is None:
+            continue
+        overlap = baseline.intersection(spec.enabled_builtin_tools)
+        assert not overlap, f"{spec.id!r} must not persist baseline tools {sorted(overlap)}"
+
+
 def test_optional_builtin_tools_validator_accepts_none() -> None:
     from app.services.agent.builtin_tool_validation import _validate_optional_builtin_tools
 
