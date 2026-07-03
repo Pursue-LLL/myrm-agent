@@ -19,7 +19,7 @@ bun run dev    # http://localhost:3000
 ```bash
 bun run test              # Vitest（src/__tests__、组件单测）
 bun run verify:i18n       # 国际化校验
-# WebUI E2E：MCP chrome-devtools（真实 Chrome :3000）；禁止 @playwright/test 无头浏览器
+# WebUI E2E：MCP chrome-devtools（真实 Chrome :3000）；禁止 @playwright/test / puppeteer 无头浏览器
 ```
 
 ## 许可证

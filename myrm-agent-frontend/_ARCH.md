@@ -42,4 +42,4 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | i18n | `bun run verify:i18n` | `pretest` 自动执行 |
 | WebUI 集成 | MCP **chrome-devtools** | 真实 Chrome `:3000` 全链路；API prepare 见 `scripts/dev/*-e2e-*.mjs` |
 
-**禁止** `@playwright/test` 无头浏览器 E2E（无 `tests/e2e/`、无 `playwright.config.ts`、无 CI Playwright 流水线）。Harness patchright 仅用于 server 浏览器自动化，不是 WebUI E2E 框架。
+**禁止** `@playwright/test` / `puppeteer` 无头浏览器 E2E（无 `tests/e2e/`、无 `playwright.config.ts`、无 CI Playwright 流水线）。Harness patchright 仅用于 server 浏览器自动化，不是 WebUI E2E 框架。
