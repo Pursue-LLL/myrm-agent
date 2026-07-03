@@ -131,7 +131,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.debug("x_search_tool skipped: %s", e)
 
-    def _setup_search_and_basic_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
+    def _setup_search_and_basic_tools(self, tools: list[object], discoverable_tools: list[object]) -> None:
         """Set up web fetch (baseline), web search (opt-in), and basic utility tools."""
         from myrm_agent_harness.toolkits import (
             create_web_fetch_tool,
@@ -197,7 +197,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_video_generation_tools(tools)
         self._setup_tts_tools(tools)
 
-    def _setup_clarification_tools(self, tools: list[object], deferred_tools: list[object]) -> None:
+    def _setup_clarification_tools(self, tools: list[object], discoverable_tools: list[object]) -> None:
         """Set up ask_question HITL clarification tool."""
         if "ask_question_tool" not in self.declared_capabilities:
             return
@@ -433,7 +433,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _setup_cron_tools(
         self,
         tools: list[object],
-        deferred_tools: list[object],
+        discoverable_tools: list[object],
         user_id: str | None = None,
     ) -> None:
         """Set up scheduled task (cron) tools."""
@@ -473,7 +473,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 blueprint_filler=_blueprint_filler,
                 delivery_resolver=resolve_cron_delivery,
             )
-            deferred_tools.extend(cron_tools)
+            discoverable_tools.extend(cron_tools)
             logger.info(f"Loaded {len(cron_tools)} cron tools [Deferred]")
         except Exception as e:
             logger.warning(f"Cron tools load failed (degraded): {e}")
@@ -481,7 +481,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _create_memory_tools(
         self,
         tools: list[object],
-        deferred_tools: list[object],
+        discoverable_tools: list[object],
         binding: ResolvedContextBinding,
     ) -> MemoryManager | None:
         """Create memory tools. Returns MemoryManager on success, None on failure."""
@@ -526,7 +526,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
     async def _setup_browser_tools(
         self,
         tools: list[object],
-        deferred_tools: list[object],
+        discoverable_tools: list[object],
         effective_chat_id: str,
         vision_llm: "BaseChatModel" | None = None,
         memory_manager: object | None = None,
@@ -696,13 +696,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Canvas tools load failed (degraded): %s", e)
 
-    def _setup_local_browser_data_tool(self, tools: list[object], deferred_tools: list[object]) -> None:
+    def _setup_local_browser_data_tool(self, tools: list[object], discoverable_tools: list[object]) -> None:
         """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""
         try:
             from app.services.local_browser import create_local_browser_data_tool
 
             local_browser_tool = create_local_browser_data_tool()
-            deferred_tools.append(local_browser_tool)
+            discoverable_tools.append(local_browser_tool)
             logger.info("Loaded local browser data search tool [Deferred]")
         except Exception as e:
             logger.warning("Local browser data tool load failed (degraded): %s", e)

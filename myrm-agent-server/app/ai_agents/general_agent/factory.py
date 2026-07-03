@@ -163,9 +163,9 @@ async def build_general_agent(
 
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
-    deferred_tools: list[object] = []
-    agent_wrapper._setup_search_and_basic_tools(tools, deferred_tools)
-    agent_wrapper._setup_clarification_tools(tools, deferred_tools)
+    discoverable_tools: list[object] = []
+    agent_wrapper._setup_search_and_basic_tools(tools, discoverable_tools)
+    agent_wrapper._setup_clarification_tools(tools, discoverable_tools)
 
     from app.services.context.context_assembly import ContextAssemblyService
 
@@ -178,7 +178,7 @@ async def build_general_agent(
     memory_manager = None
     memory_binding = context_assembly.binding
     if memory_binding is not None:
-        memory_manager = await agent_wrapper._create_memory_tools(tools, deferred_tools, memory_binding)
+        memory_manager = await agent_wrapper._create_memory_tools(tools, discoverable_tools, memory_binding)
 
     # Incognito mode: wrap memory with read-only view and remove write tools
     if agent_wrapper.incognito_mode and memory_manager is not None:
@@ -199,11 +199,11 @@ async def build_general_agent(
             agent_id=agent_wrapper.agent_id,
             memory_manager=memory_manager,
         )
-    await agent_wrapper._setup_cron_tools(tools, deferred_tools, user_id=user_id)
+    await agent_wrapper._setup_cron_tools(tools, discoverable_tools, user_id=user_id)
 
     if agent_wrapper.enable_browser:
         await agent_wrapper._setup_browser_tools(
-            tools, deferred_tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
+            tools, discoverable_tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
         )
 
     if agent_wrapper.enable_computer_use:
@@ -215,7 +215,7 @@ async def build_general_agent(
     from app.config.deploy_mode import is_local_mode
 
     if is_local_mode():
-        agent_wrapper._setup_local_browser_data_tool(tools, deferred_tools)
+        agent_wrapper._setup_local_browser_data_tool(tools, discoverable_tools)
     agent_wrapper._setup_canvas_tools(tools)
 
     from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool
@@ -227,7 +227,7 @@ async def build_general_agent(
     agent_wrapper._runtime_pool_scope_id = effective_chat_id
     await agent_wrapper._setup_external_agents(
         tools,
-        deferred_tools,
+        discoverable_tools,
         mount_delegate_tool=mount_delegate_tool,
     )
 
@@ -688,7 +688,7 @@ async def build_general_agent(
         extraction_llm=agent_wrapper._lite_llm,
         middlewares=middlewares,
         tools=tools,
-        deferred_tools=deferred_tools,
+        discoverable_tools=discoverable_tools,
         collect_artifacts=True,
         fallback_llm=fallback_llm,
         safety_fallback_llm=safety_fallback_llm,

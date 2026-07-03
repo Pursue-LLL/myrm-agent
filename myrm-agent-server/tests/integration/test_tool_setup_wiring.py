@@ -14,13 +14,13 @@ def test_local_browser_tool_imports_from_server_package() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    deferred_tools: list[object] = []
+    discoverable_tools: list[object] = []
 
-    mixin._setup_local_browser_data_tool([], deferred_tools)
+    mixin._setup_local_browser_data_tool([], discoverable_tools)
 
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "browser_local_search_tool"
-    assert isinstance(deferred_tools[0], BaseTool)
+    assert len(discoverable_tools) == 1
+    assert getattr(discoverable_tools[0], "name", None) == "browser_local_search_tool"
+    assert isinstance(discoverable_tools[0], BaseTool)
 
 
 def test_image_generation_registers_basetool() -> None:
@@ -153,18 +153,18 @@ def test_local_browser_factory_gate_respects_deploy_mode() -> None:
     from app.config import deploy_mode
 
     mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    deferred_tools: list[object] = []
+    discoverable_tools: list[object] = []
 
     with patch.object(deploy_mode, "is_local_mode", return_value=False):
         if deploy_mode.is_local_mode():
-            mixin._setup_local_browser_data_tool([], deferred_tools)
-    assert deferred_tools == []
+            mixin._setup_local_browser_data_tool([], discoverable_tools)
+    assert discoverable_tools == []
 
     with patch.object(deploy_mode, "is_local_mode", return_value=True):
         if deploy_mode.is_local_mode():
-            mixin._setup_local_browser_data_tool([], deferred_tools)
-    assert len(deferred_tools) == 1
-    assert getattr(deferred_tools[0], "name", None) == "browser_local_search_tool"
+            mixin._setup_local_browser_data_tool([], discoverable_tools)
+    assert len(discoverable_tools) == 1
+    assert getattr(discoverable_tools[0], "name", None) == "browser_local_search_tool"
 
 
 @pytest.mark.asyncio
@@ -176,7 +176,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
     mixin.chat_id = "chat-1"
     mixin.agent_id = "agent-1"
     tools: list[object] = []
-    deferred_tools: list[object] = []
+    discoverable_tools: list[object] = []
 
     mock_manager = MagicMock()
     captured: dict[str, object] = {}
@@ -199,9 +199,9 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
             return_value="",
         ),
     ):
-        await mixin._setup_cron_tools(tools, deferred_tools, user_id="user-1")
+        await mixin._setup_cron_tools(tools, discoverable_tools, user_id="user-1")
 
     from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
 
     assert captured.get("delivery_resolver") is resolve_cron_delivery
-    assert len(deferred_tools) == 1
+    assert len(discoverable_tools) == 1

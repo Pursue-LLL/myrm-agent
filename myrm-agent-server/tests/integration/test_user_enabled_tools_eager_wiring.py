@@ -1,6 +1,6 @@
 """Integration: user-enabled builtin tools and bound skills mount Turn1 eager.
 
-Product rule: any switch ON (default or manual) → tools list, not deferred_tools.
+Product rule: any switch ON (default or manual) → tools list, not discoverable_tools.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def _register_eager_tools(tools: list[object]) -> ToolRegistry:
 
 def _assert_turn1_eager(registry: ToolRegistry, tool_name: str) -> None:
     resolved = {t.name for t in registry.resolve()}
-    deferred = {t.name for t in registry.get_deferred_tools()}
+    deferred = {t.name for t in registry.get_discoverable_tools()}
     assert tool_name in resolved
     assert tool_name not in deferred
 
@@ -48,11 +48,11 @@ def test_render_ui_eager_when_enabled() -> None:
     mixin.skill_ids = []
 
     tools: list[object] = []
-    deferred_tools: list[object] = []
-    mixin._setup_search_and_basic_tools(tools, deferred_tools)
+    discoverable_tools: list[object] = []
+    mixin._setup_search_and_basic_tools(tools, discoverable_tools)
 
     assert any(getattr(t, "name", None) == "render_ui_tool" for t in tools)
-    assert not any(getattr(t, "name", None) == "render_ui_tool" for t in deferred_tools)
+    assert not any(getattr(t, "name", None) == "render_ui_tool" for t in discoverable_tools)
 
     registry = _register_eager_tools(tools)
     _assert_turn1_eager(registry, "render_ui_tool")
@@ -77,13 +77,13 @@ def test_x_search_tool_eager_when_skill_bound() -> None:
     mixin.skill_ids = [X_LIVE_SEARCH_SKILL_ID]
 
     tools: list[object] = []
-    deferred_tools: list[object] = []
+    discoverable_tools: list[object] = []
 
     with patch("app.config.deploy_mode.is_local_mode", return_value=True):
-        mixin._setup_search_and_basic_tools(tools, deferred_tools)
+        mixin._setup_search_and_basic_tools(tools, discoverable_tools)
 
     assert any(getattr(t, "name", None) == "x_search_tool" for t in tools)
-    assert not any(getattr(t, "name", None) == "x_search_tool" for t in deferred_tools)
+    assert not any(getattr(t, "name", None) == "x_search_tool" for t in discoverable_tools)
 
     registry = _register_eager_tools(tools)
     _assert_turn1_eager(registry, "x_search_tool")

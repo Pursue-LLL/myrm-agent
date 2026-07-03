@@ -31,7 +31,7 @@ def test_append_conversation_search_tool_registers_eager(monkeypatch) -> None:
     )
 
     tools: list[object] = []
-    deferred_tools: list[object] = []
+    discoverable_tools: list[object] = []
     memory_manager = FakeMemoryManager()
 
     append_conversation_search_tool(
@@ -41,7 +41,7 @@ def test_append_conversation_search_tool_registers_eager(monkeypatch) -> None:
         memory_manager=memory_manager,
     )
 
-    assert deferred_tools == []
+    assert discoverable_tools == []
     assert [tool.name for tool in tools] == ["conversation_search_tool"]
     provider = created["provider"]
     assert isinstance(provider, FakeProvider)

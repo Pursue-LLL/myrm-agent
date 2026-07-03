@@ -63,7 +63,7 @@ async def test_conversation_search_eager_wiring_and_execute(monkeypatch) -> None
 
     resolved_names = {t.name for t in registry.resolve()}
     assert "conversation_search_tool" in resolved_names
-    assert "conversation_search_tool" not in {t.name for t in registry.get_deferred_tools()}
+    assert "conversation_search_tool" not in {t.name for t in registry.get_runtime_tools()}
 
     result = await tools[0].ainvoke({"query": "deployment"})
     assert "Prior deployment thread" in result

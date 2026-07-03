@@ -53,7 +53,7 @@ async def test_discover_capability_e2e_real_model():
 
     agent = BaseAgent(
         llm=llm,
-        deferred_tools=[DummyDeferredTool()],
+        discoverable_tools=[DummyDeferredTool()],
         system_prompt=(
             'You are a helpful assistant. Use discover_capability with query "*" to list '
             "all deferred tools, then summarize the tool names you found. Do not call any "

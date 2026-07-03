@@ -211,7 +211,7 @@ class ExternalAgentsMixin:
     async def _setup_external_agents(
         self,
         tools: list[object],
-        deferred_tools: list[object] = None,
+        discoverable_tools: list[object] = None,
         *,
         mount_delegate_tool: bool | None = None,
     ) -> None:
@@ -230,14 +230,14 @@ class ExternalAgentsMixin:
                 force_delegate_agent=getattr(self, "force_delegate_agent", None),
             )
         try:
-            await self._do_setup_external_agents(tools, deferred_tools, mount_delegate_tool=mount_delegate_tool)
+            await self._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=mount_delegate_tool)
         except Exception as e:
             logger.warning("External agent setup failed (degraded): %s", e)
 
     async def _do_setup_external_agents(
         self,
         tools: list[object],
-        deferred_tools: list[object] = None,
+        discoverable_tools: list[object] = None,
         *,
         mount_delegate_tool: bool = True,
     ) -> None:
@@ -304,8 +304,8 @@ class ExternalAgentsMixin:
             return
         try:
             tools: list[object] = []
-            deferred_tools: list[object] = []
-            await self._do_setup_external_agents(tools, deferred_tools, mount_delegate_tool=False)
+            discoverable_tools: list[object] = []
+            await self._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=False)
         except Exception as e:
             logger.warning("RuntimePool init for direct delegate failed: %s", e)
 
