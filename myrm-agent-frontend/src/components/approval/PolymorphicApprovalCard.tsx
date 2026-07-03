@@ -580,7 +580,12 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       case 'high_risk_dom_action': {
         const element = approval.payload?.element as { role?: string; name?: string; ref?: string } | undefined;
         const pageUrl = (approval.payload?.page_url as string) || '';
-        const toolInput = approval.payload?.tool_input as { action?: string; ref?: string; text?: string } | undefined;
+        const toolInput = approval.payload?.tool_input as {
+          action?: string;
+          ref?: string;
+          text?: string;
+          expression?: string;
+        } | undefined;
         const reason = approval.reason || (approval.payload?.reason as string) || '';
 
         return (
@@ -612,16 +617,25 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 </div>
               )}
 
-              {toolInput && (
+              {toolInput?.expression ? (
+                <div className="rounded-lg border bg-muted/50 p-3">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">
+                    {t('jsExpression')}
+                  </div>
+                  <pre className="font-mono text-xs sm:text-sm whitespace-pre-wrap break-all overflow-x-auto max-h-48 rounded-md bg-background/80 p-2 border">
+                    {toolInput.expression}
+                  </pre>
+                </div>
+              ) : toolInput?.action ? (
                 <div className="rounded-lg border bg-muted/50 p-3">
                   <div className="text-xs font-medium text-muted-foreground mb-2">
                     {t('action')}
                   </div>
-                  <div className="font-mono text-sm">
-                    {toolInput.action}({toolInput.ref}{toolInput.text ? `, "${toolInput.text}"` : ''})
+                  <div className="font-mono text-sm break-all">
+                    {toolInput.action}({toolInput.ref ?? ''}{toolInput.text ? `, "${toolInput.text}"` : ''})
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {pageUrl && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">

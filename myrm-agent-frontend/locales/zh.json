@@ -10240,7 +10240,8 @@
     "batchCostTournament": "锦标赛模式（最优者胜出）",
     "highRiskDomAction": "检测到高风险浏览器操作",
     "targetElement": "目标元素",
-    "action": "操作"
+    "action": "操作",
+    "jsExpression": "JavaScript 表达式"
   },
   "notifications": {
     "title": "系统通知",

@@ -10240,7 +10240,8 @@
     "batchCostTournament": "Tournament Mode (best wins)",
     "highRiskDomAction": "High-Risk Browser Action Detected",
     "targetElement": "Target Element",
-    "action": "Action"
+    "action": "Action",
+    "jsExpression": "JavaScript Expression"
   },
   "notifications": {
     "title": "System Notifications",
