@@ -2,26 +2,21 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.test_capability_gap_integration import _collect_agent_stream
-from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
-def _completed_tool_names(events: list[dict[str, object]]) -> set[str]:
-    """Tool names that actually finished (tool_end), not planning/tool_start noise."""
-    names: set[str] = set()
-    for event in events:
-        if event.get("type") != "tool_end":
-            continue
-        tool_name = event.get("tool_name")
-        if isinstance(tool_name, str) and tool_name:
-            names.add(tool_name)
-    return names
+def _render_ui_tasks_steps(events: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        event
+        for event in events
+        if event.get("type") == "tasks_steps" and event.get("tool_name") == "render_ui_tool"
+    ]
 
 
 @pytest.mark.e2e
@@ -45,7 +40,7 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
             "禁止只用 Markdown。调用成功后回复 DONE。"
         ),
         "action_mode": "agent",
-        "model_selection": get_lite_model_selection(),
+        "model_selection": get_model_selection(),
         "agent_config": {
             "enabled_builtin_tools": [
                 "web_search",
@@ -61,11 +56,10 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
 
-    completed = _completed_tool_names(events)
-    if "render_ui_tool" not in completed:
+    if not _render_ui_tasks_steps(events):
         pytest.skip(
-            "model did not complete render_ui_tool (tool_end missing); "
-            "deterministic wiring covered by tests/integration/test_render_ui_sse_wiring.py"
+            "model did not invoke render_ui_tool; deterministic wiring covered by "
+            "tests/integration/test_render_ui_sse_wiring.py"
         )
 
     ui_events = [
@@ -74,15 +68,9 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
         if event.get("type") == "ui_update" and event.get("subtype") == "ui_artifact"
     ]
     if not ui_events:
-        tool_ends = [
-            event
-            for event in events
-            if event.get("type") == "tool_end" and event.get("tool_name") == "render_ui_tool"
-        ]
-        detail = tool_ends[0].get("output") if tool_ends else "no tool_end captured"
         pytest.skip(
-            "render_ui_tool invoked but no ui_update SSE (model JSON/fail-closed or stream timing); "
-            f"tool output snippet: {str(detail)[:200]}"
+            "render_ui_tool tasks_steps seen but model did not complete a successful render; "
+            "cross-task stash fix covered by tests/integration/test_render_ui_sse_wiring.py"
         )
     data = ui_events[0].get("data")
     assert isinstance(data, list) and len(data) >= 1

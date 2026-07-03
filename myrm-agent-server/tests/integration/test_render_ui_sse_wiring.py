@@ -15,6 +15,36 @@ from myrm_agent_harness.agent.types import AgentRunStatistics
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_post_run_collects_ui_stashed_from_child_task() -> None:
+    """StreamExecutor runs in asyncio.create_task; UI must survive ContextVar copy."""
+    import asyncio
+
+    from myrm_agent_harness.agent._internals.run_lifecycle import post_run_events
+    from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
+    from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import render_ui
+    from myrm_agent_harness.agent.streaming.types import AgentEventType
+    from myrm_agent_harness.agent.types import AgentRunStatistics
+
+    async def simulate_tool_in_executor_task() -> None:
+        with ArtifactContextManager(message_id="msg_child_task"):
+            render_ui(
+                title="部署确认",
+                components=[{"id": "t1", "type": "text", "props": {"text": "ok"}}],
+                root_ids=["t1"],
+            )
+
+    with ArtifactContextManager(message_id="msg_child_task"):
+        await asyncio.create_task(simulate_tool_in_executor_task())
+        stats = AgentRunStatistics()
+        events = [event async for event in post_run_events(stats, "msg_child_task", {}, False, None)]
+
+    ui_events = [event for event in events if event.get("type") == AgentEventType.UI_UPDATE.value]
+    assert len(ui_events) == 1
+    assert ui_events[0].get("subtype") == "ui_artifact"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_collect_ui_artifacts_emits_ui_update_after_render_ui() -> None:
     """render_ui registers UIArtifact; collect_ui_artifacts must emit ui_update SSE payload."""
     with ArtifactContextManager():
