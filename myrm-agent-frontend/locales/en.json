@@ -584,8 +584,7 @@
         "logoutSuccess": "Logged out",
         "badgeLoggedIn": "Logged in",
         "badgeLoggedOut": "Not logged in",
-        "badgeInstalled": "Installed",
-        "healthRestarts": "{count, plural, one {# restart} other {# restarts}}"
+        "badgeInstalled": "Installed"
       },
       "showSystemMessages": "Show System Messages",
       "showSystemMessagesDesc": "Display AI system prompts (System Prompts) in chat",
@@ -5722,7 +5721,21 @@
       "skillGenerated": "Skill Generated!",
       "labelName": "Name:",
       "labelSteps": "Steps:",
-      "credentialDetected": "{count} credential field(s) detected"
+      "credentialDetected": "{count} credential field(s) detected",
+      "actionClick": "Click",
+      "actionDblclick": "Double Click",
+      "actionType": "Type",
+      "actionFill": "Fill",
+      "actionSelect": "Select",
+      "actionCheck": "Check",
+      "actionUncheck": "Uncheck",
+      "actionNavigate": "Navigate",
+      "actionUpload": "Upload",
+      "actionPressKey": "Press Key",
+      "actionScroll": "Scroll",
+      "actionHover": "Hover",
+      "actionDrag": "Drag",
+      "stepScreenshotAlt": "Step {seq} screenshot"
     },
     "desktopInspector": {
       "title": "Desktop Live View",

@@ -15,13 +15,6 @@ import { apiRequest, fetchWithTimeout } from '@/lib/api';
 
 export type ExternalAgentLoginStrategy = 'device_code' | 'browser_oauth' | 'setup_token' | 'manual_import';
 
-export interface ExternalAgentHealthMetrics {
-  restart_count: number;
-  last_crash_time: number | null;
-  last_check_time: number | null;
-  total_uptime_seconds: number;
-}
-
 export interface ExternalAgentAuthStatus {
   backend: string;
   installed: boolean;
@@ -32,7 +25,6 @@ export interface ExternalAgentAuthStatus {
   loginStrategy: ExternalAgentLoginStrategy;
   scriptableLogin: boolean;
   needsCodeInput: boolean;
-  healthMetrics?: ExternalAgentHealthMetrics;
 }
 
 export interface ExternalAgentAuthEvent {

@@ -584,8 +584,7 @@
         "logoutSuccess": "已退出登录",
         "badgeLoggedIn": "已登录",
         "badgeLoggedOut": "未登录",
-        "badgeInstalled": "已安装",
-        "healthRestarts": "重启 {count} 次"
+        "badgeInstalled": "已安装"
       },
       "showSystemMessages": "显示系统消息",
       "showSystemMessagesDesc": "在聊天中显示 AI 的系统提示词（System Prompts）",
@@ -5721,7 +5720,21 @@
       "skillGenerated": "Skill 已生成！",
       "labelName": "名称：",
       "labelSteps": "步骤：",
-      "credentialDetected": "检测到 {count} 个凭据字段"
+      "credentialDetected": "检测到 {count} 个凭据字段",
+      "actionClick": "点击",
+      "actionDblclick": "双击",
+      "actionType": "输入",
+      "actionFill": "填写",
+      "actionSelect": "选择",
+      "actionCheck": "勾选",
+      "actionUncheck": "取消勾选",
+      "actionNavigate": "跳转",
+      "actionUpload": "上传",
+      "actionPressKey": "按键",
+      "actionScroll": "滚动",
+      "actionHover": "悬停",
+      "actionDrag": "拖拽",
+      "stepScreenshotAlt": "步骤 {seq} 截图"
     },
     "desktopInspector": {
       "title": "桌面实时视图",

@@ -2,6 +2,7 @@
 app/adapters/skill_optimization/sqlalchemy_storage.py
 app/ai_agents/custom_agent_factory.py
 app/ai_agents/general_agent/agent.py
+app/ai_agents/general_agent/external_agents.py
 app/ai_agents/general_agent/factory.py
 app/ai_agents/general_agent/tool_setup.py
 app/api/agents/agent.py

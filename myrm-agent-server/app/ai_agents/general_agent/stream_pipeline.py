@@ -65,6 +65,9 @@ async def execute_stream_pipeline(
     query = apply_delivery_banner(query, channel_label=ch_label, ingress_label=ingress_label)
     query_preview = query if isinstance(query, str) else "[multimodal]"
 
+    if chat_id:
+        agent_wrapper._runtime_pool_scope_id = chat_id
+
     if force_delegate_agent and agent_wrapper._runtime_pool is None:
         await agent_wrapper._ensure_runtime_pool()
 

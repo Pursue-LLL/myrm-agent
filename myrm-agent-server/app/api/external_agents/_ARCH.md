@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | External delegated agent auth endpoints. | ✅ |
-| `router.py` | 路由 | 外部 Agent 订阅鉴权 HTTP API 层。让 GUI/SaaS 用户用自有订阅驱动外部 CLI。 | ✅ |
+| `router.py` | 路由 | 外部 Agent 订阅鉴权 HTTP API。`/auth/status` 返回各 backend 安装/登录态（Settings badge）；不含 ephemeral RuntimePool health metrics。 | ✅ |

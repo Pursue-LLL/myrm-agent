@@ -78,14 +78,12 @@ _login_registry = _LoginRegistry()
 @router.get("/auth/status")
 async def external_agent_auth_status() -> dict[str, object]:
     """Report install + login state for every known backend (drives status badges)."""
-    from app.ai_agents.general_agent.external_agents import get_aggregate_health_metrics
     from myrm_agent_harness.toolkits.acp.auth import CredentialStore, known_backends, profile_for
     from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
 
     detector = BackendDetector()
     detected = {b.name: b for b in await detector.detect()}
     store = CredentialStore()
-    health_by_backend = get_aggregate_health_metrics()
 
     backends: list[dict[str, object]] = []
     for name in known_backends():
@@ -94,21 +92,19 @@ async def external_agent_auth_status() -> dict[str, object]:
             continue
         found = detected.get(name)
         state = store.state(name)
-        health = health_by_backend.get(name)
-        entry: dict[str, object] = {
-            "backend": name,
-            "installed": found is not None,
-            "path": found.path if found else None,
-            "version": found.version if found else None,
-            "authenticated": state.authenticated,
-            "authStatus": state.status.value,
-            "loginStrategy": profile.login_strategy.value,
-            "scriptableLogin": profile.scriptable_login,
-            "needsCodeInput": profile.needs_code_input,
-        }
-        if health is not None:
-            entry["healthMetrics"] = health
-        backends.append(entry)
+        backends.append(
+            {
+                "backend": name,
+                "installed": found is not None,
+                "path": found.path if found else None,
+                "version": found.version if found else None,
+                "authenticated": state.authenticated,
+                "authStatus": state.status.value,
+                "loginStrategy": profile.login_strategy.value,
+                "scriptableLogin": profile.scriptable_login,
+                "needsCodeInput": profile.needs_code_input,
+            }
+        )
     return {"backends": backends}
 
 

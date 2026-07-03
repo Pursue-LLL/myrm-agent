@@ -7,14 +7,23 @@
 
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
+- should_mount_delegate_tool(): direct-only 路径是否跳过 delegate_to_agent 挂载
+- BUILTIN_CLI_VISUAL_AGENT_ID: CLI Visual 内置 Agent 标识
+- chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线
 
 [POS]
 外部 Agent 委托层。负责 RuntimePool 初始化、CLI/ACP/SDK 后端注册、
 本地模式自动检测，以及绕过 LangChain 直接向前端流式转发外部 Agent 事件。
+RuntimePool 启用会话内 HealthMonitor（活跃 chat 流内进程崩溃恢复）；
+Settings auth/status 仅报告安装/登录态，不暴露 ephemeral pool metrics。
+有 chat scope 时经 ChatRuntimePoolRegistry 跨消息复用 pool（CLI --resume），
+ChatScopedRuntimePoolFacade 对 run_turn 做 per-chat single-flight 串行化。
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -34,22 +43,6 @@ _CLI_DEFAULT_ARGS: dict[str, list[str]] = {
     "codex": ["exec", "--json", "--full-auto"],
     "gemini": ["--output-format", "stream-json", "--yolo"],
 }
-
-_registered_runtime_pools: list[RuntimePool] = []
-
-
-def get_aggregate_health_metrics() -> dict[str, dict[str, object]]:
-    """Merge health metrics from all active RuntimePool instances."""
-    merged: dict[str, dict[str, object]] = {}
-    for pool in _registered_runtime_pools:
-        merged.update(pool.get_health_metrics())
-    return merged
-
-
-def _register_runtime_pool(pool: RuntimePool) -> None:
-    if pool not in _registered_runtime_pools:
-        _registered_runtime_pools.append(pool)
-
 
 def _default_cli_args(agent_name: str) -> list[str]:
     """Return sensible default CLI args for a known agent, empty list otherwise."""
@@ -83,12 +76,134 @@ def should_mount_delegate_tool(*, agent_id: str | None, force_delegate_agent: st
     return True
 
 
+def _runtime_pool_scope_id(agent: object) -> str | None:
+    scope = getattr(agent, "_runtime_pool_scope_id", None)
+    if isinstance(scope, str) and scope.strip():
+        return scope.strip()
+    chat_id = getattr(agent, "chat_id", None)
+    if isinstance(chat_id, str) and chat_id.strip():
+        return chat_id.strip()
+    return None
+
+
+def _config_fingerprint(agent_cfgs: list[dict[str, object]]) -> str:
+    """Stable hash of enabled external agent configs for pool invalidation."""
+    normalized: list[dict[str, object]] = []
+    for cfg in agent_cfgs:
+        if not cfg.get("enabled", True):
+            continue
+        name = cfg.get("name")
+        command = cfg.get("command")
+        if not name or not command:
+            continue
+        args_raw = cfg.get("args", [])
+        args: list[str] = []
+        if isinstance(args_raw, (list, tuple)):
+            args = [a if isinstance(a, str) else str(a) for a in args_raw]
+        normalized.append(
+            {
+                "name": str(name),
+                "type": str(cfg.get("type", "cli")),
+                "command": str(command),
+                "args": args,
+                "authMode": cfg.get("authMode"),
+            }
+        )
+    normalized.sort(key=lambda item: str(item.get("name", "")))
+    payload = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+async def _resolve_external_agent_cfgs(
+    external_agents_config: list[dict[str, object]] | None,
+) -> list[dict[str, object]] | None:
+    agent_cfgs = external_agents_config
+    if agent_cfgs:
+        return agent_cfgs
+
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        return None
+
+    try:
+        from myrm_agent_harness.toolkits.acp.backend_detector import BackendDetector
+
+        detector = BackendDetector()
+        detected = await detector.detect()
+        if not detected:
+            return None
+        agent_cfgs = [
+            {
+                "name": d.name,
+                "type": "cli",
+                "command": d.path,
+                "args": _default_cli_args(d.name),
+                "enabled": True,
+            }
+            for d in detected
+        ]
+        logger.info("Auto-detected %d external agent(s) in local mode", len(agent_cfgs))
+        return agent_cfgs
+    except Exception as e:
+        logger.warning("External agent auto-detection failed (degraded): %s", e)
+        return None
+
+
+def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, object]]) -> None:
+    from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
+
+    for cfg in agent_cfgs:
+        if not cfg.get("enabled", True):
+            continue
+
+        name = cfg.get("name")
+        command = cfg.get("command")
+        if not name or not command:
+            logger.warning("Skipping external agent with missing name or command: %s", cfg)
+            continue
+
+        backend_type = str(cfg.get("type", "cli"))
+        if backend_type not in ("cli", "acp", "sdk"):
+            logger.warning(
+                "Skipping external agent '%s': invalid type '%s'",
+                name,
+                backend_type,
+            )
+            continue
+
+        args_raw = cfg.get("args", [])
+        cli_args: list[str] = []
+        if isinstance(args_raw, (list, tuple)):
+            for a in args_raw:
+                cli_args.append(a if isinstance(a, str) else str(a))
+
+        runtime_cfg = RuntimeConfig(
+            backend_type=backend_type,
+            command=str(command),
+            args=cli_args,
+            env=cfg.get("env") if isinstance(cfg.get("env"), dict) else None,
+            cwd=str(cfg["cwd"]) if cfg.get("cwd") else None,
+            timeout_seconds=_cfg_int(cfg, "timeout", 300),
+            max_response_chars=_cfg_int(cfg, "maxResponseChars", 50_000),
+            permission_mode=str(cfg.get("permissionMode", "allow_all")),
+            auth_mode=_auth_mode(cfg),
+            max_turns=_cfg_int(cfg, "maxTurns", 25),
+            description=str(cfg.get("description", "")),
+        )
+        pool.register(str(name), runtime_cfg)
+        logger.info("Registered external agent: %s (%s)", name, backend_type)
+
+
 class ExternalAgentsMixin:
     """Mixin providing external agent delegation and direct-delegate streaming."""
 
     if TYPE_CHECKING:
         external_agents_config: list[dict[str, object]] | None
         _runtime_pool: RuntimePool | None
+        _runtime_pool_scope_id: str | None
+        _runtime_pool_from_registry: bool
+        _runtime_pool_ephemeral: bool
         chat_id: str | None
         agent_id: str | None
         force_delegate_agent: str | None
@@ -126,90 +241,43 @@ class ExternalAgentsMixin:
         *,
         mount_delegate_tool: bool = True,
     ) -> None:
-        agent_cfgs = self.external_agents_config
-
+        agent_cfgs = await _resolve_external_agent_cfgs(self.external_agents_config)
         if not agent_cfgs:
-            from app.config.deploy_mode import is_local_mode
-
-            if is_local_mode():
-                try:
-                    from myrm_agent_harness.toolkits.acp.backend_detector import (
-                        BackendDetector,
-                    )
-
-                    detector = BackendDetector()
-                    detected = await detector.detect()
-                    if detected:
-                        agent_cfgs = [
-                            {
-                                "name": d.name,
-                                "type": "cli",
-                                "command": d.path,
-                                "args": _default_cli_args(d.name),
-                                "enabled": True,
-                            }
-                            for d in detected
-                        ]
-                        logger.info(
-                            "Auto-detected %d external agent(s) in local mode",
-                            len(agent_cfgs),
-                        )
-                except Exception as e:
-                    logger.warning("External agent auto-detection failed (degraded): %s", e)
-
-            if not agent_cfgs:
-                return
+            return
 
         from myrm_agent_harness.toolkits.acp.runtime.pool import RuntimePool
-        from myrm_agent_harness.toolkits.acp.types import RuntimeConfig
 
-        pool = RuntimePool(max_concurrent=4, enable_health_monitor=True)
+        fingerprint = _config_fingerprint(agent_cfgs)
+        chat_scope_id = _runtime_pool_scope_id(self)
 
-        for cfg in agent_cfgs:
-            if not cfg.get("enabled", True):
-                continue
+        async def _build_pool() -> RuntimePool:
+            pool = RuntimePool(max_concurrent=4, enable_health_monitor=True)
+            _register_backends_on_pool(pool, agent_cfgs)
+            await pool.start_monitoring()
+            return pool
 
-            name = cfg.get("name")
-            command = cfg.get("command")
-            if not name or not command:
-                logger.warning("Skipping external agent with missing name or command: %s", cfg)
-                continue
-
-            backend_type = str(cfg.get("type", "cli"))
-            if backend_type not in ("cli", "acp", "sdk"):
-                logger.warning(
-                    "Skipping external agent '%s': invalid type '%s'",
-                    name,
-                    backend_type,
-                )
-                continue
-
-            args_raw = cfg.get("args", [])
-            cli_args: list[str] = []
-            if isinstance(args_raw, (list, tuple)):
-                for a in args_raw:
-                    cli_args.append(a if isinstance(a, str) else str(a))
-
-            runtime_cfg = RuntimeConfig(
-                backend_type=backend_type,
-                command=str(command),
-                args=cli_args,
-                env=cfg.get("env") if isinstance(cfg.get("env"), dict) else None,
-                cwd=str(cfg["cwd"]) if cfg.get("cwd") else None,
-                timeout_seconds=_cfg_int(cfg, "timeout", 300),
-                max_response_chars=_cfg_int(cfg, "maxResponseChars", 50_000),
-                permission_mode=str(cfg.get("permissionMode", "allow_all")),
-                auth_mode=_auth_mode(cfg),
-                max_turns=_cfg_int(cfg, "maxTurns", 25),
-                description=str(cfg.get("description", "")),
+        if chat_scope_id:
+            from app.services.external_agents.runtime_pool_registry import (
+                ChatScopedRuntimePoolFacade,
+                get_chat_runtime_pool_registry,
             )
-            pool.register(str(name), runtime_cfg)
-            logger.info("Registered external agent: %s (%s)", name, backend_type)
+
+            registry = get_chat_runtime_pool_registry()
+            raw_pool = await registry.acquire(
+                chat_scope_id,
+                fingerprint,
+                _build_pool,
+            )
+            pool = ChatScopedRuntimePoolFacade(raw_pool, chat_scope_id, registry)
+            self._runtime_pool_from_registry = True
+            self._runtime_pool_ephemeral = False
+        else:
+            pool = await _build_pool()
+            self._runtime_pool_from_registry = False
+            self._runtime_pool_ephemeral = True
 
         if pool.available_backends:
             self._runtime_pool = pool
-            _register_runtime_pool(pool)
-            await pool.start_monitoring()
 
             if mount_delegate_tool:
                 from myrm_agent_harness.toolkits import create_delegate_to_agent_tool

@@ -12,6 +12,7 @@ import {
   Trash2,
   Lock,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { RecordedStep } from '@/store/useBrowserRecordingStore';
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
@@ -27,20 +28,20 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   press: Type,
 };
 
-const ACTION_LABELS: Record<string, string> = {
-  click: 'Click',
-  dblclick: 'Double Click',
-  type: 'Type',
-  fill: 'Fill',
-  select: 'Select',
-  check: 'Check',
-  uncheck: 'Uncheck',
-  navigate: 'Navigate',
-  upload: 'Upload',
-  press: 'Press Key',
-  scroll: 'Scroll',
-  hover: 'Hover',
-  drag: 'Drag',
+const ACTION_LABEL_KEYS: Record<string, string> = {
+  click: 'actionClick',
+  dblclick: 'actionDblclick',
+  type: 'actionType',
+  fill: 'actionFill',
+  select: 'actionSelect',
+  check: 'actionCheck',
+  uncheck: 'actionUncheck',
+  navigate: 'actionNavigate',
+  upload: 'actionUpload',
+  press: 'actionPressKey',
+  scroll: 'actionScroll',
+  hover: 'actionHover',
+  drag: 'actionDrag',
 };
 
 interface RecordingStepCardProps {
@@ -50,8 +51,10 @@ interface RecordingStepCardProps {
 }
 
 const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, readonly }) => {
+  const t = useTranslations('chat.browserRecording');
   const Icon = ACTION_ICONS[step.action] || MousePointerClick;
-  const label = ACTION_LABELS[step.action] || step.action;
+  const labelKey = ACTION_LABEL_KEYS[step.action];
+  const label = labelKey ? t(labelKey) : step.action;
 
   return (
     <div
@@ -97,7 +100,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
           <div className="mt-1.5 rounded overflow-hidden border border-border max-h-24">
             <img
               src={`data:image/png;base64,${step.screenshotB64}`}
-              alt={`Step ${step.seq}`}
+              alt={t('stepScreenshotAlt', { seq: step.seq })}
               className="w-full h-auto object-cover"
               loading="lazy"
             />
@@ -113,7 +116,7 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
             'flex-shrink-0 p-1 rounded opacity-0 group-hover:opacity-100',
             'text-muted-foreground hover:text-destructive transition-all',
           )}
-          aria-label="Delete step"
+          aria-label={t('deleteStep')}
         >
           <Trash2 size={14} />
         </button>

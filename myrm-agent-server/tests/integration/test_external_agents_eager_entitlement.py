@@ -7,6 +7,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+async def _reset_chat_runtime_pool_registry() -> None:
+    from app.services.external_agents.runtime_pool_registry import (
+        get_chat_runtime_pool_registry,
+    )
+
+    await get_chat_runtime_pool_registry().close_all()
+    yield
+    await get_chat_runtime_pool_registry().close_all()
+
+
 @pytest.mark.asyncio
 async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
@@ -15,7 +26,7 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     mixin.external_agents_config = [
         {
             "name": "test-cli",
-            "backendType": "cli",
+            "type": "cli",
             "command": "echo",
             "args": [],
         }
@@ -23,6 +34,7 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     mixin.chat_id = "chat-1"
     mixin.agent_id = "general"
     mixin.force_delegate_agent = None
+    mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
     deferred_tools: list[object] = []
@@ -67,6 +79,7 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
     mixin.chat_id = "chat-1"
     mixin.agent_id = "builtin-cli_visual"
     mixin.force_delegate_agent = None
+    mixin._runtime_pool_scope_id = "chat-1"
 
     tools: list[object] = []
     deferred_tools: list[object] = []
@@ -87,7 +100,9 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
         await mixin._do_setup_external_agents(tools, deferred_tools, mount_delegate_tool=False)
 
     assert tools == []
-    assert mixin._runtime_pool is mock_pool
+    assert mixin._runtime_pool is not None
+    assert mixin._runtime_pool.available_backends == ["test-cli"]
+    assert mixin._runtime_pool_from_registry is True
     create_tool.assert_not_called()
     mock_pool.start_monitoring.assert_awaited_once()
 

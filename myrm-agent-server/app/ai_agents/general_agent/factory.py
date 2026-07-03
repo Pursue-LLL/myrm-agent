@@ -224,6 +224,7 @@ async def build_general_agent(
         agent_id=agent_wrapper.agent_id,
         force_delegate_agent=agent_wrapper.force_delegate_agent,
     )
+    agent_wrapper._runtime_pool_scope_id = effective_chat_id
     await agent_wrapper._setup_external_agents(
         tools,
         deferred_tools,

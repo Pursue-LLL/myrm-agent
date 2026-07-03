@@ -16,7 +16,7 @@ from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability
     sync_discover_capability_tool,
 )
 from myrm_agent_harness.agent.tool_management.registry import ToolRegistry
-from myrm_agent_harness.agent.tool_management.types import ToolSource
+from myrm_agent_harness.agent.tool_management.types import ToolBindMode, ToolSource
 from myrm_agent_harness.agent.streaming.stream_executor import StreamContext, StreamExecutor
 from myrm_agent_harness.agent.streaming.types import AgentEventType, AgentStreamEvent
 from myrm_agent_harness.agent.types import AgentRunStatistics
@@ -75,7 +75,7 @@ def _gap_events(events: list[dict[str, object]], event_type: str) -> list[dict[s
 async def test_discover_miss_emits_capability_gap_block_and_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Deterministic: miss query → XML gap block + async custom event dispatch."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
@@ -109,7 +109,7 @@ async def test_discover_miss_does_not_emit_render_ui_gap_when_group_enabled(
 ) -> None:
     """When render_ui is in active_tool_groups, miss must not emit false capability_gap."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset(
@@ -141,7 +141,7 @@ async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
 ) -> None:
     """When render_ui is NOT in active_tool_groups, miss must emit capability_gap."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
@@ -184,7 +184,7 @@ async def test_discover_miss_emits_capability_gap_for_disabled_groups(
     expected_tool_id: str,
 ) -> None:
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
@@ -216,7 +216,7 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
 ) -> None:
     """Fast-mode groups omit file_ops; grep/bash queries must not emit file_ops entitlement gap."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset({"web", "memory", "answer_tool"}),
@@ -244,7 +244,7 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
 async def test_discover_miss_emits_skill_gap_block_and_sse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Deterministic: unbound skill in query → SkillGap block + skill_gap SSE."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         bound_skill_names=frozenset(),
@@ -416,7 +416,7 @@ async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
 ) -> None:
     """When web group is absent from active_tool_groups, web_search query must emit gap."""
     registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
         active_tool_groups=frozenset({"memory", "file_ops", "shell"}),

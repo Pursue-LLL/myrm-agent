@@ -59,7 +59,7 @@ async def test_conversation_search_eager_wiring_and_execute(monkeypatch) -> None
 
     registry = ToolRegistry()
     for tool in tools:
-        registry.register(tool, source=ToolSource.USER, deferred=False)
+        registry.register(tool, source=ToolSource.USER)
 
     resolved_names = {t.name for t in registry.resolve()}
     assert "conversation_search_tool" in resolved_names
@@ -75,7 +75,7 @@ async def test_conversation_search_tool_runnable_when_registered_eager() -> None
     """Eager registration exposes tool in resolve() and executes directly."""
     tool = create_conversation_search_tool(FakeConversationSearchProvider())
     registry = ToolRegistry()
-    registry.register(tool, source=ToolSource.USER, deferred=False)
+    registry.register(tool, source=ToolSource.USER)
 
     resolved_names = {t.name for t in registry.resolve()}
     assert "conversation_search_tool" in resolved_names

@@ -240,6 +240,9 @@ class GeneralAgent(ToolSetupMixin):
         self._checkpoint_helper: BrowserCheckpointHelper | None = None
         self._current_thread_id: str | None = None
         self._runtime_pool: RuntimePool | None = None
+        self._runtime_pool_scope_id: str | None = None
+        self._runtime_pool_from_registry = False
+        self._runtime_pool_ephemeral = False
         self._skill_config_version: float = 0.0
         self.quote = quote
         self.goal = goal
@@ -438,10 +441,20 @@ class GeneralAgent(ToolSetupMixin):
     async def close(self) -> None:
         """Close Agent and release resources."""
         if self._runtime_pool is not None:
+            scope_id = getattr(self, "_runtime_pool_scope_id", None)
+            from_registry = getattr(self, "_runtime_pool_from_registry", False)
+            ephemeral = getattr(self, "_runtime_pool_ephemeral", False)
             try:
-                await self._runtime_pool.close_all()
+                if from_registry and isinstance(scope_id, str) and scope_id.strip():
+                    from app.services.external_agents.runtime_pool_registry import (
+                        get_chat_runtime_pool_registry,
+                    )
+
+                    await get_chat_runtime_pool_registry().release(scope_id.strip())
+                elif ephemeral:
+                    await self._runtime_pool.close_all()
             except Exception as e:
-                logger.warning(f"⚠️ RuntimePool close failed: {e}")
+                logger.warning("RuntimePool release failed: %s", e)
             finally:
                 self._runtime_pool = None
 

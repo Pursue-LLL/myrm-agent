@@ -18,7 +18,7 @@ from app.core.skills.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 def _register_eager_tools(tools: list[object]) -> ToolRegistry:
     registry = ToolRegistry()
     for tool in tools:
-        registry.register(tool, source=ToolSource.USER, deferred=False)
+        registry.register(tool, source=ToolSource.USER)
     return registry
 
 

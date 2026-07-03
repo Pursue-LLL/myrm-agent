@@ -358,14 +358,6 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
           />
           {status.authenticated ? t('badgeLoggedIn') : t('badgeLoggedOut')}
         </span>
-        {status.healthMetrics != null && status.healthMetrics.restart_count > 0 && (
-          <span
-            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400"
-            title={t('healthRestarts', { count: status.healthMetrics.restart_count })}
-          >
-            {t('healthRestarts', { count: status.healthMetrics.restart_count })}
-          </span>
-        )}
         {status.authenticated ? (
           <Button
             variant="ghost"
