@@ -49,7 +49,7 @@ class Agent(Base):
     mcp_tool_selections: Mapped[dict[str, list[str]] | None] = mapped_column(JSON, nullable=True)
     subagent_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     enabled_builtin_tools: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    browser_engine: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    browser_engine: Mapped[str | None] = mapped_column(String(50), nullable=True)  # deprecated: unread legacy column
     browser_source: Mapped[str | None] = mapped_column(String(20), nullable=True)
     dialog_policy: Mapped[str | None] = mapped_column(String(20), nullable=True)
     session_recording: Mapped[str | None] = mapped_column(String(20), nullable=True)
