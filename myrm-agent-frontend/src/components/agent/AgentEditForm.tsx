@@ -147,7 +147,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         command_bindings: validBindings.length > 0 ? validBindings : null,
         session_policy: sessionPolicyEnabled ? sessionPolicy : null,
         tool_gateway_config: toolGatewayConfig,
-        browser_engine: browserEngine,
+        browser_engine: null,
         browser_source: browserSource === 'auto' ? null : browserSource,
         dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
         session_recording: sessionRecording === 'off' ? null : sessionRecording,
@@ -354,37 +354,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
 
               {/* Session Policy */}
               <div className="space-y-3 rounded-lg border border-border/60 p-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    {t('form.browserEngine', { fallback: 'Browser Engine' })}
-                  </Label>
-                  <Select value={browserEngine} onValueChange={setBrowserEngine}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="chromium_patchright">
-                        <div className="flex flex-col py-0.5">
-                          <span>{t('form.browserEngineChromium', { fallback: 'Standard (Chromium)' })}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {t('form.browserEngineChromiumDesc', { fallback: 'Default engine. Fast and lightweight.' })}
-                          </span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="firefox_camoufox">
-                        <div className="flex flex-col py-0.5">
-                          <span>{t('form.browserEngineFirefox', { fallback: 'High Stealth (Firefox Camoufox)' })}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {t('form.browserEngineFirefoxDesc', {
-                              fallback: 'Bypasses advanced WAFs (e.g. Cloudflare Turnstile). Slower startup.',
-                            })}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 <div className="space-y-2 pt-2">
                   <Label className="text-sm font-medium">
                     {t('form.browserSource', { fallback: 'Browser Source' })}

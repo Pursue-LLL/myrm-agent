@@ -104,8 +104,6 @@ export const BuiltinToolsPanel = ({
         <BrowserConfigSection
           localAutoRestoreDomains={localAutoRestoreDomains}
           setLocalAutoRestoreDomains={setLocalAutoRestoreDomains}
-          localBrowserEngine={localBrowserEngine}
-          setLocalBrowserEngine={setLocalBrowserEngine}
           localBrowserSource={localBrowserSource}
           setLocalBrowserSource={setLocalBrowserSource}
           localDialogPolicy={localDialogPolicy}
@@ -126,8 +124,6 @@ export const BuiltinToolsPanel = ({
 function BrowserConfigSection({
   localAutoRestoreDomains,
   setLocalAutoRestoreDomains,
-  localBrowserEngine,
-  setLocalBrowserEngine,
   localBrowserSource,
   setLocalBrowserSource,
   localDialogPolicy,

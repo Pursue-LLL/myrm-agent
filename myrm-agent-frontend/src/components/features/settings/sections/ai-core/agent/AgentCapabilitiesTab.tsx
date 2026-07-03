@@ -40,8 +40,6 @@ export interface AgentCapabilitiesTabProps {
     setWorkspacePolicy: (val: WorkspacePolicy) => void;
     engineParams: Record<string, unknown> | null;
     setEngineParams: (val: Record<string, unknown>) => void;
-    browserEngine?: string;
-    setBrowserEngine: (val: string | undefined) => void;
     browserSource?: string;
     setBrowserSource: (val: string | undefined) => void;
     dialogPolicy?: string;
