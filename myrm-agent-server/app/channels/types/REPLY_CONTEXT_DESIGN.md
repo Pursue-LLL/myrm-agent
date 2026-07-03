@@ -4,7 +4,7 @@
 
 Framework-level structured reply/quote mechanism enabling LLMs to understand reply relationships without text flattening.
 
-**Supported channels**: WeCom, Telegram, Feishu, Discord, Slack  
+**Supported channels**: WeCom, Telegram, Feishu, Discord, Slack, WhatsApp, OneBot, iMessage  
 **Core type**: `ReplyContext` dataclass (immutable, frozen, slotted)  
 **Advantage**: Structured data > flat string concat (competitor approach)
 
@@ -182,57 +182,48 @@ async def _fetch_reply_context(parent_id: str) -> ReplyContext | None:
 
 ### 4. Discord (`discord/channel.py`)
 
-**Mapping**: `message.reference` + `message.referenced_message` → `ReplyContext`
+**Mapping**: `message.reference.resolved` → `ReplyContext`
 
 ```python
-def _parse_referenced_message(message: discord.Message) -> ReplyContext | None:
-    """Parse Discord reference into ReplyContext.
-    
-    Uses referenced_message (full Message object) if available,
-    fallback to reference (ID-only metadata).
-    
-    Supports: text, embeds, attachments (image/document/video/audio).
+def _parse_reply_context(self, message: discord.Message) -> tuple[ReplyContext | None, str | None]:
+    """Parse Discord message reference into ReplyContext.
+
+    Uses message.reference.resolved (discord.py's actual API).
+    resolved can be Message, DeletedReferencedMessage, or None.
+    Only a full Message yields rich context; otherwise falls back to ID-only.
     """
-    if not message.reference:
-        return None
-    
-    ref_msg = message.referenced_message
-    if not ref_msg:
-        # Fallback: only message ID available
-        return ReplyContext(
-            message_id=str(message.reference.message_id),
-            content="",
-            media=(),
-        )
-    
-    content = strip_mention(ref_msg.content or "", self._client.user)
-    
-    # Include embed content
-    if ref_msg.embeds:
-        embed_texts = [e.description or e.title for e in ref_msg.embeds]
-        content += "\n" + "\n".join(filter(None, embed_texts))
-    
-    # Parse attachments by content_type
-    media_list = []
-    for att in ref_msg.attachments:
-        if att.content_type.startswith("image/"):
-            media_list.append(MediaAttachment(media_type=MediaType.IMAGE, url=att.url))
-        # ... (video/audio/document)
-    
+    ref = getattr(message, "reference", None)
+    if not ref or not getattr(ref, "message_id", None):
+        return None, None
+
+    reply_to_id = str(ref.message_id)
+    resolved = getattr(ref, "resolved", None)
+    if not isinstance(resolved, discord.Message):
+        return ReplyContext(message_id=reply_to_id, content=""), reply_to_id
+
+    content = resolved.content or ""
+    if resolved.embeds:
+        embed_texts = [e.description or e.title or "" for e in resolved.embeds]
+        ...
+    media_list = self._extract_media(resolved)
     return ReplyContext(
-        message_id=str(ref_msg.id),
+        message_id=str(resolved.id),
         content=content.strip(),
-        media=tuple(media_list),
-        sender_id=str(ref_msg.author.id),
-        sender_name=ref_msg.author.display_name,
-        timestamp=ref_msg.created_at.timestamp(),
-    )
+        media=media_list,
+        sender_id=str(resolved.author.id),
+        sender_name=resolved.author.display_name,
+        timestamp=resolved.created_at.timestamp(),
+    ), reply_to_id
 ```
 
 **Highlights**:
-- Elegant fallback: `referenced_message` (full object) → `reference` (ID-only)
+- Uses `reference.resolved` (discord.py's real API, not `referenced_message`)
+- `isinstance(resolved, discord.Message)` type guard (rejects `DeletedReferencedMessage`)
 - Embed content included in text (Discord-specific rich formatting)
-- 60 lines
+- Reuses `_extract_media()` for consistent attachment parsing
+- Returns `reply_to_id` alongside context for outbound reply reference
+- `_resolve_mentioned()` treats reply-to-bot as implicit mention (Telegram parity)
+- Outbound: `fail_if_not_exists=False` for resilient reply chains
 
 ---
 
@@ -297,11 +288,14 @@ async def _fetch_thread_parent(channel_id: str, thread_ts: str) -> ReplyContext 
 | WeCom | `quote` dict | ❌ | 7 types + mixed | ❌ (not in payload) |
 | Telegram | `reply_to_message` | ❌ | 6 types | ✅ Full user object + date |
 | Feishu | `parent_id` | ✅ | 4 types | ⚠️ sender_id only (name=None) |
-| Discord | `referenced_message` | ❌ | Attachments + embeds | ✅ author + created_at |
+| Discord | `reference.resolved` | ❌ | Attachments + embeds | ✅ author + created_at |
 | Slack | `thread_ts` | ✅ | Files (all types) | ✅ user + ts + **name (via users.info)** |
+| WhatsApp | `quotedMessage` | ❌ | Text + media | ⚠️ via Baileys bridge |
+| OneBot | `reply_to` | ❌ | Text | ⚠️ Limited metadata |
+| iMessage | `reply_to` | ❌ | Text | ⚠️ Limited metadata |
 
 **Pattern**:
-- **Embedded reply data** (WeCom/Telegram/Discord): Parse directly from event payload
+- **Embedded reply data** (WeCom/Telegram/Discord/WhatsApp): Parse directly from event payload
 - **Reference-only** (Feishu/Slack): Fetch parent message via API
 
 ---
@@ -356,7 +350,7 @@ message_text = f'[Replying to: "{reply_snippet}"]\n\n{message_text}'
 | WeCom | 净减44行 | 0 | DRY: `_parse_msg_item` |
 | Telegram | 64 | 0 | - |
 | Feishu | 47 | 0 | flat string → structured |
-| Discord | 60 | 0 | - |
+| Discord | 55 | 0 | Implemented: _parse_reply_context + _resolve_mentioned + outbound reference |
 | Slack | 73 | 0 | async refactor |
 | **Total** | **~280净增** | **0** | **Cross-channel consistency** |
 
@@ -370,12 +364,12 @@ message_text = f'[Replying to: "{reply_snippet}"]\n\n{message_text}'
 
 ## Testing Strategy
 
-**Unit tests** (planned):
-- `tests/unit/test_wecom_quote_parsing.py`
-- `tests/unit/test_telegram_reply_parsing.py`
-- `tests/unit/test_feishu_reply_fetch.py`
-- `tests/unit/test_discord_reference_parsing.py`
-- `tests/unit/test_slack_thread_fetch.py`
+**Unit tests**:
+- `tests/channels/providers/discord/test_discord_reply_context.py` ✅ — 14 cases covering `_parse_reply_context` + `_resolve_mentioned`
+- `tests/unit/test_wecom_quote_parsing.py` (planned)
+- `tests/unit/test_telegram_reply_parsing.py` (planned)
+- `tests/unit/test_feishu_reply_fetch.py` (planned)
+- `tests/unit/test_slack_thread_fetch.py` (planned)
 
 **Coverage**:
 - All msgtype/attachment types per channel

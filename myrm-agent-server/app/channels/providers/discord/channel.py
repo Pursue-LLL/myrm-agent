@@ -9,7 +9,7 @@ the bot can join voice channels, listen via RTP, transcribe speech (STT),
 and play back TTS audio.
 
 [INPUT]
-- app.channels.types::ChannelCapabilities, (POS: Provides ArtifactInfo, infer_language, infer_artifact_type.)
+- app.channels.types::ChannelCapabilities, ReplyContext (POS: Provides ArtifactInfo, infer_language, infer_artifact_type. ReplyContext for structured reply/quote context.)
 - app.channels.types.messages::MediaAttachment, MediaType, ReasoningDisplay, RenderStyle, ToolSummaryDisplay (POS: Core message type definitions. All cross-channel communication data structures are defined here; zero I/O, pure data.)
 - app.channels.core.base::BaseChannel (POS: Channel abstraction layer. All providers inherit this class; Gateway manages them uniformly. Supports outbound (send) and inbound (on_inbound callback) bidirectional communication. Providers may declare credential_spec and from_credentials for self-contained credential management.)
 
@@ -48,6 +48,7 @@ from app.channels.types import (
     ChannelStatus,
     InboundMessage,
     OutboundMessage,
+    ReplyContext,
 )
 from app.channels.types.messages import (
     MediaAttachment,
@@ -386,7 +387,19 @@ class DiscordChannel(BaseChannel):
             return await self._create_forum_thread(channel, message.content)
         try:
             files = build_discord_files(message.media) if message.media else []
-            sent = await channel.send(content=message.content, files=files or discord.utils.MISSING)
+            kwargs: dict[str, object] = {
+                "content": message.content,
+                "files": files or discord.utils.MISSING,
+            }
+            if message.reply_to_id:
+                try:
+                    kwargs["reference"] = discord.MessageReference(
+                        message_id=int(message.reply_to_id),
+                        fail_if_not_exists=False,
+                    )
+                except (ValueError, TypeError):
+                    pass
+            sent = await channel.send(**kwargs)  # type: ignore[arg-type]
             return str(sent.id)
         except Exception as exc:
             logger.error("Failed to send Discord message: %s", exc)
@@ -466,6 +479,66 @@ class DiscordChannel(BaseChannel):
 
     # ── Inbound ──
 
+    def _parse_reply_context(self, message: discord.Message) -> tuple[ReplyContext | None, str | None]:
+        """Parse Discord message reference into ReplyContext.
+
+        Uses ``message.reference.resolved`` (discord.py's actual API) to access
+        the referenced message. ``resolved`` can be ``Message``,
+        ``DeletedReferencedMessage``, or ``None``. Only a full ``Message``
+        yields rich context; otherwise falls back to ID-only.
+        """
+        ref = getattr(message, "reference", None)
+        if not ref or not getattr(ref, "message_id", None):
+            return None, None
+
+        reply_to_id = str(ref.message_id)
+        resolved = getattr(ref, "resolved", None)
+        if not isinstance(resolved, discord.Message):
+            return ReplyContext(message_id=reply_to_id, content=""), reply_to_id
+
+        content = resolved.content or ""
+        if resolved.embeds:
+            embed_texts = [e.description or e.title or "" for e in resolved.embeds]
+            extra = "\n".join(t for t in embed_texts if t)
+            if extra:
+                content = f"{content}\n{extra}" if content else extra
+
+        media_list = self._extract_media(resolved)
+
+        author = resolved.author
+        sender_id = str(author.id) if author else None
+        sender_name = getattr(author, "display_name", None) if author else None
+        created_at = getattr(resolved, "created_at", None)
+
+        return ReplyContext(
+            message_id=str(resolved.id),
+            content=content.strip(),
+            media=media_list,
+            sender_id=sender_id,
+            sender_name=sender_name,
+            timestamp=created_at.timestamp() if created_at else None,
+        ), reply_to_id
+
+    def _resolve_mentioned(self, message: discord.Message, is_group: bool, reply_to_id: str | None) -> bool:
+        """Determine if the bot was mentioned in the message.
+
+        In group chats, also treats replying to the bot's own message as
+        an implicit mention — same pattern as Telegram [inbound.py:356-358].
+        """
+        if not is_group:
+            return False
+        bot_user = self._client.user if self._client else None
+        if bot_user and bot_user in getattr(message, "mentions", []):
+            return True
+        if reply_to_id:
+            ref = getattr(message, "reference", None)
+            resolved = getattr(ref, "resolved", None) if ref else None
+            if isinstance(resolved, discord.Message):
+                ref_author = resolved.author
+                if ref_author and bot_user and ref_author.id == bot_user.id:
+                    return True
+        return False
+
     async def _on_message(self, message: discord.Message) -> None:
         """Process incoming Discord message from Gateway."""
         media = self._extract_media(message)
@@ -490,6 +563,10 @@ class DiscordChannel(BaseChannel):
                 thread_id = effective_chat_id
                 is_thread = True
 
+        is_group = message.guild is not None
+        reply_to, reply_to_id = self._parse_reply_context(message)
+        mentioned = self._resolve_mentioned(message, is_group, reply_to_id)
+
         inbound = InboundMessage(
             channel=self.name,
             sender_id=str(message.author.id),
@@ -503,6 +580,10 @@ class DiscordChannel(BaseChannel):
             message_id=str(message.id),
             thread_id=thread_id,
             media=media,
+            is_group=is_group,
+            mentioned=mentioned,
+            reply_to=reply_to,
+            reply_to_id=reply_to_id,
             metadata={
                 "guild_id": str(message.guild.id) if message.guild else None,
                 "channel_topic": topic,
@@ -620,6 +701,8 @@ class DiscordChannel(BaseChannel):
             user_id=str(interaction.user.id),
             content=f"/action {action}",
             message_id=str(interaction.id),
+            is_group=interaction.guild_id is not None,
+            mentioned=True,
             metadata={
                 "guild_id": str(interaction.guild_id) if interaction.guild_id else None,
                 "interaction_type": "component",
@@ -858,6 +941,8 @@ class DiscordChannel(BaseChannel):
                 is_thread = isinstance(channel, discord.Thread)
                 thread_id = str(channel.id) if is_thread else None
 
+                reply_to, reply_to_id = self._parse_reply_context(raw_msg)
+
                 inbound = InboundMessage(
                     channel=self.name,
                     sender_id=str(raw_msg.author.id),
@@ -871,6 +956,9 @@ class DiscordChannel(BaseChannel):
                     message_id=str(raw_msg.id),
                     thread_id=thread_id,
                     media=media,
+                    is_group=raw_msg.guild is not None,
+                    reply_to=reply_to,
+                    reply_to_id=reply_to_id,
                     metadata={
                         "guild_id": str(raw_msg.guild.id) if raw_msg.guild else None,
                         "channel_topic": topic,

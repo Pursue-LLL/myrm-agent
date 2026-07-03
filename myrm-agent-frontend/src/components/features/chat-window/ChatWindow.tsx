@@ -35,6 +35,7 @@ import SessionRevertButton from '@/components/features/message-actions/SessionRe
 import { LifeStatusCapsule } from './LifeStatusCapsule';
 import PetOverlay from '../companion/sprite/PetOverlay';
 import { GoalStatusCard } from './goals/GoalStatusCard';
+import { GoalControlPlane } from './goals/GoalControlPlane';
 import { ParentChatLink } from './ParentChatLink';
 import WorkingStateBadge from './WorkingStateBadge';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
@@ -468,8 +469,18 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       <YoloModeBanner />
       <EStopBanner />
       <ExtensionDisconnectedBanner />
-      <EmptyChat />
-        <SubagentDashboard chatId={id} />
+      <div className="flex h-full w-full">
+        <div className="flex-1 min-w-0 min-h-0">
+          <EmptyChat />
+        </div>
+        {isGoalsEnabled && (
+          <div className="hidden lg:flex h-full shrink-0">
+            <GoalControlPlane />
+          </div>
+        )}
+      </div>
+      <SubagentDashboard chatId={id} />
+      {isGoalsEnabled && <GoalStatusCard />}
       <LifeStatusCapsule currentSessionId={id || null} />
       <PetOverlay />
     </>

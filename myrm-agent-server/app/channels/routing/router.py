@@ -477,18 +477,29 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             except Exception:
                 logger.debug("[JANITOR] Typing cleanup failed for %s (non-critical)", state_key)
 
+            timeout_msg = get_text(
+                synthetic_msg,
+                "stuck_task_timeout_user_message",
+                elapsed=elapsed,
+            )
             if entry.placeholder_id:
-                timeout_msg = get_text(
-                    synthetic_msg,
-                    "stuck_task_timeout_user_message",
-                    elapsed=elapsed,
-                )
                 try:
                     await self._fx.cleanup_placeholder(
                         entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg
                     )
                 except Exception:
                     logger.debug("[JANITOR] Placeholder cleanup failed for %s (non-critical)", state_key)
+            else:
+                try:
+                    reply = OutboundMessage(
+                        channel=entry.channel,
+                        recipient_id=entry.chat_id,
+                        content=timeout_msg,
+                        user_id="",
+                    )
+                    await self._bus.publish_outbound(reply)
+                except Exception:
+                    logger.debug("[JANITOR] Timeout notification failed for %s (non-critical)", state_key)
 
             self._gate.on_task_complete(synthetic_msg)
             logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)
