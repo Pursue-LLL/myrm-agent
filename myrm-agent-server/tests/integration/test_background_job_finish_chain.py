@@ -20,6 +20,9 @@ from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation imp
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
+from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
+    BASH_PROCESS_TOOL_NAME,
+)
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
@@ -220,6 +223,143 @@ async def test_background_killed_does_not_persist_finish_message(tmp_path: Path)
     pid = int(spawn_result["metadata"]["pid"])
     await get_background_registry().kill(pid, force=True)
     await asyncio.sleep(0.2)
+
+    chat = await ChatService.get_chat_by_id(chat_id)
+    assert chat is not None
+    bg_messages = [
+        m
+        for m in chat.messages
+        if m.extra_data and m.extra_data.get("background_job") is True
+    ]
+    assert bg_messages == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -> None:
+    """Failed command still notifies GUI via chat (exit != 0)."""
+    chat_id = f"bg-fail-{uuid.uuid4().hex[:12]}"
+    await _create_chat(chat_id)
+
+    executor = _make_local_executor(tmp_path)
+    set_executor(executor)
+    bind_workspace_storage_root(tmp_path)
+    set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
+
+    config: dict[str, object] = {
+        "configurable": {
+            "context": {
+                "session_id": chat_id,
+                "workspace_path": str(tmp_path),
+                "workspaces_storage_root": str(tmp_path),
+            }
+        }
+    }
+
+    fail_cmd = f"{sys.executable} -c \"import sys; sys.exit(2)\""
+    bash_tool = create_bash_code_execute_tool()
+
+    with (
+        patch(
+            "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+            AsyncMock(),
+        ),
+        patch(
+            "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=None),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ),
+    ):
+        spawn_result = await bash_tool.ainvoke(
+            {
+                "command": fail_cmd,
+                "reason": "integration nonzero exit",
+                "run_in_background": True,
+            },
+            config=config,
+        )
+
+    pid = int(spawn_result["metadata"]["pid"])
+    for _ in range(40):
+        info = get_background_registry().get(pid)
+        if info is not None and info.status == "exited" and info.exit_code == 2:
+            break
+        await asyncio.sleep(0.05)
+    else:
+        pytest.fail("Background process did not exit with code 2")
+
+    await asyncio.sleep(0.1)
+    chat = await ChatService.get_chat_by_id(chat_id)
+    assert chat is not None
+    bg_messages = [
+        m
+        for m in chat.messages
+        if m.extra_data and m.extra_data.get("background_job") is True
+    ]
+    assert len(bg_messages) == 1
+    assert bg_messages[0].extra_data.get("exit_code") == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_kill_session_jobs_clears_deferred_and_skips_chat(tmp_path: Path) -> None:
+    """Stream-cancel path: kill_session_jobs kills all jobs and clears AutoMount."""
+    from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation import (
+        get_session_deferred_tool_names,
+    )
+
+    chat_id = f"bg-cancel-{uuid.uuid4().hex[:12]}"
+    await _create_chat(chat_id)
+
+    executor = _make_local_executor(tmp_path)
+    set_executor(executor)
+    bind_workspace_storage_root(tmp_path)
+    set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
+
+    config: dict[str, object] = {
+        "configurable": {
+            "context": {
+                "session_id": chat_id,
+                "workspace_path": str(tmp_path),
+                "workspaces_storage_root": str(tmp_path),
+            }
+        }
+    }
+
+    long_cmd = f"{sys.executable} -c \"import time; time.sleep(60)\""
+    bash_tool = create_bash_code_execute_tool()
+
+    with (
+        patch(
+            "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+            AsyncMock(),
+        ),
+        patch(
+            "myrm_agent_harness.agent.skills.mcp.notify_registry.session_scope",
+            return_value=AsyncMock(
+                __aenter__=AsyncMock(return_value=None),
+                __aexit__=AsyncMock(return_value=False),
+            ),
+        ),
+    ):
+        await bash_tool.ainvoke(
+            {
+                "command": long_cmd,
+                "reason": "integration session cancel",
+                "run_in_background": True,
+            },
+            config=config,
+        )
+
+    assert BASH_PROCESS_TOOL_NAME in get_session_deferred_tool_names(chat_id)
+
+    killed = await get_background_registry().kill_session_jobs(chat_id, grace_seconds=0.05)
+    assert killed >= 1
+    await asyncio.sleep(0.2)
+
+    assert get_session_deferred_tool_names(chat_id) == frozenset()
 
     chat = await ChatService.get_chat_by_id(chat_id)
     assert chat is not None
