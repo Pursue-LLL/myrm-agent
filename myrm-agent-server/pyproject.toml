@@ -123,7 +123,7 @@ sandbox = [
   # --- 系统监控 ---
   "prometheus-fastapi-instrumentator>=8.0.2", # FastAPI Prometheus instrumentation (prometheus_setup.py)
   # --- ASGI 服务器 ---
-  "granian>=2.7.8", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
+  "granian>=2.7.9", # 多进程 ASGI 服务器 (仅 SERVER_MODE=granian 手动启用，无嵌入式 DB 场景)
 ]
 
 [tool.ruff]

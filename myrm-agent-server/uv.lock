@@ -949,34 +949,46 @@ wheels = [
 ]
 
 [[package]]
+name = "googleapis-common-protos"
+version = "1.75.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "protobuf" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b5/c8/f439cffde755cffa462bfbb156278fa6f9d09119719af9814b858fd4f81f/googleapis_common_protos-1.75.0.tar.gz", hash = "sha256:53a062ff3c32552fbd62c11fe23768b78e4ddf0494d5e5fd97d3f4689c75fbbd", size = 151035, upload-time = "2026-05-07T08:04:49.423Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e7/c8/e2645aa8ed02fd4c7a2f59d68783b65b1f3cbdfe39a6308e156509d1fee8/googleapis_common_protos-1.75.0-py3-none-any.whl", hash = "sha256:961ed60399c457ceb0ee8f285a84c870aabc9c6a832b9d37bb281b5bebde43ed", size = 300631, upload-time = "2026-05-07T08:03:30.345Z" },
+]
+
+[[package]]
 name = "granian"
-version = "2.7.8"
+version = "2.7.9"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "click" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/98/d5/70694e4d7ed4e065a1b3a53695a02fe575bad5cca91c4a0107dfb02711ed/granian-2.7.8.tar.gz", hash = "sha256:e384b1f08ed3deebdee3516c6db583a26aa20d5e893ce8e8867301fda3902c10", size = 128783, upload-time = "2026-06-30T16:28:27.522Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b0/cc/9c752e6173df02c5e37c0df7bffd50c1341109e4b4f8e5073bfd3a72dc82/granian-2.7.9.tar.gz", hash = "sha256:096d9a3396b13826bc63d2cf424ed04daf1ea077beed361d48dca2d55cb4b527", size = 129789, upload-time = "2026-07-03T12:42:03.314Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a1/7e/d00becd226e5076da180e9a735a397c6c750590e49f04004411949fd5b53/granian-2.7.8-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:d75394668a8465cc053266b589593d43b185f986ec67d324d91d02a227a35f8c", size = 6423620, upload-time = "2026-06-30T16:26:52.985Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/f0/d7/b52fdb8202afac25ee638a07561464b598b26ff1542186d54113d5b13724/granian-2.7.8-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:8c532e2d58a6d7078caabbbd725d3d08414d0929438b1c28af88255d0fdde615", size = 6157326, upload-time = "2026-06-30T16:26:55.242Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d1/17/25a622b68afe99f81a60f2e94232e4bedc888beea415d806fbc8d2e37bf1/granian-2.7.8-cp313-cp313-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:20378307e8705cc328ab512de6a7d72590e3406bbd7094f90b1124c2d402224f", size = 7238012, upload-time = "2026-06-30T16:26:57.141Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a0/5a/c0e616da2ada06cb455b81833d2ca5ac567c762082c88f285489beaca183/granian-2.7.8-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:ab76cb78726adee52cd2565e0cc5e26508fd3519a16b634fb0207c95405c9814", size = 6456801, upload-time = "2026-06-30T16:26:59.012Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/20/82/61859412d613c29f4a8ffe9fdcaf1393958eaf4932891ec3b7ee45464344/granian-2.7.8-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d22943980c7516a64411e04d7119c0ae7cf540fc4a6ec09c60f4c8d633581df", size = 6921466, upload-time = "2026-06-30T16:27:00.682Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/90/c1/a4f84be3a4ae7fe3c028ad7ab2cbec683b79ee21be7020ab3adbeff3abb2/granian-2.7.8-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:46feb2cc36bbf262ac29e79496bd42554d036a35ab45f7e517c315925c8f8034", size = 7167926, upload-time = "2026-06-30T16:27:02.586Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/36/5e/737d0d84456d5be9a5249bcf7cc9eba731a70a0a03ccd7cdecd2addddccb/granian-2.7.8-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:53f588a59db89c422aeaf6f0a5d1144dd688a753223abdb5a22c980792c80962", size = 7126258, upload-time = "2026-06-30T16:27:04.832Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/65/3e/7aa8a1968e309f79ef9c1a196485392cbb4ea90886f067a0060ab5f88029/granian-2.7.8-cp313-cp313-musllinux_1_1_armv7l.whl", hash = "sha256:055ab90bf11b7e3e149f104a4e33069748cb09997f57b68a248f447dd9f8a9ec", size = 7346786, upload-time = "2026-06-30T16:27:06.877Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/07/89/57b6dc76eb0a686c5ddd383f68a7d301e717e73b0867399071b8c86b02dc/granian-2.7.8-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:0572d0fc41c7c6429ed8adf0c37979e2fe661a9410d795991e32c06771ed972f", size = 6956971, upload-time = "2026-06-30T16:27:09.119Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e8/3e/a0bada2a74d67166f872251f66195cd0d369f2a500abf161f2766c8f3197/granian-2.7.8-cp313-cp313-win_amd64.whl", hash = "sha256:b40187b6bf8b98c3c5f55989b443280a234c66b3b40e4cf2a8e76303a1e78658", size = 4027664, upload-time = "2026-06-30T16:27:11.03Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b9/95/1d1384785249012d4d91ad14594fc5609017bd864474919c6dc463f873bb/granian-2.7.8-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:c49c42d50a89ac66dede690b8a5b41d84973e9df3bd5f604e4338c134e9a2619", size = 6320512, upload-time = "2026-06-30T16:27:12.692Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/df/9d/5310ff5c409c45e5b4265ef8b7845aeef1b8748ef53e5b3451bb4b416a8a/granian-2.7.8-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:cfa1e8745d3a9f855eb6213fba33a6fab0fafe28aa0bf12d511e1174415f7066", size = 6056082, upload-time = "2026-06-30T16:27:14.383Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/48/88/4d6834d5a7eb646c8a79f9a2ac9fe9bac1a68058ba199fecfb7b9013c74a/granian-2.7.8-cp313-cp313t-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:a0c2448ddc8eb96db67531d4fdd71d9349de57b923756b54060f90ec0fe7bdc9", size = 6280702, upload-time = "2026-06-30T16:27:16.125Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/11/41/d22e4b7dead21558da9c07a2cd8436912c77b49f114a59a71fe7bd49c3d2/granian-2.7.8-cp313-cp313t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:ff6e3d4eabef33d76cf02afc50b7b77460cf0ba8e0bd00e9b705a6c2d6b7c6c6", size = 7209010, upload-time = "2026-06-30T16:27:18.412Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/23/bb/bc1b836e1a7efb03e78c8ac94e9ae2dd76606ffd48b5ac1db4756ea45eb1/granian-2.7.8-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fbd4910078f950944f418e49d244a4a8bb0ac7bf548deb6b0c3ae41726ed16f", size = 6767695, upload-time = "2026-06-30T16:27:20.221Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e1/8a/5c6e47be75f8af62d942d574e114318a96116e0ff79da49bbd477c7b0022/granian-2.7.8-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:4282c77e583c7e69701c94e590cbdd5f3b7e9cfbe2f3a018cd14f428cf9587e6", size = 6887708, upload-time = "2026-06-30T16:27:22.011Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ea/0f/68769de4e9ab2bcc845e889dee149c86df1b455ecb8af011d624f87c4498/granian-2.7.8-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:85570cc41db97a11dbd6c2e393d6438f62a649de11f11bafb09c99b8127e2aae", size = 7056044, upload-time = "2026-06-30T16:27:23.767Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/40/2d/81fe4cddceaabc6bf454a64e3141725cbad93043445c34519fed0a984237/granian-2.7.8-cp313-cp313t-musllinux_1_1_armv7l.whl", hash = "sha256:1f861fdb01aa86682f786d62320c60d114101945c8a6c4d46e1a5133ed170fa5", size = 7291952, upload-time = "2026-06-30T16:27:25.503Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/76/7c/971c4ebd7e7bf68d8731a822d720911c1252fd0cfe1b77c951c81a6c0985/granian-2.7.8-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:6c27288f561689bfbc91275ce4fe3596d1e1f6923158b528673014f6d52f63bd", size = 6982314, upload-time = "2026-06-30T16:27:27.979Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ee/98/26b0c48e120cea36762b738751dea42b5b5529c74c0c48e9bd524c064252/granian-2.7.8-cp313-cp313t-win_amd64.whl", hash = "sha256:6fb67bf33cd6a7d30df2b21c973699d932cb15ee84f5573d13a985dacb5e7261", size = 3989007, upload-time = "2026-06-30T16:27:29.755Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/34/c4/a66d5c6daf849d012e871ed2684a2e7f81c518ce9f9e827f5900d99d5e7e/granian-2.7.9-cp313-cp313-macosx_10_12_x86_64.whl", hash = "sha256:23aa08e4d7563f0acb45424676a7d892a146493b5db0895efb5bc8e5121e3051", size = 6534637, upload-time = "2026-07-03T12:40:47.541Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c0/5e/27fe98fabcae553e3f5087b46f3185a257ed9ee5d7f145d2fd03309bcb60/granian-2.7.9-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:233baf237d4d3768b4ca6cb6d26546de242e437e1af6050405dcc4673032977f", size = 6210219, upload-time = "2026-07-03T12:40:49.188Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/bf/b3/9f72bd1f36bd3825d35eff3bd8d00c7a01affdec91387fec6e33e314dc6d/granian-2.7.9-cp313-cp313-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:64eb08bcf4aca0375fae95a27ca2e78e9dfef7ccae8e12daaac8b2f0bd1cc718", size = 7162144, upload-time = "2026-07-03T12:40:50.497Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/67/e3/21e699362e4ecd56d254519d042316444b34c2048e32869101db9bfb6db7/granian-2.7.9-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:ff89b203cebba0780efa0360b6e23520323d05f799a610d4a07a5681067b7249", size = 6440457, upload-time = "2026-07-03T12:40:51.826Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/25/d4/4afb3e49ca32b7b6528c2cde626ff60d43663c3567b500bcfbe40af3ca73/granian-2.7.9-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d4ddd82390b6fb9c025007f7ccd92e99d244211898a7851103f28688889dd905", size = 6950842, upload-time = "2026-07-03T12:40:53.317Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/9c/1d/2a19bce46d187296752c9a54cf833f0472232eb6ad4152e99439163fbd1a/granian-2.7.9-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:18e3f870a8c42500fe6c8d73d24a6888920e2a8740810ef1ddb83b0b67ce643e", size = 7106973, upload-time = "2026-07-03T12:40:54.916Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e2/36/091e26516a7d9093068665dfeffc61dd87c0cb9b9869ffdf452296ab237b/granian-2.7.9-cp313-cp313-musllinux_1_1_aarch64.whl", hash = "sha256:5dda81fbf58d8f173b9990e6300525359dc2641b88f03bbbe31cc693db5f530b", size = 7052872, upload-time = "2026-07-03T12:40:56.475Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/20/f7/a4dca67e6b68014d548d957735521ce68b2e99a5474722663d048c740063/granian-2.7.9-cp313-cp313-musllinux_1_1_armv7l.whl", hash = "sha256:cae7ccfd34519241e92311e966763650f839b07b1195541cb0f5c180ef22df99", size = 7346092, upload-time = "2026-07-03T12:40:58.276Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c8/88/842e71b39a3a02a16d49b4495c20150055e0888aec6ceb1b965df3a872a5/granian-2.7.9-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:ed501eafd6cb3c63924466860bf478ad23691d7ad16678b2069e75b5328a074c", size = 6991558, upload-time = "2026-07-03T12:41:00.072Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ba/2f/51a4db315adbc5e28bf5ac97cb93e04c5e7e6705dc0ef6c8220851453074/granian-2.7.9-cp313-cp313-win_amd64.whl", hash = "sha256:e79316015dd68624e021281b3d0e2d9446f04160db4f14140561fe4c0ffeaaa0", size = 4066887, upload-time = "2026-07-03T12:41:01.634Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/5e/7f/62673800ed73a85d5b629f493d06a387834196e9463b115ef4fee35d1928/granian-2.7.9-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:9aa2087ae2103e99ba169f53d718258205bf2ace7df87c9b6dd52e3f71a90335", size = 6331598, upload-time = "2026-07-03T12:41:03.07Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c5/f3/08878d6a5b010e39f168b3cffe5011183eab4464a58144ea5711d22d9888/granian-2.7.9-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:d52c262b5e0d345c0c0684b7536ea42f370a7bbb4720b1b625d60d84d87c81be", size = 6099199, upload-time = "2026-07-03T12:41:04.617Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/34/b3/fc344b4bc668d5f4eae9bddbd0eb8f2517214470dd40d178c6c51d14be22/granian-2.7.9-cp313-cp313t-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:6d08149dfa9777ba281ddf7d7df7ae5473cf6c2fa8815ac33301a24acf33e875", size = 6299537, upload-time = "2026-07-03T12:41:05.99Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4f/32/65a9b41f107bf76fd23c6c6102eee6ac1112cb84250408d034517cb415aa/granian-2.7.9-cp313-cp313t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:d019f88e7944c3e3967da833e758c85cb6c35c7a82a8185eba23243b5cf24b7c", size = 7210150, upload-time = "2026-07-03T12:41:07.633Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/29/f3/60413bf1a6f6da32b10a3dcfb45c2d09de2dc2f6829555323239635b6398/granian-2.7.9-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e155eb6d3c8827ef3821c80ae6a5f7a61f37562d121240128ce099e3db06ad2f", size = 6673489, upload-time = "2026-07-03T12:41:09.429Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ab/a0/6cd1b05e0a868b224232fb203838272cdd3165d16338a847f726b21926e2/granian-2.7.9-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:ac516f3cbdce733578ee91a8139d624a1dccf9ab782fb9f3ab58254ebe6c29ad", size = 6829812, upload-time = "2026-07-03T12:41:10.945Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/9e/72/cbb85914df3e09e9ad6a59406157622a50e64df960e378d1091195a5a0a2/granian-2.7.9-cp313-cp313t-musllinux_1_1_aarch64.whl", hash = "sha256:73e8fe3d162c66d1eddaee825e59379bbf7a384ff776ae984baf796cf1b81fe3", size = 6976912, upload-time = "2026-07-03T12:41:12.412Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/57/7c/ce3d1ef6f8999106a41d828c88f154b6bc6f700950894613e62a3bb46e2e/granian-2.7.9-cp313-cp313t-musllinux_1_1_armv7l.whl", hash = "sha256:12da3d84a9dce7706a19f6a98e8f7c3624721ff66bc34a60cfc4d58e2d6593b9", size = 7418223, upload-time = "2026-07-03T12:41:13.956Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b4/2f/38daac752e7384c5da56803a65428ef29a196df8e436082813b391877ef5/granian-2.7.9-cp313-cp313t-musllinux_1_1_x86_64.whl", hash = "sha256:887f0f1e045314044712a2e3799991c7be0ba4129f6806b82e40f502417694d9", size = 6951268, upload-time = "2026-07-03T12:41:15.646Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e4/95/4cbe8728c9e609f33ec676e194a6296cd628bfb9d6c1310f4ab06634f09a/granian-2.7.9-cp313-cp313t-win_amd64.whl", hash = "sha256:2836fd595a144be7e70faebddf1ce7b4e0c136a7017d75660b88c8da63c0f0ff", size = 4003202, upload-time = "2026-07-03T12:41:17.072Z" },
 ]
 
 [[package]]
@@ -1973,6 +1985,11 @@ file-parsers = [
 image-processing = [
     { name = "imagequant" },
 ]
+observability = [
+    { name = "openinference-instrumentation-langchain" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+    { name = "opentelemetry-sdk" },
+]
 qdrant = [
     { name = "qdrant-client" },
 ]
@@ -2074,7 +2091,7 @@ dependencies = [
     { name = "langchain" },
     { name = "langchain-core" },
     { name = "litellm" },
-    { name = "myrm-agent-harness", extra = ["compiled-core", "fastapi", "file-parsers", "image-processing", "qdrant", "retrieval", "web"] },
+    { name = "myrm-agent-harness", extra = ["compiled-core", "fastapi", "file-parsers", "image-processing", "observability", "qdrant", "retrieval", "web"] },
     { name = "nanoid" },
     { name = "orjson" },
     { name = "pilk" },
@@ -2153,7 +2170,7 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'data-viz'", specifier = ">=3.11.0" },
     { name = "mautrix", marker = "extra == 'matrix'", specifier = ">=0.21.0" },
     { name = "mautrix", extras = ["encryption"], marker = "extra == 'matrix-e2ee'", specifier = ">=0.21.0" },
-    { name = "myrm-agent-harness", extras = ["file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "compiled-core"], specifier = "==0.1.0rc5" },
+    { name = "myrm-agent-harness", extras = ["acp", "file-parsers", "web", "fastapi", "retrieval", "qdrant", "image-processing", "observability", "compiled-core"], specifier = "==0.1.0rc5" },
     { name = "nanoid", specifier = ">=2.0.0" },
     { name = "orjson", specifier = ">=3.11.9" },
     { name = "pandas", marker = "extra == 'data-viz'", specifier = ">=3.0.4" },
@@ -2190,7 +2207,7 @@ dev = [
     { name = "ruff", specifier = ">=0.15.20" },
 ]
 sandbox = [
-    { name = "granian", specifier = ">=2.7.8" },
+    { name = "granian", specifier = ">=2.7.9" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=8.0.2" },
 ]
 
@@ -2286,6 +2303,47 @@ wheels = [
 ]
 
 [[package]]
+name = "openinference-instrumentation"
+version = "0.1.54"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-sdk" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c1/cc/62c1175ee7edc2cbdf95b5b73e0b0f305e759d407bf1bc353ff30a763365/openinference_instrumentation-0.1.54.tar.gz", hash = "sha256:9af9817bb38816ed32856fb4cd813c1a5d9f530ab589c3473b37e06cf406ab28", size = 33938, upload-time = "2026-06-30T19:23:15.648Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/38/e3/c7aa7bb4845e0cfdf477ff87f9a3ec0cd2aa55a34a9f31be84d724cabbb7/openinference_instrumentation-0.1.54-py3-none-any.whl", hash = "sha256:8bc991865c90c804ac9983ef93aa6081a7a2397dd113d3d38b5465cca17892bb", size = 41197, upload-time = "2026-06-30T19:23:14.315Z" },
+]
+
+[[package]]
+name = "openinference-instrumentation-langchain"
+version = "0.1.67"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "openinference-instrumentation" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-instrumentation" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/84/02/f381a25a0d11e57f91a90effda4abc484f25598d32a59566205583ca198c/openinference_instrumentation_langchain-0.1.67.tar.gz", hash = "sha256:94bdd348ceacc6657ae7b37f7050fe6289484fb65be9ee51edc2d9c3261a6605", size = 76093, upload-time = "2026-07-01T15:44:22.946Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/1d/c3/28b6acb7b29ff1c203521087c06d113397f39d04ae502b6f38ebbd29d564/openinference_instrumentation_langchain-0.1.67-py3-none-any.whl", hash = "sha256:2c279640072737359ded51bdf9b82374f44f25f92b2300dde44b3a9e2da8f79f", size = 24833, upload-time = "2026-07-01T15:44:21.74Z" },
+]
+
+[[package]]
+name = "openinference-semantic-conventions"
+version = "0.1.30"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/2c/51/8ba1182ee86fc79793d5ff2d11e7fdcda10ded2d01f3e46ca6fcf0568213/openinference_semantic_conventions-0.1.30.tar.gz", hash = "sha256:81fece76e09c83789e35c393b8b30523481eeabf1008745b955631a53e3221d9", size = 13391, upload-time = "2026-05-22T21:10:44.065Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/b6/76/5b7e78cf0de38589b821bbe8e9c29c59a6e76edfb980488d0854cbb90f7c/openinference_semantic_conventions-0.1.30-py3-none-any.whl", hash = "sha256:36d946d3f95f699b7c4b12324ae9c1f02d6c7750df11eece56aa159cff430b3d", size = 10911, upload-time = "2026-05-22T21:10:43.04Z" },
+]
+
+[[package]]
 name = "openpyxl"
 version = "3.1.5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
@@ -2307,6 +2365,90 @@ dependencies = [
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ae/cc/e4c9584181f86494df0f6bdec1a4f3280c50db44704dc2a407e994fc87bb/opentelemetry_api-1.43.0.tar.gz", hash = "sha256:107d0d03857ea8fc7c5fcbbbd83f800c281f0d560553d61c1d675fccfd1761c1", size = 73476, upload-time = "2026-06-24T15:19:55.323Z" }
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/17/83/6dba32b85f31868400440dc7ad2ca1eab94cbbf3a7b0459ed39f8311a9e2/opentelemetry_api-1.43.0-py3-none-any.whl", hash = "sha256:20acf45e9b21851926835292e4045d290acade1edd2ff3de86d2f069687ba1fd", size = 61912, upload-time = "2026-06-24T15:19:35.434Z" },
+]
+
+[[package]]
+name = "opentelemetry-exporter-otlp-proto-common"
+version = "1.43.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "opentelemetry-proto" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/55/c1/e8098490ab15abf116dcaf9fa89ededcb35547c7d08d4b5a62f573dc1e63/opentelemetry_exporter_otlp_proto_common-1.43.0.tar.gz", hash = "sha256:c4e32ba6d6b13bdb2b8f6764c4fd28d00192826561aa04f6d14eedfce7ac076f", size = 20197, upload-time = "2026-06-24T15:20:00.247Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d0/b2/41ebc74ae1d5859901f1b69305de58724bf043381103d6ef413521cbc35a/opentelemetry_exporter_otlp_proto_common-1.43.0-py3-none-any.whl", hash = "sha256:123c3f9cc87218562490c63b36f497bf3a722faf174a515d1443f31ababa6264", size = 17048, upload-time = "2026-06-24T15:19:41.264Z" },
+]
+
+[[package]]
+name = "opentelemetry-exporter-otlp-proto-grpc"
+version = "1.43.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "googleapis-common-protos" },
+    { name = "grpcio" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp-proto-common" },
+    { name = "opentelemetry-proto" },
+    { name = "opentelemetry-sdk" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e2/1d/6336453716ca0a240d4417d19e6d5b77a5e7163e5670ec4f7ec4d3ede7bf/opentelemetry_exporter_otlp_proto_grpc-1.43.0.tar.gz", hash = "sha256:1b3e0627daa9bc21884d4a13946807c255eb558bfe5bdd543dffb6f4c9faee0d", size = 27213, upload-time = "2026-06-24T15:20:00.907Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/6d/74/2700b5d5c946bf2dba87073fce3dfc198c46bc92ea3d5693f54bc51c90b1/opentelemetry_exporter_otlp_proto_grpc-1.43.0-py3-none-any.whl", hash = "sha256:6a10d1feacffffda19acacbf277b736094b1e2f4dbb98c90ccb2c6e1962e2ec6", size = 19626, upload-time = "2026-06-24T15:19:42.233Z" },
+]
+
+[[package]]
+name = "opentelemetry-instrumentation"
+version = "0.64b0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "packaging" },
+    { name = "wrapt" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/7e/97/02fe6e1c8b1ffac42d0b429c18080edb24e0e0d18c86612edf72b5752382/opentelemetry_instrumentation-0.64b0.tar.gz", hash = "sha256:b47d528dead6271d7743114417eb67fc915bd9258111c48dbf9a4951d2efa88d", size = 41935, upload-time = "2026-06-24T15:19:12.951Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d2/0c/cb9fe342de5299c7af24582eb7d788661cc53a1c4b904da92309caaa9417/opentelemetry_instrumentation-0.64b0-py3-none-any.whl", hash = "sha256:133ab7ffca796557aec059bf6be3190a34b6dea987f25be3d9409e230cbdad8b", size = 35880, upload-time = "2026-06-24T15:18:17.277Z" },
+]
+
+[[package]]
+name = "opentelemetry-proto"
+version = "1.43.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "protobuf" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e0/b9/d357faefb40bda1d4799913e6af611171ff22a2dedcb93576bc92242d056/opentelemetry_proto-1.43.0.tar.gz", hash = "sha256:224778df17e1f3fafeaaa21d874236ca5f6ffc2f86e0899298ec7351aac27924", size = 46481, upload-time = "2026-06-24T15:20:07.625Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ed/a7/3e5308cf548b8f72529c7db1afdb3a404211982376a12927fd7759f77bf3/opentelemetry_proto-1.43.0-py3-none-any.whl", hash = "sha256:c58f1f7ef84bc7dc2834016c0c37fe0081dde7ca9f6339be1970fbf9cdaaa90d", size = 72489, upload-time = "2026-06-24T15:19:51.164Z" },
+]
+
+[[package]]
+name = "opentelemetry-sdk"
+version = "1.43.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/3e/eb/5041074274ac0956b03637cc039d434569112468e875eddfcc9a0674ce06/opentelemetry_sdk-1.43.0.tar.gz", hash = "sha256:d8187c81c162df9913e4003dd6485f7390d9a24fc17026ec7387b8b8218b08e9", size = 254744, upload-time = "2026-06-24T15:20:08.467Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/49/e3/b17be23af124201c9f52eececd4cc8ddfed1597d37b4ee771895d325805c/opentelemetry_sdk-1.43.0-py3-none-any.whl", hash = "sha256:d1323a547c1ce69d6a069a17a44b7da82bb8b332051ecb074041f87642c86823", size = 178852, upload-time = "2026-06-24T15:19:52.169Z" },
+]
+
+[[package]]
+name = "opentelemetry-semantic-conventions"
+version = "0.64b0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "opentelemetry-api" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/5a/30/5f26df29509eccd86b99b481ac9ffa39da49ba9577cc69071c552ae30447/opentelemetry_semantic_conventions-0.64b0.tar.gz", hash = "sha256:72f76fb2d1582d9d033dd1fcd84532e961e6ff3d90d24ba6fabc72975a83864c", size = 148340, upload-time = "2026-06-24T15:20:09.267Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/f2/ca/23ba87a221b574a7c5a99d48849d80bfe8b047624681357e2b002e566187/opentelemetry_semantic_conventions-0.64b0-py3-none-any.whl", hash = "sha256:ea77e85e354b8f604ddbe5f3d9135216f982fa4d77e5859ac30f6d8a50505aa6", size = 203713, upload-time = "2026-06-24T15:19:53.339Z" },
 ]
 
 [[package]]
