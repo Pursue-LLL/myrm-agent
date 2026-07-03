@@ -696,6 +696,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Canvas tools load failed (degraded): %s", e)
 
+
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.
 
