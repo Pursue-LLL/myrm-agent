@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -284,3 +284,30 @@ async def test_facade_delegates_properties_and_getattr() -> None:
     assert facade.available_backends == ["claude", "codex"]
     assert facade.get_config("claude") == {"name": "claude"}
     assert facade.start_monitoring is pool.start_monitoring
+
+
+@pytest.mark.asyncio
+async def test_close_external_agent_pool_for_chat_noop_on_empty() -> None:
+    from app.services.external_agents.runtime_pool_registry import (
+        close_external_agent_pool_for_chat,
+    )
+
+    await close_external_agent_pool_for_chat(None)
+    await close_external_agent_pool_for_chat("")
+    await close_external_agent_pool_for_chat("   ")
+
+
+@pytest.mark.asyncio
+async def test_close_external_agent_pool_for_chat_swallows_registry_errors() -> None:
+    from app.services.external_agents.runtime_pool_registry import (
+        close_external_agent_pool_for_chat,
+    )
+
+    registry = MagicMock()
+    registry.close_chat = AsyncMock(side_effect=RuntimeError("boom"))
+    with patch(
+        "app.services.external_agents.runtime_pool_registry.get_chat_runtime_pool_registry",
+        return_value=registry,
+    ):
+        await close_external_agent_pool_for_chat("chat-err")
+    registry.close_chat.assert_awaited_once_with("chat-err")

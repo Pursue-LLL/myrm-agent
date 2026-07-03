@@ -26,7 +26,7 @@ def test_list_shell_background_tasks_maps_registry_rows() -> None:
     fake_registry.list_processes.return_value = [info]
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background_registry.get_background_registry",
+        "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
         rows = list_shell_background_tasks()
@@ -44,7 +44,7 @@ async def test_cancel_shell_background_task_delegates_to_registry() -> None:
     fake_registry.kill = AsyncMock(return_value=True)
 
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background_registry.get_background_registry",
+        "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=fake_registry,
     ):
         ok = await cancel_shell_background_task(77)

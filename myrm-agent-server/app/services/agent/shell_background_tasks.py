@@ -1,7 +1,7 @@
 """Read-only facade over harness BackgroundProcessRegistry for GUI activity panel.
 
 [INPUT]
-- myrm_agent_harness.agent.meta_tools.bash._background_registry::get_background_registry
+- myrm_agent_harness.api.hooks::get_background_registry
 
 [OUTPUT]
 - list_shell_background_tasks: Map in-process shell jobs to API DTOs
@@ -67,9 +67,7 @@ def _progress_from_info(last_progress: dict[str, object] | None) -> int | None:
 
 def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
     """Return all tracked shell jobs (running and recently exited)."""
-    from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
-        get_background_registry,
-    )
+    from myrm_agent_harness.api.hooks import get_background_registry
 
     registry = get_background_registry()
     rows: list[ShellBackgroundTaskDTO] = []
@@ -101,9 +99,7 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
 
 async def cancel_shell_background_task(pid: int) -> bool:
     """Kill a shell background job; returns False when pid is unknown."""
-    from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
-        get_background_registry,
-    )
+    from myrm_agent_harness.api.hooks import get_background_registry
 
     registry = get_background_registry()
     return await registry.kill(pid, force=False)
