@@ -11,9 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from myrm_agent_harness.agent.meta_tools.bash._background_registry import (
-    get_background_registry,
-)
+from myrm_agent_harness.api.hooks import get_background_registry
 from myrm_agent_harness.agent.meta_tools.bash.background_deferred_activation import (
     reset_deferred_activation_for_tests,
 )

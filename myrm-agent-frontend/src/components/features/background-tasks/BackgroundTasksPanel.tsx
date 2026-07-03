@@ -136,7 +136,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
 
   const agentTasks = useMemo(
-    () => tasks.filter((task) => task.kind !== 'shell'),
+    () => tasks.filter((task) => (task.kind ?? 'agent') !== 'shell'),
     [tasks],
   );
   const shellTasks = useMemo(

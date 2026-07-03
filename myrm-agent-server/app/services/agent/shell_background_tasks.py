@@ -14,7 +14,6 @@ process lifecycle logic. Ephemeral (no DB); Kanban agent tasks stay separate.
 
 from __future__ import annotations
 
-import time
 from typing import Literal
 
 from pydantic import BaseModel
@@ -74,8 +73,10 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
     for info in registry.list_processes():
         status = _map_shell_status(info.status, info.exit_code)
         completed_at: float | None = None
-        if status != "running":
-            completed_at = time.time()
+        if status != "running" and info.last_progress is not None:
+            raw_ts = info.last_progress.get("updated_at")
+            if isinstance(raw_ts, (int, float)):
+                completed_at = float(raw_ts)
 
         tail = info.last_stdout_tail or info.last_stderr_tail
         preview = tail[-1] if tail else None
