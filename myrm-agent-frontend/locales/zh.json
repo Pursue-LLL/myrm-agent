@@ -4665,7 +4665,7 @@
       "chromium": "极速 Chromium (Patchright)",
       "chromiumDesc": "默认选项。速度快，资源占用低，适合绝大多数常规网页。",
       "camoufox": "深度隐身 Camoufox (Firefox)",
-      "camoufoxDesc": "专为突破高强度反爬设计，速度稍慢，资源占用较高。"
+      "camoufoxDesc": "Firefox 隐身备用引擎。Patchright 遇高强度反爬时自动升级；速度较慢、资源占用较高，不保证全站通过。"
     },
     "dialogPolicy": {
       "label": "弹窗处理"

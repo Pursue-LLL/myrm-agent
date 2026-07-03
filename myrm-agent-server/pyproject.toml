@@ -36,7 +36,7 @@ dependencies = [
   "sqlalchemy>=2.0.51", # ORM 框架，SQLite (170+ 文件)
   # --- 工具库 ---
   "nanoid>=2.0.0", # 唯一 ID 生成 (9 文件)
-  "filelock>=3.29.4", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
+  "filelock>=3.29.5", # 跨进程文件锁 (cron/memory_lock.py, startup/server_lock.py)
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
@@ -88,6 +88,7 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.61.1",
+  "camoufox[async]>=0.4.11",
   "openai>=2.44.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",

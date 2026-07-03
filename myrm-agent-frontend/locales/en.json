@@ -4662,7 +4662,7 @@
       "chromium": "Chromium (Patchright)",
       "chromiumDesc": "Default. Fast, low resource usage, suitable for most pages.",
       "camoufox": "Stealth Camoufox (Firefox)",
-      "camoufoxDesc": "Anti-detection engine for bypassing advanced protections."
+      "camoufoxDesc": "Firefox stealth fallback. Auto-used when Patchright hits advanced anti-bot; slower and heavier."
     },
     "dialogPolicy": {
       "label": "Dialog Handling"
