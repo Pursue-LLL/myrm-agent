@@ -12,7 +12,7 @@
 | `handlerDeps.ts` | 辅助 | 切片共享 import（types、stores、helpers） | ✅ |
 | `companionEvents.ts` | 核心 | mascot_xp、dag、catchup_snapshot | — |
 | `rateLimitEvents.ts` | 核心 | rate_limit_updated / warning | — |
-| `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批等控制流 | — |
+| `agentControlEvents.ts` | 核心 | ERROR、取消、澄清、Goal、审批、ptc_notify；bg finish 仅更新 progressSteps（toast 由 server SYSTEM_NOTIFICATION 负责） | — |
 | `toolsProgressEvents.ts` | 核心 | TOOL_PROGRESS、TASKS_STEPS、进度项合并 | — |
 | `statusStreamEvents.ts` | 核心 | STATUS、归档恢复、上下文溢出提示 | — |
 | `subagentEvents.ts` | 核心 | SUBAGENT_* 子代理状态 | — |
