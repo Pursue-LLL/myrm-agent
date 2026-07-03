@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.test_capability_gap_integration import _collect_agent_stream
-from tests.api.agent.utils import check_e2e_errors, get_model_selection
+from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
 
 
 def _render_ui_tasks_steps(events: list[dict[str, object]]) -> list[dict[str, object]]:
@@ -20,6 +21,10 @@ def _render_ui_tasks_steps(events: list[dict[str, object]]) -> list[dict[str, ob
 
 
 @pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
+)
 def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
     """Real agent-stream: render_ui_tool invocation must produce ui_update SSE with ui_artifact."""
     chat_id = f"test_render_ui_{uuid.uuid4().hex[:8]}"
@@ -27,59 +32,42 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
     assert create_response.status_code == 200
 
     payload: dict[str, object] = {
-        "message_id": "test-render-ui-e2e-1",
-        "chat_id": chat_id,
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
         "query": (
-            "【测试】你必须且只能调用 render_ui_tool 一次，参数："
-            "title=部署确认；components=["
-            '{"id":"t1","type":"text","props":{"text":"确认重启 staging?"}},'
+            "You MUST call render_ui_tool exactly once with: "
+            'title="部署确认"; '
+            'components=[{"id":"t1","type":"text","props":{"text":"确认重启 staging?"}},'
             '{"id":"f1","type":"text_field","props":{"label":"备注"},"bindings":{"value":"$.form.note"}},'
-            '{"id":"b1","type":"button","props":{"label":"确认"},"events":{"onClick":"submit"}}'
-            "]; root_ids=[\"t1\",\"f1\",\"b1\"]; data={\"form\":{\"note\":\"\"}};"
-            'actions=[{"id":"submit","type":"submit","label":"确认"}]。'
-            "禁止只用 Markdown。调用成功后回复 DONE。"
+            '{"id":"b1","type":"button","props":{"label":"确认"},"events":{"onClick":"submit"}}]; '
+            'root_ids=["t1","f1","b1"]; '
+            'data={"form":{"note":""}}; '
+            'actions=[{"id":"submit","type":"submit","label":"确认"}]. '
+            "Do not use any other tools. After render_ui_tool succeeds, reply DONE."
         ),
-        "action_mode": "agent",
-        "model_selection": get_model_selection(),
-        "agent_config": {
-            "enabled_builtin_tools": [
-                "web_search",
-                "memory",
-                "file_ops",
-                "code_execute",
-                "render_ui",
-            ],
-            "skill_ids": [],
+        "modelSelection": get_lite_model_selection(),
+        "actionMode": "agent",
+        "agentConfig": {
+            "enabledBuiltinTools": ["render_ui"],
         },
-        "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
 
     render_steps = _render_ui_tasks_steps(events)
-    if not render_steps:
-        pytest.fail(
-            "model did not invoke render_ui_tool; E2E requires real LLM tool call + ui_update SSE"
-        )
+    assert render_steps, "Expected tasks_steps events for render_ui_tool"
 
     ui_events = [
         event
         for event in events
         if event.get("type") == "ui_update" and event.get("subtype") == "ui_artifact"
     ]
-    if not ui_events:
-        tool_errors = [
-            e
-            for e in events
-            if e.get("type") == "tasks_steps"
-            and e.get("tool_name") == "render_ui_tool"
-            and e.get("status") == "error"
-        ]
-        pytest.fail(
-            f"render_ui_tool tasks_steps={len(render_steps)} but ui_update=0; "
-            f"error_steps={tool_errors[:2]}; "
-            f"event_types={sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
-        )
+    assert ui_events, (
+        f"Expected ui_update after render_ui_tool; "
+        f"render_steps={len(render_steps)}; "
+        f"event_types={sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
+    )
+
     data = ui_events[0].get("data")
     assert isinstance(data, list) and len(data) >= 1
     artifact = data[0]
