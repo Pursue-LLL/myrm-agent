@@ -42,6 +42,27 @@ describe('resumeDrawerApprovalStream', () => {
     expect(resumeValue.decisions[0]?.extensions.allowAlways).toEqual({ tool: true });
   });
 
+  it('forwards high_risk_dom semantic decision payload', async () => {
+    const { resumeDrawerApprovalStream } = await import('@/lib/approval/resumeDrawerApprovalStream');
+
+    const approval: ApprovalPayload = {
+      approval_id: 'dom-1',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      chat_id: 'chat-dom',
+      payload: {
+        tool_input: { action: 'evaluate', expression: 'document.forms[0].submit()' },
+      },
+    };
+
+    await resumeDrawerApprovalStream(approval, 'approve', undefined, 'resume failed');
+
+    expect(resumeApprovalStreamMock).toHaveBeenCalledTimes(1);
+    expect(resumeApprovalStreamMock.mock.calls[0]?.[1]).toEqual({ decision: 'approve' });
+  });
+
   it('skips resume when chat_id is missing', async () => {
     const { resumeDrawerApprovalStream } = await import('@/lib/approval/resumeDrawerApprovalStream');
 
