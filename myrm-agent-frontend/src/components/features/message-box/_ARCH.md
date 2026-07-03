@@ -32,7 +32,6 @@
 | `UserMessage.tsx` | 组件/模块 | — | — |
 | `WaterDropCostView.tsx` | 组件 | 消息内缓存节省 banner：cache hit ≥ 5% 时显示水滴图标 + 命中率 + 新 token 数 + 节省金额 | ✅ |
 | `progress-steps/` | 目录 | 子模块 | — |
-| `subagent/` | 目录 | 子模块 | — |
 
 ## 依赖
 
