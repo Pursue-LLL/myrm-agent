@@ -82,7 +82,8 @@ async def test_repo_create_profile_persists_canonical_tools(agent_db) -> None:
         created = await AgentRepository.create_profile(session, profile)
         await session.commit()
 
-    assert created.tools_allowed == ["file_ops", "code_execute", "web_search"]
+    # AGENT_BASELINE_BUILTIN_TOOLS are stripped at persist; applied at runtime via apply_agent_baseline_tool_flags
+    assert created.tools_allowed == ["web_search"]
 
 
 @pytest.mark.asyncio
