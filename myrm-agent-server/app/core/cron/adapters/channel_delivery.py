@@ -41,7 +41,7 @@ class ChannelResultDelivery:
     """
 
     async def deliver(self, job: CronJob, result: JobResult) -> None:
-        if job.delivery.channel == "silent":
+        if job.delivery.channel in ("silent", "chat"):
             return
 
         target = (job.delivery.target or "").strip()
@@ -112,6 +112,4 @@ class ChannelResultDelivery:
     def _resolve_recipient(job: CronJob) -> str:
         if job.delivery.target:
             return str(job.delivery.target)
-        if job.delivery.channel == "chat" and job.chat_id:
-            return str(job.chat_id)
         raise ValueError(f'Cron job {job.id}: delivery target is required for channel "{job.delivery.channel}"')
