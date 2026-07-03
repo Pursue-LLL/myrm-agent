@@ -1,8 +1,11 @@
-"""Recording session lifecycle manager.
+"""
+@input: myrm_agent_harness.toolkits.browser.action_capture
+@output: 内存态录制 session 注册、步进序列化与查询
+@pos: services/browser_recording 的会话生命周期管理
 
-Maintains in-memory recording sessions and coordinates between WebSocket
-connections and the Harness ActionCaptureEngine. Sessions are ephemeral —
-they only live while the recording is active (no persistence needed).
+Ephemeral in-memory sessions coordinated with Harness ActionCaptureEngine.
+
+🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
 from __future__ import annotations

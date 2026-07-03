@@ -1,10 +1,11 @@
-"""Browser Recording API — WebSocket + REST endpoints.
+"""
+@input: 依赖 app.services.browser_recording.session_manager、WebSocket origin guard
+@output: 浏览器录制 WebSocket 控制与 REST 查询/技能生成端点
+@pos: HTTP 入口层的 Browser Recording API
 
-Provides:
-1. WebSocket `/ws/recording` — real-time bidirectional recording control
-2. REST `/recording/sessions` — list active sessions
-3. REST `/recording/sessions/{id}` — get session details
-4. REST `/recording/generate-skill` — generate Browser Skill from session
+Provides WebSocket `/ws/recording`, session list/detail REST, and generate-skill.
+
+🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
 """
 
 from __future__ import annotations

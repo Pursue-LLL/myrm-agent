@@ -1,4 +1,10 @@
-"""Request/response schemas for Browser Recording API."""
+"""
+@input: Pydantic BaseModel
+@output: Browser Recording API 请求/响应 schema
+@pos: api/browser_recording 的 HTTP 契约层
+
+🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+"""
 
 from __future__ import annotations
 

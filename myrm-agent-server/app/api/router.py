@@ -123,6 +123,7 @@ api_router.include_router(
 )
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
+api_router.include_router(browser_recording_router, prefix="/browser", tags=["browser-recording"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
 api_router.include_router(skill_quality_router, tags=["skill-quality"])
 api_router.include_router(evolution_router, tags=["evolution"])
