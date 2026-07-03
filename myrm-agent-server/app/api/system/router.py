@@ -7,7 +7,6 @@
 """
 
 import logging
-import os
 import shutil
 from pathlib import Path
 
@@ -176,9 +175,8 @@ async def recreate_sandbox_container() -> SandboxRecreateResponse:
             detail="Control plane connectivity not configured",
         )
 
-    recreate_url = f"{cp_url}/api/sandboxes/{sandbox_id}/recreate"
+    recreate_url = f"{cp_url}/api/internal/sandboxes/{sandbox_id}/recreate"
     headers = {
-        "Authorization": f"Bearer {os.getenv('CP_JWT_TOKEN', token)}",
         "X-Telemetry-Token": token,
         "X-Sandbox-Id": sandbox_id,
     }

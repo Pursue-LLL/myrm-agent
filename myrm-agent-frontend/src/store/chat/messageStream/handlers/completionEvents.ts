@@ -136,6 +136,11 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
     // Release the processing lock when message ends successfully
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
+
+    // Clear stale plan steps that are still pending/in_progress after turn ends
+    void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
+      usePlanStore.getState().clearActivePlan();
+    });
   }
 
   return null;

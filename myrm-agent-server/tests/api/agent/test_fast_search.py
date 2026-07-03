@@ -129,11 +129,11 @@ class TestFastModeConverterParams:
         assert fast_builtin == ["answer_tool"]
         assert "browser" not in fast_builtin
 
-    def test_deep_mode_adds_browser(self):
+    def test_deep_mode_does_not_add_browser(self):
+        """Deep fast uses web_fetch for page depth; browser stays opt-in via agent profile."""
         fast_builtin: list[str] = ["answer_tool"]
-        fast_builtin.append("browser")
-        assert "browser" in fast_builtin
-        assert len(fast_builtin) == 2
+        assert fast_builtin == ["answer_tool"]
+        assert "browser" not in fast_builtin
 
     def test_normal_max_iterations(self):
         search_depth = "normal"

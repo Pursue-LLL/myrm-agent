@@ -2,15 +2,23 @@
 
 import { useEffect } from 'react';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
+import useChatStore from '@/store/useChatStore';
 
-/** Hydrate goal todos from REST + live SSE `tasks_steps` updates. */
+/** Hydrate goal todos from REST + live SSE `tasks_steps` updates.
+ *  Also handles stale plan cleanup on chat switch and SSE reconnect. */
 export function useGoalPlanSync(chatId: string | null | undefined): void {
   const fetchPlan = usePlanStore((s) => s.fetchPlan);
+  const clearPlan = usePlanStore((s) => s.clearPlan);
+  const clearActivePlan = usePlanStore((s) => s.clearActivePlan);
   const updateStepStatus = usePlanStore((s) => s.updateStepStatus);
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId) {
+      clearPlan();
+      return;
+    }
 
+    clearPlan();
     void fetchPlan(chatId);
 
     const handlePlanUpdate = (event: Event) => {
@@ -40,7 +48,19 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
       }
     };
 
+    const handleReconnect = () => {
+      const isLoading = useChatStore.getState().loading;
+      if (!isLoading) {
+        clearActivePlan();
+      }
+      void fetchPlan(chatId);
+    };
+
     window.addEventListener('tasks_steps', handlePlanUpdate);
-    return () => window.removeEventListener('tasks_steps', handlePlanUpdate);
-  }, [chatId, fetchPlan, updateStepStatus]);
+    window.addEventListener('multiplex_reconnected', handleReconnect);
+    return () => {
+      window.removeEventListener('tasks_steps', handlePlanUpdate);
+      window.removeEventListener('multiplex_reconnected', handleReconnect);
+    };
+  }, [chatId, fetchPlan, clearPlan, clearActivePlan, updateStepStatus]);
 }

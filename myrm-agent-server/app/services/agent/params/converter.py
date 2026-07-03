@@ -10,7 +10,9 @@
 
 [POS]
 Agent request parameter conversion layer. Resolves user configuration, normalizes
-model choices, and assembles `GeneralAgentParams` for execution.
+model choices, and assembles `GeneralAgentParams` for execution. Fast mode
+(`action_mode='fast'`) overrides builtin tools to answer_tool-only plus forced
+web search; deep search uses web_fetch + sufficiency, not browser eager bind.
 """
 
 from __future__ import annotations
@@ -830,9 +832,9 @@ async def convert_to_general_agent_params(
     search_depth: str = "normal"
     if is_fast_search:
         search_depth = request.search_depth if request.search_depth in ("normal", "deep") else "normal"
+        # Deep vs normal differs by search_depth (sufficiency, prompt suffix, limits),
+        # not browser — deep workflow is web_search → web_fetch → answer self-review.
         fast_builtin: list[str] = ["answer_tool"]
-        if search_depth == "deep":
-            fast_builtin.append("browser")
         tool_flags = resolve_builtin_tool_flags(fast_builtin)
         prompt_mode = "search"
         search_available = True

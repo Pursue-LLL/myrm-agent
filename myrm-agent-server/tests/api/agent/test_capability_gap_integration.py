@@ -380,6 +380,38 @@ def test_agent_stream_discover_miss_emits_capability_gap_sse(client: TestClient)
 
 
 @pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When web group is absent from active_tool_groups, web_search query must emit gap."""
+    registry = ToolRegistry()
+    registry.register(_DummyDeferredTool(), source=ToolSource.USER, deferred=True)
+    discover = sync_discover_capability_tool(
+        registry,
+        active_tool_groups=frozenset({"memory", "file_ops", "shell"}),
+    )
+    assert discover is not None
+
+    captured: list[tuple[str, object]] = []
+
+    async def _capture(name: str, data: object, config: object | None = None) -> None:
+        captured.append((name, data))
+
+    monkeypatch.setattr(
+        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
+        _capture,
+    )
+
+    result = await discover.ainvoke({"query": "search the web for apple news today"})
+    assert "No capabilities found" in result
+    assert "<CapabilityGap>" in result
+    cap_payload = next(payload for name, payload in captured if name == "capability_gap")
+    assert isinstance(cap_payload, dict)
+    assert cap_payload.get("tool_id") == "web_search"
+
+
+@pytest.mark.integration
 def test_agent_stream_accepts_enabled_builtin_tools_without_error(client: TestClient) -> None:
     """agent-stream with explicit enabledBuiltinTools (no browser) must complete."""
     chat_id = f"test_enabled_tools_{uuid.uuid4().hex[:8]}"

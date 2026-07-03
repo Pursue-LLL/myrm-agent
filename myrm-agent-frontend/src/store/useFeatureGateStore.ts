@@ -36,3 +36,7 @@ export const useFeatureGateStore = create<FeatureGateState>((set, get) => ({
     return get().enabledFeatures.has(featureId);
   },
 }));
+
+if (typeof window !== 'undefined') {
+  void useFeatureGateStore.getState().loadFeatures();
+}

@@ -21,6 +21,7 @@ from app.api.audit.auth_router import router as auth_audit_router
 from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_optimization import router as batch_optimization_router
+from app.api.browser_recording import router as browser_recording_router
 from app.api.budget import budget_router
 from app.api.chats import router as chat_router
 from app.api.checkpoint import router as checkpoint_router

@@ -72,6 +72,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     }
 
     actions.setLoading(false);
+    void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
+      usePlanStore.getState().clearActivePlan();
+    });
     return done(ctx);
   }
 
@@ -100,6 +103,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     actions.setLoading(false);
     // Release the processing lock on cancellation
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
+    void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
+      usePlanStore.getState().clearActivePlan();
+    });
     return done(ctx);
   }
 

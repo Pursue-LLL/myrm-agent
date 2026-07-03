@@ -26,6 +26,8 @@ let mockPlanState = {
   fetchPlan: vi.fn(),
   updateStepStatus: vi.fn(),
   setPlan: vi.fn(),
+  clearPlan: vi.fn(),
+  clearActivePlan: vi.fn(),
 };
 
 let mockGoalState = {
@@ -77,6 +79,8 @@ describe('GoalControlPlane', () => {
       fetchPlan: vi.fn(),
       updateStepStatus: vi.fn(),
       setPlan: vi.fn(),
+      clearPlan: vi.fn(),
+      clearActivePlan: vi.fn(),
     };
     mockGoalState = {
       activeGoal: null,

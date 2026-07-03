@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AiNetworkIcon, InvestigationIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
@@ -97,7 +98,19 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
   const t = useTranslations('mode');
   const { isEnabled, initialized } = useFeatureGateStore();
 
-  const visibleModes = initialized ? MODES.filter((m) => !m.featureGate || isEnabled(m.featureGate)) : MODES;
+  const visibleModes = MODES.filter((m) => !m.featureGate || (initialized && isEnabled(m.featureGate)));
+
+  useEffect(() => {
+    if (!initialized) {
+      return;
+    }
+    if (actionMode === 'deep_research' && !isEnabled('deep_research')) {
+      setActionMode('agent');
+    }
+    if (actionMode === 'consensus' && !isEnabled('consensus')) {
+      setActionMode('agent');
+    }
+  }, [initialized, actionMode, isEnabled, setActionMode]);
 
   const handleModeChange = (mode: ActionMode) => {
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {

@@ -108,18 +108,9 @@ _ALL_FEATURES: list[FeatureSpec] = [
     FeatureSpec(
         id="deep_research",
         key="deep_research",
-        stage=FeatureStage.EXPERIMENTAL,
+        stage=FeatureStage.UNDER_DEVELOPMENT,
         default_enabled=False,
-        description="Enable multi-step deep research with iterative search and analysis",
-        experimental_info=ExperimentalInfo(
-            name="Deep Research",
-            description=(
-                "Perform comprehensive multi-step research by iteratively "
-                "searching, analyzing, and synthesizing information. "
-                "Tasks may take several minutes to complete."
-            ),
-            announcement="NEW: Deep Research is now available as an experimental feature.",
-        ),
+        description="Multi-step deep research (temporarily hidden; code retained for future release)",
     ),
     FeatureSpec(
         id="companion_mode",

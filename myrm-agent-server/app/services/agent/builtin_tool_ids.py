@@ -27,7 +27,11 @@ DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
     "file_ops",
     "code_execute",
 )
-"""Default profile for agents without an explicit tool list (sandbox baseline)."""
+"""Default profile when no explicit tool list is stored (sandbox baseline).
+
+Fast mode (`action_mode='fast'`) overrides at runtime in params/converter.py
+to `["answer_tool"]` plus forced web_search — see params/_ARCH.md.
+"""
 
 BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "web_search",

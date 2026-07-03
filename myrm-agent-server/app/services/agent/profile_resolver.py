@@ -8,7 +8,7 @@ services.agent.agent_service::AgentService (POS: 业务层 Agent 服务)
 core.memory.adapters.policy::memory_policy_from_dict (POS: 记忆策略字典解析)
 
 [OUTPUT]
-DEFAULT_ENABLED_BUILTIN_TOOLS: 所有入口共享的默认启用工具集合
+DEFAULT_ENABLED_BUILTIN_TOOLS: 自 builtin_tool_ids 再导出，供各入口引用
 BuiltinToolFlags: 工具启用标志 TypedDict
 resolve_builtin_tool_flags: enabled_builtin_tools → enable_xxx flags 统一映射
 ResolvedAgentProfile: 统一的智能体配置解析结果（含 auto_restore_domains 等运行时字段）

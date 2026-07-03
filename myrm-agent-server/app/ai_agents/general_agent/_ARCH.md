@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持多模式运行（full/lean/naked/search），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent。
+通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持多模式运行（full/lean/naked/search），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent；Fast Turn1 为 web_search + web_fetch + answer_tool（+ memory），browser 仅 profile `browser` 开关 opt-in。
 历史会话召回在 Server 层装配为 `conversation_search_tool`（GeneralAgent **eager**，与 memory_recall 对称）；Harness 只消费 Protocol，不感知数据库或产品身份语义。跨会话续聊由模型显式调用 `memory_recall_tool` / `conversation_search_tool`。
 LLM 装配阶段会优先选择支持 function calling 的主模型，避免工具链在不支持工具调用的模型上静默失效。
 当前实现会优先消费渠道入口已经解析好的正式身份契约：
