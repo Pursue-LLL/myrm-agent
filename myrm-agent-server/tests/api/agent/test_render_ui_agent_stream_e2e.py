@@ -56,10 +56,10 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
 
-    if not _render_ui_tasks_steps(events):
-        pytest.skip(
-            "model did not invoke render_ui_tool; deterministic wiring covered by "
-            "tests/integration/test_render_ui_sse_wiring.py"
+    render_steps = _render_ui_tasks_steps(events)
+    if not render_steps:
+        pytest.fail(
+            "model did not invoke render_ui_tool; E2E requires real LLM tool call + ui_update SSE"
         )
 
     ui_events = [
@@ -68,9 +68,17 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
         if event.get("type") == "ui_update" and event.get("subtype") == "ui_artifact"
     ]
     if not ui_events:
-        pytest.skip(
-            "render_ui_tool tasks_steps seen but model did not complete a successful render; "
-            "cross-task stash fix covered by tests/integration/test_render_ui_sse_wiring.py"
+        tool_errors = [
+            e
+            for e in events
+            if e.get("type") == "tasks_steps"
+            and e.get("tool_name") == "render_ui_tool"
+            and e.get("status") == "error"
+        ]
+        pytest.fail(
+            f"render_ui_tool tasks_steps={len(render_steps)} but ui_update=0; "
+            f"error_steps={tool_errors[:2]}; "
+            f"event_types={sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
         )
     data = ui_events[0].get("data")
     assert isinstance(data, list) and len(data) >= 1
