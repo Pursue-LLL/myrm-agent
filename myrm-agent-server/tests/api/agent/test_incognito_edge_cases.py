@@ -102,8 +102,8 @@ class TestIncognitoSessionCleanup:
         assert result is None
 
 
-class TestReadOnlyMemoryViewIncognitoIntegration:
-    """ReadOnlyMemoryView specific behaviors in incognito context."""
+class TestReadOnlyMemoryViewSubagentIsolation:
+    """Harness ReadOnlyMemoryView behaviors (subagent READ_ONLY_GLOBAL path, not GeneralAgent incognito)."""
 
     def test_set_last_cited_memory_ids_does_not_raise(self) -> None:
         from myrm_agent_harness.toolkits.memory.ephemeral import ReadOnlyMemoryView

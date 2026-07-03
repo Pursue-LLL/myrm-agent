@@ -43,5 +43,5 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 
 - `converter.py` 覆盖 Agent profile 的 `enabled_builtin_tools` 为 `["answer_tool"]`，并强制 `enable_web_search=True`；skills / MCP / subagents / 媒体生成置空。
 - Normal 与 Deep 共享同一 builtin 开关集；`search_depth=deep` 仅追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig，以及更高的 `max_tool_calls` / `max_iterations`。
-- Turn1 eager：`web_search_tool`、`web_fetch_tool`、`request_answer_user_tool`、记忆 4 件套（`enable_memory` 时）。**不 eager browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
+- Turn1：`web_search_tool`、`web_fetch_tool`、`request_answer_user_tool`、记忆三件套（`enable_memory` 且非无痕，COMMON 层）；`conversation_search_tool` 仅 `memoryEnableConversationSearch=true` 时装载（EXTENDED）。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
 - SSOT：`myrm-agent-server/app/services/agent/builtin_tool_ids.py`（全局默认 4 项开关）；Fast 模式运行时覆盖见 `converter.py`。

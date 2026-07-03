@@ -12,9 +12,6 @@ class TestServerToolLayerRegistration:
     def test_x_search_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("x_search_tool") == ToolLayer.EXTENDED
 
-    def test_browser_local_search_tool_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("browser_local_search_tool") == ToolLayer.EXTENDED
-
     def test_canvas_get_state_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("canvas_get_state") == ToolLayer.EXTENDED
 

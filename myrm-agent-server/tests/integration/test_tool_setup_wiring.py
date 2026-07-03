@@ -10,19 +10,6 @@ from langchain_core.tools import BaseTool
 from app.ai_agents.agents import ImageGenerationParams, VideoGenerationParams
 
 
-def test_local_browser_tool_imports_from_server_package() -> None:
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
-
-    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    discoverable_tools: list[object] = []
-
-    mixin._setup_local_browser_data_tool([], discoverable_tools)
-
-    assert len(discoverable_tools) == 1
-    assert getattr(discoverable_tools[0], "name", None) == "browser_local_search_tool"
-    assert isinstance(discoverable_tools[0], BaseTool)
-
-
 def test_image_generation_registers_basetool() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
     from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
@@ -143,28 +130,6 @@ def test_video_generation_accepts_fallback_provider_key_only() -> None:
         mixin._setup_video_generation_tools(tools)
 
     assert len(tools) == 1
-
-
-def test_local_browser_factory_gate_respects_deploy_mode() -> None:
-    """Mirrors factory.py:216-217 — local browser only when is_local_mode()."""
-    from unittest.mock import patch
-
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
-    from app.config import deploy_mode
-
-    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
-    discoverable_tools: list[object] = []
-
-    with patch.object(deploy_mode, "is_local_mode", return_value=False):
-        if deploy_mode.is_local_mode():
-            mixin._setup_local_browser_data_tool([], discoverable_tools)
-    assert discoverable_tools == []
-
-    with patch.object(deploy_mode, "is_local_mode", return_value=True):
-        if deploy_mode.is_local_mode():
-            mixin._setup_local_browser_data_tool([], discoverable_tools)
-    assert len(discoverable_tools) == 1
-    assert getattr(discoverable_tools[0], "name", None) == "browser_local_search_tool"
 
 
 @pytest.mark.asyncio

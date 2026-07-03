@@ -12,7 +12,7 @@
 
 [POS]
 GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
-无独立开关的能力（cron、local_browser）→ DISCOVERABLE + discover。搜索、媒体生成（AgentDeclared eager →
+无独立开关的能力（cron）→ DISCOVERABLE + discover。搜索、媒体生成（AgentDeclared eager →
 `media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
@@ -695,18 +695,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             logger.info("Loaded %d canvas tool(s) [Turn1]", len(canvas_tools))
         except Exception as e:
             logger.warning("Canvas tools load failed (degraded): %s", e)
-
-    def _setup_local_browser_data_tool(self, tools: list[object], discoverable_tools: list[object]) -> None:
-        """Load the local browser data search tool (Chrome/Edge bookmarks & history)."""
-        try:
-            from app.services.local_browser import create_local_browser_data_tool
-
-            local_browser_tool = create_local_browser_data_tool()
-            discoverable_tools.append(local_browser_tool)
-            logger.info("Loaded local browser data search tool [Deferred]")
-        except Exception as e:
-            logger.warning("Local browser data tool load failed (degraded): %s", e)
-
 
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.

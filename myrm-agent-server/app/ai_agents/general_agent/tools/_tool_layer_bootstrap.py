@@ -22,7 +22,6 @@ from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_la
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTENDED: opt-in business tools that depend on server-specific SDKs/APIs.
     "x_search_tool": ToolLayer.EXTENDED,
-    "browser_local_search_tool": ToolLayer.EXTENDED,
     "canvas_get_state": ToolLayer.EXTENDED,
     "canvas_get_selection": ToolLayer.EXTENDED,
     "canvas_insert_element": ToolLayer.EXTENDED,

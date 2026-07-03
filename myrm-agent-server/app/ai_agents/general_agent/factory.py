@@ -209,10 +209,6 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
-    from app.config.deploy_mode import is_local_mode
-
-    if is_local_mode():
-        agent_wrapper._setup_local_browser_data_tool(tools, discoverable_tools)
     agent_wrapper._setup_canvas_tools(tools)
 
     from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool

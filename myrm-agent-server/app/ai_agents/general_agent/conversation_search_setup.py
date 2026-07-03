@@ -31,7 +31,7 @@ def append_conversation_search_tool(
     agent_id: str | None,
     memory_manager: MemoryManager | None,
 ) -> None:
-    """Attach conversation_search to GeneralAgent eager tools."""
+    """Attach conversation_search to GeneralAgent Turn1 tools when opt-in."""
 
     provider = ConversationHistorySearchProvider(
         current_chat_id=current_chat_id,
