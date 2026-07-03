@@ -60,6 +60,36 @@ class TestSemanticDomApprovalRegistryIntegration:
         assert match["action_type"] == "high_risk_dom_action"
 
     @pytest.mark.asyncio
+    async def test_click_interrupt_persists_element_metadata(self, client: TestClient) -> None:
+        interrupt: dict[str, object] = {
+            "action_type": "high_risk_dom_action",
+            "tool_name": "browser_interact_tool",
+            "tool_input": {"action": "click", "ref": "e5", "text": ""},
+            "element": {"role": "button", "name": "Delete Repository", "ref": "e5"},
+            "page_url": "https://github.com/settings",
+            "reason": "High-risk destructive click",
+            "severity": "warning",
+            "thread_id": "langgraph-thread-dom-click",
+        }
+        payload = extract_approval_registry_payload(interrupt)
+
+        record = await ApprovalRegistry.create_approval(
+            agent_id="builtin-general",
+            chat_id=str(uuid.uuid4()),
+            thread_id=str(interrupt["thread_id"]),
+            action_type="high_risk_dom_action",
+            payload=payload,
+            reason=str(interrupt["reason"]),
+            severity="warning",
+            status="PENDING",
+        )
+
+        resp = client.get("/api/v1/approvals?limit=100&offset=0")
+        match = next(a for a in resp.json()["approvals"] if a["id"] == record.id)
+        assert match["payload"]["element"] == interrupt["element"]
+        assert match["payload"]["tool_input"]["action"] == "click"
+
+    @pytest.mark.asyncio
     async def test_resolve_approve_via_http_api(self, client: TestClient) -> None:
         interrupt = _flat_semantic_dom_interrupt()
         payload = extract_approval_registry_payload(interrupt)
