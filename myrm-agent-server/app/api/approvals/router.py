@@ -99,56 +99,38 @@ async def resolve_approval(
 
     # If it's a LangGraph interrupt, we must resume the agent!
     if record.thread_id:
-        from app.services.agent.manager import get_agent_manager
-
-        agent_manager = get_agent_manager()
-        agent = await agent_manager.get_agent_instance(record.agent_id)
-        if not agent:
-            logger.error(
-                "Cannot resume thread_id=%s: agent=%s not found",
+        try:
+            logger.info(
+                "Resuming agent thread_id=%s with decision=%s",
                 record.thread_id,
-                record.agent_id,
+                req.decision,
             )
-        else:
-            try:
-                # Emit the command to the agent stream asynchronously.
-                # Actually, the API shouldn't block waiting for the stream to finish.
-                # In our Server architecture, streaming endpoints handle Agent.run().
-                # We need to dispatch this to a background task or push it to the streaming session queue.
-                logger.info(
-                    "Resuming agent thread_id=%s with decision=%s",
-                    record.thread_id,
-                    req.decision,
-                )
 
-                # ... the actual run will be picked up by the chat service or background worker
-                # In myrm_agent_harness, Command(resume=...) is passed to `agent.run()`.
-                # We can fire an event to the chat stream.
-                from app.services.event.app_event_bus import (
-                    AppEvent,
-                    AppEventType,
-                    get_event_bus,
-                )
+            from app.services.event.app_event_bus import (
+                AppEvent,
+                AppEventType,
+                get_event_bus,
+            )
 
-                bus = get_event_bus()
-                bus.publish(
-                    AppEvent(
-                        event_type=AppEventType.APPROVAL_RESOLVED,  # Signal to chat router to resume
-                        data={
-                            "action": "resume_agent",
-                            "approval_id": record.id,
-                            "thread_id": record.thread_id,
-                            "chat_id": record.chat_id,
-                            "agent_id": record.agent_id,
-                            "decision": normalized_decision,
-                            "comment": req.comment,
-                            "allow_always": req.allow_always,
-                            "edited_payload": req.edited_payload,
-                        },
-                    )
+            bus = get_event_bus()
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.APPROVAL_RESOLVED,
+                    data={
+                        "action": "resume_agent",
+                        "approval_id": record.id,
+                        "thread_id": record.thread_id,
+                        "chat_id": record.chat_id,
+                        "agent_id": record.agent_id,
+                        "decision": normalized_decision,
+                        "comment": req.comment,
+                        "allow_always": req.allow_always,
+                        "edited_payload": req.edited_payload,
+                    },
                 )
-            except Exception as e:
-                logger.error("Failed to resume agent: %s", e)
+            )
+        except Exception as e:
+            logger.error("Failed to resume agent: %s", e)
 
     return ApprovalRecordResponse.from_orm(record)
 
@@ -172,17 +154,7 @@ async def batch_resolve_approvals(
             resolved_records.append(record)
 
             if record.thread_id:
-                from app.services.agent.manager import get_agent_manager
-
-                agent_manager = get_agent_manager()
-                agent = await agent_manager.get_agent_instance(record.agent_id)
-                if not agent:
-                    logger.error(
-                        "Cannot resume thread_id=%s: agent=%s not found",
-                        record.thread_id,
-                        record.agent_id,
-                    )
-                else:
+                try:
                     from app.services.event.app_event_bus import (
                         AppEvent,
                         AppEventType,
@@ -204,6 +176,8 @@ async def batch_resolve_approvals(
                             },
                         )
                     )
+                except Exception as e:
+                    logger.error("Failed to resume agent for %s: %s", record.id, e)
         except Exception as e:
             logger.error("Failed to batch resolve approval %s: %s", approval_id, e)
 
