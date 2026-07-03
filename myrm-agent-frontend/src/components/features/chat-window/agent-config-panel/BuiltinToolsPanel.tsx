@@ -29,8 +29,6 @@ export interface BuiltinToolsPanelProps {
   setLocalBuiltinTools: React.Dispatch<React.SetStateAction<BuiltinToolId[]>>;
   localAutoRestoreDomains: string[];
   setLocalAutoRestoreDomains: React.Dispatch<React.SetStateAction<string[]>>;
-  localBrowserEngine?: string;
-  setLocalBrowserEngine: React.Dispatch<React.SetStateAction<string | undefined>>;
   localBrowserSource?: string;
   setLocalBrowserSource: React.Dispatch<React.SetStateAction<string | undefined>>;
   localDialogPolicy?: string;
@@ -63,8 +61,6 @@ export const BuiltinToolsPanel = ({
   setLocalBuiltinTools,
   localAutoRestoreDomains,
   setLocalAutoRestoreDomains,
-  localBrowserEngine,
-  setLocalBrowserEngine,
   localBrowserSource,
   setLocalBrowserSource,
   localDialogPolicy,
@@ -169,37 +165,6 @@ function BrowserConfigSection({
           placeholder="github.com, twitter.com"
           className="bg-background"
         />
-      </div>
-
-      {/* Browser Engine */}
-      <div className="space-y-2 pt-2 border-t border-border/50">
-        <Label className="text-sm font-medium flex items-center gap-2">
-          <Globe size={14} className="text-blue-500" />
-          {tAgent('browserEngine.label')}
-        </Label>
-        <p className="text-xs text-muted-foreground">{tAgent('browserEngine.description')}</p>
-        <Select
-          value={localBrowserEngine || 'chromium_patchright'}
-          onValueChange={(value) => setLocalBrowserEngine(value === 'chromium_patchright' ? undefined : value)}
-        >
-          <SelectTrigger className="w-full bg-background">
-            <SelectValue placeholder={tAgent('browserEngine.label')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="chromium_patchright">
-              <div className="flex flex-col py-1">
-                <span className="font-medium">{tAgent('browserEngine.chromium')}</span>
-                <span className="text-xs text-muted-foreground">{tAgent('browserEngine.chromiumDesc')}</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="firefox_camoufox">
-              <div className="flex flex-col py-1">
-                <span className="font-medium">{tAgent('browserEngine.camoufox')}</span>
-                <span className="text-xs text-muted-foreground">{tAgent('browserEngine.camoufoxDesc')}</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Browser Source */}

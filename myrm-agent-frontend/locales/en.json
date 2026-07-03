@@ -4655,7 +4655,7 @@
     "sessionPolicyIdleMinutes": "Idle Timeout (minutes)",
     "sessionPolicyEnabled": "Enable per-agent session policy",
     "browserConfig": "Browser Configuration",
-    "browserConfigDesc": "Configure how this agent interacts with web browsers.",
+    "browserConfigDesc": "Configure browser source, dialogs, and session recording. Anti-bot stealth is handled automatically when the Browser tool is enabled.",
     "browserEngine": {
       "label": "Browser Engine",
       "description": "Select the default browser engine for web browsing tasks. Fast mode for standard pages, stealth mode for bypassing anti-bot (e.g. Cloudflare).",

@@ -23,7 +23,6 @@ export const createSaveConfigHandler = (
     systemPrompt?: string;
     useGlobalInstruction?: boolean;
     enabledBuiltinTools?: BuiltinToolId[];
-    browserEngine?: string;
     browserSource?: string;
     dialogPolicy?: string;
     autoRestoreDomains?: string[];

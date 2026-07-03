@@ -4658,7 +4658,7 @@
     "sessionPolicyIdleMinutes": "空闲超时时间（分钟）",
     "sessionPolicyEnabled": "启用独立会话策略",
     "browserConfig": "浏览器配置",
-    "browserConfigDesc": "配置该智能体与浏览器的交互方式。",
+    "browserConfigDesc": "配置浏览器来源、对话框与会话录制。启用 Browser 工具后，反爬隐身能力由系统自动处理。",
     "browserEngine": {
       "label": "浏览器引擎",
       "description": "选择执行网页任务时默认使用的浏览器引擎。极速模式适合普通网页，深度隐身模式适合突破高强度反爬（如 Cloudflare）。",

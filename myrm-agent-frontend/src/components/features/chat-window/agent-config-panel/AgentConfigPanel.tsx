@@ -295,7 +295,6 @@ const AgentConfigPanel = ({ className, hideGallery = false }: AgentConfigPanelPr
           systemPrompt={agentConfig?.systemPrompt || ''}
           useGlobalInstruction={agentConfig?.useGlobalInstruction ?? true}
           enabledBuiltinTools={currentBuiltinTools}
-          browserEngine={agentConfig?.browserEngine}
           browserSource={agentConfig?.browserSource}
           dialogPolicy={agentConfig?.dialogPolicy}
           autoRestoreDomains={agentConfig?.autoRestoreDomains ?? EMPTY_AUTO_RESTORE_DOMAINS}

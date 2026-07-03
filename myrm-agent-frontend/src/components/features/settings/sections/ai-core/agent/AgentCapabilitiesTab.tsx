@@ -89,8 +89,6 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       <ConsensusSection editor={editor} t={t} />
 
       <AgentBrowserConfigSection
-        browserEngine={editor.browserEngine}
-        onBrowserEngineChange={editor.setBrowserEngine}
         browserSource={editor.browserSource}
         onBrowserSourceChange={editor.setBrowserSource}
         dialogPolicy={editor.dialogPolicy}

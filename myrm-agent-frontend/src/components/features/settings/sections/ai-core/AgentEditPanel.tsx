@@ -455,7 +455,6 @@ export default function AgentEditPanel({ agentId, isNew = false, onBack }: Agent
         systemPrompt={editor.systemPrompt}
         useGlobalInstruction={editor.useGlobalInstruction}
         autoRestoreDomains={editor.autoRestoreDomains}
-        browserEngine={editor.browserEngine}
         browserSource={editor.browserSource}
         dialogPolicy={editor.dialogPolicy}
         sessionRecording={editor.sessionRecording}

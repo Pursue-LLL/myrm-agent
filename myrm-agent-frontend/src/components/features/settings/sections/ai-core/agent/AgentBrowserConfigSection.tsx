@@ -8,7 +8,7 @@
  *
  * [POS]
  * Browser config section for capabilities tab.
- * Manages browser_engine, browser_source, dialog_policy, session_recording.
+ * Manages browser_source, dialog_policy, session_recording (engine auto-routed by harness).
  */
 
 'use client';
@@ -23,8 +23,6 @@ import {
 } from '@/components/primitives/select';
 
 interface AgentBrowserConfigSectionProps {
-  browserEngine: string | undefined;
-  onBrowserEngineChange: (value: string | undefined) => void;
   browserSource: string | undefined;
   onBrowserSourceChange: (value: string | undefined) => void;
   dialogPolicy: string | undefined;
@@ -34,8 +32,6 @@ interface AgentBrowserConfigSectionProps {
 }
 
 export function AgentBrowserConfigSection({
-  browserEngine,
-  onBrowserEngineChange,
   browserSource,
   onBrowserSourceChange,
   dialogPolicy,
@@ -54,39 +50,6 @@ export function AgentBrowserConfigSection({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Browser Engine */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">
-            {t('browserEngine.label')}
-          </label>
-          <Select
-            value={browserEngine || 'chromium_patchright'}
-            onValueChange={(v) => onBrowserEngineChange(v === 'chromium_patchright' ? undefined : v)}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="chromium_patchright">
-                <div className="flex flex-col py-0.5">
-                  <span className="font-medium text-xs">{t('browserEngine.chromium')}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {t('browserEngine.chromiumDesc')}
-                  </span>
-                </div>
-              </SelectItem>
-              <SelectItem value="firefox_camoufox">
-                <div className="flex flex-col py-0.5">
-                  <span className="font-medium text-xs">{t('browserEngine.camoufox')}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {t('browserEngine.camoufoxDesc')}
-                  </span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         {/* Browser Source */}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">

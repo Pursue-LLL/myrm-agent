@@ -51,7 +51,6 @@ interface AgentConfigEditDialogProps {
   useGlobalInstruction: boolean;
   autoRestoreDomains?: string[];
   enabledBuiltinTools: BuiltinToolId[];
-  browserEngine?: string;
   browserSource?: string;
   dialogPolicy?: string;
   sessionRecording?: string;
@@ -69,7 +68,6 @@ interface AgentConfigEditDialogProps {
     systemPrompt?: string;
     useGlobalInstruction?: boolean;
     enabledBuiltinTools?: BuiltinToolId[];
-    browserEngine?: string;
     browserSource?: string;
     dialogPolicy?: string;
     sessionRecording?: string;
@@ -95,7 +93,6 @@ const AgentConfigEditDialog = ({
   useGlobalInstruction: initialUseGlobalInstruction,
   autoRestoreDomains: initialAutoRestoreDomains = EMPTY_AUTO_RESTORE_DOMAINS,
   enabledBuiltinTools: initialBuiltinTools,
-  browserEngine: initialBrowserEngine,
   browserSource: initialBrowserSource,
   dialogPolicy: initialDialogPolicy,
   sessionRecording: initialSessionRecording,
@@ -121,7 +118,6 @@ const AgentConfigEditDialog = ({
   const [localUseGlobalInstruction, setLocalUseGlobalInstruction] = useState(initialUseGlobalInstruction ?? true);
   const [localAutoRestoreDomains, setLocalAutoRestoreDomains] = useState<string[]>(initialAutoRestoreDomains || []);
   const [localBuiltinTools, setLocalBuiltinTools] = useState<BuiltinToolId[]>(initialBuiltinTools || []);
-  const [localBrowserEngine, setLocalBrowserEngine] = useState<string | undefined>(initialBrowserEngine);
   const [localBrowserSource, setLocalBrowserSource] = useState<string | undefined>(initialBrowserSource);
   const [localDialogPolicy, setLocalDialogPolicy] = useState<string | undefined>(initialDialogPolicy);
   const [localSessionRecording, setLocalSessionRecording] = useState<string | undefined>(initialSessionRecording);
@@ -151,7 +147,6 @@ const AgentConfigEditDialog = ({
       setLocalUseGlobalInstruction(initialUseGlobalInstruction ?? true);
       setLocalAutoRestoreDomains(initialAutoRestoreDomains || []);
       setLocalBuiltinTools(initialBuiltinTools || []);
-      setLocalBrowserEngine(initialBrowserEngine);
       setLocalBrowserSource(initialBrowserSource);
       setLocalEphemeralSubagents(initialEphemeralSubagents as Record<string, EphemeralSubagentConfig>);
       setMcpSearchQuery('');
@@ -303,7 +298,7 @@ const AgentConfigEditDialog = ({
         onSave({ systemPrompt: localPrompt, useGlobalInstruction: localUseGlobalInstruction });
         break;
       case 'builtin_tools':
-        onSave({ enabledBuiltinTools: localBuiltinTools, autoRestoreDomains: localAutoRestoreDomains, browserEngine: localBrowserEngine, browserSource: localBrowserSource, dialogPolicy: localDialogPolicy, sessionRecording: localSessionRecording });
+        onSave({ enabledBuiltinTools: localBuiltinTools, autoRestoreDomains: localAutoRestoreDomains, browserSource: localBrowserSource, dialogPolicy: localDialogPolicy, sessionRecording: localSessionRecording });
         break;
       case 'subagents':
         onSave({ ephemeralSubagents: localEphemeralSubagents });
@@ -421,8 +416,6 @@ const AgentConfigEditDialog = ({
             setLocalBuiltinTools={setLocalBuiltinTools}
             localAutoRestoreDomains={localAutoRestoreDomains}
             setLocalAutoRestoreDomains={setLocalAutoRestoreDomains}
-            localBrowserEngine={localBrowserEngine}
-            setLocalBrowserEngine={setLocalBrowserEngine}
             localBrowserSource={localBrowserSource}
             setLocalBrowserSource={setLocalBrowserSource}
             localDialogPolicy={localDialogPolicy}

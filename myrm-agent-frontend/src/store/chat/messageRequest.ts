@@ -525,7 +525,6 @@ export const createMessageRequest = async (
         skill_ids: agentConfig?.selectedSkillIds ?? [],
         skill_configs: agentConfig?.skillConfigs,
         enabled_builtin_tools: currentBuiltinTools,
-        browser_engine: agentConfig?.browserEngine,
         browser_source: agentConfig?.browserSource,
         dialog_policy: agentConfig?.dialogPolicy,
         session_recording: agentConfig?.sessionRecording,

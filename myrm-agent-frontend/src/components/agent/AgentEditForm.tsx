@@ -67,7 +67,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [browserEngine, setBrowserEngine] = useState<string>('chromium_patchright');
   const [browserSource, setBrowserSource] = useState<string>('auto');
   const [dialogPolicy, setDialogPolicy] = useState<string>('smart');
   const [sessionRecording, setSessionRecording] = useState<string>('off');
@@ -119,7 +118,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         } else {
           setToolGatewayConfig({ use_gateway: false });
         }
-        setBrowserEngine(agent.browser_engine || 'chromium_patchright');
         setBrowserSource(agent.browser_source || 'auto');
         setDialogPolicy(agent.dialog_policy || 'smart');
         setSessionRecording(agent.session_recording || 'off');
@@ -135,7 +133,6 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         setSessionPolicyEnabled(false);
         setSessionPolicy({ mode: 'daily', daily_reset_hour: 4, idle_minutes: 120 });
         setToolGatewayConfig({ use_gateway: false });
-        setBrowserEngine('chromium_patchright');
       }
     }
   }, [open, agent, agentId, reset]);

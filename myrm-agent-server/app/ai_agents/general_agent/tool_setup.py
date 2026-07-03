@@ -615,7 +615,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 extension_bridge=ext_bridge,
                 allow_private_networks=is_local_mode(),
                 auto_restore_domains=getattr(self, "auto_restore_domains", []),
-                engine_preference=getattr(self, "browser_engine", None),
+                engine_preference=None,
                 launch_mode_preference=getattr(self, "browser_source", None),
                 dialog_policy=getattr(self, "dialog_policy", None),
             )
