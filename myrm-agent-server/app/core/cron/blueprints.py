@@ -467,6 +467,46 @@ BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         sort_order=9,
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="read_it_later",
+        icon="BookmarkPlus",
+        title={"en": "Read-it-Later Ingestion", "zh": "稍后读知识内化"},
+        description={
+            "en": "Auto-ingest saved articles into your knowledge base daily",
+            "zh": "每天自动将收藏的文章内化到知识库",
+        },
+        prompt_template={
+            "en": (
+                "Run the read-it-later ingestion pipeline: "
+                "pull unprocessed items from my read-it-later source, "
+                "fetch each article's content, ingest into the wiki knowledge base "
+                "under Read-it-Later/<current-month>/, and write back a summary "
+                "with a 'digested' tag to the source. "
+                "Skip items already tagged as processed. Cap at 10 items per run."
+            ),
+            "zh": (
+                "执行稍后读内化流程："
+                "从我的稍后读来源拉取未处理的项目，"
+                "抓取每篇文章的内容，存入知识库的 Read-it-Later/<当前月份>/ 目录，"
+                "并将摘要写回原来源并标记为"已内化"。"
+                "跳过已标记的项目。每次最多处理 10 篇。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="06:00"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("read-it-later", "knowledge", "ingestion", "wiki", "automation"),
+        sort_order=10,
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}

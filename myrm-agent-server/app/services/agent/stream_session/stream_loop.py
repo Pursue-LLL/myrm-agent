@@ -297,13 +297,23 @@ async def iter_agent_stream_chunks(
         updated = extract_approval_timeout(sse_chunk)
         if updated is not None:
             approval.value = updated
+            if session.request.chat_id:
+                from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+                WorkspaceMultiplexer.get().publish_session_status(
+                    session.request.chat_id, "awaiting_approval"
+                )
 
         intercepted_data = extract_approval_intercepted(sse_chunk)
         if intercepted_data and session.request.chat_id:
+            from app.services.agent.streaming_support.multiplexer import WorkspaceMultiplexer
+
+            WorkspaceMultiplexer.get().publish_session_status(
+                session.request.chat_id, "generating"
+            )
+
             decision = intercepted_data.decision
             if decision in ("approve", "reject", "approve_always", "feedback"):
-                from app.services.chat.chat_service import ChatService
-
                 try:
                     approval_processed_event = {
                         "type": "approval_processed",
