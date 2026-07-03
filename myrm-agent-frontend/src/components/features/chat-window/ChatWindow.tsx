@@ -29,6 +29,7 @@ import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
 import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
 import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
+import { BrowserRecordingToggle, BrowserRecordingPanel } from '@/components/features/browser-recording';
 import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
 import { FileSnapshotPanel } from '@/components/features/checkpoint';
 import SessionRevertButton from '@/components/features/message-actions/SessionRevertButton';
@@ -430,6 +431,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
         {/* Browser Inspector */}
         <BrowserInspectorToggle />
         <BrowserLiveView onSendInstruction={handleInspectorInstruction} />
+
+        {/* Browser Recording */}
+        <BrowserRecordingToggle />
+        <BrowserRecordingPanel />
 
         {/* Desktop Inspector */}
         <DesktopInspectorToggle />

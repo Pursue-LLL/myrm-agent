@@ -21,9 +21,9 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`）、pre-rollback 保险快照、10 条 retention 裁剪。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
 | `templates.py` | ✅ 核心 | 预置智能体模板市场 API — 提供基于 YAML 种子的原子化实例化（`instantiate-template`），在克隆模板的同时强一致性自动 Enable 所需依赖技能（如 `prebuilt_skill_ids`），供 WebUI /templates 端点实现快速 Onboarding，解决空白画布冷启动痛点。 |
 | `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()` + `apply_agent_baseline_tool_flags()`（六入口非 fast 强制 file/bash）；TTL 缓存 |
-| `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` canonical ID SSOT（15 IDs）+ `DEFAULT_ENABLED_BUILTIN_TOOLS`（web_search, memory, file_ops, code_execute）+ `normalize_enabled_builtin_tools` / `persist_enabled_builtin_tools`（DB 写校验） |
+| `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：15 canonical IDs（13 UI 可切换 + 2 Agent 基线无开关）；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
-| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — 服务启动时（lifespan Phase 1b）幂等创建 24 个预置智能体（4 核心 + 2 搜索 + 5 扩展 + 13 垂直领域）到数据库；**每个 builtin 显式声明 `enabled_builtin_tools`**（Developer/CLI/Automation 含 `file_ops+code_execute`；Designer 用 `image_generation`）。搜索智能体走统一 SkillAgent 路径，提示词由 `prompt_mode="search"` 单一提供（system_prompt 留空避免重复注入），享有记忆 + PWA 断连恢复能力 |
+| `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 24 个预置智能体；`enabled_builtin_tools` 仅存可切换项（file/bash 由 `apply_agent_baseline_tool_flags` 运行时强制） |
 | `approval_payload.py` | ✅ 辅助 | LangGraph interrupt → ApprovalRegistry payload SSOT（nested payload 优先，flat semantic DOM HITL 字段回退） |
 | `streaming.py` | ✅ 核心 | General Agent / Deep Research Harness 流式桥接（Gateway + SSE 事件转换） |
 | `stream_session/orchestrator.py` | ✅ 核心 | General Agent 流式会话主编排（setup + session 装配） |

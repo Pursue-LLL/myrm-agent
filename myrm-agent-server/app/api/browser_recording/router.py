@@ -4,6 +4,7 @@
 [INPUT]
 - app.services.browser_recording.session_manager (POS: session lifecycle management)
 - app.services.browser_recording.skill_generator (POS: skill generation from sessions)
+- app.services.agent.gateway (POS: access to active BrowserSession via AgentGateway)
 - app.core.infra.ws_origin_guard (POS: WebSocket origin verification)
 
 [OUTPUT]
@@ -12,6 +13,8 @@
 [POS]
 HTTP/WebSocket entry layer for Browser Skill Recording Wizard.
 WebSocket `/ws/recording` for real-time control, REST for session queries and skill generation.
+On `start`, bridges ActionCaptureEngine (Harness) to the active BrowserSession's Page,
+forwarding captured steps to the frontend via WebSocket in real-time.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import json
 import logging
 import time
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -40,6 +44,9 @@ from app.services.browser_recording.session_manager import (
 from app.services.browser_recording.skill_generator import (
     generate_skill_from_session,
 )
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.action_capture import ActionStep
 
 logger = logging.getLogger(__name__)
 
@@ -100,21 +107,50 @@ async def generate_skill(req: GenerateSkillRequest) -> GenerateSkillResponse:
     )
 
 
+class _WsStepForwarder:
+    """Bridges ActionCaptureEngine callbacks to a WebSocket client."""
+
+    def __init__(self, ws: WebSocket) -> None:
+        self._ws = ws
+
+    async def on_step(self, step: ActionStep) -> None:
+        try:
+            await self._ws.send_text(json.dumps({"type": "step", **step_to_dict(step)}))
+        except Exception:
+            pass
+
+
+def _get_active_page() -> object | None:
+    """Retrieve the Playwright Page from the active Agent's BrowserSession."""
+    from app.services.agent.gateway import get_agent_gateway
+
+    session = get_agent_gateway().get_active_browser_session()
+    if session is None:
+        return None
+    tab_ctrl = getattr(session, "_tab_controller", None)
+    if tab_ctrl is None:
+        return None
+    try:
+        return tab_ctrl.get_active_page()
+    except Exception:
+        return None
+
+
 @router.websocket("/ws/recording")
 async def recording_websocket(ws: WebSocket) -> None:
     """WebSocket endpoint for real-time recording control.
 
     Client messages:
-        {"type": "start", "url": "..."} — start recording
+        {"type": "start", "url": "..."} — start recording (binds to Agent's active Page)
         {"type": "stop"} — stop recording
         {"type": "pause"} — pause recording
         {"type": "resume"} — resume recording
-        {"type": "step", ...} — manually inject a step (from frontend capture)
+        {"type": "step", ...} — manually inject a step (fallback when no Page)
         {"type": "delete_step", "seq": N} — delete a step
         {"type": "ping"} — keepalive
 
     Server messages:
-        {"type": "session_started", "session_id": "..."} — session created
+        {"type": "session_started", "session_id": "...", "mode": "auto"|"manual"}
         {"type": "step", ...} — new step captured
         {"type": "session_stopped", "session_id": "...", "step_count": N}
         {"type": "error", "message": "..."}
@@ -126,11 +162,14 @@ async def recording_websocket(ws: WebSocket) -> None:
     logger.info("Recording WebSocket client connected")
 
     from myrm_agent_harness.toolkits.browser.action_capture import (
+        ActionCaptureEngine,
         ActionStep,
         ActionType,
         CaptureSession,
     )
 
+    capture_engine: ActionCaptureEngine | None = None
+    forwarder: _WsStepForwarder | None = None
     current_session: CaptureSession | None = None
 
     try:
@@ -148,19 +187,35 @@ async def recording_websocket(ws: WebSocket) -> None:
                 await ws.send_text(json.dumps({"type": "pong"}))
 
             elif msg_type == "start":
-                session_id = uuid.uuid4().hex[:12]
-                current_session = CaptureSession(
-                    session_id=session_id,
-                    start_url=msg.get("url", ""),
-                    start_time=time.time(),
-                )
+                page = _get_active_page()
+                mode = "auto" if page is not None else "manual"
+
+                if page is not None:
+                    capture_engine = ActionCaptureEngine(page, capture_screenshots=True)
+                    forwarder = _WsStepForwarder(ws)
+                    capture_engine.add_callback(forwarder)
+                    current_session = await capture_engine.start(start_url=msg.get("url", ""))
+                else:
+                    session_id = uuid.uuid4().hex[:12]
+                    current_session = CaptureSession(
+                        session_id=session_id,
+                        start_url=msg.get("url", ""),
+                        start_time=time.time(),
+                    )
+
                 register_session(current_session)
                 await ws.send_text(json.dumps({
                     "type": "session_started",
-                    "session_id": session_id,
+                    "session_id": current_session.session_id,
+                    "mode": mode,
                 }))
+                if mode == "manual":
+                    logger.info("Recording started in manual mode (no active browser page)")
 
             elif msg_type == "stop":
+                if capture_engine:
+                    await capture_engine.stop()
+                    capture_engine = None
                 if current_session:
                     current_session.status = "stopped"
                     await ws.send_text(json.dumps({
@@ -171,14 +226,18 @@ async def recording_websocket(ws: WebSocket) -> None:
                     current_session = None
 
             elif msg_type == "pause":
-                if current_session and current_session.status == "recording":
+                if capture_engine:
+                    await capture_engine.pause()
+                elif current_session and current_session.status == "recording":
                     current_session.status = "paused"
-                    await ws.send_text(json.dumps({"type": "paused"}))
+                await ws.send_text(json.dumps({"type": "paused"}))
 
             elif msg_type == "resume":
-                if current_session and current_session.status == "paused":
+                if capture_engine:
+                    await capture_engine.resume()
+                elif current_session and current_session.status == "paused":
                     current_session.status = "recording"
-                    await ws.send_text(json.dumps({"type": "resumed"}))
+                await ws.send_text(json.dumps({"type": "resumed"}))
 
             elif msg_type == "step":
                 if not current_session or current_session.status != "recording":
@@ -231,6 +290,13 @@ async def recording_websocket(ws: WebSocket) -> None:
     except Exception as exc:
         logger.error(f"Recording WebSocket error: {exc}")
     finally:
+        if capture_engine:
+            try:
+                await capture_engine.stop()
+            except Exception:
+                pass
+            if forwarder:
+                capture_engine.remove_callback(forwarder)
         if current_session:
             if current_session.status in ("recording", "paused"):
                 current_session.status = "stopped"

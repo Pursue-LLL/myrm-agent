@@ -86,8 +86,8 @@ def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:
     assert set(BUILTIN_TOOL_ID_TO_GROUP.values()).issubset(set(ACTIVE_TOOL_GROUP_KEYS))
 
 
-def test_builtin_tool_id_to_group_keys_match_server_catalog() -> None:
-    from app.services.agent.builtin_tool_ids import BUILTIN_TOOL_ID_SET
+def test_builtin_tool_id_to_group_keys_match_togglable_catalog() -> None:
+    from app.services.agent.builtin_tool_ids import TOGGLABLE_BUILTIN_TOOL_IDS
     from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap import (
         BUILTIN_TOOL_ID_TO_GROUP,
         CAPABILITY_GAP_REGISTRY,
@@ -95,7 +95,7 @@ def test_builtin_tool_id_to_group_keys_match_server_catalog() -> None:
 
     registry_ids = {entry.tool_id for entry in CAPABILITY_GAP_REGISTRY}
     assert registry_ids == set(BUILTIN_TOOL_ID_TO_GROUP)
-    assert set(BUILTIN_TOOL_ID_TO_GROUP) == BUILTIN_TOOL_ID_SET
+    assert set(BUILTIN_TOOL_ID_TO_GROUP) == set(TOGGLABLE_BUILTIN_TOOL_IDS)
     for entry in CAPABILITY_GAP_REGISTRY:
         assert BUILTIN_TOOL_ID_TO_GROUP[entry.tool_id] == entry.tool_group
         assert entry.triggers, f"capability gap triggers must be non-empty for {entry.tool_id!r}"

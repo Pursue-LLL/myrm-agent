@@ -6,7 +6,7 @@
 [OUTPUT]
 - derive_active_tool_groups: list of TOOL_GROUP_MAP keys for Gap SSOT + skill filtering
 - ACTIVE_TOOL_GROUP_KEYS: stable key tuple for architecture tests
-- Catalog parity: test_active_tool_groups asserts keys match harness CAPABILITY_GAP_REGISTRY
+- Catalog parity: test_active_tool_groups asserts gap registry keys match TOGGLABLE_BUILTIN_TOOL_IDS (baseline excluded)
 
 [POS]
 Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed to

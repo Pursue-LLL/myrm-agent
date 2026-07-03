@@ -75,6 +75,14 @@ describe('gapEvents', () => {
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {
+    const result = await gapEvents(
+      createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }),
+    );
+    expect(result).toBeNull();
+    expect(toastInfo).not.toHaveBeenCalled();
+  });
+
   it('binds skill on skill_gap toast action', async () => {
     await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
 

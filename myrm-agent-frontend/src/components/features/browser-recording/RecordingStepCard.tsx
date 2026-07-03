@@ -92,6 +92,17 @@ const RecordingStepCard: React.FC<RecordingStepCardProps> = ({ step, onDelete, r
         {step.value && step.isPassword && (
           <p className="text-xs text-destructive/70 mt-0.5 font-mono">***</p>
         )}
+
+        {step.screenshotB64 && (
+          <div className="mt-1.5 rounded overflow-hidden border border-border max-h-24">
+            <img
+              src={`data:image/png;base64,${step.screenshotB64}`}
+              alt={`Step ${step.seq}`}
+              className="w-full h-auto object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
       </div>
 
       {!readonly && onDelete && (

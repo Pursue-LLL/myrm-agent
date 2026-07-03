@@ -21,8 +21,6 @@ function isBuiltinToolId(value: string): value is BuiltinToolId {
 const TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string }> = {
   web_search: { en: 'Web Search', zh: '网页搜索' },
   memory: { en: 'Memory', zh: '记忆' },
-  file_ops: { en: 'File Operations', zh: '文件操作' },
-  code_execute: { en: 'Code Execute', zh: '代码执行' },
   wiki: { en: 'Wiki', zh: 'Wiki' },
   browser: { en: 'Browser', zh: '浏览器' },
   computer_use: { en: 'Computer Use', zh: '桌面控制' },
