@@ -196,3 +196,17 @@ def get_chat_runtime_pool_registry() -> ChatRuntimePoolRegistry:
     if _registry is None:
         _registry = ChatRuntimePoolRegistry()
     return _registry
+
+
+async def close_external_agent_pool_for_chat(chat_scope_id: str | None) -> None:
+    """Tear down pooled external CLI runtimes when a chat session ends."""
+    if not chat_scope_id or not chat_scope_id.strip():
+        return
+    try:
+        await get_chat_runtime_pool_registry().close_chat(chat_scope_id.strip())
+    except Exception:
+        logger.warning(
+            "runtime_pool_close_chat_failed chat=%s",
+            chat_scope_id,
+            exc_info=True,
+        )

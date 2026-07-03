@@ -1,4 +1,4 @@
-"""Incognito mode: enable_memory stays True globally; session skips memory tools."""
+"""Incognito mode: global enable_memory preserved; session disables memory tools and extraction."""
 
 from app.services.agent.params.models import AgentRequest
 

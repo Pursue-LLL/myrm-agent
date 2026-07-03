@@ -195,6 +195,67 @@ describe('messageRequest - archive restore contract', () => {
   });
 });
 
+describe('messageRequest - memory settings contract', () => {
+  it('includes enable_conversation_search when memory opt-in is enabled', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const originalMemoryEnableConversationSearch = useConfigStore.getState().memoryEnableConversationSearch;
+    useConfigStore.setState({ memoryEnableConversationSearch: true });
+    expect(useConfigStore.getState().memoryEnableConversationSearch).toBe(true);
+
+    const state = {
+      chatId: 'chat-memory-opt-in',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      cameraFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      isGoalMode: false,
+      goalBudgetTokens: null,
+      goalBudgetUsd: null,
+      goalMaxTimeSeconds: null,
+      goalMaxTurns: null,
+      goalProtectedPaths: null,
+      goalLoopOnPause: false,
+      goalConvergenceWindow: null,
+      goalAcceptanceCriteria: null,
+      goalConstraints: null,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+      incognitoMode: false,
+      sandboxMode: false,
+      searchDepth: 'normal' as const,
+    } as unknown as ChatActionsState;
+
+    await createMessageRequest('search prior chats', 'msg-memory-opt-in', state, null);
+
+    expect(createAISearchStreamMock).toHaveBeenCalledTimes(1);
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody.enable_conversation_search).toBe(true);
+
+    useConfigStore.setState({ memoryEnableConversationSearch: originalMemoryEnableConversationSearch });
+  });
+});
+
 describe('messageRequest - goal payload construction', () => {
   beforeEach(() => {
     (createAISearchStream as ReturnType<typeof vi.fn>).mockClear();

@@ -1,11 +1,11 @@
-"""GeneralAgent conversation_search eager wiring tests."""
+"""GeneralAgent conversation_search opt-in wiring tests."""
 
 from types import SimpleNamespace
 
 from app.ai_agents.general_agent.conversation_search_setup import append_conversation_search_tool
 
 
-def test_append_conversation_search_tool_registers_eager(monkeypatch) -> None:
+def test_append_conversation_search_tool_registers_turn1(monkeypatch) -> None:
     class FakeMemoryManager:
         pass
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -408,4 +408,31 @@ async def test_live_direct_delegate_stream_cancel_propagates() -> None:
     await asyncio.wait_for(task, timeout=2.0)
 
     assert any(e.get("type") == AgentEventType.CANCELLED.value for e in events)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_live_close_external_agent_pool_on_chat_delete() -> None:
+    """Simulates chat delete: pool must be torn down immediately, not after idle."""
+    chat_id = "live-int-chat-delete"
+    mixin = _new_mixin(chat_scope_id=chat_id)
+    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+    pool = mixin._runtime_pool
+    assert isinstance(pool, ChatScopedRuntimePoolFacade)
+    raw_pool = pool._pool
+    close_mock = AsyncMock()
+    raw_pool.close_all = close_mock  # type: ignore[method-assign]
+
+    from app.services.external_agents.runtime_pool_registry import (
+        close_external_agent_pool_for_chat,
+        get_chat_runtime_pool_registry,
+    )
+
+    registry = get_chat_runtime_pool_registry()
+    assert chat_id in registry._entries  # type: ignore[attr-defined]
+
+    await close_external_agent_pool_for_chat(chat_id)
+
+    assert chat_id not in registry._entries  # type: ignore[attr-defined]
+    raw_pool.close_all.assert_awaited_once()
 

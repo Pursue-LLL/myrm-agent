@@ -1,4 +1,4 @@
-"""Integration: GeneralAgent conversation_search eager wiring and execution."""
+"""Integration: GeneralAgent conversation_search opt-in wiring and execution."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class FakeConversationSearchProvider:
 
 
 @pytest.mark.asyncio
-async def test_conversation_search_eager_wiring_and_execute(monkeypatch) -> None:
+async def test_conversation_search_opt_in_wiring_and_execute(monkeypatch) -> None:
     """Server wiring: tools append → registry resolve → direct tool run."""
     from app.ai_agents.general_agent.conversation_search_setup import (
         append_conversation_search_tool,
@@ -71,8 +71,8 @@ async def test_conversation_search_eager_wiring_and_execute(monkeypatch) -> None
 
 
 @pytest.mark.asyncio
-async def test_conversation_search_tool_runnable_when_registered_eager() -> None:
-    """Eager registration exposes tool in resolve() and executes directly."""
+async def test_conversation_search_tool_runnable_when_registered_turn1() -> None:
+    """Turn1 registration exposes tool in resolve() and executes directly."""
     tool = create_conversation_search_tool(FakeConversationSearchProvider())
     registry = ToolRegistry()
     registry.register(tool, source=ToolSource.USER)

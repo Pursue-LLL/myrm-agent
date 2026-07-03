@@ -22,6 +22,7 @@ from uuid import uuid4
 
 from app.database.dto import ChatCreate, ChatDTO, MessageCreate, MessageDTO
 from app.database.repositories.uow import UnitOfWork
+from app.services.external_agents.runtime_pool_registry import close_external_agent_pool_for_chat
 
 from ._base import _ChatServiceBase
 
@@ -235,6 +236,7 @@ class _ChatCrudMixin(_ChatServiceBase):
             if not ok:
                 return False
         await ConversationRecallIndexService.set_chat_excluded(chat_id, excluded=True)
+        await close_external_agent_pool_for_chat(chat_id)
         return True
 
     @staticmethod
@@ -285,6 +287,7 @@ class _ChatCrudMixin(_ChatServiceBase):
                 logger.info("Chat workspace cleaned (chat=%s): %s", chat_id, results)
             except Exception as e:
                 logger.error("Chat workspace cleanup failed (chat=%s): %s", chat_id, e)
+            await close_external_agent_pool_for_chat(chat_id)
         return ok
 
     @staticmethod
@@ -341,6 +344,7 @@ class _ChatCrudMixin(_ChatServiceBase):
                 await cleanup_chat_workspace(cid)
             except Exception as e:
                 logger.error("Workspace cleanup failed during empty_trash (chat=%s): %s", cid, e)
+            await close_external_agent_pool_for_chat(cid)
         return count
 
     @staticmethod

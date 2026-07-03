@@ -68,7 +68,9 @@ from app.channels.types import (
 )
 from app.channels.types.thread_sharing import ThreadSharingMode
 from app.core.channel_bridge.config_loader import load_user_configs
-from app.core.memory.proactive.settings import resolve_memory_enabled
+from app.core.memory.proactive.settings import (
+    resolve_conversation_search_enabled,
+    resolve_memory_enabled,
 from app.core.channel_bridge.config_parsers import (
     extract_fallback_model_configs,
     extract_lite_model_config,
@@ -688,7 +690,7 @@ class ChannelAgentExecutor:
                 ),
                 memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
                 enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
-                enable_conversation_search=bool(memory_settings.get("memoryEnableConversationSearch")),
+                enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
                 security_config_raw=self._build_security_config(configs.security_config_dict, msg.metadata),
                 agent_security_raw=(
                     {str(k): v for k, v in resolved_profile.security_overrides.items()}

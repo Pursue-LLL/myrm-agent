@@ -1,4 +1,4 @@
-"""Memory + conversation_search eager API integration tests (no mock on agent-stream path)."""
+"""Memory + conversation_search opt-in API integration tests (no mock on agent-stream path)."""
 
 from __future__ import annotations
 
@@ -63,8 +63,8 @@ def test_agent_stream_enable_memory_completes(client: TestClient) -> None:
 
 
 @pytest.mark.integration
-def test_agent_stream_incognito_still_allows_recall_tools(client: TestClient) -> None:
-    """Incognito + memory: save/manage absent; stream still succeeds with eager conversation_search wired."""
+def test_agent_stream_incognito_excludes_memory_and_conversation_search(client: TestClient) -> None:
+    """Incognito: no memory tools or conversation_search in stream (even when globally enabled)."""
     payload = {
         "query": "What is 2+2? Answer briefly.",
         "message_id": "test-memory-e2e-incognito",
@@ -72,14 +72,39 @@ def test_agent_stream_incognito_still_allows_recall_tools(client: TestClient) ->
         "action_mode": "agent",
         "model_selection": get_model_selection(),
         "enable_memory": True,
+        "enable_conversation_search": True,
         "incognito_mode": True,
         "timezone": "UTC",
     }
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
     blob = _stream_blob(events)
-    assert "memory_save_tool" not in blob
-    assert "memory_manage_tool" not in blob
+    for tool_name in (
+        "memory_recall_tool",
+        "memory_save_tool",
+        "memory_manage_tool",
+        "conversation_search_tool",
+    ):
+        assert tool_name not in blob, f"{tool_name} must not appear in incognito stream"
+
+
+@pytest.mark.integration
+def test_agent_stream_opt_in_binds_conversation_search_tool(client: TestClient) -> None:
+    """enable_conversation_search=true must expose conversation_search_tool in the agent stream."""
+    payload = {
+        "query": "Reply with the word OK only.",
+        "message_id": "test-memory-e2e-conv-opt-in",
+        "chat_id": "test_memory_e2e_conv_opt_in",
+        "action_mode": "agent",
+        "model_selection": get_model_selection(),
+        "enable_memory": True,
+        "enable_conversation_search": True,
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+    blob = _stream_blob(events)
+    assert "conversation_search_tool" in blob, "opt-in must bind conversation_search_tool in Turn1 tools"
 
 
 @pytest.mark.integration
@@ -107,7 +132,7 @@ def test_agent_stream_enable_memory_false_skips_memory_and_conversation_search(c
 
 @pytest.mark.integration
 def test_agent_stream_simple_query_does_not_invoke_conversation_search(client: TestClient) -> None:
-    """Turn1 trivial query should not call conversation_search (tool eager but unused on simple OK prompts)."""
+    """Default opt-out: trivial query must not invoke conversation_search."""
     payload = {
         "query": "Reply with the word OK only.",
         "message_id": "test-memory-e2e-no-conv-search",
@@ -164,20 +189,21 @@ def test_agent_stream_multi_turn_continue_topic(client: TestClient) -> None:
 
 @pytest.mark.integration
 def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient) -> None:
-    """Multi-turn: passphrase recoverable via chat_history, memory_recall, or conversation_search."""
+    """Multi-turn with opt-in: passphrase recoverable via chat_history or conversation_search."""
     import uuid
 
     model_selection = get_model_selection()
-    chat_id = f"test_eager_conv_search_{uuid.uuid4().hex[:8]}"
+    chat_id = f"test_opt_in_conv_search_{uuid.uuid4().hex[:8]}"
     codeword = "PELICAN-7742"
 
     turn1 = {
         "query": f"Remember this exact passphrase for this chat: {codeword}. Reply ACK only.",
-        "message_id": "test-eager-conv-1",
+        "message_id": "test-opt-in-conv-1",
         "chat_id": chat_id,
         "action_mode": "agent",
         "model_selection": model_selection,
         "enable_memory": True,
+        "enable_conversation_search": True,
         "timezone": "UTC",
     }
     events1 = _collect_agent_stream(client, turn1)
@@ -188,11 +214,12 @@ def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient
             "What was the exact passphrase I gave in this chat? "
             "Use conversation_search_tool if needed to search for PELICAN."
         ),
-        "message_id": "test-eager-conv-2",
+        "message_id": "test-opt-in-conv-2",
         "chat_id": chat_id,
         "action_mode": "agent",
         "model_selection": model_selection,
         "enable_memory": True,
+        "enable_conversation_search": True,
         "timezone": "UTC",
         "chat_history": [
             {"role": "user", "content": f"Remember passphrase {codeword}"},
@@ -212,5 +239,5 @@ def test_agent_stream_conversation_search_passphrase_recovery(client: TestClient
 
     pytest.skip(
         "Model did not recover passphrase and did not invoke memory/conversation tools; "
-        "eager wiring verified in test_conversation_search_eager_integration.py"
+        "opt-in wiring verified in test_conversation_search_opt_in_integration.py"
     )
