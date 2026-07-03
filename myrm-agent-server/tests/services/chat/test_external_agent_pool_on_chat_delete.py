@@ -67,3 +67,49 @@ async def test_permanently_delete_chat_closes_external_agent_pool() -> None:
 
     assert ok is True
     mock_close.assert_awaited_once_with("chat-perm-1")
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_chat_live_tears_down_registry_pool() -> None:
+    """Full ChatService.delete_chat must close registry pool without mocking close helper."""
+    import uuid
+    from datetime import datetime, timezone
+
+    from app.database.models.chat import Chat
+    from app.platform_utils import get_session_factory
+    from app.services.chat.chat_service import ChatService
+    from app.services.external_agents.runtime_pool_registry import get_chat_runtime_pool_registry
+    from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
+
+    chat_id = f"live-del-{uuid.uuid4().hex[:10]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        db.add(
+            Chat(
+                id=chat_id,
+                title="delete pool integration",
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+        await db.commit()
+
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mixin.external_agents_config = [
+        {"name": "echo-cli", "type": "cli", "command": "echo", "args": []},
+    ]
+    mixin._runtime_pool_scope_id = chat_id
+    mixin._runtime_pool = None
+    mixin._runtime_pool_from_registry = False
+    mixin._runtime_pool_ephemeral = False
+    mixin.agent_id = "general"
+    mixin.force_delegate_agent = None
+    await mixin._do_setup_external_agents([], [], mount_delegate_tool=False)
+
+    registry = get_chat_runtime_pool_registry()
+    assert chat_id in registry._entries  # type: ignore[attr-defined]
+
+    ok = await ChatService.delete_chat(chat_id)
+    assert ok is True
+    assert chat_id not in registry._entries  # type: ignore[attr-defined]
