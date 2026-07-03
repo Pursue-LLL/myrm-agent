@@ -12,7 +12,7 @@
 
 [POS]
 GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
-无独立开关的能力（cron、local_browser）→ deferred + discover。搜索、媒体生成（AgentDeclared eager →
+无独立开关的能力（cron、local_browser）→ DISCOVERABLE + discover。搜索、媒体生成（AgentDeclared eager →
 `media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
