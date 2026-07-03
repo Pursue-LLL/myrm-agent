@@ -124,6 +124,8 @@ export interface ConfigState {
   memoryRequireConfirmation: boolean;
   // 是否使用轻量模型自动从会话中提取记忆
   enableMemoryAutoExtraction: boolean;
+  // 是否启用历史会话搜索工具（conversation_search_tool）
+  memoryEnableConversationSearch: boolean;
   preCompactEnabled: boolean;
   preCompactBudgetTokens: number;
 
@@ -194,6 +196,7 @@ export interface ConfigState {
   setEnableMemory: (enable: boolean) => void;
   setMemoryRequireConfirmation: (enable: boolean) => void;
   setEnableMemoryAutoExtraction: (enable: boolean) => void;
+  setMemoryEnableConversationSearch: (enable: boolean) => void;
   setPreCompactEnabled: (enable: boolean) => void;
   setPreCompactBudgetTokens: (tokens: number) => void;
   setEnableAutoTitleGeneration: (enable: boolean) => void;

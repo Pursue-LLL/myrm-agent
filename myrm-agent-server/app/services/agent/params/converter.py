@@ -883,6 +883,7 @@ async def convert_to_general_agent_params(
         enable_memory_auto_extraction=False
         if request.incognito_mode
         else (request.enable_memory and request.enable_memory_auto_extraction),
+        enable_conversation_search=request.enable_conversation_search and not request.incognito_mode,
         incognito_mode=request.incognito_mode,
         enable_advanced_retrieval=request.enable_advanced_retrieval if not is_fast_search else False,
         embedding_config=embedding_cfg if not is_fast_search else None,

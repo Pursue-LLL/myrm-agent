@@ -183,6 +183,8 @@ class LocalEvalExecutor:
         else:
             eval_model_cfg = configs.model_cfg
 
+        from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+
         params = GeneralAgentParams(
             query=message,
             model_cfg=eval_model_cfg,
@@ -209,6 +211,7 @@ class LocalEvalExecutor:
             memory_decay_profile=memory_decay_profile,
             engine_params=agent_engine_params,
             memory_shared_context_ids=memory_shared_context_ids,
+            enable_conversation_search=resolve_conversation_search_enabled(configs.personal_settings_dict),
             declared_allowed_roots=(str(workspace_dir),),
         )
 

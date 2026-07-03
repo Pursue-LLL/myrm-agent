@@ -1,4 +1,4 @@
-"""Incognito mode: enable_memory stays True (for read-only recall), auto_extraction disabled."""
+"""Incognito mode: enable_memory stays True globally; session skips memory tools."""
 
 from app.services.agent.params.models import AgentRequest
 

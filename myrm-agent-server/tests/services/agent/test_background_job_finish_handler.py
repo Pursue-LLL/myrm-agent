@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +14,7 @@ from app.services.agent.background_job_finish_handler import (
 )
 
 
-def test_format_finish_message_success() -> None:
+def test_format_finish_message_success_en() -> None:
     msg = _format_finish_message(
         BackgroundJobFinishResult(
             session_id="chat-1",
@@ -24,9 +23,26 @@ def test_format_finish_message_success() -> None:
             status="exited",
             exit_code=0,
             error_category=None,
-        )
+        ),
+        "en",
     )
     assert "completed" in msg
+    assert "42" in msg
+
+
+def test_format_finish_message_success_zh() -> None:
+    msg = _format_finish_message(
+        BackgroundJobFinishResult(
+            session_id="chat-1",
+            pid=42,
+            command="npm run dev",
+            status="exited",
+            exit_code=0,
+            error_category=None,
+        ),
+        "zh-CN",
+    )
+    assert "已完成" in msg
     assert "42" in msg
 
 
@@ -44,6 +60,10 @@ async def test_handler_appends_message_and_publishes_event() -> None:
 
     mock_bus = MagicMock()
     with (
+        patch(
+            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            AsyncMock(return_value="en"),
+        ),
         patch(
             "app.services.agent.background_job_finish_handler.ChatService.append_message",
             AsyncMock(),
@@ -81,6 +101,5 @@ async def test_handler_skips_non_exited_status() -> None:
         AsyncMock(),
     ) as mock_append:
         await handler.on_background_job_finish(result)
-        await asyncio.sleep(0.05)
 
     mock_append.assert_not_called()

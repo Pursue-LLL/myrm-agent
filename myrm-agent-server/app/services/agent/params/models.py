@@ -197,6 +197,7 @@ class AgentRequest(BaseModel):
     enable_memory: bool = True
     memory_require_confirmation: bool = True
     enable_memory_auto_extraction: bool = True
+    enable_conversation_search: bool = False
     incognito_mode: bool = False
     enable_advanced_retrieval: bool = False
     mcp_cfg: list[dict[str, object]] | None = None

@@ -169,26 +169,23 @@ async def build_general_agent(
 
     from app.services.context.context_assembly import ContextAssemblyService
 
+    session_memory_enabled = agent_wrapper.enable_memory and not agent_wrapper.incognito_mode
+
     context_assembly = ContextAssemblyService.resolve_for_agent(
         agent_wrapper,
         effective_chat_id,
-        enable_memory=agent_wrapper.enable_memory,
+        enable_memory=session_memory_enabled,
     )
 
     memory_manager = None
     memory_binding = context_assembly.binding
-    if memory_binding is not None:
+    if session_memory_enabled and memory_binding is not None:
         memory_manager = await agent_wrapper._create_memory_tools(tools, discoverable_tools, memory_binding)
 
-    # Incognito mode: wrap memory with read-only view and remove write tools
-    if agent_wrapper.incognito_mode and memory_manager is not None:
-        from myrm_agent_harness.toolkits.memory.ephemeral import ReadOnlyMemoryView
-
-        memory_manager = ReadOnlyMemoryView(memory_manager)
-        tools[:] = [t for t in tools if getattr(t, "name", "") not in ("memory_save_tool", "memory_manage_tool")]
-        logger.info("Incognito mode: memory wrapped as read-only, write tools removed")
-
-    if agent_wrapper.enable_memory:
+    if (
+        session_memory_enabled
+        and agent_wrapper.enable_conversation_search
+    ):
         from app.ai_agents.general_agent.conversation_search_setup import (
             append_conversation_search_tool,
         )

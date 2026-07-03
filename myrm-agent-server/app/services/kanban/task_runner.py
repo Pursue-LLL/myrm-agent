@@ -262,6 +262,8 @@ class KanbanTaskRunner:
         if workspace_root:
             declared_roots = (workspace_root,)
 
+        from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+
         params = GeneralAgentParams(
             query=context,
             model_cfg=model_cfg,
@@ -294,6 +296,9 @@ class KanbanTaskRunner:
             memory_decay_profile=profile.memory_decay_profile if profile else None,
             engine_params=profile.engine_params if profile else None,
             memory_shared_context_ids=memory_shared_context_ids,
+            enable_conversation_search=resolve_conversation_search_enabled(
+                user_cfgs.personal_settings_dict,
+            ),
         )
 
         agent = AgentFactory.create_general_agent(params)

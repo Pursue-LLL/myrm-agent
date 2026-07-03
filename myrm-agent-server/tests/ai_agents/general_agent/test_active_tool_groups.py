@@ -18,6 +18,8 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_code_execute=True,
         enable_computer_use=False,
         enable_memory=True,
+        incognito_mode=False,
+        enable_conversation_search=False,
         enable_kanban=False,
         enable_canvas=False,
         enable_wiki=False,
@@ -40,6 +42,7 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
         enable_canvas=True,
         enable_wiki=True,
         enable_answer_tool=True,
+        enable_conversation_search=True,
         image_generation_params=object(),
         video_generation_params=object(),
         tts_params=object(),
@@ -73,9 +76,20 @@ def test_derive_media_groups_from_params_presence() -> None:
     assert "tts" in groups
 
 
-def test_derive_planning_only_when_flag_true() -> None:
-    assert "planning" not in derive_active_tool_groups(_agent(), enable_planning=False)
-    assert "planning" in derive_active_tool_groups(_agent(), enable_planning=True)
+def test_incognito_excludes_memory_and_conversation_history() -> None:
+    groups = derive_active_tool_groups(
+        _agent(incognito_mode=True, enable_conversation_search=True),
+        enable_planning=False,
+    )
+    assert "memory" not in groups
+    assert "conversation_history" not in groups
+
+
+def test_conversation_history_requires_explicit_flag() -> None:
+    groups = derive_active_tool_groups(_agent(enable_conversation_search=False), enable_planning=False)
+    assert "conversation_history" not in groups
+    groups_on = derive_active_tool_groups(_agent(enable_conversation_search=True), enable_planning=False)
+    assert "conversation_history" in groups_on
 
 
 def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:

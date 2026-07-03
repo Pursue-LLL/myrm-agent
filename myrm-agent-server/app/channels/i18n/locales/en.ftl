@@ -97,6 +97,16 @@ background_completed =
 background_failed =
     ❌ Background task failed: "{ $title }"
     { $result }
+bash_bg_finish_title = Background task finished
+bash_bg_finish_success =
+    Background task completed (pid={ $pid }).
+    Command: { $command }
+bash_bg_finish_with_error =
+    Background task ended with { $error_category } (pid={ $pid }, status={ $status }, exit_code={ $exit_code }).
+    Command: { $command }
+bash_bg_finish_generic =
+    Background task { $status } (pid={ $pid }, exit_code={ $exit_code }).
+    Command: { $command }
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }

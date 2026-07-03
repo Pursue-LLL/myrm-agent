@@ -200,6 +200,7 @@ export interface PersonalSettingsConfigValue {
   enableMemory: boolean;
   memoryRequireConfirmation: boolean;
   enableMemoryAutoExtraction: boolean;
+  memoryEnableConversationSearch: boolean;
   preCompactEnabled: boolean;
   preCompactBudgetTokens: number;
   enableAutoTitleGeneration: boolean;
@@ -743,6 +744,7 @@ export const DEFAULT_PERSONAL_SETTINGS: PersonalSettingsConfigValue = {
   enableMemory: true,
   memoryRequireConfirmation: false,
   enableMemoryAutoExtraction: true,
+  memoryEnableConversationSearch: false,
   preCompactEnabled: true,
   preCompactBudgetTokens: 1500,
   enableAutoTitleGeneration: true,

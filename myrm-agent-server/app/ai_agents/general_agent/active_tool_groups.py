@@ -25,6 +25,8 @@ class ActiveToolGroupSource(Protocol):
     enable_code_execute: bool
     enable_computer_use: bool
     enable_memory: bool
+    incognito_mode: bool
+    enable_conversation_search: bool
     enable_kanban: bool
     enable_canvas: bool
     enable_wiki: bool
@@ -42,6 +44,7 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "shell",
     "computer_use",
     "memory",
+    "conversation_history",
     "kanban",
     "canvas",
     "wiki",
@@ -66,7 +69,13 @@ def derive_active_tool_groups(
         ("file_ops", agent.enable_file_ops),
         ("shell", agent.enable_code_execute),
         ("computer_use", agent.enable_computer_use),
-        ("memory", agent.enable_memory),
+        ("memory", agent.enable_memory and not agent.incognito_mode),
+        (
+            "conversation_history",
+            agent.enable_memory
+            and not agent.incognito_mode
+            and agent.enable_conversation_search,
+        ),
         ("kanban", agent.enable_kanban),
         ("canvas", agent.enable_canvas),
         ("wiki", agent.enable_wiki),

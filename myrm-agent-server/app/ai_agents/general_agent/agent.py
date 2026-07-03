@@ -77,6 +77,7 @@ class GeneralAgent(ToolSetupMixin):
         vision_fallback_model_cfg: ModelConfig | None = None,
         memory_require_confirmation: bool = False,
         enable_memory_auto_extraction: bool = True,
+        enable_conversation_search: bool = False,
         incognito_mode: bool = False,
         enable_advanced_retrieval: bool = False,
         embedding_config: "EmbeddingConfig | None" = None,
@@ -168,6 +169,7 @@ class GeneralAgent(ToolSetupMixin):
         self.skill_configs = skill_configs
         self.memory_require_confirmation = memory_require_confirmation
         self.enable_memory_auto_extraction = enable_memory_auto_extraction
+        self.enable_conversation_search = enable_conversation_search
         self.incognito_mode = incognito_mode
         self.enable_advanced_retrieval = enable_advanced_retrieval
         self.embedding_config = embedding_config
@@ -292,7 +294,7 @@ class GeneralAgent(ToolSetupMixin):
     def _resolve_context_binding(self, effective_chat_id: str) -> ResolvedContextBinding | None:
         """Resolve the unified context binding contract for the current agent run."""
 
-        if not self.enable_memory:
+        if not self.enable_memory or self.incognito_mode:
             return None
 
         task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None

@@ -410,6 +410,9 @@ class AgentJobRunner:
             except Exception as e:
                 logger.warning("Cron job %s: failed to resolve shared memory contexts: %s", job.id, e)
 
+            memory_settings = user_cfgs.personal_settings_dict or {}
+            from app.core.memory.proactive.settings import resolve_conversation_search_enabled
+
             params = GeneralAgentParams(
                 query=effective_prompt,
                 model_cfg=model_cfg,
@@ -439,6 +442,7 @@ class AgentJobRunner:
                 memory_decay_profile=memory_decay_profile,
                 engine_params=agent_engine_params,
                 memory_shared_context_ids=memory_shared_context_ids,
+                enable_conversation_search=resolve_conversation_search_enabled(memory_settings),
                 notify_targets=(resolved.notify_targets if resolved else ()),
             )
 

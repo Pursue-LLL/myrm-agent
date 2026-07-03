@@ -688,6 +688,7 @@ class ChannelAgentExecutor:
                 ),
                 memory_require_confirmation=bool(memory_settings.get("memoryRequireConfirmation")),
                 enable_memory_auto_extraction=bool(memory_settings.get("enableMemoryAutoExtraction")),
+                enable_conversation_search=bool(memory_settings.get("memoryEnableConversationSearch")),
                 security_config_raw=self._build_security_config(configs.security_config_dict, msg.metadata),
                 agent_security_raw=(
                     {str(k): v for k, v in resolved_profile.security_overrides.items()}

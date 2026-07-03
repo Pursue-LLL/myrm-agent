@@ -97,6 +97,16 @@ background_completed =
 background_failed =
     ❌ 后台任务失败："{ $title }"
     { $result }
+bash_bg_finish_title = 后台任务已完成
+bash_bg_finish_success =
+    后台任务已完成 (pid={ $pid })。
+    命令：{ $command }
+bash_bg_finish_with_error =
+    后台任务异常结束：{ $error_category } (pid={ $pid }, status={ $status }, exit_code={ $exit_code })。
+    命令：{ $command }
+bash_bg_finish_generic =
+    后台任务 { $status } (pid={ $pid }, exit_code={ $exit_code })。
+    命令：{ $command }
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }

@@ -138,6 +138,11 @@ class PersonalSettingsConfigValue(BaseModel):
     enableMemory: bool = _personal_settings_field("memory", default=False, description="启用记忆")
     memoryRequireConfirmation: bool = _personal_settings_field("memory", default=False, description="记忆需要确认")
     enableMemoryAutoExtraction: bool = _personal_settings_field("memory", default=True, description="启用记忆自动提取")
+    memoryEnableConversationSearch: bool = _personal_settings_field(
+        "memory",
+        default=False,
+        description="启用历史会话搜索工具（conversation_search）",
+    )
     enableAutoTitleGeneration: bool = _personal_settings_field("preferences", default=True, description="启用自动生成标题")
     webTtsProvider: Literal["browser", "openai", "elevenlabs", "fish_audio", "minimax", "edge"] = _personal_settings_field(
         "voice", default="browser", description="Web TTS 提供商"

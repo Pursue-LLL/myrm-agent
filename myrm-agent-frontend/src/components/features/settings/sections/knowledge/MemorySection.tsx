@@ -81,6 +81,8 @@ const MemorySection = memo(() => {
     setMemoryRequireConfirmation,
     enableMemoryAutoExtraction,
     setEnableMemoryAutoExtraction,
+    memoryEnableConversationSearch,
+    setMemoryEnableConversationSearch,
     preCompactEnabled,
     setPreCompactEnabled,
     preCompactBudgetTokens,
@@ -552,6 +554,8 @@ const MemorySection = memo(() => {
         setMemoryRequireConfirmation={setMemoryRequireConfirmation}
         enableMemoryAutoExtraction={enableMemoryAutoExtraction}
         setEnableMemoryAutoExtraction={setEnableMemoryAutoExtraction}
+        memoryEnableConversationSearch={memoryEnableConversationSearch}
+        setMemoryEnableConversationSearch={setMemoryEnableConversationSearch}
         preCompactEnabled={preCompactEnabled}
         setPreCompactEnabled={setPreCompactEnabled}
         preCompactBudgetTokens={preCompactBudgetTokens}

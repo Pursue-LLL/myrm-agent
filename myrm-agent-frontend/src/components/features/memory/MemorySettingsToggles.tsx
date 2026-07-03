@@ -12,6 +12,8 @@ interface MemorySettingsTogglesProps {
   setMemoryRequireConfirmation: (value: boolean) => void;
   enableMemoryAutoExtraction: boolean;
   setEnableMemoryAutoExtraction: (value: boolean) => void;
+  memoryEnableConversationSearch: boolean;
+  setMemoryEnableConversationSearch: (value: boolean) => void;
   preCompactEnabled: boolean;
   setPreCompactEnabled: (value: boolean) => void;
   preCompactBudgetTokens: number;
@@ -26,6 +28,8 @@ const MemorySettingsToggles = memo<MemorySettingsTogglesProps>(
     setMemoryRequireConfirmation,
     enableMemoryAutoExtraction,
     setEnableMemoryAutoExtraction,
+    memoryEnableConversationSearch,
+    setMemoryEnableConversationSearch,
     preCompactEnabled,
     setPreCompactEnabled,
     preCompactBudgetTokens,
@@ -60,6 +64,19 @@ const MemorySettingsToggles = memo<MemorySettingsTogglesProps>(
               <p className="mt-1 text-xs text-muted-foreground">{t('autoExtractionDesc')}</p>
             </div>
             <Switch checked={enableMemoryAutoExtraction} onCheckedChange={setEnableMemoryAutoExtraction} />
+          </div>
+        )}
+
+        {enableMemory && (
+          <div className="ml-2 flex items-center justify-between rounded-xl border border-border/30 bg-accent/20 p-4">
+            <div className="flex-1 pr-4">
+              <h3 className="text-sm font-medium text-foreground">{t('enableConversationSearch')}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t('enableConversationSearchDesc')}</p>
+            </div>
+            <Switch
+              checked={memoryEnableConversationSearch}
+              onCheckedChange={setMemoryEnableConversationSearch}
+            />
           </div>
         )}
 

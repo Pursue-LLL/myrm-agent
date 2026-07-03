@@ -72,6 +72,7 @@ const useConfigStore = create<ConfigState>()(
       enableMemory: DEFAULT_PERSONAL_SETTINGS.enableMemory,
       memoryRequireConfirmation: DEFAULT_PERSONAL_SETTINGS.memoryRequireConfirmation,
       enableMemoryAutoExtraction: DEFAULT_PERSONAL_SETTINGS.enableMemoryAutoExtraction,
+      memoryEnableConversationSearch: DEFAULT_PERSONAL_SETTINGS.memoryEnableConversationSearch,
       preCompactEnabled: DEFAULT_PERSONAL_SETTINGS.preCompactEnabled,
       preCompactBudgetTokens: DEFAULT_PERSONAL_SETTINGS.preCompactBudgetTokens,
       enableAutoTitleGeneration: DEFAULT_PERSONAL_SETTINGS.enableAutoTitleGeneration,
@@ -146,6 +147,11 @@ const useConfigStore = create<ConfigState>()(
       setEnableMemoryAutoExtraction: (enable) => {
         set({ enableMemoryAutoExtraction: enable });
         syncPersonalSettings({ enableMemoryAutoExtraction: enable });
+      },
+
+      setMemoryEnableConversationSearch: (enable) => {
+        set({ memoryEnableConversationSearch: enable });
+        syncPersonalSettings({ memoryEnableConversationSearch: enable });
       },
 
       setPreCompactEnabled: (enable) => {
@@ -525,6 +531,7 @@ const useConfigStore = create<ConfigState>()(
         enableMemory: state.enableMemory,
         memoryRequireConfirmation: state.memoryRequireConfirmation,
         enableMemoryAutoExtraction: state.enableMemoryAutoExtraction,
+        memoryEnableConversationSearch: state.memoryEnableConversationSearch,
         preCompactEnabled: state.preCompactEnabled,
         preCompactBudgetTokens: state.preCompactBudgetTokens,
         enableAutoTitleGeneration: state.enableAutoTitleGeneration,

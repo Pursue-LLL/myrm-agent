@@ -104,6 +104,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_memory: bool = True
     memory_require_confirmation: bool = False
     enable_memory_auto_extraction: bool = True
+    enable_conversation_search: bool = False
     incognito_mode: bool = False
     enable_advanced_retrieval: bool = False
     embedding_config: EmbeddingConfig | None = None
@@ -248,6 +249,7 @@ class AgentFactory:
             enable_memory=params.enable_memory,
             memory_require_confirmation=params.memory_require_confirmation,
             enable_memory_auto_extraction=params.enable_memory_auto_extraction,
+            enable_conversation_search=params.enable_conversation_search,
             incognito_mode=params.incognito_mode,
             enable_advanced_retrieval=params.enable_advanced_retrieval,
             embedding_config=params.embedding_config,

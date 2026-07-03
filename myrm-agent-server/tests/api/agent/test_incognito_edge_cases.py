@@ -1,9 +1,8 @@
-"""Incognito mode: comprehensive edge-case coverage for read-only memory isolation.
+"""Incognito mode: session-level full memory off without changing global enable_memory.
 
 Tests the complete behavior matrix without external LLM dependencies:
-- enable_memory=True + incognito=True → memory tools filtered correctly
+- enable_memory=True + incognito=True → no memory tools / no auto extraction
 - enable_memory=False + incognito=True → no memory at all
-- ReadOnlyMemoryView behavior in incognito context
 - session_cleanup_callback disabled in incognito
 - system prompt excludes MEMORY_RULES in incognito
 """

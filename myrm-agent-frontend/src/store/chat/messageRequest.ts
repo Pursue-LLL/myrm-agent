@@ -507,6 +507,7 @@ export const createMessageRequest = async (
     }),
     ...(isStreamingMode && {
       enable_memory_auto_extraction: useConfigStore.getState().enableMemoryAutoExtraction,
+      enable_conversation_search: useConfigStore.getState().memoryEnableConversationSearch,
       incognito_mode: useChatStore.getState().incognitoMode,
       ...(useChatStore.getState().sandboxMode && { sandbox_mode: true }),
     }),

@@ -5700,6 +5700,8 @@
     "requireConfirmationDesc": "When enabled, memories saved by AI require your review and approval before taking effect. When disabled, memories are saved automatically.",
     "autoExtraction": "Auto-Extract Memories",
     "autoExtractionDesc": "When enabled, a lightweight model automatically extracts memories from conversations. This may consume additional tokens.",
+    "enableConversationSearch": "Conversation History Search",
+    "enableConversationSearchDesc": "When enabled, the agent can call conversation_search to retrieve prior chat evidence. Off by default.",
     "comingSoonTitle": "Coming Soon",
     "comingSoonDesc": "",
     "tags": "Tags",
