@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { IconLoader, IconCheckCircle, IconXCircle, IconBan, IconStop, IconClock } from '@/components/features/icons/PremiumIcons';
 import { Navigation, Target, Terminal } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -297,16 +298,21 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative">
-          {trigger}
-          {totalBadge > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
-              {totalBadge}
-            </span>
-          )}
-        </div>
-      </PopoverTrigger>
+      <Tooltip open={isOpen ? false : undefined}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <div className="relative inline-flex cursor-pointer">
+              {trigger}
+              {totalBadge > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground">
+                  {totalBadge}
+                </span>
+              )}
+            </div>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="right">{t('title')}</TooltipContent>
+      </Tooltip>
       <PopoverContent
         className="w-[340px] p-0 border-border/50 bg-popover/95 backdrop-blur-xl sm:w-[380px]"
         align="end"

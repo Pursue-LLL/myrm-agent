@@ -11458,7 +11458,10 @@
     "goalActionSuccess": "操作成功",
     "shellSection": "Shell 任务",
     "agentSection": "Agent 任务",
-    "shellPid": "PID {pid}"
+    "shellPid": "PID {pid}",
+    "trayTooltipIdle": "Myrm Agent - 空闲",
+    "trayTooltipBusy": "Myrm Agent - 任务执行中…",
+    "trayTooltipBackground": "{count} 个后台任务运行中"
   },
   "boot": {
     "title": "Perplexica",

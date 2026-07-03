@@ -93,8 +93,8 @@ class TestRenderUITool:
             assert len(events) == 1
             assert events[0].data == {"form": {"name": ""}}
 
-    def test_render_unknown_component_type_skipped(self):
-        """未知组件类型应被跳过，不导致崩溃。"""
+    def test_render_unknown_component_type_fail_closed(self):
+        """Unknown component types must fail-closed (no silent skip)."""
         with ArtifactContextManager():
             result = render_ui(
                 title="Test",
@@ -105,12 +105,11 @@ class TestRenderUITool:
                 root_ids=["valid"],
             )
 
-            assert "Test" in result
+            assert result.startswith("Failed to render UI")
+            assert "nonexistent_type" in result
             registry = get_ui_registry()
             assert registry is not None
-            events = registry.pop_pending_events()
-            assert len(events) == 1
-            assert len(events[0].components) == 1
+            assert not registry.has_pending_events()
 
     def test_render_ui_with_actions(self):
         """验证带动作的 UI 解析。"""
@@ -174,16 +173,14 @@ class TestRenderUITool:
             assert tabs_comp.props["defaultIndex"] == 2
             assert len(tabs_comp.props["tabs"]) == 3
 
-    def test_render_empty_components(self):
-        """空组件列表不崩溃。"""
+    def test_render_empty_components_fail_closed(self):
+        """Empty components list must fail-closed."""
         with ArtifactContextManager():
             result = render_ui(title="Empty", components=[], root_ids=[])
-            assert "Empty" in result
+            assert "components must not be empty" in result
             registry = get_ui_registry()
             assert registry is not None
-            events = registry.pop_pending_events()
-            assert len(events) == 1
-            assert len(events[0].components) == 0
+            assert not registry.has_pending_events()
 
     def test_render_nested_tabs(self):
         """嵌套 tabs 的解析（tabs 内包含 tabs）。"""

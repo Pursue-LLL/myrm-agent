@@ -89,6 +89,26 @@ def test_agent_stream_incognito_excludes_memory_and_conversation_search(client: 
 
 
 @pytest.mark.integration
+def test_agent_stream_memory_off_ignores_conversation_search_flag(client: TestClient) -> None:
+    """enable_memory=false: conversation_search must not bind even if flag is true."""
+    payload = {
+        "query": "Reply with the word OK only.",
+        "message_id": "test-memory-e2e-off-flag-on",
+        "chat_id": "test_memory_e2e_off_flag_on",
+        "action_mode": "agent",
+        "model_selection": get_model_selection(),
+        "enable_memory": False,
+        "enable_conversation_search": True,
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+    blob = _stream_blob(events)
+    assert "conversation_search_tool" not in blob
+    assert "memory_recall_tool" not in blob
+
+
+@pytest.mark.integration
 def test_agent_stream_opt_in_binds_conversation_search_tool(client: TestClient) -> None:
     """enable_conversation_search=true must expose conversation_search_tool in the agent stream."""
     payload = {

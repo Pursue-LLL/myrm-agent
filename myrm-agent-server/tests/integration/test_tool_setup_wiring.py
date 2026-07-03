@@ -10,6 +10,12 @@ from langchain_core.tools import BaseTool
 from app.ai_agents.agents import ImageGenerationParams, VideoGenerationParams
 
 
+def test_local_browser_setup_method_removed() -> None:
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+
+    assert not hasattr(ToolSetupMixin, "_setup_local_browser_data_tool")
+
+
 def test_image_generation_registers_basetool() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
     from myrm_agent_harness.agent.streaming.utils import normalize_tool_names

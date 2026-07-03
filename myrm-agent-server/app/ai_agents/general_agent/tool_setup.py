@@ -186,9 +186,19 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_x_live_search_tool(tools)
 
         if self.enable_render_ui:
+            from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
+                seed_reference_to_workspace,
+            )
             from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
                 render_ui_tool,
             )
+
+            workspace_roots: tuple[str, ...] = getattr(self, "declared_allowed_roots", ())
+            if workspace_roots:
+                try:
+                    seed_reference_to_workspace(Path(workspace_roots[0]))
+                except OSError as exc:
+                    logger.warning("Failed to seed A2UI reference to workspace: %s", exc)
 
             tools.append(render_ui_tool)
             logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Turn1]")

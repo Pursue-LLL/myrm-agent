@@ -6,7 +6,7 @@
 //!
 //! [OUTPUT]
 //! - setup_tray: 初始化 Tray 菜单（Show / New Chat / Settings / Workspace / Quit）
-//! - set_tray_status: IPC 命令，前端同步 Agent 运行状态到 tooltip
+//! - set_tray_status: IPC 命令，前端同步 Agent 运行状态与 i18n tooltip 到托盘
 //!
 //! [POS]
 //! 系统托盘模块。提供 Tray 菜单快捷操作和动态状态 tooltip。
@@ -103,19 +103,23 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// 根据 Agent 运行状态更新系统托盘 tooltip。
-/// 前端 useTrayStatus hook 在 loading 状态变化时调用此命令。
+/// 根据 Agent 运行状态与可选的前端本地化 tooltip 更新系统托盘。
+/// 前端 ``useTrayStatus`` 在 loading / 后台任务数量变化时调用此命令。
 #[tauri::command]
-pub fn set_tray_status(app: AppHandle, status: String) -> Result<(), String> {
+pub fn set_tray_status(app: AppHandle, status: String, tooltip: Option<String>) -> Result<(), String> {
     if let Some(tray) = app.tray_by_id("main") {
-        let tooltip = match status.as_str() {
-            "busy" => "MyrmAgent - 任务执行中...",
-            "error" => "MyrmAgent - 发生错误",
-            "idle" => "MyrmAgent - 空闲",
-            _ => "MyrmAgent",
-        };
-        tray.set_tooltip(Some(tooltip))
+        let text = tooltip.unwrap_or_else(|| default_tray_tooltip(&status));
+        tray.set_tooltip(Some(text))
             .map_err(|e| format!("Failed to set tray tooltip: {e}"))?;
     }
     Ok(())
+}
+
+fn default_tray_tooltip(status: &str) -> String {
+    match status {
+        "busy" => "MyrmAgent - Running...".into(),
+        "error" => "MyrmAgent - Error".into(),
+        "idle" => "MyrmAgent - Idle".into(),
+        _ => "MyrmAgent".into(),
+    }
 }

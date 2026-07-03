@@ -27,3 +27,6 @@ class TestServerToolLayerRegistration:
     def test_media_tools_registered(self) -> None:
         for name in ("image_tool", "video_tool", "tts_generate"):
             assert _SERVER_TOOL_LAYERS.get(name) == ToolLayer.EXTENDED, name
+
+    def test_browser_local_search_not_registered(self) -> None:
+        assert "browser_local_search_tool" not in _SERVER_TOOL_LAYERS

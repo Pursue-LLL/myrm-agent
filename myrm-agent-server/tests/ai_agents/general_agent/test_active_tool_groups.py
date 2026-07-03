@@ -92,6 +92,15 @@ def test_conversation_history_requires_explicit_flag() -> None:
     assert "conversation_history" in groups_on
 
 
+def test_memory_off_excludes_conversation_history_even_when_flag_on() -> None:
+    groups = derive_active_tool_groups(
+        _agent(enable_memory=False, enable_conversation_search=True),
+        enable_planning=False,
+    )
+    assert "memory" not in groups
+    assert "conversation_history" not in groups
+
+
 def test_builtin_tool_id_to_group_values_subset_of_active_keys() -> None:
     from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap import (
         BUILTIN_TOOL_ID_TO_GROUP,

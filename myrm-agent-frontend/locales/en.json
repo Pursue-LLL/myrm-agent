@@ -11487,7 +11487,10 @@
     "goalActionSuccess": "Action completed",
     "shellSection": "Shell jobs",
     "agentSection": "Agent tasks",
-    "shellPid": "PID {pid}"
+    "shellPid": "PID {pid}",
+    "trayTooltipIdle": "Myrm Agent - Idle",
+    "trayTooltipBusy": "Myrm Agent - Running…",
+    "trayTooltipBackground": "{count} background task(s) running"
   },
   "boot": {
     "title": "Perplexica",

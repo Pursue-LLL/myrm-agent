@@ -73,6 +73,7 @@ function NavBarInner({
   const t = useTranslations();
   const tPricing = useTranslations('pricing');
   const tUserMenu = useTranslations('userMenu');
+  const tBackgroundTasks = useTranslations('backgroundTasks');
   const { user, isLoading, logout, loginMock } = useAuthStore();
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const { isPro } = useSubscription();
@@ -407,7 +408,7 @@ function NavBarInner({
           trigger={
             <button
               className="w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              aria-label="Background Tasks"
+              aria-label={tBackgroundTasks('title')}
             >
               <IconTerminal className="h-[18px] w-[18px]" />
             </button>
