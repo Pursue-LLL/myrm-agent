@@ -71,6 +71,8 @@ _IMAGE_CONTENT_TYPES = frozenset(("image/png", "image/jpeg", "image/gif", "image
 _VIDEO_CONTENT_TYPES = frozenset(("video/mp4", "video/webm", "video/quicktime"))
 _AUDIO_CONTENT_TYPES = frozenset(("audio/mpeg", "audio/ogg", "audio/wav", "audio/mp4"))
 
+_HEALTH_PROBE_TIMEOUT = 10.0
+
 
 class DiscordChannel(BaseChannel):
     """Discord channel provider.
@@ -292,6 +294,39 @@ class DiscordChannel(BaseChannel):
             except asyncio.CancelledError:
                 pass
         self._status = ChannelStatus.STOPPED
+
+    async def health_check(self) -> bool:
+        """Verify Discord connectivity via REST API probe.
+
+        discord.py reconnects internally on clean WS drops, but when the
+        underlying socket is wedged behind a dead proxy/NAT the WS never
+        sees a RST and the adapter sits in a zombie state.  An out-of-band
+        ``fetch_user`` call exercises the REST path and lets the Gateway's
+        ``_health_loop`` detect the wedge and trigger a restart.
+        """
+        if self._status not in (ChannelStatus.RUNNING, ChannelStatus.DEGRADED):
+            return False
+        if not self.config.enable_gateway:
+            return True
+        if self._gateway_task and self._gateway_task.done():
+            self.health.record_failure("Gateway task terminated")
+            return False
+        if not self._client or self._client.is_closed():
+            self.health.record_failure("Client closed")
+            return False
+        user = self._client.user
+        if not user:
+            return True
+        try:
+            await asyncio.wait_for(
+                self._client.fetch_user(user.id),
+                timeout=_HEALTH_PROBE_TIMEOUT,
+            )
+            self.health.record_success()
+            return True
+        except Exception as exc:
+            self.health.record_failure(str(exc)[:200])
+            return False
 
     # ── Channel resolution ──
 

@@ -808,3 +808,90 @@ class TestCredentialSpecFields:
         field_keys = {name for name, _ in spec.fields}
         assert "voice_follow_users" in field_keys
         assert "voice_allowed_channels" in field_keys
+
+
+class TestDiscordHealthCheck:
+    """Tests for DiscordChannel.health_check REST liveness probe."""
+
+    @pytest.fixture
+    def gw_channel(self):
+        cfg = DiscordChannelConfig(bot_token="tok", enable_gateway=True)
+        ch = DiscordChannel(cfg)
+        ch._status = ChannelStatus.RUNNING
+        return ch
+
+    @pytest.mark.asyncio
+    async def test_stopped_channel_returns_false(self, gw_channel):
+        gw_channel._status = ChannelStatus.STOPPED
+        assert await gw_channel.health_check() is False
+
+    @pytest.mark.asyncio
+    async def test_no_gateway_mode_returns_true(self):
+        cfg = DiscordChannelConfig(bot_token="tok", enable_gateway=False)
+        ch = DiscordChannel(cfg)
+        ch._status = ChannelStatus.RUNNING
+        assert await ch.health_check() is True
+
+    @pytest.mark.asyncio
+    async def test_gateway_task_done_returns_false(self, gw_channel):
+        done_task = AsyncMock()
+        done_task.done.return_value = True
+        gw_channel._gateway_task = done_task
+        assert await gw_channel.health_check() is False
+        assert gw_channel.health.consecutive_failures > 0
+
+    @pytest.mark.asyncio
+    async def test_client_closed_returns_false(self, gw_channel):
+        mock_client = MagicMock()
+        mock_client.is_closed.return_value = True
+        gw_channel._client = mock_client
+        gw_channel._gateway_task = MagicMock(done=MagicMock(return_value=False))
+        assert await gw_channel.health_check() is False
+
+    @pytest.mark.asyncio
+    async def test_no_user_yet_returns_true(self, gw_channel):
+        mock_client = MagicMock()
+        mock_client.is_closed.return_value = False
+        mock_client.user = None
+        gw_channel._client = mock_client
+        gw_channel._gateway_task = MagicMock(done=MagicMock(return_value=False))
+        assert await gw_channel.health_check() is True
+
+    @pytest.mark.asyncio
+    async def test_rest_probe_success(self, gw_channel):
+        mock_user = MagicMock()
+        mock_user.id = 12345
+        mock_client = MagicMock()
+        mock_client.is_closed.return_value = False
+        mock_client.user = mock_user
+        mock_client.fetch_user = AsyncMock(return_value=mock_user)
+        gw_channel._client = mock_client
+        gw_channel._gateway_task = MagicMock(done=MagicMock(return_value=False))
+        assert await gw_channel.health_check() is True
+        mock_client.fetch_user.assert_awaited_once_with(12345)
+
+    @pytest.mark.asyncio
+    async def test_rest_probe_failure(self, gw_channel):
+        mock_user = MagicMock()
+        mock_user.id = 12345
+        mock_client = MagicMock()
+        mock_client.is_closed.return_value = False
+        mock_client.user = mock_user
+        mock_client.fetch_user = AsyncMock(side_effect=Exception("timeout"))
+        gw_channel._client = mock_client
+        gw_channel._gateway_task = MagicMock(done=MagicMock(return_value=False))
+        assert await gw_channel.health_check() is False
+        assert gw_channel.health.consecutive_failures > 0
+
+    @pytest.mark.asyncio
+    async def test_degraded_channel_still_probes(self, gw_channel):
+        gw_channel._status = ChannelStatus.DEGRADED
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_client = MagicMock()
+        mock_client.is_closed.return_value = False
+        mock_client.user = mock_user
+        mock_client.fetch_user = AsyncMock(return_value=mock_user)
+        gw_channel._client = mock_client
+        gw_channel._gateway_task = MagicMock(done=MagicMock(return_value=False))
+        assert await gw_channel.health_check() is True
