@@ -10,7 +10,9 @@ from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
 
 from app.services.agent.background_job_finish_handler import (
     ServerBackgroundJobFinishHandler,
+    _command_preview,
     _format_finish_message,
+    _resolve_user_locale,
 )
 
 
@@ -103,3 +105,129 @@ async def test_handler_skips_non_exited_status() -> None:
         await handler.on_background_job_finish(result)
 
     mock_append.assert_not_called()
+
+
+def test_command_preview_truncates_long_commands() -> None:
+    long_cmd = "x" * 200
+    preview = _command_preview(long_cmd)
+    assert len(preview) == 120
+    assert preview.endswith("...")
+
+
+def test_format_finish_message_with_error_category() -> None:
+    msg = _format_finish_message(
+        BackgroundJobFinishResult(
+            session_id="chat-1",
+            pid=9,
+            command="bad",
+            status="exited",
+            exit_code=137,
+            error_category="oom_killed",
+        ),
+        "en",
+    )
+    assert "oom_killed" in msg
+
+
+def test_format_finish_message_generic_branch() -> None:
+    msg = _format_finish_message(
+        BackgroundJobFinishResult(
+            session_id="chat-1",
+            pid=9,
+            command="bad",
+            status="exited",
+            exit_code=2,
+            error_category=None,
+        ),
+        "en",
+    )
+    assert "exit_code=2" in msg
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_locale_from_personal_settings() -> None:
+    configs = MagicMock()
+    configs.personal_settings_dict = {"locale": "zh-CN"}
+
+    with patch(
+        "app.core.channel_bridge.config_loader.load_user_configs",
+        AsyncMock(return_value=configs),
+    ):
+        locale = await _resolve_user_locale()
+
+    assert "zh" in locale.lower()
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_locale_falls_back_to_language_key() -> None:
+    configs = MagicMock()
+    configs.personal_settings_dict = {"language": "en-US"}
+
+    with patch(
+        "app.core.channel_bridge.config_loader.load_user_configs",
+        AsyncMock(return_value=configs),
+    ):
+        locale = await _resolve_user_locale()
+
+    assert locale.startswith("en")
+
+
+@pytest.mark.asyncio
+async def test_resolve_user_locale_on_load_failure() -> None:
+    with patch(
+        "app.core.channel_bridge.config_loader.load_user_configs",
+        AsyncMock(side_effect=RuntimeError("config unavailable")),
+    ):
+        locale = await _resolve_user_locale()
+
+    assert locale
+
+
+@pytest.mark.asyncio
+async def test_handler_ignores_missing_session_id() -> None:
+    handler = ServerBackgroundJobFinishHandler()
+    result = BackgroundJobFinishResult(
+        session_id="",
+        pid=1,
+        command="x",
+        status="exited",
+        exit_code=0,
+        error_category=None,
+    )
+
+    with patch(
+        "app.services.agent.background_job_finish_handler.ChatService.append_message",
+        AsyncMock(),
+    ) as mock_append:
+        await handler.on_background_job_finish(result)
+
+    mock_append.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_process_logs_exception_without_raising() -> None:
+    handler = ServerBackgroundJobFinishHandler()
+    result = BackgroundJobFinishResult(
+        session_id="chat-x",
+        pid=11,
+        command="fail",
+        status="exited",
+        exit_code=0,
+        error_category=None,
+    )
+
+    with (
+        patch(
+            "app.services.agent.background_job_finish_handler._resolve_user_locale",
+            AsyncMock(return_value="en"),
+        ),
+        patch(
+            "app.services.agent.background_job_finish_handler.ChatService.append_message",
+            AsyncMock(side_effect=RuntimeError("db")),
+        ),
+        patch(
+            "app.services.agent.background_job_finish_handler.get_event_bus",
+            return_value=MagicMock(),
+        ),
+    ):
+        await handler._process(result)

@@ -6007,7 +6007,7 @@
       "autoDeleteHint": "Memories in trash will be permanently removed 7 days after deletion"
     },
     "incognitoMode": "Incognito Mode",
-    "incognitoModeDesc": "When enabled, AI can still recall your memories but will not save new ones. No traces are left after the conversation.",
+    "incognitoModeDesc": "When enabled, this session does not read or write memory (global memory settings are unchanged). No traces remain after the chat.",
     "preCompactEnabled": "Pre-Compaction Memory Recall",
     "preCompactEnabledDesc": "Before context compression, automatically recall relevant durable memories into the active conversation.",
     "preCompactBudget": "Recall token budget",
