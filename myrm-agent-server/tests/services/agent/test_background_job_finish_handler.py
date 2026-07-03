@@ -87,6 +87,24 @@ async def test_handler_appends_message_and_publishes_event() -> None:
 
 
 @pytest.mark.asyncio
+async def test_on_background_job_finish_delegates_to_process() -> None:
+    handler = ServerBackgroundJobFinishHandler()
+    result = BackgroundJobFinishResult(
+        session_id="chat-delegate",
+        pid=3,
+        command="x",
+        status="exited",
+        exit_code=0,
+        error_category=None,
+    )
+
+    with patch.object(handler, "_process", AsyncMock()) as mock_process:
+        await handler.on_background_job_finish(result)
+
+    mock_process.assert_awaited_once_with(result)
+
+
+@pytest.mark.asyncio
 async def test_handler_skips_non_exited_status() -> None:
     handler = ServerBackgroundJobFinishHandler()
     result = BackgroundJobFinishResult(
