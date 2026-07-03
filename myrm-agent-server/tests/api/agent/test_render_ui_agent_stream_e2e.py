@@ -8,11 +8,20 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.api.agent.test_capability_gap_integration import (
-    _collect_agent_stream,
-    _invoked_tool_names,
-)
+from tests.api.agent.test_capability_gap_integration import _collect_agent_stream
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+
+
+def _completed_tool_names(events: list[dict[str, object]]) -> set[str]:
+    """Tool names that actually finished (tool_end), not planning/tool_start noise."""
+    names: set[str] = set()
+    for event in events:
+        if event.get("type") != "tool_end":
+            continue
+        tool_name = event.get("tool_name")
+        if isinstance(tool_name, str) and tool_name:
+            names.add(tool_name)
+    return names
 
 
 @pytest.mark.e2e
@@ -52,9 +61,12 @@ def test_agent_stream_render_ui_emits_ui_update_sse(client: TestClient) -> None:
     events = _collect_agent_stream(client, payload)
     check_e2e_errors(events)
 
-    invoked = _invoked_tool_names(events)
-    if "render_ui_tool" not in invoked:
-        pytest.skip("model did not invoke render_ui_tool; wiring covered by unit/integration tests")
+    completed = _completed_tool_names(events)
+    if "render_ui_tool" not in completed:
+        pytest.skip(
+            "model did not complete render_ui_tool (tool_end missing); "
+            "deterministic wiring covered by tests/integration/test_render_ui_sse_wiring.py"
+        )
 
     ui_events = [
         event
