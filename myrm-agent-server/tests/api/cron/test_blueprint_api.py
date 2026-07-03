@@ -1,0 +1,360 @@
+"""Integration test for cron Blueprint REST API endpoints.
+
+Full-path tests: HTTP → router → blueprint registry → response.
+No mocking — validates the real blueprint catalog is served correctly.
+
+[POS]
+Integration test for cron blueprint API endpoints.
+"""
+
+from __future__ import annotations
+
+from typing import Generator
+from unittest.mock import patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
+from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
+
+from app.api.cron.routes.blueprints import router as blueprint_router
+from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
+
+
+class FakeDelivery:
+    async def deliver(self, job, result):  # noqa: ANN001
+        pass
+
+
+@pytest.fixture
+def client() -> TestClient:
+    app = FastAPI()
+    app.include_router(blueprint_router, prefix="/cron")
+    return TestClient(app)
+
+
+@pytest.fixture
+def full_cron_client() -> Generator[TestClient, None, None]:
+    """Client with full cron router for fill→create lifecycle tests."""
+    from app.api.cron.routes import helpers, router
+
+    store = InMemoryCronStore()
+    scheduler = CronScheduler(store=store, runners={}, delivery=FakeDelivery(), config=CronConfig())
+    manager = CronManager(store, scheduler, shell_enabled=True)
+
+    app = FastAPI()
+    app.include_router(router, prefix="/cron")
+
+    with patch.object(helpers, "_get_manager", return_value=manager):
+        yield TestClient(app)
+
+
+# ---------------------------------------------------------------------------
+# GET /cron/blueprints — catalog listing
+# ---------------------------------------------------------------------------
+
+
+class TestListBlueprints:
+    """GET /cron/blueprints integration — catalog completeness and ordering."""
+
+    def test_returns_all_registered_blueprints(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == len(BUILTIN_BLUEPRINTS)
+
+    def test_read_it_later_present_in_catalog(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        ids = [bp["id"] for bp in resp.json()]
+        assert "read_it_later" in ids
+
+    def test_read_it_later_complete_fields(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        bp = next(b for b in resp.json() if b["id"] == "read_it_later")
+        assert bp["icon"] == "BookmarkPlus"
+        assert bp["category"] == "productivity"
+        assert "en" in bp["title"]
+        assert "zh" in bp["title"]
+        assert "en" in bp["description"]
+        assert "zh" in bp["description"]
+        assert "en" in bp["prompt_template"]
+        assert "zh" in bp["prompt_template"]
+        assert len(bp["slots"]) == 2
+        slot_names = {s["name"] for s in bp["slots"]}
+        assert slot_names == {"time", "weekdays"}
+        assert "read-it-later" in bp["tags"]
+
+    def test_sort_order_monotonically_increasing(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        orders = [bp["sort_order"] for bp in resp.json()]
+        assert orders == sorted(orders)
+
+    def test_all_blueprints_have_bilingual_fields(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        for bp in resp.json():
+            assert "en" in bp["title"], f"{bp['id']} missing en title"
+            assert "zh" in bp["title"], f"{bp['id']} missing zh title"
+            assert "en" in bp["description"], f"{bp['id']} missing en description"
+            assert "zh" in bp["description"], f"{bp['id']} missing zh description"
+
+    def test_all_blueprints_have_non_empty_slots(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        for bp in resp.json():
+            assert len(bp["slots"]) >= 1, f"{bp['id']} has no slots"
+            for slot in bp["slots"]:
+                assert slot["name"], f"{bp['id']} has empty slot name"
+                assert slot["type"] in ("time", "text", "enum")
+
+    def test_unique_ids(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        ids = [bp["id"] for bp in resp.json()]
+        assert len(ids) == len(set(ids))
+
+    def test_response_schema_contract(self, client: TestClient) -> None:
+        """Every blueprint object adheres to BlueprintResponse schema."""
+        resp = client.get("/cron/blueprints")
+        required_keys = {"id", "icon", "title", "description", "prompt_template", "slots", "category", "tags", "sort_order"}
+        for bp in resp.json():
+            assert required_keys.issubset(bp.keys()), f"{bp['id']} missing keys: {required_keys - bp.keys()}"
+
+
+# ---------------------------------------------------------------------------
+# POST /cron/blueprints/fill — prompt + schedule generation
+# ---------------------------------------------------------------------------
+
+
+class TestFillBlueprint:
+    """POST /cron/blueprints/fill — slot interpolation and schedule generation."""
+
+    def test_fill_read_it_later_defaults(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "en"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["schedule"]["kind"] == "cron"
+        assert data["schedule"]["expr"] == "0 6 * * *"
+        assert "read-it-later" in data["prompt"].lower()
+        assert data["name"]
+
+    def test_fill_read_it_later_zh_locale(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "zh"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "稍后读" in data["prompt"] or "知识库" in data["prompt"]
+
+    def test_fill_read_it_later_custom_weekends(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "read_it_later",
+                "values": {"time": "22:30", "weekdays": "weekends"},
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["schedule"]["expr"] == "30 22 * * 0,6"
+
+    def test_fill_read_it_later_weekdays_only(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "read_it_later",
+                "values": {"time": "07:00", "weekdays": "weekdays"},
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["schedule"]["expr"] == "0 7 * * 1-5"
+
+    def test_fill_unknown_blueprint_returns_404(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "nonexistent_xyz", "values": {}},
+        )
+        assert resp.status_code == 404
+        assert "nonexistent_xyz" in resp.json()["detail"]
+
+    def test_fill_prompt_no_unresolved_placeholders(self, client: TestClient) -> None:
+        """read_it_later has no text slots — prompt must not contain Python format braces."""
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "en"},
+        )
+        prompt = resp.json()["prompt"]
+        assert "{" not in prompt
+        assert "}" not in prompt
+
+    def test_fill_with_tz_passthrough(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "en", "tz": "Asia/Shanghai"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["schedule"]["tz"] == "Asia/Shanghai"
+
+    def test_fill_fallback_locale(self, client: TestClient) -> None:
+        """Unknown locale falls back to 'en'."""
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "ja"},
+        )
+        assert resp.status_code == 200
+        assert "read-it-later" in resp.json()["prompt"].lower()
+
+    def test_fill_all_blueprints_succeed(self, client: TestClient) -> None:
+        """Every registered blueprint can be filled with defaults without error."""
+        list_resp = client.get("/cron/blueprints")
+        for bp in list_resp.json():
+            resp = client.post(
+                "/cron/blueprints/fill",
+                json={"blueprint_id": bp["id"], "values": {}, "locale": "en"},
+            )
+            assert resp.status_code == 200, f"fill failed for {bp['id']}: {resp.text}"
+            data = resp.json()
+            assert data["schedule"]["kind"] == "cron"
+            assert data["prompt"]
+
+    def test_fill_all_blueprints_zh(self, client: TestClient) -> None:
+        """Every blueprint produces valid Chinese prompts."""
+        list_resp = client.get("/cron/blueprints")
+        for bp in list_resp.json():
+            resp = client.post(
+                "/cron/blueprints/fill",
+                json={"blueprint_id": bp["id"], "values": {}, "locale": "zh"},
+            )
+            assert resp.status_code == 200, f"fill zh failed for {bp['id']}: {resp.text}"
+
+
+# ---------------------------------------------------------------------------
+# Fill → Create lifecycle (Blueprint-driven cron job creation)
+# ---------------------------------------------------------------------------
+
+
+class TestBlueprintToCronLifecycle:
+    """Integration: fill blueprint → create cron job from result."""
+
+    def test_fill_then_create_cron_job(self, full_cron_client: TestClient) -> None:
+        """Simulate frontend: fill blueprint → use result to create cron job."""
+        fill_resp = full_cron_client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {"time": "06:00"}, "locale": "en"},
+        )
+        assert fill_resp.status_code == 200
+        fill_data = fill_resp.json()
+
+        create_resp = full_cron_client.post(
+            "/cron",
+            json={
+                "name": fill_data["name"],
+                "job_type": "agent",
+                "schedule": fill_data["schedule"],
+                "prompt": fill_data["prompt"],
+            },
+        )
+        assert create_resp.status_code == 201
+        job = create_resp.json()
+        assert job["status"] == "active"
+        assert job["prompt"] == fill_data["prompt"]
+
+    def test_fill_then_create_with_weekdays(self, full_cron_client: TestClient) -> None:
+        fill_resp = full_cron_client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "read_it_later",
+                "values": {"time": "20:00", "weekdays": "weekdays"},
+                "locale": "zh",
+            },
+        )
+        assert fill_resp.status_code == 200
+        fill_data = fill_resp.json()
+
+        create_resp = full_cron_client.post(
+            "/cron",
+            json={
+                "name": fill_data["name"],
+                "job_type": "agent",
+                "schedule": fill_data["schedule"],
+                "prompt": fill_data["prompt"],
+            },
+        )
+        assert create_resp.status_code == 201
+        job = create_resp.json()
+        assert "1-5" in job["schedule"]["expr"]
+
+    def test_created_job_is_retrievable(self, full_cron_client: TestClient) -> None:
+        """Created job can be fetched back via GET."""
+        fill_resp = full_cron_client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "en"},
+        )
+        fill_data = fill_resp.json()
+
+        create_resp = full_cron_client.post(
+            "/cron",
+            json={
+                "name": fill_data["name"],
+                "job_type": "agent",
+                "schedule": fill_data["schedule"],
+                "prompt": fill_data["prompt"],
+            },
+        )
+        job_id = create_resp.json()["id"]
+
+        get_resp = full_cron_client.get(f"/cron/{job_id}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["prompt"] == fill_data["prompt"]
+
+
+# ---------------------------------------------------------------------------
+# Prebuilt skill sync — read-it-later SKILL.md discovery
+# ---------------------------------------------------------------------------
+
+
+class TestPrebuiltSkillDiscovery:
+    """Validates that the read-it-later SKILL.md is discoverable by prebuilt_sync."""
+
+    def test_skill_dir_exists(self) -> None:
+        from app.core.skills.prebuilt_sync import SEEDS_DIR
+
+        skill_dir = SEEDS_DIR / "read-it-later"
+        assert skill_dir.is_dir()
+
+    def test_skill_md_parseable(self) -> None:
+        from myrm_agent_harness.api.skills import parse_skill_frontmatter
+
+        from app.core.skills.prebuilt_sync import SEEDS_DIR
+
+        skill_md = SEEDS_DIR / "read-it-later" / "SKILL.md"
+        content = skill_md.read_text(encoding="utf-8")
+        fm = parse_skill_frontmatter(content, "read-it-later")
+        assert fm.name == "read-it-later"
+        assert fm.description
+        assert fm.category == "productivity"
+        assert fm.version == "1.0.0"
+
+    @pytest.mark.asyncio
+    async def test_sync_prebuilt_seeds_discovers_read_it_later(self, tmp_path: object) -> None:
+        import tempfile
+
+        from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
+
+        import app.core.skills.prebuilt_sync as sync_mod
+        from app.core.skills.prebuilt_sync import sync_prebuilt_seeds
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sync_mod._synced = False
+            try:
+                storage = LocalStorageBackend(tmpdir)
+                result = await sync_prebuilt_seeds(storage)
+                assert "read-it-later" in result.skill_ids
+                assert result.synced_count >= 1
+            finally:
+                sync_mod._synced = True
