@@ -54,6 +54,28 @@ describe('buildDrawerResumeValue', () => {
     });
   });
 
+  it('marks high_risk_dom_action as resumable with semantic decision payload', () => {
+    expect(shouldResumeDrawerApproval('high_risk_dom_action')).toBe(true);
+
+    const domApproval: ApprovalPayload = {
+      approval_id: 'dom-1',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      chat_id: 'chat-1',
+      payload: {
+        tool_input: { action: 'evaluate', expression: 'document.forms[0].submit()' },
+      },
+    };
+
+    const approved = buildDrawerResumeValue(domApproval, 'approve');
+    expect(approved).toEqual({ decision: 'approve' });
+
+    const rejected = buildDrawerResumeValue(domApproval, 'reject', { feedback: 'too risky' });
+    expect(rejected).toEqual({ decision: 'reject', feedback: 'too risky' });
+  });
+
   it('builds edit decision with edited args for single-tool batch', () => {
     const singleToolApproval: ApprovalPayload = {
       ...baseApproval,

@@ -15,6 +15,14 @@ export interface ResumeDecisionsPayload {
   decisions: ApprovalDecision[];
 }
 
+/** LangGraph interrupt resume for semantic DOM HITL (matches harness _parse_interrupt_decision). */
+export interface SemanticDomResumePayload {
+  decision: 'approve' | 'reject';
+  feedback?: string;
+}
+
+export type DrawerResumeValue = ResumeDecisionsPayload | SemanticDomResumePayload;
+
 export interface ToolApprovalResolveExtra {
   edited_args?: Record<string, unknown>;
   feedback?: string;

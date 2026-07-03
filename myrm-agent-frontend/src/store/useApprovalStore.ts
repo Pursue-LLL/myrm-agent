@@ -14,6 +14,11 @@ export interface ApprovalPayloadData {
   artifact_id?: string;
   artifact_name?: string;
   message?: string;
+  tool_input?: Record<string, unknown>;
+  element?: Record<string, unknown>;
+  page_url?: string;
+  reason?: string;
+  action_type?: string;
 }
 
 export interface ApprovalPayload {
@@ -51,7 +56,12 @@ function normalizeToolCalls(value: unknown): ApprovalToolCall[] {
 }
 
 export function normalizeApprovalPayload(raw: Record<string, unknown>): ApprovalPayload {
-  const payload = asRecord(raw.payload);
+  const nestedPayload = asRecord(raw.payload);
+  const toolInput = asRecord(raw.tool_input ?? nestedPayload.tool_input);
+  const element = asRecord(raw.element ?? nestedPayload.element);
+  const pageUrl = asString(raw.page_url ?? nestedPayload.page_url);
+  const payloadToolName = asString(raw.tool_name ?? nestedPayload.tool_name);
+  const payloadReason = asString(raw.reason ?? nestedPayload.reason);
 
   return {
     approval_id: asString(raw.approval_id) || asString(raw.id),
@@ -59,15 +69,21 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
     action_type: asString(raw.action_type, 'unknown'),
     status: asString(raw.status, 'PENDING'),
     severity: asString(raw.severity, 'warning'),
-    reason: asString(raw.reason) || undefined,
+    reason: asString(raw.reason) || payloadReason || undefined,
     payload: {
-      content: asString(payload.content) || undefined,
-      patch_content: asString(payload.patch_content) || undefined,
-      original_content: asString(payload.original_content) || undefined,
-      tool_calls: normalizeToolCalls(payload.tool_calls),
-      artifact_id: asString(payload.artifact_id) || undefined,
-      artifact_name: asString(payload.artifact_name) || undefined,
-      message: asString(payload.message) || undefined,
+      content: asString(nestedPayload.content) || undefined,
+      patch_content: asString(nestedPayload.patch_content) || undefined,
+      original_content: asString(nestedPayload.original_content) || undefined,
+      tool_calls: normalizeToolCalls(nestedPayload.tool_calls ?? raw.tool_calls),
+      artifact_id: asString(nestedPayload.artifact_id) || undefined,
+      artifact_name: asString(nestedPayload.artifact_name) || undefined,
+      message: asString(nestedPayload.message) || undefined,
+      tool_name: payloadToolName || undefined,
+      tool_input: Object.keys(toolInput).length > 0 ? toolInput : undefined,
+      element: Object.keys(element).length > 0 ? element : undefined,
+      page_url: pageUrl || undefined,
+      reason: payloadReason || undefined,
+      action_type: asString(nestedPayload.action_type ?? raw.action_type) || undefined,
     },
     chat_id: asString(raw.chat_id) || undefined,
     expires_at: asString(raw.expires_at) || undefined,

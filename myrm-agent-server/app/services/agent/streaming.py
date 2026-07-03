@@ -198,7 +198,32 @@ async def ai_agent_service_stream(
                     action_type = approval_data.get("action_type", "unknown")
 
                     try:
-                        approval_payload = approval_data.get("payload", {})
+                        nested_payload = approval_data.get("payload")
+                        if isinstance(nested_payload, dict) and nested_payload:
+                            approval_payload: dict[str, object] = dict(nested_payload)
+                        else:
+                            _meta_keys = frozenset(
+                                {
+                                    "approval_id",
+                                    "severity",
+                                    "reason",
+                                    "action_type",
+                                    "type",
+                                    "messageId",
+                                    "chat_id",
+                                    "user_id",
+                                    "status",
+                                    "expires_at",
+                                    "thread_id",
+                                    "payload",
+                                }
+                            )
+                            approval_payload = {
+                                k: v
+                                for k, v in approval_data.items()
+                                if k not in _meta_keys and v is not None
+                            }
+
                         timeout_seconds = approval_payload.get("approval_timeout_seconds")
                         expires_at = None
                         if timeout_seconds:

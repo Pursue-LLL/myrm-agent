@@ -13,11 +13,15 @@
 import type { ApprovalPayload } from '@/store/useApprovalStore';
 import {
   buildApprovalDecision,
-  type ResumeDecisionsPayload,
+  type DrawerResumeValue,
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/approvalDecision';
 
-const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval', 'deploy_approval']);
+const DRAWER_RESUME_ACTION_TYPES = new Set([
+  'subagent_approval',
+  'deploy_approval',
+  'high_risk_dom_action',
+]);
 
 /**
  * [INPUT] Drawer approval record + user decision
@@ -32,12 +36,19 @@ export function buildDrawerResumeValue(
   approval: ApprovalPayload,
   action: 'approve' | 'reject' | 'edit',
   extra?: ToolApprovalResolveExtra,
-): ResumeDecisionsPayload {
+): DrawerResumeValue {
   const decisionType = action === 'reject' ? 'reject' : action === 'edit' ? 'edit' : 'approve';
   const resolveExtra: ToolApprovalResolveExtra = {
     ...extra,
     feedback: extra?.feedback ?? (action === 'reject' ? 'User rejected this action.' : undefined),
   };
+
+  if (approval.action_type === 'high_risk_dom_action') {
+    return {
+      decision: action === 'reject' ? 'reject' : 'approve',
+      ...(resolveExtra.feedback ? { feedback: resolveExtra.feedback } : {}),
+    };
+  }
 
   if (approval.action_type === 'subagent_approval') {
     const toolCount = approval.payload?.tool_calls?.length ?? 0;

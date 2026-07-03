@@ -10,7 +10,7 @@
  * 聊天输入区视图层。承载消息输入、模式切换、附件、快捷操作与发送控制。
  */
 import * as React from 'react';
-import { ArrowRight, Square, Plus, Clock, X, Navigation, ListPlus, Pencil, Check } from 'lucide-react';
+import { ArrowRight, Square, Plus, Clock, X, Navigation, ListPlus, Pencil, Check, Maximize2, Minimize2 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import AttachList from '../message-input-actions/AttachList';
 import AttachButton from '../message-input-actions/AttachButton';
@@ -105,6 +105,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
   const isVoiceEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
 
   const [isMobileSheetOpen, setIsMobileSheetOpen] = React.useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   const {
     showLinkDialog,
@@ -241,7 +242,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
 
   return (
     <>
-      <div className="relative w-full">
+      <div className={isExpanded ? 'fixed inset-0 z-50 flex flex-col justify-end bg-background/95 backdrop-blur-sm p-4 sm:p-6' : 'relative w-full'}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -250,6 +251,18 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
           onKeyDown={(e) => {
             // IME 组合输入阶段不拦截按键，避免回车键误发送或触发快捷指令。
             if (e.nativeEvent.isComposing) {
+              return;
+            }
+
+            if (isExpanded && e.key === 'Escape') {
+              e.preventDefault();
+              setIsExpanded(false);
+              return;
+            }
+
+            if (e.key === 'Enter' && e.ctrlKey && e.shiftKey) {
+              e.preventDefault();
+              setIsExpanded((prev) => !prev);
               return;
             }
 
@@ -454,7 +467,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               onKeyUp={updateCursorPosition}
               onClick={updateCursorPosition}
               minRows={2}
-              className="bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full max-h-24 lg:max-h-36 xl:max-h-48"
+              className={`bg-transparent placeholder:text-muted-foreground/50 text-sm text-black dark:text-white resize-none focus:outline-none w-full ${isExpanded ? 'max-h-[75vh]' : 'max-h-24 sm:max-h-[35vh] lg:max-h-[40vh]'}`}
               placeholder={
                 inputHistory.ghostText
                   ? inputHistory.ghostText
@@ -502,6 +515,15 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <AgentIndicator />
                   <ToolsPanel />
                   <WorkspaceDirPicker />
+                  <button
+                    type="button"
+                    onClick={() => setIsExpanded((prev) => !prev)}
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    aria-label={isExpanded ? 'Collapse editor' : 'Expand editor'}
+                    title="Ctrl+Shift+Enter"
+                  >
+                    {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  </button>
                 </div>
               </div>
               {/* 右侧：发送操作 */}

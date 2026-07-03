@@ -203,4 +203,20 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.getByText(/click\(e2, "hello"\)/)).toBeInTheDocument();
     expect(screen.queryByText('toolApproval.jsExpression')).not.toBeInTheDocument();
   });
+
+  it('renders page URL for high-risk DOM approval', () => {
+    renderCard({
+      approval_id: 'approval-dom-page-url',
+      user_id: 'user-1',
+      action_type: 'high_risk_dom_action',
+      status: 'PENDING',
+      severity: 'critical',
+      payload: {
+        tool_input: { action: 'evaluate', expression: 'document.title' },
+        page_url: 'https://example.com/account',
+      },
+    });
+
+    expect(screen.getByText('https://example.com/account')).toBeInTheDocument();
+  });
 });

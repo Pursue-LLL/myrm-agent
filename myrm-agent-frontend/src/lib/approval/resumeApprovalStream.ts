@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 
 import type { ToolApprovalRequest } from '@/store/chat/types';
-import type { ResumeDecisionsPayload } from '@/lib/approval/approvalDecision';
+import type { DrawerResumeValue, ResumeDecisionsPayload } from '@/lib/approval/approvalDecision';
 import { AdaptiveScheduler } from '@/store/chat/adaptiveScheduler';
 import type { StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import {
@@ -23,7 +23,7 @@ export { buildApprovalDecision } from '@/lib/approval/approvalDecision';
 
 export async function resumeApprovalStream(
   request: ToolApprovalRequest,
-  resumeValue: ResumeDecisionsPayload,
+  resumeValue: DrawerResumeValue,
   resumeErrorMessage: string,
 ): Promise<void> {
   const { default: useChatStore } = await import('@/store/useChatStore');
