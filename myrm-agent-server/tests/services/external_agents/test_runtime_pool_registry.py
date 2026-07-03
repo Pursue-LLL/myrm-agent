@@ -217,3 +217,70 @@ async def test_facade_cancel_does_not_deadlock_during_run_turn() -> None:
     pool.cancel.assert_awaited_once_with("claude", "s1")
     unblock.set()
     await task
+
+
+@pytest.mark.asyncio
+async def test_guard_turn_noop_for_empty_scope() -> None:
+    registry = ChatRuntimePoolRegistry()
+    ran = False
+
+    async with registry.guard_turn(None):
+        ran = True
+    async with registry.guard_turn(""):
+        ran = True
+
+    assert ran is True
+
+
+@pytest.mark.asyncio
+async def test_close_chat_tears_down_pool_and_turn_lock() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+
+    async def build_pool() -> MagicMock:
+        pool = MagicMock()
+        pool.available_backends = ["claude"]
+        pool.close_all = AsyncMock()
+        return pool
+
+    pool = await registry.acquire("chat-1", "fp-a", build_pool)
+    async with registry.guard_turn("chat-1"):
+        pass
+
+    await registry.close_chat("chat-1")
+    pool.close_all.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_all_continues_after_single_pool_failure() -> None:
+    registry = ChatRuntimePoolRegistry(idle_seconds=3600.0)
+    good = MagicMock()
+    good.available_backends = ["claude"]
+    good.close_all = AsyncMock()
+    bad = MagicMock()
+    bad.available_backends = ["codex"]
+    bad.close_all = AsyncMock(side_effect=RuntimeError("boom"))
+
+    build_seq = iter([good, bad])
+
+    async def build_pool() -> MagicMock:
+        return next(build_seq)
+
+    await registry.acquire("chat-a", "fp-a", build_pool)
+    await registry.acquire("chat-b", "fp-a", build_pool)
+    await registry.close_all()
+    good.close_all.assert_awaited_once()
+    bad.close_all.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_facade_delegates_properties_and_getattr() -> None:
+    registry = ChatRuntimePoolRegistry()
+    pool = MagicMock()
+    pool.available_backends = ["claude", "codex"]
+    pool.get_config = MagicMock(return_value={"name": "claude"})
+    pool.start_monitoring = AsyncMock()
+
+    facade = ChatScopedRuntimePoolFacade(pool, "chat-1", registry)
+    assert facade.available_backends == ["claude", "codex"]
+    assert facade.get_config("claude") == {"name": "claude"}
+    assert facade.start_monitoring is pool.start_monitoring

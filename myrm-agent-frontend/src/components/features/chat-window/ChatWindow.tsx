@@ -248,6 +248,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
           variant: 'default',
         });
       }
+
+      if (meta?.kind === 'background_job_finish' && meta?.chat_id === id) {
+        void initializeChat(id);
+      }
     };
 
     window.addEventListener('async-agent-stream-chunk', handleAsyncChunk);
@@ -258,7 +262,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       window.removeEventListener('system-notification', handleSystemNotification);
       unsubscribe();
     };
-  }, [id]);
+  }, [id, initializeChat]);
 
   useEffect(() => {
     initConfig();

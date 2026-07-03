@@ -236,6 +236,15 @@ async def run_async_warmup() -> None:
     set_global_wakeup_handler(ServerWakeupHandler())
     logger.info("[Startup] ServerWakeupHandler registered for async subagent completions")
 
+    from myrm_agent_harness.api.hooks import set_global_background_job_finish_handler
+
+    from app.services.agent.background_job_finish_handler import (
+        ServerBackgroundJobFinishHandler,
+    )
+
+    set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
+    logger.info("[Startup] ServerBackgroundJobFinishHandler registered for background bash jobs")
+
     try:
         await warmup_global_browser_pool()
     except Exception as exc:

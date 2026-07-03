@@ -60,6 +60,10 @@ async def test_delegate_to_agent_mounts_in_tools_not_deferred() -> None:
     assert len(tools) == 1
     assert getattr(tools[0], "name", None) == "delegate_to_agent_tool"
     assert discoverable_tools == []
+    from app.services.external_agents.runtime_pool_registry import ChatScopedRuntimePoolFacade
+
+    assert isinstance(mixin._runtime_pool, ChatScopedRuntimePoolFacade)
+    assert mixin._runtime_pool_from_registry is True
     mock_pool.start_monitoring.assert_awaited_once()
 
 
@@ -101,6 +105,9 @@ async def test_direct_only_skips_delegate_tool_but_keeps_pool() -> None:
 
     assert tools == []
     assert mixin._runtime_pool is not None
+    from app.services.external_agents.runtime_pool_registry import ChatScopedRuntimePoolFacade
+
+    assert isinstance(mixin._runtime_pool, ChatScopedRuntimePoolFacade)
     assert mixin._runtime_pool.available_backends == ["test-cli"]
     assert mixin._runtime_pool_from_registry is True
     create_tool.assert_not_called()

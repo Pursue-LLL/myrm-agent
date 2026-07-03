@@ -264,16 +264,22 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
       }
     });
 
-    // Loud levels also surface a transient toast so a critical signal is
-    // not missed when the user is scrolled away from the activity card.
-    if (level === 'alert' || level === 'warn') {
-      const { toast } = await import('@/lib/utils/toast');
-      if (level === 'alert') {
-        toast.error(message, { duration: 8000 });
-      } else {
-        toast.warning(message, { duration: 6000 });
-      }
-    }
+        # Loud levels also surface a transient toast so a critical signal is
+        # not missed when the user is scrolled away from the activity card.
+        // Background job completion (info + progress 100) also toasts so GUI
+        // users notice without re-opening the activity strip.
+        const isBackgroundFinish =
+          category?.startsWith('background:') && progress === 100;
+        if (level === 'alert' || level === 'warn' || isBackgroundFinish) {
+          const { toast } = await import('@/lib/utils/toast');
+          if (level === 'alert') {
+            toast.error(message, { duration: 8000 });
+          } else if (level === 'warn') {
+            toast.warning(message, { duration: 6000 });
+          } else {
+            toast.success(message, { duration: 6000 });
+          }
+        }
     return done(ctx);
   }
 
