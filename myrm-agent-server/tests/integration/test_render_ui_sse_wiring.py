@@ -9,8 +9,11 @@ import pytest
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from myrm_agent_harness.agent._internals.run_lifecycle import post_run_events
 from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
+from myrm_agent_harness.agent.artifacts import register_ui_artifact
+from myrm_agent_harness.agent.artifacts.ui_artifact import UIArtifact, UIDataUpdate
 from myrm_agent_harness.agent.artifacts.ui_registry import (
     bind_run_message_id,
+    get_ui_registry,
     pop_pending_ui_events_for_message,
     pop_run_message_id,
 )
@@ -385,3 +388,152 @@ async def test_pop_run_message_id_blocks_orphan_register() -> None:
     )
     assert result.startswith("Failed to render UI")
     assert pop_pending_ui_events_for_message("msg_pop_test") == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_empty_components_fail_closed_no_stash(
+    run_bind_session: tuple[str, str],
+) -> None:
+    """Empty components list must fail-closed with no pending UI events."""
+    _session_key, message_id = run_bind_session
+
+    result = render_ui(title="Empty", components=[], root_ids=[])
+    assert result.startswith("Failed to render UI")
+    assert "must not be empty" in result
+
+    collected = [event async for event in collect_ui_artifacts(message_id)]
+    assert collected == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_duplicate_component_id_fail_closed_no_ui_update(
+    run_bind_session: tuple[str, str],
+) -> None:
+    """Duplicate component ids in adjacency graph must fail-closed."""
+    _session_key, message_id = run_bind_session
+
+    result = render_ui(
+        title="Dup IDs",
+        components=[
+            {"id": "dup", "type": "text", "props": {"text": "a"}},
+            {"id": "dup", "type": "text", "props": {"text": "b"}},
+        ],
+        root_ids=["dup"],
+    )
+    assert result.startswith("Failed to render UI")
+    assert "duplicate" in result.lower()
+
+    collected = [event async for event in collect_ui_artifacts(message_id)]
+    assert collected == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_collect_ui_artifacts_emits_data_update_after_registry_update() -> None:
+    """UIDataUpdate stashed in registry must emit data_update SSE in post_run."""
+    message_id = "msg_data_update_collect"
+
+    with ArtifactContextManager(message_id=message_id):
+        render_ui(
+            title="Live Form",
+            components=[{"id": "name", "type": "text_field", "props": {"label": "Name"}}],
+            root_ids=["name"],
+            data={"form": {"name": ""}},
+        )
+        registry = get_ui_registry()
+        assert registry is not None
+        pending = pop_pending_ui_events_for_message(message_id)
+        assert len(pending) == 1
+        artifact = pending[0]
+        assert isinstance(artifact, UIArtifact)
+        register_ui_artifact(artifact)
+        registry.add_data_update(UIDataUpdate(surface_id=artifact.surface_id, updates={"form": {"name": "Alice"}}))
+
+        events = [event async for event in collect_ui_artifacts(message_id)]
+
+    data_updates = [event for event in events if event.get("subtype") == "data_update"]
+    ui_artifacts = [event for event in events if event.get("subtype") == "ui_artifact"]
+    assert len(ui_artifacts) == 1
+    assert len(data_updates) == 1
+    assert data_updates[0]["data"]["surface_id"] == artifact.surface_id
+    assert data_updates[0]["data"]["updates"] == {"form": {"name": "Alice"}}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_post_run_data_update_before_message_end_through_collector() -> None:
+    """post_run must forward data_update; StreamContentCollector merges into uiArtifacts."""
+    message_id = "msg_post_run_data_update"
+
+    with ArtifactContextManager(message_id=message_id):
+        render_ui(
+            title="Merge Form",
+            components=[{"id": "note", "type": "text_field", "props": {"label": "Note"}}],
+            root_ids=["note"],
+            data={"form": {"note": ""}},
+        )
+        pending = pop_pending_ui_events_for_message(message_id)
+        artifact = pending[0]
+        assert isinstance(artifact, UIArtifact)
+        register_ui_artifact(artifact)
+        registry = get_ui_registry()
+        assert registry is not None
+        registry.add_data_update(UIDataUpdate(surface_id=artifact.surface_id, updates={"form": {"note": "done"}}))
+
+        stats = AgentRunStatistics()
+        harness_events = [event async for event in post_run_events(stats, message_id, {}, False, None)]
+
+    data_events = [event for event in harness_events if event.get("subtype") == "data_update"]
+    assert len(data_events) == 1
+    assert harness_events[-1]["type"] == AgentEventType.MESSAGE_END.value
+
+    collector = StreamContentCollector(chat_id="chat_data_update", sibling_group_id="sib_data_update")
+    for event in harness_events:
+        if event.get("type") == AgentEventType.UI_UPDATE.value:
+            collector.feed_event(event)
+
+    extra = collector.extra_data
+    assert extra is not None
+    assert extra["uiArtifacts"][0]["data"]["form"]["note"] == "done"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_collect_ui_artifacts_is_idempotent_no_double_delivery(
+    run_bind_session: tuple[str, str],
+) -> None:
+    """Second collect_ui_artifacts call must not re-emit the same UI."""
+    _session_key, message_id = run_bind_session
+
+    render_ui(
+        title="Once",
+        components=[{"id": "t1", "type": "text", "props": {"text": "x"}}],
+        root_ids=["t1"],
+    )
+
+    first = [event async for event in collect_ui_artifacts(message_id)]
+    second = [event async for event in collect_ui_artifacts(message_id)]
+    assert len(first) == 1
+    assert second == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_data_update_for_unknown_surface_id_still_emits_but_collector_ignores() -> None:
+    """Orphan data_update SSE is emitted; server collector ignores unknown surface_id."""
+    message_id = "msg_orphan_data_update"
+
+    with ArtifactContextManager(message_id=message_id):
+        registry = get_ui_registry()
+        assert registry is not None
+        registry.add_data_update(UIDataUpdate(surface_id="ghost_surface", updates={"k": "v"}))
+
+        events = [event async for event in collect_ui_artifacts(message_id)]
+    assert len(events) == 1
+    assert events[0]["subtype"] == "data_update"
+
+    collector = StreamContentCollector(chat_id="chat_orphan", sibling_group_id="sib_orphan")
+    collector.feed_event(events[0])
+    assert collector.extra_data is None

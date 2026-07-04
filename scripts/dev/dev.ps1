@@ -27,6 +27,31 @@ if (-not (Test-Path $py)) {
 $env:DEPLOY_MODE = "local"
 $env:HOST = "127.0.0.1"
 $env:PORT = "8080"
+
+$agentRoot = Split-Path $ServerDir -Parent
+$monorepoRoot = Split-Path $agentRoot -Parent
+$harnessSrc = Join-Path $monorepoRoot "myrm-agent-harness\src\myrm_agent_harness"
+if (Test-Path $harnessSrc) {
+    $expectedSrc = (Resolve-Path $harnessSrc).Path
+    $check = & $py -c @"
+import pathlib
+import myrm_agent_harness
+from myrm_agent_harness._distribution import get_distribution_mode
+from myrm_agent_harness.agent.artifacts.ui_registry import bind_run_message_id  # noqa: F401
+pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
+print(get_distribution_mode().value)
+print(pkg)
+"@ 2>$null
+    if ($check -and $check.Count -ge 2) {
+        $mode = $check[0]
+        $pkgDir = $check[1]
+        if ($mode -ne "source" -or $pkgDir -ne $expectedSrc) {
+            Write-Warning "Server venv harness is not monorepo editable source (mode=$mode)."
+            Write-Warning "pytest may pass while live agent-stream misses ui_update. Fix: ./myrm harness install"
+        }
+    }
+}
+
 Set-Location $ServerDir
 $p = Start-Process -FilePath $py -ArgumentList "run.py" -RedirectStandardOutput $LogFile -RedirectStandardError $LogFile -PassThru -WindowStyle Hidden
 $p.Id | Set-Content $PidFile
