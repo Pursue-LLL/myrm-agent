@@ -99,6 +99,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "power",
         "project",
         "repair",
+        "web_fetch",
     }
 )
 

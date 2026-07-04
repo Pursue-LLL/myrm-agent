@@ -210,42 +210,48 @@ async def execute_stream_pipeline(
 
     task_completed = False
     async with SleepInhibitor.hold():
-        try:
-            async for event in agent_wrapper.agent.run(
-                query,
-                chat_history=chat_history,
-                message_id=message_id,
-                context=context,
-                cancel_token=cancel_token,
-                steering_token=steering_token,
-                timezone=timezone,
-            ):
-                if cancel_token and cancel_token.is_cancelled:
-                    logger.warning(f"🛑 GeneralAgent 被取消: chat_id={message_id}")
-                    break
+        from app.services.web_fetch.binding import open_web_fetch_escalation_context
 
-                if agent_wrapper._checkpoint_helper:
-                    should_update = await update_checkpoint_counters(agent_wrapper._checkpoint_helper, event)
-                    if should_update:
-                        await agent_wrapper._checkpoint_helper.update_context(context)
-
-                yield event
-
-            task_completed = True
-        except Exception:
-            if agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
-                await mark_thread_failed(agent_wrapper._current_thread_id)
-            raise
-        finally:
+        async with open_web_fetch_escalation_context(
+            session_id=str(context["session_id"]),
+            browser_source=getattr(agent_wrapper, "browser_source", None),
+        ):
             try:
-                session_id_var.reset(token)
-            except ValueError:
-                pass
+                async for event in agent_wrapper.agent.run(
+                    query,
+                    chat_history=chat_history,
+                    message_id=message_id,
+                    context=context,
+                    cancel_token=cancel_token,
+                    steering_token=steering_token,
+                    timezone=timezone,
+                ):
+                    if cancel_token and cancel_token.is_cancelled:
+                        logger.warning(f"🛑 GeneralAgent 被取消: chat_id={message_id}")
+                        break
 
-            try:
-                resolved_skill_versions_var.reset(version_token)
-            except ValueError:
-                pass
+                    if agent_wrapper._checkpoint_helper:
+                        should_update = await update_checkpoint_counters(agent_wrapper._checkpoint_helper, event)
+                        if should_update:
+                            await agent_wrapper._checkpoint_helper.update_context(context)
 
-            if task_completed and agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
-                await mark_thread_completed(agent_wrapper._current_thread_id)
+                    yield event
+
+                task_completed = True
+            except Exception:
+                if agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
+                    await mark_thread_failed(agent_wrapper._current_thread_id)
+                raise
+            finally:
+                try:
+                    session_id_var.reset(token)
+                except ValueError:
+                    pass
+
+                try:
+                    resolved_skill_versions_var.reset(version_token)
+                except ValueError:
+                    pass
+
+                if task_completed and agent_wrapper._checkpoint_helper and agent_wrapper._current_thread_id:
+                    await mark_thread_completed(agent_wrapper._current_thread_id)

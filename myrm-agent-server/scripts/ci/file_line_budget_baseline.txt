@@ -27,7 +27,6 @@ app/api/statistics/context_health.py
 app/api/statistics/growth_dashboard.py
 app/api/statistics/router.py
 app/api/voice/agent_bridge.py
-app/api/voice/realtime.py
 app/api/voice/ws_session.py
 app/api/webui/router.py
 app/api/wiki/router.py
@@ -98,6 +97,7 @@ app/database/repositories/conversation_recall_repo.py
 app/lifecycle/memory_guardian.py
 app/lifecycle/schedulers.py
 app/platform_utils/sandbox/storage.py
+app/schemas/config.py
 app/schemas/control_plane.py
 app/schemas/memory/command_center.py
 app/server/lifespan.py

@@ -44,6 +44,7 @@ export type {
   BrowserCloudProviderType,
   BrowserProxyConfigValue,
   CaptchaSolverConfigValue,
+  WebFetchEscalationConfigValue,
 } from './types';
 
 // 工具函数导出

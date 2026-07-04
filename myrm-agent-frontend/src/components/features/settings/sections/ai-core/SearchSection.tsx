@@ -17,6 +17,7 @@ import SearchServiceCard from '../../SearchServiceCard';
 import SearchServiceEditDialog from '../../SearchServiceEditDialog';
 import SearxngInstallConsentDialog from '../../SearxngInstallConsentDialog';
 import SettingsSection from '../SettingsSection';
+import WebFetchEscalationCard from './WebFetchEscalationCard';
 import { useDeployMode } from '@/hooks/useDeployMode';
 
 const SearchSection = memo(() => {
@@ -247,6 +248,8 @@ const SearchSection = memo(() => {
           </div>
         )}
       </SettingsSection>
+
+      <WebFetchEscalationCard />
 
       <SearchServiceEditDialog
         isOpen={isDialogOpen}

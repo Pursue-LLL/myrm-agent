@@ -74,6 +74,7 @@ export type ConfigKey =
   | 'browserCloudProvider'
   | 'browserProxy'
   | 'captchaSolverConfig'
+  | 'webFetchEscalation'
   | 'orgMcpServers';
 
 /** 所有配置键（用于按需加载） */
@@ -108,6 +109,7 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'browserCloudProvider',
   'browserProxy',
   'captchaSolverConfig',
+  'webFetchEscalation',
   'orgMcpServers',
 ] as const;
 
@@ -458,6 +460,18 @@ export interface CaptchaSolverConfigValue {
   api_key: string;
 }
 
+export interface WebFetchFirecrawlConfigValue {
+  inheritFromSearch: boolean;
+  api_key: string | null;
+}
+
+export interface WebFetchEscalationConfigValue {
+  enabled: boolean;
+  jinaApiKey: string | null;
+  firecrawl: WebFetchFirecrawlConfigValue;
+  sessionCap: number;
+}
+
 /**
  * 配置键到值类型的映射
  */
@@ -492,6 +506,7 @@ export interface ConfigValueMap {
   browserCloudProvider: BrowserCloudProviderConfigValue;
   browserProxy: BrowserProxyConfigValue;
   captchaSolverConfig: CaptchaSolverConfigValue;
+  webFetchEscalation: WebFetchEscalationConfigValue;
   orgMcpServers: OrgMcpServersConfigValue;
 }
 
@@ -519,6 +534,7 @@ export const SENSITIVE_CONFIG_KEYS: readonly ConfigKey[] = [
   'browserCloudProvider',
   'browserProxy',
   'captchaSolverConfig',
+  'webFetchEscalation',
 ];
 
 /**

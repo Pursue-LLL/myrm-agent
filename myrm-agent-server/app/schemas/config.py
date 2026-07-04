@@ -50,6 +50,7 @@ ConfigKey = Literal[
     "browserCloudProvider",
     "browserProxy",
     "captchaSolverConfig",
+    "webFetchEscalation",
 ]
 
 # ============================================================================
@@ -257,6 +258,47 @@ class CaptchaSolverConfigValue(BaseModel):
     api_key: str = Field(default="", description="CapSolver API key")
 
 
+class WebFetchFirecrawlConfig(BaseModel):
+    """Firecrawl settings for web fetch escalation."""
+
+    inherit_from_search: bool = Field(
+        default=True,
+        alias="inheritFromSearch",
+        description="Reuse enabled Firecrawl API key from searchServices when true",
+    )
+    api_key: str | None = Field(
+        None,
+        description="Dedicated Firecrawl API key override",
+        json_schema_extra={"ui:widget": "password"},
+    )
+
+    class Config:
+        populate_by_name = True
+
+
+class WebFetchEscalationConfigValue(BaseModel):
+    """Remote reader fallback (L4) after local HTTP/Browser/Stealth exhaustion."""
+
+    enabled: bool = Field(default=False, description="Enable remote fetch escalation (default OFF)")
+    jina_api_key: str | None = Field(
+        None,
+        alias="jinaApiKey",
+        description="Optional Jina Reader API key (null = free tier)",
+        json_schema_extra={"ui:widget": "password"},
+    )
+    firecrawl: WebFetchFirecrawlConfig = Field(default_factory=WebFetchFirecrawlConfig)
+    session_cap: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        alias="sessionCap",
+        description="Max L4 attempts per agent session",
+    )
+
+    class Config:
+        populate_by_name = True
+
+
 OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "searchServices": SearchServicesConfigValue,
     "personalSettings": PersonalSettingsConfigValue,
@@ -265,6 +307,7 @@ OMNI_CONFIG_MODELS: dict[str, type[BaseModel]] = {
     "browserCloudProvider": BrowserCloudProviderConfigValue,
     "browserProxy": BrowserProxyConfigValue,
     "captchaSolverConfig": CaptchaSolverConfigValue,
+    "webFetchEscalation": WebFetchEscalationConfigValue,
 }
 
 # ============================================================================

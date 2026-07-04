@@ -71,6 +71,7 @@ from app.core.channel_bridge.config_loader import load_user_configs
 from app.core.memory.proactive.settings import (
     resolve_conversation_search_enabled,
     resolve_memory_enabled,
+)
 from app.core.channel_bridge.config_parsers import (
     extract_fallback_model_configs,
     extract_lite_model_config,
