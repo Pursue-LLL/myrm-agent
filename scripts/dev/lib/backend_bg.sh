@@ -38,7 +38,7 @@ print(pkg)
   fi
 
   if [[ "${mode}" != "source" || "${pkg_dir}" != "${expected_src}" ]]; then
-    echo "⚠️  WARNING: Server venv harness is not monorepo editable source." >&2
+    echo "WARNING: Server venv harness is not monorepo editable source." >&2
     echo "   mode=${mode}  import=${pkg_dir}" >&2
     echo "   expected=${expected_src}" >&2
     echo "   pytest may pass while live agent-stream misses ui_update (stale wheel)." >&2
@@ -57,6 +57,7 @@ _start_backend_bg() {
     old_pid="$(cat "${pid_file}")"
     if kill -0 "${old_pid}" 2>/dev/null; then
       echo "Backend already running (pid ${old_pid})"
+      _warn_harness_editable_for_monorepo "${server_dir}"
       return 0
     fi
     rm -f "${pid_file}"

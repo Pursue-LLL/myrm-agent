@@ -19,7 +19,7 @@
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `subagent-dashboard-e2e-poll.mjs` | 双平台 | 诊断：prepare 后 list 持久性轮询 + cancel |
-| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source） |
+| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 stderr WARNING |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
 ## WebUI E2E（MCP chrome-devtools，禁止 @playwright/test）
