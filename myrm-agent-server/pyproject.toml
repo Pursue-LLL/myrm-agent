@@ -116,6 +116,7 @@ dev = [
   "pytest-xdist>=3.8.0",         # 并行测试执行
   "pytest-timeout>=2.4.0",       # 测试超时保护
   "mypy>=2.1.0",
+  "pyright>=1.1.408",
   "blockbuster>=1.5.26",
 ]
 
@@ -178,5 +179,16 @@ ignore_missing_imports = true
 module = "app.database.models.*"
 follow_imports = "silent"
 
-
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+include = ["app"]
+venvPath = "."
+venv = ".venv"
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+reportGeneralTypeIssues = false
+reportUnsupportedDunderAll = false
+reportUnnecessaryTypeIgnoreComment = true
 
