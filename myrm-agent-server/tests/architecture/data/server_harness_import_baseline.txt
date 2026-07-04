@@ -20,6 +20,7 @@ myrm_agent_harness.agent.context_management.strategies.summarizer
 myrm_agent_harness.agent.context_management.tracking.task_metrics
 myrm_agent_harness.agent.coordination.mailbox
 myrm_agent_harness.agent.deep_research
+myrm_agent_harness.agent.deep_research.helpers
 myrm_agent_harness.agent.dynamic_workflow
 myrm_agent_harness.agent.event_log
 myrm_agent_harness.agent.event_log.analytics_queries
@@ -373,7 +374,10 @@ myrm_agent_harness.toolkits.web_search.engine
 myrm_agent_harness.toolkits.web_search.local_probe
 myrm_agent_harness.toolkits.web_search.web_searcher
 myrm_agent_harness.toolkits.wiki
+myrm_agent_harness.toolkits.wiki.core.config
 myrm_agent_harness.toolkits.wiki.core.refactor
+myrm_agent_harness.toolkits.wiki.core.structure
+myrm_agent_harness.toolkits.wiki.pipeline.compiler
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils
