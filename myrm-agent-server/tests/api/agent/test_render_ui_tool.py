@@ -5,7 +5,7 @@
 """
 
 from myrm_agent_harness.agent.artifacts.context import ArtifactContextManager
-from myrm_agent_harness.agent.artifacts.ui_registry import get_ui_registry
+from myrm_agent_harness.agent.artifacts.ui_registry import get_ui_registry, pop_run_message_id
 from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import render_ui
 
 
@@ -137,6 +137,7 @@ class TestRenderUITool:
 
     def test_render_ui_outside_context(self):
         """Outside ArtifactContext must fail-closed."""
+        pop_run_message_id("")
         result = render_ui(
             title="No Context",
             components=[{"id": "t", "type": "text", "props": {"text": "x"}}],

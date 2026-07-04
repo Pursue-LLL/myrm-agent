@@ -136,4 +136,48 @@ describe('messageStreamHandler handler slices', () => {
     expect(lastStep?.duration_ms).toBe(420);
     expect(lastStep?.status).toBe('success');
   });
+
+  it('UI_UPDATE ui_artifact appends uiArtifacts on assistant message', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-ui-1',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: false,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.UI_UPDATE,
+        subtype: 'ui_artifact',
+        messageId: 'assistant-ui-1',
+        data: [
+          {
+            surface_id: 'form_deploy',
+            title: '部署确认',
+            components: [{ id: 't1', type: 'text', props: { text: '确认?' } }],
+            root_ids: ['t1'],
+            data: {},
+            actions: [],
+          },
+        ],
+      },
+      '',
+      undefined,
+      false,
+      'partial',
+      state,
+      createStatefulActions(state),
+    );
+
+    expect(state.messages[0].uiArtifacts).toHaveLength(1);
+    expect(state.messages[0].uiArtifacts?.[0].title).toBe('部署确认');
+    expect(state.messageAppeared).toBe(true);
+  });
 });
