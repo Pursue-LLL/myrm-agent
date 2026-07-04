@@ -9,7 +9,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { LayoutGrid, Check, Loader2 } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { UIArtifact, UIAction, UIActionEvent } from '@/store/chat/types';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
@@ -77,18 +77,7 @@ export const InteractiveUIDisplay: React.FC<InteractiveUIDisplayProps> = ({ uiAr
 
   return (
     <div className={cn('flex flex-col gap-4', className)}>
-      {/* 标题 */}
-      <div className="flex items-center gap-2">
-        <LayoutGrid className="w-5 h-5 text-blue-500" />
-        <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200">{t('title')}</h3>
-        {uiArtifacts.length > 1 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full">
-            {uiArtifacts.length}
-          </span>
-        )}
-      </div>
-
-      {/* UI 工件列表 */}
+      {/* UI 工件列表 — 使用 artifact.title 作为用户可见标题，不展示泛化技术标签 */}
       <div className="flex flex-col gap-4">
         {uiArtifacts.map((artifact, index) => {
           const isSubmitted = submittedSurfaces.has(artifact.surface_id);
