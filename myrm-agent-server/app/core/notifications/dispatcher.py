@@ -61,6 +61,9 @@ _EVENT_TEMPLATES: dict[AppEventType, str] = {
         "[Myrm AI] Goal {status}: {objective}\n{files_modified} files · {total_tokens:,} tokens · ${total_cost_usd:.2f}"
     ),
     AppEventType.GOAL_DEQUEUED: ("[Myrm AI] Next goal started: {objective}"),
+    AppEventType.OAUTH_REAUTH_REQUIRED: (
+        "[Myrm AI] {issuer} authorization expired ({reason}).\nPlease go to Settings → Integrations to reauthorize."
+    ),
 }
 
 

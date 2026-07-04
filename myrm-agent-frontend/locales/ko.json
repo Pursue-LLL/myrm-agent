@@ -3748,7 +3748,24 @@
     "benefit1": "Improves search performance by reducing active corpus size",
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
-    "benefit4": "Archived memories searchable via dedicated API"
+    "benefit4": "Archived memories searchable via dedicated API",
+    "savedSessions": {
+      "title": "저장된 브라우저 세션",
+      "description": "AI 어시스턴트가 저장한 암호화된 로그인 상태 (쿠키 & localStorage)",
+      "loading": "로딩 중...",
+      "empty": "저장된 세션이 없습니다",
+      "expired": "만료됨",
+      "cookies": "쿠키",
+      "localStorage": "스토리지",
+      "delete": "세션 삭제",
+      "deleteSuccess": "{domain} 세션이 삭제되었습니다",
+      "deleteFailed": "삭제에 실패했습니다",
+      "cleanupExpired": "만료된 {count}개 정리",
+      "cleaning": "정리 중...",
+      "cleanupSuccess": "{count}개의 만료된 세션이 정리되었습니다",
+      "cleanupFailed": "정리에 실패했습니다",
+      "encryptionNote": "모든 세션은 AES-256-GCM으로 암호화되어 저장됩니다"
+    }
   },
   "userMenu": {
     "openMenu": "Open Menu",
@@ -9456,6 +9473,7 @@
     "streamCompleted": "Agent 응답이 완료되었습니다",
     "clarificationNeeded": "Agent가 입력을 기다리고 있습니다",
     "mcpAuthRequired": "{server} 재인증이 필요합니다",
+    "oauthReauthRequired": "{issuer} 인증이 만료되었습니다. 액세스를 복원하려면 재인증하세요.",
     "reauthorize": "재인증"
   },
   "configConflict": {

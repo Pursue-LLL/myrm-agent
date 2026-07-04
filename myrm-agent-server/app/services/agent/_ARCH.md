@@ -54,6 +54,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置；`build_platform_litellm_kwargs()`、`webui_model_preflight_warning()`、`resolve_xai_search_config()`；业务禁止读进程 env |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume |
+| `oauth_refresher.py` | ✅ 核心 | OAuth2 token 自动刷新（DB 持久化 + AES 加密 + 并发锁防 stampede + Double-Checked Locking）；refresh 失败时发布 `OAUTH_REAUTH_REQUIRED` 事件（仅 4xx/missing_refresh_token，per-issuer 300s 去重）|
 | `outbound_notify/` | ✅ 辅助 | Agent 主动出站通知 — 类型、target 解析、rate limit、`bus.send_tracked` 可靠投递、`channel_notify_tool`（Turn1，notify_targets 配置时）；前端 recipient 从 `/channels/manage/pairings` 选择 | ✅ |
 
 ---

@@ -343,6 +343,23 @@ export function useGlobalEvents(): void {
           },
         });
         notifyIfLeader(t('mcpAuthRequired', { server: serverName }));
+      } else if (payload.type === 'oauth_reauth_required') {
+        const issuer = String(payload.data.issuer ?? 'OAuth');
+        const reason = String(payload.data.reason ?? '');
+        const toastId = `oauth-reauth-${issuer}`;
+        toast.warning(t('oauthReauthRequired', { issuer, reason }), {
+          id: toastId,
+          duration: 30_000,
+          dismissible: true,
+          action: {
+            label: t('reauthorize'),
+            onClick: () => {
+              toast.dismiss(toastId);
+              router.push('/settings/integrationCatalog');
+            },
+          },
+        });
+        notifyIfLeader(t('oauthReauthRequired', { issuer, reason }));
       } else if (PASSTHROUGH_EVENTS.has(payload.type)) {
         window.dispatchEvent(new CustomEvent(payload.type, { detail: payload.data }));
       } else if (payload.type === 'async_agent_stream_chunk') {

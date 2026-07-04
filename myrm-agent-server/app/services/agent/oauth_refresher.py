@@ -17,6 +17,30 @@ logger = logging.getLogger(__name__)
 GOOGLE_WORKSPACE_ISSUER = "google_workspace"
 
 _refresh_locks: dict[str, asyncio.Lock] = {}
+_reauth_emitted_at: dict[str, float] = {}
+
+_REAUTH_DEDUP_WINDOW_S = 300
+
+
+def _emit_reauth_if_needed(issuer: str, reason: str) -> None:
+    """Publish OAUTH_REAUTH_REQUIRED via AppEventBus with per-issuer dedup."""
+    now = time.time()
+    if now - _reauth_emitted_at.get(issuer, 0) < _REAUTH_DEDUP_WINDOW_S:
+        return
+
+    from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+    _reauth_emitted_at[issuer] = now
+    try:
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.OAUTH_REAUTH_REQUIRED,
+                data={"issuer": issuer, "reason": reason},
+            )
+        )
+        logger.info("Published OAUTH_REAUTH_REQUIRED for issuer '%s' (reason: %s)", issuer, reason)
+    except Exception as exc:
+        logger.warning("Failed to publish OAUTH_REAUTH_REQUIRED: %s", exc)
 
 
 def _resolve_oauth_client_credentials(
@@ -112,6 +136,8 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                     "refresh_oauth_token: missing refresh_token or token_url for '%s'",
                     issuer,
                 )
+                if not refresh_token:
+                    _emit_reauth_if_needed(issuer, "missing_refresh_token")
                 return None
 
             logger.info(
@@ -183,6 +209,14 @@ async def refresh_oauth_token(issuer: str) -> EphemeralUserCredential | None:
                             response.status_code,
                             response.text,
                         )
+                        if response.status_code < 500:
+                            reason = "token_expired"
+                            try:
+                                err_body = response.json()
+                                reason = err_body.get("error_description") or err_body.get("error") or reason
+                            except Exception:
+                                pass
+                            _emit_reauth_if_needed(issuer, str(reason))
             except Exception as exc:
                 logger.error("refresh_oauth_token: failed to refresh token for '%s': %s", issuer, exc)
 

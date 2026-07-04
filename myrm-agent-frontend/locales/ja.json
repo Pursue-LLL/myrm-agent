@@ -3748,7 +3748,24 @@
     "benefit1": "Improves search performance by reducing active corpus size",
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
-    "benefit4": "Archived memories searchable via dedicated API"
+    "benefit4": "Archived memories searchable via dedicated API",
+    "savedSessions": {
+      "title": "保存済みブラウザセッション",
+      "description": "AIアシスタントが保存した暗号化ログイン状態（Cookie & localStorage）",
+      "loading": "読み込み中...",
+      "empty": "保存済みセッションはありません",
+      "expired": "期限切れ",
+      "cookies": "Cookie",
+      "localStorage": "ストレージ",
+      "delete": "セッションを削除",
+      "deleteSuccess": "{domain} のセッションを削除しました",
+      "deleteFailed": "削除に失敗しました",
+      "cleanupExpired": "期限切れ {count} 件を削除",
+      "cleaning": "クリーンアップ中...",
+      "cleanupSuccess": "{count} 件の期限切れセッションを削除しました",
+      "cleanupFailed": "クリーンアップに失敗しました",
+      "encryptionNote": "すべてのセッションは AES-256-GCM で暗号化されています"
+    }
   },
   "userMenu": {
     "openMenu": "Open Menu",
@@ -9456,6 +9473,7 @@
     "streamCompleted": "Agentの応答が完了しました",
     "clarificationNeeded": "Agentがあなたの入力を必要としています",
     "mcpAuthRequired": "{server} の再認証が必要です",
+    "oauthReauthRequired": "{issuer} の認証が期限切れです。アクセスを復元するには再認証してください。",
     "reauthorize": "再認証"
   },
   "configConflict": {

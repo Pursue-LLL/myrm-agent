@@ -22,6 +22,7 @@ from app.api.audit.bash_router import router as audit_router
 from app.api.background_tasks.router import router as background_tasks_router
 from app.api.batch_optimization import router as batch_optimization_router
 from app.api.browser_recording import router as browser_recording_router
+from app.api.browser_sessions import router as browser_sessions_router
 from app.api.budget import budget_router
 from app.api.chats import router as chat_router
 from app.api.checkpoint import router as checkpoint_router
@@ -124,6 +125,7 @@ api_router.include_router(
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
 api_router.include_router(browser_recording_router, prefix="/browser", tags=["browser-recording"])
+api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])
 api_router.include_router(skill_growth_router, tags=["skill-growth"])
 api_router.include_router(skill_quality_router, tags=["skill-quality"])
 api_router.include_router(evolution_router, tags=["evolution"])

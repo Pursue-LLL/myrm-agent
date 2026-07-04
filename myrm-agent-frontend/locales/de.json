@@ -3748,7 +3748,24 @@
     "benefit1": "Improves search performance by reducing active corpus size",
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
-    "benefit4": "Archived memories searchable via dedicated API"
+    "benefit4": "Archived memories searchable via dedicated API",
+    "savedSessions": {
+      "title": "Gespeicherte Browser-Sitzungen",
+      "description": "Verschlüsselte Login-Sitzungen, die vom KI-Assistenten gespeichert wurden (Cookies & localStorage)",
+      "loading": "Wird geladen...",
+      "empty": "Keine gespeicherten Sitzungen",
+      "expired": "Abgelaufen",
+      "cookies": "Cookies",
+      "localStorage": "Speicher",
+      "delete": "Sitzung löschen",
+      "deleteSuccess": "Sitzung für {domain} gelöscht",
+      "deleteFailed": "Löschen fehlgeschlagen",
+      "cleanupExpired": "{count} abgelaufene löschen",
+      "cleaning": "Bereinigung...",
+      "cleanupSuccess": "{count} abgelaufene Sitzungen entfernt",
+      "cleanupFailed": "Bereinigung fehlgeschlagen",
+      "encryptionNote": "Alle Sitzungen werden mit AES-256-GCM verschlüsselt gespeichert"
+    }
   },
   "userMenu": {
     "openMenu": "Open Menu",
@@ -9456,6 +9473,7 @@
     "streamCompleted": "Agent-Antwort abgeschlossen",
     "clarificationNeeded": "Agent benötigt Ihre Eingabe",
     "mcpAuthRequired": "{server} erfordert erneute Autorisierung",
+    "oauthReauthRequired": "{issuer} Autorisierung abgelaufen. Bitte erneut autorisieren, um den Zugriff wiederherzustellen.",
     "reauthorize": "Erneut autorisieren"
   },
   "configConflict": {

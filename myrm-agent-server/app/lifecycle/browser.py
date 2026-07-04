@@ -199,7 +199,21 @@ async def warmup_browser_sessions() -> None:
         logger.error("Browser session warmup failed: %s", warmup_exc, exc_info=True)
 
 
+async def cleanup_expired_browser_sessions() -> None:
+    """Clean up expired saved browser sessions from SessionVault on startup."""
+    try:
+        from app.core.security.browser_vault import get_global_session_vault
+
+        vault = get_global_session_vault()
+        removed = await vault.cleanup_expired()
+        if removed > 0:
+            logger.info("Cleaned up %d expired browser sessions from vault", removed)
+    except Exception as exc:
+        logger.error("Expired session cleanup failed: %s", exc, exc_info=True)
+
+
 async def cleanup_and_warmup_browser_threads() -> None:
-    """Combined cleanup + warmup (backward compatibility entry point)."""
+    """Combined cleanup + warmup entry point for server startup."""
     await cleanup_browser_threads()
+    await cleanup_expired_browser_sessions()
     await warmup_browser_sessions()

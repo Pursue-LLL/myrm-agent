@@ -28,6 +28,7 @@ import WebuiAccessSecurityPanel from './WebuiAccessSecurityPanel';
 import StorageCard from './StorageCard';
 import { useIngressRequirement } from '@/hooks/useIngressRequirement';
 import SandboxResetCard from './SandboxResetCard';
+import SavedSessionsCard from './SavedSessionsCard';
 
 /**
  * 系统设置 Section
@@ -673,6 +674,9 @@ const SystemSection = memo(() => {
 
       {/* CAPTCHA Auto-Solver */}
       <CaptchaSolverCard />
+
+      {/* Saved Browser Sessions */}
+      <SavedSessionsCard />
 
       {/* Memory Monitor */}
       <MemoryMonitorCard />

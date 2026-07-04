@@ -4302,7 +4302,24 @@
     "benefit1": "Improves search performance by reducing active corpus size",
     "benefit2": "Reduces BM25 index size for faster keyword matching",
     "benefit3": "Historical data preserved, not deleted",
-    "benefit4": "Archived memories searchable via dedicated API"
+    "benefit4": "Archived memories searchable via dedicated API",
+    "savedSessions": {
+      "title": "Saved Browser Sessions",
+      "description": "Encrypted login sessions saved by the AI agent (cookies & localStorage)",
+      "loading": "Loading sessions...",
+      "empty": "No saved browser sessions",
+      "expired": "Expired",
+      "cookies": "Cookies",
+      "localStorage": "Storage",
+      "delete": "Delete session",
+      "deleteSuccess": "Session for {domain} deleted",
+      "deleteFailed": "Failed to delete session",
+      "cleanupExpired": "Clean {count} expired",
+      "cleaning": "Cleaning...",
+      "cleanupSuccess": "{count} expired sessions removed",
+      "cleanupFailed": "Cleanup failed",
+      "encryptionNote": "All sessions are encrypted with AES-256-GCM at rest"
+    }
   },
   "userMenu": {
     "openMenu": "Open Menu",
@@ -10358,6 +10375,7 @@
     "streamCompleted": "Agent response completed",
     "clarificationNeeded": "Agent needs your input",
     "mcpAuthRequired": "{server} requires re-authorization",
+    "oauthReauthRequired": "{issuer} authorization expired. Please reauthorize to restore access.",
     "reauthorize": "Reauthorize"
   },
   "configConflict": {

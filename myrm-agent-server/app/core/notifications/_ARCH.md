@@ -41,6 +41,7 @@ and pushes human-readable notifications to user-configured IM channels
 | `SYSTEM_NOTIFICATION` | ✅ | `lifecycle/system` |
 | `KANBAN_TASK_UPDATED` | ✅ (terminal only) | `services/kanban/service` — completed/blocked/failed actions trigger IM push; lifecycle events silently skipped |
 | `GOAL_TERMINAL` | ✅ | `ai_agents/general_agent/goal_learnings` — pushed when a Goal reaches terminal state (complete/cancelled/budget_limited/needs_human_review); IM message includes files_modified, total_tokens and total_cost_usd statistics |
+| `OAUTH_REAUTH_REQUIRED` | ✅ | `services/agent/oauth_refresher` — published when OAuth token refresh fails (4xx or missing refresh_token); per-issuer 300s dedup to avoid notification storms |
 
 Events not in `_EVENT_TEMPLATES` (e.g. `IDLE_STATUS`, `SKILL_INSTALL_PROGRESS`)
 are silently skipped — they are high-frequency or internal and not suitable for IM push.

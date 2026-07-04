@@ -321,4 +321,4 @@ async def test_resolver_reads_canonical_enabled_builtin_tools(agent_db, monkeypa
     resolver._cache.clear()  # noqa: SLF001
     resolved = await resolver.resolve(agent_id)
     assert resolved is not None
-    assert resolved.enabled_builtin_tools == ("file_ops", "code_execute", "web_search")
+    assert resolved.enabled_builtin_tools == ("web_search",)
