@@ -133,8 +133,28 @@ target-version = "py313"
 line-length = 130
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I"]
-ignore = ["B008", "E501"]
+select = ["E", "F", "B", "I", "S"]
+ignore = [
+  "B008", "E501",
+  # S 规则噪音抑制（与 harness 一致策略）
+  "S101",  # assert
+  "S104",  # bind 0.0.0.0 — 服务器应用绑定所有接口是刚需
+  "S105", "S106", "S107",  # hardcoded-password false positive
+  "S108",  # hardcoded-temp-file
+  "S110", "S112",  # try-except-pass/continue
+  "S311",  # non-cryptographic-random
+  "S324",  # hashlib-insecure
+  "S603", "S607",  # subprocess
+  "S608",  # hardcoded-sql
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+  "S101",
+  "INP001",
+  "E402",
+  "B011",
+] # Allow assert, imports after sys.path in tests
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
