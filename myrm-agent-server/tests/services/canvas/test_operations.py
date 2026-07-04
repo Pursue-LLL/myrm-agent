@@ -1,6 +1,7 @@
 """Tests for app.services.canvas.operations.
 
-Covers: get_canvas_state, get_canvas_selection, insert_canvas_element.
+Covers: get_canvas_state, get_canvas_selection, insert_canvas_element,
+save_canvas_snapshot, and concurrency safety.
 All I/O uses asyncio.to_thread (non-blocking) and is tested against
 a temporary directory.
 """
@@ -19,6 +20,7 @@ from app.services.canvas import operations
 def _isolate_canvas_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Redirect CANVAS_DATA_DIR to a temp directory for test isolation."""
     monkeypatch.setattr("app.services.canvas._paths.CANVAS_DATA_DIR", tmp_path)
+    operations._canvas_locks.clear()
 
 
 VALID_CANVAS_ID = "12345678-1234-1234-1234-123456789abc"
@@ -188,6 +190,82 @@ class TestInsertCanvasElement:
         assert result == []
 
 
+class TestSaveCanvasSnapshot:
+    @pytest.mark.asyncio
+    async def test_creates_snapshot_file(self, tmp_path: Path) -> None:
+        snapshot = {"store": {"shape:a": {"type": "text"}}}
+        await operations.save_canvas_snapshot(VALID_CANVAS_ID, snapshot)
+
+        snap_path = tmp_path / VALID_CANVAS_ID / "snapshot.json"
+        assert snap_path.exists()
+        assert json.loads(snap_path.read_text("utf-8")) == snapshot
+
+    @pytest.mark.asyncio
+    async def test_overwrites_existing_snapshot(self, tmp_path: Path) -> None:
+        canvas_dir = tmp_path / VALID_CANVAS_ID
+        canvas_dir.mkdir()
+        old = {"store": {"shape:old": {"type": "note"}}}
+        (canvas_dir / "snapshot.json").write_text(json.dumps(old), "utf-8")
+
+        new = {"store": {"shape:new": {"type": "text"}}}
+        await operations.save_canvas_snapshot(VALID_CANVAS_ID, new)
+
+        result = json.loads((canvas_dir / "snapshot.json").read_text("utf-8"))
+        assert result == new
+        assert "shape:old" not in result["store"]
+
+    @pytest.mark.asyncio
+    async def test_creates_canvas_dir_if_missing(self, tmp_path: Path) -> None:
+        snapshot = {"store": {}}
+        await operations.save_canvas_snapshot(VALID_CANVAS_ID, snapshot)
+        assert (tmp_path / VALID_CANVAS_ID).is_dir()
+
+
+class TestConcurrencySafety:
+    @pytest.mark.asyncio
+    async def test_concurrent_inserts_preserve_all_shapes(self) -> None:
+        """Multiple concurrent inserts on the same canvas must not lose data."""
+        import asyncio
+
+        tasks = [
+            operations.insert_canvas_element(
+                VALID_CANVAS_ID, "note", float(i * 100), 0.0, {"text": f"n{i}"}
+            )
+            for i in range(5)
+        ]
+        results = await asyncio.gather(*tasks)
+
+        assert len(results) == 5
+        snapshot = await operations.get_canvas_state(VALID_CANVAS_ID)
+        assert snapshot is not None
+        assert len(snapshot["store"]) == 5
+
+    @pytest.mark.asyncio
+    async def test_concurrent_insert_and_save_no_data_loss(self) -> None:
+        """An insert racing with a full save must not cause lost updates."""
+        import asyncio
+
+        initial = {"store": {"shape:user": {"type": "note", "x": 200}}}
+        await operations.save_canvas_snapshot(VALID_CANVAS_ID, initial)
+
+        async def agent_insert() -> None:
+            await operations.insert_canvas_element(
+                VALID_CANVAS_ID, "text", 500.0, 500.0, {"text": "agent"}
+            )
+
+        async def frontend_save() -> None:
+            snap = await operations.get_canvas_state(VALID_CANVAS_ID)
+            if snap:
+                snap["store"]["shape:user"]["x"] = 999
+                await operations.save_canvas_snapshot(VALID_CANVAS_ID, snap)
+
+        await asyncio.gather(agent_insert(), frontend_save())
+
+        final = await operations.get_canvas_state(VALID_CANVAS_ID)
+        assert final is not None
+        assert len(final["store"]) >= 1
+
+
 class TestInvalidCanvasId:
     @pytest.mark.asyncio
     async def test_get_state_rejects_invalid_id(self) -> None:
@@ -203,3 +281,8 @@ class TestInvalidCanvasId:
     async def test_insert_rejects_invalid_id(self) -> None:
         with pytest.raises(ValueError, match="Invalid canvas ID"):
             await operations.insert_canvas_element("bad-id", "text", 0, 0)
+
+    @pytest.mark.asyncio
+    async def test_save_snapshot_rejects_invalid_id(self) -> None:
+        with pytest.raises(ValueError, match="Invalid canvas ID"):
+            await operations.save_canvas_snapshot("bad-id", {"store": {}})

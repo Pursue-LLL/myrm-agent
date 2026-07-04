@@ -5,6 +5,7 @@ from app.services.canvas.operations import (
     get_canvas_selection,
     get_canvas_state,
     insert_canvas_element,
+    save_canvas_snapshot,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "get_canvas_state",
     "get_canvas_selection",
     "insert_canvas_element",
+    "save_canvas_snapshot",
 ]

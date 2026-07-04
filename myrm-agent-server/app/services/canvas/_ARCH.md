@@ -6,6 +6,10 @@ Agent-facing canvas operations, SSE event hub, layout algorithms, and LangChain 
 Provides read/write access to tldraw canvas state for the GeneralAgent
 and the REST API layer.
 
+All snapshot write operations are protected by a per-canvas `asyncio.Lock` pool
+(`_canvas_locks`) to prevent lost updates when frontend auto-save and Agent
+read-modify-write operations race on the same snapshot file.
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
@@ -14,7 +18,7 @@ and the REST API layer.
 | `_paths.py` | 核心 | 共享文件系统路径工具：UUID 校验、路径构建、常量 | ✅ |
 | `_events.py` | 核心 | SSE 事件通知中枢（含 batch-layout-done hint 队列） | ✅ |
 | `_layout.py` | 核心 | 纯函数布局引擎：grid / tree / force 三策略算法 | ✅ |
-| `operations.py` | 核心 | Canvas state read、selection read、element insertion、batch insert | ✅ |
+| `operations.py` | 核心 | Canvas state read/write（含 per-canvas write lock）、element insertion、batch insert、save_canvas_snapshot | ✅ |
 | `canvas_agent_tools.py` | 核心 | 4 个 LangChain StructuredTool：get_state / get_selection / insert_element / batch_layout | ✅ |
 
 ## 依赖
@@ -23,7 +27,7 @@ and the REST API layer.
 - `_layout.py`: 无外部依赖（pure algorithm, leaf utility）
 - `operations.py`: 依赖 `_paths.py`
 - `canvas_agent_tools.py`: 依赖 `operations.py` + `_events.py` + `_layout.py`
-- API 层 `api/canvas/router.py` 从 `_events.py` 导入 SSE 事件 + consume_hint（正确方向：api → services）
+- API 层 `api/canvas/router.py` 从 `operations.py` 导入 `get_canvas_state` / `save_canvas_snapshot`，从 `_events.py` 导入 SSE 事件 + consume_hint（正确方向：api → services）
 
 ## Agent 工具注册链路
 

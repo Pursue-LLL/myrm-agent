@@ -5,6 +5,7 @@
 - app.database.connection::get_db (POS: Async session provider)
 - app.services.canvas._paths (POS: Shared canvas filesystem path utilities)
 - app.services.canvas._events (POS: SSE event notification hub)
+- app.services.canvas.operations (POS: Canvas state read/write with concurrency protection)
 
 [OUTPUT]
 - CRUD endpoints for canvas workspaces
@@ -41,8 +42,8 @@ from app.services.canvas._paths import (
     MAX_SNAPSHOT_SIZE_BYTES,
     canvas_dir,
     selection_path,
-    snapshot_path,
 )
+from app.services.canvas.operations import get_canvas_state, save_canvas_snapshot
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.models.canvas import Canvas
@@ -179,8 +180,7 @@ async def save_snapshot(canvas_id: str, body: SnapshotSaveRequest, session: Asyn
     if len(snapshot_json.encode("utf-8")) > MAX_SNAPSHOT_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="Snapshot too large")
 
-    await asyncio.to_thread(lambda: canvas_dir(canvas_id).mkdir(parents=True, exist_ok=True))
-    await _write_file(snapshot_path(canvas_id), snapshot_json)
+    await save_canvas_snapshot(canvas_id, body.snapshot)
 
     updates: dict[str, Any] = {"updated_at": datetime.utcnow()}
     if body.thumbnail:
@@ -196,13 +196,8 @@ async def save_snapshot(canvas_id: str, body: SnapshotSaveRequest, session: Asyn
 @router.get("/{canvas_id}/snapshot")
 async def load_snapshot(canvas_id: str, session: AsyncSession = Depends(get_db)):
     await _get_canvas_or_404(canvas_id, session)
-
-    path = snapshot_path(canvas_id)
-    if not path.exists():
-        return success_response({"snapshot": None})
-
-    content = await _read_file(path)
-    return success_response({"snapshot": json.loads(content)})
+    snapshot = await get_canvas_state(canvas_id)
+    return success_response({"snapshot": snapshot})
 
 
 # ── Selection ────────────────────────────────────────────────────────
