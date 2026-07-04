@@ -169,6 +169,8 @@ async def create_deep_research_stream(
         )
     chat_history = await convert_chat_history(params.chat_history) if params.chat_history else None
 
+    on_report_ready = _build_wiki_vault_callback(params) if params.enable_wiki else None
+
     async for chunk in ai_deep_research_service_stream(
         llm=llm,
         query=text_query,
@@ -180,8 +182,88 @@ async def create_deep_research_stream(
             "session_id": params.chat_id or "",
         },
         research_agent_llm=research_agent_llm,
+        on_report_ready=on_report_ready,
     ):
         yield chunk
+
+
+def _build_wiki_vault_callback(params: GeneralAgentParams):
+    """Build an on_report_ready callback that vaults Deep Research results into wiki.
+
+    Each structured agent_result is written as a separate raw markdown file
+    into the wiki ingestion directory, then enqueued for background compilation.
+    """
+    from pathlib import Path
+
+    async def _vault_research_to_wiki(result: object) -> None:
+        from datetime import UTC, datetime
+
+        from myrm_agent_harness.toolkits.wiki.core.config import WikiConfig
+        from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+        from myrm_agent_harness.toolkits.wiki.pipeline.compiler import WikiCompiler
+        from myrm_agent_harness.toolkits.llms import llm_manager
+
+        wiki_base_dir = Path("~/.myrm/users").expanduser() / "sandbox" / "wiki"
+        if not wiki_base_dir.exists():
+            logger.debug("Wiki base dir not found, skipping research vault")
+            return
+
+        agent_results = getattr(result, "agent_results", [])
+        if not agent_results:
+            return
+
+        complete_results = [r for r in agent_results if not r.get("partial")]
+        if not complete_results:
+            return
+
+        config = WikiConfig()
+        structure = WikiStructure(wiki_base_dir)
+        raw_dir = structure.raw_dir
+        raw_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        written_files: list[Path] = []
+
+        for idx, entry in enumerate(complete_results):
+            task = entry.get("task", "research")
+            content = entry.get("result", "")
+            if not content or len(content) < 200:
+                continue
+
+            safe_task = "".join(c if c.isalnum() or c in "-_" else "_" for c in task[:60]).strip("_")
+            filename = f"deep_research_{timestamp}_{idx}_{safe_task}.md"
+            file_path = raw_dir / filename
+
+            escaped_task = task.replace('"', '\\"')
+            frontmatter = (
+                f"---\n"
+                f"source: deep_research\n"
+                f"task: \"{escaped_task}\"\n"
+                f"timestamp: \"{timestamp}\"\n"
+                f"session_id: \"{params.chat_id or ''}\"\n"
+                f"---\n\n"
+            )
+            file_path.write_text(frontmatter + content, encoding="utf-8")
+            written_files.append(file_path)
+
+        if not written_files:
+            return
+
+        try:
+            wiki_llm = await llm_manager.get_llm_from_config(
+                params.model_cfg, api_keys=getattr(params.model_cfg, "api_keys", None)
+            )
+            compiler = WikiCompiler(llm=wiki_llm, structure=structure, config=config)
+            for fp in written_files:
+                compiler.enqueue_file(fp)
+            logger.info(
+                "[deep-research-vault] Enqueued %d research files for wiki compilation",
+                len(written_files),
+            )
+        except Exception as e:
+            logger.warning("[deep-research-vault] Failed to enqueue for compilation: %s", e)
+
+    return _vault_research_to_wiki
 
 
 async def create_fast_lane_stream(

@@ -30,9 +30,12 @@ from app.core.utils.chat_utils import convert_chat_history
 from app.services.agent.gateway import get_agent_gateway
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from langchain_core.language_models import BaseChatModel
     from langchain_core.messages import BaseMessage
     from langchain_core.tools import BaseTool
+    from myrm_agent_harness.agent.deep_research.helpers import DeepResearchResult
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
@@ -299,6 +302,7 @@ async def ai_deep_research_service_stream(
     cancel_token: "CancellationToken | None" = None,
     context: dict[str, object] | None = None,
     research_agent_llm: "BaseChatModel | None" = None,
+    on_report_ready: "Callable[[DeepResearchResult], Awaitable[None]] | None" = None,
 ) -> AsyncIterable[dict[str, object]]:
     """Execute Deep Research Orchestrator with gateway lifecycle management.
 
@@ -395,6 +399,7 @@ async def ai_deep_research_service_stream(
         context=context or {},
         research_agent_llm=research_agent_llm,
         on_clarify=_on_clarify,
+        on_report_ready=on_report_ready,
     )
 
     producer_error: BaseException | None = None
