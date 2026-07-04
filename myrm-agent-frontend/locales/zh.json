@@ -4655,6 +4655,8 @@
     "consensusAggTemp": "聚合模型温度",
     "consensusMinSuccessful": "最少成功数",
     "consensusTimeout": "总超时 (秒)",
+    "consensusRefMaxTokens": "参考输出上限",
+    "consensusRefMaxTokensHint": "0 = 不限制",
     "consensusRefModels": "参考模型",
     "consensusRefModelsDesc": "添加并行分析的模型，建议至少 2 个。",
     "consensusAddModel": "添加模型",

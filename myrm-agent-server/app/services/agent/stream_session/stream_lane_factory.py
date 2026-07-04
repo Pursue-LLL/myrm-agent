@@ -41,6 +41,18 @@ def _cfg_int(cfg: dict[str, object], key: str, default: int) -> int:
     return int(value) if isinstance(value, int | float | str) else default
 
 
+def _cfg_int_or_none(cfg: dict[str, object], key: str) -> int | None:
+    """Read a numeric config value as positive int, or ``None`` when unset."""
+    value = cfg.get(key)
+    if value is None or value == "" or value == 0:
+        return None
+    try:
+        n = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
 async def create_dynamic_workflow_stream(
     params: GeneralAgentParams,
     cancel_token: "CancellationToken | None",
@@ -340,6 +352,7 @@ async def create_consensus_stream(
         min_successful=_cfg_int(cfg, "min_successful", 1),
         timeout_per_model=_cfg_float(cfg, "timeout_per_model", 120.0),
         timeout_total=_cfg_float(cfg, "timeout_total", 300.0),
+        reference_max_tokens=_cfg_int_or_none(cfg, "reference_max_tokens"),
     )
 
     engine = ConsensusEngine(

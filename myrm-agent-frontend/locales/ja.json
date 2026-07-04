@@ -4338,6 +4338,8 @@
     "consensusAggTemp": "Aggregator Temperature",
     "consensusMinSuccessful": "Min Successful",
     "consensusTimeout": "Total Timeout (s)",
+    "consensusRefMaxTokens": "参考出力上限",
+    "consensusRefMaxTokensHint": "0 = 無制限",
     "consensusRefModels": "Reference Models",
     "consensusRefModelsDesc": "Add models for parallel analysis. At least 2 recommended.",
     "consensusAddModel": "Add Model",

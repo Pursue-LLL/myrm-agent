@@ -39,6 +39,7 @@ export function ConsensusSection({ editor, t }: SectionProps) {
               min_successful: consensus.min_successful ?? 1,
               timeout_per_model: consensus.timeout_per_model ?? 120,
               timeout_total: consensus.timeout_total ?? 300,
+              reference_max_tokens: consensus.reference_max_tokens ?? null,
               reference_model_selections: consensus.reference_model_selections ?? [],
               aggregator_model_selection: consensus.aggregator_model_selection ?? null,
             } : { ...consensus, enabled: false });
@@ -49,7 +50,7 @@ export function ConsensusSection({ editor, t }: SectionProps) {
         <div className="space-y-4 pt-2 border-t border-border/30">
           <ConsensusRefModels consensus={consensus} setConsensus={setConsensus} t={t} />
           <ConsensusAggModel consensus={consensus} setConsensus={setConsensus} t={t} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { key: 'reference_temperature', label: 'consensusRefTemp', def: 0.6, min: 0, max: 2, step: 0.1 },
               { key: 'aggregator_temperature', label: 'consensusAggTemp', def: 0.4, min: 0, max: 2, step: 0.1 },
@@ -65,7 +66,7 @@ export function ConsensusSection({ editor, t }: SectionProps) {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground">{t('agent.consensusMinSuccessful')}</label>
               <Input type="number" min={1} max={10} value={(consensus.min_successful as number) ?? 1}
@@ -75,6 +76,17 @@ export function ConsensusSection({ editor, t }: SectionProps) {
               <label className="text-xs font-medium text-muted-foreground">{t('agent.consensusTimeout')}</label>
               <Input type="number" min={10} max={600} value={(consensus.timeout_total as number) ?? 300}
                 onChange={(e) => setConsensus({ timeout_total: parseInt(e.target.value, 10) || 300 })} className="w-full mt-1" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">{t('agent.consensusRefMaxTokens')}</label>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">{t('agent.consensusRefMaxTokensHint')}</p>
+              <Input type="number" min={0} max={16000} step={100}
+                placeholder="600"
+                value={(consensus.reference_max_tokens as number) || ''}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setConsensus({ reference_max_tokens: v > 0 ? v : null });
+                }} className="w-full mt-1" />
             </div>
           </div>
         </div>
