@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 
 from app.database.models import Chat, ConversationFork, Message
 from app.services.chat.conversation_fork_manager import (
@@ -104,6 +105,64 @@ async def test_fork_conversation_from_any_message(db_session, test_user, monkeyp
     assert result.success
     assert result.new_chat_id is not None
     assert result.fork_point == 2
+
+
+@pytest.mark.asyncio
+async def test_fork_conversation_copies_session_loaded_skill_names(
+    db_session,
+    test_user,
+    monkeypatch,
+) -> None:
+    """Forked chat inherits parent session_loaded_skill_names SSOT."""
+    monkeypatch.setattr(
+        "app.services.chat.conversation_fork_manager.get_checkpointer",
+        lambda: None,
+        raising=False,
+    )
+    try:
+        from app import platform_utils
+
+        monkeypatch.setattr(platform_utils, "get_checkpointer", lambda: None)
+    except Exception:
+        pass
+
+    chat_id = str(uuid4())
+    parent = Chat(
+        id=chat_id,
+        title="Parent",
+        session_loaded_skill_names=["rail_skill", "pdf_skill"],
+    )
+    db_session.add(parent)
+
+    now = datetime.now(timezone.utc)
+    for i in range(3):
+        db_session.add(
+            Message(
+                id=str(uuid4()),
+                chat_id=chat_id,
+                role="user",
+                content=f"Message {i}",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+
+    await db_session.commit()
+
+    result = await ConversationForkManager.fork_conversation(
+        db=db_session,
+        parent_chat_id=chat_id,
+        message_index=1,
+    )
+
+    assert result.success
+    assert result.new_chat_id is not None
+
+    child_stmt = select(Chat).where(Chat.id == result.new_chat_id)
+    child_result = await db_session.execute(child_stmt)
+    child_chat = child_result.scalar_one()
+
+    assert child_chat.session_loaded_skill_names == ["rail_skill", "pdf_skill"]
 
 
 @pytest.mark.asyncio

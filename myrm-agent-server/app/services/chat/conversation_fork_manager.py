@@ -167,6 +167,7 @@ class ConversationForkManager:
             title=new_title,
             source=parent_chat.source,
             channel_session_key=None,  # Fork creates independent conversation
+            session_loaded_skill_names=parent_chat.session_loaded_skill_names,
         )
         db.add(new_chat)
 

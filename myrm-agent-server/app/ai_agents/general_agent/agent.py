@@ -384,7 +384,11 @@ class GeneralAgent(ToolSetupMixin):
             context["goal"] = self.goal
 
         if self.session_loaded_skill_names and not self.incognito_mode:
-            context["session_loaded_skill_names"] = list(self.session_loaded_skill_names)
+            from myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate import (
+                SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY,
+            )
+
+            context[SESSION_LOADED_SKILL_NAMES_CONTEXT_KEY] = list(self.session_loaded_skill_names)
 
         return context
 
