@@ -118,6 +118,7 @@ myrm_agent_harness.agent.skills.optimization.types
 myrm_agent_harness.agent.skills.packaging
 myrm_agent_harness.agent.skills.packaging.validator
 myrm_agent_harness.agent.skills.runtime.loader
+myrm_agent_harness.agent.skills.runtime.session_skills_rehydrate
 myrm_agent_harness.agent.skills.security.content_sanitizer
 myrm_agent_harness.agent.skills.sync.idle_integration
 myrm_agent_harness.agent.streaming.broadcast.catchup
