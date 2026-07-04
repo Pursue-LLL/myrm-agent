@@ -21,7 +21,7 @@
 import { useMemo, useRef, useState, useCallback, memo } from 'react';
 import type { Message } from '@/store/chat/types';
 import { cn } from '@/lib/utils/classnameUtils';
-import { stripDatetimeTag, stripMarkdown } from '@/lib/utils/messageUtils';
+import { stripMarkdown, stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { useTranslations } from 'next-intl';
 
@@ -49,7 +49,7 @@ function extractUserItems(messages: Message[]): JumpItem[] {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
     if (msg.role === 'user' && msg.content) {
-      const cleanText = stripMarkdown(stripDatetimeTag(msg.content));
+      const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content));
       if (cleanText) {
         items.push({
           index: i,

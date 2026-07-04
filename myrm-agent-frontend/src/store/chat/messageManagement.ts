@@ -18,7 +18,7 @@ import { Message, ChatHistoryItem, type ActionMode } from '@/store/chat/types';
 import { ChatActionsMethods } from './messageRequest';
 import { getChatDetail, getMessages, generateChatTitle, updateChatTitle } from '@/services/chat';
 import { ApiError, apiRequest } from '@/lib/api';
-import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
@@ -76,7 +76,7 @@ export const loadMessages = async (chatId: string, actions: ChatActionsMethods):
     if (messages.length > 0) {
       const firstUserMessage = messages.find((msg) => msg.role === 'user');
       const rawTitle = firstUserMessage?.content || messages[0].content || 'Chat';
-      document.title = stripDatetimeTag(rawTitle);
+      document.title = stripUserMessageDisplayText(rawTitle);
     }
 
     actions.setMessages((state) => {
@@ -282,7 +282,7 @@ export const autoSaveChat = async (
     const lastMessage = messages[messages.length - 1]?.content || '';
     const firstUserMessage = messages.find((msg) => msg.role === 'user');
     const firstMessage = firstUserMessage?.content
-      ? stripDatetimeTag(firstUserMessage.content).slice(0, CHAT_SUMMARY_MAX_LENGTH)
+      ? stripUserMessageDisplayText(firstUserMessage.content).slice(0, CHAT_SUMMARY_MAX_LENGTH)
       : '';
 
     _updateSidebar(chatId, title, firstMessage, lastMessage, actionMode);
@@ -301,7 +301,7 @@ function _generateTitle(messages: Message[]): Promise<string> {
 
 function _fallbackTitle(messages: Message[]): string {
   const firstUserMessage = messages.find((msg) => msg.role === 'user');
-  const clean = firstUserMessage?.content ? stripDatetimeTag(firstUserMessage.content) : '';
+  const clean = firstUserMessage?.content ? stripUserMessageDisplayText(firstUserMessage.content) : '';
   return clean
     ? clean.slice(0, CHAT_TITLE_MAX_LENGTH) + (clean.length > CHAT_TITLE_MAX_LENGTH ? '...' : '')
     : 'Untitled Chat';

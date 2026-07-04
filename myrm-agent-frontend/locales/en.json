@@ -4846,7 +4846,7 @@
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "canvas": "Read and write the infinite canvas — let the agent see your drawings, notes, and diagrams",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction",
+        "render_ui": "Fill forms and view tables or charts directly in chat",
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)"
       },
       "cuPermission": {
@@ -8177,6 +8177,18 @@
   },
   "interactiveUI": {
     "title": "Interactive Interface",
+    "userAction": {
+      "header": "Submitted",
+      "actionLabel": "Action",
+      "dataLabel": "Entries",
+      "emptyField": "Not filled",
+      "actionTypes": {
+        "submit": "Submit",
+        "cancel": "Cancel",
+        "navigate": "Navigate",
+        "custom": "Confirm"
+      }
+    },
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",

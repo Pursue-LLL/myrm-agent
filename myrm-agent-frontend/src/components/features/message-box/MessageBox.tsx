@@ -34,7 +34,7 @@ import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
 import { InteractiveUIDisplay } from '@/components/features/interactive-ui';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
 import { UIActionEvent } from '@/store/chat/types';
-import { formatUIActionAsMessage } from '@/components/features/interactive-ui/utils';
+import { formatUIActionAsMessage, type UIActionMessageLabels } from '@/components/features/interactive-ui/utils';
 import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
 import MessageActionBar from './MessageActionBar';
@@ -152,6 +152,23 @@ const MessageBox = ({
   const previousContentRef = useRef('');
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
+  const tUiAction = useTranslations('interactiveUI.userAction');
+
+  const uiActionMessageLabels: UIActionMessageLabels = useMemo(
+    () => ({
+      header: tUiAction('header'),
+      actionLabel: tUiAction('actionLabel'),
+      dataLabel: tUiAction('dataLabel'),
+      emptyField: tUiAction('emptyField'),
+      actionTypes: {
+        submit: tUiAction('actionTypes.submit'),
+        cancel: tUiAction('actionTypes.cancel'),
+        navigate: tUiAction('actionTypes.navigate'),
+        custom: tUiAction('actionTypes.custom'),
+      },
+    }),
+    [tUiAction],
+  );
 
   useEffect(() => {
     const stored = localStorage.getItem('developer_show_system_messages');
@@ -175,8 +192,7 @@ const MessageBox = ({
 
   // 处理交互式 UI 动作回传
   const handleUIAction = (event: UIActionEvent) => {
-    // 将 UI 动作格式化为用户消息发送给 Agent
-    const actionMessage = formatUIActionAsMessage(event);
+    const actionMessage = formatUIActionAsMessage(event, uiActionMessageLabels);
     sendMessage(actionMessage);
   };
 

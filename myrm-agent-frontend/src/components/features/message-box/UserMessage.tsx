@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/classnameUtils';
-import { stripDatetimeTag } from '@/lib/utils/messageUtils';
+import { stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { splitTextWithAtLinks } from '@/lib/utils/urlUtils';
 import { File as FileType } from '@/store/chat/types';
 import { isImageFile, getDisplayUrl } from '@/lib/utils/fileUtils';
@@ -155,7 +155,7 @@ const UserMessage = React.memo(
       [createdAt, locale, t],
     );
 
-    const cleanContent = stripDatetimeTag(content);
+    const cleanContent = stripUserMessageDisplayText(content);
     const parts = splitTextWithAtLinks(cleanContent);
 
     useEffect(() => {

@@ -4029,7 +4029,7 @@
         "tts": "Text to Speech",
         "kanban": "Task Board",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "Interactive UI"
+        "render_ui": "대화형 UI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4044,7 +4044,7 @@
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction"
+        "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작"
       },
       "jitTeam": "JIT 팀 구성",
       "jitTeamOff": "단일 Agent (팀 없음)",
@@ -7320,6 +7320,18 @@
   },
   "interactiveUI": {
     "title": "Interactive Interface",
+    "userAction": {
+      "header": "제출됨",
+      "actionLabel": "동작",
+      "dataLabel": "입력 내용",
+      "emptyField": "미입력",
+      "actionTypes": {
+        "submit": "제출",
+        "cancel": "취소",
+        "navigate": "이동",
+        "custom": "확인"
+      }
+    },
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",

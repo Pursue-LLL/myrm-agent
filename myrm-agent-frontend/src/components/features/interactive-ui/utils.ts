@@ -250,36 +250,38 @@ export function buildComponentMap<T extends { id: string }>(components: T[]): Ma
   return map;
 }
 
+export interface UIActionMessageLabels {
+  header: string;
+  actionLabel: string;
+  dataLabel: string;
+  emptyField: string;
+  actionTypes: Record<string, string>;
+}
+
 /**
- * 将 UI 动作事件格式化为用户消息
- *
- * 这个消息将被发送给 Agent，Agent 可以解析并响应用户的交互。
+ * Format a UI action as a user message for the Agent.
+ * Machine-readable JSON is appended in `<ui_action_data>` (stripped from chat display).
  */
-export function formatUIActionAsMessage(event: {
-  surface_id: string;
-  action_id: string;
-  action_type: string;
-  data: Record<string, unknown>;
-  payload: Record<string, unknown>;
-}): string {
-  // 构建结构化的动作描述
-  const actionDescription = getActionDescription(event.action_type, event.action_id);
+export function formatUIActionAsMessage(
+  event: {
+    surface_id: string;
+    action_id: string;
+    action_type: string;
+    data: Record<string, unknown>;
+    payload: Record<string, unknown>;
+  },
+  labels: UIActionMessageLabels,
+): string {
+  const actionDescription = getActionDescription(event.action_type, event.action_id, labels);
+  const formattedData = formatDataForMessage(event.data, labels.emptyField);
 
-  // 格式化数据为人类可读的形式
-  const formattedData = formatDataForMessage(event.data);
-
-  // 组合成完整的消息
-  const parts: string[] = [];
-
-  parts.push(`[用户在交互界面执行了操作]`);
-  parts.push(`动作: ${actionDescription}`);
+  const parts: string[] = [labels.header, `${labels.actionLabel}: ${actionDescription}`];
 
   if (formattedData) {
-    parts.push(`提交的数据:`);
+    parts.push(`${labels.dataLabel}:`);
     parts.push(formattedData);
   }
 
-  // 添加原始 JSON 数据供 Agent 解析（隐藏在特殊标记中）
   const jsonData = JSON.stringify({
     type: 'ui_action',
     surface_id: event.surface_id,
@@ -293,24 +295,15 @@ export function formatUIActionAsMessage(event: {
   return parts.join('\n');
 }
 
-/**
- * 获取动作的人类可读描述
- */
-function getActionDescription(actionType: string, actionId: string): string {
-  const typeDescriptions: Record<string, string> = {
-    submit: '提交表单',
-    cancel: '取消操作',
-    navigate: '跳转导航',
-    custom: '自定义操作',
-  };
-
-  return typeDescriptions[actionType] || `${actionType}(${actionId})`;
+function getActionDescription(actionType: string, actionId: string, labels: UIActionMessageLabels): string {
+  const known = labels.actionTypes[actionType];
+  if (known) {
+    return known;
+  }
+  return actionId ? `${actionType} (${actionId})` : actionType;
 }
 
-/**
- * 将数据格式化为人类可读的消息
- */
-function formatDataForMessage(data: Record<string, unknown>): string {
+function formatDataForMessage(data: Record<string, unknown>, emptyFieldLabel: string): string {
   if (!data || Object.keys(data).length === 0) {
     return '';
   }
@@ -321,7 +314,7 @@ function formatDataForMessage(data: Record<string, unknown>): string {
     const prefix = '  '.repeat(indent);
 
     if (value === null || value === undefined) {
-      return `${prefix}(未填写)`;
+      return `${prefix}${emptyFieldLabel}`;
     }
 
     if (typeof value === 'object') {

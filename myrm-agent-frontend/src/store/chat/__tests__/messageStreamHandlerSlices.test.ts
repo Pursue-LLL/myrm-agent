@@ -180,4 +180,47 @@ describe('messageStreamHandler handler slices', () => {
     expect(state.messages[0].uiArtifacts?.[0].title).toBe('部署确认');
     expect(state.messageAppeared).toBe(true);
   });
+
+  it('UI_UPDATE data_update merges fields into existing uiArtifact', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-ui-2',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      uiArtifacts: [
+        {
+          surface_id: 'form_1',
+          title: 'Form',
+          components: [],
+          root_ids: [],
+          data: { name: '', age: 0 },
+          actions: [],
+        },
+      ],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: true,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.UI_UPDATE,
+        subtype: 'data_update',
+        messageId: 'assistant-ui-2',
+        data: { surface_id: 'form_1', updates: { name: 'Alice', age: 30 } },
+      },
+      '',
+      undefined,
+      false,
+      'partial',
+      state,
+      createStatefulActions(state),
+    );
+
+    expect(state.messages[0].uiArtifacts?.[0].data).toEqual({ name: 'Alice', age: 30 });
+  });
 });

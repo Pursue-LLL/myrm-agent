@@ -116,10 +116,33 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
         // 添加 UI artifacts
         if (Array.isArray(data.data)) {
-          state.messages[messageIndex].uiArtifacts!.push(...(data.data as UIArtifact[]));
+          state.messages[messageIndex].uiArtifacts!.push(...(data.data as H.UIArtifact[]));
         }
+      } else if (data.subtype === 'data_update') {
+        const payload = data.data;
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          return;
+        }
+        const update = payload as { surface_id?: string; updates?: Record<string, unknown> };
+        const surfaceId = update.surface_id;
+        const updates = update.updates;
+        if (!surfaceId || !updates || typeof updates !== 'object') {
+          return;
+        }
+        const artifacts = state.messages[messageIndex].uiArtifacts;
+        if (!artifacts) {
+          return;
+        }
+        const artifactIndex = artifacts.findIndex((item) => item.surface_id === surfaceId);
+        if (artifactIndex === -1) {
+          return;
+        }
+        const current = artifacts[artifactIndex];
+        artifacts[artifactIndex] = {
+          ...current,
+          data: { ...current.data, ...updates },
+        };
       }
-      // data_update 类型的 UI 更新在前端另行处理（如有需要）
 
       if (!state.messageAppeared) {
         state.messageAppeared = true;

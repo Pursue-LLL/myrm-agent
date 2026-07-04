@@ -4029,7 +4029,7 @@
         "tts": "Text to Speech",
         "kanban": "Task Board",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "Interactive UI"
+        "render_ui": "Interaktive UI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4044,7 +4044,7 @@
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Render tables, charts, and forms in chat — for structured data display and interaction"
+        "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen"
       },
       "jitTeam": "JIT-Teamkonfiguration",
       "jitTeamOff": "Einzelner Agent (kein Team)",
@@ -7320,6 +7320,18 @@
   },
   "interactiveUI": {
     "title": "Interactive Interface",
+    "userAction": {
+      "header": "Gesendet",
+      "actionLabel": "Aktion",
+      "dataLabel": "Eingaben",
+      "emptyField": "Nicht ausgefüllt",
+      "actionTypes": {
+        "submit": "Senden",
+        "cancel": "Abbrechen",
+        "navigate": "Navigieren",
+        "custom": "Bestätigen"
+      }
+    },
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",

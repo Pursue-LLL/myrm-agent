@@ -1,4 +1,4 @@
-import { stripDatetimeTag, stripMarkdown, getBrowserTimezone } from '../messageUtils';
+import { stripDatetimeTag, stripMarkdown, stripUiActionPayload, stripUserMessageDisplayText, getBrowserTimezone } from '../messageUtils';
 
 describe('stripDatetimeTag', () => {
   it('removes current_datetime tags', () => {
@@ -17,6 +17,21 @@ describe('stripDatetimeTag', () => {
   it('removes multiple tags', () => {
     const input = '<current_datetime>t1</current_datetime>A<current_datetime>t2</current_datetime>B';
     expect(stripDatetimeTag(input)).toBe('AB');
+  });
+});
+
+describe('stripUiActionPayload', () => {
+  it('removes ui_action_data block from user message', () => {
+    const input = '已提交\n操作: 提交\n<ui_action_data>{"type":"ui_action"}</ui_action_data>';
+    expect(stripUiActionPayload(input)).toBe('已提交\n操作: 提交');
+  });
+});
+
+describe('stripUserMessageDisplayText', () => {
+  it('removes datetime tag and ui_action payload', () => {
+    const input =
+      '<current_datetime>t</current_datetime>已提交\n<ui_action_data>{"type":"ui_action"}</ui_action_data>';
+    expect(stripUserMessageDisplayText(input)).toBe('已提交');
   });
 });
 

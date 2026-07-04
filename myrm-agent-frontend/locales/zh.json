@@ -4846,7 +4846,7 @@
         "kanban": "管理看板任务 — 报告进度、阻塞任务、标记完成",
         "canvas": "读写无限画布 — 让智能体看到你的绘图、笔记和思维导图",
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
-        "render_ui": "在对话中渲染表格、图表和表单 — 用于结构化数据展示与交互",
+        "render_ui": "在对话里直接填写表单、查看表格与图表",
         "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）"
       },
       "cuPermission": {
@@ -8177,6 +8177,18 @@
   },
   "interactiveUI": {
     "title": "交互式界面",
+    "userAction": {
+      "header": "已提交",
+      "actionLabel": "操作",
+      "dataLabel": "填写内容",
+      "emptyField": "未填写",
+      "actionTypes": {
+        "submit": "提交",
+        "cancel": "取消",
+        "navigate": "跳转",
+        "custom": "确认"
+      }
+    },
     "submitted": "已提交",
     "submitting": "提交中...",
     "noData": "暂无数据",
