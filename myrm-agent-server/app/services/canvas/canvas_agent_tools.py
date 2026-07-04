@@ -5,6 +5,7 @@ Server business layer — not a harness toolkit primitive.
 [INPUT]
 - app.services.canvas.operations (POS: Canvas agent-facing operations)
 - app.services.canvas._events (POS: SSE event notification hub)
+- app.services.canvas._layout (POS: Layout algorithms)
 
 [OUTPUT]
 - create_canvas_tools: LangChain tool factory
@@ -22,8 +23,15 @@ import logging
 
 from langchain_core.tools import BaseTool, tool
 
-from app.services.canvas._events import notify_canvas_change
+from app.services.canvas._events import notify_batch_layout_done, notify_canvas_change
+from app.services.canvas._layout import (
+    LayoutEdge,
+    LayoutNode,
+    LayoutStrategy,
+    compute_layout,
+)
 from app.services.canvas.operations import (
+    batch_insert_canvas_elements,
     get_canvas_selection,
     get_canvas_state,
     insert_canvas_element,
@@ -100,4 +108,83 @@ def create_canvas_tools(canvas_id: str) -> list[BaseTool]:
             ensure_ascii=False,
         )
 
-    return [canvas_get_state_tool, canvas_get_selection_tool, canvas_insert_element_tool]
+    @tool("canvas_batch_layout")
+    async def canvas_batch_layout_tool(
+        nodes: list[dict[str, str]],
+        edges: list[dict[str, str]] | None = None,
+        layout: str = "grid",
+    ) -> str:
+        """Insert multiple nodes with automatic layout and optional connecting arrows.
+
+        Use this instead of calling canvas_insert_element repeatedly when you
+        need to place several related concepts, a knowledge graph, architecture
+        diagram, or mind map.
+
+        Args:
+            nodes: List of nodes to insert. Each dict: {"id": "unique_key", "text": "content"}.
+                   'id' is a logical key used to reference nodes in edges.
+            edges: Optional list of directed connections. Each dict:
+                   {"from_id": "source_key", "to_id": "target_key", "label": "optional text"}.
+            layout: Layout strategy — "grid" (flat list), "tree" (hierarchy/DAG),
+                    or "force" (associative network). Default "grid".
+        """
+        if not nodes:
+            return json.dumps({"status": "error", "message": "No nodes provided"})
+
+        strategy: LayoutStrategy = (
+            layout if layout in ("grid", "tree", "force") else "grid"
+        )
+
+        layout_nodes = [
+            LayoutNode(id=n.get("id", f"n{i}"), width=280, height=120)
+            for i, n in enumerate(nodes)
+        ]
+        layout_edges = [
+            LayoutEdge(from_id=e["from_id"], to_id=e["to_id"])
+            for e in (edges or [])
+            if "from_id" in e and "to_id" in e
+        ]
+
+        positions = compute_layout(layout_nodes, layout_edges, strategy)
+        pos_map = {p.id: p for p in positions}
+
+        shapes_to_insert = []
+        for i, n in enumerate(nodes):
+            nid = n.get("id", f"n{i}")
+            text = n.get("text", "")
+            pos = pos_map.get(nid)
+            shapes_to_insert.append({
+                "id": nid,
+                "type": "note",
+                "x": pos.x if pos else 0,
+                "y": pos.y if pos else 0,
+                "props": {"text": text},
+            })
+
+        arrows_to_insert = [
+            {"from_id": e["from_id"], "to_id": e["to_id"], "label": e.get("label", "")}
+            for e in (edges or [])
+            if "from_id" in e and "to_id" in e
+        ]
+
+        result = await batch_insert_canvas_elements(
+            canvas_id, shapes_to_insert, arrows_to_insert
+        )
+        notify_batch_layout_done(canvas_id)
+
+        return json.dumps(
+            {
+                "status": "ok",
+                "layout": strategy,
+                "nodes_inserted": len(result["inserted_shapes"]),
+                "arrows_inserted": len(result["inserted_arrows"]),
+            },
+            ensure_ascii=False,
+        )
+
+    return [
+        canvas_get_state_tool,
+        canvas_get_selection_tool,
+        canvas_insert_element_tool,
+        canvas_batch_layout_tool,
+    ]

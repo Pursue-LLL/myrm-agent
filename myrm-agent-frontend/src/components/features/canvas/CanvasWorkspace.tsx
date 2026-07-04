@@ -103,11 +103,17 @@ export default function CanvasWorkspace({ canvasId, className }: CanvasWorkspace
 
       function connectSSE() {
         eventSource = createCanvasEventSource(canvasId);
-        eventSource.addEventListener('canvas-changed', () => {
+        eventSource.addEventListener('canvas-changed', (ev: MessageEvent) => {
           loadSnapshot(canvasId)
             .then((freshSnapshot) => {
               if (freshSnapshot && isMountedRef.current) {
                 editor.store.loadStoreSnapshot(freshSnapshot as unknown as TLStoreSnapshot);
+                try {
+                  const data = JSON.parse(ev.data || '{}');
+                  if (data.hint === 'batch-layout-done') {
+                    requestAnimationFrame(() => editor.zoomToFit({ animation: { duration: 400 } }));
+                  }
+                } catch { /* ignore parse errors from keepalive */ }
               }
             })
             .catch(() => {});

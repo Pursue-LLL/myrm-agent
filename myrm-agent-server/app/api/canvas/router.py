@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.canvas._events import notify_canvas_change, sse_events
+from app.services.canvas._events import consume_hint, notify_canvas_change, sse_events
 from app.services.canvas._paths import (
     MAX_SNAPSHOT_SIZE_BYTES,
     canvas_dir,
@@ -248,7 +248,11 @@ async def canvas_events(canvas_id: str, request: Request):
                 try:
                     await asyncio.wait_for(event.wait(), timeout=30.0)
                     event.clear()
-                    yield f"event: canvas-changed\ndata: {{}}\n\n"
+                    hint = consume_hint(canvas_id)
+                    if hint == "batch-layout-done":
+                        yield f"event: canvas-changed\ndata: {{\"hint\":\"batch-layout-done\"}}\n\n"
+                    else:
+                        yield f"event: canvas-changed\ndata: {{}}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
         finally:

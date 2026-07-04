@@ -26,14 +26,19 @@ def _clean_sse_events() -> None:
 
 
 class TestCreateCanvasTools:
-    def test_returns_three_tools(self) -> None:
+    def test_returns_four_tools(self) -> None:
         tools = create_canvas_tools(VALID_CANVAS_ID)
-        assert len(tools) == 3
+        assert len(tools) == 4
 
     def test_tool_names(self) -> None:
         tools = create_canvas_tools(VALID_CANVAS_ID)
         names = {t.name for t in tools}
-        assert names == {"canvas_get_state", "canvas_get_selection", "canvas_insert_element"}
+        assert names == {
+            "canvas_get_state",
+            "canvas_get_selection",
+            "canvas_insert_element",
+            "canvas_batch_layout",
+        }
 
     def test_tools_are_async(self) -> None:
         tools = create_canvas_tools(VALID_CANVAS_ID)
