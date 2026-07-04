@@ -44,16 +44,8 @@ async def open_web_fetch_escalation_context(
     browser_source: str | None,
 ) -> AsyncIterator[None]:
     """Bind L4 providers and browser launch mode for one agent stream run."""
-    from myrm_agent_harness.toolkits.web_fetch import web_fetch_tools
-
     providers = await build_escalation_providers(session_id)
     launch_mode = resolve_browser_launch_mode(browser_source)
 
     with bind_web_fetch_escalation_context(providers=providers, launch_mode=launch_mode):
-        web_fetch_tools.set_escalation_providers(providers)
-        web_fetch_tools.set_browser_launch_mode(launch_mode)
-        try:
-            yield
-        finally:
-            web_fetch_tools.set_escalation_providers(None)
-            web_fetch_tools.set_browser_launch_mode(None)
+        yield

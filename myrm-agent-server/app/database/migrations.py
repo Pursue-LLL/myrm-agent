@@ -316,6 +316,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE approvals ADD COLUMN expires_at TIMESTAMP",
     "ALTER TABLE chats ADD COLUMN ephemeral_subagents JSON",
     "ALTER TABLE chats ADD COLUMN task_adaptive_digest TEXT",
+    "ALTER TABLE chats ADD COLUMN session_loaded_skill_names JSON",
     # System Health History (健康趋势图数据存储)
     """CREATE TABLE IF NOT EXISTS system_health_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

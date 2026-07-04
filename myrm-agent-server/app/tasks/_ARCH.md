@@ -13,7 +13,6 @@
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件 | ✅ |
 | `metrics.py` | 辅助 | 任务指标采集 | — |
 | `cleanup.py` | 辅助 | 任务清理 | — |
-| `idle_tool_pruner.py` | 后台 | 自动扫描闲置工具并生成净化审批流 | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块

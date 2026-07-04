@@ -697,6 +697,11 @@ async def build_general_agent(
         global_env=global_env,
         on_skill_review_ready=make_skill_review_callback(),
         on_session_cleanup=_build_session_cleanup_callback(agent_wrapper, user_id or "default"),
+        on_loaded_skills_persist=(
+            None
+            if agent_wrapper.incognito_mode
+            else make_loaded_skills_persist_callback()
+        ),
         wiki_base_dir=(agent_wrapper._resolve_wiki_base_dir() if agent_wrapper.enable_wiki else None),
         wiki_search_fn=(agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None),
         similarity_checker=sim_checker,
@@ -895,6 +900,7 @@ def _build_session_cleanup_callback(
     from .callbacks import (
         make_commitment_extraction_callback,
         make_correction_propagation_callback,
+        make_loaded_skills_persist_callback,
     )
     from .frustration_routing import make_frustration_skill_routing_callback
 

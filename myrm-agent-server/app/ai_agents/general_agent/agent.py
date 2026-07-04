@@ -138,6 +138,7 @@ class GeneralAgent(ToolSetupMixin):
         subagent_ids: list[str] | None = None,
         jit_subagents: dict[str, object] | None = None,
         task_adaptive_digest: dict[str, object] | None = None,
+        session_loaded_skill_names: list[str] | None = None,
         max_iterations: int | None = None,
         memory_policy: AgentMemoryPolicy | None = None,
         memory_decay_profile: str | None = None,
@@ -165,6 +166,7 @@ class GeneralAgent(ToolSetupMixin):
         self.subagent_ids = subagent_ids
         self.jit_subagents = jit_subagents
         self.task_adaptive_digest = task_adaptive_digest
+        self.session_loaded_skill_names = session_loaded_skill_names
         self.skill_ids = skill_ids or []
         self.skill_configs = skill_configs
         self.memory_require_confirmation = memory_require_confirmation
@@ -380,6 +382,9 @@ class GeneralAgent(ToolSetupMixin):
 
         if hasattr(self, "goal") and self.goal:
             context["goal"] = self.goal
+
+        if self.session_loaded_skill_names and not self.incognito_mode:
+            context["session_loaded_skill_names"] = list(self.session_loaded_skill_names)
 
         return context
 

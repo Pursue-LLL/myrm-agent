@@ -1,1 +1,1 @@
-"""Escalation registry, session cap, and per-run binding."""
+"""Web fetch escalation registry and session cap (server layer)."""

@@ -107,13 +107,13 @@ const WebFetchEscalationCard = memo(() => {
         provider === 'jina'
           ? jinaKeyText.trim() || null
           : firecrawlKeyText.trim() || null;
-      if (provider === 'firecrawl' && !apiKey && config.firecrawl.inheritFromSearch) {
-        toast({ title: t('verifyInheritHint'), variant: 'default' });
-        return;
-      }
       await apiRequest('/integrations/web-fetch/verify', {
         method: 'POST',
-        body: JSON.stringify({ provider, api_key: apiKey }),
+        body: JSON.stringify({
+          provider,
+          api_key: apiKey,
+          inherit_from_search: provider === 'firecrawl' && config.firecrawl.inheritFromSearch,
+        }),
       });
       toast({ title: t('verifySuccess', { provider: provider.toUpperCase() }) });
     } catch (err) {

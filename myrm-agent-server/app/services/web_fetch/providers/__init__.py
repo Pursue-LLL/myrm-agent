@@ -1,1 +1,1 @@
-"""Remote fetch provider implementations (httpx)."""
+"""Remote fetch provider implementations (Jina, Firecrawl)."""

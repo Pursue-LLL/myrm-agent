@@ -16,17 +16,16 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import FetchEscalationProvider
+from myrm_agent_harness.toolkits.web_fetch.escalation.protocols import (
+    EscalationFetchResult,
+    FetchEscalationProvider,
+)
 
 from app.schemas.config import SearchServicesConfigValue, WebFetchEscalationConfigValue
 from app.services.web_fetch.escalation.session_counter import session_escalation_counter
 from app.services.web_fetch.providers.firecrawl import FirecrawlEscalationProvider
 from app.services.web_fetch.providers.jina import JinaEscalationProvider
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class SessionCappedEscalationProvider:
         self._session_cap = session_cap
         self.provider_id = inner.provider_id
 
-    async def fetch_url(self, url: str, *, max_chars: int = 0):
+    async def fetch_url(self, url: str, *, max_chars: int = 0) -> EscalationFetchResult | None:
         if not session_escalation_counter.try_acquire(self._session_id, self._session_cap):
             logger.info(
                 "Web fetch escalation session cap reached (%d) for session %s",

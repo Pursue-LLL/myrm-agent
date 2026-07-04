@@ -673,6 +673,7 @@ async def convert_to_general_agent_params(
 
     jit_subagents = request.ephemeral_subagents
     task_adaptive_digest = None
+    session_loaded_skill_names: list[str] | None = None
     chat_workspace_dir: str | None = None
     chat_loaded = False
     db_had_workspace = False
@@ -687,6 +688,10 @@ async def convert_to_general_agent_params(
                     jit_subagents = chat.ephemeral_subagents
                 if chat.task_adaptive_digest:
                     task_adaptive_digest = chat.task_adaptive_digest
+                if chat.session_loaded_skill_names:
+                    session_loaded_skill_names = [
+                        str(name) for name in chat.session_loaded_skill_names if name
+                    ]
 
                 if chat.project_id:
                     from app.services.project.project_service import ProjectService
@@ -920,6 +925,9 @@ async def convert_to_general_agent_params(
         quote=request.quote,
         jit_subagents=jit_subagents if not is_fast_search else None,
         task_adaptive_digest=task_adaptive_digest if not is_fast_search else None,
+        session_loaded_skill_names=(
+            session_loaded_skill_names if not is_fast_search and not request.incognito_mode else None
+        ),
         declared_capabilities=tuple(declared_caps),
         declared_allowed_roots=(chat_workspace_dir,) if chat_workspace_dir else (),
         goal=request.goal.model_dump(exclude_none=True) if request.goal else None,

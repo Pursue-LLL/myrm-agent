@@ -171,6 +171,7 @@ class GeneralAgentParams(BaseAgentParams):
     engine_params: dict[str, object] | None = None
     jit_subagents: dict[str, object] | None = None
     task_adaptive_digest: dict[str, object] | None = None
+    session_loaded_skill_names: list[str] | None = None
     goal: dict[str, object] | None = None
     openapi_services: list[dict[str, object]] | None = None
     prompt_mode: str = "full"
@@ -305,6 +306,7 @@ class AgentFactory:
             subagent_ids=params.subagent_ids,
             jit_subagents=params.jit_subagents,
             task_adaptive_digest=params.task_adaptive_digest,
+            session_loaded_skill_names=params.session_loaded_skill_names,
             max_iterations=params.max_iterations,
             memory_policy=params.memory_policy,
             memory_decay_profile=params.memory_decay_profile,

@@ -90,6 +90,7 @@ class ChatDTO(BaseModel):
     session_notes_json: str | None = None
     ephemeral_subagents: dict[str, Any] | None = None
     task_adaptive_digest: dict[str, Any] | None = None
+    session_loaded_skill_names: list[str] | None = None
     workspace_dir: str | None = None
     sandbox_base_dir: str | None = None
     project_id: str | None = None

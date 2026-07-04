@@ -35,8 +35,40 @@ _VERIFY_URL = "https://example.com"
 
 class WebFetchEscalationVerifyRequest(BaseModel):
     provider: Literal["jina", "firecrawl"] = Field(..., description="Remote reader provider to verify")
-    api_key: str | None = Field(None, description="Optional Jina API key; required for Firecrawl")
+    api_key: str | None = Field(None, description="Optional Jina API key; required for Firecrawl unless inherit")
+    inherit_from_search: bool = Field(
+        default=False,
+        description="When true for Firecrawl, resolve API key from enabled searchServices entry",
+    )
     test_url: str | None = Field(None, description="URL to fetch for verification")
+
+
+async def _resolve_firecrawl_verify_key(api_key: str | None, inherit_from_search: bool) -> str:
+    explicit = (api_key or "").strip()
+    if explicit:
+        return explicit
+    if not inherit_from_search:
+        raise validation_error("API key is required for Firecrawl verification")
+    from app.schemas.config import SearchServicesConfigValue, WebFetchEscalationConfigValue
+    from app.services.config.service import config_service
+    from app.services.web_fetch.escalation.registry import resolve_firecrawl_api_key
+
+    escalation_record = await config_service.get("webFetchEscalation")
+    escalation_cfg = (
+        WebFetchEscalationConfigValue.model_validate(escalation_record.value)
+        if escalation_record
+        else WebFetchEscalationConfigValue()
+    )
+    search_services: SearchServicesConfigValue | None = None
+    search_record = await config_service.get("searchServices")
+    if search_record:
+        search_services = SearchServicesConfigValue.model_validate(search_record.value)
+    resolved = resolve_firecrawl_api_key(escalation_cfg, search_services)
+    if not resolved:
+        raise validation_error(
+            "No Firecrawl API key found. Enable a Firecrawl search service or enter a dedicated key."
+        )
+    return resolved
 
 
 class WebFetchEscalationVerifyData(BaseModel):
@@ -58,9 +90,11 @@ async def verify_web_fetch_escalation(request: WebFetchEscalationVerifyRequest) 
                 api_key=request.api_key
             )
         else:
-            if not (request.api_key or "").strip():
-                raise validation_error("API key is required for Firecrawl verification")
-            provider = FirecrawlEscalationProvider(request.api_key or "")
+            firecrawl_key = await _resolve_firecrawl_verify_key(
+                request.api_key,
+                request.inherit_from_search,
+            )
+            provider = FirecrawlEscalationProvider(firecrawl_key)
 
         result = await provider.fetch_url(test_url, max_chars=4000)
         if result is None or not result.content.strip():
