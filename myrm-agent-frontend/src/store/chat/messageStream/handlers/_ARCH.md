@@ -20,7 +20,7 @@
 | `toolLifecycleEvents.ts` | 核心 | TOOL_START/END、审批请求与结果 | — |
 | `routingMetaEvents.ts` | 核心 | ROUTING_DECISION、模型路由元数据 | — |
 | `messageContentEvents.ts` | 核心 | REASONING、MESSAGE、MESSAGE_DELTA | — |
-| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE | — |
+| `artifactEvents.ts` | 核心 | ARTIFACTS、UI_UPDATE（`ui_artifact` 追加、`data_update` 合并 data） | — |
 | `captchaEvents.ts` | 核心 | CAPTCHA 进度展示 | — |
 | `sessionRecordingEvents.ts` | 核心 | SESSION_RECORDING 视频回放元数据 | ✅ |
 | `modelNotifyEvents.ts` | 核心 | MODEL_ESCALATED、降级通知 | — |

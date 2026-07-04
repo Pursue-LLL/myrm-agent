@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { UIArtifact, UIAction } from '@/store/chat/types';
 import { UIComponentRegistry, UIComponentProps } from './UIComponentRegistry';
@@ -32,6 +32,10 @@ export const InteractiveUIRenderer: React.FC<InteractiveUIRendererProps> = ({ ar
 
   // 本地数据状态（可编辑）
   const [localData, setLocalData] = useState<Record<string, unknown>>(artifact.data);
+
+  useEffect(() => {
+    setLocalData(artifact.data);
+  }, [artifact.data]);
   // 验证错误状态（存储结构化错误信息）
   const [validationErrors, setValidationErrors] = useState<Map<string, ValidationErrorInfo>>(new Map());
   // 已触碰的字段（用于在 blur 时显示错误）

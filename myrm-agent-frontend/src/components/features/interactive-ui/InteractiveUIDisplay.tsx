@@ -47,31 +47,26 @@ export const InteractiveUIDisplay: React.FC<InteractiveUIDisplayProps> = ({ uiAr
       payload: action.payload,
     };
 
-    // 如果是提交动作，标记为提交中并显示 Toast
     if (action.type === 'submit') {
       setSubmittingSurfaces((prev) => new Set(prev).add(surfaceId));
-
-      // 模拟提交完成（实际由父组件处理）
-      setTimeout(() => {
-        setSubmittingSurfaces((prev) => {
-          const next = new Set(prev);
-          next.delete(surfaceId);
-          return next;
-        });
-        setSubmittedSurfaces((prev) => new Set(prev).add(surfaceId));
-
-        // 显示提交成功 Toast
-        toast.success(t('toast.submitSuccess'), {
-          description: t('toast.submitSuccessDesc'),
-        });
-      }, 500);
     } else if (action.type === 'cancel') {
-      // 取消操作 Toast
       toast.info(t('toast.cancelled'));
     }
 
     if (onAction) {
       onAction(event);
+    }
+
+    if (action.type === 'submit') {
+      setSubmittingSurfaces((prev) => {
+        const next = new Set(prev);
+        next.delete(surfaceId);
+        return next;
+      });
+      setSubmittedSurfaces((prev) => new Set(prev).add(surfaceId));
+      toast.success(t('toast.submitSuccess'), {
+        description: t('toast.submitSuccessDesc'),
+      });
     }
   };
 
