@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""WFEL settings UI smoke check via CDP (real Chrome :9222, app :3000)."""
+"""WFEL settings UI full-path check: expand card, click Test Jina, assert API response."""
 
 from __future__ import annotations
 
@@ -27,37 +27,41 @@ def main() -> int:
         page.set_default_timeout(TIMEOUT_MS)
         page.wait_for_timeout(2000)
 
-        found = page.evaluate(
-            """() => {
-              const needle = '网页抓取远程兜底';
-              const el = [...document.querySelectorAll('h3,button,section')].find(
-                (n) => (n.textContent || '').includes(needle)
-              );
-              if (!el) return { ok: false, reason: 'title-not-in-dom' };
-              el.scrollIntoView({ block: 'center' });
-              return { ok: true, tag: el.tagName, text: (el.textContent || '').slice(0, 80) };
-            }"""
-        )
-        if not found.get("ok"):
-            print(json.dumps({"ok": False, "error": found.get("reason", "missing")}))
-            return 1
+        section = page.locator("section").filter(has_text="网页抓取远程兜底")
+        section.locator("button").first.click(timeout=TIMEOUT_MS)
+        page.wait_for_timeout(400)
 
-        section_btn = page.locator("section").filter(has_text="网页抓取远程兜底").locator("button").first
-        section_btn.click(timeout=TIMEOUT_MS)
-        page.wait_for_timeout(500)
+        verify_btn = page.get_by_role("button", name="测试 Jina")
+        verify_btn.wait_for(state="visible", timeout=TIMEOUT_MS)
 
-        verify_visible = page.get_by_role("button", name="测试 Jina").is_visible()
+        with page.expect_response(
+            lambda r: "/integrations/web-fetch/verify" in r.url and r.request.method == "POST",
+            timeout=TIMEOUT_MS,
+        ) as resp_info:
+            verify_btn.click()
+
+        response = resp_info.value
+        status = response.status
+        body_text = response.text()
+        try:
+            body = json.loads(body_text)
+        except json.JSONDecodeError:
+            body = {"raw": body_text[:200]}
+
+        ok = status in (200, 502)
         print(
             json.dumps(
                 {
-                    "ok": verify_visible,
+                    "ok": ok,
                     "url": page.url,
-                    "checks": ["title-in-dom", "expand", "verifyJina"],
-                    "title": found.get("text"),
-                }
+                    "verify_status": status,
+                    "verify_success": body.get("success") if isinstance(body, dict) else None,
+                    "checks": ["expand", "click_verify_jina", "api_response"],
+                },
+                ensure_ascii=False,
             )
         )
-        return 0 if verify_visible else 1
+        return 0 if ok else 1
 
 
 if __name__ == "__main__":
