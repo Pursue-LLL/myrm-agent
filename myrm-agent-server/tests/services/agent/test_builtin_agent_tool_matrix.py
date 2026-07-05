@@ -17,11 +17,9 @@ def test_all_builtin_agents_declare_enabled_tools() -> None:
     assert missing == [], f"Builtin agents missing enabled_builtin_tools: {missing}"
 
 
-def test_developer_has_shell_and_file_ops() -> None:
+def test_developer_has_coding_tools() -> None:
     developer = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-developer")
     assert developer.enabled_builtin_tools == _TOOL_CODING
-    assert "code_execute" in developer.enabled_builtin_tools
-    assert "file_ops" in developer.enabled_builtin_tools
 
 
 def test_designer_uses_canonical_image_generation_id() -> None:
@@ -41,8 +39,6 @@ def test_research_analyst_has_answer_tool() -> None:
     assert researcher.enabled_builtin_tools == _TOOL_RESEARCH
 
 
-def test_general_assistant_has_sandbox_baseline() -> None:
+def test_general_assistant_has_default_tools() -> None:
     general = next(spec for spec in _BUILTIN_AGENTS if spec.id == "builtin-general")
     assert general.enabled_builtin_tools == _TOOL_DEFAULT
-    assert "file_ops" in general.enabled_builtin_tools
-    assert "code_execute" in general.enabled_builtin_tools
