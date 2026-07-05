@@ -1,6 +1,9 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { SWIPE_CLOSE_THRESHOLD, SWIPE_MAX_OFFSET } from '@/lib/constants/artifact';
 
+const MIN_PANEL_WIDTH = 320;
+const MAX_PANEL_WIDTH = 1200;
+
 interface UsePortalGesturesProps {
   isMobile: boolean;
   panelWidth: number;
@@ -37,6 +40,7 @@ export function usePortalGestures({
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
   const dragStartWidth = useRef(0);
+  const rafRef = useRef<number | null>(null);
 
   // 触摸开始
   const handleTouchStart = useCallback(
@@ -82,6 +86,8 @@ export function usePortalGestures({
       setIsDragging(true);
       dragStartX.current = e.clientX;
       dragStartWidth.current = panelWidth;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
     },
     [panelWidth],
   );
@@ -91,13 +97,23 @@ export function usePortalGestures({
     if (!isDragging) return;
 
     const handleDragMove = (e: MouseEvent) => {
-      const delta = dragStartX.current - e.clientX;
-      const newWidth = dragStartWidth.current + delta;
-      onSetPanelWidth(newWidth);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const delta = dragStartX.current - e.clientX;
+        const rawWidth = dragStartWidth.current + delta;
+        const clampedWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, rawWidth));
+        onSetPanelWidth(clampedWidth);
+      });
     };
 
     const handleDragEnd = () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       setIsDragging(false);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
     };
 
     document.addEventListener('mousemove', handleDragMove);
@@ -106,6 +122,7 @@ export function usePortalGestures({
     return () => {
       document.removeEventListener('mousemove', handleDragMove);
       document.removeEventListener('mouseup', handleDragEnd);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [isDragging, onSetPanelWidth]);
 

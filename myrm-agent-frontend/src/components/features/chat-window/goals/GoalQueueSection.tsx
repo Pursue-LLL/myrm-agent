@@ -1,5 +1,17 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/primitives/button';
 import useChatStore from '@/store/useChatStore';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
@@ -58,32 +70,26 @@ const GripVerticalIcon = ({ className = 'w-3 h-3' }) => (
   </svg>
 );
 
-function QueueItem({
-  goal,
-  index,
-  onCancel,
-  onDragStart,
-  onDragOver,
-  onDrop,
-}: {
-  goal: QueuedGoal;
-  index: number;
-  onCancel: (goalId: string) => void;
-  onDragStart: (e: React.DragEvent, index: number) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent, index: number) => void;
-}) {
+function SortableQueueItem({ goal, index, onCancel }: { goal: QueuedGoal; index: number; onCancel: (id: string) => void }) {
   const t = useTranslations('Goal');
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: goal.goal_id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
 
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, index)}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, index)}
-      className="flex items-center gap-2 p-2 rounded-full border bg-card/60 hover:bg-card transition-colors cursor-grab active:cursor-grabbing group"
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-2 rounded-full border bg-card/60 hover:bg-card transition-colors group touch-none"
     >
-      <GripVerticalIcon className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground shrink-0" />
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0">
+        <GripVerticalIcon className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground" />
+      </div>
       <span className="text-xs text-muted-foreground/60 font-mono w-4 shrink-0">{index + 1}</span>
       <span className="text-xs text-foreground flex-1 truncate" title={goal.objective}>
         {goal.objective}
@@ -108,8 +114,15 @@ export function GoalQueueSection() {
   const fetchQueue = useGoalStore((s) => s.fetchQueue);
   const cancelQueuedGoal = useGoalStore((s) => s.cancelQueuedGoal);
   const reorderQueue = useGoalStore((s) => s.reorderQueue);
-
   const activeGoal = useGoalStore((s) => s.activeGoal);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const sortableIds = useMemo(() => queuedGoals.map((g) => g.goal_id), [queuedGoals]);
 
   useEffect(() => {
     if (chatId) fetchQueue(chatId);
@@ -122,29 +135,18 @@ export function GoalQueueSection() {
     [chatId, cancelQueuedGoal],
   );
 
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    e.dataTransfer.setData('text/plain', String(index));
-  }, []);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id || !chatId) return;
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
+      const oldIndex = queuedGoals.findIndex((g) => g.goal_id === active.id);
+      const newIndex = queuedGoals.findIndex((g) => g.goal_id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, dropIndex: number) => {
-      e.preventDefault();
-      const dragIndex = Number(e.dataTransfer.getData('text/plain'));
-      if (dragIndex === dropIndex || !chatId) return;
-
-      const reordered = [...queuedGoals];
-      const [moved] = reordered.splice(dragIndex, 1);
-      reordered.splice(dropIndex, 0, moved);
-
+      const reordered = arrayMove(queuedGoals, oldIndex, newIndex);
       useGoalStore.setState({ queuedGoals: reordered });
-      reorderQueue(
-        chatId,
-        reordered.map((g) => g.goal_id),
-      );
+      reorderQueue(chatId, reordered.map((g) => g.goal_id));
     },
     [chatId, queuedGoals, reorderQueue],
   );
@@ -159,19 +161,15 @@ export function GoalQueueSection() {
           {t('queueTitle')} ({queuedGoals.length})
         </span>
       </div>
-      <div className="space-y-1.5">
-        {queuedGoals.map((goal, idx) => (
-          <QueueItem
-            key={goal.goal_id}
-            goal={goal}
-            index={idx}
-            onCancel={handleCancel}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+          <div className="space-y-1.5">
+            {queuedGoals.map((goal, idx) => (
+              <SortableQueueItem key={goal.goal_id} goal={goal} index={idx} onCancel={handleCancel} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
