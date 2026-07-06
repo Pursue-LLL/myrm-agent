@@ -4685,6 +4685,8 @@
     "consensusUsingPrimary": "使用主模型",
     "sessionPolicy": "会话策略",
     "sessionPolicyDesc": "为此 Agent 单独配置会话重置策略，留空则使用全局设置。",
+    "deliveryAssurance": "交付保障",
+    "deliveryAssuranceDesc": "针对无人值守定时任务的可选事后检查，不影响交互式对话。",
     "cronPostRunVerify": "定时任务交付复核",
     "cronPostRunVerifyDesc": "无人值守 Cron 在写入文件或执行命令后，追加独立交付审查（不会重跑任务）。",
     "sessionPolicyMode": "重置模式",
@@ -8714,6 +8716,7 @@
     "verificationFail": "复核未通过",
     "verificationSkipped": "未复核",
     "verificationError": "复核异常",
+    "verificationSummary": "交付复核",
     "securityDeniedHint": "部分工具被安全策略拒绝，请在上方「能力围栏」中配置所需工具权限。",
     "capability": {
       "web_search_tool": "搜索引擎",

@@ -17,6 +17,7 @@ import {
   AdvancedEngineParamsSection,
   ConsensusSection,
   SessionPolicySection,
+  DeliveryAssuranceSection,
 } from './AgentCapabilitiesTabSections';
 import type { ConfigCardType } from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import type {
@@ -96,6 +97,8 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         sessionRecording={editor.sessionRecording}
         onSessionRecordingChange={editor.setSessionRecording}
       />
+
+      <DeliveryAssuranceSection editor={editor} t={t} />
 
       <SessionPolicySection editor={editor} t={t} />
 

@@ -98,6 +98,7 @@ export const BuiltinToolsPanel = ({
           const isCron = id === 'cron';
           const disabled = isCron && cronEntitlementBlocked;
           const description = disabled ? tBilling('cronDescription') : tPanel(`builtinToolDescs.${id}`);
+          const checked = localBuiltinTools.includes(id);
 
           return (
             <div key={id} className="space-y-1">
@@ -105,11 +106,14 @@ export const BuiltinToolsPanel = ({
                 id={`builtin-${id}`}
                 label={tPanel(`builtinToolNames.${id}`)}
                 description={description}
-                checked={localBuiltinTools.includes(id)}
-                onCheckedChange={() => toggleBuiltinTool(id)}
+                checked={checked}
+                onCheckedChange={() => {
+                  if (disabled && !checked) return;
+                  toggleBuiltinTool(id);
+                }}
                 icon={BUILTIN_TOOL_ICONS[id]}
                 colorClass="text-orange-500"
-                disabled={disabled}
+                disabled={disabled && !checked}
               />
               {disabled && (
                 <Link

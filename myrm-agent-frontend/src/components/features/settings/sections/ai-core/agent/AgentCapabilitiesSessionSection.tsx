@@ -14,18 +14,7 @@ type SectionProps = {
 export function SessionPolicySection({ editor, t }: SectionProps) {
   return (
     <div className="rounded-xl bg-card/60 border border-border/50 p-4 space-y-3">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h4 className="text-sm font-medium text-foreground">{t('agent.cronPostRunVerify')}</h4>
-          <p className="text-xs text-muted-foreground mt-0.5">{t('agent.cronPostRunVerifyDesc')}</p>
-        </div>
-        <Switch
-          checked={editor.cronPostRunVerify}
-          onCheckedChange={(checked) => editor.setCronPostRunVerify(checked)}
-        />
-      </div>
-
-      <div className="flex items-center justify-between pt-2 border-t border-border/30">
+      <div className="flex items-center justify-between">
         <div>
           <h4 className="text-sm font-medium text-foreground">{t('agent.sessionPolicy')}</h4>
           <p className="text-xs text-muted-foreground mt-0.5">{t('agent.sessionPolicyDesc')}</p>

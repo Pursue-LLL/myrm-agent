@@ -245,3 +245,4 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
 
 export { ConsensusSection } from './AgentCapabilitiesConsensusSection';
 export { SessionPolicySection } from './AgentCapabilitiesSessionSection';
+export { DeliveryAssuranceSection } from './AgentCapabilitiesDeliverySection';

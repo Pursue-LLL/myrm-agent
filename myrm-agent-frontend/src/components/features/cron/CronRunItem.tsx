@@ -214,6 +214,24 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                 <p className="text-[11px] text-amber-700 dark:text-amber-300">{t('securityDeniedHint')}</p>
               </div>
             )}
+            {verification && (
+              <div
+                className={cn(
+                  'rounded-lg border px-2.5 py-2 space-y-1',
+                  verification.status === 'pass'
+                    ? 'border-green-500/30 bg-green-500/5'
+                    : verification.status === 'fail'
+                      ? 'border-destructive/30 bg-destructive/5'
+                      : 'border-border/40 bg-muted/30',
+                )}
+              >
+                <p className="text-[11px] font-medium text-foreground">{t('verificationSummary')}</p>
+                <p className="text-[11px] text-muted-foreground">{verificationLabel}</p>
+                {verification.summary && (
+                  <p className="text-[11px] text-muted-foreground whitespace-pre-wrap break-words">{verification.summary}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

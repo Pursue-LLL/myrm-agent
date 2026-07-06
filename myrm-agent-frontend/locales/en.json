@@ -4682,6 +4682,8 @@
     "consensusUsingPrimary": "Using primary model",
     "sessionPolicy": "Session Policy",
     "sessionPolicyDesc": "Override global session reset strategy for this agent. Leave empty to use global settings.",
+    "deliveryAssurance": "Delivery Assurance",
+    "deliveryAssuranceDesc": "Optional post-run checks for unattended scheduled tasks. Does not affect interactive chat.",
     "cronPostRunVerify": "Scheduled Task Verification",
     "cronPostRunVerifyDesc": "After unattended cron runs that changed files or executed commands, run an independent delivery review (does not retry the task).",
     "sessionPolicyMode": "Reset Mode",
@@ -8714,6 +8716,7 @@
     "verificationFail": "Verify Failed",
     "verificationSkipped": "Verify Skipped",
     "verificationError": "Verify Error",
+    "verificationSummary": "Delivery review",
     "securityDeniedHint": "Some tools were denied by security policy. Configure required permissions in the Capability Fence above.",
     "capability": {
       "web_search_tool": "Search Engine",
