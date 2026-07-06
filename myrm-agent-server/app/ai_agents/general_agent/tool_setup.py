@@ -704,20 +704,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
-    def _setup_canvas_tools(self, tools: list[object]) -> None:
-        """Set up canvas interaction tools when canvas is enabled and bound."""
-        if not getattr(self, "enable_canvas", False) or not getattr(self, "canvas_id", None):
-            return
-        try:
-            from app.services.canvas.canvas_agent_tools import create_canvas_tools
-
-            canvas_tools = create_canvas_tools(self.canvas_id)
-            tools.extend(canvas_tools)
-            logger.info("Loaded %d canvas tool(s) [Turn1]", len(canvas_tools))
-        except Exception as e:
-            logger.warning("Canvas tools load failed (degraded): %s", e)
-
-
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.
 

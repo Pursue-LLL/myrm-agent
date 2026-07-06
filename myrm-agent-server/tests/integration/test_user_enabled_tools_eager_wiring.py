@@ -176,32 +176,6 @@ def test_x_search_tool_eager_when_skill_bound() -> None:
     _assert_turn1_eager(registry, "x_search_tool")
 
 
-def test_canvas_tools_eager_when_enabled_and_bound() -> None:
-    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
-
-    fake_tools = [
-        SimpleNamespace(name="canvas_get_state"),
-        SimpleNamespace(name="canvas_insert_element"),
-    ]
-    stub = SimpleNamespace(
-        enable_canvas=True,
-        canvas_id="12345678-1234-1234-1234-123456789abc",
-    )
-    stub._setup_canvas_tools = ToolSetupMixin._setup_canvas_tools.__get__(stub)
-
-    tools: list[object] = []
-    with patch(
-        "app.services.canvas.canvas_agent_tools.create_canvas_tools",
-        return_value=fake_tools,
-    ):
-        stub._setup_canvas_tools(tools)
-
-    assert len(tools) == 2
-    registry = _register_eager_tools(tools)
-    for tool in fake_tools:
-        _assert_turn1_eager(registry, tool.name)
-
-
 @pytest.mark.asyncio
 async def test_computer_use_tools_eager_when_enabled() -> None:
     from app.ai_agents.general_agent.tool_setup import ToolSetupMixin

@@ -28,7 +28,6 @@ class ActiveToolGroupSource(Protocol):
     incognito_mode: bool
     enable_conversation_search: bool
     enable_kanban: bool
-    enable_canvas: bool
     enable_wiki: bool
     enable_answer_tool: bool
     enable_render_ui: bool
@@ -47,7 +46,6 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "memory",
     "conversation_history",
     "kanban",
-    "canvas",
     "wiki",
     "planning",
     "answer_tool",
@@ -79,7 +77,6 @@ def derive_active_tool_groups(
             and agent.enable_conversation_search,
         ),
         ("kanban", agent.enable_kanban),
-        ("canvas", agent.enable_canvas),
         ("wiki", agent.enable_wiki),
         ("planning", enable_planning),
         ("answer_tool", agent.enable_answer_tool),

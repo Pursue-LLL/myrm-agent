@@ -4357,8 +4357,7 @@
     "usageAnalytics": "USAGE ANALYTICS",
     "totalCalls": "Calls",
     "totalTokens": "Tokens",
-    "batchOptimization": "Batch Optimization",
-    "canvas": "Canvas"
+    "batchOptimization": "Batch Optimization"
   },
   "loginBubble": {
     "title": "Unlock More Features",
@@ -12402,20 +12401,6 @@
     "citationsPill": "{count} Memories Cited",
     "citationsTitle": "Cited Memories",
     "citationsDescription": "The AI explicitly relied on the following memories to generate this response:"
-  },
-  "canvas": {
-    "title": "Canvas Workspaces",
-    "newCanvas": "New Canvas",
-    "emptyTitle": "No canvases yet",
-    "emptyDescription": "Create a new canvas to start your visual workspace.",
-    "deleteTitle": "Delete Canvas",
-    "deleteDescription": "This action cannot be undone. The canvas and all its content will be permanently deleted.",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "loading": "Loading canvases...",
-    "justCreated": "Just created",
-    "loadingCanvas": "Loading canvas...",
-    "back": "Back"
   },
   "e2ee": {
     "secured": "E2EE",

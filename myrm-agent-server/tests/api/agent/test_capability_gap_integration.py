@@ -172,7 +172,6 @@ async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
 @pytest.mark.parametrize(
     ("query", "expected_tool_id"),
     [
-        ("open canvas whiteboard now", "canvas"),
         ("generate video from this script", "video_generation"),
         ("create multi-step plan for migration", "planning"),
         ("search my personal wiki notes", "wiki"),

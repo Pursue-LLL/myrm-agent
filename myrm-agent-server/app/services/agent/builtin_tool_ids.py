@@ -43,7 +43,6 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "video_generation",
     "tts",
     "kanban",
-    "canvas",
     "cron",
     "answer_tool",
     "render_ui",
@@ -66,6 +65,7 @@ LEGACY_REJECTED_BUILTIN_TOOL_IDS: frozenset[str] = frozenset(
         "search",
         "bash_tool",
         "task_tracking",
+        "canvas",
     }
 )
 
@@ -79,7 +79,6 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "tts", "desc": "Convert text to speech"},
     {"id": "wiki", "desc": "Query and maintain personal wiki knowledge"},
     {"id": "kanban", "desc": "Manage kanban boards and async tasks"},
-    {"id": "canvas", "desc": "Read and update the visual canvas workspace"},
     {
         "id": "cron",
         "desc": "Create and manage scheduled tasks from agent chat",

@@ -4357,8 +4357,7 @@
     "usageAnalytics": "统计分析",
     "totalCalls": "调用次数",
     "totalTokens": "Token",
-    "batchOptimization": "批量优化",
-    "canvas": "画布"
+    "batchOptimization": "批量优化"
   },
   "loginBubble": {
     "title": "登录解锁更多功能",
@@ -12402,20 +12401,6 @@
     "citationsPill": "引用了 {count} 条记忆",
     "citationsTitle": "引用的记忆",
     "citationsDescription": "AI 在生成此回复时明确依赖了以下记忆："
-  },
-  "canvas": {
-    "title": "画布工作区",
-    "newCanvas": "新建画布",
-    "emptyTitle": "暂无画布",
-    "emptyDescription": "创建一个新画布，开始你的视觉工作区。",
-    "deleteTitle": "删除画布",
-    "deleteDescription": "此操作不可撤销。画布及其所有内容将被永久删除。",
-    "cancel": "取消",
-    "delete": "删除",
-    "loading": "加载画布中...",
-    "justCreated": "刚刚创建",
-    "loadingCanvas": "加载画布中...",
-    "back": "返回"
   },
   "e2ee": {
     "secured": "端到端加密",

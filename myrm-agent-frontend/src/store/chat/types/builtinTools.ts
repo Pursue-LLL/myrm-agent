@@ -20,7 +20,6 @@ export type BuiltinToolId =
   | 'video_generation'
   | 'tts'
   | 'kanban'
-  | 'canvas'
   | 'cron'
   | 'answer_tool'
   | 'render_ui'
@@ -36,7 +35,6 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'video_generation',
   'tts',
   'kanban',
-  'canvas',
   'cron',
   'answer_tool',
   'render_ui',

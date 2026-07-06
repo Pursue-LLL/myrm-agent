@@ -211,8 +211,6 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
-    agent_wrapper._setup_canvas_tools(tools)
-
     from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool
 
     mount_delegate_tool = should_mount_delegate_tool(

@@ -48,7 +48,6 @@ class BuiltinToolFlags(TypedDict):
     enable_code_execute: bool
     enable_wiki: bool
     enable_kanban: bool
-    enable_canvas: bool
     enable_cron_eager: bool
     enable_answer_tool: bool
     enable_render_ui: bool
@@ -71,7 +70,6 @@ def resolve_builtin_tool_flags(
         enable_code_execute="code_execute" in tools,
         enable_wiki="wiki" in tools,
         enable_kanban="kanban" in tools,
-        enable_canvas="canvas" in tools,
         enable_cron_eager="cron" in tools,
         enable_answer_tool="answer_tool" in tools,
         enable_render_ui="render_ui" in tools,
@@ -92,7 +90,6 @@ def apply_agent_baseline_tool_flags(flags: BuiltinToolFlags) -> BuiltinToolFlags
         enable_code_execute=True,
         enable_wiki=flags["enable_wiki"],
         enable_kanban=flags["enable_kanban"],
-        enable_canvas=flags["enable_canvas"],
         enable_cron_eager=flags["enable_cron_eager"],
         enable_answer_tool=flags["enable_answer_tool"],
         enable_render_ui=flags["enable_render_ui"],

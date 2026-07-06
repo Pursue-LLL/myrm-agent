@@ -12,7 +12,7 @@
 
 [POS]
 Registers server-layer business tools (third-party SDKs, ChannelGateway outbound,
-Canvas SDK, product media LangChain adapters) into the harness registry at import time.
+product media LangChain adapters) into the harness registry at import time.
 """
 
 from __future__ import annotations
@@ -22,10 +22,6 @@ from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_la
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTENDED: opt-in business tools that depend on server-specific SDKs/APIs.
     "x_search_tool": ToolLayer.EXTENDED,
-    "canvas_get_state": ToolLayer.EXTENDED,
-    "canvas_get_selection": ToolLayer.EXTENDED,
-    "canvas_insert_element": ToolLayer.EXTENDED,
-    "canvas_batch_layout": ToolLayer.EXTENDED,
     "channel_notify_tool": ToolLayer.EXTENDED,
     "image_tool": ToolLayer.EXTENDED,
     "video_tool": ToolLayer.EXTENDED,

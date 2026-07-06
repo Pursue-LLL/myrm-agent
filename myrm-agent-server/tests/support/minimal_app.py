@@ -110,7 +110,6 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "stt": _RouterMount("app.api.stt.router", prefix="/stt", tags=("stt",)),
     "voice": _RouterMount("app.api.voice.realtime", prefix="/voice", tags=("voice",)),
     "companion": _RouterMount("app.api.companion.router", prefix="/companion", tags=("companion",)),
-    "canvas": _RouterMount("app.api.canvas.router", tags=("canvas",)),
     "client_logs": _RouterMount("app.api.client_logs", tags=("logs",)),
     "channels_login": _RouterMount("app.api.channels.login", prefix="/channels", tags=("channels",)),
     "channels_manage": _RouterMount("app.api.channels.router", prefix="/channels/manage", tags=("channels",)),

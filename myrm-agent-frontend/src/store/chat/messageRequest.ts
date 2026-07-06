@@ -31,7 +31,6 @@ import {
 import useConfigStore from '../useConfigStore';
 import useProviderStore from '../useProviderStore';
 import useChatStore from '../useChatStore';
-import { useCanvasStore } from '../useCanvasStore';
 import { getThinkingEffort } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import useAuthStore from '../useAuthStore';
 import useRetrievalStore from '../useRetrievalStore';
@@ -183,10 +182,6 @@ const mergeMentionReferences = (selected: MentionReference[], inline: MentionRef
  * - agent 模式：优先智能体绑定模型，回退 baseModel
  * - 其他模式：使用 baseModel
  */
-function getActiveCanvasId(): string | undefined {
-  return useCanvasStore.getState().activeCanvasId ?? undefined;
-}
-
 export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConfig | null): ModelSelection | null => {
   const { defaultModelConfig, providers, getModelInfo } = useProviderStore.getState();
 
@@ -529,7 +524,6 @@ export const createMessageRequest = async (
         dialog_policy: agentConfig?.dialogPolicy,
         session_recording: agentConfig?.sessionRecording,
         auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
-        ...(currentBuiltinTools.includes('canvas') && { canvas_id: getActiveCanvasId() }),
       },
     }),
     ...(isAgentMode &&

@@ -12,18 +12,6 @@ class TestServerToolLayerRegistration:
     def test_x_search_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("x_search_tool") == ToolLayer.EXTENDED
 
-    def test_canvas_get_state_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("canvas_get_state") == ToolLayer.EXTENDED
-
-    def test_canvas_get_selection_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("canvas_get_selection") == ToolLayer.EXTENDED
-
-    def test_canvas_insert_element_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("canvas_insert_element") == ToolLayer.EXTENDED
-
-    def test_canvas_batch_layout_registered(self) -> None:
-        assert _SERVER_TOOL_LAYERS.get("canvas_batch_layout") == ToolLayer.EXTENDED
-
     def test_channel_notify_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("channel_notify_tool") == ToolLayer.EXTENDED
 

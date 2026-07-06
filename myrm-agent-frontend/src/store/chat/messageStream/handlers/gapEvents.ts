@@ -28,7 +28,6 @@ const TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string }> = {
   video_generation: { en: 'Video Generation', zh: '视频生成' },
   tts: { en: 'Text to Speech', zh: '语音合成' },
   kanban: { en: 'Kanban', zh: '看板' },
-  canvas: { en: 'Canvas', zh: '画布' },
   cron: { en: 'Scheduled Tasks', zh: '定时任务' },
   answer_tool: { en: 'Answer Tool', zh: '答案工具' },
   render_ui: { en: 'Render UI', zh: 'UI 渲染' },

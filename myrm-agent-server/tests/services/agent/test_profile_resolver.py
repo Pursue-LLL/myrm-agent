@@ -773,7 +773,6 @@ class TestResolveBuiltinToolFlags:
             "enable_code_execute",
             "enable_wiki",
             "enable_kanban",
-            "enable_canvas",
             "enable_cron_eager",
             "enable_answer_tool",
             "enable_render_ui",
