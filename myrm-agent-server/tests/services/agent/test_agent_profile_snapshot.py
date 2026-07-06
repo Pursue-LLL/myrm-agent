@@ -306,6 +306,40 @@ async def test_resolver_strips_legacy_enabled_builtin_tools_on_read(agent_db, mo
 
 
 @pytest.mark.asyncio
+async def test_rollback_restores_cron_post_run_verify_column(agent_db, monkeypatch) -> None:
+    import app.platform_utils as platform_utils
+
+    monkeypatch.setattr(platform_utils, "get_session_factory", lambda: agent_db)
+
+    agent_id = await _create_test_agent()
+
+    await AgentService.update_agent(
+        agent_id,
+        AgentUpdate(cron_post_run_verify=True),
+    )
+
+    await AgentService.update_agent(
+        agent_id,
+        AgentUpdate(cron_post_run_verify=False, system_prompt="Mutated after verify toggle."),
+    )
+
+    resolver = get_agent_profile_resolver()
+    resolver._cache.clear()  # noqa: SLF001
+    before_rollback = await resolver.resolve(agent_id)
+    assert before_rollback is not None
+    assert before_rollback.cron_post_run_verify is False
+
+    ok = await AgentService.rollback_profile(agent_id)
+    assert ok is True
+
+    resolver._cache.clear()  # noqa: SLF001
+    after_rollback = await resolver.resolve(agent_id)
+    assert after_rollback is not None
+    assert after_rollback.cron_post_run_verify is True
+    assert "professional assistant" in (after_rollback.system_prompt or "").lower()
+
+
+@pytest.mark.asyncio
 async def test_resolver_reads_canonical_enabled_builtin_tools(agent_db, monkeypatch) -> None:
     import app.platform_utils as platform_utils
 

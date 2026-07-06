@@ -234,6 +234,8 @@ def updates_from_snapshot_data(agent: AgentProfile, data: dict[str, object]) -> 
     model_selection = data.get("model_selection")
     if isinstance(model_selection, dict):
         updates["model_selection"] = model_selection
+    if "cron_post_run_verify" in data:
+        updates["cron_post_run_verify"] = bool(data["cron_post_run_verify"])
 
     new_metadata = dict(agent.metadata) if agent.metadata else {}
     for key in (
