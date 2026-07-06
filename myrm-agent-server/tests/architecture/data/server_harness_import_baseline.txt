@@ -60,6 +60,7 @@ myrm_agent_harness.agent.middlewares
 myrm_agent_harness.agent.middlewares.approval
 myrm_agent_harness.agent.middlewares.approval.batch_processor
 myrm_agent_harness.agent.middlewares.approval.scheduler
+myrm_agent_harness.agent.middlewares.completion_guard
 myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context_middleware
@@ -131,6 +132,7 @@ myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
 myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader
 myrm_agent_harness.agent.sub_agents.manager
+myrm_agent_harness.agent.sub_agents.orchestrator
 myrm_agent_harness.agent.sub_agents.registry
 myrm_agent_harness.agent.sub_agents.session_tree
 myrm_agent_harness.agent.sub_agents.types
