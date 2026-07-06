@@ -138,7 +138,12 @@ class AgentRepository:
         return [AgentRepository._agent_to_profile(agent) for agent in agents]
 
     @staticmethod
-    async def create_profile(db: AsyncSession, profile: AgentProfile) -> AgentProfile:
+    async def create_profile(
+        db: AsyncSession,
+        profile: AgentProfile,
+        *,
+        cron_post_run_verify: bool = False,
+    ) -> AgentProfile:
         # Check if agent with this ID already exists
         result = await db.execute(select(Agent).where(Agent.id == profile.id))
         existing_agent = result.scalar_one_or_none()
@@ -207,7 +212,7 @@ class AgentRepository:
             session_policy=meta.get("session_policy"),
             notify_targets=meta.get("notify_targets"),
             tool_gateway_config=meta.get("tool_gateway_config"),
-            cron_post_run_verify=bool(meta.get("cron_post_run_verify", False)),
+            cron_post_run_verify=cron_post_run_verify,
             mounted_skill_ids=meta.get("mounted_skill_ids", []),
             command_bindings=(
                 [

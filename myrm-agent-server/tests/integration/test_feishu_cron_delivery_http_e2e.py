@@ -138,7 +138,12 @@ def test_resolve_cron_delivery_empty_webhook_is_chat() -> None:
 
 
 @pytest.mark.asyncio
-async def test_channel_delivery_generic_webhook_myrm_schema(generic_webhook_url: str) -> None:
+async def test_channel_delivery_generic_webhook_myrm_schema(
+    generic_webhook_url: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Generic webhook delivery uses secure_request (SSRF shield); allow loopback test server.
+    monkeypatch.setenv("MYRM_ALLOWED_INTERNAL_HOSTS", "127.0.0.1")
     job = CronJob(
         id="job-generic-webhook",
         user_id="user-1",

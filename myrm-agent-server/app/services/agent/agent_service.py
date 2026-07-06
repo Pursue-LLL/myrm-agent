@@ -49,7 +49,12 @@ class _AgentRepositoryPort(Protocol):
 
     async def get_profile(self, agent_id: str) -> AgentProfile | None: ...
 
-    async def create_profile(self, profile: AgentProfile) -> AgentProfile: ...
+    async def create_profile(
+        self,
+        profile: AgentProfile,
+        *,
+        cron_post_run_verify: bool = False,
+    ) -> AgentProfile: ...
 
     async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None: ...
 
@@ -216,7 +221,6 @@ class AgentService:
             "browser_source": agent_data.browser_source,
             "dialog_policy": agent_data.dialog_policy,
             "session_recording": agent_data.session_recording,
-            "cron_post_run_verify": agent_data.cron_post_run_verify,
         }
 
         profile = AgentProfile(
@@ -240,7 +244,10 @@ class AgentService:
             metadata["_model_selection_full"] = agent_data.model_selection.model_dump(by_alias=True, exclude_none=True)
 
         async with UnitOfWork() as uow:
-            created_profile = await AgentService._ar(uow).create_profile(profile)
+            created_profile = await AgentService._ar(uow).create_profile(
+                profile,
+                cron_post_run_verify=agent_data.cron_post_run_verify,
+            )
 
         _notify_agent_update(created_profile.id, "created")
         _invalidate_agent_profile_cache(created_profile.id)

@@ -4686,7 +4686,7 @@
     "deliveryAssuranceDesc": "Optional post-run checks for unattended scheduled tasks. Does not affect interactive chat.",
     "cronPostRunVerify": "Scheduled Task Verification",
     "cronPostRunVerifyDesc": "After unattended cron runs that changed files or executed commands, run an independent delivery review (does not retry the task).",
-    "cronPostRunVerifyHint": "Task success and delivery review are separate. A failed review adds a warning to the run record and does not rerun the task. Bind the adversarial-reviewer sub-agent preset when using this.",
+    "cronPostRunVerifyHint": "Task success and delivery review are separate. A failed review adds a warning to the run record and does not rerun the task. When file or command changes are detected, the built-in delivery reviewer runs automatically.",
     "sessionPolicyMode": "Reset Mode",
     "sessionPolicyPersistent": "Persistent",
     "sessionPolicyPersistentDesc": "One session per peer forever",

@@ -16,7 +16,7 @@ from app.database.repositories.agent_repo import AgentRepository
 from app.services.agent.agent_service import AgentService
 from app.services.agent.builtin_tool_ids import InvalidBuiltinToolIdsError
 from app.services.agent.profile_resolver import get_agent_profile_resolver
-from app.services.agent.profile_snapshot_service import ProfileSnapshotService
+from app.services.agent.profile_snapshot_service import ProfileSnapshotService, updates_from_snapshot_data
 
 
 @pytest_asyncio.fixture
@@ -337,6 +337,50 @@ async def test_rollback_restores_cron_post_run_verify_column(agent_db, monkeypat
     assert after_rollback is not None
     assert after_rollback.cron_post_run_verify is True
     assert "professional assistant" in (after_rollback.system_prompt or "").lower()
+
+
+from myrm_agent_harness.backends.profiles.types import AgentProfile
+
+
+def test_updates_from_snapshot_data_restores_cron_column_when_present() -> None:
+    agent = AgentProfile(id="agent-1", metadata={"cron_post_run_verify": False})
+    updates = updates_from_snapshot_data(
+        agent,
+        {
+            "display_name": "Snapshot Agent",
+            "cron_post_run_verify": True,
+        },
+    )
+    assert updates["cron_post_run_verify"] is True
+
+
+def test_updates_from_snapshot_data_omits_cron_when_missing_from_snapshot() -> None:
+    agent = AgentProfile(id="agent-1", metadata={"cron_post_run_verify": True})
+    updates = updates_from_snapshot_data(agent, {"display_name": "Snapshot Agent"})
+    assert "cron_post_run_verify" not in updates
+
+
+@pytest.mark.asyncio
+async def test_create_agent_persists_cron_post_run_verify_column(agent_db, monkeypatch) -> None:
+    import app.platform_utils as platform_utils
+
+    monkeypatch.setattr(platform_utils, "get_session_factory", lambda: agent_db)
+
+    profile = await AgentService.create_agent(
+        AgentCreate(
+            name="Cron Verify Create",
+            description="Create path column SSOT",
+            system_prompt="You are a professional assistant.",
+            personality_style="professional",
+            cron_post_run_verify=True,
+        )
+    )
+
+    resolver = get_agent_profile_resolver()
+    resolver._cache.clear()  # noqa: SLF001
+    resolved = await resolver.resolve(profile.id)
+    assert resolved is not None
+    assert resolved.cron_post_run_verify is True
 
 
 @pytest.mark.asyncio

@@ -187,7 +187,6 @@ def project_mutable_after_update(existing: AgentProfile, updates: dict[str, obje
             "auto_restore_domains",
             "openapi_services",
             "workspace_policy",
-            "cron_post_run_verify",
         ):
             if key in metadata_update:
                 if key in {"mcp_ids", "subagent_ids", "enabled_builtin_tools"}:

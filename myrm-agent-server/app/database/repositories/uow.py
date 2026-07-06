@@ -269,8 +269,17 @@ class BoundAgentRepository:
     async def list_profiles(self) -> list[AgentProfile]:
         return cast(list[AgentProfile], await AgentRepository.list_profiles(self.session))
 
-    async def create_profile(self, profile: AgentProfile) -> AgentProfile:
-        return await AgentRepository.create_profile(self.session, profile)
+    async def create_profile(
+        self,
+        profile: AgentProfile,
+        *,
+        cron_post_run_verify: bool = False,
+    ) -> AgentProfile:
+        return await AgentRepository.create_profile(
+            self.session,
+            profile,
+            cron_post_run_verify=cron_post_run_verify,
+        )
 
     async def update_profile(self, agent_id: str, updates: dict[str, object]) -> AgentProfile | None:
         return await AgentRepository.update_profile(self.session, agent_id, updates)

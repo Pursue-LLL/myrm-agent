@@ -4689,7 +4689,7 @@
     "deliveryAssuranceDesc": "针对无人值守定时任务的可选事后检查，不影响交互式对话。",
     "cronPostRunVerify": "定时任务交付复核",
     "cronPostRunVerifyDesc": "无人值守 Cron 在写入文件或执行命令后，追加独立交付审查（不会重跑任务）。",
-    "cronPostRunVerifyHint": "任务成功与交付复核相互独立。复核未通过时仅在运行记录中追加警告，不会重跑任务。使用前请绑定 adversarial-reviewer 子 Agent 预设。",
+    "cronPostRunVerifyHint": "任务成功与交付复核相互独立。复核未通过时仅在运行记录中追加警告，不会重跑任务。检测到文件或命令变更时会自动进行交付复核。",
     "sessionPolicyMode": "重置模式",
     "sessionPolicyPersistent": "持久化",
     "sessionPolicyPersistentDesc": "每个对话方永久保持一个会话",
