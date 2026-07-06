@@ -1,10 +1,24 @@
-"""Cron post-run delivery verification — verifier-only pass after agent stream completes."""
+"""Cron post-run delivery verification — verifier-only pass after agent stream completes.
+
+[INPUT]
+- myrm_agent_harness.agent.sub_agents.orchestrator::verify_worker_output (POS: Verifier pass)
+- myrm_agent_harness.toolkits.cron.types::CronJob, JobResult (POS: Cron job types)
+
+[OUTPUT]
+- run_post_run_verification: Optional verifier-only pass after cron agent stream
+
+[POS]
+Server cron adapter. Runs adversarial-reviewer verification on cron job output when
+configured, without re-running the full agent loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import replace
 
+from myrm_agent_harness.agent.middlewares.completion_guard import is_mutating_tool
 from myrm_agent_harness.agent.sub_agents.orchestrator import verify_worker_output
 from myrm_agent_harness.agent.sub_agents.types import WorkspacePolicy
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
@@ -12,27 +26,13 @@ from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 logger = logging.getLogger(__name__)
 
 _DEFAULT_VERIFIER_TYPE = "adversarial-reviewer"
-
-_EFFECTFUL_TOOL_NAMES = frozenset(
-    {
-        "file_write_tool",
-        "file_edit_tool",
-        "bash_code_execute_tool",
-        "browser_navigate_tool",
-        "browser_click_tool",
-        "browser_type_tool",
-        "skill_manage_tool",
-        "kanban_manage_tool",
-        "canvas_tool",
-        "cron_manage_tool",
-    }
-)
+_VERIFICATION_TIMEOUT_SECONDS = 120
 
 
 def _has_effectful_tools(progress_steps: list[dict[str, object]]) -> bool:
     for step in progress_steps:
         tool_name = step.get("tool_name")
-        if isinstance(tool_name, str) and tool_name in _EFFECTFUL_TOOL_NAMES:
+        if isinstance(tool_name, str) and is_mutating_tool(tool_name):
             return True
     return False
 
@@ -139,18 +139,29 @@ async def apply_cron_post_run_verification(
             )
 
         readonly_verifier = replace(verifier_config, workspace_policy=WorkspacePolicy.READ_ONLY_SANDBOX)
-        verdict = await verify_worker_output(
-            manager,
-            worker_output=worker_output,
-            worker_type=job.agent_id or "cron-worker",
-            verifier_type=_DEFAULT_VERIFIER_TYPE,
-            verifier_config=readonly_verifier,
-            context=child_context,
-            tool_registry_getter=tool_registry_getter,
-            verifier_task_template=(
-                "Review this unattended scheduled task output. "
-                "Confirm side effects match the reported outcome and flag regressions or silent failures."
+        verdict = await asyncio.wait_for(
+            verify_worker_output(
+                manager,
+                worker_output=worker_output,
+                worker_type=job.agent_id or "cron-worker",
+                verifier_type=_DEFAULT_VERIFIER_TYPE,
+                verifier_config=readonly_verifier,
+                context=child_context,
+                tool_registry_getter=tool_registry_getter,
+                verifier_task_template=(
+                    "Review this unattended scheduled task output. "
+                    "Confirm side effects match the reported outcome and flag regressions or silent failures."
+                ),
             ),
+            timeout=_VERIFICATION_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.warning("Cron job %s post-run verification timed out after %ss", job.id, _VERIFICATION_TIMEOUT_SECONDS)
+        return _attach_verification_metadata(
+            result,
+            status="error",
+            passed=False,
+            summary=f"Verification timed out after {_VERIFICATION_TIMEOUT_SECONDS}s",
         )
     except Exception as exc:
         logger.warning("Cron job %s post-run verification failed: %s", job.id, exc)
@@ -174,9 +185,9 @@ async def apply_cron_post_run_verification(
     fail_note = f"[Delivery verification: FAIL] {verdict.summary}"
     combined_output = f"{worker_output}\n\n---\n{fail_note}" if worker_output else fail_note
     return JobResult(
-        success=False,
+        success=result.success,
         output=combined_output,
-        error=fail_note,
-        skipped=False,
+        error=result.error,
+        skipped=result.skipped,
         metadata=annotated.metadata,
     )

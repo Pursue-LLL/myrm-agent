@@ -1,7 +1,15 @@
 """CronManager wrapper — enforces sandbox cron entitlements on job mutations.
 
-All create/duplicate paths (REST + agent ``cron_manage_tool``) go through
-``get_cron_manager()``; slot checks live here instead of duplicating in routes.
+[INPUT]
+- myrm_agent_harness.toolkits.cron.manager::CronManager (POS: Harness cron manager)
+- myrm_agent_harness.toolkits.cron.types::CronJob (POS: Cron job model)
+
+[OUTPUT]
+- EntitlementGuardedCronManager: Delegates mutations with slot entitlement checks
+
+[POS]
+Server cron adapter. All create/duplicate paths (REST + cron_manage_tool) go through
+get_cron_manager(); slot checks live here instead of duplicating in routes.
 """
 
 from __future__ import annotations
