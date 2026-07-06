@@ -14,8 +14,10 @@ Server-side at-rest protection for harness task queue payloads; harness stays cr
 
 from __future__ import annotations
 
+import json
 import logging
 
+from myrm_agent_harness.toolkits.tasks import TaskStore
 from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError
 
 logger = logging.getLogger(__name__)
@@ -74,9 +76,34 @@ def open_task_payload_secrets(payload: dict[str, object]) -> dict[str, object]:
     return opened
 
 
+async def seal_image_task_payload_after_enqueue(store: TaskStore, raw_response: str) -> None:
+    """Seal secrets on a task created by AsyncImageGenerationTools.generate_image."""
+    try:
+        payload = json.loads(raw_response)
+    except json.JSONDecodeError:
+        logger.warning("Skipped task payload sealing: enqueue response is not JSON")
+        return
+
+    task_id = payload.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        return
+
+    task = await store.get_task(task_id)
+    if task is None:
+        logger.warning("Skipped task payload sealing: task %s not found", task_id)
+        return
+
+    sealed = seal_task_payload_secrets(dict(task.payload))
+    if sealed == task.payload:
+        return
+
+    await store.update_task(task_id, payload=sealed)
+
+
 __all__ = [
     "API_KEY_ENC_FIELD",
     "API_KEY_FIELD",
     "open_task_payload_secrets",
+    "seal_image_task_payload_after_enqueue",
     "seal_task_payload_secrets",
 ]

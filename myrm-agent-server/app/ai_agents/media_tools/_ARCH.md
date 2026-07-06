@@ -9,7 +9,7 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 
 | File | Role |
 |------|------|
-| `image_agent_tool.py` | `create_image_generation_tool` → `image_tool` (generate async via TaskStore; edit/list sync) |
+| `image_agent_tool.py` | `create_image_generation_tool` → `image_tool` (generate async via TaskStore + server-side payload sealing; edit/list sync) |
 | `media_persist.py` | Shared media library persist callback for sync + async image paths |
 | `video_agent_tool.py` | `create_video_generation_tool` → `video_tool` |
 | `tts_agent_tool.py` | `create_tts_tool` → `tts_generate` |
