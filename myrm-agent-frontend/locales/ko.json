@@ -6723,6 +6723,9 @@
           "no_importable_data": "Importable data"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
+        "mcpServersTitle": "MCP Servers Detected",
+        "mcpServersHint": "These MCP servers were found in the competitor config. They will be imported as disabled — you can enable them after review in MCP settings.",
+        "mcpEnvKeysRequired": "{count} env key(s) need manual setup",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
         "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
         "configureProvidersLink": "Open model provider settings",

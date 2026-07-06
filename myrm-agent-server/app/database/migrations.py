@@ -486,7 +486,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE chats ADD COLUMN sandbox_base_dir VARCHAR(1024)",
     # Drop calendar_events table; calendar reads use Google Workspace OAuth + prebuilt skills.
     "DROP TABLE IF EXISTS calendar_events",
-    # Drop canvas table; built-in Infinite Canvas module removed (2026-07).
+    # Drop legacy canvas table (no ORM; product module not shipped).
     "DROP TABLE IF EXISTS canvas",
     # Project milestone system
     "ALTER TABLE projects ADD COLUMN description TEXT NOT NULL DEFAULT ''",

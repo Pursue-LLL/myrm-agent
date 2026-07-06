@@ -25,3 +25,11 @@ def test_build_general_agent_gates_cron_setup_on_entitlement() -> None:
             break
 
     assert found_if, "expected `if _should_enable_cron_tools(): await _setup_cron_tools(...)` in factory.py"
+
+
+def test_build_general_agent_defaults_single_tenant_user_id() -> None:
+    """Single-tenant agent-stream must bind cron tools when caller omits user_id."""
+    factory_path = Path(__file__).resolve().parents[3] / "app" / "ai_agents" / "general_agent" / "factory.py"
+    source = factory_path.read_text(encoding="utf-8")
+    assert 'if not user_id:' in source
+    assert 'user_id = "default"' in source

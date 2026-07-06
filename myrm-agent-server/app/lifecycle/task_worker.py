@@ -82,15 +82,12 @@ async def start_task_worker() -> TaskWorker:
         await store.initialize()
         _task_store_instance = store
 
-        from myrm_agent_harness.toolkits.llms.image import ImageGenerationConfig, ImageGenerator
-
-        image_config = ImageGenerationConfig(model="dall-e-3")
-        image_generator = ImageGenerator(config=image_config)
+        from app.tasks.image_config_resolver import resolve_image_generation_config
 
         executors: list[_TaskExecutor] = cast(
             list[_TaskExecutor],
             [
-                ImageTaskExecutor(image_generator),
+                ImageTaskExecutor(resolve_image_generation_config),
             ],
         )
 

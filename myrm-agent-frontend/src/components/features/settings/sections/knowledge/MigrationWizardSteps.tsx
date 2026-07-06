@@ -440,6 +440,36 @@ export function PreviewStep({
         </div>
       )}
 
+      {(dryRun.mcp_servers_preview?.length ?? 0) > 0 && (
+        <div className="space-y-2 rounded-xl border border-border/50 bg-secondary/20 p-4">
+          <h3 className="text-sm font-medium">
+            {t('preview.mcpServersTitle')} ({dryRun.mcp_servers_preview!.length})
+          </h3>
+          <p className="text-xs text-muted-foreground">{t('preview.mcpServersHint')}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {dryRun.mcp_servers_preview!.map((srv) => (
+              <div
+                key={srv.name}
+                className="rounded-lg border border-border/40 bg-background/60 px-3 py-2 text-xs space-y-0.5"
+              >
+                <div className="font-medium font-mono truncate">{srv.name}</div>
+                <div className="text-muted-foreground">
+                  <Badge variant="secondary" className="text-[10px] mr-1.5">
+                    {srv.type}
+                  </Badge>
+                  {srv.commandPreview || srv.url || '—'}
+                </div>
+                {(srv.envKeyCount ?? 0) > 0 && (
+                  <div className="text-amber-600 dark:text-amber-400">
+                    {t('preview.mcpEnvKeysRequired', { count: srv.envKeyCount! })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground/50">
         <span>
           {t('preview.dryRunId')}: {dryRun.dry_run_id}

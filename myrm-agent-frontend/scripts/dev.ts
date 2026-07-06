@@ -63,6 +63,10 @@ acquireDevLock(APP_DEV_PORT);
 const bindLan =
   process.env.WEBUI_DEV_BIND_ALL === '1' || process.env.WEBUI_DEV_BIND_ALL === 'true' || args.includes('--lan');
 const nextArgs = ['next', 'dev', '-p', String(APP_DEV_PORT)];
+// Turbopack needs native @next/swc-darwin-arm64; WASM-only installs fail on darwin/arm64.
+if (!args.includes('--turbo')) {
+  nextArgs.push('--webpack');
+}
 if (bindLan) {
   nextArgs.push('-H', '0.0.0.0');
   console.log(`🌐 LAN bind enabled (0.0.0.0:${APP_DEV_PORT}) — use intranet IP from Settings → System`);

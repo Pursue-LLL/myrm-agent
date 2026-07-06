@@ -1,17 +1,21 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: image generation engine)
+- myrm_agent_harness.toolkits.llms.image.image_engine::ImageGenerationTools (POS: sync generate/edit/list)
+- myrm_agent_harness.toolkits.llms.image.async_image_engine::AsyncImageGenerationTools (POS: async generate enqueue)
+- myrm_agent_harness.toolkits.llms.image.models::ImageGenerationConfig (POS: shared engine config)
 - myrm_agent_harness.toolkits.llms.image.validator::ImageValidator (POS: prompt safety validation)
 
 [OUTPUT]
 - create_image_generation_tool(): LangChain BaseTool adapter for image generation
 
 [POS]
-LangChain adapter for harness ImageGenerationTools (product layer).
+LangChain adapter: generate enqueues via TaskStore when async_config is provided;
+edit/list stay on synchronous ImageGenerationTools.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from typing import Literal
 
 import httpx
@@ -19,7 +23,10 @@ from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 
 from myrm_agent_harness.toolkits.llms.image.image_engine import ImageGenerationTools
+from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.llms.image.validator import ImageValidator, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_image_fetch_url(url: str, *, allow_private_networks: bool = False) -> str | None:
@@ -80,8 +87,67 @@ def create_image_generation_tool(
     engine: ImageGenerationTools,
     *,
     allow_private_networks: bool = False,
+    async_config: ImageGenerationConfig | None = None,
+    task_user_id: str = "default",
+    agent_id: str | None = None,
+    chat_id: str | None = None,
 ) -> BaseTool:
-    """Wrap an ImageGenerationTools engine as a LangChain tool named ``image_tool``."""
+    """Wrap ImageGenerationTools as ``image_tool``.
+
+    When *async_config* is set, ``action=generate`` enqueues a background task and
+    returns ``task_id`` JSON; edit/list remain synchronous on *engine*.
+    """
+
+    async def _enqueue_generate(
+        prompt: str,
+        *,
+        size: str | None,
+        quality: str | None,
+        style: str | None,
+        n: int,
+        reference_image_urls: list[str] | None,
+    ) -> str:
+        if async_config is None:
+            return await engine.generate_image(
+                prompt,
+                size=size,
+                quality=quality,
+                style=style,
+                n=n,
+                reference_image_urls=reference_image_urls,
+            )
+        try:
+            from app.lifecycle.task_worker import get_task_store
+            from myrm_agent_harness.toolkits.llms.image.async_image_engine import (
+                AsyncImageGenerationTools,
+            )
+
+            async_engine = AsyncImageGenerationTools(
+                async_config,
+                get_task_store(),
+                ssrf_protection=not allow_private_networks,
+            )
+            return await async_engine.generate_image(
+                prompt,
+                size=size,
+                quality=quality,
+                style=style,
+                n=n,
+                reference_image_urls=reference_image_urls,
+                user_id=task_user_id,
+                agent_id=agent_id,
+                chat_id=chat_id,
+            )
+        except RuntimeError as exc:
+            logger.warning("Async image enqueue unavailable, using sync generate: %s", exc)
+            return await engine.generate_image(
+                prompt,
+                size=size,
+                quality=quality,
+                style=style,
+                n=n,
+                reference_image_urls=reference_image_urls,
+            )
 
     @tool("image_tool", args_schema=ImageToolInput)
     async def image_tool(
@@ -142,7 +208,7 @@ def create_image_generation_tool(
             )
         if not prompt.strip():
             return '{"error": "prompt is required when action=generate"}'
-        return await engine.generate_image(
+        return await _enqueue_generate(
             prompt,
             size=size,
             quality=quality,

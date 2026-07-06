@@ -1,4 +1,4 @@
-"""One-time cleanup for the removed Infinite Canvas product module.
+"""Delete legacy on-disk canvas snapshot directory if present.
 
 [INPUT]
 (none — leaf utility)
@@ -8,7 +8,7 @@
 
 [POS]
 Filesystem companion to ``DROP TABLE IF EXISTS canvas`` in migrations.py.
-The deleted Canvas module stored tldraw JSON under ``~/.myrm/canvas/{uuid}/``.
+Legacy installs may still have tldraw JSON under ``~/.myrm/canvas/{uuid}/``.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ RETIRED_CANVAS_DATA_DIR = Path.home() / ".myrm" / "canvas"
 
 
 def remove_retired_canvas_data_dir() -> None:
-    """Delete legacy tldraw snapshot directory from the removed Canvas module."""
+    """Delete legacy tldraw snapshot directory under ``~/.myrm/canvas/`` when present."""
     target = RETIRED_CANVAS_DATA_DIR
     if not target.exists():
         return

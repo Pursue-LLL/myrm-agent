@@ -254,6 +254,15 @@ export interface MigrationLanePreviewItem {
   detail: string;
 }
 
+export interface MCPServerPreviewItem {
+  name: string;
+  type: string;
+  command?: string;
+  commandPreview?: string;
+  url?: string;
+  envKeyCount?: number;
+}
+
 export interface MemoryImportDryRunResponse {
   dry_run_id: string;
   payload_hash: string;
@@ -266,6 +275,7 @@ export interface MemoryImportDryRunResponse {
   instruction_preview_rule_names?: string[];
   instruction_total_chars?: number;
   providers_configured?: boolean;
+  mcp_servers_preview?: MCPServerPreviewItem[];
 }
 
 export interface MemoryImportConfirmResponse extends MemoryImportResponse {

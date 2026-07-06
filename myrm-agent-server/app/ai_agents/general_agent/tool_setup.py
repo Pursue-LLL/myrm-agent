@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.browser.captcha.protocols import CaptchaSolver
-    from myrm_agent_harness.toolkits.llms.image.models import MediaCallback, MediaMeta
+    from myrm_agent_harness.toolkits.llms.image.models import MediaCallback
     from myrm_agent_harness.toolkits.memory import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -204,7 +204,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
             tools.append(render_ui_tool)
             logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Turn1]")
 
-        self._setup_image_generation_tools(tools)
+        self._setup_image_generation_tools(
+            tools,
+            task_user_id=getattr(self, "_task_user_id", "default"),
+        )
         self._setup_video_generation_tools(tools)
         self._setup_tts_tools(tools)
 
@@ -239,7 +242,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning(f"⚠️ ask_question_tool 加载失败: {e}")
 
-    def _setup_image_generation_tools(self, tools: list[object]) -> None:
+    def _setup_image_generation_tools(
+        self,
+        tools: list[object],
+        *,
+        task_user_id: str = "default",
+    ) -> None:
         """Register image generation/editing tools if configured (AgentDeclared eager mount)."""
         if not self.image_generation_params:
             return
@@ -256,7 +264,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 ImageGenerationTools,
             )
             from app.ai_agents.media_tools.image_agent_tool import create_image_generation_tool
+            from app.ai_agents.media_tools.media_persist import create_media_persist_callback
 
+            chat_id = self.chat_id or getattr(self, "_current_chat_id", None)
+            agent_id = getattr(self, "agent_id", None)
             config = ImageGenerationConfig(
                 model=params.model,
                 api_key=params.api_key,
@@ -266,14 +277,25 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 timeout_seconds=params.timeout_seconds,
                 max_retries=params.max_retries,
                 gateway_config=params.gateway_config,
-                media_callback=self._create_media_library_callback(),
+                media_callback=create_media_persist_callback(
+                    chat_id=chat_id,
+                    model_name=params.model,
+                    source="generate",
+                ),
             )
             img_engine = ImageGenerationTools(
                 config,
                 on_artifact_created=_get_artifact_push_fn(),
             )
             tools.append(
-                create_image_generation_tool(img_engine, allow_private_networks=is_local_mode())
+                create_image_generation_tool(
+                    img_engine,
+                    allow_private_networks=is_local_mode(),
+                    async_config=config,
+                    task_user_id=task_user_id,
+                    agent_id=agent_id,
+                    chat_id=chat_id,
+                )
             )
             logger.warning(
                 "🖼️ Image generation tool loaded (model=%s, fallbacks=%s) [AgentDeclared]",
@@ -282,13 +304,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
         except Exception as e:
             logger.warning("⚠️ Image generation tools failed to load: %s", e)
-
-    def _create_media_library_callback(self) -> MediaCallback | None:
-        """Create a media_callback for persisting images to the media library."""
-        return self._create_media_persist_callback(
-            model_name=(self.image_generation_params.model if self.image_generation_params else None),
-            source="generate",
-        )
 
     def _setup_video_generation_tools(self, tools: list[object]) -> None:
         """Register video generation tools if configured (AgentDeclared eager mount)."""
@@ -403,43 +418,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
         source: str,
     ) -> MediaCallback | None:
         """Generic media persist callback factory."""
+        from app.ai_agents.media_tools.media_persist import create_media_persist_callback
+
         chat_id = self._current_chat_id if hasattr(self, "_current_chat_id") else self.chat_id
-
-        async def _persist(
-            media_bytes: bytes,
-            mime_type: str,
-            meta: MediaMeta,
-        ) -> str:
-            try:
-                from app.core.media.service import media_library_service
-                from app.platform_utils import get_session_factory, get_storage_provider
-
-                storage = get_storage_provider()
-                factory = get_session_factory()
-
-                async with factory() as session:
-                    record = await media_library_service.save_media(
-                        session,
-                        image_bytes=media_bytes,
-                        content_type=mime_type,
-                        prompt=meta.prompt,
-                        model=meta.model or model_name,
-                        resolution=meta.resolution,
-                        source=source,
-                        session_id=chat_id,
-                    )
-                    await session.commit()
-                    url = await storage.get_url(record.storage_key)
-                    return str(url)
-            except Exception:
-                logger.warning(
-                    "Media persist failed (source=%s, non-blocking)",
-                    source,
-                    exc_info=True,
-                )
-                return ""
-
-        return _persist
+        return create_media_persist_callback(
+            chat_id=chat_id,
+            model_name=model_name,
+            source=source,
+        )
 
     async def _setup_cron_tools(
         self,

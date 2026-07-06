@@ -7416,6 +7416,9 @@
           "no_importable_data": "可导入数据"
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
+        "mcpServersTitle": "检测到 MCP 服务",
+        "mcpServersHint": "以下 MCP 服务从竞品配置中识别，将以禁用状态导入 — 可在 MCP 设置中审核启用。",
+        "mcpEnvKeysRequired": "需手动配置 {count} 个环境变量",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
         "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
         "configureProvidersLink": "打开模型服务商设置",

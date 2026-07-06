@@ -182,6 +182,10 @@ class MemoryImportDryRunResponse(BaseModel):
         True,
         description="Whether model provider slots exist for external assistant API key import",
     )
+    mcp_servers_preview: list[dict[str, object]] = Field(
+        default_factory=list,
+        description="Converted MCP server previews detected from competitor config",
+    )
 
 
 class MemoryImportConfirmRequest(BaseModel):

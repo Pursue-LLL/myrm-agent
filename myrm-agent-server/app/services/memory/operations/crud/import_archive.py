@@ -249,6 +249,22 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         )
         competitor = str(loaded_payload.get("_source", "")).strip().lower()
         resolved_source = resolve_migration_source(competitor)
+        from app.services.migration.mcp_config_converter import (
+            convert_competitor_mcp_servers,
+            mcp_migration_item_to_preview,
+            mcp_migration_item_to_config_dict,
+        )
+
+        mcp_servers_preview: list[dict[str, object]] = []
+        mcp_configs_serialized: list[dict[str, object]] = []
+        if isinstance(instruction_plan.mcp_servers, dict) and instruction_plan.mcp_servers:
+            converted = convert_competitor_mcp_servers(
+                instruction_plan.mcp_servers,
+                competitor=instruction_plan.competitor,
+            )
+            mcp_servers_preview = [mcp_migration_item_to_preview(item) for item in converted]
+            mcp_configs_serialized = [mcp_migration_item_to_config_dict(item) for item in converted]
+
         session_metadata = {
             "migration_options": {
                 "target_agent_id": migration_opts.target_agent_id,
@@ -263,6 +279,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
                 "workspace_rules": [
                     {"filename": rule.filename, "content": rule.content} for rule in instruction_plan.workspace_rules
                 ],
+                "mcp_configs": mcp_configs_serialized,
             },
         }
         instruction_total_chars = instruction_char_total(instruction_plan)
@@ -328,6 +345,7 @@ async def dry_run_import_memories(body: MemoryImportDryRunRequest) -> MemoryImpo
         instruction_preview_rule_names=instruction_preview_rule_names,
         instruction_total_chars=instruction_total_chars if is_competitor else 0,
         providers_configured=providers_configured if is_competitor else True,
+        mcp_servers_preview=mcp_servers_preview if is_competitor else [],
     )
 
 
@@ -392,6 +410,13 @@ async def confirm_import_memories(
                                 workspace_rules.append(
                                     WorkspaceRuleWrite(filename=filename, content=content),
                                 )
+                mcp_configs_raw = raw_plan.get("mcp_configs")
+                mcp_configs_to_write: list[dict[str, object]] = []
+                if isinstance(mcp_configs_raw, list):
+                    mcp_configs_to_write = [
+                        item for item in mcp_configs_raw if isinstance(item, dict) and item.get("name")
+                    ]
+
                 plan = SourceInstructionPlan(
                     competitor=str(raw_plan.get("competitor", "unknown")),
                     agent_persona=str(raw_plan.get("agent_persona", "")),
@@ -406,6 +431,9 @@ async def confirm_import_memories(
                     opts,
                     workspace_root=workspace_root,
                 )
+
+                if mcp_configs_to_write:
+                    await _write_migrated_mcp_configs(mcp_configs_to_write)
                 rollback_record = instruction_rollback_record_from_apply(
                     instruction_result,
                     competitor=plan.competitor,
@@ -550,3 +578,26 @@ async def rollback_import_memories(
         instructions_rolled_back=instructions_rolled_back,
         imported_agent_deleted=imported_agent_deleted,
     )
+
+
+async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> None:
+    """Append migrated MCP configs to the mcpServers UserConfig entry (all disabled)."""
+
+    from app.services.config.service import config_service
+
+    record = await config_service.get("mcpServers")
+    existing: list[dict[str, object]] = []
+    if record is not None and isinstance(record.value, list):
+        existing = list(record.value)
+
+    existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
+
+    for cfg in mcp_configs:
+        name = str(cfg.get("name", "")).strip()
+        if not name or name in existing_names:
+            continue
+        entry = {**cfg, "enabled": False}
+        existing.append(entry)
+        existing_names.add(name)
+
+    await config_service.set("mcpServers", existing)

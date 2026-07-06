@@ -32,6 +32,10 @@ async def build_general_agent(
     user_id: str | None = None,
 ) -> "SkillAgent":
     """Initialize Agent: create LLMs, tools, middlewares, and call framework API."""
+    # Single-tenant SSOT — matches cron REST ``USER_ID`` so discover/eager cron tools bind jobs.
+    if not user_id:
+        user_id = "default"
+
     from typing import cast
 
     from langchain.agents.middleware.types import AgentMiddleware
@@ -165,6 +169,7 @@ async def build_general_agent(
     # 4. Create tools (delegated to ToolSetupMixin)
     tools: list[object] = []
     discoverable_tools: list[object] = []
+    agent_wrapper._task_user_id = user_id or "default"
     agent_wrapper._setup_search_and_basic_tools(tools, discoverable_tools)
     agent_wrapper._setup_clarification_tools(tools, discoverable_tools)
 

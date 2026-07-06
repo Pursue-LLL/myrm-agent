@@ -290,10 +290,12 @@ myrm_agent_harness.toolkits.llms.errors.resilient
 myrm_agent_harness.toolkits.llms.fallback
 myrm_agent_harness.toolkits.llms.fallback.health_check
 myrm_agent_harness.toolkits.llms.image
+myrm_agent_harness.toolkits.llms.image.async_image_engine
 myrm_agent_harness.toolkits.llms.image.image_engine
 myrm_agent_harness.toolkits.llms.image.models
 myrm_agent_harness.toolkits.llms.image.types
 myrm_agent_harness.toolkits.llms.image.validator
+myrm_agent_harness.toolkits.llms.media_task_types
 myrm_agent_harness.toolkits.llms.rate_limit
 myrm_agent_harness.toolkits.llms.routing
 myrm_agent_harness.toolkits.llms.routing.complexity_router

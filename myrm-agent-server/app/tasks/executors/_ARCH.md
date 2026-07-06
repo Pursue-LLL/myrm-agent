@@ -9,4 +9,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Task executors. | ✅ |
-| `image_executor.py` | 模块 | Image task executor implementation. | ✅ |
+| `image_executor.py` | 模块 | Image task executor; resolves config per task via `image_config_resolver`. | ✅ |

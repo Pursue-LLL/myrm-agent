@@ -70,12 +70,73 @@ async def test_image_tool_edit_requires_prompt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_image_tool_generate_delegates_to_engine() -> None:
+async def test_image_tool_generate_delegates_to_engine_sync() -> None:
     engine = MagicMock()
     engine.generate_image = AsyncMock(return_value='{"image_url":"https://cdn.example/g.png"}')
     tool = create_image_generation_tool(engine)
 
     result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
+
+    assert "image_url" in result
+    engine.generate_image.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_image_tool_generate_enqueues_when_async_config() -> None:
+    engine = MagicMock()
+    engine.generate_image = AsyncMock()
+    async_config = MagicMock()
+    mock_store = MagicMock()
+
+    with patch(
+        "app.lifecycle.task_worker.get_task_store",
+        return_value=mock_store,
+    ), patch(
+        "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
+    ) as async_cls:
+        async_engine = MagicMock()
+        async_engine.generate_image = AsyncMock(
+            return_value='{"task_id":"img-abc","status":"pending"}',
+        )
+        async_cls.return_value = async_engine
+
+        tool = create_image_generation_tool(
+            engine,
+            async_config=async_config,
+            task_user_id="user-1",
+            agent_id="agent-42",
+            chat_id="chat-99",
+        )
+        result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
+
+    payload = json.loads(result)
+    assert payload["task_id"] == "img-abc"
+    assert payload["status"] == "pending"
+    engine.generate_image.assert_not_called()
+    async_engine.generate_image.assert_awaited_once()
+    call_kwargs = async_engine.generate_image.await_args.kwargs
+    assert call_kwargs["user_id"] == "user-1"
+    assert call_kwargs["agent_id"] == "agent-42"
+    assert call_kwargs["chat_id"] == "chat-99"
+    async_cls.assert_called_once_with(
+        async_config,
+        mock_store,
+        ssrf_protection=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_image_tool_generate_fallback_sync_when_task_store_unavailable() -> None:
+    engine = MagicMock()
+    engine.generate_image = AsyncMock(return_value='{"image_url":"https://cdn.example/g.png"}')
+    async_config = MagicMock()
+
+    with patch(
+        "app.lifecycle.task_worker.get_task_store",
+        side_effect=RuntimeError("task store not initialized"),
+    ):
+        tool = create_image_generation_tool(engine, async_config=async_config)
+        result = await tool.ainvoke({"action": "generate", "prompt": "a cat"})
 
     assert "image_url" in result
     engine.generate_image.assert_awaited_once()

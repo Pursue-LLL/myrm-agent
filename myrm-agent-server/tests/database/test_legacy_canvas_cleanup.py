@@ -1,4 +1,4 @@
-"""Tests for retired Infinite Canvas filesystem cleanup."""
+"""Tests for legacy canvas data directory cleanup."""
 
 from __future__ import annotations
 

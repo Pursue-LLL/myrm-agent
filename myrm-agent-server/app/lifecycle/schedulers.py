@@ -297,6 +297,7 @@ async def _db_maintenance_job() -> None:
     3. Qdrant segment optimization — stable query performance
     4. Browser thread cleanup — zombie detection + old record deletion
     5. Memory import review cleanup — remove rollback-expired import sessions
+    6. Async task queue cleanup — prune terminal tasks older than 30 days (tasks.db)
     """
     # SQLite WAL checkpoint
     try:
@@ -366,6 +367,19 @@ async def _db_maintenance_job() -> None:
             logger.info("Memory import review cleanup: %d expired review sessions removed", deleted)
     except Exception as e:
         logger.warning("Memory import review cleanup failed: %s", e)
+
+    # Async job queue (image generation tasks.db)
+    try:
+        from app.lifecycle.task_worker import get_task_store
+        from app.tasks.cleanup import cleanup_old_tasks
+
+        deleted_tasks = await cleanup_old_tasks(get_task_store(), days=30)
+        if deleted_tasks > 0:
+            logger.info("Async task cleanup: %d terminal tasks removed", deleted_tasks)
+    except RuntimeError:
+        logger.debug("Async task cleanup skipped: task store not initialized")
+    except Exception as e:
+        logger.warning("Async task cleanup failed: %s", e)
 
     # Chat trash auto-purge: permanently delete chats trashed > 30 days
     try:

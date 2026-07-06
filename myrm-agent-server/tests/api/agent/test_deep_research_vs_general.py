@@ -49,7 +49,10 @@ def _collect_general_agent_response(client: TestClient, query: str) -> dict[str,
             if not line or not line.startswith("data: "):
                 continue
             try:
-                data = json.loads(line[6:])
+                parsed = json.loads(line[6:])
+                if not isinstance(parsed, dict):
+                    continue
+                data = parsed
                 events.append(data)
                 evt_type = data.get("type", "")
                 if evt_type == "message":
