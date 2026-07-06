@@ -4,12 +4,18 @@ import { isTauriEnvironment, tauriBackend } from '@/lib/tauri';
 
 export type BackendDevMode = 'split_dev' | 'standalone_webui';
 
+export interface BackendSystemStatusPayload {
+  database_recovered?: boolean;
+  database_degraded?: boolean;
+}
+
 export interface BackendHealthPayload {
   status: string;
   dev_mode?: BackendDevMode;
   listen_port?: number;
   listen_host?: string;
   frontend_proxy_port?: number;
+  system_status?: BackendSystemStatusPayload;
 }
 
 /** Align with desktop `BACKEND_HEALTH_*` in python_backend.rs */

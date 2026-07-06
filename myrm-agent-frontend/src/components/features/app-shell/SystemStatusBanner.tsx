@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, Database, X } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { apiRequest } from '@/lib/api';
+import { fetchBackendHealth } from '@/lib/backend-health';
 
 export default function SystemStatusBanner() {
   const [degraded, setDegraded] = useState(false);
@@ -13,23 +14,19 @@ export default function SystemStatusBanner() {
 
   useEffect(() => {
     const checkStatus = async () => {
-      try {
-        const data = await apiRequest<{ system_status?: any }>('/health');
-        const status = data.system_status;
-        if (status) {
-          if (status.database_recovered) {
-            toast.success('数据库已自动修复', {
-              description: '检测到本地数据库异常，已自动为您恢复数据。',
-              icon: <Database className="w-4 h-4" />,
-              duration: 5000,
-            });
-          }
-          if (status.database_degraded) {
-            setDegraded(true);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to check system status', e);
+      const data = await fetchBackendHealth();
+      const status = data?.system_status;
+      if (!status) return;
+
+      if (status.database_recovered) {
+        toast.success('数据库已自动修复', {
+          description: '检测到本地数据库异常，已自动为您恢复数据。',
+          icon: <Database className="w-4 h-4" />,
+          duration: 5000,
+        });
+      }
+      if (status.database_degraded) {
+        setDegraded(true);
       }
     };
     checkStatus();
@@ -44,6 +41,7 @@ export default function SystemStatusBanner() {
     try {
       await apiRequest('/health/database/reset', {
         method: 'POST',
+        silent: true,
       });
 
       toast.success('数据库重置成功', {
