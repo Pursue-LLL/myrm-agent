@@ -4269,7 +4269,7 @@
       "contextCompression": "コンテキスト圧縮",
       "contextCompressionDesc": "長いコンテキスト履歴を自動圧縮",
       "parallelToolCalls": "並列ツール呼び出し",
-      "parallelToolCallsDesc": "複数のツールを同時に実行可能にする",
+      "parallelToolCallsDesc": "複数のツールを同時に実行可能にする"
     },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",
