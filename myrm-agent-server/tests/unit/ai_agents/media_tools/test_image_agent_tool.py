@@ -92,6 +92,9 @@ async def test_image_tool_generate_enqueues_when_async_config() -> None:
         "app.lifecycle.task_worker.get_task_store",
         return_value=mock_store,
     ), patch(
+        "app.tasks.task_payload_crypto.seal_image_task_payload_after_enqueue",
+        new_callable=AsyncMock,
+    ), patch(
         "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
     ) as async_cls:
         async_engine = MagicMock()
