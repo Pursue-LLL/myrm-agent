@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { X, Copy, Check, Search } from 'lucide-react';
+import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getLineTone, TONE_CLASSES } from './lineToneUtils';
 
@@ -22,6 +22,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
   const [searchTerm, setSearchTerm] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,24 +89,54 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     return lines.slice(start, start + PAGE_SIZE);
   }, [lines, currentPage]);
 
+  const allMatchIndices = useMemo(() => {
+    if (!searchTerm) return [] as number[];
+    const lowerSearch = searchTerm.toLowerCase();
+    const indices: number[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toLowerCase().includes(lowerSearch)) {
+        indices.push(i);
+      }
+    }
+    return indices;
+  }, [searchTerm, lines]);
+
+  const matchCount = allMatchIndices.length;
+
   const highlightMatches = useMemo(() => {
     if (!searchTerm) return new Set<number>();
     const matches = new Set<number>();
-    const lowerSearch = searchTerm.toLowerCase();
     const start = (currentPage - 1) * PAGE_SIZE;
-    visibleLines.forEach((line, idx) => {
-      if (line.toLowerCase().includes(lowerSearch)) {
-        matches.add(start + idx);
-      }
-    });
+    const end = start + PAGE_SIZE;
+    for (const idx of allMatchIndices) {
+      if (idx >= start && idx < end) matches.add(idx);
+    }
     return matches;
-  }, [searchTerm, visibleLines, currentPage]);
+  }, [searchTerm, allMatchIndices, currentPage]);
 
-  const matchCount = useMemo(() => {
-    if (!searchTerm) return 0;
-    const lowerSearch = searchTerm.toLowerCase();
-    return lines.filter((l) => l.toLowerCase().includes(lowerSearch)).length;
-  }, [searchTerm, lines]);
+  const jumpToMatch = useCallback(
+    (matchIdx: number) => {
+      if (allMatchIndices.length === 0) return;
+      const wrappedIdx = ((matchIdx % allMatchIndices.length) + allMatchIndices.length) % allMatchIndices.length;
+      setCurrentMatchIdx(wrappedIdx);
+      const lineIdx = allMatchIndices[wrappedIdx];
+      const targetPage = Math.floor(lineIdx / PAGE_SIZE) + 1;
+      setCurrentPage(targetPage);
+      requestAnimationFrame(() => {
+        const el = contentRef.current?.querySelector(`[data-line="${lineIdx}"]`);
+        el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+    },
+    [allMatchIndices],
+  );
+
+  useEffect(() => {
+    if (allMatchIndices.length > 0) {
+      jumpToMatch(0);
+    } else {
+      setCurrentMatchIdx(0);
+    }
+  }, [allMatchIndices, jumpToMatch]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -170,13 +201,35 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  jumpToMatch(e.shiftKey ? currentMatchIdx - 1 : currentMatchIdx + 1);
+                }
+              }}
               placeholder="Search..."
               className="flex-1 bg-transparent text-xs text-zinc-300 placeholder-zinc-600 outline-none"
             />
             {searchTerm && (
-              <span className="text-[10px] text-zinc-500">
-                {matchCount} {matchCount === 1 ? 'match' : 'matches'}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-zinc-500 tabular-nums">
+                  {matchCount > 0 ? `${currentMatchIdx + 1}/${matchCount}` : '0/0'}
+                </span>
+                <button
+                  onClick={() => jumpToMatch(currentMatchIdx - 1)}
+                  disabled={matchCount === 0}
+                  className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-30"
+                >
+                  <ChevronUp size={12} />
+                </button>
+                <button
+                  onClick={() => jumpToMatch(currentMatchIdx + 1)}
+                  disabled={matchCount === 0}
+                  className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:opacity-30"
+                >
+                  <ChevronDown size={12} />
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -218,14 +271,18 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                 const globalIdx = (currentPage - 1) * PAGE_SIZE + idx;
                 const tone = getLineTone(line);
                 const isMatch = highlightMatches.has(globalIdx);
+                const isCurrentMatch = isMatch && allMatchIndices[currentMatchIdx] === globalIdx;
 
                 return (
                   <div
                     key={globalIdx}
+                    data-line={globalIdx}
                     className={cn(
                       'flex',
                       TONE_CLASSES[tone],
-                      isMatch && 'bg-yellow-500/10 border-l-2 border-yellow-500/50',
+                      isCurrentMatch
+                        ? 'bg-orange-500/20 border-l-2 border-orange-400'
+                        : isMatch && 'bg-yellow-500/10 border-l-2 border-yellow-500/50',
                     )}
                   >
                     <span className="inline-block w-12 shrink-0 text-right pr-3 text-zinc-600 select-none text-[10px]">
