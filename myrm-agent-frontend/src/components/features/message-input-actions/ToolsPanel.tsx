@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { Wrench, Search, ChevronDown, ChevronRight } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import useToolsSnapshotStore from '@/store/useToolsSnapshotStore';
+import { resolveToolSnapshotDisplayName } from '@/store/chat/types/builtinTools';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Badge } from '@/components/primitives/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -42,7 +43,11 @@ function sourceBadgeVariant(source: string): 'default' | 'secondary' | 'outline'
 function ToolItem({ tool }: { tool: ToolSnapshotItem }) {
   const [expanded, setExpanded] = useState(false);
   const t = useTranslations('chat.toolsPanel');
-  const displayName = tool.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : tool.name;
+  const locale = useLocale();
+  const uiLocale = locale.startsWith('zh') ? 'zh' : 'en';
+  const knownName =
+    tool.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
+  const displayName = resolveToolSnapshotDisplayName(tool, uiLocale, knownName);
   const displaySummary =
     tool.name === 'conversation_search' ? t('knownTools.conversationSearch.summary') : tool.summary;
 
@@ -116,6 +121,7 @@ function ToolGroup({ groupKey, tools }: { groupKey: string; tools: ToolSnapshotI
 
 const ToolsPanel = () => {
   const t = useTranslations('chat.toolsPanel');
+  const locale = useLocale();
   const tools = useToolsSnapshotStore((s) => s.tools);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -123,13 +129,19 @@ const ToolsPanel = () => {
   const filtered = useMemo(() => {
     if (!search.trim()) return tools;
     const q = search.toLowerCase();
-    return tools.filter(
-      (item) =>
+    return tools.filter((item) => {
+      const uiLocale = locale.startsWith('zh') ? 'zh' : 'en';
+      const knownName =
+        item.name === 'conversation_search' ? t('knownTools.conversationSearch.name') : undefined;
+      const label = resolveToolSnapshotDisplayName(item, uiLocale, knownName);
+      return (
+        label.toLowerCase().includes(q) ||
         item.name.toLowerCase().includes(q) ||
         item.summary.toLowerCase().includes(q) ||
-        (item.provider?.toLowerCase().includes(q) ?? false),
-    );
-  }, [tools, search]);
+        (item.provider?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [tools, search, locale, t]);
 
   const grouped = useMemo(() => groupBySource(filtered), [filtered]);
   const sortedKeys = useMemo(

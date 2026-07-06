@@ -5524,6 +5524,11 @@
       "description": "Message sending failed: {error}",
       "networkError": "Service connection lost. Please check the backend service and refresh the page to retry"
     },
+    "sendBlocked": {
+      "title": "Unable to Send",
+      "processingDescription": "This message is still being processed. Please wait a moment.",
+      "noChatDescription": "Chat session is not ready. Refresh the page or start a new chat."
+    },
     "searchNotConfigured": {
       "title": "Search Service Not Configured",
       "description": "This mode requires a search service. Please add and enable one in Settings first.",

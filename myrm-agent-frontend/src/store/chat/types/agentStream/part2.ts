@@ -176,6 +176,7 @@ export interface ToolSnapshotItem {
   provider: string | null;
   layer: string;
   parameters_schema: Record<string, unknown> | null;
+  builtin_tool_id?: string | null;
 }
 
 export type SubagentMetadataValue =

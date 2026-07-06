@@ -7,32 +7,11 @@ import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
 import {
-  BUILTIN_TOOL_IDS,
+  BUILTIN_TOOL_LABELS,
+  isBuiltinToolId,
   type BuiltinToolId,
 } from '@/store/chat/types/builtinTools';
 import { toast } from '@/lib/utils/toast';
-
-const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);
-
-function isBuiltinToolId(value: string): value is BuiltinToolId {
-  return BUILTIN_TOOL_ID_SET.has(value);
-}
-
-const TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string }> = {
-  web_search: { en: 'Web Search', zh: '网页搜索' },
-  memory: { en: 'Memory', zh: '记忆' },
-  wiki: { en: 'Wiki', zh: 'Wiki' },
-  browser: { en: 'Browser', zh: '浏览器' },
-  computer_use: { en: 'Computer Use', zh: '桌面控制' },
-  image_generation: { en: 'Image Generation', zh: '图片生成' },
-  video_generation: { en: 'Video Generation', zh: '视频生成' },
-  tts: { en: 'Text to Speech', zh: '语音合成' },
-  kanban: { en: 'Kanban', zh: '看板' },
-  cron: { en: 'Scheduled Tasks', zh: '定时任务' },
-  answer_tool: { en: 'Answer Tool', zh: '答案工具' },
-  render_ui: { en: 'Render UI', zh: 'UI 渲染' },
-  planning: { en: 'Planning', zh: '任务规划' },
-};
 
 export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
   const { data } = ctx;
@@ -46,7 +25,7 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       return null;
     }
 
-    const label = isZh ? TOOL_LABELS[toolId].zh : TOOL_LABELS[toolId].en;
+    const label = isZh ? BUILTIN_TOOL_LABELS[toolId].zh : BUILTIN_TOOL_LABELS[toolId].en;
     const message = isZh
       ? `完成此任务需要开启「${label}」`
       : `Enable "${label}" to complete this task`;

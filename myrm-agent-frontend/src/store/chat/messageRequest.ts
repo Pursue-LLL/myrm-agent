@@ -683,10 +683,24 @@ export const sendMessage = async (
     return;
   }
 
+  if (!state.chatId?.trim()) {
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.noChatDescription',
+      type: 'warning',
+      duration: 5000,
+    });
+    return;
+  }
+
   const requestMessageId = messageId ?? getCurrentSessionMessageId();
 
   // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）
   if (useToolApprovalStore.getState().isProcessing(requestMessageId)) {
+    showI18nToast('chat.sendBlocked.title', undefined, {
+      descriptionKey: 'chat.sendBlocked.processingDescription',
+      type: 'warning',
+      duration: 4000,
+    });
     return;
   }
 

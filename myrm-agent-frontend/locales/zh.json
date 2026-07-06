@@ -5523,6 +5523,11 @@
       "description": "消息发送失败: {error}",
       "networkError": "服务连接中断，请检查后端服务状态后刷新页面重试"
     },
+    "sendBlocked": {
+      "title": "无法发送",
+      "processingDescription": "上一条消息仍在处理中，请稍候。",
+      "noChatDescription": "会话尚未就绪，请刷新页面或新建对话。"
+    },
     "searchNotConfigured": {
       "title": "搜索服务未配置",
       "description": "此模式需要搜索服务，请先在设置中添加并启用搜索服务。",
