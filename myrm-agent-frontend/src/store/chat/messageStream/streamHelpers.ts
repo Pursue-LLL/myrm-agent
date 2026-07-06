@@ -77,6 +77,8 @@ export function normalizeGoalState(payload: GoalStatusPayload): GoalState {
     reason: payload.reason,
     constraints: payload.constraints,
     acceptanceCriteria: payload.acceptance_criteria,
+    acceptanceResults: payload.metadata?.acceptance_results as GoalState['acceptanceResults'],
+    acceptanceHistory: payload.metadata?.acceptance_history as GoalState['acceptanceHistory'],
     subgoals: payload.subgoals,
     executionSummary: payload.metadata?.execution_summary,
   };

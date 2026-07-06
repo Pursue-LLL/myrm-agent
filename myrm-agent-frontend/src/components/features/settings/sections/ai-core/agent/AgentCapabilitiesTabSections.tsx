@@ -225,7 +225,6 @@ export function AdvancedEngineParamsSection({ editor, t }: SectionProps) {
             { key: 'enable_replan', label: 'enableReplan', desc: 'enableReplanDesc', defaultVal: true, invert: false },
             { key: 'enable_context_compression', label: 'contextCompression', desc: 'contextCompressionDesc', defaultVal: true, invert: false },
             { key: 'enable_parallel_tool_calls', label: 'parallelToolCalls', desc: 'parallelToolCallsDesc', defaultVal: true, invert: false },
-            { key: 'adversarial_verification', label: 'adversarialVerifier', desc: 'adversarialVerifierDesc', defaultVal: false, invert: false },
           ].map(({ key, label, desc, defaultVal }) => (
             <div key={key} className="flex items-center justify-between">
               <div>

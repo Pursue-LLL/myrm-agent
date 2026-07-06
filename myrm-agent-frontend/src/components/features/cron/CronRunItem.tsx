@@ -2,7 +2,7 @@
 
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Cpu, Send, CircleX, Coins, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import { formatDuration, formatTime } from './cron-utils';
@@ -35,6 +35,17 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const isSkipped = run.status === 'skipped';
   const hasContent = !!(run.output || run.error);
   const securityDenied = !isOk && !isSkipped && hasSecurityDenial(run);
+  const verification = run.metadata?.verification;
+  const verificationLabel =
+    verification?.status === 'pass'
+      ? t('verificationPass')
+      : verification?.status === 'fail'
+        ? t('verificationFail')
+        : verification?.status === 'skipped'
+          ? t('verificationSkipped')
+          : verification?.status === 'error'
+            ? t('verificationError')
+            : null;
 
   const deliveryLabel =
     run.delivery_status === 'delivered'
@@ -126,6 +137,23 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             >
               <ShieldAlert className="h-3 w-3" />
               {t('securityDenied')}
+            </span>
+          )}
+
+          {verificationLabel && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-0.5 text-[10px] rounded px-1 py-0.5',
+                verification?.status === 'pass'
+                  ? 'text-green-600 dark:text-green-400 bg-green-500/10'
+                  : verification?.status === 'fail'
+                    ? 'text-destructive bg-destructive/10'
+                    : 'text-muted-foreground bg-muted',
+              )}
+              title={verification?.summary ?? verificationLabel}
+            >
+              <ShieldCheck className="h-3 w-3" />
+              {verificationLabel}
             </span>
           )}
 

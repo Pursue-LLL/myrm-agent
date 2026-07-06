@@ -216,6 +216,7 @@ class AgentService:
             "browser_source": agent_data.browser_source,
             "dialog_policy": agent_data.dialog_policy,
             "session_recording": agent_data.session_recording,
+            "cron_post_run_verify": agent_data.cron_post_run_verify,
         }
 
         profile = AgentProfile(
@@ -335,6 +336,8 @@ class AgentService:
                 new_metadata["dialog_policy"] = agent_data.dialog_policy
             if "session_recording" in agent_data.model_fields_set:
                 new_metadata["session_recording"] = agent_data.session_recording
+            if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
+                new_metadata["cron_post_run_verify"] = agent_data.cron_post_run_verify
 
             updates["metadata"] = new_metadata
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Globe,
   Cable,
@@ -15,7 +16,9 @@ import {
   MessageSquareCheck,
   AlertCircle,
   ListTodo,
+  Clock,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
@@ -23,6 +26,8 @@ import { BUILTIN_TOOL_IDS, type BuiltinToolId } from '@/store/chat/types';
 import { SelectableCard } from './AgentConfigSelectableCard';
 import { CuPermissionInline } from './CuPermissionInline';
 import { MediaCredentialInline } from './MediaCredentialInline';
+import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
+import { isSandbox } from '@/lib/deploy-mode';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];
@@ -51,6 +56,7 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   tts: <Volume2 size={14} />,
   kanban: <KanbanSquare size={14} />,
   canvas: <PenTool size={14} />,
+  cron: <Clock size={14} />,
   answer_tool: <MessageSquareCheck size={14} />,
   render_ui: <LayoutTemplate size={14} />,
   planning: <ListTodo size={14} />,
@@ -71,6 +77,10 @@ export const BuiltinToolsPanel = ({
   tAgent,
   tPanel,
 }: BuiltinToolsPanelProps) => {
+  const tBilling = useTranslations('billing.gates');
+  const { canUseCron, isLoading: entitlementsLoading } = useFeatureEntitlements();
+  const cronEntitlementBlocked = isSandbox() && !entitlementsLoading && !canUseCron;
+
   const toggleBuiltinTool = (id: BuiltinToolId) => {
     setLocalBuiltinTools((prev) => {
       const isEnabled = prev.includes(id);
@@ -84,18 +94,34 @@ export const BuiltinToolsPanel = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        {BUILTIN_TOOL_IDS.map((id) => (
-          <SelectableCard
-            key={id}
-            id={`builtin-${id}`}
-            label={tPanel(`builtinToolNames.${id}`)}
-            description={tPanel(`builtinToolDescs.${id}`)}
-            checked={localBuiltinTools.includes(id)}
-            onCheckedChange={() => toggleBuiltinTool(id)}
-            icon={BUILTIN_TOOL_ICONS[id]}
-            colorClass="text-orange-500"
-          />
-        ))}
+        {BUILTIN_TOOL_IDS.map((id) => {
+          const isCron = id === 'cron';
+          const disabled = isCron && cronEntitlementBlocked;
+          const description = disabled ? tBilling('cronDescription') : tPanel(`builtinToolDescs.${id}`);
+
+          return (
+            <div key={id} className="space-y-1">
+              <SelectableCard
+                id={`builtin-${id}`}
+                label={tPanel(`builtinToolNames.${id}`)}
+                description={description}
+                checked={localBuiltinTools.includes(id)}
+                onCheckedChange={() => toggleBuiltinTool(id)}
+                icon={BUILTIN_TOOL_ICONS[id]}
+                colorClass="text-orange-500"
+                disabled={disabled}
+              />
+              {disabled && (
+                <Link
+                  href="/pricing"
+                  className="inline-flex text-xs font-medium text-primary hover:text-primary/80 px-3"
+                >
+                  {tBilling('upgrade')}
+                </Link>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <MediaCredentialInline enabledBuiltinTools={localBuiltinTools} tPanel={tPanel} />

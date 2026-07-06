@@ -479,6 +479,10 @@ class AgentBase(BaseModel):
         None,
         description="Tool Gateway configuration for third-party tools",
     )
+    cron_post_run_verify: bool = Field(
+        default=False,
+        description="Run adversarial delivery verification after unattended cron agent runs (verifier-only, no worker retry)",
+    )
 
 
 class AgentCreate(AgentBase):
@@ -570,6 +574,10 @@ class AgentUpdate(BaseModel):
     tool_gateway_config: ToolGatewayConfigDTO | None = Field(
         None,
         description="Tool Gateway configuration for third-party tools",
+    )
+    cron_post_run_verify: bool | None = Field(
+        None,
+        description="Run adversarial delivery verification after unattended cron agent runs",
     )
 
 

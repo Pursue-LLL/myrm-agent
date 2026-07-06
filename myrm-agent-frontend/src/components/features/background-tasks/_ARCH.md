@@ -8,7 +8,10 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `BackgroundTasksPanel.tsx` | ✅ 核心 | NavBar Popover。分区：**Goals** → **Shell 任务**（`run_in_background`）→ **Agent 任务**（Kanban `/btw`）。Shell 行支持 progress 条、跳转来源 chat、Cancel；Agent 行支持 Cancel + Steer。Trigger 带 i18n Tooltip + running 角标。`subscribeBackgroundTasksChanged` 在 SSE 后台事件时即时 refresh；打开时 3s 轮询，关闭时 30s 降频 | ✅ |
+| `BackgroundTasksPanel.tsx` | ✅ 核心 | NavBar Popover 壳层：轮询、SSE refresh、分区编排 | ✅ |
+| `BackgroundTaskRow.tsx` | ✅ 核心 | 单条 Shell/Agent 任务行（progress、Cancel、Steer） | ✅ |
+| `ActiveGoalsSection.tsx` | ✅ 核心 | Active Goals 列表与 pause/resume/cancel | ✅ |
+| `backgroundTasksPanel.constants.ts` | 辅助 | 轮询常量、状态样式、Goal 类型 | — |
 
 ## 依赖
 

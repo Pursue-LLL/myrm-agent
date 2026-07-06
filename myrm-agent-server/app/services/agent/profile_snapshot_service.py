@@ -125,6 +125,7 @@ def mutable_snapshot_data(profile: AgentProfile) -> dict[str, object]:
         "auto_restore_domains": auto_restore_domains,
         "openapi_services": openapi_services,
         "command_bindings": command_bindings_raw,
+        "cron_post_run_verify": bool(metadata.get("cron_post_run_verify", False)),
     }
 
 
@@ -184,6 +185,7 @@ def project_mutable_after_update(existing: AgentProfile, updates: dict[str, obje
             "auto_restore_domains",
             "openapi_services",
             "workspace_policy",
+            "cron_post_run_verify",
         ):
             if key in metadata_update:
                 if key in {"mcp_ids", "subagent_ids", "enabled_builtin_tools"}:

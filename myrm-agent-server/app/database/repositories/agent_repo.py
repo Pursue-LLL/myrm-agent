@@ -116,6 +116,7 @@ class AgentRepository:
                 "browser_source": agent.browser_source,
                 "dialog_policy": agent.dialog_policy,
                 "session_recording": agent.session_recording,
+                "cron_post_run_verify": bool(getattr(agent, "cron_post_run_verify", False)),
             },
             built_in=agent.is_built_in or agent.is_public,
             created_at=agent.created_at,
@@ -206,6 +207,7 @@ class AgentRepository:
             session_policy=meta.get("session_policy"),
             notify_targets=meta.get("notify_targets"),
             tool_gateway_config=meta.get("tool_gateway_config"),
+            cron_post_run_verify=bool(meta.get("cron_post_run_verify", False)),
             mounted_skill_ids=meta.get("mounted_skill_ids", []),
             command_bindings=(
                 [
@@ -313,6 +315,8 @@ class AgentRepository:
 
         if "metadata" in updates:
             metadata = cast(dict[str, object], updates["metadata"])
+            if "cron_post_run_verify" in metadata:
+                agent.cron_post_run_verify = bool(metadata["cron_post_run_verify"])
             if "mcp_ids" in metadata:
                 agent.mcp_servers = cast(list[str], metadata["mcp_ids"])
             if "mcp_tool_selections" in metadata:

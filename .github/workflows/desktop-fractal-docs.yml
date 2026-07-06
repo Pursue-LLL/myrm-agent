@@ -1,0 +1,32 @@
+name: Desktop fractal docs
+
+on:
+  pull_request:
+    paths:
+      - 'myrm-agent-desktop/**'
+      - '.github/workflows/desktop-fractal-docs.yml'
+
+concurrency:
+  group: desktop-fractal-docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fractal-docs:
+    name: Desktop fractal documentation gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Fractal docs gate
+        run: bun run myrm-agent-desktop/scripts/check-fractal-docs.ts
+
+      - name: Fractal docs unit test
+        run: bun test myrm-agent-desktop/scripts/check-fractal-docs.test.ts

@@ -21,6 +21,7 @@ export type BuiltinToolId =
   | 'tts'
   | 'kanban'
   | 'canvas'
+  | 'cron'
   | 'answer_tool'
   | 'render_ui'
   | 'planning';
@@ -36,6 +37,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'tts',
   'kanban',
   'canvas',
+  'cron',
   'answer_tool',
   'render_ui',
   'planning',

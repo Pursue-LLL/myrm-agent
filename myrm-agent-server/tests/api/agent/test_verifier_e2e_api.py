@@ -253,11 +253,7 @@ class TestAdversarialVerifier:
         query = "请生成一个 Python 脚本来打印 Hello World，保存并运行它。"
 
         with _verifier_mock_patches():
-            full_answer, collected_data, verification_events = perform_verifier_task(
-                client,
-                query,
-                engine_params={"adversarial_verification": True},
-            )
+            full_answer, collected_data, verification_events = perform_verifier_task(client, query)
 
         assert len(collected_data) > 0, "Should have received events"
         _assert_no_fatal_errors(collected_data)

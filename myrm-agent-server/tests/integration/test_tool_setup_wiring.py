@@ -146,6 +146,7 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
     mixin.model_cfg = MagicMock(model="test-model")
     mixin.chat_id = "chat-1"
     mixin.agent_id = "agent-1"
+    mixin.enable_cron_eager = False
     tools: list[object] = []
     discoverable_tools: list[object] = []
 
@@ -176,3 +177,36 @@ async def test_cron_tools_receive_delivery_resolver() -> None:
 
     assert captured.get("delivery_resolver") is resolve_cron_delivery
     assert len(discoverable_tools) == 1
+    assert len(tools) == 0
+
+
+@pytest.mark.asyncio
+async def test_cron_tools_turn1_eager_when_enabled() -> None:
+    from app.ai_agents.general_agent.tool_setup import ToolSetupMixin
+
+    mixin = ToolSetupMixin.__new__(ToolSetupMixin)
+    mixin.model_cfg = MagicMock(model="test-model")
+    mixin.chat_id = "chat-1"
+    mixin.agent_id = "agent-1"
+    mixin.enable_cron_eager = True
+    tools: list[object] = []
+    discoverable_tools: list[object] = []
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.create_cron_tools",
+            return_value=[MagicMock(name="cron_manage_tool", spec=BaseTool)],
+        ),
+        patch(
+            "app.core.cron.adapters.setup.get_cron_manager",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.core.cron.blueprints.get_blueprints_for_tool_description",
+            return_value="",
+        ),
+    ):
+        await mixin._setup_cron_tools(tools, discoverable_tools, user_id="user-1")
+
+    assert len(tools) == 1
+    assert len(discoverable_tools) == 0

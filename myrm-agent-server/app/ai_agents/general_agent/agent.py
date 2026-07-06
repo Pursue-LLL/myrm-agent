@@ -91,6 +91,7 @@ class GeneralAgent(ToolSetupMixin):
         enable_wiki: bool = False,
         enable_kanban: bool = False,
         enable_canvas: bool = False,
+        enable_cron_eager: bool = False,
         canvas_id: str | None = None,
         enable_answer_tool: bool = False,
         enable_planning: bool = False,
@@ -185,6 +186,7 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_wiki = enable_wiki
         self.enable_kanban = enable_kanban
         self.enable_canvas = enable_canvas
+        self.enable_cron_eager = enable_cron_eager
         self.canvas_id = canvas_id
         self.enable_answer_tool = enable_answer_tool
         self.enable_planning = enable_planning

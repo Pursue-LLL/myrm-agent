@@ -8,6 +8,8 @@
 
 | 文件 | 平台 | 职责 | I/O/P |
 |------|------|------|-------|
+| `check-fractal-docs.ts` | CI | 分形文档门禁：必检 `_ARCH.md` 清单 + 核心 `[INPUT]` 头；`bun run scripts/check-fractal-docs.ts` | ✅ |
+| `check-fractal-docs.test.ts` | CI | 门禁单元测试 | — |
 | `build-frontend.sh` | Unix | 从 desktop 根解析 monorepo 路径，在 `myrm-agent-frontend/` 执行 `build:tauri`（或 `dev` 模式 `bun run dev`）；standalone 已存在则跳过构建 | ✅ |
 | `verify-signing.sh` | Unix (macOS CI) | 发版后 codesign / Gatekeeper / notary staple 四重验签；失败计数作为 exit code | ✅ |
 | `verify-signing.ps1` | Windows | Windows 安装包签名验证（与 `verify-signing.sh` 对称） | ✅ |

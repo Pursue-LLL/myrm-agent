@@ -714,12 +714,22 @@ class TestResolveBuiltinToolFlags:
             "wiki",
             "kanban",
             "canvas",
+            "cron",
             "answer_tool",
             "render_ui",
             "planning",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
+
+    def test_cron_maps_to_enable_cron_eager(self):
+        flags = resolve_builtin_tool_flags(["cron"])
+        assert flags["enable_cron_eager"] is True
+        assert flags["enable_browser"] is False
+
+    def test_cron_absent_disables_eager(self):
+        flags = resolve_builtin_tool_flags(["web_search", "memory"])
+        assert flags["enable_cron_eager"] is False
 
     def test_selective_enabling(self):
         flags = resolve_builtin_tool_flags(["web_search", "memory", "wiki", "file_ops"])
@@ -762,6 +772,7 @@ class TestResolveBuiltinToolFlags:
             "enable_wiki",
             "enable_kanban",
             "enable_canvas",
+            "enable_cron_eager",
             "enable_answer_tool",
             "enable_render_ui",
             "enable_planning",

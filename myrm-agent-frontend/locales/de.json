@@ -4270,8 +4270,6 @@
       "contextCompressionDesc": "Langen Kontextverlauf automatisch komprimieren",
       "parallelToolCalls": "Parallele Werkzeugaufrufe",
       "parallelToolCallsDesc": "Mehrere Werkzeuge gleichzeitig ausführen",
-      "adversarialVerifier": "Adversariale Verifizierung",
-      "adversarialVerifierDesc": "Tests in physischer Ausführungssandbox erzwingen"
     },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",
@@ -4464,7 +4462,8 @@
       "quickCommand": "Quick Command",
       "quickCommandPlaceholder": "Send a new instruction...",
       "steerPlaceholder": "Redirect the agent...",
-      "send": "Send"
+      "send": "Send",
+      "verifications": "Acceptance Criteria"
     }
   },
   "common": {
@@ -10335,6 +10334,8 @@
     "subgoalAdded": "Subgoal added",
     "subgoalRemoved": "Subgoal removed",
     "acceptanceCriteria": "Acceptance Criteria",
+    "hideHistory": "Hide history",
+    "showHistory": "History ({count} attempts)",
     "addShellCriteria": "+ Shell Command",
     "addSemanticCriteria": "+ AI Judge",
     "noCriteriaHint": "(No criteria set — Agent will decide completion autonomously)",

@@ -12,7 +12,7 @@
 
 [POS]
 GeneralAgent 的工具初始化混入。用户开关 ON（`enabled_builtin_tools` / skill 绑定）→ Turn1 eager；
-无独立开关的能力（cron）→ DISCOVERABLE + discover。搜索、媒体生成（AgentDeclared eager →
+`cron` 未勾选 → DISCOVERABLE；`cron` 勾选 → Turn1 eager。搜索、媒体生成（AgentDeclared eager →
 `media_tools/`）、定时任务、记忆、浏览器等工具的创建逻辑从核心 Agent
 类中解耦，保持 agent.py 聚焦于流式执行和生命周期管理。
 外部 Agent 委托由 ExternalAgentsMixin 提供。
@@ -114,6 +114,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _current_thread_id: str | None
         _current_chat_id: str | None
         skill_ids: list[str]
+        enable_cron_eager: bool
 
     def _setup_x_live_search_tool(self, tools: list[object]) -> None:
         """Register eager x_search_tool when x-live-search skill is enabled.
@@ -446,7 +447,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
         discoverable_tools: list[object],
         user_id: str | None = None,
     ) -> None:
-        """Set up scheduled task (cron) tools."""
+        """Set up scheduled task (cron) tools.
+
+        Dual bind mode (``enabled_builtin_tools``):
+        - ``cron`` ON  → Turn1 eager in ``tools`` (skip discover_capability round-trip)
+        - ``cron`` OFF → DISCOVERABLE in ``discoverable_tools`` (default, zero Turn1 token)
+        """
         try:
             if not user_id:
                 logger.warning("Cron tools load skipped: user_id is missing")
@@ -483,8 +489,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 blueprint_filler=_blueprint_filler,
                 delivery_resolver=resolve_cron_delivery,
             )
-            discoverable_tools.extend(cron_tools)
-            logger.info(f"Loaded {len(cron_tools)} cron tools [Deferred]")
+            eager = self.enable_cron_eager
+            if eager:
+                tools.extend(cron_tools)
+                logger.info("Loaded %d cron tools [Turn1 eager]", len(cron_tools))
+            else:
+                discoverable_tools.extend(cron_tools)
+                logger.info("Loaded %d cron tools [Discoverable]", len(cron_tools))
         except Exception as e:
             logger.warning(f"Cron tools load failed (degraded): {e}")
 

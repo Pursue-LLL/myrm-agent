@@ -40,6 +40,7 @@ export default function CronSection() {
           <h2 className="text-base font-semibold">{t('sectionTitle')}</h2>
         </div>
         <p className="text-sm text-muted-foreground">{t('sectionDesc')}</p>
+        <p className="text-sm text-muted-foreground/90 mt-2">{t('agentChatHint')}</p>
       </div>
 
       {isTopLevel && (

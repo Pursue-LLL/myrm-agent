@@ -103,11 +103,28 @@ export const GoalControlPlane = () => {
                     </div>
                     <div className="p-2 rounded-xl bg-background/60 border border-border/50">
                       <span className="text-muted-foreground">{t('verifications')}</span>
-                      <p className="font-semibold text-foreground mt-0.5">
-                        {summary.verifications.length > 0
-                          ? `${summary.verifications.filter((v) => v.passed).length}/${summary.verifications.length}`
-                          : '-'}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {activeGoal.acceptanceResults && activeGoal.acceptanceResults.length > 0 ? (
+                          <>
+                            <span
+                              className={`font-semibold ${
+                                activeGoal.acceptanceResults.every((r) => r.passed)
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-orange-600 dark:text-orange-400'
+                              }`}
+                            >
+                              {activeGoal.acceptanceResults.filter((r) => r.passed).length}/
+                              {activeGoal.acceptanceResults.length}
+                            </span>
+                          </>
+                        ) : summary.verifications.length > 0 ? (
+                          <span className="font-semibold text-foreground">
+                            {summary.verifications.filter((v) => v.passed).length}/{summary.verifications.length}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-foreground">-</span>
+                        )}
+                      </div>
                     </div>
                     <div className="p-2 rounded-xl bg-background/60 border border-border/50">
                       <span className="text-muted-foreground">{t('tokenCost')}</span>

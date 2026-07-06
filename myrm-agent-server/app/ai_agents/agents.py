@@ -120,6 +120,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_wiki: bool = False
     enable_kanban: bool = False
     enable_canvas: bool = False
+    enable_cron_eager: bool = False
     canvas_id: str | None = None
     enable_answer_tool: bool = False
     enable_planning: bool = False
@@ -263,6 +264,7 @@ class AgentFactory:
             enable_wiki=params.enable_wiki,
             enable_kanban=params.enable_kanban,
             enable_canvas=params.enable_canvas,
+            enable_cron_eager=params.enable_cron_eager,
             canvas_id=params.canvas_id,
             enable_answer_tool=params.enable_answer_tool,
             enable_planning=params.enable_planning,

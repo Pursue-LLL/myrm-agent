@@ -48,6 +48,8 @@
     "subgoalAdded": "Subgoal added",
     "subgoalRemoved": "Subgoal removed",
     "acceptanceCriteria": "Acceptance Criteria",
+    "hideHistory": "Hide history",
+    "showHistory": "History ({count} attempts)",
     "addShellCriteria": "+ Shell Command",
     "addSemanticCriteria": "+ AI Judge",
     "noCriteriaHint": "(No criteria set — Agent will decide completion autonomously)",
@@ -4562,8 +4564,6 @@
       "contextCompressionDesc": "Auto-compress long context history",
       "parallelToolCalls": "Parallel Tool Calls",
       "parallelToolCallsDesc": "Allow multiple tools at once",
-      "adversarialVerifier": "Adversarial Verifier",
-      "adversarialVerifierDesc": "Force physical execution sandbox tests"
     },
     "configured": "configured",
     "configure": "Configure",
@@ -4682,6 +4682,8 @@
     "consensusUsingPrimary": "Using primary model",
     "sessionPolicy": "Session Policy",
     "sessionPolicyDesc": "Override global session reset strategy for this agent. Leave empty to use global settings.",
+    "cronPostRunVerify": "Scheduled Task Verification",
+    "cronPostRunVerifyDesc": "After unattended cron runs that changed files or executed commands, run an independent delivery review (does not retry the task).",
     "sessionPolicyMode": "Reset Mode",
     "sessionPolicyPersistent": "Persistent",
     "sessionPolicyPersistentDesc": "One session per peer forever",
@@ -4866,6 +4868,7 @@
         "tts": "Text to Speech",
         "kanban": "Task Board",
         "canvas": "Canvas Workspace",
+        "cron": "Scheduled Tasks (Chat)",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI",
         "planning": "Multi-Step Progress"
@@ -4883,6 +4886,7 @@
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "canvas": "Read and write the infinite canvas — let the agent see your drawings, notes, and diagrams",
+        "cron": "Create scheduled tasks directly in chat; when off, the tool loads on demand via capability discovery",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Fill forms and view tables or charts directly in chat",
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)"
@@ -5187,7 +5191,8 @@
       "quickCommand": "Quick Command",
       "quickCommandPlaceholder": "Send a new instruction...",
       "steerPlaceholder": "Redirect the agent...",
-      "send": "Send"
+      "send": "Send",
+      "verifications": "Acceptance Criteria"
     }
   },
   "common": {
@@ -8549,6 +8554,7 @@
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
+    "agentChatHint": "You can also say something like \"Summarize AI news every morning at 8\" in chat. Enable \"Scheduled Tasks (Chat)\" in agent settings to create jobs directly without a discovery step.",
     "title": "Scheduled Tasks",
     "loading": "Loading...",
     "empty": "No scheduled tasks yet",
@@ -8704,6 +8710,10 @@
     "pathPlaceholder": "e.g. ~/reports or /tmp",
     "commonPaths": "Common:",
     "securityDenied": "Security Denied",
+    "verificationPass": "Verified",
+    "verificationFail": "Verify Failed",
+    "verificationSkipped": "Verify Skipped",
+    "verificationError": "Verify Error",
     "securityDeniedHint": "Some tools were denied by security policy. Configure required permissions in the Capability Fence above.",
     "capability": {
       "web_search_tool": "Search Engine",

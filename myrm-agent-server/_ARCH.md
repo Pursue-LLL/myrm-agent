@@ -16,6 +16,7 @@ FastAPI 单机业务后端：HTTP API、渠道桥接、生命周期编排；Agen
 | `deployments/` | 辅助 | 可选运维栈（如 Prometheus）· [deployments/_ARCH.md](deployments/_ARCH.md) |
 | `searxng/` | 辅助 | 本地 SearXNG 配置 · [searxng/_ARCH.md](searxng/_ARCH.md) |
 | `data/` | 运行时 | 本地 dev 向量/记忆数据（gitignore） |
+| `.agent/` | 运行时 | Harness workspace 树（`.agent/docs`、`.agent/vault`；gitignore，勿与包根 `.myrm/` 混淆） |
 
 ## 根级入口
 

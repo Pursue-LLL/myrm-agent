@@ -13,6 +13,7 @@ export interface SelectableCardProps {
   icon?: React.ReactNode;
   colorClass?: string;
   rightElement?: React.ReactNode;
+  disabled?: boolean;
 }
 
 export function SelectableCard({
@@ -24,16 +25,23 @@ export function SelectableCard({
   icon,
   colorClass = 'text-primary',
   rightElement,
+  disabled = false,
 }: SelectableCardProps) {
   return (
     <div
       data-testid={id}
       className={cn(
-        'group relative flex items-start gap-3 p-3 rounded-xl cursor-pointer',
+        'group relative flex items-start gap-3 p-3 rounded-xl',
         'border transition-all duration-200',
-        checked ? 'bg-primary/5 border-primary/30' : 'bg-card/50 border-border/40 hover:border-border hover:bg-muted/30',
+        disabled
+          ? 'cursor-not-allowed opacity-60 bg-muted/20 border-border/40'
+          : cn(
+              'cursor-pointer',
+              checked ? 'bg-primary/5 border-primary/30' : 'bg-card/50 border-border/40 hover:border-border hover:bg-muted/30',
+            ),
       )}
       onClick={(e) => {
+        if (disabled) return;
         if ((e.target as HTMLElement).closest('.no-card-click')) return;
         onCheckedChange();
       }}

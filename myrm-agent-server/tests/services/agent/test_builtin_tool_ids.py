@@ -60,8 +60,8 @@ def test_default_tools_match_frontend_contract() -> None:
         "web_search",
         "memory",
     )
-    assert len(BUILTIN_TOOL_ID_SET) == 15
-    assert len(BUILTIN_TOOL_IDS) == 13
+    assert len(BUILTIN_TOOL_ID_SET) == 16
+    assert len(BUILTIN_TOOL_IDS) == 14
 
 
 def test_normalize_strips_agent_baseline_ids() -> None:

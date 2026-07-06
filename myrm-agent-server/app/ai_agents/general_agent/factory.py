@@ -196,7 +196,8 @@ async def build_general_agent(
             agent_id=agent_wrapper.agent_id,
             memory_manager=memory_manager,
         )
-    await agent_wrapper._setup_cron_tools(tools, discoverable_tools, user_id=user_id)
+    if _should_enable_cron_tools():
+        await agent_wrapper._setup_cron_tools(tools, discoverable_tools, user_id=user_id)
 
     if agent_wrapper.enable_browser:
         await agent_wrapper._setup_browser_tools(
@@ -801,6 +802,25 @@ async def _try_inject_mcp_oauth(cfg: "MCPConfig") -> "MCPConfig":
     except Exception:
         logger.debug("MCP OAuth injection skipped for '%s'", cfg.name, exc_info=True)
         return cfg
+
+
+def _should_enable_cron_tools() -> bool:
+    """Return False in SaaS sandbox when the plan does not include cron."""
+    from app.platform_utils.deployment_capabilities import get_deployment_capabilities
+
+    if not get_deployment_capabilities().uses_cp_entitlements:
+        return True
+
+    try:
+        from app.platform_utils.sandbox.entitlements.entitlement_guard import fetch_sandbox_entitlements
+
+        entitlements = fetch_sandbox_entitlements()
+        if entitlements is None:
+            return False
+        return entitlements.enable_cron
+    except Exception as exc:
+        logger.warning("Cron entitlement check failed (disabling tools): %s", exc)
+        return False
 
 
 def _should_enable_subagent_tools() -> bool:

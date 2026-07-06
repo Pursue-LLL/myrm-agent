@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send } from 'lucide-react';
+import { ArrowLeft, Square, Activity, BrainCircuit, ShieldCheck, ShieldX, Send, Check, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -47,6 +47,7 @@ import useToolApprovalStore from '@/store/useToolApprovalStore';
 import { GoalPlanStepsList } from '@/components/features/chat-window/goals/GoalPlanStepsList';
 import { useGoalPlanSync } from '@/components/features/chat-window/goals/useGoalPlanSync';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
+import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 
 export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const router = useRouter();
@@ -74,6 +75,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const [quickInput, setQuickInput] = useState('');
   const e2ee = useE2EEStatus();
   const { plan } = usePlanStore();
+  const activeGoal = useGoalStore((s) => s.activeGoal);
 
   useGoalPlanSync(chatId);
 
@@ -237,6 +239,44 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
                     steps={lastAssistantMessage.progressSteps!}
                     loading={loading}
                   />
+                </div>
+              </div>
+            )}
+
+            {activeGoal?.acceptanceResults && activeGoal.acceptanceResults.length > 0 && (
+              <div className="bg-card rounded-2xl border overflow-hidden">
+                <div className="p-3 border-b bg-muted/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <h2 className="text-sm font-medium">{t('verifications')}</h2>
+                  </div>
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      activeGoal.acceptanceResults.every((r) => r.passed)
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                    }`}
+                  >
+                    {activeGoal.acceptanceResults.filter((r) => r.passed).length}/{activeGoal.acceptanceResults.length}
+                  </span>
+                </div>
+                <div className="p-2 space-y-1">
+                  {activeGoal.acceptanceResults.map((result, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-2 p-2 rounded-xl text-xs ${
+                        result.passed
+                          ? 'bg-green-50/50 dark:bg-green-900/10'
+                          : 'bg-red-50/50 dark:bg-red-900/10'
+                      }`}
+                    >
+                      <span className={`flex-shrink-0 ${result.passed ? 'text-green-600' : 'text-red-600'}`}>
+                        {result.passed ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                      </span>
+                      <span className="flex-1 truncate text-foreground/80">{result.label}</span>
+                      <span className="text-muted-foreground tabular-nums text-[10px]">{result.duration_ms}ms</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

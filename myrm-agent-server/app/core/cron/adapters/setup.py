@@ -31,6 +31,7 @@ from myrm_agent_harness.toolkits.cron.protocols import JobRunner
 
 from app.config.deploy_mode import is_local_mode
 from app.core.cron.adapters.agent_runner import AgentJobRunner
+from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
 from app.core.cron.adapters.python_condition import SandboxedPythonCondition
 from app.core.cron.adapters.situation_sections import build_situation_report_builder
@@ -40,7 +41,7 @@ from app.core.cron.adapters.sqlalchemy_trigger_provider import SqlAlchemyTrigger
 logger = logging.getLogger(__name__)
 
 _scheduler: CronScheduler | None = None
-_manager: CronManager | None = None
+_manager: EntitlementGuardedCronManager | None = None
 _store: SqlAlchemyCronStore | None = None
 
 
@@ -60,15 +61,16 @@ def get_cron_store() -> SqlAlchemyCronStore:
     return _store
 
 
-def get_cron_manager() -> CronManager:
-    """Get or create the CronManager singleton."""
+def get_cron_manager() -> EntitlementGuardedCronManager:
+    """Get or create the entitlement-guarded CronManager singleton."""
     global _manager
     if _manager is None:
-        _manager = CronManager(
+        inner = CronManager(
             store=get_cron_store(),
             scheduler=get_cron_scheduler(),
             shell_enabled=is_local_mode(),
         )
+        _manager = EntitlementGuardedCronManager(inner)
     return _manager
 
 

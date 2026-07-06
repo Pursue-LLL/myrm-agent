@@ -46,3 +46,4 @@ Tauri 桌面壳：托管 WebView（Next 静态导出）、系统 API、以及两
 
 - 用户向长文仍见 [README.md](README.md)（安装与 Releases）
 - Rust 模块清单：[src-tauri/src/_ARCH.md](src-tauri/src/_ARCH.md)
+- 分形文档门禁：`scripts/check-fractal-docs.ts`（CI：`desktop-fractal-docs.yml`）

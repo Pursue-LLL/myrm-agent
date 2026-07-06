@@ -15,7 +15,8 @@ Cron 定时任务系统的业务层适配器。将框架层的 CronStore / JobRu
 
 | 文件 | 职责 |
 |------|------|
-| `setup.py` | 组装入口：创建 CronScheduler + CronManager，注入所有适配器 |
+| `setup.py` | 组装入口：创建 CronScheduler + entitlement-guarded CronManager，注入所有适配器 |
+| `entitlement_guarded_manager.py` | 包装 harness CronManager：`create_job` / `duplicate_job` 调用 `require_cron_slot`（REST + agent 共用 SSOT） |
 | `sqlalchemy_store.py` | CronStore 协议的 SQLAlchemy 实现：Job/Run/MonitorState CRUD |
 | `sqlalchemy_mapping.py` | ORM <-> Domain 双向映射 |
 | `sqlalchemy_aggregation.py` | Token 用量聚合查询 |

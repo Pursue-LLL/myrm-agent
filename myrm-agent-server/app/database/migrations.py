@@ -727,6 +727,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE agents ADD COLUMN browser_source VARCHAR(20)",
     "ALTER TABLE agents ADD COLUMN dialog_policy VARCHAR(20)",
     "ALTER TABLE agents ADD COLUMN session_recording VARCHAR(20)",
+    "ALTER TABLE agents ADD COLUMN cron_post_run_verify BOOLEAN NOT NULL DEFAULT 0",
     """CREATE TABLE IF NOT EXISTS widget_kv (
         namespace VARCHAR(128) NOT NULL,
         key VARCHAR(256) NOT NULL,

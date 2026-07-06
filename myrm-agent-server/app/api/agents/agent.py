@@ -269,6 +269,7 @@ def _to_agent_response(
             else None
         ),
         notify_targets=_meta_list_or_none(metadata, "notify_targets"),
+        cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
         created_at=agent.created_at or datetime.now(),
         updated_at=agent.updated_at or datetime.now(),
         snapshot_count=snapshot_count,

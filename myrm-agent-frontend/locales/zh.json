@@ -48,6 +48,8 @@
     "subgoalAdded": "子目标已添加",
     "subgoalRemoved": "子目标已移除",
     "acceptanceCriteria": "验收条件",
+    "hideHistory": "收起历史",
+    "showHistory": "历史记录（{count} 次尝试）",
     "addShellCriteria": "+ 终端命令",
     "addSemanticCriteria": "+ AI 裁判",
     "noCriteriaHint": "（未设置验收条件，Agent 将自主决定完工）",
@@ -4641,8 +4643,6 @@
       "contextCompressionDesc": "自动压缩过长的上下文历史",
       "parallelToolCalls": "并行工具调用",
       "parallelToolCallsDesc": "允许同时调用多个工具",
-      "adversarialVerifier": "对抗性验证器",
-      "adversarialVerifierDesc": "强制在物理执行沙箱中运行测试"
     },
     "modelParams": "模型参数",
     "modelParamsDesc": "为此智能体配置独立的模型调用参数",
@@ -4685,6 +4685,8 @@
     "consensusUsingPrimary": "使用主模型",
     "sessionPolicy": "会话策略",
     "sessionPolicyDesc": "为此 Agent 单独配置会话重置策略，留空则使用全局设置。",
+    "cronPostRunVerify": "定时任务交付复核",
+    "cronPostRunVerifyDesc": "无人值守 Cron 在写入文件或执行命令后，追加独立交付审查（不会重跑任务）。",
     "sessionPolicyMode": "重置模式",
     "sessionPolicyPersistent": "持久化",
     "sessionPolicyPersistentDesc": "每个对话方永久保持一个会话",
@@ -4866,6 +4868,7 @@
         "tts": "语音生成",
         "kanban": "任务看板",
         "canvas": "无限画布",
+        "cron": "定时任务（对话）",
         "answer_tool": "回答质量自审",
         "render_ui": "交互式 UI",
         "planning": "多步进度"
@@ -4883,6 +4886,7 @@
         "tts": "使用 TTS 模型将文本转换为语音",
         "kanban": "管理看板任务 — 报告进度、阻塞任务、标记完成",
         "canvas": "读写无限画布 — 让智能体看到你的绘图、笔记和思维导图",
+        "cron": "在对话中直接创建定时任务；关闭时仍可通过能力发现按需加载",
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
         "render_ui": "在对话里直接填写表单、查看表格与图表",
         "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）"
@@ -5187,7 +5191,8 @@
       "quickCommand": "快速指令",
       "quickCommandPlaceholder": "发送新指令...",
       "steerPlaceholder": "发送纠偏指令...",
-      "send": "发送"
+      "send": "发送",
+      "verifications": "验收条件"
     }
   },
   "common": {
@@ -8549,6 +8554,7 @@
   "cron": {
     "sectionTitle": "定时任务",
     "sectionDesc": "管理由 Agent 创建的自动定时任务。",
+    "agentChatHint": "也可在对话中说「每天早上 8 点总结 AI 资讯」；在智能体配置中开启「定时任务（对话）」可跳过能力发现、直接创建。",
     "title": "定时任务",
     "loading": "加载中...",
     "empty": "暂无定时任务",
@@ -8704,6 +8710,10 @@
     "pathPlaceholder": "例如 ~/reports 或 /tmp",
     "commonPaths": "常用：",
     "securityDenied": "安全拒绝",
+    "verificationPass": "复核通过",
+    "verificationFail": "复核未通过",
+    "verificationSkipped": "未复核",
+    "verificationError": "复核异常",
     "securityDeniedHint": "部分工具被安全策略拒绝，请在上方「能力围栏」中配置所需工具权限。",
     "capability": {
       "web_search_tool": "搜索引擎",

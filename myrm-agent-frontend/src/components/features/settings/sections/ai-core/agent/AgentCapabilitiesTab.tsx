@@ -48,6 +48,8 @@ export interface AgentCapabilitiesTabProps {
     setSessionRecording: (val: string | undefined) => void;
     sessionPolicy: AgentSessionPolicy | null;
     setSessionPolicy: (val: AgentSessionPolicy | null) => void;
+    cronPostRunVerify: boolean;
+    setCronPostRunVerify: (val: boolean) => void;
     selectedSkillDetails: Skill[];
     selectedMcpDetails: MCPServiceConfig[];
     systemPrompt: string;

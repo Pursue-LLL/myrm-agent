@@ -43,6 +43,7 @@ export interface GoalStatusPayload {
   reason?: string;
   should_continue?: boolean;
   constraints?: string[];
+  acceptance_criteria?: { type: string; command?: string; criteria?: string }[];
   subgoals?: { text: string }[];
   metadata?: {
     execution_summary?: {
@@ -54,6 +55,23 @@ export interface GoalStatusPayload {
       execution_duration_s: number;
       turns_used: number;
     };
+    acceptance_results?: {
+      label: string;
+      passed: boolean;
+      duration_ms: number;
+      reason?: string;
+      error_logs?: string;
+    }[];
+    acceptance_history?: {
+      timestamp: string;
+      results: {
+        label: string;
+        passed: boolean;
+        duration_ms: number;
+        reason?: string;
+        error_logs?: string;
+      }[];
+    }[];
     [key: string]: unknown;
   };
 }

@@ -112,6 +112,7 @@ export interface Agent {
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
+  cron_post_run_verify?: boolean;
   snapshot_count?: number;
   snapshot_saved?: boolean;
   created_at: string;
@@ -167,6 +168,7 @@ export interface AgentCreate {
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
+  cron_post_run_verify?: boolean;
 }
 
 export interface AgentUpdate {
@@ -203,6 +205,7 @@ export interface AgentUpdate {
   notify_targets?: NotifyTarget[] | null;
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
+  cron_post_run_verify?: boolean;
 }
 
 export interface AgentListResponse {

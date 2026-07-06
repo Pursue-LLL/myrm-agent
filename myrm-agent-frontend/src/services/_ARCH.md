@@ -9,6 +9,7 @@
 | 文件 / 模式 | 职责 |
 |-------------|------|
 | `chat.ts` | 会话 CRUD、流式聊天 |
+| `cron.ts` / `cron.types.ts` | `/cron/*` REST 客户端；类型在 `cron.types.ts` |
 | `channels.ts` | 渠道配置与状态 |
 | `connect.ts` | Connect Wizard：`/connect/profiles|generate|doctor|revoke|status`；外部 Agent MCP 连接管理 |
 | `extension.ts` | 浏览器扩展桥：`/extension/status|domains|tabs|disconnect|setup-hints`；`getExtensionWebSocketUrl()` |

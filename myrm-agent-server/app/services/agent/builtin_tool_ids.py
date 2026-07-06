@@ -44,6 +44,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "tts",
     "kanban",
     "canvas",
+    "cron",
     "answer_tool",
     "render_ui",
     "planning",
@@ -79,6 +80,10 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "wiki", "desc": "Query and maintain personal wiki knowledge"},
     {"id": "kanban", "desc": "Manage kanban boards and async tasks"},
     {"id": "canvas", "desc": "Read and update the visual canvas workspace"},
+    {
+        "id": "cron",
+        "desc": "Create and manage scheduled tasks from agent chat",
+    },
     {"id": "answer_tool", "desc": "Structured final-answer gate for search agents"},
     {"id": "render_ui", "desc": "Render interactive UI artifacts in chat"},
     {"id": "planning", "desc": "Multi-step task progress (main-agent todo_write)"},

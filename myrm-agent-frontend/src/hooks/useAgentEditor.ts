@@ -130,6 +130,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
 
   // 可发现性
   const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
+  const [cronPostRunVerify, setCronPostRunVerify] = useState<boolean>(false);
 
   // 对话框状态
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -172,6 +173,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     sessionPolicy: null as AgentSessionPolicy | null,
     notifyTargets: [] as import('@/services/agent').NotifyTarget[],
     allowDiscovery: true,
+    cronPostRunVerify: false,
   });
 
   // 检测变更
@@ -214,6 +216,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       sessionPolicyChanged ||
       notifyChanged ||
       allowDiscovery !== originalData.allowDiscovery ||
+      cronPostRunVerify !== originalData.cronPostRunVerify ||
       maxIterations !== originalData.maxIterations ||
       !arraysEqual(suggestionPrompts, originalData.suggestionPrompts);
     setHasChanges(changed);
@@ -242,6 +245,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     suggestionPrompts,
     sessionPolicy,
     notifyTargets,
+    allowDiscovery,
+    cronPostRunVerify,
     originalData,
   ]);
 
@@ -303,6 +308,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setMaxIterations(data.max_iterations ?? null);
       setWorkspacePolicy(data.workspace_policy || 'INHERIT_REQUESTER');
       setAllowDiscovery(data.allow_discovery ?? true);
+      setCronPostRunVerify(data.cron_post_run_verify ?? false);
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
       setEngineParams(data.engine_params ?? null);
       setOpenapiServices((data.openapi_services as OpenAPIServiceConfig[]) || []);
@@ -328,6 +334,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         personalityStyle: data.personality_style || DEFAULT_PERSONALITY_STYLE,
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
+        cronPostRunVerify: data.cron_post_run_verify ?? false,
         maxIterations: data.max_iterations ?? null,
         workspacePolicy: data.workspace_policy || 'INHERIT_REQUESTER',
         memoryDecayProfile: data.memory_decay_profile || 'normal',
@@ -420,6 +427,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           prompt_mode: promptMode,
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
+          cron_post_run_verify: cronPostRunVerify,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : undefined,
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -454,6 +462,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           prompt_mode: promptMode,
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
+          cron_post_run_verify: cronPostRunVerify,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : [],
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -492,6 +501,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           securityOverrides,
           personalityStyle,
           allowDiscovery,
+          cronPostRunVerify,
           promptMode,
           maxIterations,
           memoryDecayProfile,
@@ -534,6 +544,14 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     openapiServices,
     suggestionPrompts,
     notifyTargets,
+    allowDiscovery,
+    cronPostRunVerify,
+    workspacePolicy,
+    sessionPolicy,
+    mcpToolSelections,
+    browserSource,
+    dialogPolicy,
+    sessionRecording,
     modelSelection,
     router,
     t,
@@ -646,6 +664,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 可发现性
     allowDiscovery,
     setAllowDiscovery,
+    cronPostRunVerify,
+    setCronPostRunVerify,
     // 迭代次数
     maxIterations,
     setMaxIterations,

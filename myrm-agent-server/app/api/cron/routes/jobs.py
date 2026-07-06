@@ -70,15 +70,9 @@ async def list_jobs(
 
 @router.post("/", response_model=CronJobResponse, status_code=201)
 async def create_job(body: CronJobCreate) -> CronJobResponse:
-    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_cron_slot
+    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
 
     mgr = _h._get_manager()
-    try:
-        current_count = await mgr.count_jobs(USER_ID)
-        require_cron_slot(current_count)
-    except EntitlementGuardError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
     try:
         job = await mgr.create_job(
             user_id=USER_ID,
@@ -113,6 +107,8 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             pre_condition_script=body.pre_condition_script,
         )
     except ValueError as e:
+        if isinstance(e.__cause__, EntitlementGuardError):
+            raise HTTPException(status_code=403, detail=str(e)) from e
         raise HTTPException(status_code=400, detail=str(e)) from e
     invalidate_ingress_requirement_cache()
     return _h._to_response(job)
@@ -197,16 +193,15 @@ async def delete_job(job_id: str) -> None:
 
 @router.post("/{job_id}/duplicate", response_model=CronJobResponse, status_code=201)
 async def duplicate_job(job_id: str) -> CronJobResponse:
-    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError, require_cron_slot
+    from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
 
     mgr = _h._get_manager()
     try:
-        current_count = await mgr.count_jobs(USER_ID)
-        require_cron_slot(current_count)
-    except EntitlementGuardError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
-
-    job = await mgr.duplicate_job(job_id, USER_ID)
+        job = await mgr.duplicate_job(job_id, USER_ID)
+    except ValueError as exc:
+        if isinstance(exc.__cause__, EntitlementGuardError):
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     invalidate_ingress_requirement_cache()

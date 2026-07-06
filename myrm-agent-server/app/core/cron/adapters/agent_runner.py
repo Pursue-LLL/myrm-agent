@@ -356,6 +356,7 @@ class AgentJobRunner:
             enabled_builtin_tools: list[str] = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
             auto_restore_domains: list[str] = []
             memory_decay_profile: str | None = None
+            cron_post_run_verify = False
 
             if job.agent_id:
                 from app.services.agent.profile_resolver import get_agent_profile_resolver
@@ -375,6 +376,7 @@ class AgentJobRunner:
                     auto_restore_domains = list(resolved.auto_restore_domains)
                     raw_decay = resolved.memory_decay_profile
                     memory_decay_profile = raw_decay if isinstance(raw_decay, str) else None
+                    cron_post_run_verify = resolved.cron_post_run_verify
 
                     if resolved.agent_type == "team":
                         from app.ai_agents.team_protocol import (
@@ -465,6 +467,17 @@ class AgentJobRunner:
                         _consume_stream(agent, job, effective_prompt),
                         timeout=timeout,
                     )
+                    if cron_post_run_verify:
+                        from app.core.cron.adapters.post_run_verification import (
+                            apply_cron_post_run_verification,
+                        )
+
+                        result = await apply_cron_post_run_verification(
+                            agent,
+                            job,
+                            result,
+                            enabled=True,
+                        )
                 finally:
                     await agent.close()
 

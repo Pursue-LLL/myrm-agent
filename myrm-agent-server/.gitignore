@@ -138,6 +138,7 @@ external_reference_project/
 .myrm-dev-backend.pid
 .myrm-dev-backend.log
 .myrm/
+.agent/  # harness workspace runtime ({workspace}/.agent/docs|vault); do not commit
 .estop_state.json  # legacy CWD location; canonical path is under MYRM_DATA_DIR
 
 # Legacy local eval/cache tree (replaced by .myrm/; do not commit)

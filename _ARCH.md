@@ -67,3 +67,4 @@ myrm setup && myrm start
 
 - 业务与 UI 代码在本仓；通用 Agent 框架能力不得下沉到 server
 - Harness 版本以 `uv.lock` + PyPI 为准；发布流水线在刷新 lock 前校验 PyPI 上包是否齐全
+- 运行时产物：仓根 `.gitignore` 含 `.myrm/`、`.agent/`（harness workspace）；server/desktop 子树另有同名规则

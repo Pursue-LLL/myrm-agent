@@ -6,20 +6,10 @@ import { toast } from 'sonner';
 import { Pencil, Plug, Plus, Trash2 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { Button } from '@/components/primitives/button';
-import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Badge } from '@/components/primitives/badge';
 import { Switch } from '@/components/primitives/switch';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/primitives/dialog';
-import {
-  type OrgMCPDelivery,
   type OrgMCPServer,
   type UpdateOrgMCPServerInput,
   createOrgMcpServer,
@@ -27,25 +17,15 @@ import {
   listOrgMcpServers,
   updateOrgMcpServer,
 } from '@/services/enterprise-org';
+import {
+  OrgMcpCreateDialog,
+  OrgMcpDeleteDialog,
+  OrgMcpEditDialog,
+} from './OrgMcpAdminDialogs';
+import { showOrgMcpDeliveryToast } from './orgMcpAdminUtils';
 
 interface OrgMcpAdminPanelProps {
   orgId: string;
-}
-
-function showDeliveryToast(
-  t: (key: string, values?: Record<string, string | number>) => string,
-  delivery: OrgMCPDelivery,
-) {
-  const message = t('mcpDeliverySummary', {
-    synced: delivery.synced,
-    skipped: delivery.skipped,
-    failed: delivery.failed,
-  });
-  if (delivery.failed > 0) {
-    toast.error(message);
-    return;
-  }
-  toast.success(message);
 }
 
 const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
@@ -89,9 +69,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
     if (!name.trim() || !url.trim()) return;
     try {
       setSaving(true);
-      const headers = authHeader.trim()
-        ? { Authorization: authHeader.trim() }
-        : undefined;
+      const headers = authHeader.trim() ? { Authorization: authHeader.trim() } : undefined;
       const result = await createOrgMcpServer(orgId, {
         name: name.trim(),
         type,
@@ -99,7 +77,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         description: description.trim(),
         headers,
       });
-      showDeliveryToast(t, result.delivery);
+      showOrgMcpDeliveryToast(t, result.delivery);
       setShowCreate(false);
       setName('');
       setUrl('');
@@ -136,7 +114,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         payload.headers = { Authorization: editAuthHeader.trim() };
       }
       const result = await updateOrgMcpServer(orgId, editTarget.id, payload);
-      showDeliveryToast(t, result.delivery);
+      showOrgMcpDeliveryToast(t, result.delivery);
       setEditTarget(null);
       await loadServers();
     } catch (e) {
@@ -144,17 +122,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
     } finally {
       setSaving(false);
     }
-  }, [
-    orgId,
-    editTarget,
-    editName,
-    editType,
-    editUrl,
-    editDescription,
-    editAuthHeader,
-    t,
-    loadServers,
-  ]);
+  }, [orgId, editTarget, editName, editType, editUrl, editDescription, editAuthHeader, t, loadServers]);
 
   const handleToggle = useCallback(
     async (server: OrgMCPServer) => {
@@ -162,7 +130,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         const result = await updateOrgMcpServer(orgId, server.id, {
           enabled: !server.enabled,
         });
-        showDeliveryToast(t, result.delivery);
+        showOrgMcpDeliveryToast(t, result.delivery);
         await loadServers();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : t('mcpUpdateFailed'));
@@ -175,7 +143,7 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
     if (!deleteTarget) return;
     try {
       const result = await deleteOrgMcpServer(orgId, deleteTarget.id);
-      showDeliveryToast(t, result.delivery);
+      showOrgMcpDeliveryToast(t, result.delivery);
       setDeleteTarget(null);
       await loadServers();
     } catch (e) {
@@ -230,12 +198,8 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
                     </Badge>
                   )}
                 </div>
-                {server.url && (
-                  <p className="text-xs text-muted-foreground truncate">{server.url}</p>
-                )}
-                {server.description && (
-                  <p className="text-xs text-muted-foreground">{server.description}</p>
-                )}
+                {server.url && <p className="text-xs text-muted-foreground truncate">{server.url}</p>}
+                {server.description && <p className="text-xs text-muted-foreground">{server.description}</p>}
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex items-center gap-2">
@@ -271,152 +235,48 @@ const OrgMcpAdminPanel = memo(({ orgId }: OrgMcpAdminPanelProps) => {
         </div>
       )}
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('mcpAdd')}</DialogTitle>
-            <DialogDescription>{t('mcpAddDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>{t('mcpName')}</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="company-crm" />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpType')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={type}
-                onChange={(e) => setType(e.target.value as 'sse' | 'streamable_http')}
-              >
-                <option value="sse">SSE</option>
-                <option value="streamable_http">Streamable HTTP</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpUrl')}</Label>
-              <Input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://mcp.example.com/sse"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpServerDescription')}</Label>
-              <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('mcpServerDescriptionPlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpAuthHeader')}</Label>
-              <Input
-                value={authHeader}
-                onChange={(e) => setAuthHeader(e.target.value)}
-                placeholder={t('mcpAuthHeaderPlaceholder')}
-                type="password"
-                autoComplete="off"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">{t('mcpSleepingHint')}</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreate(false)}>
-              {t('cancel')}
-            </Button>
-            <Button onClick={() => void handleCreate()} disabled={saving || !name.trim() || !url.trim()}>
-              {t('confirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OrgMcpCreateDialog
+        open={showCreate}
+        saving={saving}
+        name={name}
+        type={type}
+        url={url}
+        description={description}
+        authHeader={authHeader}
+        onOpenChange={setShowCreate}
+        onNameChange={setName}
+        onTypeChange={setType}
+        onUrlChange={setUrl}
+        onDescriptionChange={setDescription}
+        onAuthHeaderChange={setAuthHeader}
+        onConfirm={() => void handleCreate()}
+        t={t}
+      />
 
-      <Dialog open={editTarget !== null} onOpenChange={(open) => !open && setEditTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('mcpEdit')}</DialogTitle>
-            <DialogDescription>{t('mcpEditDesc')}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>{t('mcpName')}</Label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpType')}</Label>
-              <select
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                value={editType}
-                onChange={(e) => setEditType(e.target.value as 'sse' | 'streamable_http')}
-              >
-                <option value="sse">SSE</option>
-                <option value="streamable_http">Streamable HTTP</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpUrl')}</Label>
-              <Input
-                value={editUrl}
-                onChange={(e) => setEditUrl(e.target.value)}
-                placeholder="https://mcp.example.com/sse"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpServerDescription')}</Label>
-              <Input
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                placeholder={t('mcpServerDescriptionPlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('mcpAuthHeader')}</Label>
-              <Input
-                value={editAuthHeader}
-                onChange={(e) => setEditAuthHeader(e.target.value)}
-                placeholder={t('mcpAuthHeaderPlaceholder')}
-                type="password"
-                autoComplete="off"
-              />
-              {editTarget?.headers_configured && (
-                <p className="text-xs text-muted-foreground">{t('mcpAuthHeaderKeepHint')}</p>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{t('mcpSleepingHint')}</p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTarget(null)}>
-              {t('cancel')}
-            </Button>
-            <Button
-              onClick={() => void handleEdit()}
-              disabled={saving || !editName.trim() || !editUrl.trim()}
-            >
-              {t('confirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OrgMcpEditDialog
+        editTarget={editTarget}
+        saving={saving}
+        name={editName}
+        type={editType}
+        url={editUrl}
+        description={editDescription}
+        authHeader={editAuthHeader}
+        onClose={() => setEditTarget(null)}
+        onNameChange={setEditName}
+        onTypeChange={setEditType}
+        onUrlChange={setEditUrl}
+        onDescriptionChange={setEditDescription}
+        onAuthHeaderChange={setEditAuthHeader}
+        onConfirm={() => void handleEdit()}
+        t={t}
+      />
 
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('mcpDeleteTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('mcpDeleteDesc', { name: deleteTarget?.name ?? '' })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              {t('cancel')}
-            </Button>
-            <Button variant="destructive" onClick={() => void handleDelete()}>
-              {t('confirm')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OrgMcpDeleteDialog
+        deleteTarget={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDelete()}
+        t={t}
+      />
     </SettingsSection>
   );
 });
