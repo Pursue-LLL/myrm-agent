@@ -122,9 +122,12 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
       const lineIdx = allMatchIndices[wrappedIdx];
       const targetPage = Math.floor(lineIdx / PAGE_SIZE) + 1;
       setCurrentPage(targetPage);
+      // Double rAF ensures DOM has re-rendered after page change before scrolling
       requestAnimationFrame(() => {
-        const el = contentRef.current?.querySelector(`[data-line="${lineIdx}"]`);
-        el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        requestAnimationFrame(() => {
+          const el = contentRef.current?.querySelector(`[data-line="${lineIdx}"]`);
+          el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
       });
     },
     [allMatchIndices],
