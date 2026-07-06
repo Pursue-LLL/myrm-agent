@@ -116,9 +116,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
 
   const renderInlineHighlight = useCallback(
     (line: string, isCurrent: boolean): React.ReactNode => {
-      if (!searchTerm || !line.toLowerCase().includes(searchTerm.toLowerCase())) {
-        return line || ' ';
-      }
+      if (!searchTerm) return line || ' ';
       const parts: React.ReactNode[] = [];
       const lowerLine = line.toLowerCase();
       const lowerSearch = searchTerm.toLowerCase();
