@@ -433,7 +433,10 @@ async def confirm_import_memories(
                 )
 
                 if mcp_configs_to_write:
-                    await _write_migrated_mcp_configs(mcp_configs_to_write)
+                    try:
+                        await _write_migrated_mcp_configs(mcp_configs_to_write)
+                    except Exception as mcp_exc:
+                        logger.warning("MCP config migration write failed (non-fatal): %s", mcp_exc)
                 rollback_record = instruction_rollback_record_from_apply(
                     instruction_result,
                     competitor=plan.competitor,
