@@ -87,6 +87,10 @@ async def init_database() -> None:
         logger.error("Database migration failed: %s", e)
         raise
 
+    from app.database.legacy_canvas_cleanup import remove_retired_canvas_data_dir
+
+    remove_retired_canvas_data_dir()
+
     try:
         await create_indexes(engine)
     except Exception as e:
