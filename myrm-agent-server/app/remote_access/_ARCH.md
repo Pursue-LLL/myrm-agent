@@ -37,6 +37,7 @@
 - scoped control token 经 `request.state.pair_bound_chat_id` 绑定 attach/steer/agent-stream/**chat cancel**（不含 `/agents/agent/{message_id}/cancel`）
 - `POST /agents/chats/{chat_id}/cancel`（`general_agent/streaming.py`）：Mobile Stop → `gateway.interrupt_session` + `CancellationRegistry.cancel`（`ActiveSessionInfo.current_message_id`）
 - `POST /pairing-token/refresh`：`mobile_hub_list` / scoped pair 续期
+- `POST /node/events`：外部节点（移动设备/IoT/Shortcuts/Tasker）上报系统事件；`mobile_hub_list` pair 或 WebUI session 鉴权；内部路由至 `CronScheduler.dispatch_system_event`（60/min 限流）
 - `GET|POST /tunnel/*`：CF quick tunnel 控制
 - `GET /e2ee/public-key`：daemon 公钥（QR fragment `#e2ee=`）
 - `POST /e2ee/handshake`：`e2ee_hello` → `e2ee_ready` + sessionId（30/min 限流）

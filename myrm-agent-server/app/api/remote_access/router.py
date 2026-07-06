@@ -1,10 +1,12 @@
-"""Remote access HTTP routes: tunnel control, pairing tokens, mobile hub.
+"""Remote access HTTP routes: tunnel control, pairing tokens, mobile hub, node events.
 
 [POS]
-REST API for `/api/v1/remote-access/*` (tunnel, pairing, mobile sessions).
+REST API for `/api/v1/remote-access/*` (tunnel, pairing, mobile sessions, node event ingestion).
 """
 
 from __future__ import annotations
+
+import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -30,6 +32,8 @@ from app.remote_access.pairing import (
 )
 from app.remote_access.tunnel_manager import get_tunnel_manager
 from app.services.agent.gateway import get_agent_gateway
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -198,6 +202,51 @@ async def mobile_sessions(
             "availableSlots": gateway.get_available_slots(),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Node event ingestion — external systems / mobile nodes trigger automation
+# ---------------------------------------------------------------------------
+
+
+class NodeEventRequest(BaseModel):
+    source: str = Field(..., min_length=1, max_length=200)
+    event_type: str = Field(..., min_length=1, max_length=200)
+    payload: dict[str, object] = Field(default_factory=dict)
+
+
+@router.post("/node/events")
+@limiter.limit("60/minute")
+async def receive_node_event(body: NodeEventRequest, request: Request) -> dict[str, object]:
+    """Ingest a system event from a paired mobile node or external automation.
+
+    Authenticated via pair_token (hub_list scope) or WebUI session.
+    Dispatches the event to CronScheduler.dispatch_system_event which matches
+    against active SystemEventTrigger rules.
+    """
+    trust_zone = getattr(request.state, "trust_zone", None)
+    path = request.url.path
+    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
+        pair_token = resolve_request_pair_token(request)
+        session_user = getattr(request.state, "session_username", None)
+        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
+        if not pair_ok and not session_user:
+            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
+
+    from app.core.cron.adapters.setup import get_cron_scheduler
+
+    scheduler = get_cron_scheduler()
+    try:
+        triggered = await scheduler.dispatch_system_event(
+            source=body.source,
+            event_type=body.event_type,
+            payload=body.payload,
+        )
+    except Exception as exc:
+        logger.warning("Node event dispatch failed: %s", exc)
+        triggered = 0
+
+    return success_response(data={"triggered": triggered})
 
 
 __all__ = ["router"]

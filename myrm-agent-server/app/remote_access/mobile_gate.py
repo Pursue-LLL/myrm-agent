@@ -101,6 +101,7 @@ def _chat_id_from_mobile_path(path: str) -> str | None:
 MOBILE_SESSIONS_PATH = "/api/v1/remote-access/mobile/sessions"
 MOBILE_PAIRING_ISSUE_PATH = "/api/v1/remote-access/pairing-token"
 MOBILE_PAIRING_REFRESH_PATH = "/api/v1/remote-access/pairing-token/refresh"
+NODE_EVENTS_PATH = "/api/v1/remote-access/node/events"
 E2EE_PUBLIC_KEY_PATH = "/api/v1/remote-access/e2ee/public-key"
 E2EE_HANDSHAKE_PATH = "/api/v1/remote-access/e2ee/handshake"
 _AGENT_STREAM_PATH = "/api/v1/agents/agent-stream"
@@ -122,6 +123,7 @@ def _purpose_allows_path(purpose: str, path: str) -> bool:
             MOBILE_SESSIONS_PATH,
             MOBILE_PAIRING_ISSUE_PATH,
             MOBILE_PAIRING_REFRESH_PATH,
+            NODE_EVENTS_PATH,
         )
     if purpose != MOBILE_HUB_CONTROL_PURPOSE:
         return False
@@ -185,6 +187,7 @@ __all__ = [
     "MOBILE_PAIRING_ISSUE_PATH",
     "MOBILE_PAIRING_REFRESH_PATH",
     "MOBILE_SESSIONS_PATH",
+    "NODE_EVENTS_PATH",
     "PAIR_TOKEN_HEADER",
     "extract_pair_token",
     "resolve_request_pair_token",
