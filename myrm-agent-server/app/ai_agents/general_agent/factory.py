@@ -59,6 +59,7 @@ async def build_general_agent(
     from .agent_middlewares.tool_selection_middleware import tool_selection_middleware
     from .callbacks import (
         get_persist_compaction,
+        make_loaded_skills_persist_callback,
         make_notes_load,
         make_notes_persist,
         make_skill_review_callback,
