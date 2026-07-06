@@ -1,9 +1,11 @@
 /**
  * [OUTPUT]
- * BuiltinToolId, BUILTIN_TOOL_IDS, DEFAULT_ENABLED_BUILTIN_TOOLS.
+ * BuiltinToolId, BUILTIN_TOOL_IDS, BUILTIN_TOOL_LABELS, DEFAULT_ENABLED_BUILTIN_TOOLS,
+ * isBuiltinToolId, getBuiltinToolDisplayLabel, resolveToolSnapshotDisplayName.
  *
  * [POS]
- * 内置工具 ID 常量。file_ops / code_execute 为 Agent 基线能力，由服务端强制加载，不在 UI 展示。
+ * GUI 可切换 builtin 产品 ID 与本地化 capability 标签 SSOT（gap toast + wrench 面板共用）。
+ * file_ops / code_execute 为 Agent 基线，由服务端强制加载，不在 UI 展示。
  */
 
 // ---------------------------------------------------------------------------

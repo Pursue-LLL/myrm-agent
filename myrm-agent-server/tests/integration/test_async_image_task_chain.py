@@ -3,15 +3,32 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
 from app.tasks.image_config_resolver import resolve_image_generation_config
+from app.tasks.task_payload_crypto import seal_task_payload_secrets
 from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
+
+
+@pytest.fixture(autouse=True)
+def _local_encryption() -> None:
+    import app.services.config.encryption as enc_mod
+
+    original = os.environ.get("DEPLOY_MODE")
+    os.environ["DEPLOY_MODE"] = "local"
+    enc_mod._encryption_service = None
+    yield
+    enc_mod._encryption_service = None
+    if original is None:
+        os.environ.pop("DEPLOY_MODE", None)
+    else:
+        os.environ["DEPLOY_MODE"] = original
 
 
 @pytest.mark.asyncio
@@ -43,6 +60,12 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     assert task.payload["api_key"] == "sk-integration-test"
     assert task.payload["chat_id"] == "chat-int"
     assert task.payload["agent_id"] == "agent-int"
+
+    sealed_payload = seal_task_payload_secrets(dict(task.payload))
+    await store.update_task(task_id, payload=sealed_payload)
+    task = await store.get_task(task_id)
+    assert task is not None
+    assert "api_key" not in task.payload
 
     mock_result = MagicMock()
     mock_result.images = [

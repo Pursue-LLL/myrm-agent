@@ -86,7 +86,7 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   deep_research_11: Atom,
 };
 
-const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent'];
+const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent', 'deep_research'];
 
 function shuffleAndPick<T>(items: T[], count: number): T[] {
   const shuffled = [...items];

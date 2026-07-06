@@ -27,6 +27,7 @@ export function useQuotaGuard() {
 
       const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null);
       if (!authToken) {
+        toast.error(t('insufficientWu'));
         return { allowed: false, reason: 'wu_limit' };
       }
 

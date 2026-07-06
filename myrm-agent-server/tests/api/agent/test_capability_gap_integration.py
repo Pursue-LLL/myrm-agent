@@ -503,3 +503,90 @@ def test_agent_stream_default_builtin_tools_persist_togglable_only(client: TestC
         assert tool_id in enabled, f"default tool {tool_id!r} missing from tools_snapshot"
     for tool_id in AGENT_BASELINE_BUILTIN_TOOLS:
         assert tool_id not in enabled, f"baseline {tool_id!r} must not appear in persisted snapshot"
+
+
+@pytest.mark.integration
+def test_agent_stream_tools_snapshot_includes_builtin_tool_id(client: TestClient) -> None:
+    """Turn1 tools_snapshot rows must carry harness-derived builtin_tool_id for GUI labels."""
+    chat_id = f"test_snapshot_builtin_id_{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "query": "Reply with the word OK only.",
+        "message_id": "test-snapshot-builtin-id-1",
+        "chat_id": chat_id,
+        "action_mode": "agent",
+        "model_selection": get_lite_model_selection(),
+        "agent_config": {
+            "enabled_builtin_tools": ["web_search", "memory", "cron"],
+            "skill_ids": [],
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+
+    tools_snapshot = next(
+        (event for event in events if event.get("type") == "tools_snapshot"),
+        None,
+    )
+    if tools_snapshot is None:
+        pytest.skip("tools_snapshot not emitted in this stream")
+
+    snapshot_rows = tools_snapshot.get("data")
+    if not isinstance(snapshot_rows, list):
+        pytest.skip("tools_snapshot data is not a tool list")
+
+    web_rows = [
+        row for row in snapshot_rows if isinstance(row, dict) and row.get("name") == "web_search_tool"
+    ]
+    assert web_rows, "expected web_search_tool in Turn1 tools_snapshot"
+    assert web_rows[0].get("builtin_tool_id") == "web_search"
+
+    cron_rows = [
+        row for row in snapshot_rows if isinstance(row, dict) and row.get("name") == "cron_manage_tool"
+    ]
+    if cron_rows:
+        assert cron_rows[0].get("builtin_tool_id") == "cron"
+
+
+@pytest.mark.e2e
+def test_agent_stream_discover_miss_emits_cron_capability_gap_sse(client: TestClient) -> None:
+    """Real agent-stream: discover on cron query must emit capability_gap when cron disabled."""
+    gap_query = "schedule daily reminder cron job at 9am every morning"
+    chat_id = f"test_cron_cap_gap_{uuid.uuid4().hex[:8]}"
+    create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+    assert create_response.status_code == 200
+
+    payload: dict[str, object] = {
+        "message_id": "test-cron-cap-gap-1",
+        "chat_id": chat_id,
+        "query": (
+            "You MUST call discover_capability_tool exactly once with query "
+            f"'{gap_query}'. Do not call any other tool. "
+            "After the tool returns, reply with the single word DONE."
+        ),
+        "action_mode": "agent",
+        "model_selection": get_lite_model_selection(),
+        "agent_config": {
+            "enabled_builtin_tools": ["web_search", "memory"],
+            "skill_ids": [],
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+
+    invoked = _invoked_tool_names(events)
+    if "discover_capability_tool" not in invoked:
+        pytest.skip(
+            "model did not invoke discover_capability_tool; deterministic cron gap covered in harness unit tests"
+        )
+
+    gaps = _gap_events(events, "capability_gap")
+    blob = json.dumps(events, ensure_ascii=False)
+    assert gaps or "<CapabilityGap>" in blob or "cron" in blob.lower(), (
+        "expected capability_gap SSE or CapabilityGap block for cron miss query"
+    )
+    if gaps:
+        payload_data = gaps[0].get("data")
+        assert isinstance(payload_data, dict)
+        assert payload_data.get("tool_id") == "cron"

@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.tasks import Task
 from pydantic import SecretStr
 
 from app.ai_agents.media_tools.media_persist import create_media_persist_callback
+from app.tasks.task_payload_crypto import open_task_payload_secrets
 
 ImageGenerationConfigResolver = Callable[[Task], ImageGenerationConfig]
 
@@ -39,7 +40,7 @@ def _coerce_str_list(value: object | None) -> list[str]:
 
 def resolve_image_generation_config(task: Task) -> ImageGenerationConfig:
     """Build ImageGenerationConfig from task payload snapshot written at enqueue time."""
-    payload = task.payload
+    payload = open_task_payload_secrets(dict(task.payload))
 
     model = _coerce_str(payload.get("model")) or "dall-e-3"
     chat_id = _coerce_str(payload.get("chat_id"))

@@ -127,7 +127,7 @@ def create_image_generation_tool(
                 get_task_store(),
                 ssrf_protection=not allow_private_networks,
             )
-            return await async_engine.generate_image(
+            raw = await async_engine.generate_image(
                 prompt,
                 size=size,
                 quality=quality,
@@ -138,6 +138,21 @@ def create_image_generation_tool(
                 agent_id=agent_id,
                 chat_id=chat_id,
             )
+            try:
+                payload = json.loads(raw)
+                task_id = payload.get("task_id")
+                if isinstance(task_id, str) and task_id:
+                    from app.tasks.task_payload_crypto import seal_task_payload_secrets
+
+                    store = get_task_store()
+                    task = await store.get_task(task_id)
+                    if task is not None:
+                        sealed = seal_task_payload_secrets(dict(task.payload))
+                        if sealed != task.payload:
+                            await store.update_task(task_id, payload=sealed)
+            except (json.JSONDecodeError, TypeError, KeyError):
+                pass
+            return raw
         except RuntimeError as exc:
             logger.warning("Async image enqueue unavailable, using sync generate: %s", exc)
             return await engine.generate_image(

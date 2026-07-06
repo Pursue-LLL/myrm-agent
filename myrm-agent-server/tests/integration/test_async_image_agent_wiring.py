@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,21 @@ import pytest
 from app.ai_agents.agents import ImageGenerationParams
 from app.ai_agents.general_agent.agent import GeneralAgent
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskFilters
+
+
+@pytest.fixture(autouse=True)
+def _local_encryption() -> None:
+    import app.services.config.encryption as enc_mod
+
+    original = os.environ.get("DEPLOY_MODE")
+    os.environ["DEPLOY_MODE"] = "local"
+    enc_mod._encryption_service = None
+    yield
+    enc_mod._encryption_service = None
+    if original is None:
+        os.environ.pop("DEPLOY_MODE", None)
+    else:
+        os.environ["DEPLOY_MODE"] = original
 
 
 @pytest.fixture
@@ -66,7 +82,8 @@ async def test_general_agent_image_tool_enqueues_task_with_chat_and_agent_ids(
     task = await image_task_store.get_task(str(payload["task_id"]))
     assert task is not None
     assert task.payload["model"] == "flux-pro"
-    assert task.payload["api_key"] == "sk-wiring-int"
+    assert "api_key" not in task.payload
+    assert isinstance(task.payload.get("api_key_enc"), str)
     assert task.payload["chat_id"] == "chat-wiring-int"
     assert task.payload["agent_id"] == "agent-wiring-int"
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,9 +11,25 @@ from httpx import ASGITransport, AsyncClient
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
 from app.tasks.image_config_resolver import resolve_image_generation_config
+from app.tasks.task_payload_crypto import API_KEY_ENC_FIELD, seal_task_payload_secrets
 from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
+
+
+@pytest.fixture(autouse=True)
+def _local_encryption() -> None:
+    import app.services.config.encryption as enc_mod
+
+    original = os.environ.get("DEPLOY_MODE")
+    os.environ["DEPLOY_MODE"] = "local"
+    enc_mod._encryption_service = None
+    yield
+    enc_mod._encryption_service = None
+    if original is None:
+        os.environ.pop("DEPLOY_MODE", None)
+    else:
+        os.environ["DEPLOY_MODE"] = original
 
 
 def _build_rest_app(store: SQLiteTaskStore):
@@ -56,6 +73,12 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
 
     task = await store.get_task(task_id)
     assert task is not None
+    sealed_payload = seal_task_payload_secrets(dict(task.payload))
+    await store.update_task(task_id, payload=sealed_payload)
+    task = await store.get_task(task_id)
+    assert task is not None
+    assert "api_key" not in task.payload
+    assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
 
     mock_result = MagicMock()
     mock_result.images = [
@@ -84,7 +107,8 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
         assert body["task_id"] == task_id
         assert body["status"] == "succeeded"
         assert body["payload"]["model"] == "flux-pro"
-        assert body["payload"]["api_key"] == "sk-rest-integration"
+        assert "api_key" not in body["payload"]
+        assert isinstance(body["payload"].get(API_KEY_ENC_FIELD), str)
         assert body["payload"]["agent_id"] == "agent-rest"
         assert body["payload"]["chat_id"] == "chat-rest"
         assert body["result"]["images"][0]["url"] == "https://cdn.example/rest.png"
