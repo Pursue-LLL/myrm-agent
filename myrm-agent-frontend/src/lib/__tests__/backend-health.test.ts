@@ -99,6 +99,45 @@ describe('waitForBackendReady', () => {
   });
 });
 
+describe('fetchBackendHealth', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('returns null when health endpoint responds non-ok', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+      }),
+    );
+
+    const { fetchBackendHealth } = await import('@/lib/backend-health');
+    await expect(fetchBackendHealth()).resolves.toBeNull();
+  });
+
+  it('parses system_status from healthy payload', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: 'healthy',
+            system_status: { database_degraded: true, database_recovered: false },
+          }),
+      }),
+    );
+
+    const { fetchBackendHealth } = await import('@/lib/backend-health');
+    const result = await fetchBackendHealth();
+    expect(result?.system_status?.database_degraded).toBe(true);
+    expect(result?.system_status?.database_recovered).toBe(false);
+  });
+});
+
 describe('checkBackendReadyOnce', () => {
   afterEach(() => {
     vi.clearAllMocks();

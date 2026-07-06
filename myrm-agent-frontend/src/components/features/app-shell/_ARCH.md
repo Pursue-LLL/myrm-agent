@@ -12,7 +12,7 @@
 | `ConfigConflictDialog.tsx` | 组件/模块 | — | — |
 | `PremiumTooltip.tsx` | 组件/模块 | — | — |
 | `QuarantineDialog.tsx` | 组件/模块 | — | — |
-| `SystemStatusBanner.tsx` | 组件/模块 | — | — |
+| `SystemStatusBanner.tsx` | 组件/模块 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过） | `fetchBackendHealth`, `apiRequest`（reset，`silent`） |
 | `VaultUnlockModal.tsx` | 组件/模块 | — | — |
 | `VisualDesktop.tsx` | 组件/模块 | — | — |
 | `VisualDesktopToggle.tsx` | 组件/模块 | VNC 实时桌面面板 + 浏览器 HITL takeover UI（Agent 请求人工介入时自动弹出，显示原因并提供「完成」/「无法完成」操作按钮） | `useBrowserTakeoverStore`, `useChatStore`, `useFeatureEntitlements` |
