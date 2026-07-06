@@ -114,6 +114,39 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
     return matches;
   }, [searchTerm, allMatchIndices, currentPage]);
 
+  const renderInlineHighlight = useCallback(
+    (line: string, isCurrent: boolean): React.ReactNode => {
+      if (!searchTerm || !line.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return line || ' ';
+      }
+      const parts: React.ReactNode[] = [];
+      const lowerLine = line.toLowerCase();
+      const lowerSearch = searchTerm.toLowerCase();
+      let lastIdx = 0;
+      let pos = lowerLine.indexOf(lowerSearch);
+      while (pos !== -1) {
+        if (pos > lastIdx) parts.push(line.slice(lastIdx, pos));
+        parts.push(
+          <mark
+            key={pos}
+            className={
+              isCurrent
+                ? 'bg-orange-400/50 text-orange-50 rounded-sm px-[1px]'
+                : 'bg-yellow-400/30 text-yellow-50 rounded-sm px-[1px]'
+            }
+          >
+            {line.slice(pos, pos + searchTerm.length)}
+          </mark>,
+        );
+        lastIdx = pos + searchTerm.length;
+        pos = lowerLine.indexOf(lowerSearch, lastIdx);
+      }
+      if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+      return parts.length > 0 ? <>{parts}</> : line || ' ';
+    },
+    [searchTerm],
+  );
+
   const jumpToMatch = useCallback(
     (matchIdx: number) => {
       if (allMatchIndices.length === 0) return;
@@ -292,7 +325,7 @@ const EvictedOutputDrawer: React.FC<EvictedOutputDrawerProps> = ({ filename, cha
                       {globalIdx + 1}
                     </span>
                     <span className="flex-1" style={{ wordBreak: 'break-word' }}>
-                      {line || ' '}
+                      {isMatch ? renderInlineHighlight(line, isCurrentMatch) : line || ' '}
                     </span>
                   </div>
                 );
