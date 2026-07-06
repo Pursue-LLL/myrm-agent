@@ -20,7 +20,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
 | `profile_snapshot_service.py` | ✅ 核心 | Agent 配置快照与回滚专用服务 — `save_profile_snapshot` / `list_profile_snapshots` / `count_profile_snapshots` / `rollback_profile` / `rollback_profile_to_snapshot`。含完整 mutable 字段 diff 检测（`has_mutable_diff`）、pre-rollback 保险快照、10 条 retention 裁剪。由 `AgentService` 委托，供 WebUI 时光机 API 使用。 |
 | `templates.py` | ✅ 核心 | 预置智能体模板市场 API — 提供基于 YAML 种子的原子化实例化（`instantiate-template`），在克隆模板的同时强一致性自动 Enable 所需依赖技能（如 `prebuilt_skill_ids`），供 WebUI /templates 端点实现快速 Onboarding，解决空白画布冷启动痛点。 |
-| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()` + `apply_agent_baseline_tool_flags()`（六入口非 fast 强制 file/bash）；TTL 缓存 |
+| `profile_resolver.py` | ✅ 核心 | 统一智能体配置解析 — `resolve_builtin_tool_flags()` + `apply_agent_baseline_tool_flags()`（六入口非 fast 强制 file/bash）；TTL 缓存；`cron_post_run_verify` 从 DB 列经 repository 镜像到 profile metadata |
 | `builtin_tool_ids.py` | ✅ 核心 | `enabled_builtin_tools` SSOT：16 canonical IDs（14 UI 可切换 + 2 Agent 基线无开关）；`cron` 开启 → Turn1 eager，关闭 → DISCOVERABLE；`DEFAULT_ENABLED_BUILTIN_TOOLS=(web_search, memory)`；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 |
 | `builtin_tool_validation.py` | ✅ 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models |
 | `builtin_initializer.py` | ✅ 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 24 个预置智能体；`enabled_builtin_tools` 仅存可切换项（file/bash 由 `apply_agent_baseline_tool_flags` 运行时强制） |

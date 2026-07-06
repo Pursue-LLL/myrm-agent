@@ -5,7 +5,7 @@
 - myrm_agent_harness.toolkits.cron.types::CronJob, JobResult (POS: Cron job types)
 
 [OUTPUT]
-- run_post_run_verification: Optional verifier-only pass after cron agent stream
+- apply_cron_post_run_verification: Optional verifier-only pass after cron agent stream
 
 [POS]
 Server cron adapter. Runs adversarial-reviewer verification on cron job output when
@@ -65,10 +65,20 @@ async def apply_cron_post_run_verification(
     result: JobResult,
     *,
     enabled: bool,
+    timeout_seconds: float = _VERIFICATION_TIMEOUT_SECONDS,
 ) -> JobResult:
     """Optionally run verifier-only delivery assurance on a completed cron agent run."""
     if not enabled or not result.success or result.skipped:
         return result
+
+    verify_timeout = min(_VERIFICATION_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
+    if verify_timeout <= 0:
+        return _attach_verification_metadata(
+            result,
+            status="skipped",
+            passed=None,
+            summary="No remaining job time budget for verification",
+        )
 
     progress_steps_raw = (result.metadata or {}).get("progressSteps")
     progress_steps: list[dict[str, object]] = (
@@ -153,15 +163,15 @@ async def apply_cron_post_run_verification(
                     "Confirm side effects match the reported outcome and flag regressions or silent failures."
                 ),
             ),
-            timeout=_VERIFICATION_TIMEOUT_SECONDS,
+            timeout=verify_timeout,
         )
     except TimeoutError:
-        logger.warning("Cron job %s post-run verification timed out after %ss", job.id, _VERIFICATION_TIMEOUT_SECONDS)
+        logger.warning("Cron job %s post-run verification timed out after %ss", job.id, verify_timeout)
         return _attach_verification_metadata(
             result,
             status="error",
             passed=False,
-            summary=f"Verification timed out after {_VERIFICATION_TIMEOUT_SECONDS}s",
+            summary=f"Verification timed out after {int(verify_timeout)}s",
         )
     except Exception as exc:
         logger.warning("Cron job %s post-run verification failed: %s", job.id, exc)

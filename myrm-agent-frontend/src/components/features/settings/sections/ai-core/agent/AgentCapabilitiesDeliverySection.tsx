@@ -19,13 +19,15 @@ export function DeliveryAssuranceSection({ editor, t }: SectionProps) {
         </div>
       </div>
       <div className="flex items-center justify-between gap-4 pt-3 mt-3 border-t border-border/30">
-        <div>
+        <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium text-foreground">{t('agent.cronPostRunVerify')}</h4>
           <p className="text-xs text-muted-foreground mt-0.5">{t('agent.cronPostRunVerifyDesc')}</p>
+          <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">{t('agent.cronPostRunVerifyHint')}</p>
         </div>
         <Switch
           checked={editor.cronPostRunVerify}
           onCheckedChange={(checked) => editor.setCronPostRunVerify(checked)}
+          className="shrink-0"
         />
       </div>
     </div>

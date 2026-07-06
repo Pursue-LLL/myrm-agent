@@ -451,6 +451,7 @@ class AgentJobRunner:
             agent = AgentFactory.create_general_agent(params)
             agent.approval_session_key = f"cron:{job.id}"
             timeout = job.timeout_seconds or 300
+            run_started_at = time.monotonic()
 
             from myrm_agent_harness.agent.security import user_credentials_ctx
 
@@ -472,11 +473,14 @@ class AgentJobRunner:
                             apply_cron_post_run_verification,
                         )
 
+                        elapsed = time.monotonic() - run_started_at
+                        remaining = max(0.0, float(timeout) - elapsed)
                         result = await apply_cron_post_run_verification(
                             agent,
                             job,
                             result,
                             enabled=True,
+                            timeout_seconds=remaining,
                         )
                 finally:
                     await agent.close()

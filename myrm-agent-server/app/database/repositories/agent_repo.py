@@ -295,6 +295,8 @@ class AgentRepository:
             agent.memory_policy = memory_policy_to_dict(cast(AgentMemoryPolicy | None, updates["memory_policy"]))
         if "workspace_policy" in updates:
             agent.workspace_policy = cast(str, updates["workspace_policy"])
+        if "cron_post_run_verify" in updates:
+            agent.cron_post_run_verify = bool(updates["cron_post_run_verify"])
         if "command_bindings" in updates:
             raw_bindings = updates["command_bindings"]
             if raw_bindings is None:
@@ -315,8 +317,6 @@ class AgentRepository:
 
         if "metadata" in updates:
             metadata = cast(dict[str, object], updates["metadata"])
-            if "cron_post_run_verify" in metadata:
-                agent.cron_post_run_verify = bool(metadata["cron_post_run_verify"])
             if "mcp_ids" in metadata:
                 agent.mcp_servers = cast(list[str], metadata["mcp_ids"])
             if "mcp_tool_selections" in metadata:

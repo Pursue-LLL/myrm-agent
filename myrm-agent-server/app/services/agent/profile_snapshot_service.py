@@ -172,6 +172,8 @@ def project_mutable_after_update(existing: AgentProfile, updates: dict[str, obje
             ]
     if "tools_allowed" in updates:
         projected["enabled_builtin_tools"] = _normalize_str_list(updates["tools_allowed"])
+    if "cron_post_run_verify" in updates:
+        projected["cron_post_run_verify"] = bool(updates["cron_post_run_verify"])
     metadata_update = updates.get("metadata")
     if isinstance(metadata_update, dict):
         for key in (

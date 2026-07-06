@@ -13,6 +13,11 @@ def test_has_effectful_tools_detects_write_tools() -> None:
     assert _has_effectful_tools(steps) is True
 
 
+def test_has_effectful_tools_detects_browser_tools() -> None:
+    steps = [{"tool_name": "browser_navigate_tool"}]
+    assert _has_effectful_tools(steps) is True
+
+
 def test_has_effectful_tools_ignores_read_only_tools() -> None:
     steps = [{"tool_name": "file_read_tool"}, {"tool_name": "grep_tool"}]
     assert _has_effectful_tools(steps) is False
@@ -27,6 +32,14 @@ async def test_apply_skips_when_disabled() -> None:
 async def test_apply_skips_without_effectful_tools() -> None:
     base = JobResult(success=True, output="done", metadata={"progressSteps": [{"tool_name": "grep_tool"}]})
     result = await apply_cron_post_run_verification(object(), object(), base, enabled=True)
+    verification = (result.metadata or {}).get("verification")
+    assert isinstance(verification, dict)
+    assert verification.get("status") == "skipped"
+
+
+async def test_apply_skips_when_no_time_budget() -> None:
+    base = JobResult(success=True, output="done", metadata={"progressSteps": [{"tool_name": "bash_code_execute_tool"}]})
+    result = await apply_cron_post_run_verification(object(), object(), base, enabled=True, timeout_seconds=0)
     verification = (result.metadata or {}).get("verification")
     assert isinstance(verification, dict)
     assert verification.get("status") == "skipped"

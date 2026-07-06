@@ -181,6 +181,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
         {!expanded && run.output && (
           <p className="text-xs text-muted-foreground mt-1 line-clamp-1 font-mono">{run.output}</p>
         )}
+        {!expanded && verification?.status === 'fail' && isOk && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{t('verificationRunOkReviewFailed')}</p>
+        )}
         {!expanded && !run.output && run.error && (
           <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
         )}

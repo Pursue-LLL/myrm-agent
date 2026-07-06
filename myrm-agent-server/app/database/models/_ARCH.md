@@ -12,7 +12,7 @@
 | `__init__.py` | 核心 | 包入口，统一 re-export 所有模型 | ✅ |
 | `base.py` | 核心 | DeclarativeBase 基类 | ✅ |
 | `chat.py` | 域模块 | Chat, Message, ConversationFork | ✅ |
-| `agent.py` | 域模块 | Agent (含 tool_gateway_config), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
+| `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |
 | `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |

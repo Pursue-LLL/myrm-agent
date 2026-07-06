@@ -337,7 +337,7 @@ class AgentService:
             if "session_recording" in agent_data.model_fields_set:
                 new_metadata["session_recording"] = agent_data.session_recording
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
-                new_metadata["cron_post_run_verify"] = agent_data.cron_post_run_verify
+                updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
 
             updates["metadata"] = new_metadata
 

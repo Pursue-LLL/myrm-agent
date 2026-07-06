@@ -4686,6 +4686,7 @@
     "deliveryAssuranceDesc": "Optional post-run checks for unattended scheduled tasks. Does not affect interactive chat.",
     "cronPostRunVerify": "Scheduled Task Verification",
     "cronPostRunVerifyDesc": "After unattended cron runs that changed files or executed commands, run an independent delivery review (does not retry the task).",
+    "cronPostRunVerifyHint": "Task success and delivery review are separate. A failed review adds a warning to the run record and does not rerun the task. Bind the adversarial-reviewer sub-agent preset when using this.",
     "sessionPolicyMode": "Reset Mode",
     "sessionPolicyPersistent": "Persistent",
     "sessionPolicyPersistentDesc": "One session per peer forever",
@@ -8717,6 +8718,7 @@
     "verificationSkipped": "Verify Skipped",
     "verificationError": "Verify Error",
     "verificationSummary": "Delivery review",
+    "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
     "securityDeniedHint": "Some tools were denied by security policy. Configure required permissions in the Capability Fence above.",
     "capability": {
       "web_search_tool": "Search Engine",

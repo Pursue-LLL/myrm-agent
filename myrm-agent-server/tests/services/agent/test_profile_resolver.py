@@ -26,8 +26,10 @@ class _FakeAgentProfile:
     system_prompt: str | None = "You are a helpful assistant."
     model: str | None = "openai/gpt-4o"
     skills: list[str] | None = None
+    skill_configs: dict[str, dict] | None = None
     max_iterations: int | None = 10
     memory_policy: object | None = None
+    tools_allowed: list[str] | None = None
     metadata: dict[str, object] | None = None
 
 
@@ -783,3 +785,26 @@ class TestResolveBuiltinToolFlags:
         flags = resolve_builtin_tool_flags(["web_search", "llm_map"])
         assert "enable_llm_map" not in flags
         assert flags == resolve_builtin_tool_flags(["web_search"])
+
+
+class TestCronPostRunVerifyResolution:
+    @pytest.mark.asyncio
+    async def test_load_from_db_reads_cron_post_run_verify_from_profile_metadata(self):
+        fake = _make_fake_agent(
+            metadata={
+                "mcp_ids": [],
+                "subagent_ids": [],
+                "enabled_builtin_tools": list(DEFAULT_ENABLED_BUILTIN_TOOLS),
+                "cron_post_run_verify": True,
+            },
+        )
+
+        with patch(
+            "app.services.agent.agent_service.AgentService.get_agent_by_id",
+            new_callable=AsyncMock,
+            return_value=fake,
+        ):
+            profile = await AgentProfileResolver._load_from_db("agent-cron-verify")
+
+        assert profile is not None
+        assert profile.cron_post_run_verify is True
