@@ -75,6 +75,19 @@ describe('gapEvents', () => {
     expect(toastSuccess).toHaveBeenCalledTimes(1);
   });
 
+  it('shows cron scheduled-task label on capability_gap toast', async () => {
+    document.documentElement.lang = 'zh';
+    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'cron' }));
+
+    expect(toastInfo).toHaveBeenCalledTimes(1);
+    const toastMessage = toastInfo.mock.calls[0]?.[0] as string;
+    expect(toastMessage).toContain('定时任务');
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { label?: string; onClick?: () => void } };
+    expect(toastOptions.action?.label).toBe('一键开启');
+    toastOptions.action?.onClick?.();
+    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'cron']);
+  });
+
   it('ignores capability_gap for agent baseline tool ids (no UI toggle)', async () => {
     const result = await gapEvents(
       createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }),
