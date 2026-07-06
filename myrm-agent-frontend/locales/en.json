@@ -4563,7 +4563,7 @@
       "contextCompression": "Context Compression",
       "contextCompressionDesc": "Auto-compress long context history",
       "parallelToolCalls": "Parallel Tool Calls",
-      "parallelToolCallsDesc": "Allow multiple tools at once",
+      "parallelToolCallsDesc": "Allow multiple tools at once"
     },
     "configured": "configured",
     "configure": "Configure",

@@ -4642,7 +4642,7 @@
       "contextCompression": "上下文压缩",
       "contextCompressionDesc": "自动压缩过长的上下文历史",
       "parallelToolCalls": "并行工具调用",
-      "parallelToolCallsDesc": "允许同时调用多个工具",
+      "parallelToolCallsDesc": "允许同时调用多个工具"
     },
     "modelParams": "模型参数",
     "modelParamsDesc": "为此智能体配置独立的模型调用参数",

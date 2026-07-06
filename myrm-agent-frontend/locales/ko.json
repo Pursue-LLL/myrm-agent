@@ -4269,7 +4269,7 @@
       "contextCompression": "컨텍스트 압축",
       "contextCompressionDesc": "긴 컨텍스트 기록을 자동 압축",
       "parallelToolCalls": "병렬 도구 호출",
-      "parallelToolCallsDesc": "여러 도구를 동시에 실행 허용",
+      "parallelToolCallsDesc": "여러 도구를 동시에 실행 허용"
     },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",

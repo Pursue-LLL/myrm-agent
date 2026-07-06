@@ -53,3 +53,11 @@ async def test_duplicate_job_delegates_after_slot_check() -> None:
 
     assert result is not None
     inner.duplicate_job.assert_awaited_once_with("src-id", "user-1")
+
+
+def test_getattr_delegates_to_inner() -> None:
+    inner = MagicMock()
+    inner.list_jobs = MagicMock(return_value=["job-a"])
+    mgr = EntitlementGuardedCronManager(inner)
+
+    assert mgr.list_jobs is inner.list_jobs

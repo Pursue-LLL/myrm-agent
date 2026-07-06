@@ -25,6 +25,7 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_wiki=False,
         enable_answer_tool=False,
         enable_render_ui=False,
+        enable_cron_eager=False,
         image_generation_params=None,
         video_generation_params=None,
         tts_params=None,
@@ -42,6 +43,7 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
         enable_canvas=True,
         enable_wiki=True,
         enable_answer_tool=True,
+        enable_cron_eager=True,
         enable_conversation_search=True,
         image_generation_params=object(),
         video_generation_params=object(),
@@ -60,6 +62,16 @@ def test_derive_includes_render_ui_when_enabled() -> None:
 def test_derive_excludes_render_ui_when_disabled() -> None:
     groups = derive_active_tool_groups(_agent(enable_render_ui=False), enable_planning=False)
     assert "render_ui" not in groups
+
+
+def test_derive_includes_cron_when_eager_enabled() -> None:
+    groups = derive_active_tool_groups(_agent(enable_cron_eager=True), enable_planning=False)
+    assert "cron" in groups
+
+
+def test_derive_excludes_cron_when_eager_disabled() -> None:
+    groups = derive_active_tool_groups(_agent(enable_cron_eager=False), enable_planning=False)
+    assert "cron" not in groups
 
 
 def test_derive_media_groups_from_params_presence() -> None:

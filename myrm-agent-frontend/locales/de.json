@@ -4269,7 +4269,7 @@
       "contextCompression": "Kontextkomprimierung",
       "contextCompressionDesc": "Langen Kontextverlauf automatisch komprimieren",
       "parallelToolCalls": "Parallele Werkzeugaufrufe",
-      "parallelToolCallsDesc": "Mehrere Werkzeuge gleichzeitig ausführen",
+      "parallelToolCallsDesc": "Mehrere Werkzeuge gleichzeitig ausführen"
     },
     "rollbackNoSnapshotTitle": "No saved snapshots yet — change a config field first",
     "rollbackSuccess": "Configuration rolled back successfully",

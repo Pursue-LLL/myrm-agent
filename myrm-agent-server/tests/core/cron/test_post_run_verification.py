@@ -70,7 +70,7 @@ async def test_apply_fail_keeps_cron_success(monkeypatch) -> None:
         agent = _FakeSkillAgent()
 
     monkeypatch.setattr(
-        "app.core.cron.adapters.post_run_verification.GeneralAgent",
+        "app.ai_agents.general_agent.GeneralAgent",
         _FakeGeneralAgent,
     )
 
@@ -79,7 +79,7 @@ async def test_apply_fail_keeps_cron_success(monkeypatch) -> None:
         user_id="user-1",
         name="test",
         job_type=JobType.AGENT,
-        schedule=Schedule(kind=ScheduleKind.CRON, expression="0 * * * *"),
+        schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
         agent_id="agent-1",
     )
     base = JobResult(
