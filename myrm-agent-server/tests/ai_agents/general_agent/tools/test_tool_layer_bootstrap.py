@@ -21,6 +21,9 @@ class TestServerToolLayerRegistration:
     def test_canvas_insert_element_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("canvas_insert_element") == ToolLayer.EXTENDED
 
+    def test_canvas_batch_layout_registered(self) -> None:
+        assert _SERVER_TOOL_LAYERS.get("canvas_batch_layout") == ToolLayer.EXTENDED
+
     def test_channel_notify_tool_registered(self) -> None:
         assert _SERVER_TOOL_LAYERS.get("channel_notify_tool") == ToolLayer.EXTENDED
 

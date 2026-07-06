@@ -37,7 +37,7 @@ frontend agent_config.enabled_builtin_tools["canvas"]
   → agent_config.canvas_id → GeneralAgentParams.canvas_id
   → tool_setup._setup_canvas_tools(tools)  # Turn1 eager when enable_canvas + canvas_id
   → factory.py: _flag_to_group includes "canvas"
-  → _tool_layer_bootstrap.py: EXTENDED layer
+  → _tool_layer_bootstrap.py: canvas_get_state, canvas_get_selection, canvas_insert_element, canvas_batch_layout → EXTENDED
 ```
 
 ## canvas_batch_layout 工具流程

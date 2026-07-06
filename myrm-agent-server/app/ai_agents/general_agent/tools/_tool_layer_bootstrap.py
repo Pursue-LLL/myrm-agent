@@ -25,6 +25,7 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "canvas_get_state": ToolLayer.EXTENDED,
     "canvas_get_selection": ToolLayer.EXTENDED,
     "canvas_insert_element": ToolLayer.EXTENDED,
+    "canvas_batch_layout": ToolLayer.EXTENDED,
     "channel_notify_tool": ToolLayer.EXTENDED,
     "image_tool": ToolLayer.EXTENDED,
     "video_tool": ToolLayer.EXTENDED,
