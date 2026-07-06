@@ -39,9 +39,6 @@ interface BlueprintFillDialogProps {
 
 export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: BlueprintFillDialogProps) {
   const t = useTranslations('cron');
-  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
-  const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
-  const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
   const { createJob } = useCronStore();
   const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -92,6 +89,10 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
   }, [blueprint, values, userTz, deliveryChannel, deliveryTarget, createJob, t, onOpenChange]);
 
   if (!blueprint) return null;
+
+  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
+  const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
+  const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
 
   const previewSchedule = blueprint.buildSchedule(
     Object.fromEntries(blueprint.slots.map((s) => [s.name, values[s.name] ?? s.default])),
