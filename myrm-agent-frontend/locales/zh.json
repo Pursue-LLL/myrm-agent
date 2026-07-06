@@ -4721,10 +4721,15 @@
     "addSubagent": "添加子智能体",
     "noSubagents": "未绑定子智能体",
     "removeSubagent": "移除",
+    "allowDiscovery": {
+      "title": "允许被其他智能体发现并委派",
+      "description": "开启后，其他智能体可以通过 @ 提及或自动组队时发现并调用此智能体。关闭可隐藏半成品。"
+    },
     "openapi": {
       "title": "OpenAPI 服务",
       "subtitle": "通过 OpenAPI 规范零代码接入 REST API 工具",
       "add": "添加",
+      "addFromPreset": "从模板添加",
       "empty": "暂未配置 OpenAPI 服务，点击「添加」接入 REST API",
       "unnamed": "未命名服务",
       "specUrl": "规范地址 (URL)",

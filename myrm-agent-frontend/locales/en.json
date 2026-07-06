@@ -4718,10 +4718,15 @@
     "addSubagent": "Add Subagent",
     "noSubagents": "No subagents bound",
     "removeSubagent": "Remove",
+    "allowDiscovery": {
+      "title": "Allow discovery and delegation by other agents",
+      "description": "When enabled, other agents can find and delegate to this agent via @ mentions or auto team formation. Disable to hide work-in-progress agents."
+    },
     "openapi": {
       "title": "OpenAPI Services",
       "subtitle": "Zero-code REST API tool integration via OpenAPI specs",
       "add": "Add",
+      "addFromPreset": "Add from preset",
       "empty": "No OpenAPI services configured. Click \"Add\" to integrate a REST API.",
       "unnamed": "Unnamed Service",
       "specUrl": "Spec URL",

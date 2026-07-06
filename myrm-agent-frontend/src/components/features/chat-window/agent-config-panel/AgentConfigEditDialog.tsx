@@ -30,6 +30,8 @@ type EphemeralSubagentConfig = {
 };
 
 const EMPTY_AUTO_RESTORE_DOMAINS: string[] = [];
+const EMPTY_SKILL_CONFIGS: Record<string, { is_core?: boolean }> = {};
+const EMPTY_EPHEMERAL_SUBAGENTS: Record<string, EphemeralSubagentConfig> = {};
 
 const MCPToolSelector = dynamic(() => import('./MCPToolSelector'), { ssr: false });
 const SkillsSection = dynamic(() => import('@/components/features/settings/sections/ai-tools/SkillsSection'), { ssr: false });
@@ -86,7 +88,7 @@ const AgentConfigEditDialog = ({
   enabledMcps,
   selectedSkillIds: initialSkillIds,
   mountedSkillIds: initialMountedSkillIds,
-  skillConfigs: initialSkillConfigs = {},
+  skillConfigs: initialSkillConfigs = EMPTY_SKILL_CONFIGS,
   selectedMcpNames: initialMcpNames,
   mcpToolSelections: initialMcpToolSelections,
   systemPrompt: initialPrompt,
@@ -96,7 +98,7 @@ const AgentConfigEditDialog = ({
   browserSource: initialBrowserSource,
   dialogPolicy: initialDialogPolicy,
   sessionRecording: initialSessionRecording,
-  ephemeralSubagents: initialEphemeralSubagents = {},
+  ephemeralSubagents: initialEphemeralSubagents = EMPTY_EPHEMERAL_SUBAGENTS,
   isSystemPromptHidden = false,
   loadingSystemPrompt = false,
   onShowSystemPrompt,
