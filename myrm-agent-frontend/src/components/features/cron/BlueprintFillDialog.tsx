@@ -39,6 +39,9 @@ interface BlueprintFillDialogProps {
 
 export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: BlueprintFillDialogProps) {
   const t = useTranslations('cron');
+  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
+  const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
+  const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
   const { createJob } = useCronStore();
   const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -100,12 +103,12 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <blueprint.icon className="h-5 w-5 text-primary" />
-            {t(blueprint.titleKey)}
+            {displayTitle}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
-          <p className="text-xs text-muted-foreground">{t(blueprint.descKey)}</p>
+          <p className="text-xs text-muted-foreground">{displayDesc}</p>
 
           {blueprint.slots.map((slot) => (
             <div key={slot.name} className="space-y-1.5">

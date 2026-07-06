@@ -4,6 +4,8 @@ import {
   humanizeSchedule,
   buildJobPayload,
   CRON_PRESETS,
+  resolveBlueprintTitleKey,
+  resolveBlueprintSlotLabel,
 } from '../cron-blueprints';
 
 describe('cron-blueprints', () => {
@@ -235,6 +237,19 @@ describe('cron-blueprints', () => {
         const parts = schedule.expr!.split(' ');
         expect(parts).toHaveLength(5);
       }
+    });
+
+    it('maps server snake_case blueprint ids to camelCase i18n keys', () => {
+      expect(resolveBlueprintTitleKey('custom_reminder')).toBe('blueprint.customReminder.title');
+      expect(resolveBlueprintTitleKey('morning_briefing')).toBe('blueprint.morningBriefing.title');
+    });
+
+    it('maps blueprint slot names to cron.blueprint.slot* locale keys', () => {
+      expect(resolveBlueprintSlotLabel('time')).toBe('blueprint.slotTime');
+      expect(resolveBlueprintSlotLabel('message')).toBe('blueprint.slotMessage');
+      expect(CRON_BLUEPRINTS.find((b) => b.id === 'custom_reminder')!.slots[0].label).toBe(
+        'blueprint.slotTime',
+      );
     });
   });
 });

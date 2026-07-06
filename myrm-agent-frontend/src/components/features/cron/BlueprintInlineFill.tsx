@@ -29,6 +29,9 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
   const t = useTranslations('cron');
   const { createJob } = useCronStore();
   const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
+  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
+  const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
+  const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
   const [slotValues, setSlotValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [deliveryChannel, setDeliveryChannel] = useState<string>('chat');
@@ -86,9 +89,9 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
 
       <div className="flex items-center gap-2">
         <blueprint.icon className="h-5 w-5 text-primary" />
-        <span className="text-sm font-medium">{t(blueprint.titleKey)}</span>
+        <span className="text-sm font-medium">{displayTitle}</span>
       </div>
-      <p className="text-xs text-muted-foreground">{t(blueprint.descKey)}</p>
+      <p className="text-xs text-muted-foreground">{displayDesc}</p>
 
       {blueprint.slots.map((slot) => (
         <div key={slot.name} className="space-y-1.5">

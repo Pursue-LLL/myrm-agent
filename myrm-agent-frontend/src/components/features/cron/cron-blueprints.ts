@@ -46,6 +46,35 @@ function resolveIcon(iconName: string): LucideIcon {
   return ICON_MAP[iconName] || Sparkles;
 }
 
+/** Server blueprint ids use snake_case; locale keys use camelCase (e.g. custom_reminder → customReminder). */
+export function blueprintSnakeToCamel(id: string): string {
+  return id.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+const BLUEPRINT_SLOT_LABEL_KEYS: Record<string, string> = {
+  time: 'blueprint.slotTime',
+  day: 'blueprint.slotDay',
+  weekdays: 'blueprint.slotWeekdays',
+  message: 'blueprint.slotMessage',
+  topic: 'blueprint.slotTopic',
+};
+
+export function resolveBlueprintSlotLabel(slotName: string): string {
+  return BLUEPRINT_SLOT_LABEL_KEYS[slotName] ?? `blueprint.slot${blueprintSnakeToCamel(slotName).charAt(0).toUpperCase()}${blueprintSnakeToCamel(slotName).slice(1)}`;
+}
+
+export function resolveBlueprintTitleKey(blueprintId: string): string {
+  return `blueprint.${blueprintSnakeToCamel(blueprintId)}.title`;
+}
+
+export function resolveBlueprintDescKey(blueprintId: string): string {
+  return `blueprint.${blueprintSnakeToCamel(blueprintId)}.desc`;
+}
+
+export function resolveBlueprintPromptKey(blueprintId: string): string {
+  return `blueprint.${blueprintSnakeToCamel(blueprintId)}.prompt`;
+}
+
 // ==================== Blueprint Loading ====================
 
 let _cachedBlueprints: CronBlueprint[] | null = null;
@@ -55,13 +84,13 @@ function buildBlueprintFromDef(def: BlueprintDef): CronBlueprint {
   return {
     id: def.id,
     icon: resolveIcon(def.icon),
-    titleKey: `blueprint.${def.id}.title`,
-    descKey: `blueprint.${def.id}.desc`,
-    promptKey: `blueprint.${def.id}.prompt`,
+    titleKey: resolveBlueprintTitleKey(def.id),
+    descKey: resolveBlueprintDescKey(def.id),
+    promptKey: resolveBlueprintPromptKey(def.id),
     slots: def.slots.map((s) => ({
       name: s.name,
       type: s.type,
-      label: s.label,
+      label: resolveBlueprintSlotLabel(s.name),
       default: s.default,
       options: s.options.length > 0 ? s.options : undefined,
     })),
@@ -105,7 +134,7 @@ function buildPromptFromDef(
   }
 
   if (result.includes('{message}') && !values.message) {
-    const fallback = t(`blueprint.${def.id}.prompt`);
+    const fallback = t(resolveBlueprintPromptKey(def.id));
     return fallback || result.replace('{message}', '');
   }
 
@@ -191,8 +220,8 @@ const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
     title: { en: 'Morning Briefing', zh: '每日早报' },
     description: { en: 'Get a daily briefing on topics you care about', zh: '每天获取你关心的话题简报' },
     slots: [
-      { name: 'time', type: 'time', label: 'time', default: '08:00' },
-      { name: 'weekdays', type: 'enum', label: 'weekdays', default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
+      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '08:00' },
+      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
     ],
     buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '08:00', v.weekdays || 'everyday') }),
     buildPrompt: (_v, t) => t('blueprint.morningBriefing.prompt'),
@@ -206,8 +235,8 @@ const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
     title: { en: 'Weekly Review', zh: '每周回顾' },
     description: { en: 'Summarize weekly progress and plan ahead', zh: '总结每周进展并规划下周' },
     slots: [
-      { name: 'time', type: 'time', label: 'time', default: '18:00' },
-      { name: 'day', type: 'enum', label: 'day', default: '5', options: ['1', '2', '3', '4', '5', '6', '0'] },
+      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '18:00' },
+      { name: 'day', type: 'enum', label: resolveBlueprintSlotLabel('day'), default: '5', options: ['1', '2', '3', '4', '5', '6', '0'] },
     ],
     buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWeekday(v.time || '18:00', v.day || '5') }),
     buildPrompt: (_v, t) => t('blueprint.weeklyReview.prompt'),
@@ -221,8 +250,8 @@ const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
     title: { en: 'Custom Reminder', zh: '自定义提醒' },
     description: { en: 'Set a recurring reminder with your own message', zh: '设置一个自定义消息的定期提醒' },
     slots: [
-      { name: 'time', type: 'time', label: 'time', default: '09:00' },
-      { name: 'message', type: 'text', label: 'message', default: '' },
+      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '09:00' },
+      { name: 'message', type: 'text', label: resolveBlueprintSlotLabel('message'), default: '' },
     ],
     buildSchedule: (v) => ({ kind: 'cron', expr: timeToCron(v.time || '09:00') }),
     buildPrompt: (v, t) => v.message || t('blueprint.customReminder.prompt'),
@@ -236,9 +265,9 @@ const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
     title: { en: 'News Digest', zh: '新闻摘要' },
     description: { en: 'Get a curated digest on your chosen topics', zh: '获取你选择的话题的精选摘要' },
     slots: [
-      { name: 'time', type: 'time', label: 'time', default: '07:30' },
-      { name: 'weekdays', type: 'enum', label: 'weekdays', default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
-      { name: 'topic', type: 'text', label: 'topic', default: 'AI and technology' },
+      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '07:30' },
+      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
+      { name: 'topic', type: 'text', label: resolveBlueprintSlotLabel('topic'), default: 'AI and technology' },
     ],
     buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '07:30', v.weekdays || 'everyday') }),
     buildPrompt: (v, t) => t('blueprint.newsDigest.prompt', { topic: v.topic || 'AI and technology' }),
@@ -252,8 +281,8 @@ const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
     title: { en: 'Evening Wind-down', zh: '晚间放松' },
     description: { en: 'End your day with a calming summary', zh: '以平静的总结结束一天' },
     slots: [
-      { name: 'time', type: 'time', label: 'time', default: '21:00' },
-      { name: 'weekdays', type: 'enum', label: 'weekdays', default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
+      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '21:00' },
+      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
     ],
     buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '21:00', v.weekdays || 'everyday') }),
     buildPrompt: (_v, t) => t('blueprint.eveningWinddown.prompt'),
