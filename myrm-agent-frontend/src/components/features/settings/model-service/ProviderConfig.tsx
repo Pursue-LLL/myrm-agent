@@ -10,7 +10,7 @@ import {
   getLiteLLMModelName,
   BUILT_IN_PROVIDER_INFO,
   normalizeApiUrl,
-  CUSTOM_PROVIDER_TYPE_INFO,
+  resolveCustomProviderTypeInfo,
 } from '@/store/config/providerTypes';
 import ApiKeyManager from './ApiKeyManager';
 import ModelCheckbox from './ModelCheckbox';
@@ -253,15 +253,17 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       return 0; // 保持原始顺序
     });
 
+  const providerTypeInfo = resolveCustomProviderTypeInfo(provider.providerType);
+
   return (
     <div className="space-y-8">
       {/* 提供商标题和主开关 */}
       <div className="flex items-center justify-between pb-4 border-b border-border/50">
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-semibold text-foreground">{provider.name}</h3>
-          {provider.providerType && (
+          {providerTypeInfo && (
             <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-primary/10 to-primary/5 text-primary border border-primary/20">
-              {CUSTOM_PROVIDER_TYPE_INFO[provider.providerType].name}
+              {providerTypeInfo.name}
             </span>
           )}
         </div>

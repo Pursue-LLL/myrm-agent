@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PROVIDER_INFO, getInitialProviders, getLiteLLMModelName } from '../providerTypes';
+import { BUILT_IN_PROVIDER_INFO, getInitialProviders, getLiteLLMModelName, resolveCustomProviderTypeInfo } from '../providerTypes';
 
 describe('providerTypes defaults', () => {
   it('uses the official Xiaomi MiMo API endpoint', () => {
@@ -19,5 +19,18 @@ describe('providerTypes defaults', () => {
 
   it('prefers an already-qualified LiteLLM model id over a mismatched providerId', () => {
     expect(getLiteLLMModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
+  });
+});
+
+describe('resolveCustomProviderTypeInfo', () => {
+  it('returns metadata for valid custom provider types', () => {
+    expect(resolveCustomProviderTypeInfo('openai-like')?.litellmPrefix).toBe('openai');
+    expect(resolveCustomProviderTypeInfo('anthropic-like')?.name).toBe('Anthropic-Like');
+  });
+
+  it('returns undefined for legacy bare provider ids used as providerType', () => {
+    expect(resolveCustomProviderTypeInfo('openai')).toBeUndefined();
+    expect(resolveCustomProviderTypeInfo('anthropic')).toBeUndefined();
+    expect(resolveCustomProviderTypeInfo('ollama')).toBeUndefined();
   });
 });

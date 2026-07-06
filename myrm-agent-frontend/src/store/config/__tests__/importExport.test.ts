@@ -133,4 +133,37 @@ describe('importConfig', () => {
 
     expect(setSystemInstructions).not.toHaveBeenCalled();
   });
+
+  it('should migrate legacy providerType values without throwing', async () => {
+    const setProviders = vi.fn();
+
+    const json = JSON.stringify({
+      config: {
+        providers: [
+          {
+            id: 'legacy_gateway',
+            name: 'Legacy Gateway',
+            providerType: 'openai',
+            isBuiltIn: false,
+            isEnabled: false,
+            apiKeys: [],
+            apiUrl: 'https://api.example.com/v1',
+            enabledModels: [],
+            availableModels: [],
+          },
+        ],
+      },
+    });
+
+    const result = await importConfig(json, { setProviders });
+
+    expect(result.success).toBe(true);
+    expect(setProviders).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: 'legacy_gateway',
+        routingProfile: 'legacy_gateway',
+        providerType: 'openai',
+      }),
+    ]);
+  });
 });

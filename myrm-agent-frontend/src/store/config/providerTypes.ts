@@ -63,6 +63,16 @@ export const CUSTOM_PROVIDER_TYPE_INFO: Record<CustomProviderType, CustomProvide
   },
 };
 
+/** Resolve custom provider compat metadata; ignores legacy/invalid providerType values. */
+export function resolveCustomProviderTypeInfo(
+  providerType?: string,
+): CustomProviderTypeInfo | undefined {
+  if (!providerType || !CUSTOM_PROVIDER_TYPES.includes(providerType as CustomProviderType)) {
+    return undefined;
+  }
+  return CUSTOM_PROVIDER_TYPE_INFO[providerType as CustomProviderType];
+}
+
 /** Known LiteLLM route segments (longest first; generated list plus custom compat prefixes). */
 const KNOWN_LITELLM_ROUTE_PREFIXES: readonly string[] = (() => {
   const litellmPrefixesFromCustom = Object.values(CUSTOM_PROVIDER_TYPE_INFO).map((t) => t.litellmPrefix);

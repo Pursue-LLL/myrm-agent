@@ -13,7 +13,7 @@ import type {
   RoutingConfig,
   SingleModelSelection,
 } from './providerTypes';
-import { CUSTOM_PROVIDER_TYPE_INFO, getInitialDefaultModelConfig, PROVIDER_TO_LITELLM_PREFIX } from './providerTypes';
+import { getInitialDefaultModelConfig, PROVIDER_TO_LITELLM_PREFIX, resolveCustomProviderTypeInfo } from './providerTypes';
 import type { ProvidersConfigValue } from '@/services/config/types';
 import type { PersonalSettingsConfigValue, VideoGenerationConfig } from '@/services/config/types';
 
@@ -33,8 +33,9 @@ export function deriveRoutingProfile(provider: ProviderConfig): string {
   if (provider.routingProfile && provider.routingProfile.length > 0) {
     return provider.routingProfile;
   }
-  if (provider.providerType) {
-    return CUSTOM_PROVIDER_TYPE_INFO[provider.providerType].litellmPrefix;
+  const typeInfo = resolveCustomProviderTypeInfo(provider.providerType);
+  if (typeInfo) {
+    return typeInfo.litellmPrefix;
   }
   return PROVIDER_TO_LITELLM_PREFIX[provider.id] ?? provider.id;
 }

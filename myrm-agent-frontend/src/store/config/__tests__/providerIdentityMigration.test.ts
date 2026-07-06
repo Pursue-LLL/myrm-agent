@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import legacyRemapJson from '@shared/config/provider_legacy_remap.json';
 
-import { remapLegacyProviderId } from '../providerIdentityMigration';
+import { remapLegacyProviderId, deriveRoutingProfile, migrateProvidersBundle } from '../providerIdentityMigration';
 
 describe('providerIdentityMigration legacy remap', () => {
   it('matches shared/config/provider_legacy_remap.json for every entry', () => {
@@ -24,5 +24,81 @@ describe('providerIdentityMigration legacy remap', () => {
     expect(remapLegacyProviderId('GOOGLE')).toBe('gemini');
     expect(remapLegacyProviderId('google-genai')).toBe('gemini');
     expect(remapLegacyProviderId('QWEN')).toBe('dashscope');
+  });
+});
+
+describe('deriveRoutingProfile', () => {
+  it('returns existing routingProfile when set', () => {
+    expect(
+      deriveRoutingProfile({
+        id: 'custom',
+        routingProfile: 'openrouter',
+        name: 'Custom',
+        isBuiltIn: false,
+        isEnabled: true,
+        apiKeys: [],
+        apiUrl: '',
+        enabledModels: [],
+        availableModels: [],
+        providerType: 'openai-like',
+      }),
+    ).toBe('openrouter');
+  });
+
+  it('derives from valid custom providerType', () => {
+    expect(
+      deriveRoutingProfile({
+        id: 'my-gateway',
+        routingProfile: '',
+        name: 'Gateway',
+        isBuiltIn: false,
+        isEnabled: true,
+        apiKeys: [],
+        apiUrl: '',
+        enabledModels: [],
+        availableModels: [],
+        providerType: 'anthropic-like',
+      }),
+    ).toBe('anthropic');
+  });
+
+  it('falls back to provider id when providerType is legacy/invalid', () => {
+    expect(
+      deriveRoutingProfile({
+        id: 'openai',
+        routingProfile: '',
+        name: 'OpenAI',
+        isBuiltIn: false,
+        isEnabled: true,
+        apiKeys: [],
+        apiUrl: '',
+        enabledModels: [],
+        availableModels: [],
+        providerType: 'openai' as never,
+      }),
+    ).toBe('openai');
+  });
+});
+
+describe('migrateProvidersBundle legacy providerType', () => {
+  it('does not throw when persisted providers carry invalid providerType', () => {
+    const migrated = migrateProvidersBundle({
+      providers: [
+        {
+          id: 'openai',
+          routingProfile: '',
+          name: 'OpenAI',
+          isBuiltIn: false,
+          isEnabled: true,
+          apiKeys: [],
+          apiUrl: '',
+          enabledModels: [],
+          availableModels: [],
+          providerType: 'openai' as never,
+        },
+      ],
+    });
+
+    expect(migrated.providers[0]?.routingProfile).toBe('openai');
   });
 });
