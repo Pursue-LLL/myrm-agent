@@ -4045,8 +4045,10 @@
         "video_generation": "Video Generation",
         "tts": "Text to Speech",
         "kanban": "Task Board",
+        "cron": "Geplante Aufgaben (Chat)",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "Interaktive UI"
+        "render_ui": "Interaktive UI",
+        "planning": "Mehrschritt-Fortschritt"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4060,8 +4062,10 @@
         "video_generation": "Generate videos from text descriptions",
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
+        "cron": "Geplante Aufgaben direkt im Chat erstellen; wenn aus, wird das Tool bei Bedarf per Capability Discovery geladen",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen"
+        "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen",
+        "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)"
       },
       "jitTeam": "JIT-Teamkonfiguration",
       "jitTeamOff": "Einzelner Agent (kein Team)",

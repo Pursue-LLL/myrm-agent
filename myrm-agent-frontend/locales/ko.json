@@ -4045,8 +4045,10 @@
         "video_generation": "Video Generation",
         "tts": "Text to Speech",
         "kanban": "Task Board",
+        "cron": "예약 작업 (채팅)",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "대화형 UI"
+        "render_ui": "대화형 UI",
+        "planning": "다단계 진행"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4060,8 +4062,10 @@
         "video_generation": "Generate videos from text descriptions",
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
+        "cron": "채팅에서 직접 예약 작업 생성. 끄면 Capability Discovery로 필요 시 도구 로드",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작"
+        "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작",
+        "planning": "메인 Agent 다단계 todo — 채팅에서 진행 트리 업데이트 (Planner 서브 Agent 없음)"
       },
       "jitTeam": "JIT 팀 구성",
       "jitTeamOff": "단일 Agent (팀 없음)",

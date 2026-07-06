@@ -4045,8 +4045,10 @@
         "video_generation": "Video Generation",
         "tts": "Text to Speech",
         "kanban": "Task Board",
+        "cron": "スケジュールタスク（チャット）",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "対話型 UI"
+        "render_ui": "対話型 UI",
+        "planning": "多段階進捗"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4060,8 +4062,10 @@
         "video_generation": "Generate videos from text descriptions",
         "tts": "Generate audio from text using TTS models",
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
+        "cron": "チャット内で直接スケジュールタスクを作成。オフの場合は Capability Discovery で必要時に読み込み",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作"
+        "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作",
+        "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新（Planner サブ Agent なし）"
       },
       "jitTeam": "JITチーム設定",
       "jitTeamOff": "単体Agent（チームなし）",
