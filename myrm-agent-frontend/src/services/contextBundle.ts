@@ -44,11 +44,11 @@ export interface ContextBundleMigrationResult {
 }
 
 export async function getContextBundleHealth(): Promise<ContextBundleHealth> {
-  return apiRequest<ContextBundleHealth>('/api/context-bundle');
+  return apiRequest<ContextBundleHealth>('/context-bundle');
 }
 
 export async function applyContextBundleMigration(): Promise<ContextBundleMigrationResult> {
-  return apiRequest<ContextBundleMigrationResult>('/api/context-bundle/migrate/apply', {
+  return apiRequest<ContextBundleMigrationResult>('/context-bundle/migrate/apply', {
     method: 'POST',
   });
 }
