@@ -161,7 +161,6 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "wiki": ("wiki",),
     "connect": ("connect",),
     "companion": ("companion",),
-    "canvas": ("canvas",),
     "client_logs": ("client_logs",),
     "features": ("features", "tts", "stt", "voice"),
     "eval": ("eval",),
@@ -312,8 +311,6 @@ def preset_for_test_path(relative_path: str) -> str | None:
         return "webui_only"
     if path.startswith("tests/api/connect/"):
         return "connect"
-    if path.startswith("tests/integration/test_canvas_api"):
-        return "canvas"
     if path.startswith("tests/api/companion/"):
         return "companion"
     if path.startswith("tests/api/client_logs/") or path.startswith("tests/api/logs/"):

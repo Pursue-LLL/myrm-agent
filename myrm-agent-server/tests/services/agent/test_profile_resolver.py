@@ -715,7 +715,6 @@ class TestResolveBuiltinToolFlags:
             "code_execute",
             "wiki",
             "kanban",
-            "canvas",
             "cron",
             "answer_tool",
             "render_ui",
@@ -783,6 +782,10 @@ class TestResolveBuiltinToolFlags:
         """Stale DB metadata may still list llm_map; it must not map to any flag."""
         flags = resolve_builtin_tool_flags(["web_search", "llm_map"])
         assert "enable_llm_map" not in flags
+        assert flags == resolve_builtin_tool_flags(["web_search"])
+
+    def test_legacy_canvas_tool_id_is_ignored(self):
+        flags = resolve_builtin_tool_flags(["web_search", "canvas"])
         assert flags == resolve_builtin_tool_flags(["web_search"])
 
 
