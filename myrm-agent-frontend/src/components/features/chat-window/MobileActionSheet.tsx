@@ -56,6 +56,7 @@ export interface MobileActionSheetProps {
   onClose: () => void;
   title?: ReactNode;
   entries: MobileActionSheetEntry[];
+  footer?: ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ const TRANSITION_MS = 280;
 // Component
 // ---------------------------------------------------------------------------
 
-export function MobileActionSheet({ open, onClose, title, entries }: MobileActionSheetProps) {
+export function MobileActionSheet({ open, onClose, title, entries, footer }: MobileActionSheetProps) {
   const t = useTranslations('common');
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -225,6 +226,9 @@ export function MobileActionSheet({ open, onClose, title, entries }: MobileActio
                   </button>
                 </div>
               ))}
+              {footer && (
+                <div className="shrink-0 border-t border-border px-3 py-3 flex flex-wrap gap-2">{footer}</div>
+              )}
             </div>
           </div>
 

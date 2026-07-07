@@ -484,10 +484,10 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
               {/* 左侧：功能按钮 */}
               <div className="flex flex-row items-center gap-1 sm:gap-2 min-w-0 flex-1">
                 {/* 移动端精简版：+ 按钮触发 ActionSheet + 核心快捷入口 */}
-                <div className="flex sm:hidden flex-row items-center gap-1">
+                <div className="flex sm:hidden flex-row items-center gap-1 shrink-0">
                   <button
                     type="button"
-                    onClick={() => { handleSubmit(); setIsMobileSheetOpen(true); }}
+                    onClick={() => setIsMobileSheetOpen(true)}
                     className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted-foreground/20 transition-colors"
                     aria-label={chatT('input.expandToolbar')}
                     data-testid="sendbox-mobile-plus-btn"
@@ -495,14 +495,9 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                     <Plus size={16} />
                   </button>
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
-                  <DeepSearchToggle />
-                  <WorkflowModeToggle />
-                  <IncognitoModeToggle />
-                  <SandboxModeToggle />
-                  <AgentIndicator />
                 </div>
-                {/* 桌面版：显示所有按钮 */}
-                <div className="hidden sm:flex flex-row items-center gap-2">
+                {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
+                <div className="hidden sm:flex flex-row items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                   <DeepSearchToggle />
                   <WorkflowModeToggle />
@@ -647,6 +642,15 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
         onClose={() => setIsMobileSheetOpen(false)}
         title={chatT('input.expandToolbar')}
         entries={mobileSheetEntries}
+        footer={
+          <>
+            <DeepSearchToggle />
+            <WorkflowModeToggle />
+            <IncognitoModeToggle />
+            <SandboxModeToggle />
+            <AgentIndicator />
+          </>
+        }
       />
     </>
   );
