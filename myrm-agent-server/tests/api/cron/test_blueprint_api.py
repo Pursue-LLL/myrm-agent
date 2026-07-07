@@ -227,6 +227,63 @@ class TestFillBlueprint:
         social = next(bp for bp in resp.json() if bp["id"] == "social_media_watch")
         keywords = next(s for s in social["slots"] if s["name"] == "keywords")
         assert keywords["optional"] is True
+        brand = next(s for s in social["slots"] if s["name"] == "brand")
+        assert brand["optional"] is False
+
+    def test_fill_social_media_empty_brand_returns_422(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "social_media_watch",
+                "values": {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "",
+                    "platforms": "Xiaohongshu, Weibo",
+                    "keywords": "",
+                },
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 422
+        assert "brand" in resp.json()["detail"]
+
+    def test_fill_social_media_omitted_keywords_succeeds(self, client: TestClient) -> None:
+        """Keywords key omitted entirely — optional slot uses default empty string."""
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "social_media_watch",
+                "values": {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "Myrm",
+                    "platforms": "Xiaohongshu, Weibo",
+                },
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        assert "Myrm" in resp.json()["prompt"]
+
+    def test_fill_social_media_with_keywords_succeeds(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "social_media_watch",
+                "values": {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "Myrm",
+                    "platforms": "Xiaohongshu, Weibo",
+                    "keywords": "AI, product launch",
+                },
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        prompt = resp.json()["prompt"]
+        assert "AI, product launch" in prompt
 
     def test_fill_prompt_no_unresolved_placeholders(self, client: TestClient) -> None:
         """read_it_later has no text slots — prompt must not contain Python format braces."""

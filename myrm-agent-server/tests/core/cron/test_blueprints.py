@@ -174,6 +174,38 @@ class TestSocialMediaWatchBlueprint:
         keywords = next(s for s in bp.slots if s.name == "keywords")
         assert keywords.optional is True
 
+    def test_brand_slot_required(self) -> None:
+        bp = get_blueprint("social_media_watch")
+        assert bp is not None
+        brand = next(s for s in bp.slots if s.name == "brand")
+        assert brand.optional is False
+
+    def test_empty_brand_raises(self) -> None:
+        with pytest.raises(BlueprintFillError, match="brand"):
+            fill_blueprint(
+                "social_media_watch",
+                {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "",
+                    "platforms": "Xiaohongshu, Weibo",
+                    "keywords": "",
+                },
+            )
+
+    def test_omitted_keywords_uses_empty_default(self) -> None:
+        result = fill_blueprint(
+            "social_media_watch",
+            {
+                "time": "09:00",
+                "weekdays": "weekdays",
+                "brand": "Myrm",
+                "platforms": "Xiaohongshu, Weibo",
+            },
+        )
+        assert result is not None
+        assert "Myrm" in result.prompt
+
 
 class TestToolDescription:
     """Test get_blueprints_for_tool_description output."""
