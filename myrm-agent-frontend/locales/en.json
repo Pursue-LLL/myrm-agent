@@ -4804,6 +4804,7 @@
     "cloneNamePlaceholder": "Enter a name for the cloned agent",
     "cloneSuccess": "Agent cloned successfully",
     "operationFailed": "Operation failed",
+    "loadAgentFailed": "Failed to load agent. Please try again later.",
     "currentConfig": "Current Configuration",
     "editConfig": "Edit Configuration",
     "savedAgents": "Saved Agents",

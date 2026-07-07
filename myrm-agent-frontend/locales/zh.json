@@ -4804,6 +4804,7 @@
     "cloneNamePlaceholder": "输入克隆后的智能体名称",
     "cloneSuccess": "智能体克隆成功",
     "operationFailed": "操作失败",
+    "loadAgentFailed": "加载智能体失败，请稍后重试",
     "currentConfig": "当前配置",
     "editConfig": "编辑配置",
     "savedAgents": "已保存智能体",

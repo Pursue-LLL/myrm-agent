@@ -3978,6 +3978,7 @@
     "updateSuccess": "Agent updated successfully",
     "deleteSuccess": "Agent deleted",
     "operationFailed": "Operation failed",
+    "loadAgentFailed": "Failed to load agent. Please try again later.",
     "currentConfig": "Current Configuration",
     "editConfig": "Edit Configuration",
     "savedAgents": "Saved Agents",
