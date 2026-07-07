@@ -20,6 +20,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from .types import NotifyResult, NotifyTarget, NotifyToolConfig
+from .constants import METADATA_KEY_NOTIFY_SOURCE, NOTIFY_SOURCE_AGENT
 
 if TYPE_CHECKING:
     from app.channels.types.messages import MediaAttachment
@@ -76,6 +77,7 @@ class ChannelNotificationSender:
                 user_id="system",
                 priority=MessagePriority.NORMAL,
                 media=media,
+                metadata={METADATA_KEY_NOTIFY_SOURCE: NOTIFY_SOURCE_AGENT},
             )
             message_id = await channel_gateway.bus.send_tracked(msg)
             if message_id is None:

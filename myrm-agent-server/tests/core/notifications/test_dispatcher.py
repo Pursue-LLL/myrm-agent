@@ -439,6 +439,42 @@ class TestNotificationDispatcher:
         assert len(bus._subscribers) == 0
 
     @pytest.mark.asyncio
+    async def test_dispatch_skips_agent_notify_dead_letter_im_fanout(self) -> None:
+        bus = ServerEventBus()
+        dispatcher = NotificationDispatcher(bus)
+
+        mock_targets = [NotificationTarget(channel="telegram", target="123")]
+
+        with (
+            patch(
+                "app.core.notifications.dispatcher._load_notification_targets",
+                new_callable=AsyncMock,
+                return_value=mock_targets,
+            ),
+            patch(
+                "app.core.notifications.dispatcher._publish",
+                new_callable=AsyncMock,
+            ) as mock_publish,
+        ):
+            await dispatcher.start()
+
+            bus.publish(
+                AppEvent(
+                    event_type=AppEventType.MESSAGE_DEAD_LETTERED,
+                    data={
+                        "channel": "telegram",
+                        "error_reason": "timeout",
+                        "suppress_im_notification": True,
+                    },
+                )
+            )
+
+            await asyncio.sleep(0.1)
+            await dispatcher.stop()
+
+        mock_publish.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_dispatch_sends_to_targets(self) -> None:
         bus = ServerEventBus()
         dispatcher = NotificationDispatcher(bus)

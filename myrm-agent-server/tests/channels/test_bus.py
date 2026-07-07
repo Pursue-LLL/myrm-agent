@@ -469,6 +469,50 @@ class TestMessageBusEdgeCases:
             await bus.stop()
 
     @pytest.mark.asyncio
+    async def test_send_tracked_failure_skips_duplicate_callback_with_ledger(self, tmp_path) -> None:
+        class FailSendChannel(FakeChannel):
+            async def send(self, msg: OutboundMessage) -> str | None:
+                raise RuntimeError("send failed")
+
+        callback = AsyncMock()
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        ledger_path = tmp_path / "ledger.db"
+        from app.channels.reliability.delivery_notify_ledger import SqliteDeliveryNotifyLedger
+
+        ledger = SqliteDeliveryNotifyLedger(ledger_path)
+        bus = MessageBus(
+            dlq_dir=dlq_dir,
+            on_permanent_failure=callback,
+            notification_ledger=ledger,
+        )
+        bus.register_channel(FailSendChannel())
+        await bus.start()
+        try:
+            await bus.send_tracked(_make_out())
+            callback.assert_awaited_once()
+            callback.reset_mock()
+
+            await bus._dlq._process_failed_messages()
+            callback.assert_not_awaited()
+
+            bus2 = MessageBus(
+                dlq_dir=dlq_dir,
+                on_permanent_failure=callback,
+                notification_ledger=SqliteDeliveryNotifyLedger(ledger_path),
+            )
+            bus2.register_channel(FailSendChannel())
+            await bus2.start()
+            try:
+                await bus2._dlq._process_failed_messages()
+                callback.assert_not_awaited()
+            finally:
+                await bus2.stop()
+        finally:
+            await bus.stop()
+            ledger.close()
+
+    @pytest.mark.asyncio
     async def test_send_tracked_failure_presync_notified_merged_on_start(self, tmp_path) -> None:
         class FailSendChannel(FakeChannel):
             async def send(self, msg: OutboundMessage) -> str | None:

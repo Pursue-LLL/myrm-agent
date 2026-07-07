@@ -39,6 +39,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.infra.delivery.notification_ledger import PermanentFailureNotificationLedger
 from myrm_agent_harness.infra.delivery.storage import QueuedDelivery
 
 from app.channels.core.base import BaseChannel
@@ -121,8 +122,13 @@ class ChannelGateway:
         dlq_dir: Path | None = None,
         on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
         inbound_journal: InboundJournal | None = None,
+        notification_ledger: PermanentFailureNotificationLedger | None = None,
     ) -> None:
-        self.bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=on_permanent_failure)
+        self.bus = MessageBus(
+            dlq_dir=dlq_dir,
+            on_permanent_failure=on_permanent_failure,
+            notification_ledger=notification_ledger,
+        )
         self._inbound_journal = inbound_journal
         self._channel_tasks: dict[str, asyncio.Task[None]] = {}
         self._health_task: asyncio.Task[None] | None = None

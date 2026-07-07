@@ -111,6 +111,8 @@ class NotificationDispatcher:
                 targets = await _load_notification_targets()
                 if not targets:
                     continue
+                if event.data.get("suppress_im_notification") is True:
+                    continue
                 text = _format_message(event)
                 if not text:
                     continue

@@ -40,6 +40,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from myrm_agent_harness.infra.delivery.dead_letter import DeadLetterQueue
+from myrm_agent_harness.infra.delivery.notification_ledger import PermanentFailureNotificationLedger
 from myrm_agent_harness.infra.delivery.storage import (
     QueuedDelivery,
     delete_failed_delivery,
@@ -261,6 +262,7 @@ class MessageBus:
         dlq_dir: Path | None = None,
         dlq_alert_cooldown_sec: int = 3600,
         on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
+        notification_ledger: PermanentFailureNotificationLedger | None = None,
     ) -> None:
         self._max_queue_size = max_queue_size
         self._outbound: asyncio.PriorityQueue[tuple[int, int, OutboundMessage]] | None = None
@@ -277,7 +279,27 @@ class MessageBus:
         self._dlq_alert_cooldown_sec = dlq_alert_cooldown_sec
         self._last_dlq_alert_times: dict[str, float] = {}
         self.on_permanent_failure = on_permanent_failure
+        self._notification_ledger = notification_ledger
         self._presync_notified_delivery_ids: set[str] = set()
+
+    def _is_permanent_failure_already_notified(self, delivery_id: str) -> bool:
+        if delivery_id in self._presync_notified_delivery_ids:
+            return True
+        if self._dlq is not None and delivery_id in self._dlq._permanent_failure_notified_ids:
+            return True
+        if self._notification_ledger is not None and self._notification_ledger.was_notified(delivery_id):
+            self._presync_notified_delivery_ids.add(delivery_id)
+            if self._dlq is not None:
+                self._dlq.mark_permanent_failure_notified(delivery_id)
+            return True
+        return False
+
+    def _mark_permanent_failure_notified(self, delivery_id: str) -> None:
+        self._presync_notified_delivery_ids.add(delivery_id)
+        if self._dlq is not None:
+            self._dlq.mark_permanent_failure_notified(delivery_id)
+        elif self._notification_ledger is not None:
+            self._notification_ledger.mark_notified(delivery_id)
 
     async def _dlq_enqueue(
         self,
@@ -360,12 +382,11 @@ class MessageBus:
                 )
 
         if retries_exhausted and self.on_permanent_failure is not None:
+            if self._is_permanent_failure_already_notified(delivery.id):
+                return
             try:
                 await self.on_permanent_failure(delivery, error)
-                if self._dlq is not None:
-                    self._dlq.mark_permanent_failure_notified(delivery.id)
-                else:
-                    self._presync_notified_delivery_ids.add(delivery.id)
+                self._mark_permanent_failure_notified(delivery.id)
             except Exception as cb_e:
                 logger.error(
                     "Error in on_permanent_failure callback for channel '%s': %s",
@@ -551,6 +572,7 @@ class MessageBus:
                 enqueue_fn=self._dlq_enqueue,
                 base_dir=self._dlq_dir,
                 on_permanent_failure=self.on_permanent_failure,
+                notification_ledger=self._notification_ledger,
             )
             for delivery_id in self._presync_notified_delivery_ids:
                 self._dlq.mark_permanent_failure_notified(delivery_id)

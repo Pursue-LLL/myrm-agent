@@ -224,6 +224,12 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
             fallback: 'Allow this agent to send notifications to your connected channels.',
           })}
         </p>
+        <p className="text-xs text-muted-foreground/80 mt-1">
+          {t('notifyTargetsScopeHint', {
+            fallback:
+              'Agent push only: the agent may notify these targets during a task. System alerts (OAuth, budget, pairing) use Settings → Notification Deliveries.',
+          })}
+        </p>
       </div>
 
       <div className="space-y-2">

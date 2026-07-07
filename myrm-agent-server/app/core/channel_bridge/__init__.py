@@ -16,6 +16,7 @@ from app.channels.core.gateway import ChannelGateway
 from app.channels.reliability.inbound_journal import (
     SqliteInboundJournal,
 )
+from app.channels.reliability.delivery_notify_ledger import SqliteDeliveryNotifyLedger
 from app.config.settings import settings
 
 if TYPE_CHECKING:
@@ -28,6 +29,23 @@ dlq_dir.mkdir(parents=True, exist_ok=True)
 
 _journal_db_path = Path(settings.database.state_dir) / "inbound_journal.db"
 _inbound_journal = SqliteInboundJournal(db_path=_journal_db_path)
+_notify_ledger_db_path = Path(settings.database.state_dir) / "delivery_notify_ledger.db"
+_delivery_notify_ledger = SqliteDeliveryNotifyLedger(_notify_ledger_db_path)
+
+
+def _extract_suppress_im_from_delivery(delivery: object) -> bool:
+    from app.services.agent.outbound_notify.constants import (
+        METADATA_KEY_NOTIFY_SOURCE,
+        NOTIFY_SOURCE_AGENT,
+    )
+
+    content = getattr(delivery, "content", None)
+    if not isinstance(content, dict):
+        return False
+    metadata = content.get("metadata")
+    if not isinstance(metadata, dict):
+        return False
+    return metadata.get(METADATA_KEY_NOTIFY_SOURCE) == NOTIFY_SOURCE_AGENT
 
 
 async def handle_dead_letter(delivery: object, error_reason: str) -> None:
@@ -47,6 +65,8 @@ async def handle_dead_letter(delivery: object, error_reason: str) -> None:
             data={
                 "channel": channel,
                 "error_reason": error_reason,
+                "delivery_id": delivery_id,
+                "suppress_im_notification": _extract_suppress_im_from_delivery(delivery),
             },
         )
         get_event_bus().publish(event)
@@ -79,6 +99,7 @@ channel_gateway = ChannelGateway(
     dlq_dir=dlq_dir,
     on_permanent_failure=handle_dead_letter,
     inbound_journal=_inbound_journal,
+    notification_ledger=_delivery_notify_ledger,
 )
 
 
