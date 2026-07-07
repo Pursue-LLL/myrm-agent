@@ -131,6 +131,7 @@ myrm_agent_harness.agent.streaming.types
 myrm_agent_harness.agent.sub_agents.checkpoint.orphan_recovery
 myrm_agent_harness.agent.sub_agents.checkpoint.saver
 myrm_agent_harness.agent.sub_agents.config_loader
+myrm_agent_harness.agent.sub_agents.delegation_policy
 myrm_agent_harness.agent.sub_agents.manager
 myrm_agent_harness.agent.sub_agents.orchestrator
 myrm_agent_harness.agent.sub_agents.registry
@@ -138,6 +139,7 @@ myrm_agent_harness.agent.sub_agents.session_tree
 myrm_agent_harness.agent.sub_agents.types
 myrm_agent_harness.agent.tool_management
 myrm_agent_harness.agent.tool_management.action_space
+myrm_agent_harness.agent.tool_management.types
 myrm_agent_harness.agent.types
 myrm_agent_harness.agent.workspace_rules
 myrm_agent_harness.agent.workspace_rules.scanner
