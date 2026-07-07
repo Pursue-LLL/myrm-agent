@@ -14,7 +14,8 @@ export interface BackendHealthPayload {
   dev_mode?: BackendDevMode;
   listen_port?: number;
   listen_host?: string;
-  frontend_proxy_port?: number;
+  backend_port?: number;
+  webui_dev_port?: number | null;
   system_status?: BackendSystemStatusPayload;
 }
 

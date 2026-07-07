@@ -27,6 +27,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@shared': path.resolve(__dirname, '../shared'),
+      '#locales': path.resolve(__dirname, './locales'),
     },
   },
 });

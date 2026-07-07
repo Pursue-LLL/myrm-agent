@@ -52,7 +52,6 @@ vi.mock('@/lib/deploy-mode', () => ({
   isSandbox: () => false,
   isSandboxAuthBuild: () => false,
   shouldRedirectToLoginOnAuthFailure: () => false,
-  isDevModeOverrideEnabled: () => false,
   getLocalUserId: () => 'test-user',
   getApiBaseUrl: () => 'http://localhost:8000/api',
   getBackendBaseUrl: () => 'http://localhost:8000',

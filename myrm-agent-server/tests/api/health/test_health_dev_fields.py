@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="health")
-from app.server.runtime_dev_info import set_runtime_listen
+from app.server.runtime_dev_info import WEBUI_DEV_PORT, set_runtime_listen
 
 
 def test_health_includes_runtime_dev_fields() -> None:
@@ -19,13 +19,15 @@ def test_health_includes_runtime_dev_fields() -> None:
     assert body["status"] == "healthy"
     assert body["dev_mode"] == "split_dev"
     assert body["listen_port"] == 8080
-    assert body["frontend_proxy_port"] == 8080
+    assert body["backend_port"] == 8080
+    assert body["webui_dev_port"] == WEBUI_DEV_PORT
 
 
-def test_health_standalone_proxy_port() -> None:
+def test_health_standalone_webui_ports() -> None:
     set_runtime_listen(port=25808, host="127.0.0.1", dev_mode="standalone_webui")
     client = TestClient(app)
     body = client.get("/api/v1/health").json()
     assert body["dev_mode"] == "standalone_webui"
     assert body["listen_port"] == 25808
-    assert body["frontend_proxy_port"] == 25808
+    assert body["backend_port"] == 25808
+    assert body["webui_dev_port"] is None

@@ -63,7 +63,8 @@ async def health_check() -> dict[str, object]:
         "dev_mode": dev["dev_mode"],
         "listen_port": dev["listen_port"],
         "listen_host": dev["listen_host"],
-        "frontend_proxy_port": dev["frontend_proxy_port"],
+        "backend_port": dev["backend_port"],
+        "webui_dev_port": dev["webui_dev_port"],
         "features": {
             "websocket_enabled": True,
         },

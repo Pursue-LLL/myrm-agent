@@ -1,6 +1,5 @@
 /**
  * [INPUT]
- * - window.localStorage (POS: 客户端部署模式覆盖存储)
  * - process.env.NEXT_PUBLIC_DEPLOY_MODE / NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_BACKEND_BASE_URL (POS: 前端运行时配置)
  *
  * [OUTPUT]
@@ -34,16 +33,12 @@
  *
  * ## 检测优先级（从高到低）
  *
- * 1. **开发者模式覆盖**（localStorage: `dev-mode-storage`）
- *    - 用于本地开发测试不同模式
- *    - 优先级最高，便于调试
- *
- * 2. **环境变量**（`NEXT_PUBLIC_DEPLOY_MODE`）
+ * 1. **环境变量**（`NEXT_PUBLIC_DEPLOY_MODE`）
  *    - 构建时或运行时配置
  *    - 标准的 12-Factor App 配置方式
  *    - SaaS：`NEXT_PUBLIC_API_BASE_URL=https://<cp-host>/proxy/me/api/v1`
  *
- * 3. **默认值**：tauri（Tauri 桌面客户端的 WebView 环境）
+ * 2. **默认值**：tauri（Tauri 桌面客户端的 WebView 环境）
  */
 
 export type DeployMode = 'tauri' | 'local' | 'sandbox';
@@ -72,28 +67,6 @@ export function normalizeConfiguredBaseUrl(value: string | null | undefined, fal
   }
 
   return candidate.replace(/\/+$/, '');
-}
-
-/**
- * 获取开发者模式覆盖状态（仅客户端）
- * 使用函数而非直接导入，避免 SSR 时的 localStorage 访问问题
- */
-function getDevModeOverride(): { enabled: boolean; override: string } | null {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const stored = localStorage.getItem('dev-mode-storage');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Zustand v4+ persist 使用 {state: {...}, version: 0} 格式
-      // 兼容旧格式（直接存储 state）
-      return parsed.state || parsed || null;
-    }
-  } catch (error) {
-    console.error('Failed to read dev mode override:', error);
-  }
-
-  return null;
 }
 
 /**
@@ -133,7 +106,7 @@ export function isLocalMode(): boolean {
 /**
  * 获取当前部署模式
  *
- * 检测优先级：显式 sandbox 构建 > 开发者模式覆盖 > 环境变量 > 默认 tauri
+ * 检测优先级：显式 sandbox 构建 > 环境变量 > 默认 tauri
  */
 export function getDeployMode(): DeployMode {
   if (typeof window === 'undefined') {
@@ -143,11 +116,6 @@ export function getDeployMode(): DeployMode {
   const envMode = getDeployModeFromEnv();
   if (envMode === 'sandbox') {
     return 'sandbox';
-  }
-
-  const devMode = getDevModeOverride();
-  if (devMode?.enabled && isValidDeployMode(devMode.override)) {
-    return devMode.override;
   }
 
   if (envMode) return envMode;
@@ -164,7 +132,6 @@ export function isSandbox(): boolean {
 
 /**
  * SaaS/sandbox CP auth UI for this build (compile-time env only).
- * Dev-mode localStorage override must not hide OAuth on sandbox dev servers.
  */
 export function isSandboxAuthBuild(): boolean {
   return process.env.NEXT_PUBLIC_DEPLOY_MODE === 'sandbox';
@@ -173,14 +140,6 @@ export function isSandboxAuthBuild(): boolean {
 /** Redirect to /auth/login only for hosted sandbox builds (CP auth), not local/tauri. */
 export function shouldRedirectToLoginOnAuthFailure(): boolean {
   return isSandboxAuthBuild();
-}
-
-/**
- * 检查是否启用了开发者模式覆盖
- */
-export function isDevModeOverrideEnabled(): boolean {
-  const devMode = getDevModeOverride();
-  return devMode?.enabled === true && devMode.override !== 'none';
 }
 
 /**

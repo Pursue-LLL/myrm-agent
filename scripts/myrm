@@ -92,8 +92,19 @@ case "$COMMAND" in
         fi
         ;;
     status)
-        pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
-        [[ -n "$pids" ]] && echo "Running: $pids" || echo "Not running"
+        port="${PORT:-8080}"
+        health_url="http://127.0.0.1:${port}/api/v1/health"
+        if health_json="$(curl -sf "${health_url}" 2>/dev/null)"; then
+            if command -v python3 &>/dev/null; then
+                echo "${health_json}" | python3 -m json.tool
+            else
+                echo "${health_json}"
+            fi
+        else
+            echo -e "${RED}Backend not reachable at ${health_url}${NC}"
+            pids=$(ps aux | grep -E "$MYRM_PROCESS_PATTERN" | awk '{print $2}')
+            [[ -n "$pids" ]] && echo "Stale process PIDs: $pids" || echo "No backend process found"
+        fi
         ;;
     update)
         apply_cn_mirrors_if_needed

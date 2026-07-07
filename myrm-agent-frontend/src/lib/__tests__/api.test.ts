@@ -260,4 +260,15 @@ describe('apiRequest local backend gate', () => {
       businessCode: 'BACKEND_UNREACHABLE',
     });
   });
+
+  it('fetchWithTimeout maps Failed to fetch to BACKEND_UNREACHABLE in local mode', async () => {
+    ensureLocalBackendReady.mockResolvedValueOnce(true);
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const { fetchWithTimeout } = await import('../api');
+    await expect(fetchWithTimeout('/chats', {}, 0)).rejects.toMatchObject({
+      businessCode: 'BACKEND_UNREACHABLE',
+    });
+    expect(resolveBackendUnreachableMessage).toHaveBeenCalled();
+  });
 });

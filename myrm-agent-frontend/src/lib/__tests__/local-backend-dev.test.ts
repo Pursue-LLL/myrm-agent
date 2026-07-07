@@ -24,7 +24,8 @@ describe('formatLocalBackendSetupHint', () => {
         dev_mode: 'split_dev',
         listen_host: '127.0.0.1',
         listen_port: 8080,
-        frontend_proxy_port: 3000,
+        backend_port: 8080,
+        webui_dev_port: 3000,
       }),
     ).toBe('hintSplitDev');
   });

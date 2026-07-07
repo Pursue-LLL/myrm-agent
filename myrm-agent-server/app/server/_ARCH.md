@@ -14,4 +14,4 @@ FastAPI 服务器配置层。管理应用 lifespan（启动三阶段 + 优雅关
 | `shutdown.py` | 核心 | 安全关闭辅助函数集（各组件的 safe_stop 封装） | ✅ |
 | `exceptions.py` | 辅助 | 全局异常处理器（未捕获异常→HTTP 响应映射） | — |
 | `middlewares.py` | 核心 | FastAPI 中间件注册：TextSanitizer → Auth → Cache → MaxBodySize → CORS → PublicIngress | ✅ |
-| `runtime_dev_info.py` | 辅助 | 运行时监听端口与 dev 模式标记（`run.py` 在 uvicorn 启动前写入） | ✅ |
+| `runtime_dev_info.py` | 辅助 | 运行时监听端口与 dev 模式标记；health 暴露 `backend_port` + `webui_dev_port`（split_dev 固定 3000） | ✅ |

@@ -271,6 +271,9 @@ export const fetchWithTimeout = async (
       );
     }
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
+      if (typeof window !== 'undefined' && isLocalMode()) {
+        throw createBackendUnreachableError(await resolveBackendUnreachableMessage());
+      }
       throw new ApiError(
         '无法连接到服务器，请检查服务是否启动',
         50003,

@@ -9,12 +9,15 @@ DevMode = Literal["split_dev", "standalone_webui"]
 _listen_port: int = 8080
 _dev_mode: DevMode = "split_dev"
 
+WEBUI_DEV_PORT = 3000
+
 
 class RuntimeDevInfo(TypedDict):
     dev_mode: DevMode
     listen_port: int
     listen_host: str
-    frontend_proxy_port: int
+    backend_port: int
+    webui_dev_port: int | None
 
 
 def set_runtime_listen(*, port: int, host: str, dev_mode: DevMode) -> None:
@@ -31,10 +34,11 @@ def get_runtime_dev_info() -> RuntimeDevInfo:
     import os
 
     host = os.getenv("HOST", "127.0.0.1")
-    proxy_port = 25808 if _dev_mode == "standalone_webui" else _listen_port
+    webui_dev_port = WEBUI_DEV_PORT if _dev_mode == "split_dev" else None
     return {
         "dev_mode": _dev_mode,
         "listen_port": _listen_port,
         "listen_host": host,
-        "frontend_proxy_port": proxy_port,
+        "backend_port": _listen_port,
+        "webui_dev_port": webui_dev_port,
     }
