@@ -27,7 +27,10 @@ _require_harness_editable_for_monorepo() {
     return 0
   fi
 
-  if ! read -r mode pkg_dir < <(
+  if ! {
+    read -r mode
+    read -r pkg_dir
+  } < <(
     cd "${server_dir}" && "${py}" -c "
 import pathlib
 import myrm_agent_harness
