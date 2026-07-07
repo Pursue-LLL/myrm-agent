@@ -8014,6 +8014,12 @@
       "slotWeekdays": "Wiederholung",
       "slotMessage": "Erinnerungsnachricht",
       "slotTopic": "Thema",
+      "slotCompetitors": "Wettbewerber",
+      "slotHabits": "Gewohnheiten",
+      "slotBrand": "Markenname",
+      "slotPlatforms": "Plattformen",
+      "slotKeywords": "Schlüsselwörter",
+      "slotSubject": "Lernthema",
       "slotTextPlaceholder": "Inhalt eingeben...",
       "enum": {
         "everyday": "Täglich",

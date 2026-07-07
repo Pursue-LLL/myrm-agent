@@ -50,6 +50,21 @@ const ARTIFACTS_CENTER_REQUIRED_STRING_KEYS = [
   'download',
 ];
 
+/** Extended blueprint slot labels used by `BlueprintInlineFill` (`t(slot.label)`). */
+const CRON_BLUEPRINT_SLOT_KEYS = [
+  'slotTime',
+  'slotDay',
+  'slotWeekdays',
+  'slotMessage',
+  'slotTopic',
+  'slotCompetitors',
+  'slotHabits',
+  'slotBrand',
+  'slotPlatforms',
+  'slotKeywords',
+  'slotSubject',
+];
+
 let hasErrors = false;
 
 console.log('🔍 开始验证翻译完整性...\n');
@@ -240,6 +255,28 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   } else {
     console.log(`  ✅ ${lang}.json artifacts ArtifactsCenter keys 完整`);
+  }
+}
+
+// 验证4: cron.blueprint 扩展槽位标签（全语言，防 BlueprintInlineFill MISSING_MESSAGE）
+console.log('\n📋 验证 cron.blueprint 槽位标签（全语言）...');
+for (const lang of LANGUAGES) {
+  const data = translations[lang];
+  if (!data) continue;
+
+  const blueprint = data.cron?.blueprint ?? {};
+  const missing = [];
+  for (const key of CRON_BLUEPRINT_SLOT_KEYS) {
+    const v = blueprint[key];
+    if (typeof v !== 'string' || v.length === 0) {
+      missing.push(key);
+    }
+  }
+  if (missing.length > 0) {
+    console.error(`  ❌ ${lang}.json cron.blueprint 缺少: ${missing.join(', ')}`);
+    hasErrors = true;
+  } else {
+    console.log(`  ✅ ${lang}.json cron.blueprint 槽位标签完整`);
   }
 }
 

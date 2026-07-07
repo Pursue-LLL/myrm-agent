@@ -8014,6 +8014,12 @@
       "slotWeekdays": "繰り返し",
       "slotMessage": "リマインダー内容",
       "slotTopic": "トピック",
+      "slotCompetitors": "競合他社",
+      "slotHabits": "習慣項目",
+      "slotBrand": "ブランド名",
+      "slotPlatforms": "プラットフォーム",
+      "slotKeywords": "キーワード",
+      "slotSubject": "学習テーマ",
       "slotTextPlaceholder": "内容を入力...",
       "enum": {
         "everyday": "毎日",

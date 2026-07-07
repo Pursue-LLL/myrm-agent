@@ -8014,6 +8014,12 @@
       "slotWeekdays": "반복",
       "slotMessage": "알림 메시지",
       "slotTopic": "주제",
+      "slotCompetitors": "경쟁사",
+      "slotHabits": "습관 항목",
+      "slotBrand": "브랜드명",
+      "slotPlatforms": "플랫폼",
+      "slotKeywords": "키워드",
+      "slotSubject": "학습 주제",
       "slotTextPlaceholder": "내용을 입력하세요...",
       "enum": {
         "everyday": "매일",
