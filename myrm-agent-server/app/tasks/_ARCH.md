@@ -13,8 +13,8 @@
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件 | ✅ |
 | `metrics.py` | 辅助 | 任务指标采集 | — |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |
-| `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；`api_key` 经 `task_payload_crypto` 加密存于 `tasks.db` | ✅ |
-| `task_payload_crypto.py` | 核心 | 入队后 seal `api_key` → `api_key_enc`；worker resolver 解密 | ✅ |
+| `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
+| `task_payload_crypto.py` | 核心 | persist 前 seal `api_key` / `gateway_config.auth_token`；worker resolver 仅 open 加密字段 | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块

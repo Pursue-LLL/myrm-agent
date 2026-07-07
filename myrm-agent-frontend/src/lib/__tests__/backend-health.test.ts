@@ -173,4 +173,20 @@ describe('ensureLocalBackendReady', () => {
     await expect(ensureLocalBackendReady()).resolves.toBe(false);
     expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(1);
   });
+
+  it('re-probes when previous gate result was false and backend recovers', async () => {
+    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    const { ensureLocalBackendReady, resetLocalBackendReadyGate } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    await expect(ensureLocalBackendReady()).resolves.toBe(true);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
+  });
 });

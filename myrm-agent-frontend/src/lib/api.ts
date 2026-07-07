@@ -6,7 +6,7 @@
  * - API_BASE_URL: 规范化的 API 基础地址。
  * - BACKEND_BASE_URL: 规范化的后端基础地址。
  * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
- * - fetchWithTimeout / apiRequest: 前端统一请求入口（fetchWithTimeout 注入 mobile pair header；401/403 强登出拦截）
+ * - fetchWithTimeout / apiRequest: 前端统一请求入口（local 模式 gate + `BACKEND_UNREACHABLE`；fetchWithTimeout 注入 mobile pair header；401/403 强登出拦截）
  *
  * [POS]
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
@@ -14,6 +14,10 @@
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
+import {
+  BACKEND_UNREACHABLE_CODE,
+  resolveBackendUnreachableMessage,
+} from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 
@@ -268,6 +272,33 @@ export const fetchWithTimeout = async (
   }
 };
 
+function createBackendUnreachableError(message: string): ApiError {
+  return new ApiError(message, 503, [], undefined, BACKEND_UNREACHABLE_CODE, 'high', true, 5000);
+}
+
+function isNextProxyPlainTextError(status: number, errorText: string, parsedJson: boolean): boolean {
+  if (status < 500 || parsedJson) {
+    return false;
+  }
+  const trimmed = errorText.trim();
+  return (
+    trimmed === 'Internal Server Error' ||
+    trimmed.startsWith('Internal Server Error') ||
+    trimmed === 'Bad Gateway' ||
+    trimmed === 'Gateway Timeout'
+  );
+}
+
+async function assertLocalBackendReadyForRequest(): Promise<void> {
+  if (typeof window === 'undefined' || !isLocalMode()) {
+    return;
+  }
+  const ready = await ensureLocalBackendReady();
+  if (!ready) {
+    throw createBackendUnreachableError(await resolveBackendUnreachableMessage());
+  }
+}
+
 /**
  * 获取认证 token
  */
@@ -291,9 +322,7 @@ export const apiRequest = async <T = unknown>(
   lastRequestContext = { endpoint, options: fetchOptions };
 
   try {
-    if (typeof window !== 'undefined' && isLocalMode()) {
-      await ensureLocalBackendReady();
-    }
+    await assertLocalBackendReadyForRequest();
 
     // 获取认证 token
     const token = getAuthToken();
@@ -320,10 +349,12 @@ export const apiRequest = async <T = unknown>(
       let traceId;
       let businessCode;
       let detailPayload: Record<string, unknown> | undefined;
+      let parsedErrorJson = false;
 
       try {
         if (errorText) {
           const errorData = JSON.parse(errorText);
+          parsedErrorJson = true;
           const detail = errorData.detail;
           if (detail && typeof detail === 'object') {
             detailPayload = detail as Record<string, unknown>;
@@ -344,6 +375,15 @@ export const apiRequest = async <T = unknown>(
         }
       } catch {
         // Ignore parse error, use raw text
+      }
+
+      if (
+        typeof window !== 'undefined' &&
+        isLocalMode() &&
+        isNextProxyPlainTextError(response.status, errorText, parsedErrorJson)
+      ) {
+        businessCode = BACKEND_UNREACHABLE_CODE;
+        errorMessage = await resolveBackendUnreachableMessage();
       }
 
       // 拦截 Vault 锁定错误 (423)

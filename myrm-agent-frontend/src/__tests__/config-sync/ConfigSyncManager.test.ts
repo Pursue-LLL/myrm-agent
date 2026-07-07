@@ -89,6 +89,41 @@ describe('ConfigSyncManager', () => {
       // 只应该调用一次 fetch
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
+
+    it('后端不可达时应标记 offline 且不请求配置', async () => {
+      const { ensureLocalBackendReady } = await import('@/lib/backend-health');
+      vi.mocked(ensureLocalBackendReady).mockResolvedValueOnce(false);
+
+      const result = await manager.initialize();
+
+      expect(manager.status).toBe('offline');
+      expect(manager.isInitialized).toBe(true);
+      expect(result.size).toBe(0);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('sync 收到 Next 代理 500 时应进入 offline 而非 error', async () => {
+      vi.useFakeTimers();
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ configs: {} }),
+      });
+      await manager.initialize();
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+      });
+
+      manager.set('personalSettings', createPersonalSettings());
+      await vi.advanceTimersByTimeAsync(1100);
+
+      expect(manager.status).toBe('offline');
+
+      vi.useRealTimers();
+    });
   });
 
   describe('get/set 操作', () => {

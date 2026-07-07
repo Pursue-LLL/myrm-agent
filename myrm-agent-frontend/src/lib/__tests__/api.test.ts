@@ -1,10 +1,25 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
+import { apiRequest, fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
+
+const ensureLocalBackendReady = vi.fn(() => Promise.resolve(true));
+const resolveBackendUnreachableMessage = vi.fn(() =>
+  Promise.resolve('Backend not reachable. Run: myrm dev or myrm start.'),
+);
 
 vi.mock('@/lib/deploy-mode', () => ({
   getApiBaseUrl: () => 'http://127.0.0.1:8080/api/v1',
   getBackendBaseUrl: () => 'http://127.0.0.1:8080',
   shouldRedirectToLoginOnAuthFailure: () => true,
+  isLocalMode: vi.fn(() => true),
+}));
+
+vi.mock('@/lib/backend-health', () => ({
+  ensureLocalBackendReady: (...args: unknown[]) => ensureLocalBackendReady(...args),
+}));
+
+vi.mock('@/lib/local-backend-dev', () => ({
+  BACKEND_UNREACHABLE_CODE: 'BACKEND_UNREACHABLE',
+  resolveBackendUnreachableMessage: (...args: unknown[]) => resolveBackendUnreachableMessage(...args),
 }));
 
 describe('getApiUrl', () => {
@@ -148,5 +163,78 @@ describe('fetchWithTimeout Global Auth Interceptor', () => {
 
     expect(localStorage.getItem('auth_token')).toBeNull();
     expect(window.location.href).toBe('');
+  });
+});
+
+describe('apiRequest local backend gate', () => {
+  const originalWindow = globalThis.window;
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    ensureLocalBackendReady.mockReset();
+    ensureLocalBackendReady.mockResolvedValue(true);
+    resolveBackendUnreachableMessage.mockClear();
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { location: { href: '', pathname: '/test', search: '', hash: '' } } as Window &
+        typeof globalThis,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: vi.fn() as typeof fetch,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+    Object.defineProperty(globalThis, 'fetch', {
+      configurable: true,
+      value: originalFetch,
+    });
+    vi.restoreAllMocks();
+  });
+
+  it('throws BACKEND_UNREACHABLE when local gate is not ready', async () => {
+    ensureLocalBackendReady.mockResolvedValueOnce(false);
+
+    await expect(apiRequest('/projects', { silent: true })).rejects.toMatchObject({
+      businessCode: 'BACKEND_UNREACHABLE',
+      code: 503,
+      message: 'Backend not reachable. Run: myrm dev or myrm start.',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('maps Next proxy plain-text 500 to BACKEND_UNREACHABLE', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('Internal Server Error'),
+      headers: new Headers(),
+    } as Response);
+
+    await expect(apiRequest('/projects', { silent: true })).rejects.toMatchObject({
+      businessCode: 'BACKEND_UNREACHABLE',
+      message: 'Backend not reachable. Run: myrm dev or myrm start.',
+    });
+    expect(resolveBackendUnreachableMessage).toHaveBeenCalled();
+  });
+
+  it('parses valid JSON 500 without remapping to BACKEND_UNREACHABLE', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Server exploded' })),
+      headers: new Headers({ 'content-type': 'application/json' }),
+    } as Response);
+
+    await expect(apiRequest('/projects', { silent: true })).rejects.toMatchObject({
+      message: 'Server exploded',
+    });
+    expect(resolveBackendUnreachableMessage).not.toHaveBeenCalled();
   });
 });

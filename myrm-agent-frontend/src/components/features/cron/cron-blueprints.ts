@@ -57,10 +57,19 @@ const BLUEPRINT_SLOT_LABEL_KEYS: Record<string, string> = {
   weekdays: 'blueprint.slotWeekdays',
   message: 'blueprint.slotMessage',
   topic: 'blueprint.slotTopic',
+  competitors: 'blueprint.slotCompetitors',
+  habits: 'blueprint.slotHabits',
+  brand: 'blueprint.slotBrand',
+  platforms: 'blueprint.slotPlatforms',
+  keywords: 'blueprint.slotKeywords',
+  subject: 'blueprint.slotSubject',
 };
 
 export function resolveBlueprintSlotLabel(slotName: string): string {
-  return BLUEPRINT_SLOT_LABEL_KEYS[slotName] ?? `blueprint.slot${blueprintSnakeToCamel(slotName).charAt(0).toUpperCase()}${blueprintSnakeToCamel(slotName).slice(1)}`;
+  const mapped = BLUEPRINT_SLOT_LABEL_KEYS[slotName];
+  if (mapped) return mapped;
+  const camel = blueprintSnakeToCamel(slotName);
+  return `blueprint.slot${camel.charAt(0).toUpperCase()}${camel.slice(1)}`;
 }
 
 export function resolveBlueprintTitleKey(blueprintId: string): string {

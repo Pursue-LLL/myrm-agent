@@ -61,7 +61,11 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
         api_key="sk-rest-integration",
         fallback_models=["dall-e-3"],
     )
-    async_engine = AsyncImageGenerationTools(config, store)
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
     raw = await async_engine.generate_image(
         "a blue sphere",
         size="512x512",
@@ -71,10 +75,6 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
     )
     task_id = json.loads(raw)["task_id"]
 
-    task = await store.get_task(task_id)
-    assert task is not None
-    sealed_payload = seal_task_payload_secrets(dict(task.payload))
-    await store.update_task(task_id, payload=sealed_payload)
     task = await store.get_task(task_id)
     assert task is not None
     assert "api_key" not in task.payload

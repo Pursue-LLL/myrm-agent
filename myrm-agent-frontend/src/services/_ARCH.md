@@ -28,6 +28,7 @@
 | `marketplace.ts` | **仅 SaaS/sandbox** Org Marketplace CRUD：browse/install/publish/force-push |
 | `enterprise-org.ts` | **仅 SaaS/sandbox** Enterprise Org 管理：create/members/offboard/transfer |
 | `*-api.ts` | 零散 REST 封装 |
+| `config/` | `ConfigSyncManager` + 适配器（local `TauriConfigAdapter` 处理 Next 代理 5xx 与离线队列；sandbox `SandboxConfigAdapter`） |
 
 ## 依赖
 

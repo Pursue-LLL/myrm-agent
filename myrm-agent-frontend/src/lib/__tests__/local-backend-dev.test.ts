@@ -1,9 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   formatLocalBackendSetupHint,
   isBootSessionCompleted,
+  resolveBackendUnreachableMessage,
 } from '@/lib/local-backend-dev';
+
+vi.mock('@/lib/backend-health', () => ({
+  fetchBackendHealth: vi.fn(() => Promise.resolve(null)),
+}));
 
 describe('formatLocalBackendSetupHint', () => {
   const t = (key: string) => key;
@@ -22,6 +27,17 @@ describe('formatLocalBackendSetupHint', () => {
         frontend_proxy_port: 3000,
       }),
     ).toBe('hintSplitDev');
+  });
+});
+
+describe('resolveBackendUnreachableMessage', () => {
+  it('returns English unreachable hint when health is null', async () => {
+    Object.defineProperty(globalThis.navigator, 'language', {
+      configurable: true,
+      value: 'en-US',
+    });
+
+    await expect(resolveBackendUnreachableMessage()).resolves.toContain('Backend not reachable');
   });
 });
 

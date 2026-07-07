@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.tools import BaseTool
 
+from app.tasks.task_payload_crypto import seal_task_payload_secrets
+
 from app.ai_agents.media_tools.image_agent_tool import (
     _validate_image_fetch_url,
     create_image_generation_tool,
@@ -92,9 +94,6 @@ async def test_image_tool_generate_enqueues_when_async_config() -> None:
         "app.lifecycle.task_worker.get_task_store",
         return_value=mock_store,
     ), patch(
-        "app.tasks.task_payload_crypto.seal_image_task_payload_after_enqueue",
-        new_callable=AsyncMock,
-    ), patch(
         "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
     ) as async_cls:
         async_engine = MagicMock()
@@ -125,6 +124,7 @@ async def test_image_tool_generate_enqueues_when_async_config() -> None:
         async_config,
         mock_store,
         ssrf_protection=True,
+        payload_postprocessor=seal_task_payload_secrets,
     )
 
 

@@ -147,20 +147,38 @@ export async function waitForBackendReady(options: WaitForBackendReadyOptions = 
 }
 
 let localBackendReadyGate: Promise<boolean> | null = null;
+let cachedLocalBackendReady = true;
+
+function startLocalBackendReadyGate(): Promise<boolean> {
+  const gate = isBootSessionCompleted() ? checkBackendReadyOnce() : waitForBackendReady();
+  return gate.then((ready) => {
+    cachedLocalBackendReady = ready;
+    return ready;
+  });
+}
 
 /**
  * Single-flight gate: local/Tauri clients await backend health once per page load.
  * After Boot was shown this session, fail fast with a single probe (align with Banner).
+ * Re-probes when the last result was false so a mid-session backend start can recover.
  */
 export function ensureLocalBackendReady(): Promise<boolean> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return Promise.resolve(true);
   }
 
+  if (localBackendReadyGate && !cachedLocalBackendReady) {
+    return checkBackendReadyOnce().then((ready) => {
+      cachedLocalBackendReady = ready;
+      if (ready) {
+        localBackendReadyGate = Promise.resolve(true);
+      }
+      return ready;
+    });
+  }
+
   if (!localBackendReadyGate) {
-    localBackendReadyGate = isBootSessionCompleted()
-      ? checkBackendReadyOnce()
-      : waitForBackendReady();
+    localBackendReadyGate = startLocalBackendReadyGate();
   }
 
   return localBackendReadyGate;
@@ -169,4 +187,5 @@ export function ensureLocalBackendReady(): Promise<boolean> {
 /** @internal test helper */
 export function resetLocalBackendReadyGate(): void {
   localBackendReadyGate = null;
+  cachedLocalBackendReady = true;
 }

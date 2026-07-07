@@ -8899,6 +8899,12 @@
       "slotWeekdays": "重复",
       "slotMessage": "提醒内容",
       "slotTopic": "主题",
+      "slotCompetitors": "竞品列表",
+      "slotHabits": "习惯项",
+      "slotBrand": "品牌名",
+      "slotPlatforms": "平台",
+      "slotKeywords": "关键词",
+      "slotSubject": "学习主题",
       "slotTextPlaceholder": "输入内容...",
       "enum": {
         "everyday": "每天",

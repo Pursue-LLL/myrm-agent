@@ -118,6 +118,7 @@ def create_image_generation_tool(
             )
         try:
             from app.lifecycle.task_worker import get_task_store
+            from app.tasks.task_payload_crypto import seal_task_payload_secrets
             from myrm_agent_harness.toolkits.llms.image.async_image_engine import (
                 AsyncImageGenerationTools,
             )
@@ -126,8 +127,9 @@ def create_image_generation_tool(
                 async_config,
                 get_task_store(),
                 ssrf_protection=not allow_private_networks,
+                payload_postprocessor=seal_task_payload_secrets,
             )
-            raw = await async_engine.generate_image(
+            return await async_engine.generate_image(
                 prompt,
                 size=size,
                 quality=quality,
@@ -138,10 +140,6 @@ def create_image_generation_tool(
                 agent_id=agent_id,
                 chat_id=chat_id,
             )
-            from app.tasks.task_payload_crypto import seal_image_task_payload_after_enqueue
-
-            await seal_image_task_payload_after_enqueue(get_task_store(), raw)
-            return raw
         except RuntimeError as exc:
             logger.warning("Async image enqueue unavailable, using sync generate: %s", exc)
             return await engine.generate_image(

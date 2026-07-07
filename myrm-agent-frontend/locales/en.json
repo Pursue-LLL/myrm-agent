@@ -8899,6 +8899,12 @@
       "slotWeekdays": "Repeat",
       "slotMessage": "Reminder Message",
       "slotTopic": "Topic",
+      "slotCompetitors": "Competitors",
+      "slotHabits": "Habits",
+      "slotBrand": "Brand",
+      "slotPlatforms": "Platforms",
+      "slotKeywords": "Keywords",
+      "slotSubject": "Subject",
       "slotTextPlaceholder": "Enter your content...",
       "enum": {
         "everyday": "Every day",

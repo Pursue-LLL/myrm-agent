@@ -10,7 +10,7 @@ import pytest
 
 from app.tasks.executors.image_executor import ImageTaskExecutor
 from app.tasks.image_config_resolver import resolve_image_generation_config
-from app.tasks.task_payload_crypto import seal_task_payload_secrets
+from app.tasks.task_payload_crypto import API_KEY_ENC_FIELD, seal_task_payload_secrets
 from myrm_agent_harness.toolkits.llms.image.async_image_engine import AsyncImageGenerationTools
 from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
 from myrm_agent_harness.toolkits.tasks import SQLiteTaskStore, TaskStatus
@@ -42,7 +42,11 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
         api_key="sk-integration-test",
         fallback_models=["dall-e-3"],
     )
-    async_engine = AsyncImageGenerationTools(config, store)
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
 
     raw = await async_engine.generate_image(
         "a red cube",
@@ -57,15 +61,10 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     task = await store.get_task(task_id)
     assert task is not None
     assert task.payload["model"] == "flux-pro"
-    assert task.payload["api_key"] == "sk-integration-test"
+    assert "api_key" not in task.payload
+    assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
     assert task.payload["chat_id"] == "chat-int"
     assert task.payload["agent_id"] == "agent-int"
-
-    sealed_payload = seal_task_payload_secrets(dict(task.payload))
-    await store.update_task(task_id, payload=sealed_payload)
-    task = await store.get_task(task_id)
-    assert task is not None
-    assert "api_key" not in task.payload
 
     mock_result = MagicMock()
     mock_result.images = [
@@ -101,3 +100,42 @@ async def test_async_image_enqueue_to_executor_uses_agent_config_snapshot(tmp_pa
     updated = await store.get_task(task_id)
     assert updated is not None
     assert updated.status == TaskStatus.SUCCEEDED
+
+
+@pytest.mark.asyncio
+async def test_async_image_gateway_only_enqueue_persists_sealed_auth_token(
+    tmp_path: object,
+) -> None:
+    from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
+
+    db_path = tmp_path / "tasks-gateway.db"  # type: ignore[operator]
+    store = SQLiteTaskStore(db_path=str(db_path))
+    await store.initialize()
+
+    config = ImageGenerationConfig(
+        model="flux-pro",
+        gateway_config=ToolGatewayConfig(
+            use_gateway=True,
+            gateway_url="https://gateway.example/tool-relay",
+            auth_token="vk-integration-gateway",
+        ),
+    )
+    async_engine = AsyncImageGenerationTools(
+        config,
+        store,
+        payload_postprocessor=seal_task_payload_secrets,
+    )
+
+    raw = await async_engine.generate_image("a skyline", user_id="user-gw")
+    task_id = json.loads(raw)["task_id"]
+
+    task = await store.get_task(task_id)
+    assert task is not None
+    gateway = task.payload.get("gateway_config")
+    assert isinstance(gateway, dict)
+    assert "auth_token" not in gateway
+    assert isinstance(gateway.get("auth_token_enc"), str)
+
+    resolved = resolve_image_generation_config(task)
+    assert resolved.gateway_config is not None
+    assert resolved.gateway_config.auth_token == "vk-integration-gateway"

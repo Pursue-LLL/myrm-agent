@@ -112,7 +112,13 @@ class ConfigSyncManager {
 
     try {
       if (isLocalMode()) {
-        await ensureLocalBackendReady();
+        const ready = await ensureLocalBackendReady();
+        if (!ready) {
+          this._status = 'offline';
+          this._isInitialized = true;
+          this.registerOnlineHandler();
+          return this.cache;
+        }
       }
 
       const offlineChanges = this.loadOfflineQueue();
