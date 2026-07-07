@@ -189,4 +189,25 @@ describe('ensureLocalBackendReady', () => {
     await expect(ensureLocalBackendReady()).resolves.toBe(true);
     expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
   });
+
+  it('re-probes after markLocalBackendUnreachable when gate had been healthy', async () => {
+    const { isBootSessionCompleted } = await import('@/lib/local-backend-dev');
+    vi.mocked(isBootSessionCompleted).mockReturnValue(true);
+    vi.mocked(isTauriEnvironment).mockReturnValue(true);
+    vi.mocked(tauriBackend.checkHealth)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    const {
+      ensureLocalBackendReady,
+      markLocalBackendUnreachable,
+      resetLocalBackendReadyGate,
+    } = await import('@/lib/backend-health');
+    resetLocalBackendReadyGate();
+
+    await expect(ensureLocalBackendReady()).resolves.toBe(true);
+    markLocalBackendUnreachable();
+    await expect(ensureLocalBackendReady()).resolves.toBe(false);
+    expect(tauriBackend.checkHealth).toHaveBeenCalledTimes(2);
+  });
 });

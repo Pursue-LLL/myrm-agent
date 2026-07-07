@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { apiRequest, fetchWithTimeout, getApiUrl, getStorageUrl } from '../api';
 
 const ensureLocalBackendReady = vi.fn(() => Promise.resolve(true));
+const markLocalBackendUnreachable = vi.fn();
 const resolveBackendUnreachableMessage = vi.fn(() =>
   Promise.resolve('Backend not reachable. Run: myrm dev or myrm start.'),
 );
@@ -15,6 +16,7 @@ vi.mock('@/lib/deploy-mode', () => ({
 
 vi.mock('@/lib/backend-health', () => ({
   ensureLocalBackendReady: (...args: unknown[]) => ensureLocalBackendReady(...args),
+  markLocalBackendUnreachable: (...args: unknown[]) => markLocalBackendUnreachable(...args),
 }));
 
 vi.mock('@/lib/local-backend-dev', () => ({
@@ -174,6 +176,7 @@ describe('apiRequest local backend gate', () => {
     ensureLocalBackendReady.mockReset();
     ensureLocalBackendReady.mockResolvedValue(true);
     resolveBackendUnreachableMessage.mockClear();
+    markLocalBackendUnreachable.mockClear();
 
     Object.defineProperty(globalThis, 'window', {
       configurable: true,
@@ -270,5 +273,6 @@ describe('apiRequest local backend gate', () => {
       businessCode: 'BACKEND_UNREACHABLE',
     });
     expect(resolveBackendUnreachableMessage).toHaveBeenCalled();
+    expect(markLocalBackendUnreachable).toHaveBeenCalledTimes(1);
   });
 });

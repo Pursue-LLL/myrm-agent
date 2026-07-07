@@ -12,7 +12,7 @@
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
-import { ensureLocalBackendReady } from '@/lib/backend-health';
+import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
 import { getApiBaseUrl, getBackendBaseUrl, isLocalMode, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import {
   BACKEND_UNREACHABLE_CODE,
@@ -249,7 +249,7 @@ export const fetchWithTimeout = async (
     ) {
       const errorText = await response.clone().text();
       if (isNextProxyPlainTextError(response.status, errorText, false)) {
-        throw createBackendUnreachableError(await resolveBackendUnreachableMessage());
+        await throwLocalBackendUnreachable(await resolveBackendUnreachableMessage());
       }
     }
 
@@ -272,7 +272,7 @@ export const fetchWithTimeout = async (
     }
     if (error instanceof Error && error.message.includes('Failed to fetch')) {
       if (typeof window !== 'undefined' && isLocalMode()) {
-        throw createBackendUnreachableError(await resolveBackendUnreachableMessage());
+        await throwLocalBackendUnreachable(await resolveBackendUnreachableMessage());
       }
       throw new ApiError(
         '无法连接到服务器，请检查服务是否启动',
@@ -291,6 +291,11 @@ export const fetchWithTimeout = async (
 
 function createBackendUnreachableError(message: string): ApiError {
   return new ApiError(message, 503, [], undefined, BACKEND_UNREACHABLE_CODE, 'high', true, 5000);
+}
+
+async function throwLocalBackendUnreachable(message: string): Promise<never> {
+  markLocalBackendUnreachable();
+  throw createBackendUnreachableError(message);
 }
 
 function isNextProxyPlainTextError(status: number, errorText: string, parsedJson: boolean): boolean {
@@ -399,6 +404,7 @@ export const apiRequest = async <T = unknown>(
         isLocalMode() &&
         isNextProxyPlainTextError(response.status, errorText, parsedErrorJson)
       ) {
+        markLocalBackendUnreachable();
         businessCode = BACKEND_UNREACHABLE_CODE;
         errorMessage = await resolveBackendUnreachableMessage();
       }

@@ -12,7 +12,7 @@
 | `mobileRemote.ts` | Pair token 存储/刷新；Hub URL 构建；`withMobilePairHeaders`（Hub list + scoped 控制） | — |
 | `batch-optimization.ts` | 批量优化页类型、状态过滤、进度/统计聚合与格式化（无 HTTP；列表/创建在 page 直调 `apiRequest`） | — |
 | `deploy-mode.ts` / `auth-*.ts` / `cp-*.ts` | 部署模式、CP OAuth、沙箱 URL、Billing API 与 `BillingPlanKey` SSOT | — |
-| `backend-health.ts` | 后端健康轮询、`fetchBackendHealth`（含 `system_status`）、`ensureLocalBackendReady` 单飞 gate（Boot 复访 fail-fast、不可达后 fast re-probe）、`checkBackendReadyOnce` | — |
+| `backend-health.ts` | 后端健康轮询、`fetchBackendHealth`（含 `system_status`）、`ensureLocalBackendReady` 单飞 gate（Boot 复访 fail-fast、不可达后 fast re-probe、`markLocalBackendUnreachable` 运输失败后失效缓存）、`checkBackendReadyOnce` | — |
 | `local-backend-dev.ts` | Boot session SSOT + health-aware local setup hint（Boot/Banner/Settings）；`resolveBackendUnreachableMessage`（api 层从 `#locales` en/zh 读取 `common.configLoadError`） | — |
 | `locale-personal-sync.ts` | 登录后将 cookie locale 写入 `personalSettings`（对齐 Agent 消息 locale） | — |
 | `utils/localeUtils.ts` | `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`、`urlWithoutLocaleParam`（middleware 营销接力） | — |

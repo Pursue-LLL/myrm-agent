@@ -162,6 +162,7 @@ function startLocalBackendReadyGate(): Promise<boolean> {
  * Single-flight gate: local/Tauri clients await backend health once per page load.
  * After Boot was shown this session, fail fast with a single probe (align with Banner).
  * Re-probes when the last result was false so a mid-session backend start can recover.
+ * Call `markLocalBackendUnreachable()` after transport failures so a prior healthy gate re-probes.
  */
 export function ensureLocalBackendReady(): Promise<boolean> {
   if (typeof window === 'undefined' || !isLocalMode()) {
@@ -183,6 +184,14 @@ export function ensureLocalBackendReady(): Promise<boolean> {
   }
 
   return localBackendReadyGate;
+}
+
+/** Invalidate cached readiness after a local transport failure (mid-session backend stop). */
+export function markLocalBackendUnreachable(): void {
+  if (typeof window === 'undefined' || !isLocalMode()) {
+    return;
+  }
+  cachedLocalBackendReady = false;
 }
 
 /** @internal test helper */
