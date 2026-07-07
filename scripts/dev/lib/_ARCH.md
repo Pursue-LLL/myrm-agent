@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `backend_bg.sh` | 后台启动 `myrm-agent-server`（:8080）；写 `.myrm-dev-backend.pid` / `.myrm-dev-backend.log`；健康检查轮询；monorepo 下非 editable harness 时 WARNING |
+| `backend_bg.sh` | 后台启动 `myrm-agent-server`（:8080）；写 `.myrm-dev-backend.pid` / `.myrm-dev-backend.log`；健康检查轮询；monorepo 下非 editable harness 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 
 ## 依赖
 

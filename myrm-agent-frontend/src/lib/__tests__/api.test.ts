@@ -214,6 +214,9 @@ describe('apiRequest local backend gate', () => {
       ok: false,
       status: 500,
       text: () => Promise.resolve('Internal Server Error'),
+      clone: () => ({
+        text: () => Promise.resolve('Internal Server Error'),
+      }),
       headers: new Headers(),
     } as Response);
 
@@ -225,10 +228,14 @@ describe('apiRequest local backend gate', () => {
   });
 
   it('parses valid JSON 500 without remapping to BACKEND_UNREACHABLE', async () => {
+    const jsonBody = JSON.stringify({ message: 'Server exploded' });
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,
       status: 500,
-      text: () => Promise.resolve(JSON.stringify({ message: 'Server exploded' })),
+      text: () => Promise.resolve(jsonBody),
+      clone: () => ({
+        text: () => Promise.resolve(jsonBody),
+      }),
       headers: new Headers({ 'content-type': 'application/json' }),
     } as Response);
 
@@ -236,5 +243,21 @@ describe('apiRequest local backend gate', () => {
       message: 'Server exploded',
     });
     expect(resolveBackendUnreachableMessage).not.toHaveBeenCalled();
+  });
+
+  it('fetchWithTimeout throws BACKEND_UNREACHABLE on Next proxy 500', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      clone: () => ({
+        text: () => Promise.resolve('Internal Server Error'),
+      }),
+      headers: new Headers(),
+    } as Response);
+
+    const { fetchWithTimeout } = await import('../api');
+    await expect(fetchWithTimeout('/chats/x/subagents', {}, 0)).rejects.toMatchObject({
+      businessCode: 'BACKEND_UNREACHABLE',
+    });
   });
 });

@@ -8942,6 +8942,36 @@
         "title": "Evening Wind-down",
         "desc": "Daily review and relaxation suggestions",
         "prompt": "Review my day: what did I accomplish, any open threads to address tomorrow, and suggest a relaxing activity."
+      },
+      "localHealthCheck": {
+        "title": "Local Health Check",
+        "desc": "Monitor your system's CPU, memory, and disk status",
+        "prompt": "Check the current system health status. Report CPU usage, memory usage, disk space remaining, and any services that appear to be down or unhealthy. Only report issues that need attention — if everything is normal, keep it brief."
+      },
+      "competitorWatch": {
+        "title": "Competitor Watch",
+        "desc": "Track competitor news and product updates weekly",
+        "prompt": "Search the web for the latest news, product updates, and announcements from: {competitors}. Compile a concise competitive intelligence brief."
+      },
+      "habitCheckin": {
+        "title": "Habit Check-in",
+        "desc": "Daily reminder to track your habits and routines",
+        "prompt": "It's time for your daily habit check-in! Ask me about my progress on: {habits}. Provide encouragement and track my streak."
+      },
+      "learnDaily": {
+        "title": "Daily Learning",
+        "desc": "Get a curated learning topic delivered daily",
+        "prompt": "Teach me something interesting and useful about: {subject}. Explain one concept in 2-3 paragraphs with a practical example."
+      },
+      "socialMediaWatch": {
+        "title": "Social Media Watch",
+        "desc": "Monitor social media for brand mentions, sentiment shifts, and trending topics",
+        "prompt": "Monitor social platforms for mentions of: {brand}. Keywords: {keywords}. Platforms: {platforms}. Produce a structured sentiment report."
+      },
+      "readItLater": {
+        "title": "Read-it-Later Ingestion",
+        "desc": "Auto-ingest saved articles into your knowledge base daily",
+        "prompt": "Run the read-it-later ingestion pipeline: pull unprocessed items, ingest into wiki, tag as processed. Cap at 10 items per run."
       }
     }
   },

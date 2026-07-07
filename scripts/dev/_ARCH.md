@@ -8,7 +8,7 @@
 
 | 文件 | 平台 | 职责 |
 |------|------|------|
-| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次 `uv sync` + `patchright install chromium` + `bun install` |
+| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
 | `start.sh` / `start.ps1` | 双平台 | 后端 :8080 + 前端 `bun run dev` :3000 |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
@@ -19,7 +19,7 @@
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `subagent-dashboard-e2e-poll.mjs` | 双平台 | 诊断：prepare 后 list 持久性轮询 + cancel |
-| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 stderr WARNING |
+| `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
 ## WebUI E2E（MCP chrome-devtools，禁止 @playwright/test）

@@ -39,7 +39,7 @@ interface FontChoice {
   stack: string;
 }
 
-// layout.tsx blocking script 中有同步副本，修改 stack 时需同步更新
+// theme-pre-init-script.ts 中有同步副本，修改 stack 时需同步更新
 export const FONT_CHOICES: FontChoice[] = [
   {
     id: 'inter',

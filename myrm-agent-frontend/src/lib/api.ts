@@ -6,7 +6,7 @@
  * - API_BASE_URL: 规范化的 API 基础地址。
  * - BACKEND_BASE_URL: 规范化的后端基础地址。
  * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
- * - fetchWithTimeout / apiRequest: 前端统一请求入口（local 模式 gate + `BACKEND_UNREACHABLE`；fetchWithTimeout 注入 mobile pair header；401/403 强登出拦截）
+ * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截）
  *
  * [POS]
  * 前端 API 接入层。统一封装请求基址、超时、错误归一化、存储 URL 拼接以及安全拦截（全局强登出），避免脏配置污染请求链路。
@@ -208,6 +208,8 @@ export const fetchWithTimeout = async (
   options: RequestInit = {},
   timeout: number = 30000,
 ): Promise<Response> => {
+  await assertLocalBackendReadyForRequest();
+
   const url = getApiUrl(endpoint);
   const callerSignal = options.signal;
 
@@ -237,6 +239,18 @@ export const fetchWithTimeout = async (
     // 全局 401/403 强制登出拦截 (底层 Fetch 拦截)
     if (response.status === 401 || response.status === 403) {
       redirectToLoginAfterAuthFailure();
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      isLocalMode() &&
+      !response.ok &&
+      response.status >= 500
+    ) {
+      const errorText = await response.clone().text();
+      if (isNextProxyPlainTextError(response.status, errorText, false)) {
+        throw createBackendUnreachableError(await resolveBackendUnreachableMessage());
+      }
     }
 
     return response;

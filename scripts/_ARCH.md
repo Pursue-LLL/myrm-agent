@@ -12,11 +12,11 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.sh` | Unix | `curl \| bash` 入口：clone → `install.sh` |
 | `install.ps1` | Windows | 同上（PowerShell 原生） |
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
-| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status` / `update` / `doctor` / `searxng`（PyPI harness） |
+| `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status` / `update` / `doctor` / `searxng`；monorepo 下 `setup` 自动 editable harness，否则 PyPI |
 | `dev/dev.sh` | Unix | `myrm dev`：仅后端 :8080 |
 | `dev/start.sh` | Unix | `myrm start`：后端 :8080 + 前端 `bun run dev` :3000 |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
-| `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：`uv sync` + `patchright install chromium` + `bun install`（PyPI harness） |
+| `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：monorepo 自动 editable harness，否则 PyPI `uv sync`；`patchright install chromium` + `bun install` |
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
 | `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
@@ -41,5 +41,6 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 
 - 默认克隆到 `~/.myrm/myrm-agent`（Windows：`%USERPROFILE%\.myrm\myrm-agent`）
 - 需预装 Git；Windows 原生扩展编译失败时以 `uv sync` 核心依赖为准（harness 已含 retrieval 等 extras）
-- Harness 来自 PyPI（`uv sync`）；musl Linux 下 `install.sh` 额外安装 `myrm-agent-harness-core-*-musl`；安装后执行 `assert_distribution_ready()`（失败时输出中英双语修复指引）
+- Harness：OSS `install.sh` 走 PyPI（`uv sync`）；monorepo 联调时 `dev/setup.sh` 检测旁路 `myrm-agent-harness` 并调用 `install_harness.sh` editable；musl Linux 下 `install.sh` 额外安装 `myrm-agent-harness-core-*-musl`；安装后执行 `assert_distribution_ready()`（失败时输出中英双语修复指引）
+- Monorepo 下 `myrm dev` / `myrm start` 要求 venv harness 为 editable 源码（否则 exit 1）；PyPI 消费测试可设 `MYRM_SKIP_HARNESS_EDITABLE_CHECK=1`
 - `MYRM_INSTALL_SKIP_FRONTEND=1`：CI 跳过后端以外步骤（见 `.github/workflows/install-smoke.yml`）

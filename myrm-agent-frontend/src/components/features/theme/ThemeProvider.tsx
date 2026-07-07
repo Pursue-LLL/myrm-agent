@@ -33,9 +33,19 @@ const ThemeColorMeta = () => {
   return null;
 };
 
+// React 19 / Next 16: next-themes injects <script> in the client tree.
+// SSR keeps default executable script; client re-render uses application/json to avoid the warning.
+const nextThemesScriptProps =
+  typeof window === 'undefined' ? undefined : ({ type: 'application/json' } as const);
+
 const ThemeProviderComponent = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ThemeProvider attribute="class" enableSystem={false} defaultTheme="dark">
+    <ThemeProvider
+      attribute="class"
+      enableSystem={false}
+      defaultTheme="dark"
+      scriptProps={nextThemesScriptProps}
+    >
       <ThemeColorMeta />
       {children}
     </ThemeProvider>
