@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 
 import pytest
 
+from pathlib import Path
+
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
 from app.channels.types import ChannelStatus, OutboundMessage
@@ -66,6 +68,7 @@ def _make_tool(
     channel: BaseChannel | None = None,
     rate_limit: int = 10,
     max_body_length: int = 4000,
+    allowed_roots: tuple[str, ...] = (),
 ) -> tuple[object, RecordingChannel]:
     ch = channel if channel is not None else RecordingChannel()
     targets = ({"channel": ch.name, "recipient_id": "chat_123", "label": "My TG"},)
@@ -77,7 +80,7 @@ def _make_tool(
         rate_limit_per_session=rate_limit,
         max_body_length=max_body_length,
     )
-    return create_channel_notify_tool(sender, limited), ch
+    return create_channel_notify_tool(sender, limited, allowed_roots=allowed_roots), ch
 
 
 class FailingSendChannel(RecordingChannel):
@@ -219,7 +222,10 @@ async def test_attachment_delivered_through_real_channel_gateway() -> None:
 
     try:
         async with wired_gateway(channel):
-            tool, _ = _make_tool(channel=channel)
+            tool, _ = _make_tool(
+                channel=channel,
+                allowed_roots=(str(Path(tmp_file).parent),),
+            )
             result = await tool.ainvoke({
                 "channel": "telegram",
                 "target": "",
@@ -293,7 +299,10 @@ async def test_multiple_attachments_through_gateway() -> None:
 
     try:
         async with wired_gateway(channel):
-            tool, _ = _make_tool(channel=channel)
+            tool, _ = _make_tool(
+                channel=channel,
+                allowed_roots=(str(Path(tmp_file).parent),),
+            )
             result = await tool.ainvoke({
                 "channel": "",
                 "target": "",
@@ -318,16 +327,17 @@ async def test_multiple_attachments_through_gateway() -> None:
 
 
 @pytest.mark.asyncio
-async def test_attachment_file_not_found_blocks_gateway_send() -> None:
+async def test_attachment_file_not_found_blocks_gateway_send(tmp_path: Path) -> None:
     """Nonexistent file attachment aborts before reaching ChannelGateway."""
     channel = RecordingChannel()
+    missing = str(tmp_path / "missing-report.pdf")
     async with wired_gateway(channel):
-        tool, _ = _make_tool(channel=channel)
+        tool, _ = _make_tool(channel=channel, allowed_roots=(str(tmp_path),))
         result = await tool.ainvoke({
             "channel": "",
             "target": "",
             "body": "Report",
-            "attachments": ["/nonexistent/report.pdf"],
+            "attachments": [missing],
         })
         assert "file not found" in result.lower()
         assert len(channel.sent) == 0
