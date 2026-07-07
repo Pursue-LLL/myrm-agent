@@ -15,10 +15,9 @@ const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
   const updateAgentConfig = useChatStore((state) => state.updateAgentConfig);
   const actionMode = useChatStore((state) => state.actionMode);
-  const agentConfig = useChatStore((state) => state.agentConfig);
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
 
-  const title = agentConfig?.agentName ? t('agentReady', { agentName: agentConfig.agentName }) : t('researchBegins');
+  const title = t('researchBegins');
 
   return (
     <div className="relative min-h-screen">

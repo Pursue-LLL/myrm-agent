@@ -192,7 +192,7 @@ const AgentIndicator = () => {
             type="button"
             onClick={toggleConfigPanel}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg',
+              'inline-flex shrink-0 items-center gap-1.5 rounded-lg whitespace-nowrap',
               'text-xs font-medium transition-all duration-200',
               'border cursor-pointer',
               // 按钮样式保持统一的 primary 色系
@@ -208,7 +208,7 @@ const AgentIndicator = () => {
 
             {/* 名称 - 只在选中智能体时显示 */}
             {hasSelectedAgent && (
-              <span className="hidden sm:inline">
+              <span className="hidden xl:inline">
                 {formatAgentName(
                   agentConfig?.presetName ||
                     (agentConfig?.agentId

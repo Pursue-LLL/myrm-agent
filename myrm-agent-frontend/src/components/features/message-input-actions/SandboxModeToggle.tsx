@@ -131,7 +131,7 @@ const SandboxModeToggle = () => {
               disabled={loading}
               onClick={toggle}
               className={cn(
-                'relative flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium transition-all duration-300 cursor-pointer select-none',
+                'relative flex shrink-0 items-center gap-1.5 h-7 px-2.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-300 cursor-pointer select-none',
                 sandboxMode
                   ? 'bg-primary/10 dark:bg-primary/15 text-primary border border-primary/30 dark:border-primary/25'
                   : 'bg-black/[0.04] dark:bg-white/[0.06] text-black/40 dark:text-white/40 border border-transparent hover:text-black dark:hover:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.1]',
@@ -144,7 +144,7 @@ const SandboxModeToggle = () => {
                   sandboxMode ? 'text-primary' : 'text-current',
                 )}
               />
-              <span className="hidden sm:inline">{t('sandboxMode')}</span>
+              <span className="hidden xl:inline">{t('sandboxMode')}</span>
             </button>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-64 p-3">

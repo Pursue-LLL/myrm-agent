@@ -97,7 +97,7 @@
 | `app/database/`       | 数据层       | SQLAlchemy ORM/DTO、连接管理及 Repositories 仓储模式                                                                             |
 | `app/middleware/`     | 中间件层     | 认证告警、Webhook 安全、文本清洗、沙箱认证                                                                                       |
 | `app/platform_utils/` | 平台抽象层   | 本地/沙箱模式差异化实现（文件存储、会话工厂、checkpointer 注入）                                                                 |
-| `app/tasks/`          | 后台任务层   | 异步任务执行器、后台 worker                                                                                                      |
+| `app/tasks/`          | 后台任务层   | 消费 harness `toolkits/tasks/` 队列：worker、executor、crypto、SSE 事件；异步入图生产路径 |
 | `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
 | `tests/`              | 测试套件     | 单元/集成/API 测试；默认 `pytest -m 'not e2e'`；WebUI E2E 用 MCP chrome-devtools（禁止 `@playwright/test`）；CI 见 `scripts/ci/run_default_tests.sh`                                                                                                     |
 | `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁（`check_fractal_docs.py`：`--strict-headers` + `--no-stub`；`check_file_line_budget.py`；见 `scripts/ci/run_architecture_gates.sh`） |

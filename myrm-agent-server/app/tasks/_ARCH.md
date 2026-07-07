@@ -2,7 +2,19 @@
 
 ## 架构概述
 
-异步任务系统。提供后台任务定义、执行器和 worker 管理。支持图片生成等异步处理。
+异步任务系统 — 消费 harness `toolkits/tasks/` 队列，执行业务 worker 与加密。
+上级文档：[../_ARCH.md](../_ARCH.md)。Harness L2：`myrm-agent-harness/src/myrm_agent_harness/toolkits/tasks/TASK_QUEUE_SYSTEM.md`（联调 monorepo 内）。
+
+## 分层
+
+| 层 | 路径 | 职责 |
+|----|------|------|
+| Harness | `toolkits/tasks/` | `Task`, `SQLiteTaskStore`, `AsyncTaskExecutor` 协议 |
+| Harness | `toolkits/llms/image/async_image_engine.py` | 异步入队 |
+| Server | `app/lifecycle/task_worker.py` | Store 单例 + worker 启停 |
+| Server | `app/tasks/` | Worker 循环、executor、crypto、事件 |
+| Server | `app/api/tasks/` | REST + SSE |
+| Frontend | `ImageTaskCard` + `useTasksSubscription` | 进度 UI |
 
 ## 文件清单
 
@@ -21,4 +33,9 @@
 
 | 模块 | 职责 |
 |------|------|
-| `executors/` | 图片生成等具体任务执行器 |
+| `executors/` | 图片生成等具体任务执行器（实现 harness `AsyncTaskExecutor`） |
+
+## Key Dependencies
+
+- `myrm_agent_harness.toolkits.tasks` — 队列模型与 store
+- `app/lifecycle/task_worker` — `get_task_store()`

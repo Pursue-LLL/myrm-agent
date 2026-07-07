@@ -227,7 +227,9 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
                 </div>
               ))}
               {footer && (
-                <div className="shrink-0 border-t border-border px-3 py-3 flex flex-wrap gap-2">{footer}</div>
+                <div className="shrink-0 border-t border-border px-3 py-3 flex flex-nowrap items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+                  {footer}
+                </div>
               )}
             </div>
           </div>

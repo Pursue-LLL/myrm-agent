@@ -94,7 +94,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
           variant="ghost"
           size="sm"
           className={cn(
-            'h-7 gap-1.5 text-xs font-normal text-muted-foreground hover:text-foreground',
+            'h-7 shrink-0 gap-1.5 text-xs font-normal whitespace-nowrap text-muted-foreground hover:text-foreground',
             currentDir && 'text-primary/80',
             className,
           )}
@@ -104,7 +104,7 @@ export default function WorkspaceDirPicker({ className }: WorkspaceDirPickerProp
           {displayPath ? (
             <span className="max-w-[120px] truncate">{displayPath}</span>
           ) : (
-            <span className="hidden sm:inline">{t('label')}</span>
+            <span className="hidden xl:inline">{t('label')}</span>
           )}
         </Button>
       </PopoverTrigger>

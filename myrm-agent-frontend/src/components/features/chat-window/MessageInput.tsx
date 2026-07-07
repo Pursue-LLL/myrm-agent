@@ -497,7 +497,7 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                 </div>
                 {/* 桌面版：可横向滚动，避免工具栏互相挤压 */}
-                <div className="hidden sm:flex flex-row items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="hidden sm:flex flex-row flex-nowrap items-center gap-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
                   <SearchModeSelector actionMode={actionMode} setActionMode={setActionMode} />
                   <DeepSearchToggle />
                   <WorkflowModeToggle />
