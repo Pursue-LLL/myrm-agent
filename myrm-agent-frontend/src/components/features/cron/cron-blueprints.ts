@@ -23,7 +23,7 @@ export interface CronBlueprint {
   title: Record<string, string>;
   description: Record<string, string>;
   buildSchedule: (values: Record<string, string>) => CronSchedule;
-  buildPrompt: (values: Record<string, string>, t: (key: string, params?: Record<string, string>) => string) => string;
+  buildPrompt: (values: Record<string, string>, t: (key: string, params?: Record<string, string>) => string, locale?: string) => string;
 }
 
 // ==================== Icon Registry ====================
@@ -106,7 +106,7 @@ function buildBlueprintFromDef(def: BlueprintDef): CronBlueprint {
     title: def.title,
     description: def.description,
     buildSchedule: (v) => buildScheduleFromSlots(def, v),
-    buildPrompt: (v, t) => buildPromptFromDef(def, v, t),
+    buildPrompt: (v, t, locale) => buildPromptFromDef(def, v, t, locale),
   };
 }
 
@@ -131,10 +131,12 @@ function buildPromptFromDef(
   def: BlueprintDef,
   values: Record<string, string>,
   t: (key: string, params?: Record<string, string>) => string,
+  localeOverride?: string,
 ): string {
-  const locale = typeof window !== 'undefined'
-    ? (document.documentElement.lang || 'en').split('-')[0]
-    : 'en';
+  const locale = localeOverride
+    ?? (typeof window !== 'undefined'
+      ? (document.documentElement.lang || 'en').split('-')[0]
+      : 'en');
   const template = def.prompt_template[locale] || def.prompt_template.en || '';
 
   let result = template;
@@ -203,18 +205,44 @@ export async function fillBlueprintFromServer(
   blueprintId: string,
   values: Record<string, string>,
   tz: string,
-  locale?: string,
+  locale: string,
+  t: (key: string, params?: Record<string, string>) => string,
 ): Promise<{ schedule: CronSchedule; prompt: string; name: string }> {
   try {
     return await fillBlueprint(blueprintId, values, locale, tz);
   } catch {
     const bp = getCachedBlueprints().find((b) => b.id === blueprintId);
     if (!bp) throw new Error(`Blueprint ${blueprintId} not found`);
-    const schedule = bp.buildSchedule(values);
-    schedule.tz = tz;
-    const prompt = bp.buildPrompt(values, (k) => k);
-    return { schedule, prompt, name: prompt.slice(0, 40) };
+    const payload = buildJobPayload(bp, values, tz, t, undefined, locale);
+    return {
+      schedule: payload.schedule,
+      prompt: payload.prompt,
+      name: payload.name,
+    };
   }
+}
+
+/**
+ * Build a create-job payload from blueprint slots via server fill (SSOT).
+ * Falls back to local buildJobPayload when the API is unavailable.
+ */
+export async function buildBlueprintCreatePayload(
+  blueprint: CronBlueprint,
+  values: Record<string, string>,
+  tz: string,
+  locale: string,
+  t: (key: string, params?: Record<string, string>) => string,
+  delivery?: { channel: string; target?: string },
+): Promise<CreateCronJobRequest> {
+  const filled = await fillBlueprintFromServer(blueprint.id, values, tz, locale, t);
+  return {
+    name: filled.name,
+    job_type: 'agent',
+    schedule: filled.schedule,
+    prompt: filled.prompt,
+    session_target: 'isolated',
+    ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
+  };
 }
 
 // ==================== Fallback Blueprints (offline resilience) ====================
@@ -359,12 +387,14 @@ export function buildJobPayload(
   tz: string,
   t: (key: string, params?: Record<string, string>) => string,
   delivery?: { channel: string; target?: string },
+  locale?: string,
 ): CreateCronJobRequest {
   const schedule = blueprint.buildSchedule(values);
   schedule.tz = tz;
-  const prompt = blueprint.buildPrompt(values, t);
+  const prompt = blueprint.buildPrompt(values, t, locale);
+  const displayName = blueprint.title?.[locale ?? 'en'] || prompt.slice(0, 40);
   return {
-    name: prompt.slice(0, 40),
+    name: displayName.slice(0, 40),
     job_type: 'agent',
     schedule,
     prompt,

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import useCronStore from '@/store/useCronStore';
 import useConfigStore from '@/store/useConfigStore';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { buildJobPayload, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
+import { buildBlueprintCreatePayload, humanizeSchedule, type CronBlueprint } from './cron-blueprints';
 import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
@@ -65,7 +65,14 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
       const delivery = deliveryChannel !== 'chat'
         ? { channel: toApiChannel(deliveryChannel), ...(deliveryTarget.trim() ? { target: deliveryTarget.trim() } : {}) }
         : undefined;
-      const payload = buildJobPayload(blueprint, merged, userTz, t, delivery);
+      const payload = await buildBlueprintCreatePayload(
+        blueprint,
+        merged,
+        userTz,
+        locale,
+        t,
+        delivery,
+      );
       await createJob(payload);
       toast.success(t('createSuccess'));
       onCreated();

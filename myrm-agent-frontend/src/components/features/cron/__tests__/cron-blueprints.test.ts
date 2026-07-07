@@ -1,12 +1,23 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   CRON_BLUEPRINTS,
   humanizeSchedule,
   buildJobPayload,
+  buildBlueprintCreatePayload,
   CRON_PRESETS,
   resolveBlueprintTitleKey,
   resolveBlueprintSlotLabel,
 } from '../cron-blueprints';
+
+vi.mock('@/services/cron', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/cron')>();
+  return {
+    ...actual,
+    fillBlueprint: vi.fn(),
+  };
+});
+
+import { fillBlueprint } from '@/services/cron';
 
 describe('cron-blueprints', () => {
   describe('CRON_BLUEPRINTS', () => {
@@ -147,6 +158,7 @@ describe('cron-blueprints', () => {
     it('truncates name to 40 chars', () => {
       const longPromptBp = {
         ...bp,
+        title: {} as Record<string, string>,
         buildPrompt: () => 'A'.repeat(100),
       };
       const payload = buildJobPayload(
@@ -250,6 +262,56 @@ describe('cron-blueprints', () => {
       expect(CRON_BLUEPRINTS.find((b) => b.id === 'custom_reminder')!.slots[0].label).toBe(
         'blueprint.slotTime',
       );
+    });
+  });
+
+  describe('buildBlueprintCreatePayload', () => {
+    const mockT = (key: string) => `translated:${key}`;
+    const bp = CRON_BLUEPRINTS[0];
+
+    beforeEach(() => {
+      vi.mocked(fillBlueprint).mockReset();
+    });
+
+    it('uses server fill API when available', async () => {
+      vi.mocked(fillBlueprint).mockResolvedValue({
+        schedule: { kind: 'cron', expr: '0 8 * * *', tz: 'Asia/Shanghai' },
+        prompt: 'Server prompt',
+        name: 'Morning Briefing',
+      });
+
+      const payload = await buildBlueprintCreatePayload(
+        bp,
+        { time: '08:00', weekdays: 'everyday' },
+        'Asia/Shanghai',
+        'ja',
+        mockT,
+      );
+
+      expect(fillBlueprint).toHaveBeenCalledWith(
+        'morning_briefing',
+        { time: '08:00', weekdays: 'everyday' },
+        'ja',
+        'Asia/Shanghai',
+      );
+      expect(payload.prompt).toBe('Server prompt');
+      expect(payload.name).toBe('Morning Briefing');
+      expect(payload.schedule.expr).toBe('0 8 * * *');
+    });
+
+    it('falls back to local buildJobPayload when API fails', async () => {
+      vi.mocked(fillBlueprint).mockRejectedValue(new Error('network'));
+
+      const payload = await buildBlueprintCreatePayload(
+        bp,
+        { time: '08:00', weekdays: 'everyday' },
+        'UTC',
+        'en',
+        mockT,
+      );
+
+      expect(payload.schedule.expr).toBe('0 8 * * *');
+      expect(payload.prompt).toContain('translated:');
     });
   });
 });
