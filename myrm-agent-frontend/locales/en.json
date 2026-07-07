@@ -8891,6 +8891,9 @@
     },
     "blueprint": {
       "quickStart": "Quick Start from Template",
+      "loading": "Loading templates…",
+      "loadError": "Could not load automation templates. Check your connection and try again.",
+      "loadRetry": "Retry",
       "tabTemplate": "From Template",
       "tabCustom": "Custom",
       "backToTemplates": "Back to templates",

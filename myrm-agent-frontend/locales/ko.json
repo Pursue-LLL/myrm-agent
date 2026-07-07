@@ -8007,6 +8007,9 @@
     },
     "blueprint": {
       "quickStart": "템플릿으로 빠르게 시작",
+      "loading": "템플릿 불러오는 중…",
+      "loadError": "자동화 템플릿을 불러오지 못했습니다. 연결을 확인한 후 다시 시도하세요.",
+      "loadRetry": "다시 시도",
       "tabTemplate": "템플릿",
       "tabCustom": "사용자 정의",
       "backToTemplates": "템플릿 목록으로 돌아가기",

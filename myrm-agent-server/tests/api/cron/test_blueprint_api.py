@@ -22,6 +22,13 @@ from app.api.cron.routes.blueprints import router as blueprint_router
 from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES
 from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
 
+# Blueprints with required empty-default text slots need explicit values in fill tests.
+_FILL_VALUE_OVERRIDES: dict[str, dict[str, str]] = {
+    "custom_reminder": {"message": "Water the plants"},
+    "competitor_watch": {"competitors": "Acme Corp"},
+    "social_media_watch": {"brand": "MyBrand", "keywords": "launch"},
+}
+
 
 class FakeDelivery:
     async def deliver(self, job, result):  # noqa: ANN001
@@ -185,6 +192,18 @@ class TestFillBlueprint:
         assert resp.status_code == 404
         assert "nonexistent_xyz" in resp.json()["detail"]
 
+    def test_fill_empty_required_slot_returns_422(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "custom_reminder",
+                "values": {"time": "09:00", "message": ""},
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 422
+        assert "message" in resp.json()["detail"]
+
     def test_fill_prompt_no_unresolved_placeholders(self, client: TestClient) -> None:
         """read_it_later has no text slots — prompt must not contain Python format braces."""
         resp = client.post(
@@ -224,9 +243,10 @@ class TestFillBlueprint:
         """Every registered blueprint can be filled with defaults without error."""
         list_resp = client.get("/cron/blueprints")
         for bp in list_resp.json():
+            values = _FILL_VALUE_OVERRIDES.get(bp["id"], {})
             resp = client.post(
                 "/cron/blueprints/fill",
-                json={"blueprint_id": bp["id"], "values": {}, "locale": "en"},
+                json={"blueprint_id": bp["id"], "values": values, "locale": "en"},
             )
             assert resp.status_code == 200, f"fill failed for {bp['id']}: {resp.text}"
             data = resp.json()
@@ -237,9 +257,10 @@ class TestFillBlueprint:
         """Every blueprint produces valid Chinese prompts."""
         list_resp = client.get("/cron/blueprints")
         for bp in list_resp.json():
+            values = _FILL_VALUE_OVERRIDES.get(bp["id"], {})
             resp = client.post(
                 "/cron/blueprints/fill",
-                json={"blueprint_id": bp["id"], "values": {}, "locale": "zh"},
+                json={"blueprint_id": bp["id"], "values": values, "locale": "zh"},
             )
             assert resp.status_code == 200, f"fill zh failed for {bp['id']}: {resp.text}"
 

@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from app.core.cron.blueprints import (
     BUILTIN_BLUEPRINTS,
+    BlueprintFillError,
     BlueprintSlot,
     fill_blueprint,
 )
@@ -110,12 +111,15 @@ async def list_blueprints() -> list[BlueprintResponse]:
 @router.post("/blueprints/fill", response_model=BlueprintFillResponse)
 async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillResponse:
     """Fill a blueprint with slot values, returning ready-to-use schedule and prompt."""
-    result = fill_blueprint(
-        body.blueprint_id,
-        body.values,
-        locale=body.locale,
-        tz=body.tz,
-    )
+    try:
+        result = fill_blueprint(
+            body.blueprint_id,
+            body.values,
+            locale=body.locale,
+            tz=body.tz,
+        )
+    except BlueprintFillError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not result:
         raise HTTPException(status_code=404, detail=f"Blueprint '{body.blueprint_id}' not found")
 

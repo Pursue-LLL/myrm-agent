@@ -10,6 +10,7 @@ import pytest
 
 from app.core.cron.blueprints import (
     BUILTIN_BLUEPRINTS,
+    BlueprintFillError,
     BlueprintSlot,
     CronBlueprint,
     fill_blueprint,
@@ -124,10 +125,30 @@ class TestFillBlueprint:
         assert fill_blueprint("nonexistent_id", {}) is None
 
     def test_fill_uses_defaults_when_no_values_provided(self) -> None:
+        skip_required_empty = {
+            "custom_reminder",
+            "competitor_watch",
+            "social_media_watch",
+        }
         for bp in BUILTIN_BLUEPRINTS:
+            if bp.id in skip_required_empty:
+                continue
             result = fill_blueprint(bp.id, {})
             assert result is not None, f"fill_blueprint failed for {bp.id}"
             assert result.prompt, f"Empty prompt for {bp.id}"
+
+    def test_name_uses_localized_title_not_prompt_truncation(self) -> None:
+        result = fill_blueprint("morning_briefing", {"time": "08:00", "weekdays": "everyday"}, locale="zh")
+        assert result is not None
+        assert result.name == "每日早报"
+
+    def test_empty_required_text_slot_raises(self) -> None:
+        with pytest.raises(BlueprintFillError, match="message"):
+            fill_blueprint("custom_reminder", {"time": "09:00", "message": ""})
+
+    def test_empty_competitors_raises(self) -> None:
+        with pytest.raises(BlueprintFillError, match="competitors"):
+            fill_blueprint("competitor_watch", {"time": "09:00", "day": "1", "competitors": ""})
 
 
 class TestToolDescription:

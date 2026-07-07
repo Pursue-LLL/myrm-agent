@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { getCachedBlueprints, humanizeSchedule, loadBlueprints, type CronBlueprint } from './cron-blueprints';
+import { RefreshCw } from 'lucide-react';
+import { Button } from '@/components/primitives/button';
+import { getCachedBlueprints, humanizeSchedule, invalidateBlueprintCache, loadBlueprints, type CronBlueprint } from './cron-blueprints';
 
 interface BlueprintCatalogProps {
   onSelect: (blueprint: CronBlueprint) => void;
@@ -13,10 +15,50 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
   const t = useTranslations('cron');
   const locale = useLocale();
   const [blueprints, setBlueprints] = useState<readonly CronBlueprint[]>(getCachedBlueprints());
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(blueprints.length === 0);
+
+  const fetchCatalog = useCallback(() => {
+    setLoading(true);
+    setLoadError(false);
+    return loadBlueprints()
+      .then((items) => {
+        setBlueprints(items);
+        setLoadError(false);
+      })
+      .catch(() => {
+        setBlueprints([]);
+        setLoadError(true);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
-    loadBlueprints().then(setBlueprints);
-  }, []);
+    void fetchCatalog();
+  }, [fetchCatalog]);
+
+  const handleRetry = () => {
+    invalidateBlueprintCache();
+    void fetchCatalog();
+  };
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center space-y-3">
+        <p className="text-sm text-muted-foreground">{t('blueprint.loadError')}</p>
+        <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          {t('blueprint.loadRetry')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (loading && blueprints.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-6">{t('blueprint.loading')}</p>
+    );
+  }
 
   const items = maxItems ? blueprints.slice(0, maxItems) : blueprints;
 

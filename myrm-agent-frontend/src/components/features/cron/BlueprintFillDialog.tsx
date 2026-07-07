@@ -17,6 +17,7 @@ import { buildBlueprintCreatePayload, humanizeSchedule, type CronBlueprint } fro
 import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import { ApiError } from '@/lib/api';
 
 const WEEKDAY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '1', labelKey: 'blueprint.dayMon' },
@@ -80,7 +81,6 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
         merged,
         userTz,
         locale,
-        t,
         delivery,
       );
       await createJob(payload);
@@ -89,8 +89,9 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
       setDeliveryChannel('chat');
       setDeliveryTarget('');
       onOpenChange(false);
-    } catch {
-      toast.error(t('actionFail'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('actionFail');
+      toast.error(message);
     } finally {
       setSaving(false);
     }

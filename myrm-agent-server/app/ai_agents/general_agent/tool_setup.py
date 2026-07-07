@@ -448,12 +448,21 @@ class ToolSetupMixin(ExternalAgentsMixin):
 
             from app.core.cron.adapters.delivery_resolver import resolve_cron_delivery
             from app.core.cron.adapters.setup import get_cron_manager
-            from app.core.cron.blueprints import fill_blueprint, get_blueprints_for_tool_description
+            from app.core.cron.blueprints import (
+                BlueprintFillError,
+                fill_blueprint,
+                get_blueprints_for_tool_description,
+            )
+
+            agent_locale = getattr(self, "locale", None) or "en"
 
             def _blueprint_filler(
                 bp_id: str, values: dict[str, str], tz: str | None
             ) -> tuple[dict[str, str | int | None], str, str] | None:
-                result = fill_blueprint(bp_id, values, tz=tz)
+                try:
+                    result = fill_blueprint(bp_id, values, locale=agent_locale, tz=tz)
+                except BlueprintFillError as exc:
+                    raise ValueError(str(exc)) from exc
                 if not result:
                     return None
                 sched = result.schedule
@@ -471,7 +480,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 current_model=self.model_cfg.model,
                 chat_id=self.chat_id,
                 agent_id=self.agent_id,
-                blueprint_catalog=get_blueprints_for_tool_description(),
+                blueprint_catalog=get_blueprints_for_tool_description(agent_locale),
                 blueprint_filler=_blueprint_filler,
                 delivery_resolver=resolve_cron_delivery,
             )

@@ -1,6 +1,5 @@
 import type { BlueprintDef, CreateCronJobRequest, CronSchedule } from '@/services/cron';
 import { fillBlueprint, listBlueprints } from '@/services/cron';
-import { ApiError } from '@/lib/api';
 import type { LucideIcon } from 'lucide-react';
 import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
 
@@ -24,7 +23,6 @@ export interface CronBlueprint {
   title: Record<string, string>;
   description: Record<string, string>;
   buildSchedule: (values: Record<string, string>) => CronSchedule;
-  buildPrompt: (values: Record<string, string>, t: (key: string, params?: Record<string, string>) => string, locale?: string) => string;
 }
 
 // ==================== Icon Registry ====================
@@ -107,11 +105,11 @@ function buildBlueprintFromDef(def: BlueprintDef): CronBlueprint {
     title: def.title,
     description: def.description,
     buildSchedule: (v) => buildScheduleFromSlots(def, v),
-    buildPrompt: (v, t, locale) => buildPromptFromDef(def, v, t, locale),
   };
 }
 
-function buildScheduleFromSlots(def: BlueprintDef, values: Record<string, string>): CronSchedule {
+/** Preview-only schedule builder; catalog data comes from server API defs. */
+export function buildScheduleFromSlots(def: BlueprintDef, values: Record<string, string>): CronSchedule {
   const time = values.time || '08:00';
   const weekdays = values.weekdays || 'everyday';
   const day = values.day || '5';
@@ -128,34 +126,9 @@ function buildScheduleFromSlots(def: BlueprintDef, values: Record<string, string
   return { kind: 'cron', expr: timeToCron(time) };
 }
 
-function buildPromptFromDef(
-  def: BlueprintDef,
-  values: Record<string, string>,
-  t: (key: string, params?: Record<string, string>) => string,
-  localeOverride?: string,
-): string {
-  const locale = localeOverride
-    ?? (typeof window !== 'undefined'
-      ? (document.documentElement.lang || 'en').split('-')[0]
-      : 'en');
-  const template = def.prompt_template[locale] || def.prompt_template.en || '';
-
-  let result = template;
-  for (const [key, val] of Object.entries(values)) {
-    if (val) result = result.replace(`{${key}}`, val);
-  }
-
-  if (result.includes('{message}') && !values.message) {
-    const fallback = t(resolveBlueprintPromptKey(def.id));
-    return fallback || result.replace('{message}', '');
-  }
-
-  return result;
-}
-
 /**
  * Load blueprints from the server API (cached after first load).
- * Falls back to hardcoded defaults on network failure.
+ * Throws on network or server errors — no fake offline catalog.
  */
 export async function loadBlueprints(): Promise<CronBlueprint[]> {
   if (_cachedBlueprints) return _cachedBlueprints;
@@ -169,10 +142,6 @@ export async function loadBlueprints(): Promise<CronBlueprint[]> {
         _cachedBlueprints = blueprints;
         return blueprints;
       })
-      .catch(() => {
-        _cachedBlueprints = FALLBACK_BLUEPRINTS;
-        return FALLBACK_BLUEPRINTS;
-      })
       .finally(() => {
         _loadingPromise = null;
       });
@@ -181,11 +150,9 @@ export async function loadBlueprints(): Promise<CronBlueprint[]> {
   return _loadingPromise;
 }
 
-/**
- * Get cached blueprints synchronously (returns fallback if not yet loaded).
- */
+/** Get cached blueprints synchronously (empty until first successful load). */
 export function getCachedBlueprints(): readonly CronBlueprint[] {
-  return _cachedBlueprints || FALLBACK_BLUEPRINTS;
+  return _cachedBlueprints ?? [];
 }
 
 /**
@@ -199,46 +166,28 @@ export function invalidateBlueprintCache(): void {
 // ==================== Server-Powered Fill ====================
 
 /**
- * Fill a blueprint via the server API for guaranteed consistency.
- * Falls back to local computation if the API is unavailable.
+ * Fill a blueprint via POST /cron/blueprints/fill (server SSOT).
  */
 export async function fillBlueprintFromServer(
   blueprintId: string,
   values: Record<string, string>,
   tz: string,
   locale: string,
-  t: (key: string, params?: Record<string, string>) => string,
 ): Promise<{ schedule: CronSchedule; prompt: string; name: string }> {
-  try {
-    return await fillBlueprint(blueprintId, values, locale, tz);
-  } catch (err) {
-    if (err instanceof ApiError && err.code >= 400 && err.code < 500) {
-      throw err;
-    }
-    const bp = getCachedBlueprints().find((b) => b.id === blueprintId);
-    if (!bp) throw new Error(`Blueprint ${blueprintId} not found`);
-    const payload = buildJobPayload(bp, values, tz, t, undefined, locale);
-    return {
-      schedule: payload.schedule,
-      prompt: payload.prompt,
-      name: payload.name,
-    };
-  }
+  return fillBlueprint(blueprintId, values, locale, tz);
 }
 
 /**
  * Build a create-job payload from blueprint slots via server fill (SSOT).
- * Falls back to local buildJobPayload when the API is unavailable.
  */
 export async function buildBlueprintCreatePayload(
   blueprint: CronBlueprint,
   values: Record<string, string>,
   tz: string,
   locale: string,
-  t: (key: string, params?: Record<string, string>) => string,
   delivery?: { channel: string; target?: string },
 ): Promise<CreateCronJobRequest> {
-  const filled = await fillBlueprintFromServer(blueprint.id, values, tz, locale, t);
+  const filled = await fillBlueprintFromServer(blueprint.id, values, tz, locale);
   return {
     name: filled.name,
     job_type: 'agent',
@@ -248,91 +197,6 @@ export async function buildBlueprintCreatePayload(
     ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
   };
 }
-
-// ==================== Fallback Blueprints (offline resilience) ====================
-
-const FALLBACK_BLUEPRINTS: CronBlueprint[] = [
-  {
-    id: 'morning_briefing',
-    icon: Sun,
-    titleKey: 'blueprint.morningBriefing.title',
-    descKey: 'blueprint.morningBriefing.desc',
-    promptKey: 'blueprint.morningBriefing.prompt',
-    title: { en: 'Morning Briefing', zh: '每日早报' },
-    description: { en: 'Get a daily briefing on topics you care about', zh: '每天获取你关心的话题简报' },
-    slots: [
-      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '08:00' },
-      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
-    ],
-    buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '08:00', v.weekdays || 'everyday') }),
-    buildPrompt: (_v, t) => t('blueprint.morningBriefing.prompt'),
-  },
-  {
-    id: 'weekly_review',
-    icon: ClipboardList,
-    titleKey: 'blueprint.weeklyReview.title',
-    descKey: 'blueprint.weeklyReview.desc',
-    promptKey: 'blueprint.weeklyReview.prompt',
-    title: { en: 'Weekly Review', zh: '每周回顾' },
-    description: { en: 'Summarize weekly progress and plan ahead', zh: '总结每周进展并规划下周' },
-    slots: [
-      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '18:00' },
-      { name: 'day', type: 'enum', label: resolveBlueprintSlotLabel('day'), default: '5', options: ['1', '2', '3', '4', '5', '6', '0'] },
-    ],
-    buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWeekday(v.time || '18:00', v.day || '5') }),
-    buildPrompt: (_v, t) => t('blueprint.weeklyReview.prompt'),
-  },
-  {
-    id: 'custom_reminder',
-    icon: Bell,
-    titleKey: 'blueprint.customReminder.title',
-    descKey: 'blueprint.customReminder.desc',
-    promptKey: 'blueprint.customReminder.prompt',
-    title: { en: 'Custom Reminder', zh: '自定义提醒' },
-    description: { en: 'Set a recurring reminder with your own message', zh: '设置一个自定义消息的定期提醒' },
-    slots: [
-      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '09:00' },
-      { name: 'message', type: 'text', label: resolveBlueprintSlotLabel('message'), default: '' },
-    ],
-    buildSchedule: (v) => ({ kind: 'cron', expr: timeToCron(v.time || '09:00') }),
-    buildPrompt: (v, t) => v.message || t('blueprint.customReminder.prompt'),
-  },
-  {
-    id: 'news_digest',
-    icon: Newspaper,
-    titleKey: 'blueprint.newsDigest.title',
-    descKey: 'blueprint.newsDigest.desc',
-    promptKey: 'blueprint.newsDigest.prompt',
-    title: { en: 'News Digest', zh: '新闻摘要' },
-    description: { en: 'Get a curated digest on your chosen topics', zh: '获取你选择的话题的精选摘要' },
-    slots: [
-      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '07:30' },
-      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
-      { name: 'topic', type: 'text', label: resolveBlueprintSlotLabel('topic'), default: 'AI and technology' },
-    ],
-    buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '07:30', v.weekdays || 'everyday') }),
-    buildPrompt: (v, t) => t('blueprint.newsDigest.prompt', { topic: v.topic || 'AI and technology' }),
-  },
-  {
-    id: 'evening_winddown',
-    icon: Moon,
-    titleKey: 'blueprint.eveningWinddown.title',
-    descKey: 'blueprint.eveningWinddown.desc',
-    promptKey: 'blueprint.eveningWinddown.prompt',
-    title: { en: 'Evening Wind-down', zh: '晚间放松' },
-    description: { en: 'End your day with a calming summary', zh: '以平静的总结结束一天' },
-    slots: [
-      { name: 'time', type: 'time', label: resolveBlueprintSlotLabel('time'), default: '21:00' },
-      { name: 'weekdays', type: 'enum', label: resolveBlueprintSlotLabel('weekdays'), default: 'everyday', options: ['everyday', 'weekdays', 'weekends'] },
-    ],
-    buildSchedule: (v) => ({ kind: 'cron', expr: timeToCronWithWeekdays(v.time || '21:00', v.weekdays || 'everyday') }),
-    buildPrompt: (_v, t) => t('blueprint.eveningWinddown.prompt'),
-  },
-];
-
-// ==================== CRON_BLUEPRINTS (backward-compat sync export) ====================
-
-export const CRON_BLUEPRINTS: readonly CronBlueprint[] = FALLBACK_BLUEPRINTS;
 
 // ==================== Helpers ====================
 
@@ -383,28 +247,6 @@ export function humanizeSchedule(schedule: CronSchedule): string {
     .map((d) => WEEKDAY_KEYS[d] ?? d)
     .join(', ');
   return `${dayNames} at ${time}`;
-}
-
-export function buildJobPayload(
-  blueprint: CronBlueprint,
-  values: Record<string, string>,
-  tz: string,
-  t: (key: string, params?: Record<string, string>) => string,
-  delivery?: { channel: string; target?: string },
-  locale?: string,
-): CreateCronJobRequest {
-  const schedule = blueprint.buildSchedule(values);
-  schedule.tz = tz;
-  const prompt = blueprint.buildPrompt(values, t, locale);
-  const displayName = blueprint.title?.[locale ?? 'en'] || prompt.slice(0, 40);
-  return {
-    name: displayName.slice(0, 40),
-    job_type: 'agent',
-    schedule,
-    prompt,
-    session_target: 'isolated',
-    ...(delivery && delivery.channel !== 'chat' ? { delivery } : {}),
-  };
 }
 
 // ==================== Cron Presets ====================

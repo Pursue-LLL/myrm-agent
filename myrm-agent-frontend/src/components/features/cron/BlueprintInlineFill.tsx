@@ -16,6 +16,7 @@ import { buildBlueprintCreatePayload, humanizeSchedule, type CronBlueprint } fro
 import { IM_CHANNELS, toApiChannel } from './CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import { ApiError } from '@/lib/api';
 
 interface BlueprintInlineFillProps {
   blueprint: CronBlueprint;
@@ -70,14 +71,14 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
         merged,
         userTz,
         locale,
-        t,
         delivery,
       );
       await createJob(payload);
       toast.success(t('createSuccess'));
       onCreated();
-    } catch {
-      toast.error(t('actionFail'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('actionFail');
+      toast.error(message);
     } finally {
       setSaving(false);
     }

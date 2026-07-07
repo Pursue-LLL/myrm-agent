@@ -8007,6 +8007,9 @@
     },
     "blueprint": {
       "quickStart": "Schnellstart mit Vorlage",
+      "loading": "Vorlagen werden geladen…",
+      "loadError": "Automatisierungsvorlagen konnten nicht geladen werden. Verbindung prüfen und erneut versuchen.",
+      "loadRetry": "Erneut versuchen",
       "tabTemplate": "Vorlage",
       "tabCustom": "Benutzerdefiniert",
       "backToTemplates": "Zurück zur Vorlagenübersicht",

@@ -28,6 +28,10 @@ from typing import Literal
 from app.core.cron.blueprint_i18n_supplement import SUPPLEMENTAL_BY_ID
 
 
+class BlueprintFillError(ValueError):
+    """Raised when blueprint slot values fail validation."""
+
+
 @dataclass(frozen=True, slots=True)
 class BlueprintSlot:
     """A user-fillable parameter in a blueprint."""
@@ -548,6 +552,33 @@ def get_blueprint(blueprint_id: str) -> CronBlueprint | None:
     return _BLUEPRINT_MAP.get(blueprint_id)
 
 
+def _resolve_locale_title(bp: CronBlueprint, locale: str) -> str:
+    lang = locale if locale in bp.title else "en"
+    return bp.title.get(lang, bp.title.get("en", bp.id))
+
+
+def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str, str]:
+    """Resolve and validate user slot values against the blueprint schema."""
+    known = {slot.name for slot in bp.slots}
+    unknown = sorted(set(values) - known)
+    if unknown:
+        raise BlueprintFillError(
+            f"unknown slot(s): {', '.join(unknown)} — valid: {', '.join(sorted(known))}"
+        )
+
+    effective: dict[str, str] = {}
+    for slot in bp.slots:
+        raw = values.get(slot.name, slot.default)
+        if slot.type == "text" and slot.default == "" and not str(raw).strip():
+            raise BlueprintFillError(f"missing required value: {slot.name} ({slot.label})")
+        if slot.type == "enum" and slot.options and str(raw) not in slot.options:
+            raise BlueprintFillError(
+                f"{slot.name}={raw!r} not allowed — one of {', '.join(slot.options)}"
+            )
+        effective[slot.name] = str(raw)
+    return effective
+
+
 def fill_blueprint(
     blueprint_id: str,
     values: dict[str, str],
@@ -558,18 +589,17 @@ def fill_blueprint(
     """Fill a blueprint's slots and produce schedule + prompt.
 
     Returns None if blueprint_id is unknown.
+    Raises BlueprintFillError when slot values are invalid.
     """
     bp = get_blueprint(blueprint_id)
     if not bp:
         return None
 
-    effective_values: dict[str, str] = {}
-    for slot in bp.slots:
-        effective_values[slot.name] = values.get(slot.name, slot.default)
+    effective_values = _validate_slot_values(bp, values)
 
     schedule = _build_schedule_from_blueprint(bp, effective_values, tz)
     prompt = _build_prompt_from_blueprint(bp, effective_values, locale)
-    name = prompt[:40] if len(prompt) > 40 else prompt
+    name = _resolve_locale_title(bp, locale)[:40]
 
     return BlueprintFillResult(schedule=schedule, prompt=prompt, name=name)
 
@@ -607,8 +637,8 @@ def _build_prompt_from_blueprint(
     template = bp.prompt_template.get(lang, bp.prompt_template.get("en", ""))
     try:
         return template.format(**values)
-    except (KeyError, IndexError):
-        return template
+    except KeyError as exc:
+        raise BlueprintFillError(f"blueprint prompt missing value for {exc}") from exc
 
 
 def get_blueprints_for_tool_description(locale: str = "en") -> str:
