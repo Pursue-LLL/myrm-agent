@@ -12,10 +12,11 @@ tasks use identical, professionally tuned prompts and schedules.
 - (none)
 
 [OUTPUT]
+- BlueprintSlot: Slot schema with optional flag for non-required text fields.
 - CronBlueprint: Single blueprint definition dataclass.
 - BUILTIN_BLUEPRINTS: Registry of all built-in blueprints.
 - BlueprintFillError: Slot validation error for fill operations.
-- fill_blueprint: Fills a blueprint with slot values; name from title[locale]; validates required text slots.
+- fill_blueprint: Fills a blueprint with slot values; name from title[locale]; validates required text slots (optional slots may be empty).
 
 [POS]
 Cron blueprint single-source-of-truth definitions.
@@ -42,6 +43,7 @@ class BlueprintSlot:
     label: str
     default: str
     options: tuple[str, ...] = ()
+    optional: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -492,6 +494,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
                 type="text",
                 label="keywords",
                 default="",
+                optional=True,
             ),
         ),
         category="business",
@@ -570,7 +573,12 @@ def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str
     effective: dict[str, str] = {}
     for slot in bp.slots:
         raw = values.get(slot.name, slot.default)
-        if slot.type == "text" and slot.default == "" and not str(raw).strip():
+        if (
+            slot.type == "text"
+            and slot.default == ""
+            and not str(raw).strip()
+            and not slot.optional
+        ):
             raise BlueprintFillError(f"missing required value: {slot.name} ({slot.label})")
         if slot.type == "enum" and slot.options and str(raw) not in slot.options:
             raise BlueprintFillError(
@@ -642,6 +650,11 @@ def _build_prompt_from_blueprint(
         raise BlueprintFillError(f"blueprint prompt missing value for {exc}") from exc
 
 
+def _slot_name_for_tool_description(slot: BlueprintSlot) -> str:
+    """Compact optional marker for agent tool catalog (minimal prompt-cache footprint)."""
+    return f"{slot.name}?" if slot.optional else slot.name
+
+
 def get_blueprints_for_tool_description(locale: str = "en") -> str:
     """Generate a concise blueprint catalog for injection into the cron_manage tool description.
 
@@ -651,6 +664,6 @@ def get_blueprints_for_tool_description(locale: str = "en") -> str:
     for bp in BUILTIN_BLUEPRINTS:
         lang = locale if locale in bp.title else "en"
         title = bp.title.get(lang, bp.title.get("en", bp.id))
-        slot_names = ", ".join(s.name for s in bp.slots)
+        slot_names = ", ".join(_slot_name_for_tool_description(s) for s in bp.slots)
         lines.append(f'  - "{bp.id}": {title} (slots: {slot_names})')
     return "\n".join(lines)

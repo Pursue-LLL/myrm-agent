@@ -9,6 +9,12 @@ and optional `channel_notify_tool` LangChain adapter.
 Agents wire via `app.ai_agents.general_agent.factory` →
 `factory_wiring.append_channel_notify_tool` (Turn1 when `notify_targets` configured).
 Delivery uses `ChannelGateway.bus.send_tracked` (synchronous success/failure).
+On send failure after retries, `MessageBus._record_outbound_failure` writes DLQ and invokes
+`channel_bridge.handle_dead_letter` via `on_permanent_failure` (SSE + system notification).
+
+Subagents cannot inherit `channel_notify_tool`: server bootstrap registers it via
+`register_leaf_blocked_tools` (`_tool_layer_bootstrap.py`).
+
 Frontend recipient picker uses existing `GET /channels/manage/pairings`.
 
 **Test coverage (2026-07-02)**: 67 server + 6 frontend vitest; 100% module coverage.

@@ -22,7 +22,7 @@ export function useFeatureEntitlements() {
     isLoading,
     canUseCron: Boolean(entitlements?.enable_cron),
     canUsePublicIngress: Boolean(entitlements?.enable_public_ingress),
-    canUseSubagent: Boolean(entitlements?.enable_subagent),
+    canUseSubagent: true,
     canUseVnc: Boolean(entitlements?.enable_vnc),
     plan: entitlements?.plan ?? 'free',
   };

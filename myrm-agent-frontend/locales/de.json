@@ -8023,6 +8023,7 @@
       "slotBrand": "Markenname",
       "slotPlatforms": "Plattformen",
       "slotKeywords": "Schlüsselwörter",
+      "slotOptional": "Optional",
       "slotSubject": "Lernthema",
       "slotTextPlaceholder": "Inhalt eingeben...",
       "enum": {

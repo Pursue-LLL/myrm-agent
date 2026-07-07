@@ -151,6 +151,30 @@ class TestFillBlueprint:
             fill_blueprint("competitor_watch", {"time": "09:00", "day": "1", "competitors": ""})
 
 
+class TestSocialMediaWatchBlueprint:
+    """social_media_watch optional keywords slot."""
+
+    def test_keywords_optional_allows_empty(self) -> None:
+        result = fill_blueprint(
+            "social_media_watch",
+            {
+                "time": "09:00",
+                "weekdays": "weekdays",
+                "brand": "Myrm",
+                "platforms": "Xiaohongshu, Weibo",
+                "keywords": "",
+            },
+        )
+        assert result is not None
+        assert "Myrm" in result.prompt
+
+    def test_keywords_slot_marked_optional(self) -> None:
+        bp = get_blueprint("social_media_watch")
+        assert bp is not None
+        keywords = next(s for s in bp.slots if s.name == "keywords")
+        assert keywords.optional is True
+
+
 class TestToolDescription:
     """Test get_blueprints_for_tool_description output."""
 
@@ -162,6 +186,11 @@ class TestToolDescription:
         desc = get_blueprints_for_tool_description("en")
         lines = desc.strip().split("\n")
         assert len(lines) == len(BUILTIN_BLUEPRINTS) + 1
+
+    def test_tool_description_marks_optional_slots(self) -> None:
+        desc = get_blueprints_for_tool_description("en")
+        assert "keywords?" in desc
+        assert "brand?" not in desc
 
     def test_tool_description_uses_japanese_title_when_available(self) -> None:
         desc = get_blueprints_for_tool_description("ja")

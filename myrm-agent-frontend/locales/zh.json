@@ -8907,6 +8907,7 @@
       "slotBrand": "品牌名",
       "slotPlatforms": "平台",
       "slotKeywords": "关键词",
+      "slotOptional": "选填",
       "slotSubject": "学习主题",
       "slotTextPlaceholder": "输入内容...",
       "enum": {

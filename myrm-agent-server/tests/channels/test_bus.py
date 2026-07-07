@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -440,6 +441,29 @@ class TestMessageBusEdgeCases:
         bus.register_channel(ch)
         result = await bus.send_tracked(_make_out())
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_send_tracked_failure_invokes_permanent_failure_callback(self, tmp_path) -> None:
+        class FailSendChannel(FakeChannel):
+            async def send(self, msg: OutboundMessage) -> str | None:
+                raise RuntimeError("send failed")
+
+        callback = AsyncMock()
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=callback)
+        bus.register_channel(FailSendChannel())
+        await bus.start()
+        try:
+            result = await bus.send_tracked(_make_out())
+            assert result is None
+            callback.assert_awaited_once()
+            assert callback.await_args.args[1] == "send failed"
+            dlq_messages = await bus.get_dlq_messages()
+            assert len(dlq_messages) == 1
+            assert dlq_messages[0].channel == "fake"
+        finally:
+            await bus.stop()
 
     @pytest.mark.asyncio
     async def test_edit_message_exception_returns_false(self) -> None:

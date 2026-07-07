@@ -28,13 +28,14 @@ const MORNING_DEF: BlueprintDef = {
   description: { en: 'Daily briefing' },
   prompt_template: { en: 'Brief me' },
   slots: [
-    { name: 'time', type: 'time', label: 'time', default: '08:00', options: [] },
+    { name: 'time', type: 'time', label: 'time', default: '08:00', options: [], optional: false },
     {
       name: 'weekdays',
       type: 'enum',
       label: 'weekdays',
       default: 'everyday',
       options: ['everyday', 'weekdays', 'weekends'],
+      optional: false,
     },
   ],
   category: 'general',
@@ -46,13 +47,14 @@ const WEEKLY_DEF: BlueprintDef = {
   ...MORNING_DEF,
   id: 'weekly_review',
   slots: [
-    { name: 'time', type: 'time', label: 'time', default: '18:00', options: [] },
+    { name: 'time', type: 'time', label: 'time', default: '18:00', options: [], optional: false },
     {
       name: 'day',
       type: 'enum',
       label: 'day',
       default: '5',
       options: ['1', '2', '3', '4', '5', '6', '0'],
+      optional: false,
     },
   ],
 };

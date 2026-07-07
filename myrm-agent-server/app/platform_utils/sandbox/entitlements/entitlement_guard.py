@@ -106,11 +106,8 @@ def require_public_ingress_entitlement() -> None:
 
 
 def require_subagent_entitlement() -> None:
-    entitlements = fetch_sandbox_entitlements()
-    if entitlements is None:
-        return
-    if not entitlements.enable_subagent:
-        raise EntitlementGuardError("Sub-agents are not available on the current plan. Upgrade to Companion or above.")
+    """No-op: subagent is a base capability; Work Unit balance gates consumption."""
+    return
 
 
 def require_vnc_entitlement() -> None:

@@ -9,7 +9,6 @@ import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { cn } from '@/lib/utils/classnameUtils';
 import { type AgentThemeColor, AGENT_COLOR_CLASSES } from '@/components/features/message-box/progress-steps/toolIcons';
-import SubagentEntitlementGate from '@/components/billing/SubagentEntitlementGate';
 
 type SubagentControlScope = 'leaf' | 'orchestrator';
 
@@ -134,8 +133,7 @@ export const SubagentsPanel = ({
   const hasValidationErrors = Object.values(displayNameErrors).some((e) => e !== '');
 
   return (
-    <SubagentEntitlementGate>
-      <div className="space-y-4">
+    <div className="space-y-4">
         <Button onClick={() => setIsAddingSubagent(true)} variant="outline" className="w-full gap-2 border-dashed">
           <Plus size={16} />
           {t('addSubagent')}
@@ -257,7 +255,6 @@ export const SubagentsPanel = ({
           </div>
         )}
       </div>
-    </SubagentEntitlementGate>
   );
 };
 

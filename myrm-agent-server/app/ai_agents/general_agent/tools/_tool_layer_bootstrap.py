@@ -18,6 +18,7 @@ product media LangChain adapters) into the harness registry at import time.
 from __future__ import annotations
 
 from myrm_agent_harness.agent.tool_management import ToolLayer, register_tool_layer
+from myrm_agent_harness.agent.sub_agents.delegation_policy import register_leaf_blocked_tools
 
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTENDED: opt-in business tools that depend on server-specific SDKs/APIs.
@@ -36,6 +37,7 @@ def register_server_tools() -> None:
     """
     for name, layer in _SERVER_TOOL_LAYERS.items():
         register_tool_layer(name, layer)
+    register_leaf_blocked_tools(frozenset({"channel_notify_tool"}))
 
 
 register_server_tools()

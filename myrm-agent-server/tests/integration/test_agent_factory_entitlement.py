@@ -21,20 +21,8 @@ def test_should_enable_subagent_tools_local():
         assert _should_enable_subagent_tools() is True
 
 
-def test_should_enable_subagent_tools_sandbox_entitled():
-    """In sandbox mode, subagents are enabled if the CP says so."""
-    mock_entitlement = MagicMock()
-    mock_entitlement.enable_subagent = True
-
-    with (
-        patch(_CAPS_FN, return_value=_make_caps(uses_cp=True)),
-        patch(_FETCH_FN, return_value=mock_entitlement),
-    ):
-        assert _should_enable_subagent_tools() is True
-
-
-def test_should_enable_subagent_tools_sandbox_not_entitled():
-    """In sandbox mode, subagents are disabled if the CP says so."""
+def test_should_enable_subagent_tools_sandbox_when_cp_reachable():
+    """In sandbox mode, subagents are enabled when CP entitlements are reachable."""
     mock_entitlement = MagicMock()
     mock_entitlement.enable_subagent = False
 
@@ -42,7 +30,7 @@ def test_should_enable_subagent_tools_sandbox_not_entitled():
         patch(_CAPS_FN, return_value=_make_caps(uses_cp=True)),
         patch(_FETCH_FN, return_value=mock_entitlement),
     ):
-        assert _should_enable_subagent_tools() is False
+        assert _should_enable_subagent_tools() is True
 
 
 def test_should_enable_subagent_tools_sandbox_cp_down():

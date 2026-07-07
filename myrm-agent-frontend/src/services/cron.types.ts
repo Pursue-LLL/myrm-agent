@@ -294,6 +294,7 @@ export interface BlueprintSlotDef {
   label: string;
   default: string;
   options: string[];
+  optional: boolean;
 }
 
 export interface BlueprintDef {

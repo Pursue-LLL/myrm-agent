@@ -26,7 +26,7 @@ from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
 _FILL_VALUE_OVERRIDES: dict[str, dict[str, str]] = {
     "custom_reminder": {"message": "Water the plants"},
     "competitor_watch": {"competitors": "Acme Corp"},
-    "social_media_watch": {"brand": "MyBrand", "keywords": "launch"},
+    "social_media_watch": {"brand": "MyBrand"},
 }
 
 
@@ -204,6 +204,30 @@ class TestFillBlueprint:
         assert resp.status_code == 422
         assert "message" in resp.json()["detail"]
 
+    def test_fill_social_media_watch_empty_keywords_succeeds(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "social_media_watch",
+                "values": {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "Myrm",
+                    "platforms": "Xiaohongshu, Weibo",
+                    "keywords": "",
+                },
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        assert "Myrm" in resp.json()["prompt"]
+
+    def test_catalog_exposes_optional_on_keywords_slot(self, client: TestClient) -> None:
+        resp = client.get("/cron/blueprints")
+        social = next(bp for bp in resp.json() if bp["id"] == "social_media_watch")
+        keywords = next(s for s in social["slots"] if s["name"] == "keywords")
+        assert keywords["optional"] is True
+
     def test_fill_prompt_no_unresolved_placeholders(self, client: TestClient) -> None:
         """read_it_later has no text slots — prompt must not contain Python format braces."""
         resp = client.post(
@@ -295,6 +319,40 @@ class TestBlueprintToCronLifecycle:
         job = create_resp.json()
         assert job["status"] == "active"
         assert job["prompt"] == fill_data["prompt"]
+
+    def test_social_media_empty_keywords_lifecycle(self, full_cron_client: TestClient) -> None:
+        """Brand-only social watch: empty optional keywords → fill → create job."""
+        fill_resp = full_cron_client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "social_media_watch",
+                "values": {
+                    "time": "09:00",
+                    "weekdays": "weekdays",
+                    "brand": "E2EBrand",
+                    "platforms": "Xiaohongshu, Weibo",
+                    "keywords": "",
+                },
+                "locale": "zh",
+            },
+        )
+        assert fill_resp.status_code == 200, fill_resp.text
+        fill_data = fill_resp.json()
+        assert "E2EBrand" in fill_data["prompt"]
+
+        create_resp = full_cron_client.post(
+            "/cron",
+            json={
+                "name": fill_data["name"],
+                "job_type": "agent",
+                "schedule": fill_data["schedule"],
+                "prompt": fill_data["prompt"],
+            },
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        job = create_resp.json()
+        assert job["status"] == "active"
+        assert "E2EBrand" in job["prompt"]
 
     def test_fill_then_create_with_weekdays(self, full_cron_client: TestClient) -> None:
         fill_resp = full_cron_client.post(

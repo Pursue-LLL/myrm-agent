@@ -17,7 +17,7 @@ class SubagentManagementExtension(AgentExtension):
     """Extension that injects subagent management tools into the agent.
 
     Tools are created in ``on_agent_init`` (they require a live ``BaseAgent`` reference)
-    and injected via ``agent.add_tools()``, which triggers an agent graph rebuild.
+    and registered on ``agent._tool_registry`` before the first ``create_agent`` call.
     ``get_tools()`` always returns ``None`` because tools cannot be provided statically.
     """
 
@@ -50,7 +50,9 @@ class SubagentManagementExtension(AgentExtension):
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 
         def _tool_registry_getter() -> list[object]:
-            return list(agent._cached_tools or agent.user_tools) if agent else []
+            if agent is None or agent._tool_registry is None:
+                return []
+            return list(agent._tool_registry.resolve())
 
         jit_configs = materialize_jit_configs(self.jit_subagents)
         combined_ids = list(self.subagent_ids)
@@ -67,6 +69,8 @@ class SubagentManagementExtension(AgentExtension):
             catalog=catalog,
         )
         await update_delegate_task_description(delegate_tool, catalog)
+
+        from myrm_agent_harness.agent.tool_management.types import ToolSource
 
         subagent_tools = [
             delegate_tool,
@@ -85,7 +89,8 @@ class SubagentManagementExtension(AgentExtension):
             create_cancel_subagent_tool(agent),
             create_steer_subagent_tool(agent),
         ]
-        agent.add_tools(subagent_tools)
+        for tool in subagent_tools:
+            agent._tool_registry.register(tool, source=ToolSource.USER)
         logger.info("Subagent tools loaded via Extension: delegate/batch/parallel/list/cancel/steer")
 
     async def on_agent_shutdown(self, agent: BaseAgent) -> None:

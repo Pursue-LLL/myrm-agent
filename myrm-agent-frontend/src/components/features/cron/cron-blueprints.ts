@@ -11,6 +11,7 @@ export interface BlueprintSlot {
   label: string;
   default: string;
   options?: string[];
+  optional?: boolean;
 }
 
 export interface CronBlueprint {
@@ -101,6 +102,7 @@ function buildBlueprintFromDef(def: BlueprintDef): CronBlueprint {
       label: resolveBlueprintSlotLabel(s.name),
       default: s.default,
       options: s.options.length > 0 ? s.options : undefined,
+      optional: s.optional ?? false,
     })),
     title: def.title,
     description: def.description,

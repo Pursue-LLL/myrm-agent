@@ -40,6 +40,7 @@ class SlotResponse(BaseModel):
     label: str
     default: str
     options: list[str] = Field(default_factory=list)
+    optional: bool = False
 
 
 class BlueprintResponse(BaseModel):
@@ -86,6 +87,7 @@ def _slot_to_response(slot: BlueprintSlot) -> SlotResponse:
         label=slot.label,
         default=slot.default,
         options=list(slot.options),
+        optional=slot.optional,
     )
 
 

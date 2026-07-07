@@ -103,7 +103,12 @@ export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: Bl
 
       {blueprint.slots.map((slot) => (
         <div key={slot.name} className="space-y-1.5">
-          <Label className="text-xs">{t(slot.label)}</Label>
+          <Label className="text-xs">
+            {t(slot.label)}
+            {slot.optional ? (
+              <span className="text-muted-foreground font-normal ml-1">({t('blueprint.slotOptional')})</span>
+            ) : null}
+          </Label>
           {slot.type === 'time' && (
             <Input
               type="time"

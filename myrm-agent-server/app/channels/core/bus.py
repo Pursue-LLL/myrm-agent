@@ -13,7 +13,8 @@ priority-based dispatch with back-pressure.
 
 [OUTPUT]
 - MessageBus: async message bus managing outbound/inbound queues and channel registration
-- MessageBus.send_tracked(): bypasses queue for direct send, returns message_id (for approval lifecycle)
+- MessageBus.send_tracked(): bypasses queue for direct send, returns message_id; on failure persists to DLQ and invokes on_permanent_failure
+- MessageBus._record_outbound_failure(): shared DLQ + permanent-failure callback for sync and async send paths
 - MessageBus.edit_channel_message(): edits a sent message (for updating approval status)
 - downgrade_components: interactive component downgrade (appends text fallback when channel lacks support)
 
@@ -34,6 +35,7 @@ import contextvars
 import dataclasses
 import logging
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -294,6 +296,78 @@ class MessageBus:
 
         return "enqueued"
 
+    def _dlq_max_retries(self) -> int:
+        if self._dlq is not None:
+            return self._dlq.max_retries
+        return 3
+
+    async def _emit_dlq_threshold_if_needed(self, channel_name: str) -> None:
+        if self._dlq is None or self._dlq_dir is None:
+            return
+        dlq_count = await self._dlq.get_failed_count()
+        if dlq_count < _DEFAULT_DLQ_ALERT_THRESHOLD:
+            return
+        now = time.time()
+        last_alert_time = self._last_dlq_alert_times.get(channel_name, 0.0)
+        if now - last_alert_time < self._dlq_alert_cooldown_sec:
+            logger.debug(
+                "DLQ threshold exceeded for '%s', but alert is on cooldown",
+                channel_name,
+            )
+            return
+        self._last_dlq_alert_times[channel_name] = now
+        self.events.emit(
+            "DLQ_THRESHOLD_EXCEEDED",
+            {"count": dlq_count, "channel": channel_name},
+        )
+
+    async def _record_outbound_failure(
+        self,
+        msg: OutboundMessage,
+        error: str,
+        *,
+        retries_exhausted: bool,
+    ) -> None:
+        """Persist a failed outbound send to DLQ and optionally notify permanent failure."""
+        if self._dlq_dir is None and self.on_permanent_failure is None:
+            return
+
+        max_retries = self._dlq_max_retries()
+        delivery = QueuedDelivery(
+            id=uuid.uuid4().hex,
+            channel=msg.channel,
+            recipient=msg.recipient_id,
+            content=msg.to_dict(),
+            enqueued_at=time.time(),
+            priority=msg.priority.value,
+            retry_count=max_retries if retries_exhausted else 0,
+            last_attempt_at=time.time(),
+            last_error=error,
+            failed_at=time.time() if retries_exhausted else None,
+        )
+
+        if self._dlq_dir is not None:
+            try:
+                await move_to_failed(delivery, base_dir=self._dlq_dir)
+                logger.debug("Message added to DLQ for channel '%s'", msg.channel)
+                await self._emit_dlq_threshold_if_needed(msg.channel)
+            except Exception as dlq_e:
+                logger.error(
+                    "Failed to save message to DLQ for channel '%s': %s",
+                    msg.channel,
+                    dlq_e,
+                )
+
+        if retries_exhausted and self.on_permanent_failure is not None:
+            try:
+                await self.on_permanent_failure(delivery, error)
+            except Exception as cb_e:
+                logger.error(
+                    "Error in on_permanent_failure callback for channel '%s': %s",
+                    msg.channel,
+                    cb_e,
+                )
+
     def _ensure_queues(self) -> None:
         if self._outbound is None:
             self._outbound = asyncio.PriorityQueue(maxsize=self._max_queue_size)
@@ -391,6 +465,7 @@ class MessageBus:
         except Exception as e:
             channel.activity.record_error()
             logger.warning("Channel '%s' send_tracked failed after retries: %s", msg.channel, e)
+            await self._record_outbound_failure(msg, str(e), retries_exhausted=True)
             return None
 
     async def edit_channel_message(self, channel_name: str, chat_id: str, message_id: str, content: str) -> bool:
@@ -597,45 +672,4 @@ class MessageBus:
                 channel.activity.record_error()
                 channel.health.record_failure(str(e))
                 logger.warning("Channel '%s' send failed after retries: %s", msg.channel, e)
-                # DLQ: send failed after all retries, save to DLQ directory
-                if self._dlq_dir is not None:
-                    try:
-                        import uuid
-
-                        delivery = QueuedDelivery(
-                            id=uuid.uuid4().hex,
-                            channel=msg.channel,
-                            recipient=msg.recipient_id,
-                            content=msg.to_dict(),
-                            enqueued_at=time.time(),
-                            priority=msg.priority.value,
-                            retry_count=0,
-                            last_attempt_at=time.time(),
-                            last_error=str(e),
-                        )
-                        await move_to_failed(delivery, base_dir=self._dlq_dir)
-                        logger.debug("Message added to DLQ for channel '%s'", msg.channel)
-
-                        # Emit event if DLQ size exceeds threshold
-                        if self._dlq:
-                            dlq_count = await self._dlq.get_failed_count()
-                            if dlq_count >= _DEFAULT_DLQ_ALERT_THRESHOLD:
-                                now = time.time()
-                                last_alert_time = self._last_dlq_alert_times.get(msg.channel, 0.0)
-                                if now - last_alert_time >= self._dlq_alert_cooldown_sec:
-                                    self._last_dlq_alert_times[msg.channel] = now
-                                    self.events.emit(
-                                        "DLQ_THRESHOLD_EXCEEDED",
-                                        {"count": dlq_count, "channel": msg.channel},
-                                    )
-                                else:
-                                    logger.debug(
-                                        "DLQ threshold exceeded for '%s', but alert is on cooldown",
-                                        msg.channel,
-                                    )
-                    except Exception as dlq_e:
-                        logger.error(
-                            "Failed to save message to DLQ for channel '%s': %s",
-                            msg.channel,
-                            dlq_e,
-                        )
+                await self._record_outbound_failure(msg, str(e), retries_exhausted=False)

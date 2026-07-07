@@ -8907,6 +8907,7 @@
       "slotBrand": "Brand",
       "slotPlatforms": "Platforms",
       "slotKeywords": "Keywords",
+      "slotOptional": "Optional",
       "slotSubject": "Subject",
       "slotTextPlaceholder": "Enter your content...",
       "enum": {

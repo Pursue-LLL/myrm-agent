@@ -828,7 +828,10 @@ def _should_enable_cron_tools() -> bool:
 
 
 def _should_enable_subagent_tools() -> bool:
-    """Return False in SaaS sandbox when the plan does not include sub-agents."""
+    """Return False only when SaaS sandbox cannot reach Control Plane entitlements.
+
+    Subagent delegation is a base capability on all plans; Work Unit balance gates consumption.
+    """
     from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
     if not get_deployment_capabilities().uses_cp_entitlements:
@@ -840,7 +843,7 @@ def _should_enable_subagent_tools() -> bool:
         entitlements = fetch_sandbox_entitlements()
         if entitlements is None:
             return False
-        return entitlements.enable_subagent
+        return True
     except Exception as exc:
         logger.warning("Sub-agent entitlement check failed (disabling tools): %s", exc)
         return False

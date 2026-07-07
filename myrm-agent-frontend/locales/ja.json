@@ -8023,6 +8023,7 @@
       "slotBrand": "ブランド名",
       "slotPlatforms": "プラットフォーム",
       "slotKeywords": "キーワード",
+      "slotOptional": "任意",
       "slotSubject": "学習テーマ",
       "slotTextPlaceholder": "内容を入力...",
       "enum": {

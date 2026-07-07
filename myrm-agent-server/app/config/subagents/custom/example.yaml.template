@@ -2,7 +2,7 @@
 # Copy this file to create your custom subagent configuration:
 # cp example.yaml.template my_agent.yaml
 
-# REQUIRED: Unique name for this subagent type (used in spawn_subagent_tool)
+# REQUIRED: Unique name for this subagent type (referenced by delegate_task_tool)
 name: my_custom_agent
 
 # REQUIRED: Short description (shown to LLM in tool description)

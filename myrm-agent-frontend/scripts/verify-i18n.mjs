@@ -62,6 +62,7 @@ const CRON_BLUEPRINT_SLOT_KEYS = [
   'slotBrand',
   'slotPlatforms',
   'slotKeywords',
+  'slotOptional',
   'slotSubject',
 ];
 
