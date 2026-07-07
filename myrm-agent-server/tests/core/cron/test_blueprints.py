@@ -16,6 +16,7 @@ from app.core.cron.blueprints import (
     get_blueprint,
     get_blueprints_for_tool_description,
 )
+from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
 
 
 class TestBlueprintRegistry:
@@ -29,20 +30,27 @@ class TestBlueprintRegistry:
         orders = [bp.sort_order for bp in BUILTIN_BLUEPRINTS]
         assert len(orders) == len(set(orders)), f"Duplicate sort_orders: {orders}"
 
-    def test_all_blueprints_have_bilingual_titles(self) -> None:
+    def test_all_blueprints_have_five_locale_titles(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            assert "en" in bp.title, f"{bp.id} missing English title"
-            assert "zh" in bp.title, f"{bp.id} missing Chinese title"
+            for locale in BLUEPRINT_UI_LOCALES:
+                assert locale in bp.title, f"{bp.id} missing {locale} title"
+                assert bp.title[locale].strip(), f"{bp.id} empty {locale} title"
 
-    def test_all_blueprints_have_bilingual_descriptions(self) -> None:
+    def test_all_blueprints_have_five_locale_descriptions(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            assert "en" in bp.description, f"{bp.id} missing English description"
-            assert "zh" in bp.description, f"{bp.id} missing Chinese description"
+            for locale in BLUEPRINT_UI_LOCALES:
+                assert locale in bp.description, f"{bp.id} missing {locale} description"
+                assert bp.description[locale].strip(), f"{bp.id} empty {locale} description"
 
-    def test_all_blueprints_have_bilingual_prompts(self) -> None:
+    def test_all_blueprints_have_five_locale_prompts(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            assert "en" in bp.prompt_template, f"{bp.id} missing English prompt"
-            assert "zh" in bp.prompt_template, f"{bp.id} missing Chinese prompt"
+            for locale in BLUEPRINT_UI_LOCALES:
+                assert locale in bp.prompt_template, f"{bp.id} missing {locale} prompt"
+                assert bp.prompt_template[locale].strip(), f"{bp.id} empty {locale} prompt"
+
+    def test_supplemental_covers_all_builtin_ids(self) -> None:
+        builtin_ids = {bp.id for bp in BUILTIN_BLUEPRINTS}
+        assert set(SUPPLEMENTAL_BY_ID) == builtin_ids
 
     def test_all_slot_defaults_are_strings(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
@@ -133,3 +141,8 @@ class TestToolDescription:
         desc = get_blueprints_for_tool_description("en")
         lines = desc.strip().split("\n")
         assert len(lines) == len(BUILTIN_BLUEPRINTS) + 1
+
+    def test_tool_description_uses_japanese_title_when_available(self) -> None:
+        desc = get_blueprints_for_tool_description("ja")
+        assert "モーニングブリーフィング" in desc
+        assert "morning_briefing" in desc

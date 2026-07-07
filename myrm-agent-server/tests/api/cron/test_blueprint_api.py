@@ -19,6 +19,7 @@ from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronSchedu
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 from app.api.cron.routes.blueprints import router as blueprint_router
+from app.core.cron.blueprint_i18n_supplement import BLUEPRINT_UI_LOCALES
 from app.core.cron.blueprints import BUILTIN_BLUEPRINTS
 
 
@@ -77,8 +78,10 @@ class TestListBlueprints:
         assert bp["category"] == "productivity"
         assert "en" in bp["title"]
         assert "zh" in bp["title"]
+        assert "ja" in bp["title"]
         assert "en" in bp["description"]
         assert "zh" in bp["description"]
+        assert "ja" in bp["description"]
         assert "en" in bp["prompt_template"]
         assert "zh" in bp["prompt_template"]
         assert len(bp["slots"]) == 2
@@ -91,13 +94,13 @@ class TestListBlueprints:
         orders = [bp["sort_order"] for bp in resp.json()]
         assert orders == sorted(orders)
 
-    def test_all_blueprints_have_bilingual_fields(self, client: TestClient) -> None:
+    def test_all_blueprints_have_five_locale_fields(self, client: TestClient) -> None:
         resp = client.get("/cron/blueprints")
         for bp in resp.json():
-            assert "en" in bp["title"], f"{bp['id']} missing en title"
-            assert "zh" in bp["title"], f"{bp['id']} missing zh title"
-            assert "en" in bp["description"], f"{bp['id']} missing en description"
-            assert "zh" in bp["description"], f"{bp['id']} missing zh description"
+            for locale in BLUEPRINT_UI_LOCALES:
+                assert locale in bp["title"], f"{bp['id']} missing {locale} title"
+                assert locale in bp["description"], f"{bp['id']} missing {locale} description"
+                assert locale in bp["prompt_template"], f"{bp['id']} missing {locale} prompt_template"
 
     def test_all_blueprints_have_non_empty_slots(self, client: TestClient) -> None:
         resp = client.get("/cron/blueprints")
@@ -204,10 +207,18 @@ class TestFillBlueprint:
         """Unknown locale falls back to 'en'."""
         resp = client.post(
             "/cron/blueprints/fill",
-            json={"blueprint_id": "read_it_later", "values": {}, "locale": "ja"},
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "fr"},
         )
         assert resp.status_code == 200
         assert "read-it-later" in resp.json()["prompt"].lower()
+
+    def test_fill_japanese_locale(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={"blueprint_id": "read_it_later", "values": {}, "locale": "ja"},
+        )
+        assert resp.status_code == 200
+        assert "後で読む" in resp.json()["prompt"]
 
     def test_fill_all_blueprints_succeed(self, client: TestClient) -> None:
         """Every registered blueprint can be filled with defaults without error."""

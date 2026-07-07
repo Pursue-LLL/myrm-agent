@@ -25,6 +25,36 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.core.cron.blueprint_i18n_supplement import (
+    BLUEPRINT_UI_LOCALES,
+    SUPPLEMENTAL_BY_ID,
+)
+
+
+def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
+    merged = dict(base)
+    merged.update(extra)
+    return merged
+
+
+def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
+    """Attach ja/de/ko catalog fields from the supplemental locale module."""
+    supplement = SUPPLEMENTAL_BY_ID.get(bp.id)
+    if supplement is None:
+        return bp
+    return CronBlueprint(
+        id=bp.id,
+        icon=bp.icon,
+        title=_merge_locale_dict(bp.title, supplement["title"]),
+        description=_merge_locale_dict(bp.description, supplement["description"]),
+        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
+        slots=bp.slots,
+        category=bp.category,
+        tags=bp.tags,
+        sort_order=bp.sort_order,
+        _schedule_builder=bp._schedule_builder,
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class BlueprintSlot:
@@ -91,7 +121,7 @@ def _time_to_cron_with_weekdays(time_str: str, weekdays: str) -> str:
     return f"{m} {h} * * {dow}"
 
 
-BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
+_RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
     CronBlueprint(
         id="morning_briefing",
         icon="Sun",
@@ -507,6 +537,10 @@ BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         sort_order=10,
         _schedule_builder="time_weekdays",
     ),
+)
+
+BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(
+    _with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS
 )
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}
