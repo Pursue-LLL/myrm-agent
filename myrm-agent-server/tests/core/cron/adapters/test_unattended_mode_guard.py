@@ -43,3 +43,22 @@ class TestUnattendedModeGuard:
         assert not missing, "These automated runner files are missing unattended_mode=True:\n" + "\n".join(
             f"  - {m}" for m in missing
         )
+
+    def test_unattended_general_agent_skips_ask_question_tool(self) -> None:
+        """Behavioral guard: unattended_mode must prevent ask_question_tool registration."""
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+
+        agent = AgentFactory.create_general_agent(
+            GeneralAgentParams(
+                query="cron task",
+                model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+                unattended_mode=True,
+                channel_name="cron",
+            )
+        )
+        tools: list[object] = []
+        discoverable_tools: list[object] = []
+        agent._setup_clarification_tools(tools, discoverable_tools)
+        names = {getattr(t, "name", None) for t in tools}
+        assert "ask_question_tool" not in names

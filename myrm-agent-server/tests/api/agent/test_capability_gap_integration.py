@@ -36,6 +36,18 @@ class _DummyDeferredTool(BaseTool):
         return "ok"
 
 
+def _discover_gateway_skills() -> list:
+    """Minimal searchable skill so DeferEconomics binds discover_capability_tool in tests."""
+    from myrm_agent_harness.backends.skills.types import SkillMetadata
+
+    return [
+        SkillMetadata(
+            name="gap_integration_skill",
+            description="Integration test skill to enable discover gateway binding.",
+        )
+    ]
+
+
 def _collect_agent_stream(client: TestClient, payload: dict[str, object]) -> list[dict[str, object]]:
     collected: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=180.0) as response:
@@ -78,6 +90,7 @@ async def test_discover_miss_emits_capability_gap_block_and_sse(monkeypatch: pyt
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
@@ -112,6 +125,7 @@ async def test_discover_miss_does_not_emit_render_ui_gap_when_group_enabled(
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset(
             {"web", "memory", "file_ops", "shell", "render_ui"},
         ),
@@ -144,6 +158,7 @@ async def test_discover_miss_emits_render_ui_gap_when_group_disabled(
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
@@ -186,6 +201,7 @@ async def test_discover_miss_emits_capability_gap_for_disabled_groups(
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset({"web", "memory", "file_ops", "shell"}),
     )
     assert discover is not None
@@ -218,6 +234,7 @@ async def test_discover_miss_no_gap_for_file_ops_intent_without_file_group(
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset({"web", "memory", "answer_tool"}),
     )
     assert discover is not None
@@ -246,6 +263,7 @@ async def test_discover_miss_emits_skill_gap_block_and_sse(monkeypatch: pytest.M
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         bound_skill_names=frozenset(),
         library_skill_names=frozenset({"github_pr_skill"}),
     )
@@ -418,6 +436,7 @@ async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.DISCOVERABLE)
     discover = sync_discover_capability_tool(
         registry,
+        skills=_discover_gateway_skills(),
         active_tool_groups=frozenset({"memory", "file_ops", "shell"}),
     )
     assert discover is not None

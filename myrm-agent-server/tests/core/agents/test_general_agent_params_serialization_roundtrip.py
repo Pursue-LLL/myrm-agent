@@ -26,6 +26,19 @@ def test_general_agent_params_json_dump_validate_preserves_browser_and_auto_rest
     assert restored.auto_restore_domains == ["oauth.example", "github.com"]
 
 
+def test_general_agent_params_json_dump_validate_preserves_unattended_mode() -> None:
+    original = GeneralAgentParams(
+        query="task",
+        model_cfg=ModelConfig(model="gpt-4o", api_key="test-key"),
+        unattended_mode=True,
+    )
+    payload = original.model_dump(mode="json")
+    assert payload["unattended_mode"] is True
+
+    restored = GeneralAgentParams.model_validate(payload)
+    assert restored.unattended_mode is True
+
+
 def test_general_agent_params_json_dump_validate_preserves_enable_render_ui() -> None:
     original = GeneralAgentParams(
         query="task",

@@ -8,6 +8,7 @@
 
 [OUTPUT]
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
+- _should_mount_ask_question_tool: interactive web_chat clarify mount predicate
 - _setup_x_live_search_tool: skill 绑定后 Turn1 eager x_search_tool（独立于 enable_web_search）
 
 [POS]
@@ -47,6 +48,25 @@ if TYPE_CHECKING:
     from app.core.types import ModelConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _should_mount_ask_question_tool(
+    *,
+    unattended_mode: bool,
+    channel_name: str,
+    prompt_mode: str,
+) -> bool:
+    """Return True when structured HITL clarification is safe and product-appropriate."""
+    if unattended_mode:
+        return False
+    if prompt_mode == "search":
+        return False
+    from myrm_agent_harness.agent.security.channel_presets import (
+        ChannelType,
+        resolve_channel_type,
+    )
+
+    return resolve_channel_type(channel_name) == ChannelType.WEB_CHAT
 
 
 def _configured_media_api_key(api_key: str | None) -> bool:
@@ -115,6 +135,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
         _current_chat_id: str | None
         skill_ids: list[str]
         enable_cron_eager: bool
+        unattended_mode: bool
+        channel_name: str
+        prompt_mode: str
 
     def _setup_x_live_search_tool(self, tools: list[object]) -> None:
         """Register eager x_search_tool when x-live-search skill is enabled.
@@ -212,8 +235,12 @@ class ToolSetupMixin(ExternalAgentsMixin):
         self._setup_tts_tools(tools)
 
     def _setup_clarification_tools(self, tools: list[object], discoverable_tools: list[object]) -> None:
-        """Set up ask_question HITL clarification tool."""
-        if "ask_question_tool" not in self.declared_capabilities:
+        """Set up ask_question HITL clarification tool for interactive web_chat sessions."""
+        if not _should_mount_ask_question_tool(
+            unattended_mode=getattr(self, "unattended_mode", False),
+            channel_name=getattr(self, "channel_name", "web_chat"),
+            prompt_mode=getattr(self, "prompt_mode", "full"),
+        ):
             return
 
         try:

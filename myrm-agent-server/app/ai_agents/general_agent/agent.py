@@ -97,6 +97,7 @@ class GeneralAgent(ToolSetupMixin):
         kanban_current_task_id: str | None = None,
         kanban_max_runtime_seconds: int | None = None,
         kanban_zombie_timeout_seconds: int = 120,
+        unattended_mode: bool = False,
         auto_restore_domains: list[str] | None = None,
         skill_ids: list[str] | None = None,
         skill_configs: dict[str, dict] | None = None,
@@ -190,6 +191,7 @@ class GeneralAgent(ToolSetupMixin):
         self.kanban_current_task_id = kanban_current_task_id
         self.kanban_max_runtime_seconds = kanban_max_runtime_seconds
         self.kanban_zombie_timeout_seconds = kanban_zombie_timeout_seconds
+        self.unattended_mode = unattended_mode
         self.auto_restore_domains = auto_restore_domains or []
         self.fetch_raw_webpage = fetch_raw_webpage
         self.enable_memory = enable_memory

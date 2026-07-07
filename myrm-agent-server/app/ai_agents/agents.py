@@ -268,6 +268,7 @@ class AgentFactory:
             kanban_current_task_id=params.kanban_current_task_id,
             kanban_max_runtime_seconds=params.kanban_max_runtime_seconds,
             kanban_zombie_timeout_seconds=params.kanban_zombie_timeout_seconds,
+            unattended_mode=params.unattended_mode,
             auto_restore_domains=params.auto_restore_domains,
             skill_ids=params.agent_skill_ids,
             skill_configs=params.agent_skill_configs,
