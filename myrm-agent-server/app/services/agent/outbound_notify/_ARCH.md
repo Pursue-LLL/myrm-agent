@@ -17,14 +17,16 @@ second callback when the DLQ retry loop runs.
 Subagents cannot inherit `channel_notify_tool`: server bootstrap registers it via
 `register_leaf_blocked_tools` (`_tool_layer_bootstrap.py`).
 
-Frontend recipient picker uses existing `GET /channels/manage/pairings`.
+Frontend recipient picker uses `GET /channels/manage/status` (running channels) and
+`GET /channels/manage/pairings`.
 
-**Test coverage**: 64 server (outbound_notify + factory/integration/e2e) + 6 frontend vitest; notify+DLQ chain 106 with `test_bus.py`.
+**Test coverage**: 48 server (outbound_notify module) + 7 frontend vitest; full notify+DLQ chain 106+ with `test_bus.py`.
 
 ## Media Attachments
 
 `channel_notify_tool` supports an optional `attachments` parameter accepting local
-file paths or URLs. Attachments are converted to `MediaAttachment` objects (reusing
+file paths or URLs. Local paths must resolve under the agent's `declared_allowed_roots`
+(see `attachment_path_policy.py`). Attachments are converted to `MediaAttachment` objects (reusing
 `app.channels.types.messages`) and delivered via the existing `OutboundMessage.media`
 pipeline — all registered channel providers already handle `msg.media`.
 
