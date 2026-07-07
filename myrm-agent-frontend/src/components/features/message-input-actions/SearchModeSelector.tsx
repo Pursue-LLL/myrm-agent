@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { AiNetworkIcon, InvestigationIcon } from 'hugeicons-react';
+import { AiNetworkIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
@@ -77,14 +77,6 @@ const MODES: ModeEntry[] = [
     features: ['agentFeature1', 'agentFeature2'],
   },
   {
-    key: 'deep_research',
-    icon: ({ className }) => (
-      <InvestigationIcon size={16} className={cn('shrink-0 transition-colors duration-300', className)} />
-    ),
-    featureGate: 'deep_research',
-    features: ['deep_researchFeature1', 'deep_researchFeature2'],
-  },
-  {
     key: 'consensus',
     icon: ConsensusIcon,
     featureGate: 'consensus',
@@ -92,7 +84,7 @@ const MODES: ModeEntry[] = [
   },
 ];
 
-const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast', 'deep_research']);
+const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
@@ -104,7 +96,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
     if (!initialized) {
       return;
     }
-    if (actionMode === 'deep_research' && !isEnabled('deep_research')) {
+    if (actionMode === 'deep_research') {
       setActionMode('agent');
     }
     if (actionMode === 'consensus' && !isEnabled('consensus')) {

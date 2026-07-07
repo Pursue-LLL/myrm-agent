@@ -9,9 +9,6 @@ import {
   Brain,
   PenTool,
   GitCompare,
-  BookOpen,
-  Globe,
-  Car,
   Newspaper,
   Link2,
   Code2,
@@ -30,15 +27,6 @@ import {
   Megaphone,
   TrendingUp,
   Users,
-  Network,
-  Layers,
-  Shield,
-  Waypoints,
-  Wifi,
-  Wrench,
-  Store,
-  Lock,
-  Atom,
   type LucideIcon,
 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
@@ -72,21 +60,9 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   agent_9: Megaphone,
   agent_10: TrendingUp,
   agent_11: Users,
-  deep_research_0: BookOpen,
-  deep_research_1: Globe,
-  deep_research_2: Car,
-  deep_research_3: Network,
-  deep_research_4: Layers,
-  deep_research_5: Shield,
-  deep_research_6: Waypoints,
-  deep_research_7: Wifi,
-  deep_research_8: Wrench,
-  deep_research_9: Store,
-  deep_research_10: Lock,
-  deep_research_11: Atom,
 };
 
-const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent', 'deep_research'];
+const SUPPORTED_MODES: ActionMode[] = ['fast', 'agent'];
 
 function shuffleAndPick<T>(items: T[], count: number): T[] {
   const shuffled = [...items];

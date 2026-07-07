@@ -56,12 +56,10 @@ async def _init_integration_memory() -> None:
     try:
         from myrm_agent_harness.toolkits.context_bundle import ContextBundleFacade
         from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
-        from myrm_agent_harness.toolkits.retriever.embedding.factory import (
-            EmbeddingConfig,
-            get_embedding_service,
-        )
+        from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
 
         from app.core.retriever.vector.defaults import create_default_vector_store
+        from app.services.agent.platform_config import require_platform_embedding_config
         from app.services.memory.integration_memory import (
             IntegrationMemoryService,
             set_integration_memory_service,
@@ -75,13 +73,21 @@ async def _init_integration_memory() -> None:
             logger.info("[Startup] No vector store, skipping IntegrationMemoryService init")
             return
 
+        try:
+            emb_config = await require_platform_embedding_config()
+        except Exception as exc:
+            logger.info(
+                "[Startup] WebUI embedding not configured, skipping IntegrationMemoryService init: %s",
+                exc,
+            )
+            return
+
         facade = ContextBundleFacade.from_state_dir(settings.database.state_dir, ensure_layout=False)
         memory_path = facade.memory_path()
 
         graph_db_path = memory_path / "integration_graph.db"
         graph_store = SQLiteGraphStore(db_path=str(graph_db_path))
 
-        emb_config = EmbeddingConfig()
         embedding = get_embedding_service(emb_config)
 
         svc = IntegrationMemoryService(

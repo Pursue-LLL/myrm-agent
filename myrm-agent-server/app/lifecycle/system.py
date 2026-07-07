@@ -83,11 +83,8 @@ async def resume_durable_offline_tasks() -> None:
             for task in tasks:
                 logger.info(f"▶️ Resuming durable task for chat: {task.chat_id} (action: {task.action_mode})")
 
-                # Mock or dispatch to a background worker
-                # In actual implementation, we would construct an AgentRequest
-                # and call ai_agent_service_stream or deep_research_stream with the thread_id.
-                # Since streaming expects a response stream, we run it in a background task
-                # and consume the stream silently (acting as the Offline Guardian).
+                # Construct params from serialized state, dispatch to a background
+                # task and consume the stream silently (Offline Guardian mode).
                 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
                 from app.ai_agents import GeneralAgentParams

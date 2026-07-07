@@ -33,6 +33,9 @@ const CHAT_SUMMARY_MAX_LENGTH = 100;
 const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research', 'consensus', 'claude_code'];
 
 function normalizeActionMode(actionMode: string | null | undefined): ActionMode {
+  if (actionMode === 'deep_research') {
+    return 'agent';
+  }
   if (typeof actionMode === 'string' && VALID_ACTION_MODES.includes(actionMode as ActionMode)) {
     return actionMode as ActionMode;
   }

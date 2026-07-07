@@ -38,13 +38,13 @@ describe('SamplePrompts', () => {
     expect(buttons).toHaveLength(4);
   });
 
-  it('renders prompt chips for deep_research mode', () => {
+  it('falls back to agent mode for deep_research (hidden product mode)', () => {
     mockStore.actionMode = 'deep_research';
     render(<SamplePrompts />);
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(4);
     buttons.forEach((btn) => {
-      expect(btn.textContent).toMatch(/^samplePrompts\.deep_research_/);
+      expect(btn.textContent).toMatch(/^samplePrompts\.agent_/);
     });
   });
 

@@ -79,7 +79,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   const t = useTranslations('agent');
   const commonT = useTranslations('common');
   const sessionAnalyticsT = useTranslations('settings.sessionAnalytics');
-  const agentIdFromUrl = searchParams.get('agent_id');
+  const agentIdFromUrl = searchParams.get('agent_id') ?? searchParams.get('agentId');
   const restoreArgFromUrl = searchParams.get('restore_arg');
   const hasAppliedAgentRef = useRef<string | null>(null);
   const hasAppliedRestoreArgRef = useRef<string | null>(null);

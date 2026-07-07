@@ -180,7 +180,7 @@ async function main() {
       ? { id: deliveredMessage.id, content: deliveredMessage.content?.slice(0, 200) }
       : null,
     topLevelError: topLevelError ?? null,
-    uiUrl: `${process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000'}/?agentId=${agentId}`,
+    uiUrl: `${process.env.E2E_UI_BASE ?? 'http://127.0.0.1:3000'}/?agent_id=${agentId}`,
   };
 
   console.log(JSON.stringify(result, null, 2));
