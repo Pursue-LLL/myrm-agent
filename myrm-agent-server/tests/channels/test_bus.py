@@ -462,8 +462,51 @@ class TestMessageBusEdgeCases:
             dlq_messages = await bus.get_dlq_messages()
             assert len(dlq_messages) == 1
             assert dlq_messages[0].channel == "fake"
+            assert bus._dlq is not None
+            await bus._dlq._process_failed_messages()
+            callback.assert_awaited_once()
         finally:
             await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_send_tracked_failure_presync_notified_merged_on_start(self, tmp_path) -> None:
+        class FailSendChannel(FakeChannel):
+            async def send(self, msg: OutboundMessage) -> str | None:
+                raise RuntimeError("send failed")
+
+        callback = AsyncMock()
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=callback)
+        bus.register_channel(FailSendChannel())
+        await bus.send_tracked(_make_out())
+        assert len(bus._presync_notified_delivery_ids) == 1
+        await bus.start()
+        try:
+            assert bus._presync_notified_delivery_ids == set()
+            assert bus._dlq is not None
+            await bus._dlq._process_failed_messages()
+            callback.assert_awaited_once()
+        finally:
+            await bus.stop()
+
+    @pytest.mark.asyncio
+    async def test_record_outbound_failure_callback_without_dlq_dir(self) -> None:
+        callback = AsyncMock()
+        bus = MessageBus(on_permanent_failure=callback)
+        await bus._record_outbound_failure(_make_out(), "send failed", retries_exhausted=True)
+        callback.assert_awaited_once()
+        assert callback.await_args.args[1] == "send failed"
+
+    @pytest.mark.asyncio
+    async def test_record_outbound_failure_callback_exception_does_not_raise(self, tmp_path) -> None:
+        async def failing_callback(_delivery: object, _error: str) -> None:
+            raise RuntimeError("callback failed")
+
+        dlq_dir = tmp_path / "dlq"
+        dlq_dir.mkdir()
+        bus = MessageBus(dlq_dir=dlq_dir, on_permanent_failure=failing_callback)
+        await bus._record_outbound_failure(_make_out(), "send failed", retries_exhausted=True)
 
     @pytest.mark.asyncio
     async def test_edit_message_exception_returns_false(self) -> None:

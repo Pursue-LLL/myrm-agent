@@ -277,6 +277,7 @@ class MessageBus:
         self._dlq_alert_cooldown_sec = dlq_alert_cooldown_sec
         self._last_dlq_alert_times: dict[str, float] = {}
         self.on_permanent_failure = on_permanent_failure
+        self._presync_notified_delivery_ids: set[str] = set()
 
     async def _dlq_enqueue(
         self,
@@ -361,6 +362,10 @@ class MessageBus:
         if retries_exhausted and self.on_permanent_failure is not None:
             try:
                 await self.on_permanent_failure(delivery, error)
+                if self._dlq is not None:
+                    self._dlq.mark_permanent_failure_notified(delivery.id)
+                else:
+                    self._presync_notified_delivery_ids.add(delivery.id)
             except Exception as cb_e:
                 logger.error(
                     "Error in on_permanent_failure callback for channel '%s': %s",
@@ -547,6 +552,9 @@ class MessageBus:
                 base_dir=self._dlq_dir,
                 on_permanent_failure=self.on_permanent_failure,
             )
+            for delivery_id in self._presync_notified_delivery_ids:
+                self._dlq.mark_permanent_failure_notified(delivery_id)
+            self._presync_notified_delivery_ids.clear()
             await self._dlq.start()
         logger.info("MessageBus started (channels: %s)", ", ".join(self._channels) or "none")
 

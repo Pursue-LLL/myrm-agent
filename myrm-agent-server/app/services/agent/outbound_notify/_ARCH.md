@@ -11,6 +11,8 @@ Agents wire via `app.ai_agents.general_agent.factory` →
 Delivery uses `ChannelGateway.bus.send_tracked` (synchronous success/failure).
 On send failure after retries, `MessageBus._record_outbound_failure` writes DLQ and invokes
 `channel_bridge.handle_dead_letter` via `on_permanent_failure` (SSE + system notification).
+Sync-path (`send_tracked`) failures mark the delivery id on the DLQ instance to prevent a
+second callback when the DLQ retry loop runs.
 
 Subagents cannot inherit `channel_notify_tool`: server bootstrap registers it via
 `register_leaf_blocked_tools` (`_tool_layer_bootstrap.py`).
