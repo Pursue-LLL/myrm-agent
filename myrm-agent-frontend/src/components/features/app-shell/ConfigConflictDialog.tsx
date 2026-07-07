@@ -1,6 +1,7 @@
 'use client';
 
 import { GitCompareArrows } from 'lucide-react';
+import { sortKeys } from '@/services/config/configFingerprint';
 import ReactDiffViewer from 'react-diff-viewer';
 import { useTheme } from 'next-themes';
 import {
@@ -46,24 +47,6 @@ const defaultTranslations = {
   keepLocalDesc: 'Overwrite server with your local changes',
   useServerDesc: 'Discard local changes and adopt server version',
 };
-
-/**
- * 递归对对象的 key 进行排序，保证 JSON.stringify 输出稳定
- */
-function sortKeys(obj: unknown): unknown {
-  if (obj === null || typeof obj !== 'object') {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(sortKeys);
-  }
-  const sortedKeys = Object.keys(obj as Record<string, unknown>).sort();
-  const result: Record<string, unknown> = {};
-  for (const key of sortedKeys) {
-    result[key] = sortKeys((obj as Record<string, unknown>)[key]);
-  }
-  return result;
-}
 
 /**
  * 配置冲突解决对话框

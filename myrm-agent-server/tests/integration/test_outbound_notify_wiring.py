@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -101,6 +102,44 @@ async def test_tool_delivery_through_real_channel_gateway() -> None:
         assert len(channel.sent) == 1
         assert channel.sent[0].recipient_id == "chat_123"
         assert channel.sent[0].content == "integration hello"
+
+
+@pytest.mark.asyncio
+async def test_chat_channel_delivery_through_real_channel_gateway() -> None:
+    """Real ChatChannel (ORM write) via ChannelGateway — regression for sent_at/sent_timezone."""
+    from sqlalchemy import select
+
+    from app.core.channel_bridge.providers.chat import ChatChannel
+    from app.database.connection import get_session
+    from app.database.models import Message
+
+    recipient_id = f"notify_wiring_{uuid.uuid4().hex[:8]}"
+    channel = ChatChannel()
+    targets = ({"channel": "chat", "recipient_id": recipient_id, "label": "Wiring"},)
+    sender_result = create_notification_sender(targets)
+    assert sender_result is not None
+    sender, config = sender_result
+    limited = NotifyToolConfig(
+        allowed_targets=config.allowed_targets,
+        rate_limit_per_session=10,
+        max_body_length=4000,
+    )
+    tool = create_channel_notify_tool(sender, limited)
+
+    async with wired_gateway(channel):
+        result = await tool.ainvoke({"channel": "chat", "target": "", "body": "chat gateway hello"})
+        assert "success" in result.lower()
+
+    async with get_session() as session:
+        rows = (
+            await session.execute(
+                select(Message).where(Message.chat_id == recipient_id),
+            )
+        ).scalars().all()
+        assert len(rows) == 1
+        assert rows[0].content == "chat gateway hello"
+        assert rows[0].sent_at is not None
+        assert rows[0].sent_timezone == "UTC"
 
 
 def test_profile_resolver_filtering_then_factory() -> None:

@@ -16,6 +16,7 @@
 | `service.py` | 核心 | 配置 CRUD：set/get/get_all/sync/delete，含加密/解密管道和版本冲突检测 | ✅ |
 | `encryption.py` | 核心 | 业务层加密策略：密钥注入、敏感配置判定、encrypt/decrypt 委托到 harness ConfigCrypto | ✅ |
 | `migration.py` | 核心 | 配置加密迁移：明文→密文自动升级（启动时执行） | ✅ |
+| `key_consolidation.py` | 核心 | 合并分裂的 providers 子键（defaultModelConfig/customModelInfo）到 providers bundle | ✅ |
 | `onboarding.py` | 核心 | 首次配置 onboarding：检查状态、标记完成、推荐 provider、probe 本地模型与搜索（SearXNG/DuckDuckGo） | ✅ |
 | `health_monitor.py` | 核心 | 配置健康监控（周期性检查 provider 配置，proactive 通知用户） | ✅ |
 
@@ -30,7 +31,7 @@
 **核心函数**：
 - `set_config()`：写入配置（自动加密敏感字段）
 - `get_config()` / `get_all_configs()`：读取配置（自动解密）
-- `sync_configs()`：批量同步（含版本冲突检测）
+- `sync_configs()`：批量同步（含版本冲突检测；内容相同则幂等接受）
 - `_encrypt_if_sensitive()`：写入前条件加密（含双重加密防护）
 - `_decrypt_if_needed()`：读取后解密（含旧 key fallback 迁移 + 双重加密修复）
 

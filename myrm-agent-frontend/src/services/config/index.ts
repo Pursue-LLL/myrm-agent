@@ -73,4 +73,6 @@ export {
   resetConfigSyncManager,
   type SyncStatus,
   type ConfigChangeListener,
+  type ConfigConflictResolution,
+  type ConfigConflictResolver,
 } from './ConfigSyncManager';

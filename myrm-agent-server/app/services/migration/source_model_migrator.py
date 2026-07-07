@@ -117,9 +117,14 @@ async def migrate_hermes_auxiliary_models(
 
     result = AuxiliaryMigrationResult(total_tasks_detected=len(tasks))
 
-    current_config = await config_service.get("defaultModelConfig")
+    providers_record = await config_service.get("providers")
+    providers_value: dict[str, Any] = (
+        providers_record.value if providers_record and isinstance(providers_record.value, dict) else {}
+    )
     current_model_config: dict[str, Any] = (
-        current_config.value if current_config and isinstance(current_config.value, dict) else {}
+        providers_value.get("defaultModelConfig")
+        if isinstance(providers_value.get("defaultModelConfig"), dict)
+        else {}
     )
 
     slot_candidates: dict[str, str] = {}
@@ -151,7 +156,8 @@ async def migrate_hermes_auxiliary_models(
                 "auto-detected",
             )
 
-        await config_service.set(config_key="defaultModelConfig", value=updates)
+        providers_value["defaultModelConfig"] = updates
+        await config_service.set(config_key="providers", value=providers_value)
 
     return result
 

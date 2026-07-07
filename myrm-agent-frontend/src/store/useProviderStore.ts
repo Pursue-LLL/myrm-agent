@@ -24,7 +24,7 @@ import {
   getInitialProviders,
   getInitialDefaultModelConfig,
 } from './config/providerTypes';
-import { deriveRoutingProfile, migrateProvidersBundle } from './config/providerIdentityMigration';
+import { normalizeProviders } from '@/services/config/configNormalizer';
 import { getConfigSyncManager, type ProvidersConfigValue } from '@/services/config';
 
 // 初始化标志
@@ -91,71 +91,25 @@ interface ProviderState {
   getEnabledModels: () => Array<{ providerId: string; providerName: string; model: string }>;
 }
 
-/**
- * 合并提供商配置（保持内置提供商的核心配置）
- */
-function mergeProviders(providers: ProviderConfig[]): ProviderConfig[] {
-  // Handle undefined or null providers
-  if (!providers || !Array.isArray(providers)) {
-    return getInitialProviders();
-  }
-
-  const initialProviders = getInitialProviders();
-  const initialProviderMap = new Map(initialProviders.map((p) => [p.id, p]));
-
-  // Keep persisted built-in providers aligned with the current default provider set.
-  const activeProviders = providers.filter((p) => !p.isBuiltIn || initialProviderMap.has(p.id));
-
-  const mergedProviders = activeProviders.map((provider) => {
-    const initialProvider = initialProviderMap.get(provider.id);
-    if (initialProvider?.isBuiltIn) {
-      return {
-        ...initialProvider,
-        isEnabled: provider.isEnabled,
-        apiKeys: provider.apiKeys ?? initialProvider.apiKeys,
-        apiUrl: provider.apiUrl ?? initialProvider.apiUrl,
-        enabledModels: provider.enabledModels ?? initialProvider.enabledModels,
-        availableModels: provider.availableModels ?? initialProvider.availableModels,
-      };
-    }
-    return {
-      ...provider,
-      routingProfile: deriveRoutingProfile(provider as ProviderConfig),
-    };
-  });
-
-  const providedIds = new Set(activeProviders.map((p) => p.id));
-  const newBuiltInProviders = initialProviders.filter((p) => !providedIds.has(p.id));
-  return [...mergedProviders, ...newBuiltInProviders];
-}
-
-/**
- * 同步到 ConfigSyncManager
- *
- * 统一通过 ConfigSyncManager 同步：
- * - Tauri 模式：TauriAdapter -> SQLite
- * - Sandbox 模式：SandboxAdapter -> PostgreSQL + 服务端加密
- */
 function syncToManager(
   providers: ProviderConfig[],
   defaultModelConfig: DefaultModelConfig,
   customModelInfo: Record<string, CustomModelInfo>,
 ): void {
-  const value: ProvidersConfigValue = {
-    providers,
-    defaultModelConfig,
-    customModelInfo,
-  };
+  const value = normalizeProviders({ providers, defaultModelConfig, customModelInfo });
   getConfigSyncManager().set('providers', value);
 }
 
-function fingerprintProvidersBundle(bundle: ProvidersConfigValue): string {
-  const sortedProviders = [...bundle.providers].sort((a, b) => a.id.localeCompare(b.id));
-  return JSON.stringify({
-    providers: sortedProviders,
-    defaultModelConfig: bundle.defaultModelConfig,
-    customModelInfo: bundle.customModelInfo ?? {},
-  });
+function hydrateFromProvidersValue(configValue: ProvidersConfigValue): Pick<
+  ProviderState,
+  'providers' | 'defaultModelConfig' | 'customModelInfo'
+> {
+  const normalized = normalizeProviders(configValue);
+  return {
+    providers: normalized.providers,
+    defaultModelConfig: normalized.defaultModelConfig,
+    customModelInfo: normalized.customModelInfo || {},
+  };
 }
 
 const useProviderStore = create<ProviderState>((set, get) => ({
@@ -174,14 +128,8 @@ const useProviderStore = create<ProviderState>((set, get) => ({
 
       const configValue = manager.get('providers');
       if (configValue) {
-        const migrated = migrateProvidersBundle(configValue as never);
-        syncToManager(migrated.providers, migrated.defaultModelConfig, migrated.customModelInfo);
-        const mergedProviders = mergeProviders(migrated.providers);
-        const safeModelConfig: DefaultModelConfig = migrated.defaultModelConfig;
         set({
-          providers: mergedProviders,
-          defaultModelConfig: safeModelConfig,
-          customModelInfo: migrated.customModelInfo || {},
+          ...hydrateFromProvidersValue(configValue as ProvidersConfigValue),
           isInitialized: true,
           initError: null,
         });
@@ -196,17 +144,7 @@ const useProviderStore = create<ProviderState>((set, get) => ({
       }
 
       manager.subscribe('providers', (_key, value) => {
-        const v = value as ProvidersConfigValue;
-        const migrated = migrateProvidersBundle(v);
-        const mergedProviders = mergeProviders(migrated.providers);
-        if (fingerprintProvidersBundle(v) !== fingerprintProvidersBundle(migrated)) {
-          syncToManager(migrated.providers, migrated.defaultModelConfig, migrated.customModelInfo);
-        }
-        set({
-          providers: mergedProviders,
-          defaultModelConfig: migrated.defaultModelConfig,
-          customModelInfo: migrated.customModelInfo || {},
-        });
+        set(hydrateFromProvidersValue(value as ProvidersConfigValue));
       });
 
       isStoreInitialized = true;
@@ -229,10 +167,14 @@ const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   setProviders: (providers) => {
-    const mergedProviders = mergeProviders(providers);
     const { defaultModelConfig, customModelInfo } = get();
-    syncToManager(mergedProviders, defaultModelConfig, customModelInfo);
-    set({ providers: mergedProviders });
+    const normalized = normalizeProviders({ providers, defaultModelConfig, customModelInfo });
+    syncToManager(normalized.providers, normalized.defaultModelConfig, normalized.customModelInfo);
+    set({
+      providers: normalized.providers,
+      defaultModelConfig: normalized.defaultModelConfig,
+      customModelInfo: normalized.customModelInfo,
+    });
   },
 
   addProvider: (name, providerType) => {

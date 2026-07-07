@@ -13,7 +13,6 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { getConfigSyncManager, type RetrievalConfigValue } from '@/services/config';
 import { toLiteLLMFormat, EMBEDDING_PROVIDERS, RERANKER_PROVIDERS } from '@/lib/search/retrievalProviders';
 
@@ -115,9 +114,7 @@ function syncToManager(config: RetrievalConfig): void {
   getConfigSyncManager().set('retrieval', value);
 }
 
-export const useRetrievalStore = create<RetrievalStore>()(
-  persist(
-    (set, get) => ({
+export const useRetrievalStore = create<RetrievalStore>()((set, get) => ({
       ...DEFAULT_CONFIG,
       isInitialized: false,
 
@@ -328,19 +325,6 @@ export const useRetrievalStore = create<RetrievalStore>()(
         set(DEFAULT_CONFIG);
       },
     }),
-    {
-      name: 'retrieval-config-v9',
-      partialize: (state) => ({
-        embeddingConfig: state.embeddingConfig,
-        embeddingApplied: state.embeddingApplied,
-        embeddingAppliedAt: state.embeddingAppliedAt,
-        rerankerConfig: state.rerankerConfig,
-        rerankerApplied: state.rerankerApplied,
-        rerankerAppliedAt: state.rerankerAppliedAt,
-        enableAdvancedRetrieval: state.enableAdvancedRetrieval,
-      }),
-    },
-  ),
 );
 
 export default useRetrievalStore;

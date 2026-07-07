@@ -100,6 +100,8 @@ class ChatChannel(_ChatChannelBase):
                     content=content,
                     extra_data=extra_data,
                     created_at=now,
+                    sent_at=now,
+                    sent_timezone="UTC",
                 )
             )
             await session.commit()

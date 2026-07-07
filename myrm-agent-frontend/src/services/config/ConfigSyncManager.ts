@@ -13,6 +13,13 @@
 import { ensureLocalBackendReady } from '@/lib/backend-health';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { cloneDeep } from 'lodash-es';
+import { withConfigInitLock } from './configInitLock';
+import { valuesEqual } from './configFingerprint';
+import {
+  isNormalizedDirty,
+  normalizeConfigValue,
+  STARTUP_NORMALIZE_KEYS,
+} from './configNormalizer';
 import { threeWayMerge } from './mergeUtils';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
 import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
@@ -211,6 +218,46 @@ class ConfigSyncManager {
   }
 
   /**
+   * 仅当内容与 baseCache 不同时才写入并同步。
+   * 用于启动迁移，避免无意义的版本 bump 和冲突。
+   */
+  commitIfDirty<K extends ConfigKey>(key: K, value: ConfigValueMap[K]): boolean {
+    const base = this.baseCache.get(key);
+    if (base && valuesEqual(base.value, value)) {
+      return false;
+    }
+    this.set(key, value);
+    return true;
+  }
+
+  /**
+   * 启动时归一化迁移（Web Lock 保证单 tab 写入）。
+   * 在 initialize() 之后、Store hydrate 之前调用。
+   */
+  async runStartupNormalization(): Promise<void> {
+    await withConfigInitLock(async () => {
+      for (const key of STARTUP_NORMALIZE_KEYS) {
+        const record = this.cache.get(key);
+        if (!record) {
+          continue;
+        }
+
+        const normalized = normalizeConfigValue(key, record.value as ConfigValueMap[typeof key]);
+        if (normalized === null) {
+          continue;
+        }
+
+        const base = this.baseCache.get(key);
+        if (!isNormalizedDirty(key, base?.value as ConfigValueMap[typeof key], record.value as ConfigValueMap[typeof key])) {
+          continue;
+        }
+
+        this.commitIfDirty(key, normalized);
+      }
+    });
+  }
+
+  /**
    * 设置配置（乐观更新 + 异步同步）
    */
   set<K extends ConfigKey>(key: K, value: ConfigValueMap[K]): void {
@@ -395,9 +442,12 @@ class ConfigSyncManager {
         const baseRecord = this.baseCache.get(key);
 
         if (serverRecord && localRecord) {
-          // 尝试 3-Way Merge
+          const sameDevice =
+            serverRecord.meta.deviceId === (this.adapter as BaseConfigAdapter).getDeviceId();
+          const mergeBase = (baseRecord?.value ?? serverRecord.value) as Record<string, unknown>;
+
           const mergeResult = threeWayMerge(
-            baseRecord?.value as Record<string, unknown>,
+            mergeBase,
             localRecord.value as Record<string, unknown>,
             serverRecord.value as Record<string, unknown>,
           );
@@ -417,22 +467,25 @@ class ConfigSyncManager {
             continue;
           }
 
-          // 发生真正的同字段冲突，弹出 UI
-          const keepLocal = this.conflictResolver
-            ? await Promise.resolve(
-                this.conflictResolver({
-                  configKey: key,
-                  localVersion: localRecord.meta.version,
-                  serverVersion: serverRecord.meta.version,
-                  deviceId: serverRecord.meta.deviceId,
-                  localValue: localRecord.value,
-                  serverValue: serverRecord.value,
-                }),
-              ).catch((error: unknown) => {
-                console.warn(`[ConfigSync] Conflict resolver failed for '${key}':`, error);
-                return true;
-              })
-            : true;
+          // 同浏览器 profile 冲突：静默保留本地，不打扰用户
+          let keepLocal = sameDevice;
+          if (!keepLocal) {
+            keepLocal = this.conflictResolver
+              ? await Promise.resolve(
+                  this.conflictResolver({
+                    configKey: key,
+                    localVersion: localRecord.meta.version,
+                    serverVersion: serverRecord.meta.version,
+                    deviceId: serverRecord.meta.deviceId,
+                    localValue: localRecord.value,
+                    serverValue: serverRecord.value,
+                  }),
+                ).catch((error: unknown) => {
+                  console.warn(`[ConfigSync] Conflict resolver failed for '${key}':`, error);
+                  return true;
+                })
+              : true;
+          }
 
           if (keepLocal !== false) {
             // 用服务端版本号更新本地元数据，保留本地值并重新同步

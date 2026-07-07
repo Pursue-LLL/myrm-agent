@@ -312,6 +312,15 @@ async def _phase_1a_sequential() -> None:
             logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
 
     try:
+        from app.services.config.key_consolidation import consolidate_split_providers_keys
+
+        stats = await consolidate_split_providers_keys()
+        if stats.get("merged") or stats.get("deleted"):
+            logger.info("[Startup] Providers key consolidation complete: %s", stats)
+    except Exception as e:
+        logger.warning("[Startup] Providers key consolidation failed (non-critical): %s", e)
+
+    try:
         from app.core.infra.tls_config import apply_tls_config_from_db
 
         await apply_tls_config_from_db()

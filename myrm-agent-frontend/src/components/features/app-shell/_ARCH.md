@@ -9,7 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `BrandLogo.tsx` | 组件/模块 | — | — |
-| `ConfigConflictDialog.tsx` | 组件/模块 | — | — |
+| `ConfigConflictDialog.tsx` | 组件/模块 | 跨设备配置冲突解决 UI（T3）；同设备冲突由 ConfigSyncManager 静默处理 | — |
 | `PremiumTooltip.tsx` | 组件/模块 | — | — |
 | `QuarantineDialog.tsx` | 组件/模块 | — | — |
 | `SystemStatusBanner.tsx` | 组件/模块 | 数据库降级/恢复全局 Banner；健康检查走 `fetchBackendHealth`（后端不可达静默跳过） | `fetchBackendHealth`, `apiRequest`（reset，`silent`） |
@@ -19,6 +19,7 @@
 | `app-update-prompt.tsx` | 组件/模块 | Tauri 桌面端更新提示浮层（静默下载，ready/error 时展示；dismissed 持久化到 localStorage） | `useAppUpdate` |
 | `whats-new-modal.tsx` | 组件/模块 | 版本更新后 What's New 弹窗（从 GitHub Release API 拉取完整 Release Notes，Markdown 渲染） | `useWhatsNew` |
 | `appshot-initializer.tsx` | 组件/模块 | — | — |
+| `settings-sync-initializer.tsx` | 组件/模块 | 应用顶层 ConfigSyncManager 初始化、启动归一化、冲突对话框挂载 | `ConfigSyncManager`, `ConfigConflictDialog` |
 | `voice-ptt-initializer.tsx` | 组件/模块 | — | — |
 | `auth-callback.tsx` | 组件/模块 | — | — |
 | `auth-initializer.tsx` | 组件/模块 | — | — |

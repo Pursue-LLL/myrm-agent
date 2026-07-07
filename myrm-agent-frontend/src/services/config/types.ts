@@ -45,8 +45,6 @@ import type {
  */
 export type ConfigKey =
   | 'providers'
-  | 'defaultModelConfig'
-  | 'customModelInfo'
   | 'chatSettings'
   | 'personalSettings'
   | 'mcpServers'
@@ -80,8 +78,6 @@ export type ConfigKey =
 /** 所有配置键（用于按需加载） */
 export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
   'providers',
-  'defaultModelConfig',
-  'customModelInfo',
   'chatSettings',
   'personalSettings',
   'mcpServers',
@@ -116,8 +112,6 @@ export const ALL_CONFIG_KEYS: readonly ConfigKey[] = [
 /** 首屏核心配置（优先加载以加快启动） */
 export const CORE_CONFIG_KEYS: readonly ConfigKey[] = [
   'providers',
-  'defaultModelConfig',
-  'customModelInfo',
   'chatSettings',
   'personalSettings',
 ] as const;

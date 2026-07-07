@@ -42,6 +42,12 @@ def _create_initial_version() -> str:
     return f"{int(datetime.now().timestamp() * 1000)}_0"
 
 
+def _config_values_equal(a: dict[str, object], b: dict[str, object]) -> bool:
+    import json
+
+    return json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
+
+
 def _increment_version(current: str) -> str:
     now = int(datetime.now().timestamp() * 1000)
     parts = current.split("_")
@@ -243,6 +249,13 @@ class ConfigService:
 
             if existing:
                 if expected_version and existing.version != expected_version:
+                    current_value = _decrypt_if_needed(existing)
+                    if _config_values_equal(current_value, value):
+                        logger.info(
+                            "Idempotent config sync for '%s': version mismatch but content identical",
+                            config_key,
+                        )
+                        return _build_config_record(existing, current_value)
                     raise VersionConflictError(config_key, expected_version, existing.version)
 
                 previous_db_value = existing.config_value

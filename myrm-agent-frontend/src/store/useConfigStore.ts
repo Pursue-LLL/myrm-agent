@@ -8,7 +8,6 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import {
   getConfigSyncManager,
   type PersonalSettingsConfigValue,
@@ -18,14 +17,7 @@ import {
   DEFAULT_MCP_SERVERS,
   DEFAULT_SEARCH_SERVICES,
 } from '@/services/config';
-import { ConfigState, SearchServiceConfig, SearchServiceConfigItem, MCPServiceConfig } from './config/types';
-import * as mcpManager from './config/mcp';
-import * as searchServiceManager from './config/searchService';
-import { invalidateLocalCapabilitiesProbeCache } from '@/services/localCapabilitiesProbe';
-import { isValidPublicIngressBaseUrl, normalizePublicIngressBaseUrl } from '@/lib/utils/urlUtils';
-import * as importExportManager from './config/importExport';
-import * as validation from './config/validation';
-import { migratePersonalSettingsMedia } from './config/providerIdentityMigration';
+import { normalizePersonalSettings } from '@/services/config/configNormalizer';
 
 // 同步管理器
 const syncManager = getConfigSyncManager();
@@ -59,9 +51,7 @@ const syncSearchServices = (searchServiceConfigs: SearchServiceConfigItem[]) => 
   syncManager.set('searchServices', value);
 };
 
-const useConfigStore = create<ConfigState>()(
-  persist(
-    (set, get) => ({
+const useConfigStore = create<ConfigState>()((set, get) => ({
       // ============ 初始状态 ============
       fetchRawWebpage: DEFAULT_PERSONAL_SETTINGS.fetchRawWebpage,
       extractDocumentText: DEFAULT_PERSONAL_SETTINGS.extractDocumentText,
@@ -447,12 +437,7 @@ const useConfigStore = create<ConfigState>()(
           const orgMcpServers = syncManager.get('orgMcpServers') as { servers?: MCPServiceConfig[] } | null;
           const searchServices = syncManager.get('searchServices');
 
-          const mergedPersonal: PersonalSettingsConfigValue = {
-            ...DEFAULT_PERSONAL_SETTINGS,
-            ...personalSettings,
-          };
-          const migratedPersonal = migratePersonalSettingsMedia(mergedPersonal);
-          syncManager.set('personalSettings', migratedPersonal);
+          const migratedPersonal = normalizePersonalSettings(personalSettings);
 
           const rawSearchConfigs = searchServices?.searchServiceConfigs ?? [];
           const validatedSearchConfigs = rawSearchConfigs.map((c: SearchServiceConfigItem) => ({
@@ -519,74 +504,6 @@ const useConfigStore = create<ConfigState>()(
         return validation.validateMCPConfig(config);
       },
     }),
-    {
-      name: 'config-store-v4', // 版本升级：ConfigSyncManager 集成
-      partialize: (state): Partial<ConfigState> => ({
-        fetchRawWebpage: state.fetchRawWebpage,
-        extractDocumentText: state.extractDocumentText,
-        generateSearchSuggestions: state.generateSearchSuggestions,
-        enableCostEstimation: state.enableCostEstimation,
-        enableCacheBreakNotification: state.enableCacheBreakNotification,
-        showContextUsage: state.showContextUsage,
-        enableMemory: state.enableMemory,
-        memoryRequireConfirmation: state.memoryRequireConfirmation,
-        enableMemoryAutoExtraction: state.enableMemoryAutoExtraction,
-        memoryEnableConversationSearch: state.memoryEnableConversationSearch,
-        preCompactEnabled: state.preCompactEnabled,
-        preCompactBudgetTokens: state.preCompactBudgetTokens,
-        enableAutoTitleGeneration: state.enableAutoTitleGeneration,
-        webTtsProvider: state.webTtsProvider,
-        systemInstructions: state.systemInstructions,
-        searchServiceConfigs: state.searchServiceConfigs,
-        mcpConfigs: state.mcpConfigs,
-        privacyEnabled: state.privacyEnabled,
-        privacyS2Action: state.privacyS2Action,
-        privacyS3Action: state.privacyS3Action,
-        privacyDeepScan: state.privacyDeepScan,
-        privacyRouting: state.privacyRouting,
-        privacyCustomKeywordsS2: state.privacyCustomKeywordsS2,
-        privacyCustomKeywordsS3: state.privacyCustomKeywordsS3,
-        privacyCustomPatternsS2: state.privacyCustomPatternsS2,
-        privacyCustomPatternsS3: state.privacyCustomPatternsS3,
-        privacySensitiveToolsS2: state.privacySensitiveToolsS2,
-        privacySensitiveToolsS3: state.privacySensitiveToolsS3,
-        codeExecutionAllowNetwork: state.codeExecutionAllowNetwork,
-        enableEvalLab: state.enableEvalLab,
-        publicIngressBaseUrl: state.publicIngressBaseUrl,
-      }),
-      version: 12,
-      migrate: (persistedState: unknown, version: number) => {
-        const state = persistedState as Record<string, unknown>;
-        if (version < 4) {
-          console.warn('[ConfigStore] Migrating to v4 (ConfigSyncManager)');
-        }
-        if (version < 5) {
-          state.privacyRouting = state.privacyRouting ?? {};
-        }
-        if (version < 6) {
-          state.codeExecutionAllowNetwork = state.codeExecutionAllowNetwork ?? true;
-        }
-        if (version < 7) {
-          state.enableEvalLab = state.enableEvalLab ?? false;
-        }
-        if (version < 8) {
-          state.privacyCustomKeywordsS2 = state.privacyCustomKeywordsS2 ?? [];
-          state.privacyCustomKeywordsS3 = state.privacyCustomKeywordsS3 ?? [];
-          state.privacyCustomPatternsS2 = state.privacyCustomPatternsS2 ?? [];
-          state.privacyCustomPatternsS3 = state.privacyCustomPatternsS3 ?? [];
-          state.privacySensitiveToolsS2 = state.privacySensitiveToolsS2 ?? [];
-          state.privacySensitiveToolsS3 = state.privacySensitiveToolsS3 ?? [];
-        }
-        if (version < 9) {
-          state.publicIngressBaseUrl = state.publicIngressBaseUrl ?? '';
-        }
-        if (version < 12) {
-          delete state.gateway_token;
-        }
-        return state as unknown as ConfigState;
-      },
-    },
-  ),
 );
 
 export default useConfigStore;

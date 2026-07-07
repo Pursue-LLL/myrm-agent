@@ -16,6 +16,7 @@
  */
 
 import { isTauriEnvironment } from '@/lib/tauri';
+import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 const MAX_ACTIVE_NOTIFICATIONS = 5;
@@ -29,17 +30,12 @@ function isPageHidden(): boolean {
   return typeof document !== 'undefined' && document.hidden;
 }
 
-const CONFIG_STORE_KEY = 'config-store-v4';
-
 function getConfig(): { enabled: boolean; sound: boolean } {
   try {
-    const raw = localStorage.getItem(CONFIG_STORE_KEY);
-    if (!raw) return { enabled: true, sound: true };
-    const parsed = JSON.parse(raw);
-    const state = parsed?.state;
+    const settings = getConfigSyncManager().get('personalSettings');
     return {
-      enabled: state?.enableIdleApprovalNotification ?? true,
-      sound: state?.approvalNotificationSound ?? true,
+      enabled: settings?.enableIdleApprovalNotification ?? true,
+      sound: settings?.approvalNotificationSound ?? true,
     };
   } catch {
     return { enabled: true, sound: true };

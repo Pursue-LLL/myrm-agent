@@ -76,6 +76,7 @@ export default function SettingsSyncInitializer() {
         });
 
         await manager.initialize();
+        await manager.runStartupNormalization();
 
         // 并行初始化各个 Store（它们会从 ConfigSyncManager 读取数据）
         console.log('[SettingsSync] Initializing stores...');

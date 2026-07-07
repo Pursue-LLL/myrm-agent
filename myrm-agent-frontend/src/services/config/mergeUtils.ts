@@ -19,10 +19,20 @@ export function threeWayMerge(
   server: Record<string, unknown>,
 ): MergeResult<Record<string, unknown>> {
   if (!base) {
-    return {
-      merged: cloneDeep(local),
-      hasConflict: !isEqual(local, server),
-    };
+    const merged = cloneDeep(local) as Record<string, unknown>;
+    let hasConflict = false;
+
+    for (const key of Object.keys(server)) {
+      if (!(key in local)) {
+        merged[key] = cloneDeep(server[key]);
+        continue;
+      }
+      if (!isEqual(local[key], server[key])) {
+        hasConflict = true;
+      }
+    }
+
+    return { merged, hasConflict };
   }
 
   const merged = cloneDeep(local) as Record<string, unknown>;

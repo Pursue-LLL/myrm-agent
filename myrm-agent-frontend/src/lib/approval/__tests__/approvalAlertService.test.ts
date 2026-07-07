@@ -4,8 +4,18 @@ vi.mock('@/lib/tauri', () => ({
   isTauriEnvironment: vi.fn(() => false),
 }));
 
+vi.mock('@/services/config', () => ({
+  getConfigSyncManager: vi.fn(() => ({
+    get: vi.fn(() => ({
+      enableIdleApprovalNotification: true,
+      approvalNotificationSound: true,
+    })),
+  })),
+}));
+
 import { notifyIdleApproval, closeNotification, clearAllNotifications } from '../approvalAlertService';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { getConfigSyncManager } from '@/services/config';
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 function makeRequest(overrides: Partial<ToolApprovalRequest> = {}): ToolApprovalRequest {
@@ -55,13 +65,19 @@ describe('approvalAlertService', () => {
     Object.defineProperty(window, 'Notification', { value: MockNotification, writable: true, configurable: true });
     localStorage.clear();
     vi.mocked(isTauriEnvironment).mockReturnValue(false);
+    vi.mocked(getConfigSyncManager).mockReturnValue({
+      get: vi.fn(() => ({
+        enableIdleApprovalNotification: true,
+        approvalNotificationSound: true,
+      })),
+    } as ReturnType<typeof getConfigSyncManager>);
   });
 
   afterEach(() => {
     clearAllNotifications();
     Object.defineProperty(document, 'hidden', { value: originalHidden, configurable: true });
     vi.useRealTimers();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('notifyIdleApproval', () => {
@@ -72,9 +88,12 @@ describe('approvalAlertService', () => {
     });
 
     it('does nothing when disabled via config', () => {
-      localStorage.setItem('config-store-v4', JSON.stringify({
-        state: { enableIdleApprovalNotification: false, approvalNotificationSound: true },
-      }));
+      vi.mocked(getConfigSyncManager).mockReturnValue({
+        get: vi.fn(() => ({
+          enableIdleApprovalNotification: false,
+          approvalNotificationSound: true,
+        })),
+      } as ReturnType<typeof getConfigSyncManager>);
       notifyIdleApproval([makeRequest()]);
       expect(mockNotificationInstances).toHaveLength(0);
     });
