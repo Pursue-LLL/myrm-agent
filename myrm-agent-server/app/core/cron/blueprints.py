@@ -25,35 +25,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from app.core.cron.blueprint_i18n_supplement import (
-    BLUEPRINT_UI_LOCALES,
-    SUPPLEMENTAL_BY_ID,
-)
-
-
-def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
-    merged = dict(base)
-    merged.update(extra)
-    return merged
-
-
-def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
-    """Attach ja/de/ko catalog fields from the supplemental locale module."""
-    supplement = SUPPLEMENTAL_BY_ID.get(bp.id)
-    if supplement is None:
-        return bp
-    return CronBlueprint(
-        id=bp.id,
-        icon=bp.icon,
-        title=_merge_locale_dict(bp.title, supplement["title"]),
-        description=_merge_locale_dict(bp.description, supplement["description"]),
-        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
-        slots=bp.slots,
-        category=bp.category,
-        tags=bp.tags,
-        sort_order=bp.sort_order,
-        _schedule_builder=bp._schedule_builder,
-    )
+from app.core.cron.blueprint_i18n_supplement import SUPPLEMENTAL_BY_ID
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +72,31 @@ class CronBlueprint:
     tags: tuple[str, ...] = ()
     sort_order: int = 0
     _schedule_builder: str = field(default="", repr=False)
+
+
+def _merge_locale_dict(base: dict[str, str], extra: dict[str, str]) -> dict[str, str]:
+    merged = dict(base)
+    merged.update(extra)
+    return merged
+
+
+def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
+    """Attach ja/de/ko catalog fields from the supplemental locale module."""
+    supplement = SUPPLEMENTAL_BY_ID.get(bp.id)
+    if supplement is None:
+        return bp
+    return CronBlueprint(
+        id=bp.id,
+        icon=bp.icon,
+        title=_merge_locale_dict(bp.title, supplement["title"]),
+        description=_merge_locale_dict(bp.description, supplement["description"]),
+        prompt_template=_merge_locale_dict(bp.prompt_template, supplement["prompt_template"]),
+        slots=bp.slots,
+        category=bp.category,
+        tags=bp.tags,
+        sort_order=bp.sort_order,
+        _schedule_builder=bp._schedule_builder,
+    )
 
 
 def _time_to_cron(time_str: str) -> str:

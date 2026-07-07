@@ -9,9 +9,9 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `cron-blueprints.ts` | 数据/逻辑 | 蓝图定义 (API `/cron/blueprints` 加载 + 离线 fallback)、`blueprintSnakeToCamel`/`resolveBlueprint*Key` i18n 键映射（server snake_case id → locale camelCase）、`resolveBlueprintSlotLabel`（11 slot key，五语言 locale 对齐）、`loadBlueprints()`、`buildJobPayload` | — |
-| `BlueprintCatalog.tsx` | 组件/模块 | 模板卡片网格，支持 maxItems 裁剪 | — |
-| `BlueprintInlineFill.tsx` | 组件/模块 | 内联模板填写表单（CronJobCreateDialog 内使用），含 delivery channel 选择 | — |
-| `BlueprintFillDialog.tsx` | 组件/模块 | 模板参数填写弹窗（typed slots + delivery channel），用于 CronJobList 空状态 | — |
+| `BlueprintCatalog.tsx` | 组件/模块 | 模板卡片网格（`useLocale()` + API `title`/`description` 优先，locale JSON 兜底），支持 maxItems 裁剪 | — |
+| `BlueprintInlineFill.tsx` | 组件/模块 | 内联模板填写表单（`useLocale()` 解析 API 标题；CronJobCreateDialog 内使用），含 delivery channel 选择 | — |
+| `BlueprintFillDialog.tsx` | 组件/模块 | 模板参数填写弹窗（`useLocale()` + typed slots + delivery channel），用于 CronJobList 空状态 | — |
 | `ActiveHoursEditor.tsx` | 组件/模块 | — | — |
 | `AllowedRootsEditor.tsx` | 组件/模块 | — | — |
 | `CapabilityEditor.tsx` | 组件/模块 | — | — |

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { getCachedBlueprints, humanizeSchedule, loadBlueprints, type CronBlueprint } from './cron-blueprints';
 
 interface BlueprintCatalogProps {
@@ -11,6 +11,7 @@ interface BlueprintCatalogProps {
 
 export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalogProps) {
   const t = useTranslations('cron');
+  const locale = useLocale();
   const [blueprints, setBlueprints] = useState<readonly CronBlueprint[]>(getCachedBlueprints());
 
   useEffect(() => {
@@ -39,10 +40,10 @@ export default function BlueprintCatalog({ onSelect, maxItems }: BlueprintCatalo
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground group-hover:text-primary truncate">
-                {bp.title?.[document.documentElement.lang?.split('-')[0] || 'en'] || t(bp.titleKey)}
+                {bp.title?.[locale] || t(bp.titleKey)}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                {bp.description?.[document.documentElement.lang?.split('-')[0] || 'en'] || t(bp.descKey)}
+                {bp.description?.[locale] || t(bp.descKey)}
               </p>
               <p className="text-[11px] text-muted-foreground/70 mt-1">
                 {scheduleText}

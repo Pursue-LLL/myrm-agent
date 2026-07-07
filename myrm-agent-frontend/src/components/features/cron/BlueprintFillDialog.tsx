@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, MessageCircle, Send, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
@@ -39,6 +39,7 @@ interface BlueprintFillDialogProps {
 
 export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: BlueprintFillDialogProps) {
   const t = useTranslations('cron');
+  const locale = useLocale();
   const { createJob } = useCronStore();
   const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -90,7 +91,6 @@ export default function BlueprintFillDialog({ blueprint, open, onOpenChange }: B
 
   if (!blueprint) return null;
 
-  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
   const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
   const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
 

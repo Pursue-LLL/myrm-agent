@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Loader2, MessageCircle, Send, Sparkles } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -27,9 +27,9 @@ const TOGGLE_CLS = 'gap-1.5 text-xs h-8 px-3 rounded-full border border-border b
 
 export default function BlueprintInlineFill({ blueprint, onBack, onCreated }: BlueprintInlineFillProps) {
   const t = useTranslations('cron');
+  const locale = useLocale();
   const { createJob } = useCronStore();
   const userTz = useConfigStore((s) => s.personalSettings?.timezone) || getBrowserTimezone();
-  const locale = typeof document !== 'undefined' ? (document.documentElement.lang?.split('-')[0] || 'en') : 'en';
   const displayTitle = blueprint.title?.[locale] || t(blueprint.titleKey);
   const displayDesc = blueprint.description?.[locale] || t(blueprint.descKey);
   const [slotValues, setSlotValues] = useState<Record<string, string>>({});
