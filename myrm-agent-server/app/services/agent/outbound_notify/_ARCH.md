@@ -19,7 +19,7 @@ Subagents cannot inherit `channel_notify_tool`: server bootstrap registers it vi
 
 Frontend recipient picker uses existing `GET /channels/manage/pairings`.
 
-**Test coverage (2026-07-02)**: 67 server + 6 frontend vitest; 100% module coverage.
+**Test coverage**: 64 server (outbound_notify + factory/integration/e2e) + 6 frontend vitest; notify+DLQ chain 106 with `test_bus.py`.
 
 ## Media Attachments
 
