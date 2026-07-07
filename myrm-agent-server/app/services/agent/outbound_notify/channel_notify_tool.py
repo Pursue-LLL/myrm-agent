@@ -23,6 +23,7 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools.convert import tool
 from pydantic import BaseModel, Field
 
+from .attachment_path_policy import is_local_attachment_path_allowed
 from .target_resolver import resolve_notify_target
 from .types import NotifySessionState, NotifyToolConfig
 
@@ -62,7 +63,11 @@ class _NotifyInput(BaseModel):
     )
 
 
-def _resolve_attachments(raw_paths: list[str]) -> tuple[tuple[MediaAttachment, ...], list[str]]:
+def _resolve_attachments(
+    raw_paths: list[str],
+    *,
+    allowed_roots: tuple[str, ...],
+) -> tuple[tuple[MediaAttachment, ...], list[str]]:
     """Convert raw path/URL strings to MediaAttachment objects.
 
     Returns (resolved_attachments, errors).
@@ -80,9 +85,13 @@ def _resolve_attachments(raw_paths: list[str]) -> tuple[tuple[MediaAttachment, .
 
         is_url = entry.startswith(("http://", "https://"))
 
-        if not is_url and not os.path.isfile(entry):
-            errors.append(f"File not found: {entry}")
-            continue
+        if not is_url:
+            if not is_local_attachment_path_allowed(entry, allowed_roots):
+                errors.append(f"Path not allowed (must be under agent workspace): {entry}")
+                continue
+            if not os.path.isfile(entry):
+                errors.append(f"File not found: {entry}")
+                continue
 
         filename = os.path.basename(urlparse(entry).path) if is_url else os.path.basename(entry)
         media_type = guess_media_type(filename)
@@ -102,6 +111,8 @@ def _resolve_attachments(raw_paths: list[str]) -> tuple[tuple[MediaAttachment, .
 def create_channel_notify_tool(
     sender: NotificationSender,
     config: NotifyToolConfig,
+    *,
+    allowed_roots: tuple[str, ...] = (),
 ) -> BaseTool:
     """Create channel_notify_tool bound to the given sender and config."""
     session_state = NotifySessionState()
@@ -155,7 +166,7 @@ def create_channel_notify_tool(
 
         media: tuple[MediaAttachment, ...] = ()
         if attachments:
-            media, resolve_errors = _resolve_attachments(attachments)
+            media, resolve_errors = _resolve_attachments(attachments, allowed_roots=allowed_roots)
             if resolve_errors:
                 return "Error resolving attachments: " + "; ".join(resolve_errors)
 

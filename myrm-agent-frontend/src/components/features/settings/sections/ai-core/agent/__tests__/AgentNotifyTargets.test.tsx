@@ -19,7 +19,9 @@ import type { NotifyTarget } from '@/services/agent';
 
 describe('AgentNotifyTargets', () => {
   beforeEach(() => {
-    mockListChannelStatuses.mockResolvedValue([{ name: 'telegram', status: 'running' }]);
+    mockListChannelStatuses.mockResolvedValue([
+      { name: 'telegram', status: 'running', displayName: 'Telegram' },
+    ]);
     mockListPairings.mockResolvedValue([]);
   });
 
@@ -112,6 +114,24 @@ describe('AgentNotifyTargets', () => {
 
     expect(onChange).toHaveBeenCalledWith([
       { channel: 'telegram', recipient_id: 'chat_123', label: '' },
+    ]);
+  });
+
+  it('adds wechat target when only non-hardcoded channel is running', async () => {
+    mockListChannelStatuses.mockResolvedValue([
+      { name: 'wechat', status: 'running', displayName: 'WeChat' },
+    ]);
+    const onChange = vi.fn();
+    render(<AgentNotifyTargets targets={[]} onChange={onChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Add Notification Target/i })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Add Notification Target/i }));
+
+    expect(onChange).toHaveBeenCalledWith([
+      { channel: 'wechat', recipient_id: '', label: '' },
     ]);
   });
 

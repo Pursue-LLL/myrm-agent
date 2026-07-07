@@ -6,23 +6,20 @@ import { Plus, Trash2, Bell } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import { listChannelStatuses, listPairings, type ChannelPairing } from '@/services/channels';
+import {
+  listChannelStatuses,
+  listPairings,
+  type ChannelPairing,
+  type ChannelStatus,
+} from '@/services/channels';
 import type { NotifyTarget } from '@/services/agent';
 
-const CHANNEL_OPTIONS = [
-  { value: 'telegram', label: 'Telegram' },
-  { value: 'slack', label: 'Slack' },
-  { value: 'discord', label: 'Discord' },
-  { value: 'feishu', label: 'Feishu' },
-  { value: 'dingtalk', label: 'DingTalk' },
-  { value: 'wecom', label: 'WeCom' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'teams', label: 'Teams' },
-  { value: 'matrix', label: 'Matrix' },
-  { value: 'email', label: 'Email' },
-] as const;
-
 const MANUAL_RECIPIENT_VALUE = '__manual__';
+
+interface ChannelOption {
+  value: string;
+  label: string;
+}
 
 interface AgentNotifyTargetsProps {
   targets: NotifyTarget[];
@@ -38,20 +35,42 @@ function pairingLabel(pairing: ChannelPairing): string {
   return pairing.sender_id;
 }
 
+function buildAvailableChannels(
+  runningStatuses: ChannelStatus[],
+  targets: NotifyTarget[],
+): ChannelOption[] {
+  const options = new Map<string, ChannelOption>();
+
+  for (const status of runningStatuses) {
+    options.set(status.name, {
+      value: status.name,
+      label: status.displayName?.trim() || status.name,
+    });
+  }
+
+  for (const target of targets) {
+    if (target.channel && !options.has(target.channel)) {
+      options.set(target.channel, { value: target.channel, label: target.channel });
+    }
+  }
+
+  return [...options.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
 export const AgentNotifyTargets = memo(function AgentNotifyTargets({
   targets,
   onChange,
   readonly = false,
 }: AgentNotifyTargetsProps) {
   const t = useTranslations('agent');
-  const [connectedChannels, setConnectedChannels] = useState<string[]>([]);
+  const [runningChannels, setRunningChannels] = useState<ChannelStatus[]>([]);
   const [pairings, setPairings] = useState<ChannelPairing[]>([]);
   const [manualRecipientRows, setManualRecipientRows] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     listChannelStatuses()
-      .then((statuses) => setConnectedChannels(statuses.filter((s) => s.status === 'running').map((s) => s.name)))
-      .catch(() => setConnectedChannels([]));
+      .then((statuses) => setRunningChannels(statuses.filter((s) => s.status === 'running')))
+      .catch(() => setRunningChannels([]));
     listPairings()
       .then(setPairings)
       .catch(() => setPairings([]));
@@ -72,10 +91,16 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
     return map;
   }, [activePairings]);
 
-  const availableChannels = CHANNEL_OPTIONS.filter((opt) => connectedChannels.includes(opt.value));
+  const availableChannels = useMemo(
+    () => buildAvailableChannels(runningChannels, targets),
+    [runningChannels, targets],
+  );
 
   const handleAdd = useCallback(() => {
-    const defaultChannel = availableChannels[0]?.value || 'telegram';
+    const defaultChannel = availableChannels[0]?.value ?? '';
+    if (!defaultChannel) {
+      return;
+    }
     const channelPairings = pairingsByChannel.get(defaultChannel) ?? [];
     const firstPairing = channelPairings[0];
     const newIndex = targets.length;
@@ -221,7 +246,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(availableChannels.length > 0 ? availableChannels : CHANNEL_OPTIONS).map((opt) => (
+                    {availableChannels.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -283,14 +308,14 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
             size="sm"
             className="w-full h-8 text-xs"
             onClick={handleAdd}
-            disabled={availableChannels.length === 0 && connectedChannels.length === 0}
+            disabled={availableChannels.length === 0}
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
             {t('addNotifyTarget', { fallback: 'Add Notification Target' })}
           </Button>
         )}
 
-        {connectedChannels.length === 0 && targets.length === 0 && (
+        {runningChannels.length === 0 && targets.length === 0 && (
           <p className="text-xs text-muted-foreground italic">
             {t('noChannelsForNotify', {
               fallback: 'Connect a channel in settings to enable notifications.',
@@ -298,7 +323,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
           </p>
         )}
 
-        {connectedChannels.length > 0 && activePairings.length === 0 && targets.length === 0 && (
+        {runningChannels.length > 0 && activePairings.length === 0 && targets.length === 0 && (
           <p className="text-xs text-muted-foreground italic">
             {t('noPairingsForNotify', {
               fallback: 'Pair a channel contact in Channel settings, or enter a recipient ID manually.',

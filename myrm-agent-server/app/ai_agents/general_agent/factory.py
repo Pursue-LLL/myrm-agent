@@ -250,7 +250,11 @@ async def build_general_agent(
     try:
         from app.services.agent.outbound_notify.factory_wiring import append_channel_notify_tool
 
-        target_count = append_channel_notify_tool(agent_wrapper.notify_targets, tools)
+        target_count = append_channel_notify_tool(
+            agent_wrapper.notify_targets,
+            tools,
+            allowed_roots=agent_wrapper.declared_allowed_roots,
+        )
         if target_count:
             channel_notify_tool_loaded = True
             logger.info(

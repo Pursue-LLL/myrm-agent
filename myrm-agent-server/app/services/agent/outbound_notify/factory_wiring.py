@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 def append_channel_notify_tool(
     notify_targets: tuple[dict[str, str], ...],
     tools: list[BaseTool],
+    *,
+    allowed_roots: tuple[str, ...] = (),
 ) -> int:
     """Append channel_notify_tool when notify_targets are configured.
 
@@ -38,5 +40,5 @@ def append_channel_notify_tool(
         return 0
 
     sender, notify_config = sender_result
-    tools.append(create_channel_notify_tool(sender, notify_config))
+    tools.append(create_channel_notify_tool(sender, notify_config, allowed_roots=allowed_roots))
     return len(notify_config.allowed_targets)

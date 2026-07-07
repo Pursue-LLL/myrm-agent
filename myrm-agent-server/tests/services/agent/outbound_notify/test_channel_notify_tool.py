@@ -121,14 +121,21 @@ async def test_target_not_found(single_target_config: NotifyToolConfig) -> None:
 
 @pytest.mark.asyncio
 async def test_attachment_with_local_file(single_target_config: NotifyToolConfig) -> None:
+    import os
     import tempfile
+    from pathlib import Path
 
     sender = FakeSender()
-    tool = create_channel_notify_tool(sender, single_target_config)
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
         f.write(b"fake pdf content")
         tmp_file = f.name
+
+    tool = create_channel_notify_tool(
+        sender,
+        single_target_config,
+        allowed_roots=(str(Path(tmp_file).parent),),
+    )
 
     try:
         result = await tool.ainvoke({
@@ -145,8 +152,6 @@ async def test_attachment_with_local_file(single_target_config: NotifyToolConfig
         assert media[0].path == tmp_file
         assert media[0].media_type.value == "document"
     finally:
-        import os
-
         os.unlink(tmp_file)
 
 
@@ -188,29 +193,64 @@ async def test_url_with_query_params_resolves_correct_type(single_target_config:
 
 
 @pytest.mark.asyncio
-async def test_attachment_file_not_found(single_target_config: NotifyToolConfig) -> None:
+async def test_attachment_file_not_found(single_target_config: NotifyToolConfig, tmp_path) -> None:
     sender = FakeSender()
-    tool = create_channel_notify_tool(sender, single_target_config)
+    tool = create_channel_notify_tool(sender, single_target_config, allowed_roots=(str(tmp_path),))
+    missing = str(tmp_path / "missing-report.pdf")
     result = await tool.ainvoke({
         "channel": "",
         "target": "",
         "body": "Report",
-        "attachments": ["/nonexistent/file.pdf"],
+        "attachments": [missing],
     })
     assert "file not found" in result.lower()
     assert len(sender.calls) == 0
 
 
 @pytest.mark.asyncio
-async def test_no_body_with_attachment_only(single_target_config: NotifyToolConfig) -> None:
+async def test_attachment_rejects_path_outside_workspace(
+    single_target_config: NotifyToolConfig,
+    tmp_path,
+) -> None:
+    import os
     import tempfile
 
     sender = FakeSender()
-    tool = create_channel_notify_tool(sender, single_target_config)
+    tool = create_channel_notify_tool(sender, single_target_config, allowed_roots=(str(tmp_path),))
+
+    with tempfile.NamedTemporaryFile(delete=False) as outside:
+        outside_path = outside.name
+
+    try:
+        result = await tool.ainvoke({
+            "channel": "",
+            "target": "",
+            "body": "Report",
+            "attachments": [outside_path],
+        })
+        assert "not allowed" in result.lower()
+        assert len(sender.calls) == 0
+    finally:
+        os.unlink(outside_path)
+
+
+@pytest.mark.asyncio
+async def test_no_body_with_attachment_only(single_target_config: NotifyToolConfig) -> None:
+    import os
+    import tempfile
+    from pathlib import Path
+
+    sender = FakeSender()
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         f.write(b"fake image")
         tmp_file = f.name
+
+    tool = create_channel_notify_tool(
+        sender,
+        single_target_config,
+        allowed_roots=(str(Path(tmp_file).parent),),
+    )
 
     try:
         result = await tool.ainvoke({
@@ -221,8 +261,6 @@ async def test_no_body_with_attachment_only(single_target_config: NotifyToolConf
         })
         assert "success" in result.lower()
     finally:
-        import os
-
         os.unlink(tmp_file)
 
 
@@ -237,14 +275,21 @@ async def test_empty_body_and_no_attachments_rejected(single_target_config: Noti
 
 @pytest.mark.asyncio
 async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> None:
+    import os
     import tempfile
+    from pathlib import Path
 
     sender = FakeSender()
-    tool = create_channel_notify_tool(sender, single_target_config)
 
     with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
         f.write(b"a,b,c")
         tmp_file = f.name
+
+    tool = create_channel_notify_tool(
+        sender,
+        single_target_config,
+        allowed_roots=(str(Path(tmp_file).parent),),
+    )
 
     try:
         result = await tool.ainvoke({
@@ -262,8 +307,6 @@ async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> N
         assert media[1].url == "https://example.com/logo.jpg"
         assert media[1].media_type.value == "image"
     finally:
-        import os
-
         os.unlink(tmp_file)
 
 
