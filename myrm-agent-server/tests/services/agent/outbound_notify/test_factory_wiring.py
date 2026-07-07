@@ -35,3 +35,14 @@ def test_append_returns_allowed_target_count() -> None:
     )
     assert count == 2
     assert getattr(tools[0], "name", None) == "channel_notify_tool"
+
+
+def test_append_accepts_allowed_roots_kwarg(tmp_path) -> None:
+    tools: list[object] = []
+    count = append_channel_notify_tool(
+        ({"channel": "telegram", "recipient_id": "chat_1"},),
+        tools,
+        allowed_roots=(str(tmp_path),),
+    )
+    assert count == 1
+    assert getattr(tools[0], "name", None) == "channel_notify_tool"
