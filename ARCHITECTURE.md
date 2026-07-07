@@ -124,11 +124,12 @@ flowchart TD
 ## 快速启动（贡献者）
 
 ```bash
-# 仓库内
-bash scripts/install.sh   # 或 myrm setup
-myrm start                # 后端 :8080
-cd myrm-agent-frontend && bun install && bun run dev   # :3000
+# OSS-only clone（PyPI harness）
+bash scripts/install.sh   # or: myrm setup
+myrm start                # backend :8080 + frontend :3000
 ```
+
+Monorepo 联调（旁路 `myrm-agent-harness`）：`setup` 自动 editable；`myrm dev` 要求 venv harness 为源码。详见 [scripts/_ARCH.md](scripts/_ARCH.md)。
 
 WebUI: http://localhost:3000 · API: http://localhost:8080
 

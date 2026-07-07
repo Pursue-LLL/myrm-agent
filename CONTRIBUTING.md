@@ -58,10 +58,12 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 ## Development setup
 
 ```bash
-# From repo root
+# From repo root (OSS-only: PyPI harness via uv sync)
 bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
+
+Monorepo maintainers with a sibling harness checkout: `setup` auto-installs editable; see [scripts/_ARCH.md](scripts/_ARCH.md).
 
 Manual split:
 

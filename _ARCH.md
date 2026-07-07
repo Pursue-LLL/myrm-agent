@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）、`myrm-agent-extension`（Chrome MV3 浏览器桥）。运行时通过 `uv.lock` 安装 `myrm-agent-harness`（PyPI）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；贡献流程见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
+MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent-frontend`（Web UI）、`myrm-agent-desktop`（Tauri 桌面）、`myrm-agent-extension`（Chrome MV3 浏览器桥）。**OSS 运行时**通过 `uv.lock` 安装 PyPI `myrm-agent-harness`；**monorepo 联调**旁路 harness 源码时 `dev/setup.sh` 自动 editable（见 [scripts/_ARCH.md](scripts/_ARCH.md)）。五仓边界、三部署模式与启动序见 **[ARCHITECTURE.md](ARCHITECTURE.md)**；贡献流程见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。桌面安装包发布于 [Pursue-LLL/myrm-agent Releases](https://github.com/Pursue-LLL/myrm-agent/releases)。
 
 ## 根目录文件
 
@@ -30,7 +30,7 @@ MIT 开源产品仓，包含 `myrm-agent-server`（业务后端）、`myrm-agent
 
 ## 模块依赖
 
-- **Python / harness**：`myrm-agent-server/pyproject.toml` + `myrm-agent-server/uv.lock` 钉死 PyPI 版本（`myrm setup` / `uv sync`）
+- **Python / harness**：OSS 以 `myrm-agent-server/pyproject.toml` + `uv.lock` 钉死 PyPI 版本（`myrm setup` → `uv sync`）。旁路 `myrm-agent-harness` 源码时 `scripts/dev/setup.sh` 调用 maintainer `install_harness.sh` editable；`myrm dev` 在 monorepo 下要求 venv 指向该源码（否则 exit 1，见 [scripts/_ARCH.md](scripts/_ARCH.md)）
 - **前端**：`myrm-agent-frontend/package.json` + `bun.lock`
 
 子模块详述（架构文档优先于子包 README）：
@@ -66,5 +66,5 @@ myrm setup && myrm start
 ## 约束
 
 - 业务与 UI 代码在本仓；通用 Agent 框架能力不得下沉到 server
-- Harness 版本以 `uv.lock` + PyPI 为准；发布流水线在刷新 lock 前校验 PyPI 上包是否齐全
+- Harness 版本：OSS 以 `uv.lock` + PyPI 为准；monorepo 日常联调用 editable 源码（不写入 OSS `uv.lock`）
 - 运行时产物：仓根 `.gitignore` 含 `.myrm/`、`.agent/`（harness workspace）；server/desktop 子树另有同名规则
