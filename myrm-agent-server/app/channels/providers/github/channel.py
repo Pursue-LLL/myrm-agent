@@ -251,7 +251,7 @@ class GitHubChannel(BaseChannel):
         if not self._secret:
             issues.append(
                 ChannelIssue(
-                    kind=IssueKind.CONFIGURATION,
+                    kind=IssueKind.CONFIG,
                     severity=IssueSeverity.WARNING,
                     message="Webhook secret not configured — signature verification is disabled",
                     fix="Set webhookSecret in GitHub channel credentials",
@@ -260,7 +260,7 @@ class GitHubChannel(BaseChannel):
         if not self._token:
             issues.append(
                 ChannelIssue(
-                    kind=IssueKind.CONFIGURATION,
+                    kind=IssueKind.CONFIG,
                     severity=IssueSeverity.WARNING,
                     message="Personal Access Token not configured — cannot post comments",
                     fix="Set personalAccessToken in GitHub channel credentials",
@@ -269,7 +269,7 @@ class GitHubChannel(BaseChannel):
         if not self._webhook_verified and self._status == ChannelStatus.RUNNING:
             issues.append(
                 ChannelIssue(
-                    kind=IssueKind.CONNECTIVITY,
+                    kind=IssueKind.RUNTIME,
                     severity=IssueSeverity.INFO,
                     message="No webhook events received yet — verify webhook URL in GitHub settings",
                 )
