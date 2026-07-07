@@ -46,7 +46,7 @@ def test_agent_stream_channel_notify_delivers_to_chat(
 
     recipient_chat_id = f"notify_recipient_{uuid.uuid4().hex[:8]}"
     create_agent = client.post(
-        "/api/v1/user-agents",
+        "/api/agents",
         json={
             "name": "Channel Notify Stream E2E",
             "system_prompt": "You send notifications when asked.",
@@ -104,4 +104,4 @@ def test_agent_stream_channel_notify_delivers_to_chat(
         ]
         assert delivered, f"No delivered message in chat {recipient_chat_id}; messages={messages}"
     finally:
-        client.delete(f"/api/v1/user-agents/{agent_id}")
+        client.delete(f"/api/agents/{agent_id}")
