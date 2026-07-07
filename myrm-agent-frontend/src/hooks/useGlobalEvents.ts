@@ -13,6 +13,7 @@ import { mutate as mutateSwr } from 'swr';
 
 import { showMemoryOperationToasts } from '@/hooks/globalEvents/memoryOperationToasts';
 import { showLocatorHealedToast } from '@/hooks/globalEvents/locatorHealedToast';
+import { showMessageDeadLetteredToast } from '@/hooks/globalEvents/messageDeadLetteredToast';
 
 interface SSEPayload {
   type: string;
@@ -133,14 +134,7 @@ export function useGlobalEvents(): void {
           }),
         );
       } else if (payload.type === 'message_dead_lettered') {
-        const channel = String(payload.data.channel ?? 'unknown');
-        const reason = String(payload.data.error_reason ?? 'Unknown error');
-        toast.error(t('messageDeadLettered', { channel, reason }), {
-          duration: 10_000,
-          dismissible: true,
-        });
-        notifyIfLeader(t('messageDeadLettered', { channel, reason }), reason);
-        window.dispatchEvent(new CustomEvent('message_dead_lettered'));
+        showMessageDeadLetteredToast(payload.data, { t, notifyIfLeader });
       } else if (payload.type === 'approval_required') {
         const actionType = String(payload.data.action_type ?? 'unknown');
         const normalizedApproval = normalizeApprovalPayload(payload.data);
