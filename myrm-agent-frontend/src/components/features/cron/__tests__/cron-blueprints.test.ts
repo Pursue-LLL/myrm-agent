@@ -18,6 +18,7 @@ vi.mock('@/services/cron', async (importOriginal) => {
 });
 
 import { fillBlueprint } from '@/services/cron';
+import { ApiError } from '@/lib/api';
 
 describe('cron-blueprints', () => {
   describe('CRON_BLUEPRINTS', () => {
@@ -312,6 +313,14 @@ describe('cron-blueprints', () => {
 
       expect(payload.schedule.expr).toBe('0 8 * * *');
       expect(payload.prompt).toContain('translated:');
+    });
+
+    it('rethrows client errors from fill API without fallback', async () => {
+      vi.mocked(fillBlueprint).mockRejectedValue(new ApiError('bad slot', 422));
+
+      await expect(
+        buildBlueprintCreatePayload(bp, { time: '08:00', weekdays: 'everyday' }, 'UTC', 'en', mockT),
+      ).rejects.toBeInstanceOf(ApiError);
     });
   });
 });

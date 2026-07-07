@@ -1,5 +1,6 @@
 import type { BlueprintDef, CreateCronJobRequest, CronSchedule } from '@/services/cron';
 import { fillBlueprint, listBlueprints } from '@/services/cron';
+import { ApiError } from '@/lib/api';
 import type { LucideIcon } from 'lucide-react';
 import { Sun, ClipboardList, Bell, Newspaper, Moon, Sparkles, Activity, Eye, CheckSquare, BookOpen, Radio } from 'lucide-react';
 
@@ -210,7 +211,10 @@ export async function fillBlueprintFromServer(
 ): Promise<{ schedule: CronSchedule; prompt: string; name: string }> {
   try {
     return await fillBlueprint(blueprintId, values, locale, tz);
-  } catch {
+  } catch (err) {
+    if (err instanceof ApiError && err.code >= 400 && err.code < 500) {
+      throw err;
+    }
     const bp = getCachedBlueprints().find((b) => b.id === blueprintId);
     if (!bp) throw new Error(`Blueprint ${blueprintId} not found`);
     const payload = buildJobPayload(bp, values, tz, t, undefined, locale);
