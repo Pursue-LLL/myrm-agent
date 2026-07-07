@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - `@/lib/backend-health` (`fetchBackendHealth`, `BackendHealthPayload`)
- * - `#locales/*.json` (`common.configLoadError` — SSOT for setup hints)
+ * - `#locales/en.json` / `zh.json` (`common.configLoadError` — api 层 SSOT；de/ja/ko 回退 en，Banner 仍走 next-intl 全语言）
  *
  * [OUTPUT]
  * - `BOOT_SCREEN_STORAGE_KEY` / `isBootSessionCompleted`: Boot session SSOT
@@ -11,10 +11,7 @@
  * [POS]
  * Local/Tauri WebUI 开发连接体验 SSOT：Boot 复访判定与后端 setup 指引（与 Settings ConfigLoadError 一致）。
  */
-import deMessages from '#locales/de.json';
 import enMessages from '#locales/en.json';
-import jaMessages from '#locales/ja.json';
-import koMessages from '#locales/ko.json';
 import zhMessages from '#locales/zh.json';
 import { fetchBackendHealth, type BackendHealthPayload } from '@/lib/backend-health';
 
@@ -32,9 +29,6 @@ type ConfigLoadErrorMessages = Record<ConfigLoadErrorHintKey, string>;
 const LOCALE_HINTS: Record<string, ConfigLoadErrorMessages> = {
   en: enMessages.common.configLoadError,
   zh: zhMessages.common.configLoadError,
-  de: deMessages.common.configLoadError,
-  ja: jaMessages.common.configLoadError,
-  ko: koMessages.common.configLoadError,
 };
 
 export function isBootSessionCompleted(): boolean {
@@ -89,9 +83,6 @@ function resolveHintLocale(): string {
   }
   const lang = navigator.language.toLowerCase();
   if (lang.startsWith('zh')) return 'zh';
-  if (lang.startsWith('de')) return 'de';
-  if (lang.startsWith('ja')) return 'ja';
-  if (lang.startsWith('ko')) return 'ko';
   return 'en';
 }
 
