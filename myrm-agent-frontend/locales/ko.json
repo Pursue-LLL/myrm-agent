@@ -7684,6 +7684,7 @@
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
+    "agentChatHint": "채팅에서 \"매일 아침 8시에 AI 뉴스를 요약해줘\"처럼 말할 수도 있습니다. 에이전트 설정에서 \"예약 작업(채팅)\"을 켜면 발견 단계 없이 바로 생성할 수 있습니다.",
     "title": "Scheduled Tasks",
     "loading": "Loading...",
     "empty": "No scheduled tasks yet",
@@ -8057,6 +8058,36 @@
         "title": "저녁 회고",
         "desc": "하루 리뷰 및 휴식 제안",
         "prompt": "오늘 하루 리뷰: 무엇을 완수했는지, 내일 후속 조치가 필요한 사항, 휴식 활동 제안."
+      },
+      "localHealthCheck": {
+        "title": "로컬 상태 점검",
+        "desc": "CPU, 메모리, 디스크 상태 모니터링",
+        "prompt": "현재 시스템 상태를 확인하세요. CPU, 메모리, 디스크 사용량과 비정상 서비스를 보고하세요. 정상이면 간단히 요약하세요."
+      },
+      "competitorWatch": {
+        "title": "경쟁사 모니터링",
+        "desc": "경쟁사 뉴스와 제품 업데이트를 주간 추적",
+        "prompt": "다음 경쟁사의 최신 뉴스와 제품 업데이트를 검색하세요: {competitors}. 간결한 경쟁 인텔리전스 브리핑을 작성하세요."
+      },
+      "habitCheckin": {
+        "title": "습관 체크인",
+        "desc": "습관과 루틴을 매일 기록하도록 알림",
+        "prompt": "매일 습관 체크인 시간입니다. {habits} 진행 상황을 물어보고 격려와 연속 기록을 추적해 주세요."
+      },
+      "learnDaily": {
+        "title": "매일 학습",
+        "desc": "매일 큐레이션된 학습 주제 제공",
+        "prompt": "{subject}에 대해 유익한 내용을 2-3문단으로 설명하고 실용 예시를 포함해 주세요."
+      },
+      "socialMediaWatch": {
+        "title": "소셜 미디어 모니터링",
+        "desc": "브랜드 언급, 감성 변화, 트렌드 추적",
+        "prompt": "소셜 플랫폼에서 {brand} 언급을 모니터링하세요. 키워드: {keywords}. 플랫폼: {platforms}. 구조화된 감성 보고서를 작성하세요."
+      },
+      "readItLater": {
+        "title": "나중에 읽기 수집",
+        "desc": "저장한 기사를 매일 지식 베이스에 자동 수집",
+        "prompt": "나중에 읽기 파이프라인 실행: 미처리 항목을 가져와 위키에 수집하고 처리 완료 태그를 붙이세요. 실행당 최대 10개."
       }
     }
   },

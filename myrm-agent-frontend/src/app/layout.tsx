@@ -2,6 +2,7 @@
  * [POS] Next.js 根布局：主题、国际化、全局初始化器、页面壳层。
  */
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -29,7 +30,6 @@ import { WebVitals } from './web-vitals';
 import { getLocale, getMessages } from 'next-intl/server';
 import { getTranslations } from 'next-intl/server';
 import { fontSans, fontMono } from '@/lib/fonts';
-import { ThemePreInitScript } from '@/components/features/theme/ThemePreInitScript';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -69,7 +69,7 @@ export default async function LocaleLayout({ children }: { children: React.React
         <link rel="preload" as="image" href="/brand/brand-mark-128.webp" type="image/webp" />
       </head>
       <body className={cn('min-h-full', fontSans.variable, fontMono.variable)}>
-        <ThemePreInitScript />
+        <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <GlobalErrorBoundary>
           <WebVitals />
           <ThemeProvider>

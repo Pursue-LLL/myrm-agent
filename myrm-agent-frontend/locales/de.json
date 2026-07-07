@@ -7684,6 +7684,7 @@
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
+    "agentChatHint": "Sie können im Chat auch sagen: „Fasse jeden Morgen um 8 Uhr KI-Nachrichten zusammen“. Aktivieren Sie „Geplante Aufgaben (Chat)“ in den Agenteneinstellungen, um Jobs direkt ohne Entdeckungsschritt zu erstellen.",
     "title": "Scheduled Tasks",
     "loading": "Loading...",
     "empty": "No scheduled tasks yet",
@@ -8057,6 +8058,36 @@
         "title": "Abend-Rückblick",
         "desc": "Tagesrückblick und Entspannungsvorschläge",
         "prompt": "Überprüfe meinen Tag: Was habe ich erreicht, welche offenen Punkte gibt es für morgen, und schlage eine entspannende Aktivität vor."
+      },
+      "localHealthCheck": {
+        "title": "Lokaler Gesundheitscheck",
+        "desc": "Überwacht CPU, Speicher und Festplattenstatus",
+        "prompt": "Prüfe den aktuellen Systemzustand. Melde CPU-, Speicher- und Festplattenauslastung sowie nicht gesunde Dienste. Bei normalem Zustand kurz halten."
+      },
+      "competitorWatch": {
+        "title": "Wettbewerber-Monitoring",
+        "desc": "Wöchentliche Nachrichten und Produktupdates von Wettbewerbern",
+        "prompt": "Suche im Web nach den neuesten Nachrichten und Produktupdates von: {competitors}. Erstelle ein kurzes Wettbewerbsbriefing."
+      },
+      "habitCheckin": {
+        "title": "Gewohnheits-Check-in",
+        "desc": "Tägliche Erinnerung, Gewohnheiten und Routinen zu tracken",
+        "prompt": "Zeit für den täglichen Gewohnheits-Check-in! Frage mich nach meinem Fortschritt bei: {habits}. Gib Ermutigung und verfolge meine Serie."
+      },
+      "learnDaily": {
+        "title": "Tägliches Lernen",
+        "desc": "Täglich ein kuratiertes Lernthema erhalten",
+        "prompt": "Bringe mir etwas Nützliches über: {subject}. Erkläre ein Konzept in 2–3 Absätzen mit einem praktischen Beispiel."
+      },
+      "socialMediaWatch": {
+        "title": "Social-Media-Monitoring",
+        "desc": "Markenerwähnungen, Stimmungswechsel und Trends überwachen",
+        "prompt": "Überwache soziale Plattformen auf Erwähnungen von: {brand}. Schlüsselwörter: {keywords}. Plattformen: {platforms}. Erstelle einen strukturierten Stimmungsbericht."
+      },
+      "readItLater": {
+        "title": "Später-lesen-Erfassung",
+        "desc": "Gespeicherte Artikel täglich in die Wissensbasis übernehmen",
+        "prompt": "Führe die Später-lesen-Pipeline aus: unverarbeitete Einträge holen, ins Wiki übernehmen, als verarbeitet markieren. Max. 10 pro Lauf."
       }
     }
   },

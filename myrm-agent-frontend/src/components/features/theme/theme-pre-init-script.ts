@@ -1,6 +1,6 @@
 /**
  * Blocking pre-hydration script for theme-color meta, skin, and font.
- * Injected via useServerInsertedHTML — not rendered in the React client tree.
+ * Served from /public/theme-init.js via next/script beforeInteractive.
  *
  * FONT_CHOICES stacks in @/lib/fonts must stay in sync when editing font maps here.
  */

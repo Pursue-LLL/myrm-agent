@@ -7684,6 +7684,7 @@
   "cron": {
     "sectionTitle": "Scheduled Tasks",
     "sectionDesc": "Manage agent-created tasks that run automatically on a schedule.",
+    "agentChatHint": "チャットで「毎朝8時にAIニュースを要約して」などと言えます。エージェント設定で「スケジュールタスク（チャット）」を有効にすると、能力発見なしで直接作成できます。",
     "title": "Scheduled Tasks",
     "loading": "Loading...",
     "empty": "No scheduled tasks yet",
@@ -8057,6 +8058,36 @@
         "title": "イブニング振り返り",
         "desc": "一日の振り返りとリラクゼーション提案",
         "prompt": "今日の振り返り：何を達成したか、明日フォローすべきこと、リラックスできるアクティビティの提案。"
+      },
+      "localHealthCheck": {
+        "title": "ローカルヘルスチェック",
+        "desc": "CPU・メモリ・ディスクの状態を監視",
+        "prompt": "システムの健康状態を確認し、CPU・メモリ・ディスクと異常サービスを報告してください。正常なら簡潔に。"
+      },
+      "competitorWatch": {
+        "title": "競合ウォッチ",
+        "desc": "競合のニュースと製品更新を毎週追跡",
+        "prompt": "次の競合の最新ニュースと製品更新を検索：{competitors}。簡潔な競合インテリジェンスをまとめてください。"
+      },
+      "habitCheckin": {
+        "title": "習慣チェックイン",
+        "desc": "習慣とルーティンの毎日の記録リマインダー",
+        "prompt": "毎日の習慣チェックインです。{habits} の進捗を確認し、励ましと継続記録をお願いします。"
+      },
+      "learnDaily": {
+        "title": "毎日の学習",
+        "desc": "毎日キュレーションされた学習トピックを配信",
+        "prompt": "{subject} について有益な内容を2-3段落で教え、実践例を含めてください。"
+      },
+      "socialMediaWatch": {
+        "title": "ソーシャルメディア監視",
+        "desc": "ブランド言及・感情変化・トレンドを監視",
+        "prompt": "プラットフォーム {platforms} で {brand} の言及を監視。キーワード {keywords}。構造化レポートを作成。"
+      },
+      "readItLater": {
+        "title": "後で読む取り込み",
+        "desc": "保存記事を毎日ナレッジベースに自動取り込み",
+        "prompt": "後で読むパイプラインを実行：未処理項目を取得し Wiki に取り込み、処理済みタグを付与。最大10件。"
       }
     }
   },
