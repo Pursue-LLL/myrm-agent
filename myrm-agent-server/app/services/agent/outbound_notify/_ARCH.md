@@ -23,7 +23,7 @@ Subagents cannot inherit `channel_notify_tool`: server bootstrap registers it vi
 Frontend recipient picker uses `GET /channels/manage/status` (running channels) and
 `GET /channels/manage/pairings`.
 
-**Test coverage**: 48 server (outbound_notify module) + 7 frontend vitest; full notify+DLQ chain 106+ with `test_bus.py`.
+**Test coverage**: 85+ server (outbound_notify chain incl. ChatChannel gateway + live agent-stream) + 7 frontend vitest; DLQ chain + `test_bus.py` send_tracked.
 
 ## Media Attachments
 
