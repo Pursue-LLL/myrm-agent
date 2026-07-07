@@ -14,7 +14,8 @@ tasks use identical, professionally tuned prompts and schedules.
 [OUTPUT]
 - CronBlueprint: Single blueprint definition dataclass.
 - BUILTIN_BLUEPRINTS: Registry of all built-in blueprints.
-- fill_blueprint: Fills a blueprint with slot values, returning schedule + prompt.
+- BlueprintFillError: Slot validation error for fill operations.
+- fill_blueprint: Fills a blueprint with slot values; name from title[locale]; validates required text slots.
 
 [POS]
 Cron blueprint single-source-of-truth definitions.
