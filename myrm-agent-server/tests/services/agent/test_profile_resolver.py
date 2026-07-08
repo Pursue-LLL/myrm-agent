@@ -770,6 +770,11 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_structured_clarify"] is True
         assert flags["enable_render_ui"] is False
 
+    def test_external_cli_maps_to_enable_external_cli(self):
+        flags = resolve_builtin_tool_flags(["external_cli"])
+        assert flags["enable_external_cli"] is True
+        assert flags["enable_browser"] is False
+
     def test_default_tools_include_structured_clarify(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
         assert flags["enable_structured_clarify"] is True
@@ -788,6 +793,7 @@ class TestResolveBuiltinToolFlags:
             "enable_render_ui",
             "enable_planning",
             "enable_structured_clarify",
+            "enable_external_cli",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

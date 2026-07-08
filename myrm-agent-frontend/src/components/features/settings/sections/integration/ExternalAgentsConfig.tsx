@@ -282,6 +282,7 @@ const ExternalAgentsConfig = memo(() => {
         }
       >
         {isLocalMode() && <p className="text-xs text-muted-foreground -mt-2">{t('tauriAutoDetect')}</p>}
+        <p className="text-xs text-muted-foreground">{t('agentToggleHint')}</p>
 
         {agents.length === 0 && !isEditing && (
           <div className="flex flex-col items-center justify-center py-8 text-center">

@@ -123,3 +123,46 @@ def test_should_mount_delegate_tool_matrix() -> None:
     assert should_mount_delegate_tool(agent_id="general", force_delegate_agent=None) is True
     assert should_mount_delegate_tool(agent_id=BUILTIN_CLI_VISUAL_AGENT_ID, force_delegate_agent=None) is False
     assert should_mount_delegate_tool(agent_id="general", force_delegate_agent="claude") is False
+
+
+@pytest.mark.asyncio
+async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
+    """Runtime pool may still init; delegate_to_agent must not mount without external_cli entitlement."""
+    from app.ai_agents.general_agent.external_agents import ExternalAgentsMixin
+
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mixin.external_agents_config = [
+        {
+            "name": "test-cli",
+            "type": "cli",
+            "command": "echo",
+            "args": [],
+        }
+    ]
+    mixin.chat_id = "chat-hr"
+    mixin.agent_id = "builtin-hr"
+    mixin.force_delegate_agent = None
+    mixin._runtime_pool_scope_id = "chat-hr"
+
+    tools: list[object] = []
+    discoverable_tools: list[object] = []
+
+    mock_pool = MagicMock()
+    mock_pool.available_backends = ["test-cli"]
+    mock_pool.start_monitoring = AsyncMock()
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.acp.runtime.pool.RuntimePool",
+            return_value=mock_pool,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+        ) as create_tool,
+    ):
+        await mixin._do_setup_external_agents(tools, discoverable_tools, mount_delegate_tool=False)
+
+    assert tools == []
+    create_tool.assert_not_called()
+    assert mixin._runtime_pool is not None
+    mock_pool.start_monitoring.assert_awaited_once()

@@ -218,9 +218,12 @@ async def build_general_agent(
 
     from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool
 
-    mount_delegate_tool = should_mount_delegate_tool(
-        agent_id=agent_wrapper.agent_id,
-        force_delegate_agent=agent_wrapper.force_delegate_agent,
+    mount_delegate_tool = (
+        agent_wrapper.enable_external_cli
+        and should_mount_delegate_tool(
+            agent_id=agent_wrapper.agent_id,
+            force_delegate_agent=agent_wrapper.force_delegate_agent,
+        )
     )
     agent_wrapper._runtime_pool_scope_id = effective_chat_id
     await agent_wrapper._setup_external_agents(

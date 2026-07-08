@@ -525,7 +525,8 @@
         "title": "External Agents",
         "description": "Configure external AI agents (e.g. Claude Code, Codex CLI) for task delegation.",
         "empty": "No external agents configured",
-        "emptyHint": "Add an external agent to enable the delegate_to_agent tool.",
+        "emptyHint": "Add an external agent backend, then enable the External CLI tool on each agent that should delegate.",
+        "agentToggleHint": "Also turn on External CLI under Agent → Builtin Tools for agents that should call delegate_to_agent.",
         "tauriAutoDetect": "In Tauri mode, locally installed CLI agents are automatically detected.",
         "add": "Add Agent",
         "edit": "Edit",
@@ -4881,7 +4882,8 @@
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI",
         "planning": "Multi-Step Progress",
-        "structured_clarify": "Structured Clarify"
+        "structured_clarify": "Structured Clarify",
+        "external_cli": "External CLI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4899,8 +4901,13 @@
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Fill forms and view tables or charts directly in chat",
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)",
-        "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond"
+        "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond",
+        "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent"
       },
+      "externalCliSetupHint": "Two steps: (1) register CLI backends in Settings → System → External Agents; (2) keep this switch on for agents that should use delegate_to_agent at runtime.",
+      "externalCliLocalOnlyHint": "External CLI delegation requires local or desktop mode. Cloud/sandbox hosts cannot spawn local CLI processes.",
+      "externalCliNoBackendHint": "No enabled CLI backend found in Settings yet — delegate_to_agent will not mount until you add one.",
+      "externalCliOpenSettings": "Configure External Agents in Settings",
       "cuPermission": {
         "checking": "Checking desktop permissions…",
         "allGranted": "Desktop permissions OK",

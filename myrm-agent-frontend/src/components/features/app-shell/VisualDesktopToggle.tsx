@@ -1,15 +1,20 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { MonitorPlay, X, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
-import { VisualDesktop } from './VisualDesktop';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
 import { isSandbox } from '@/lib/deploy-mode';
 import { buildVncWebSocketUrl, fetchSandboxVncUrl, fetchUserSandbox } from '@/lib/cp-sandbox';
 import useBrowserTakeoverStore from '@/store/useBrowserTakeoverStore';
 import useChatStore from '@/store/useChatStore';
+
+const VisualDesktop = dynamic(
+  () => import('./VisualDesktop').then((module) => ({ default: module.VisualDesktop })),
+  { ssr: false },
+);
 
 export const VisualDesktopToggle = () => {
   const t = useTranslations('billing.vnc');

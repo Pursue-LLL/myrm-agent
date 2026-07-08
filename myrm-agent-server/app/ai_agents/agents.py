@@ -123,6 +123,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_cron_eager: bool = False
     enable_answer_tool: bool = False
     enable_planning: bool = False
+    enable_external_cli: bool = False
     kanban_tool_mode: str = "orchestrator"
     kanban_current_task_id: str | None = None
     kanban_max_runtime_seconds: int | None = None
@@ -277,6 +278,7 @@ class AgentFactory:
             enable_cron_eager=params.enable_cron_eager,
             enable_answer_tool=params.enable_answer_tool,
             enable_planning=params.enable_planning,
+            enable_external_cli=params.enable_external_cli,
             kanban_tool_mode=params.kanban_tool_mode,
             kanban_current_task_id=params.kanban_current_task_id,
             kanban_max_runtime_seconds=params.kanban_max_runtime_seconds,

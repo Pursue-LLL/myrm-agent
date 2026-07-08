@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import {
   Globe,
   Cable,
@@ -17,6 +18,7 @@ import {
   ListTodo,
   Clock,
   ClipboardList,
+  Terminal,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/primitives/label';
@@ -27,7 +29,8 @@ import { SelectableCard } from './AgentConfigSelectableCard';
 import { CuPermissionInline } from './CuPermissionInline';
 import { MediaCredentialInline } from './MediaCredentialInline';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
-import { isSandbox } from '@/lib/deploy-mode';
+import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
+import { getConfigSyncManager } from '@/services/config';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];
@@ -60,6 +63,7 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   render_ui: <LayoutTemplate size={14} />,
   planning: <ListTodo size={14} />,
   structured_clarify: <ClipboardList size={14} />,
+  external_cli: <Terminal size={14} />,
 };
 
 export const BuiltinToolsPanel = ({
@@ -147,9 +151,52 @@ export const BuiltinToolsPanel = ({
       )}
 
       {localBuiltinTools.includes('computer_use') && <CuPermissionInline tPanel={tPanel} />}
+
+      {localBuiltinTools.includes('external_cli') && (
+        <ExternalCliConfigSection tPanel={tPanel} />
+      )}
     </div>
   );
 };
+
+function ExternalCliConfigSection({ tPanel }: { tPanel: (key: string) => string }) {
+  const localOnly = isLocalMode();
+  const [hasEnabledBackend, setHasEnabledBackend] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const agents = getConfigSyncManager().get('externalAgents')?.agents ?? [];
+      setHasEnabledBackend(agents.some((agent) => agent.enabled !== false && Boolean(agent.command?.trim())));
+    } catch {
+      setHasEnabledBackend(false);
+    }
+  }, []);
+
+  return (
+    <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border/50">
+      <p className="text-xs text-muted-foreground leading-relaxed">{tPanel('externalCliSetupHint')}</p>
+      {!localOnly && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+          <AlertCircle size={12} className="mt-0.5 shrink-0" />
+          {tPanel('externalCliLocalOnlyHint')}
+        </p>
+      )}
+      {hasEnabledBackend === false && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+          <AlertCircle size={12} className="mt-0.5 shrink-0" />
+          {tPanel('externalCliNoBackendHint')}
+        </p>
+      )}
+      <Link
+        href="/settings/system"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+      >
+        <Terminal size={12} />
+        {tPanel('externalCliOpenSettings')}
+      </Link>
+    </div>
+  );
+}
 
 function BrowserConfigSection({
   localAutoRestoreDomains,

@@ -49,6 +49,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "render_ui",
     "planning",
     "structured_clarify",
+    "external_cli",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -91,6 +92,10 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {
         "id": "structured_clarify",
         "desc": "Structured clarification forms when user intent is ambiguous",
+    },
+    {
+        "id": "external_cli",
+        "desc": "Delegate tasks to external CLI agents (Claude Code, Codex, Gemini CLI)",
     },
 )
 

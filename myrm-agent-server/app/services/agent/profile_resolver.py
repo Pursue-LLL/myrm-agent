@@ -53,6 +53,7 @@ class BuiltinToolFlags(TypedDict):
     enable_render_ui: bool
     enable_planning: bool
     enable_structured_clarify: bool
+    enable_external_cli: bool
 
 
 def resolve_builtin_tool_flags(
@@ -76,6 +77,7 @@ def resolve_builtin_tool_flags(
         enable_render_ui="render_ui" in tools,
         enable_planning="planning" in tools,
         enable_structured_clarify="structured_clarify" in tools,
+        enable_external_cli="external_cli" in tools,
     )
 
 
@@ -97,6 +99,7 @@ def apply_agent_baseline_tool_flags(flags: BuiltinToolFlags) -> BuiltinToolFlags
         enable_render_ui=flags["enable_render_ui"],
         enable_planning=flags["enable_planning"],
         enable_structured_clarify=flags["enable_structured_clarify"],
+        enable_external_cli=flags["enable_external_cli"],
     )
 
 

@@ -525,7 +525,8 @@
         "title": "外部 Agent",
         "description": "配置外部 AI Agent（如 Claude Code、Codex CLI）以委托任务。",
         "empty": "尚未配置外部 Agent",
-        "emptyHint": "添加外部 Agent 以启用 delegate_to_agent 工具。",
+        "emptyHint": "先添加外部 CLI 后端，再在对应 Agent 的「内置工具」中开启「外部 CLI」。",
+        "agentToggleHint": "还需在 Agent → 内置工具 中打开「外部 CLI」，运行时才会挂载 delegate_to_agent。",
         "tauriAutoDetect": "Tauri 模式下，本地安装的 CLI Agent 会被自动探测。",
         "add": "添加 Agent",
         "edit": "编辑",
@@ -4881,7 +4882,8 @@
         "answer_tool": "回答质量自审",
         "render_ui": "交互式 UI",
         "planning": "多步进度",
-        "structured_clarify": "结构化澄清"
+        "structured_clarify": "结构化澄清",
+        "external_cli": "外部 CLI"
       },
       "builtinToolDescs": {
         "web_search": "搜索互联网获取实时信息",
@@ -4899,8 +4901,13 @@
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
         "render_ui": "在对话里直接填写表单、查看表格与图表",
         "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）",
-        "structured_clarify": "意图不明确时弹出结构化澄清表单 — Agent 暂停直至你回复"
+        "structured_clarify": "意图不明确时弹出结构化澄清表单 — Agent 暂停直至你回复",
+        "external_cli": "允许 Agent 通过 delegate_to_agent 将编码任务委派给外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）"
       },
+      "externalCliSetupHint": "两步配置：（1）在 设置 → 系统 → 外部 Agent 中登记 CLI 后端；（2）为需要运行时使用 delegate_to_agent 的 Agent 保持本开关开启。",
+      "externalCliLocalOnlyHint": "外部 CLI 委派需要本地或桌面模式；云端/沙箱环境无法启动本地 CLI 进程。",
+      "externalCliNoBackendHint": "Settings 中尚未配置已启用的 CLI 后端 — 添加前运行时不会挂载 delegate_to_agent。",
+      "externalCliOpenSettings": "前往设置配置外部 Agent",
       "cuPermission": {
         "checking": "正在检查桌面权限…",
         "allGranted": "桌面权限正常",

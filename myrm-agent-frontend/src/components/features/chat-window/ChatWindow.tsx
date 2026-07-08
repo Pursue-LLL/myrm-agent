@@ -27,7 +27,7 @@ import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import SubagentPromptButton from './SubagentPromptButton';
 import SubagentDashboard from './SubagentDashboard';
-import { VisualDesktopToggle } from '@/components/features/app-shell/VisualDesktopToggle';
+import dynamic from 'next/dynamic';
 import { BrowserLiveView, BrowserInspectorToggle } from '@/components/features/browser-inspector';
 import { BrowserRecordingToggle, BrowserRecordingPanel } from '@/components/features/browser-recording';
 import { DesktopLiveView, DesktopInspectorToggle } from '@/components/features/desktop-inspector';
@@ -45,6 +45,14 @@ import { PendingMemoryBadge, PendingMemoryDialog } from '@/components/features/m
 import { useMemoryStore } from '@/store/memory';
 import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
+
+const VisualDesktopToggle = dynamic(
+  () =>
+    import('@/components/features/app-shell/VisualDesktopToggle').then((module) => ({
+      default: module.VisualDesktopToggle,
+    })),
+  { ssr: false },
+);
 
 interface ErrorViewProps {
   message: string;

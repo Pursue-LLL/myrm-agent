@@ -61,8 +61,8 @@ def test_default_tools_match_frontend_contract() -> None:
         "memory",
         "structured_clarify",
     )
-    assert len(BUILTIN_TOOL_ID_SET) == 16
-    assert len(BUILTIN_TOOL_IDS) == 14
+    assert len(BUILTIN_TOOL_ID_SET) == 17
+    assert len(BUILTIN_TOOL_IDS) == 15
 
 
 def test_normalize_strips_agent_baseline_ids() -> None:

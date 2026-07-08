@@ -45,7 +45,7 @@ def _extend_default_tools(*extra: str) -> tuple[str, ...]:
 
 
 _TOOL_MINIMAL: tuple[str, ...] = DEFAULT_ENABLED_BUILTIN_TOOLS
-_TOOL_DEFAULT: tuple[str, ...] = DEFAULT_ENABLED_BUILTIN_TOOLS
+_TOOL_DEFAULT: tuple[str, ...] = _extend_default_tools("external_cli")
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
 _TOOL_RESEARCH: tuple[str, ...] = _extend_default_tools("answer_tool")
 _TOOL_DESIGN: tuple[str, ...] = _extend_default_tools("image_generation")

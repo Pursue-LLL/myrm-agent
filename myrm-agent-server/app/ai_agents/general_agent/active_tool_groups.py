@@ -34,6 +34,7 @@ class ActiveToolGroupSource(Protocol):
     enable_answer_tool: bool
     enable_render_ui: bool
     enable_structured_clarify: bool
+    enable_external_cli: bool
     enable_cron_eager: bool
     image_generation_params: object | None
     video_generation_params: object | None
@@ -58,6 +59,7 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "image_generation",
     "video_generation",
     "tts",
+    "external_cli",
 )
 
 
@@ -90,6 +92,7 @@ def derive_active_tool_groups(
         ("image_generation", agent.image_generation_params is not None),
         ("video_generation", agent.video_generation_params is not None),
         ("tts", agent.tts_params is not None),
+        ("external_cli", agent.enable_external_cli),
     ]
     return [group for group, enabled in flag_to_group if enabled]
 
@@ -110,6 +113,7 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
         enable_answer_tool=bool(getattr(params, "enable_answer_tool", False)),
         enable_render_ui=bool(getattr(params, "enable_render_ui", False)),
         enable_structured_clarify=bool(getattr(params, "enable_structured_clarify", False)),
+        enable_external_cli=bool(getattr(params, "enable_external_cli", False)),
         enable_cron_eager=bool(getattr(params, "enable_cron_eager", False)),
         image_generation_params=getattr(params, "image_generation", None),
         video_generation_params=getattr(params, "video_generation", None),

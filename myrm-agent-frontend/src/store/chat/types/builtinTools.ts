@@ -26,7 +26,8 @@ export type BuiltinToolId =
   | 'answer_tool'
   | 'render_ui'
   | 'planning'
-  | 'structured_clarify';
+  | 'structured_clarify'
+  | 'external_cli';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -43,6 +44,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'render_ui',
   'planning',
   'structured_clarify',
+  'external_cli',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
@@ -73,6 +75,7 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   render_ui: { en: 'Render UI', zh: 'UI 渲染' },
   planning: { en: 'Planning', zh: '任务规划' },
   structured_clarify: { en: 'Structured Clarify', zh: '结构化澄清' },
+  external_cli: { en: 'External CLI', zh: '外部 CLI' },
 };
 
 export function getBuiltinToolDisplayLabel(
