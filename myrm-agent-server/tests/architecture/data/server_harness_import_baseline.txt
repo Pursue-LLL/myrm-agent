@@ -47,6 +47,7 @@ myrm_agent_harness.agent.goals.verification.shell
 myrm_agent_harness.agent.meta_tools.clarification
 myrm_agent_harness.agent.meta_tools.clarification.ask_question
 myrm_agent_harness.agent.meta_tools.clarification.clarification_agent_tools
+myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap
 myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer
 myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools

@@ -237,9 +237,14 @@ export interface ApprovalRequiredStreamEvent extends BaseAgentEvent {
   };
 }
 
+export interface ClarificationRequiredWireData {
+  type: 'ask_question';
+  form: unknown;
+}
+
 export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CLARIFICATION_REQUIRED;
-  data: ClarificationForm;
+  data: ClarificationRequiredWireData;
 }
 
 export interface SteeringStreamEvent extends BaseAgentEvent {

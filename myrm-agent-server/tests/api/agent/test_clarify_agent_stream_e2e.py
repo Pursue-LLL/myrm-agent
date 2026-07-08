@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import threading
 import time
 import uuid
 
@@ -60,44 +59,7 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         "After you receive the user's answer, reply with a single line starting with DONE."
     )
 
-    clarification_received = threading.Event()
     resume_answer = {"framework": "langchain"}
-    resume_events: list[dict[str, object]] = []
-
-    def resume_after_clarification() -> None:
-        clarification_received.wait(timeout=45.0)
-        if not clarification_received.is_set():
-            return
-        time.sleep(0.5)
-        resume_payload: dict[str, object] = {
-            "messageId": message_id,
-            "chatId": chat_id,
-            "query": "",
-            "modelSelection": get_lite_model_selection(),
-            "actionMode": "agent",
-            "enableMemory": False,
-            "agentConfig": {
-                "enabledBuiltinTools": ["structured_clarify"],
-            },
-            "resumeValue": resume_answer,
-        }
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
-            assert response.status_code == 200
-            for line in response.iter_lines():
-                if not line or not line.strip().startswith("data: "):
-                    continue
-                raw = line.strip()[6:]
-                if raw == "[DONE]":
-                    break
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(data, dict):
-                    resume_events.append(data)
-
-    resume_thread = threading.Thread(target=resume_after_clarification)
-    resume_thread.start()
 
     initial_payload: dict[str, object] = {
         "messageId": message_id,
@@ -126,13 +88,8 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
                 continue
             if isinstance(data, dict):
                 initial_events.append(data)
-                if data.get("type") == "clarification_required":
-                    clarification_received.set()
-
-    resume_thread.join(timeout=120.0)
 
     check_e2e_errors(initial_events)
-    check_e2e_errors(resume_events)
     clarify_events = _clarification_required_events(initial_events)
     assert clarify_events, (
         "Expected clarification_required after ask_question_tool; "
@@ -146,7 +103,38 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
     assert isinstance(form, dict)
     questions = form.get("questions")
     assert isinstance(questions, list) and len(questions) >= 1
+    assert "requires_confirmation" in form
+    assert form.get("requires_confirmation") is False
+    resume_message_id = f"msg_{uuid.uuid4().hex[:8]}"
+    resume_payload: dict[str, object] = {
+        "messageId": resume_message_id,
+        "chatId": chat_id,
+        "query": "",
+        "modelSelection": get_lite_model_selection(),
+        "actionMode": "agent",
+        "enableMemory": False,
+        "agentConfig": {
+            "enabledBuiltinTools": ["structured_clarify"],
+        },
+        "resumeValue": resume_answer,
+    }
+    resume_events: list[dict[str, object]] = []
+    with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
+        assert response.status_code == 200
+        for line in response.iter_lines():
+            if not line or not line.strip().startswith("data: "):
+                continue
+            raw = line.strip()[6:]
+            if raw == "[DONE]":
+                break
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict):
+                resume_events.append(data)
 
+    check_e2e_errors(resume_events)
     assert resume_events, "Resume stream should return events after clarification answer"
     final_text = _message_text(resume_events)
     assert "DONE" in final_text.upper() or "langchain" in final_text.lower(), (

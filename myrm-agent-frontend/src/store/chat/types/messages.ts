@@ -123,6 +123,8 @@ export interface ClarificationQuestion {
 
 export interface ClarificationForm {
   title?: string | null;
+  requiresConfirmation?: boolean;
+  context?: string | null;
   questions: ClarificationQuestion[];
 }
 

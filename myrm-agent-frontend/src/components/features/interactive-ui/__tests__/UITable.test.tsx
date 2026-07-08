@@ -188,4 +188,54 @@ describe('UITable', () => {
       expect(screen.getByText('noData')).toBeInTheDocument();
     });
   });
+
+  describe('selectable rows', () => {
+    it('renders checkbox column and updates selected ids binding', () => {
+      const onDataChange = vi.fn();
+      const props = {
+        ...defaultProps,
+        props: {
+          columns: [{ key: 'name', title: 'Name' }],
+          selectable: true,
+          rowIdKey: 'id',
+        },
+        bindings: { data: '$.rows', selected: '$.selected_ids' },
+        data: {
+          rows: [
+            { id: 'row-a', name: 'Alpha' },
+            { id: 'row-b', name: 'Beta' },
+          ],
+          selected_ids: [],
+        },
+        onDataChange,
+      };
+      render(<UITable {...props} />);
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes).toHaveLength(2);
+      checkboxes[0].click();
+      expect(onDataChange).toHaveBeenCalledWith('$.selected_ids', ['row-a']);
+    });
+
+    it('toggles row off when checkbox is clicked twice', () => {
+      const onDataChange = vi.fn();
+      const props = {
+        ...defaultProps,
+        props: {
+          columns: [{ key: 'name', title: 'Name' }],
+          selectable: true,
+        },
+        bindings: { data: '$.rows', selected: '$.selected_ids' },
+        data: {
+          rows: [{ id: 'row-a', name: 'Alpha' }],
+          selected_ids: ['row-a'],
+        },
+        onDataChange,
+      };
+      render(<UITable {...props} />);
+
+      screen.getByRole('checkbox').click();
+      expect(onDataChange).toHaveBeenCalledWith('$.selected_ids', []);
+    });
+  });
 });

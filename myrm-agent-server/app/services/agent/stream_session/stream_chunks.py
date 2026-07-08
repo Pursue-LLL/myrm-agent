@@ -9,7 +9,7 @@
 - generate_cancellable_stream: 可取消的 SSE chunk 异步生成器
 
 [POS]
-Agent 流式 SSE chunk 编排：凭据注入、预检事件、Vision fallback，委托 loop/finalize。
+Agent 流式 SSE chunk 编排：凭据注入、entitlement gap 预检、Vision fallback，委托 loop/finalize。
 """
 
 from __future__ import annotations
@@ -101,6 +101,22 @@ async def generate_cancellable_stream(session: AgentStreamSession) -> AsyncGener
             }
             session.collector.feed_event(restore_event_data)
             yield SSEEnvelope.from_any(restore_event_data).to_sse_chunk()
+
+    if session.entitlement_preflight_text:
+        from app.ai_agents.general_agent.active_tool_groups import derive_active_tool_groups_from_params
+        from app.services.agent.stream_session.entitlement_gap_preflight import (
+            build_entitlement_gap_sse_event,
+        )
+
+        gap_event = build_entitlement_gap_sse_event(
+            message_id=session.params.message_id or "",
+            user_text=session.entitlement_preflight_text,
+            active_tool_groups=derive_active_tool_groups_from_params(session.params),
+            chat_id=session.request.chat_id,
+        )
+        if gap_event is not None:
+            session.collector.feed_event(gap_event)
+            yield SSEEnvelope.from_any(gap_event).to_sse_chunk()
 
     await session.monitor.start()
 

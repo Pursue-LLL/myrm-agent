@@ -86,6 +86,23 @@ def test_ask_question_mounted_for_interactive_web_chat() -> None:
     assert "ask_question_tool" not in _tool_names(discoverable_tools)
 
 
+def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
+    """Mounted tool must expose requires_confirmation (not legacy clarification_type)."""
+    from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
+
+    mixin = _make_mixin()
+    tools: list[object] = []
+    discoverable_tools: list[object] = []
+    mixin._setup_clarification_tools(tools, discoverable_tools)
+
+    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    assert ask_tool.args_schema is AskQuestionInput
+
+    properties = AskQuestionInput.model_json_schema()["properties"]
+    assert "requires_confirmation" in properties
+    assert "clarification_type" not in properties
+
+
 def test_ask_question_skipped_when_unattended() -> None:
     mixin = _make_mixin(unattended_mode=True)
     tools: list[object] = []

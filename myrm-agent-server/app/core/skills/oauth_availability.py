@@ -42,6 +42,7 @@ GOOGLE_WORKSPACE_SKILL_ID = "google-workspace"
 X_LIVE_SEARCH_SKILL_ID = "x-live-search"
 NOTION_WORKSPACE_SKILL_ID = "notion-workspace"
 LINEAR_PROJECT_SKILL_ID = "linear-project"
+IMAP_SMTP_EMAIL_SKILL_ID = "imap-smtp-email"
 XURL_SKILL_ID = "xurl"
 
 GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE = (
@@ -50,6 +51,7 @@ GOOGLE_WORKSPACE_OAUTH_UNAVAILABLE = (
 X_LIVE_SEARCH_UNAVAILABLE = "Add an xAI provider in Settings → Models & Providers"
 NOTION_ENV_UNAVAILABLE = "Configure NOTION_API_KEY in skill environment settings"
 LINEAR_ENV_UNAVAILABLE = "Configure LINEAR_API_KEY in skill environment settings"
+IMAP_SMTP_EMAIL_ENV_UNAVAILABLE = "Configure email credentials in Settings → Skills → Environment"
 XURL_BIN_UNAVAILABLE = "Install the xurl CLI and ensure it is on PATH"
 
 # Prebuilt skill id → oauthCredentials issuer key
@@ -61,6 +63,7 @@ INTEGRATION_SKILL_ISSUERS: dict[str, str] = {
 INTEGRATION_SKILL_ENV_VARS: dict[str, str] = {
     NOTION_WORKSPACE_SKILL_ID: "NOTION_API_KEY",
     LINEAR_PROJECT_SKILL_ID: "LINEAR_API_KEY",
+    IMAP_SMTP_EMAIL_SKILL_ID: "EMAIL_IMAP_HOST",
 }
 
 # Prebuilt skill id → required CLI binaries on PATH (SKILL.md requires.bins)
@@ -74,6 +77,7 @@ INTEGRATION_SKILL_UNAVAILABLE_REASONS: dict[str, str] = {
     X_LIVE_SEARCH_SKILL_ID: X_LIVE_SEARCH_UNAVAILABLE,
     NOTION_WORKSPACE_SKILL_ID: NOTION_ENV_UNAVAILABLE,
     LINEAR_PROJECT_SKILL_ID: LINEAR_ENV_UNAVAILABLE,
+    IMAP_SMTP_EMAIL_SKILL_ID: IMAP_SMTP_EMAIL_ENV_UNAVAILABLE,
     XURL_SKILL_ID: XURL_BIN_UNAVAILABLE,
 }
 

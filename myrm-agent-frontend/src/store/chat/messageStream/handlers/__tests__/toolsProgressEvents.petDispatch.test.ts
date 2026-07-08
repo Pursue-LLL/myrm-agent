@@ -101,7 +101,13 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
 
   it('CLARIFICATION_REQUIRED dispatches approval_waiting after microtask', async () => {
     const ctx = makeCtx('clarification_required', {
-      data: { title: 'Question', questions: [] },
+      data: {
+        type: 'ask_question',
+        form: {
+          title: 'Question',
+          questions: [{ id: 'q1', prompt: 'Pick one', options: [{ id: 'a', label: 'A' }] }],
+        },
+      },
     });
     await toolsProgressEvents(ctx);
 
@@ -114,7 +120,13 @@ describe('toolsProgressEvents pet-status-event dispatches', () => {
 
   it('CLARIFICATION_REQUIRED calls setLoading(false)', async () => {
     const ctx = makeCtx('clarification_required', {
-      data: { title: 'Q', questions: [] },
+      data: {
+        type: 'ask_question',
+        form: {
+          title: 'Q',
+          questions: [{ id: 'q1', prompt: 'Pick one', options: [{ id: 'a', label: 'A' }] }],
+        },
+      },
     });
     await toolsProgressEvents(ctx);
     expect(ctx.actions.setLoading).toHaveBeenCalledWith(false);

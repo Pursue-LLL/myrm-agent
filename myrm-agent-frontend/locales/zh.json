@@ -5812,6 +5812,7 @@
     "clarification": {
       "formTitle": "澄清表单",
       "badge": "需要你确认",
+      "riskBadge": "执行前请确认",
       "questionCount": "共 {count} 个问题",
       "optionalNote": "也可在下方输入自定义回答",
       "singleChoicePrompt": "请选择一个选项：",
@@ -8252,6 +8253,7 @@
     "submitted": "已提交",
     "submitting": "提交中...",
     "noData": "暂无数据",
+    "selectRowHeader": "选择行",
     "selectPlaceholder": "请选择...",
     "actions": {
       "submit": "提交",

@@ -4913,6 +4913,8 @@
       "skip": "Skip",
       "answered": "Clarification answered",
       "formTitle": "Clarification form",
+      "badge": "Eingabe erforderlich",
+      "riskBadge": "Vor Fortfahren bestätigen",
       "singleChoicePrompt": "Choose one option:",
       "multipleChoicePrompt": "Choose one or more options:",
       "freeTextWithOptionsPlaceholder": "Add details or other answers..."

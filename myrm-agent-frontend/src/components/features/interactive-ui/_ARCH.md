@@ -13,7 +13,7 @@ Agent 在对话内渲染的声明式 UI（`UI_UPDATE` SSE → `uiArtifacts` → 
 | `UIComponentRegistry.tsx` | 组件 | 组件 type → React 映射 | — |
 | `UIComponentErrorBoundary.tsx` | 组件 | 单组件 fail-closed 边界 | — |
 | `utils.ts` | 辅助 | `formatUIActionAsMessage`（Agent 载荷 + 用户可读正文） | ✅ |
-| `components/` | 目录 | 各 UI 组件实现 | — |
+| `components/UITable.tsx` | 组件 | 表格展示；`selectable` + `bindings.selected` 支持行勾选 | ✅ |
 | `__tests__/` | 测试 | 组件与 `formatUIActionAsMessage` 回归 | — |
 
 ## 依赖

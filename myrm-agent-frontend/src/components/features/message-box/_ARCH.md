@@ -8,7 +8,8 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `ClarificationInput.tsx` | 组件/模块 | — | — |
+| `clarificationAnswer.ts` | 辅助 | 结构化澄清答案构建（questionId → optionId 契约） | ✅ |
+| `ClarificationInput.tsx` | 组件 | 结构化澄清表单（多题/多选/开放题）；选项提交 `option.id`，展示 `label`；resume 与 legacy clarify API 双路径 | ✅ |
 | `ConsensusMetaDisplay.tsx` | 组件/模块 | MoA 元数据摘要 tooltip（模型数/聚合器/耗时） | ✅ |
 | `ConsensusThinkingPanel.tsx` | 组件 | MoA 多模型思考面板：渐进式展示每个参考模型的状态、耗时、输出摘要（可折叠/展开） | ✅ |
 | `ContextUsageIndicator.tsx` | 组件/模块 | — | — |

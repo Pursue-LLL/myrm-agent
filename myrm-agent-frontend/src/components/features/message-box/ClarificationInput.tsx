@@ -8,6 +8,7 @@
  *
  * [OUTPUT]
  * ClarificationInput: Renders single-question and structured clarification forms.
+ * Structured answers submit option.id values keyed by question.id for agent resume contract.
  *
  * [POS]
  * Chat clarification answer surface. Bridges assistant clarification messages to
@@ -21,6 +22,7 @@ import { submitClarifyResponse } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import type { ClarificationForm } from '@/store/chat/types';
 import { cn } from '@/lib/utils';
+import { buildStructuredClarificationAnswer } from './clarificationAnswer';
 
 const SendIcon = ({ className }: { className?: string }) => (
   <svg
@@ -124,6 +126,27 @@ const OptionPill = ({ label, description, selected, allowMultiple, disabled, onS
 const clarificationTextareaClass =
   'w-full resize-none rounded-xl border border-border/70 bg-background/90 px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/25 sm:px-4 sm:py-3';
 
+function resolveClarificationShellClass(requiresConfirmation?: boolean): string {
+  if (requiresConfirmation) {
+    return 'relative overflow-hidden rounded-2xl border border-amber-500/40 bg-card/90 backdrop-blur-xl';
+  }
+  return 'relative overflow-hidden rounded-2xl border border-border/60 bg-card/90 backdrop-blur-xl';
+}
+
+function resolveClarificationGradientClass(requiresConfirmation?: boolean): string {
+  if (requiresConfirmation) {
+    return 'pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/5 dark:from-amber-500/15 dark:to-orange-500/10';
+  }
+  return 'pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-violet-500/5 dark:from-primary/12 dark:to-violet-500/8';
+}
+
+function resolveClarificationBadgeClass(requiresConfirmation?: boolean): string {
+  if (requiresConfirmation) {
+    return 'shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300';
+  }
+  return 'shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-primary';
+}
+
 interface ClarificationInputProps {
   messageId: string;
   answered: boolean;
@@ -149,7 +172,7 @@ const ClarificationInput = ({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [formTexts, setFormTexts] = useState<Record<string, string>>({});
   const [formSelections, setFormSelections] = useState<Record<string, string[]>>({});
-  const hasStructuredForm = Boolean(form && form.questions.length > 0);
+  const hasStructuredForm = Boolean(form?.questions && form.questions.length > 0);
   const sendMessage = useChatStore((state) => state.sendMessage);
 
   const markAnswered = () => {
@@ -169,14 +192,14 @@ const ClarificationInput = ({
     setSelectedOptions([opt]);
   };
 
-  const toggleFormOption = (questionId: string, optionLabel: string, questionAllowMultiple: boolean) => {
+  const toggleFormOption = (questionId: string, optionId: string, questionAllowMultiple: boolean) => {
     setFormSelections((prev) => {
       const current = prev[questionId] ?? [];
       const next = questionAllowMultiple
-        ? current.includes(optionLabel)
-          ? current.filter((item) => item !== optionLabel)
-          : [...current, optionLabel]
-        : [optionLabel];
+        ? current.includes(optionId)
+          ? current.filter((item) => item !== optionId)
+          : [...current, optionId]
+        : [optionId];
       return { ...prev, [questionId]: next };
     });
   };
@@ -193,25 +216,8 @@ const ClarificationInput = ({
     return answers.length === 1 ? answers[0] : answers;
   };
 
-  const buildStructuredAnswer = (): Record<string, string | string[]> | null => {
-    const answers: Record<string, string | string[]> = {};
-
-    for (const question of form?.questions ?? []) {
-      const selected = formSelections[question.id] ?? [];
-      const text = (formTexts[question.id] ?? '').trim();
-      const parts = [...selected];
-      if (text) {
-        parts.push(text);
-      }
-
-      if (parts.length === 0) {
-        continue;
-      }
-      answers[question.id] = parts.length === 1 ? parts[0] : parts;
-    }
-
-    return Object.keys(answers).length > 0 ? answers : null;
-  };
+  const buildStructuredAnswer = (): Record<string, string | string[]> | null =>
+    buildStructuredClarificationAnswer(form, formSelections, formTexts);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -282,7 +288,10 @@ const ClarificationInput = ({
     submitting || (hasStructuredForm ? !hasStructuredAnswer : selectedOptions.length === 0 && !input.trim());
 
   const displayTitle = title ?? form?.title ?? t('formTitle');
+  const requiresConfirmation = form?.requiresConfirmation;
+  const clarificationContext = form?.context;
   const questionCount = form?.questions.length ?? 0;
+  const badgeLabel = requiresConfirmation ? t('riskBadge') : t('badge');
 
   const renderActions = () => (
     <div className="flex flex-col-reverse gap-2 border-t border-border/50 pt-3 sm:flex-row sm:justify-end sm:pt-4">
@@ -309,20 +318,21 @@ const ClarificationInput = ({
 
   return (
     <div className="mt-3 sm:mt-4">
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/90 backdrop-blur-xl">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-violet-500/5 dark:from-primary/12 dark:to-violet-500/8" />
+      <div className={resolveClarificationShellClass(requiresConfirmation)}>
+        <div className={resolveClarificationGradientClass(requiresConfirmation)} />
 
         <div className="relative flex flex-col gap-4 p-3 sm:gap-5 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="text-sm font-semibold leading-snug text-foreground sm:text-base">{displayTitle}</span>
+              {clarificationContext ? (
+                <span className="text-xs leading-relaxed text-muted-foreground">{clarificationContext}</span>
+              ) : null}
               {hasStructuredForm && questionCount > 1 ? (
                 <span className="text-xs text-muted-foreground">{t('questionCount', { count: questionCount })}</span>
               ) : null}
             </div>
-            <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-primary">
-              {t('badge')}
-            </span>
+            <span className={resolveClarificationBadgeClass(requiresConfirmation)}>{badgeLabel}</span>
           </div>
 
           {hasStructuredForm ? (
@@ -357,10 +367,10 @@ const ClarificationInput = ({
                               key={option.id}
                               label={option.label}
                               description={option.description}
-                              selected={selected.includes(option.label)}
+                              selected={selected.includes(option.id)}
                               allowMultiple={questionAllowMultiple}
                               disabled={submitting}
-                              onSelect={() => toggleFormOption(question.id, option.label, questionAllowMultiple)}
+                              onSelect={() => toggleFormOption(question.id, option.id, questionAllowMultiple)}
                             />
                           ))}
                         </div>

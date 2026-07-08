@@ -103,7 +103,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 判定 | `is_oauth_issuer_connected(db, issuer)` |
 | Catalog | `apply_integration_oauth_availability` — `GET /skills/`、`GET /skills/{id}`、`GET /skills/available` |
 | Agent runtime | `IntegrationOAuthSkillBackend` — `loader.create_skill_backend()` 外包；`skill_agent` 对 `available=false` 注入 SOP WARNING |
-| 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、`INTEGRATION_SKILL_ENV_VARS`（Notion/Linear API key）、`INTEGRATION_SKILL_BINS`（xurl CLI）、x-live-search provider gate（`resolve_xai_search_config`） |
+| 映射 | `INTEGRATION_SKILL_ISSUERS`（OAuth）、`INTEGRATION_SKILL_ENV_VARS`（Notion/Linear API key、imap-smtp-email `EMAIL_IMAP_HOST`）、`INTEGRATION_SKILL_BINS`（xurl CLI）、x-live-search provider gate（`resolve_xai_search_config`） |
 | Bash 注入 | `SessionCredentialAssembler` → `user_credentials_ctx`（Web / Channel / Cron / channel approval resume）→ harness bash env；详见 harness `SECURITY_DESIGN.md` §3.2.3 |
 | GUI | Settings OAuth 卡 + Skills Catalog 黄标；x-live-search → `/settings/models`；保存 xAI provider 时 auto-enable skill |
 | Write tier | `POST /oauth/start` `{tier: write}` 增量 consent；`write_enabled` on status API |

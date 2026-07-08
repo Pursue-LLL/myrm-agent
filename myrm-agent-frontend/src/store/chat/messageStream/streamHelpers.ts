@@ -4,11 +4,16 @@
  * @/components/features/chat-window/goals/GoalStatusCard::GoalState (POS: Goal UI state)
  *
  * [OUTPUT]
- * Pure helpers: task step status, source merge, goal/clarification normalization, friendly errors
+ * Pure helpers: task step status, source merge, goal/clarification normalization, SSE clarify unwrap, friendly errors
  *
  * [POS]
  * Shared utilities for messageStream/handlers/* event slices.
  */
+
+import {
+  getClarificationNotificationTitle,
+  resolveStreamLocale,
+} from '@/lib/i18n/streamNotificationCopy';
 
 import type {
   Source,
@@ -156,6 +161,11 @@ export function normalizeClarificationForm(value: unknown): ClarificationForm | 
 
   const rawForm = value as Record<string, unknown>;
   const title = typeof rawForm.title === 'string' && rawForm.title.trim() ? rawForm.title.trim() : undefined;
+  const requiresConfirmation = normalizeRequiresConfirmation(
+    rawForm.requires_confirmation ?? rawForm.requiresConfirmation,
+  );
+  const context =
+    typeof rawForm.context === 'string' && rawForm.context.trim() ? rawForm.context.trim() : undefined;
   const rawQuestions = Array.isArray(rawForm.questions) ? rawForm.questions : [];
   const questions: ClarificationQuestion[] = [];
 
@@ -197,6 +207,26 @@ export function normalizeClarificationForm(value: unknown): ClarificationForm | 
   if (questions.length === 0) return undefined;
   return {
     ...(title ? { title } : {}),
+    ...(requiresConfirmation ? { requiresConfirmation: true } : {}),
+    ...(context ? { context } : {}),
     questions,
   };
 }
+
+function normalizeRequiresConfirmation(value: unknown): boolean {
+  return value === true;
+}
+
+/** Unwrap production SSE payload `{ type, form }` into a normalized ClarificationForm. */
+export function resolveClarificationFormFromEventData(data: unknown): ClarificationForm | undefined {
+  if (!data || typeof data !== 'object') return undefined;
+
+  const payload = data as Record<string, unknown>;
+  if (payload.type === 'ask_question' && payload.form !== undefined) {
+    return normalizeClarificationForm(payload.form);
+  }
+
+  return normalizeClarificationForm(data);
+}
+
+export { getClarificationNotificationTitle, resolveStreamLocale };

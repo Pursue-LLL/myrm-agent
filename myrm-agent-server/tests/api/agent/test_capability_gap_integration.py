@@ -460,6 +460,37 @@ async def test_discover_miss_emits_web_search_gap_when_web_group_disabled(
 
 
 @pytest.mark.integration
+def test_agent_stream_preflight_emits_render_ui_gap_sse(client: TestClient) -> None:
+    """User message preflight must emit capability_gap before agent needs discover."""
+    from app.services.agent.stream_session.entitlement_gap_preflight import (
+        reset_capability_gap_emission_tracker,
+    )
+
+    reset_capability_gap_emission_tracker()
+    chat_id = f"test_preflight_render_ui_{uuid.uuid4().hex[:8]}"
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": "帮我填表准备 staging 部署配置",
+        "actionMode": "agent",
+        "modelSelection": get_lite_model_selection(),
+        "agentConfig": {
+            "enabledBuiltinTools": ["web_search", "memory", "structured_clarify"],
+        },
+        "timezone": "UTC",
+    }
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+
+    gaps = _gap_events(events, "capability_gap")
+    assert gaps, "expected stream preflight capability_gap SSE for render_ui form query"
+    payload_data = gaps[0].get("data")
+    assert isinstance(payload_data, dict)
+    assert payload_data.get("tool_id") == "render_ui"
+    assert payload_data.get("tool_group") == "render_ui"
+
+
+@pytest.mark.integration
 def test_agent_stream_accepts_enabled_builtin_tools_without_error(client: TestClient) -> None:
     """agent-stream with explicit enabledBuiltinTools (no browser) must complete."""
     chat_id = f"test_enabled_tools_{uuid.uuid4().hex[:8]}"

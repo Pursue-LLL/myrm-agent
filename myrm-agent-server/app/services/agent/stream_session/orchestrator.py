@@ -331,6 +331,7 @@ async def run_agent_stream(
         consensus_config=consensus_config,
         consensus_ref_model_cfgs=consensus_ref_cfgs,
         consensus_agg_model_cfg=consensus_agg_cfg,
+        entitlement_preflight_text=text_content if request.resume_value is None else None,
     )
     session.monitor = CancellationMonitor(
         token=cancel_token,

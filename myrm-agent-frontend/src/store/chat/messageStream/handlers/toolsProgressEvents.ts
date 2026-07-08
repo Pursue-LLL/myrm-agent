@@ -7,6 +7,10 @@ import type { StreamCtx, StreamTurn } from "../streamContext";
 import { done } from "../streamContext";
 import { buildToolApprovalRequest } from "@/lib/approval/buildToolApprovalRequest";
 import { notifyIdleApproval, clearAllNotifications } from "@/lib/approval/approvalAlertService";
+import {
+  getClarificationNotificationTitle,
+  resolveClarificationFormFromEventData,
+} from "../streamHelpers";
 import * as H from "./handlerDeps";
 
 export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -214,7 +218,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
   }
 
   if (data.type === H.AgentEventType.CLARIFICATION_REQUIRED) {
-    const form = data.data as ClarificationForm;
+    const form = resolveClarificationFormFromEventData(data.data);
     actions.setMessages((state) => {
       const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
       if (messageIndex !== -1) {
@@ -222,7 +226,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
           answered: false,
           isResumeMode: true,
           title: form?.title ?? undefined,
-          form: form,
+          form,
         };
       } else {
         state.messages.push({
@@ -235,7 +239,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
             answered: false,
             isResumeMode: true,
             title: form?.title ?? undefined,
-            form: form,
+            form,
           },
         });
         ctx.added = true;
@@ -245,7 +249,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
 
     if (H.useConfigStore.getState().enableWebNotifications) {
       const lang = typeof document !== 'undefined' ? document.documentElement.lang : 'en';
-      const title = lang.startsWith('zh') ? 'Agent 需要您的输入' : 'Agent needs your input';
+      const title = getClarificationNotificationTitle(lang);
       const body = form?.title ?? undefined;
       import('@/services/notification').then(({ notificationService }) => {
         notificationService.notify(title, { body, fallbackToToast: false });

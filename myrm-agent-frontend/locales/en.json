@@ -5813,6 +5813,7 @@
     "clarification": {
       "formTitle": "Clarification form",
       "badge": "Needs your input",
+      "riskBadge": "Confirm before proceeding",
       "questionCount": "{count} questions",
       "optionalNote": "You can also type a custom answer below",
       "singleChoicePrompt": "Choose one option:",
@@ -8252,6 +8253,7 @@
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",
+    "selectRowHeader": "Select row",
     "selectPlaceholder": "Select...",
     "actions": {
       "submit": "Submit",

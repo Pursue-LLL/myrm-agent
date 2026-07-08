@@ -8,6 +8,7 @@ import { gapEvents } from './gapEvents';
 
 const setCurrentBuiltinTools = vi.fn();
 const updateAgentConfig = vi.fn();
+const sendMessage = vi.fn().mockResolvedValue(undefined);
 const toastInfo = vi.fn();
 const toastSuccess = vi.fn();
 
@@ -23,8 +24,11 @@ vi.mock('@/store/useChatStore', () => ({
     getState: () => ({
       currentBuiltinTools: ['web_search', 'memory'],
       agentConfig: { selectedSkillIds: ['bound_skill'] },
+      loading: false,
+      messages: [{ role: 'user', content: '帮我填表准备 staging 部署配置' }],
       setCurrentBuiltinTools,
       updateAgentConfig,
+      sendMessage,
     }),
   },
 }));
@@ -58,21 +62,26 @@ function createCtx(eventType: string, data: Record<string, string>): StreamCtx {
 
 describe('gapEvents', () => {
   beforeEach(() => {
+    document.documentElement.lang = 'en';
     setCurrentBuiltinTools.mockClear();
     updateAgentConfig.mockClear();
+    sendMessage.mockClear();
     toastInfo.mockClear();
     toastSuccess.mockClear();
   });
 
-  it('enables builtin tool on capability_gap toast action', async () => {
-    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'browser' }));
+  it('enables builtin tool and resends last user message on capability_gap toast action', async () => {
+    await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
 
     expect(toastInfo).toHaveBeenCalledTimes(1);
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => void } };
-    toastOptions.action?.onClick?.();
-
-    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'browser']);
-    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => Promise<void> } };
+    await toastOptions.action?.onClick?.();
+    expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'render_ui']);
+    expect(sendMessage).toHaveBeenCalledWith(
+      '帮我填表准备 staging 部署配置',
+      expect.any(String),
+    );
+    expect(toastSuccess).toHaveBeenCalledWith('Enabled and resent your request.');
   });
 
   it('shows cron scheduled-task label on capability_gap toast', async () => {
@@ -82,9 +91,9 @@ describe('gapEvents', () => {
     expect(toastInfo).toHaveBeenCalledTimes(1);
     const toastMessage = toastInfo.mock.calls[0]?.[0] as string;
     expect(toastMessage).toContain('定时任务');
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { label?: string; onClick?: () => void } };
-    expect(toastOptions.action?.label).toBe('一键开启');
-    toastOptions.action?.onClick?.();
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { label?: string; onClick?: () => Promise<void> } };
+    expect(toastOptions.action?.label).toBe('开启并重发');
+    await toastOptions.action?.onClick?.();
     expect(setCurrentBuiltinTools).toHaveBeenCalledWith(['web_search', 'memory', 'cron']);
   });
 
@@ -96,16 +105,19 @@ describe('gapEvents', () => {
     expect(toastInfo).not.toHaveBeenCalled();
   });
 
-  it('binds skill on skill_gap toast action', async () => {
+  it('binds skill and resends last user message on skill_gap toast action', async () => {
     await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
 
     expect(toastInfo).toHaveBeenCalledTimes(1);
-    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => void } };
-    toastOptions.action?.onClick?.();
-
+    const toastOptions = toastInfo.mock.calls[0]?.[1] as { action?: { onClick?: () => Promise<void> } };
+    await toastOptions.action?.onClick?.();
     expect(updateAgentConfig).toHaveBeenCalledWith({
       selectedSkillIds: ['bound_skill', 'github_pr_skill'],
     });
-    expect(toastSuccess).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledWith(
+      '帮我填表准备 staging 部署配置',
+      expect.any(String),
+    );
+    expect(toastSuccess).toHaveBeenCalledWith('Skill bound and resent your request.');
   });
 });
