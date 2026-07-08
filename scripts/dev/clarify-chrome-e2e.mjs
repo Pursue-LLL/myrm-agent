@@ -121,8 +121,12 @@ async function seedEnv() {
     customModelInfo: {},
   });
   await putConfig('securityConfig', { yoloModeEnabled: true, yoloModeEnabledAt: Math.floor(Date.now() / 1000) });
-  const ob = await apiFetch('/api/v1/config/onboarding/complete', { method: 'POST', body: '{}' });
-  if (!ob.ok) throw new Error(`onboarding: ${await ob.text()}`);
+  try {
+    const ob = await apiFetch('/api/v1/config/onboarding/complete', { method: 'POST', body: '{}' });
+    if (!ob.ok) log(`onboarding: ${(await ob.text()).slice(0, 80)}`);
+  } catch {
+    log('onboarding: skipped (API unavailable)');
+  }
 }
 
 async function openCdpTab() {
