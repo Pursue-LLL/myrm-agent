@@ -33,6 +33,7 @@ class ExperienceEventType(StrEnum):
     EVOLUTION_APPROVED = "evolution.approved"
     EVOLUTION_REJECTED = "evolution.rejected"
     EVOLUTION_APPLY_FAILED = "evolution.apply_failed"
+    EVOLUTION_ROLLED_BACK = "evolution.rolled_back"
     REVIEW_APPROVED = "review.approved"
     REVIEW_REJECTED = "review.rejected"
     SKILL_GROWTH_REVIEW_REQUIRED = "skill_growth.review_required"
@@ -54,6 +55,7 @@ SKILL_GROWTH_STATUS_MAP: dict[str, str] = {
     ExperienceEventType.EVOLUTION_APPROVED.value: "APPROVED",
     ExperienceEventType.EVOLUTION_REJECTED.value: "REJECTED",
     ExperienceEventType.EVOLUTION_APPLY_FAILED.value: "APPLY_FAILED",
+    ExperienceEventType.EVOLUTION_ROLLED_BACK.value: "ROLLED_BACK",
 }
 
 SKILL_GROWTH_EVENT_TYPE_BY_STATUS: dict[str, ExperienceEventType] = {

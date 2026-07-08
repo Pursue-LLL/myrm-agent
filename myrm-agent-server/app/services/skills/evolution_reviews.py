@@ -1007,6 +1007,31 @@ async def rollback_evolution_review_record(evolution_id: str) -> dict[str, objec
         payload=payload,
         resolved_at=approval_record.resolved_at,
     )
+
+    await record_experience_event(
+        ExperienceLedgerWrite(
+            event_type=ExperienceEventType.EVOLUTION_ROLLED_BACK,
+            entity_type=ExperienceEntityType.EVOLUTION,
+            entity_id=approval_record.id,
+            lineage_id=evolution_lineage_id(approval_record.id),
+            outcome="rolled_back",
+            summary=payload.reason,
+            artifact_refs={
+                "skill_id": payload.skill_id,
+                "skill_name": payload.skill_name,
+            },
+            metrics_snapshot={
+                "confidence": payload.confidence,
+                "test_passed": payload.test_passed,
+            },
+            detail={
+                "evolution_type": payload.evolution_type,
+                "skill_path": payload.skill_path,
+                "apply_status": payload.apply_status.value,
+            },
+        )
+    )
+
     bump_skill_config_version()
     return {"status": "rolled_back", "evolution_id": evolution_id}
 
