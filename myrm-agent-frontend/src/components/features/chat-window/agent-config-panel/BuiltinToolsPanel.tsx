@@ -188,7 +188,7 @@ function ExternalCliConfigSection({ tPanel }: { tPanel: (key: string) => string 
         </p>
       )}
       <Link
-        href="/settings/system"
+        href="/settings/developer"
         className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
       >
         <Terminal size={12} />

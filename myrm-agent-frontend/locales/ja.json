@@ -4050,7 +4050,8 @@
         "answer_tool": "Answer Quality Audit",
         "render_ui": "対話型 UI",
         "planning": "多段階進捗",
-        "structured_clarify": "構造化クリアリフィケーション"
+        "structured_clarify": "構造化クリアリフィケーション",
+        "external_cli": "外部 CLI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4068,8 +4069,13 @@
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作",
         "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新（Planner サブ Agent なし）",
-        "structured_clarify": "意図が不明確なときに構造化フォームで確認 — 返信まで Agent を一時停止"
+        "structured_clarify": "意図が不明確なときに構造化フォームで確認 — 返信まで Agent を一時停止",
+        "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任"
       },
+      "externalCliSetupHint": "2 ステップ：（1）設定 → 開発者 → 外部 Agent で CLI バックエンドを登録；（2）実行時に delegate_to_agent を使う Agent はこのスイッチをオンに保つ。",
+      "externalCliLocalOnlyHint": "外部 CLI 委任にはローカルまたはデスクトップモードが必要です。クラウド/サンドボックスではローカル CLI プロセスを起動できません。",
+      "externalCliNoBackendHint": "設定に有効な CLI バックエンドがまだありません — 追加するまで delegate_to_agent はマウントされません。",
+      "externalCliOpenSettings": "設定で外部 Agent を構成",
       "jitTeam": "JITチーム設定",
       "jitTeamOff": "単体Agent（チームなし）",
       "jitTeamPlaceholder": "仮想チーム未使用",

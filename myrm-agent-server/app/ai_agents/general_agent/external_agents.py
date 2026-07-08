@@ -8,6 +8,7 @@
 [OUTPUT]
 - ExternalAgentsMixin: 外部 Agent 初始化与直接委托流式执行的 Mixin
 - should_mount_delegate_tool(): direct-only 路径是否跳过 delegate_to_agent 挂载
+- needs_runtime_pool(): factory 是否 eager 初始化 RuntimePool（与 stream lazy path 对齐）
 - BUILTIN_CLI_VISUAL_AGENT_ID: CLI Visual 内置 Agent 标识
 - chat scope 路径：ChatRuntimePoolRegistry + ChatScopedRuntimePoolFacade 接线
 
@@ -74,6 +75,20 @@ def should_mount_delegate_tool(*, agent_id: str | None, force_delegate_agent: st
     if agent_id == BUILTIN_CLI_VISUAL_AGENT_ID:
         return False
     return True
+
+
+def needs_runtime_pool(
+    *,
+    enable_external_cli: bool,
+    agent_id: str | None,
+    force_delegate_agent: str | None,
+) -> bool:
+    """Return True when factory should eagerly init RuntimePool (not lazy stream path)."""
+    if force_delegate_agent:
+        return True
+    if agent_id == BUILTIN_CLI_VISUAL_AGENT_ID:
+        return True
+    return enable_external_cli
 
 
 def _runtime_pool_scope_id(agent: object) -> str | None:

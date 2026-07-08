@@ -216,7 +216,10 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
-    from app.ai_agents.general_agent.external_agents import should_mount_delegate_tool
+    from app.ai_agents.general_agent.external_agents import (
+        needs_runtime_pool,
+        should_mount_delegate_tool,
+    )
 
     mount_delegate_tool = (
         agent_wrapper.enable_external_cli
@@ -226,11 +229,16 @@ async def build_general_agent(
         )
     )
     agent_wrapper._runtime_pool_scope_id = effective_chat_id
-    await agent_wrapper._setup_external_agents(
-        tools,
-        discoverable_tools,
-        mount_delegate_tool=mount_delegate_tool,
-    )
+    if needs_runtime_pool(
+        enable_external_cli=agent_wrapper.enable_external_cli,
+        agent_id=agent_wrapper.agent_id,
+        force_delegate_agent=agent_wrapper.force_delegate_agent,
+    ):
+        await agent_wrapper._setup_external_agents(
+            tools,
+            discoverable_tools,
+            mount_delegate_tool=mount_delegate_tool,
+        )
 
     from app.services.agent.goal_registry import GoalRegistry
 

@@ -721,6 +721,7 @@ class TestResolveBuiltinToolFlags:
             "render_ui",
             "planning",
             "structured_clarify",
+            "external_cli",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())

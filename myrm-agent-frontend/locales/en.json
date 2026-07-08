@@ -4904,7 +4904,7 @@
         "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond",
         "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent"
       },
-      "externalCliSetupHint": "Two steps: (1) register CLI backends in Settings → System → External Agents; (2) keep this switch on for agents that should use delegate_to_agent at runtime.",
+      "externalCliSetupHint": "Two steps: (1) register CLI backends in Settings → Developer → External Agents; (2) keep this switch on for agents that should use delegate_to_agent at runtime.",
       "externalCliLocalOnlyHint": "External CLI delegation requires local or desktop mode. Cloud/sandbox hosts cannot spawn local CLI processes.",
       "externalCliNoBackendHint": "No enabled CLI backend found in Settings yet — delegate_to_agent will not mount until you add one.",
       "externalCliOpenSettings": "Configure External Agents in Settings",

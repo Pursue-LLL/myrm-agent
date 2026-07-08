@@ -4050,7 +4050,8 @@
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interaktive UI",
         "planning": "Mehrschritt-Fortschritt",
-        "structured_clarify": "Strukturierte Klärung"
+        "structured_clarify": "Strukturierte Klärung",
+        "external_cli": "Externe CLI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4068,8 +4069,13 @@
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen",
         "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)",
-        "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort"
+        "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort",
+        "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren"
       },
+      "externalCliSetupHint": "Zwei Schritte: (1) CLI-Backends unter Einstellungen → Entwickler → Externe Agenten registrieren; (2) Schalter für Agenten aktiv lassen, die delegate_to_agent zur Laufzeit nutzen sollen.",
+      "externalCliLocalOnlyHint": "Externe CLI-Delegation erfordert lokalen oder Desktop-Modus. Cloud/Sandbox-Hosts können keine lokalen CLI-Prozesse starten.",
+      "externalCliNoBackendHint": "Noch kein aktiviertes CLI-Backend in den Einstellungen — delegate_to_agent wird erst nach Hinzufügen gemountet.",
+      "externalCliOpenSettings": "Externe Agenten in den Einstellungen konfigurieren",
       "jitTeam": "JIT-Teamkonfiguration",
       "jitTeamOff": "Einzelner Agent (kein Team)",
       "jitTeamPlaceholder": "Kein virtuelles Team",

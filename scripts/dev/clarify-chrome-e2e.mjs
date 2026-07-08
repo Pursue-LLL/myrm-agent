@@ -90,15 +90,92 @@ async function seedLocalAuth(client) {
   });
 }
 
+const DEVICE_ID = process.env.E2E_CONFIG_DEVICE_ID ?? 'tauri-local';
+
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing ${name} (source myrm-agent-server/.env.test)`);
+  return value;
+}
+
+function inferProviderId(model) {
+  if (model.includes('/')) return model.split('/')[0] ?? 'minimax';
+  return 'minimax';
+}
+
+function stripProviderPrefix(model) {
+  if (!model.includes('/')) return model;
+  return model.split('/').slice(1).join('/');
+}
+
+async function putConfig(configKey, value) {
+  const res = await apiFetch(`/api/v1/config/${configKey}`, {
+    method: 'PUT',
+    body: JSON.stringify({ value, deviceId: DEVICE_ID }),
+  });
+  if (!res.ok) {
+    throw new Error(`PUT /config/${configKey} failed: ${(await res.text()).slice(0, 300)}`);
+  }
+}
+
+async function seedLiteProviders() {
+  const liteModel = requireEnv('LITE_MODEL');
+  const liteKey = requireEnv('LITE_API_KEY');
+  const liteUrl = process.env.LITE_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
+  const providerId = inferProviderId(liteModel);
+  const modelId = stripProviderPrefix(liteModel);
+  await putConfig('providers', {
+    providers: [
+      {
+        id: providerId,
+        name: providerId === 'minimax' ? 'MiniMax' : providerId,
+        routingProfile: providerId,
+        isBuiltIn: providerId === 'minimax',
+        isEnabled: true,
+        apiUrl: liteUrl,
+        apiKeys: [{ key: liteKey, isActive: true }],
+        enabledModels: [modelId],
+        availableModels: [modelId],
+        providerType: providerId === 'minimax' ? 'minimax' : 'openai',
+      },
+    ],
+    defaultModelConfig: {
+      baseModel: {
+        primary: { providerId, model: modelId },
+        fallback: null,
+        temperature: 0.7,
+        modelKwargs: {},
+      },
+      liteModel: { primary: { providerId, model: modelId }, fallback: null },
+      fastModeModel: null,
+      routingConfig: null,
+      visionFallbackModel: null,
+    },
+    customModelInfo: {},
+  });
+}
+
+async function seedYoloSecurity() {
+  await putConfig('securityConfig', {
+    yoloModeEnabled: true,
+    yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+  });
+}
 async function createChat(chatId) {
   const res = await apiFetch('/api/v1/chats/', {
     method: 'POST',
-    body: JSON.stringify({ chat_id: chatId }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      title: `Chrome Clarify E2E ${Date.now()}`,
+      action_mode: 'agent',
+      agent_id: 'builtin-general',
+    }),
   });
   if (!res.ok) {
     throw new Error(`create chat failed: ${res.status} ${(await res.text()).slice(0, 200)}`);
   }
 }
+
 async function injectCookies(client) {
   const header = authCookieHeader();
   if (!header) return;
@@ -118,6 +195,44 @@ async function waitForTextarea(client, timeoutMs = 90000) {
     await Bun.sleep(2000);
   }
   throw new Error(`textarea not found; url=${await client.evalJs('location.href')}`);
+}
+
+async function selectLiteModel(client) {
+  const model = stripProviderPrefix(requireEnv('LITE_MODEL'));
+  const picked = await client.evalJs(`(async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const visible = [...document.querySelectorAll('button, span')].some((el) =>
+      (el.textContent || '').includes(${JSON.stringify(model)}),
+    );
+    if (visible) return { ok: true, model: ${JSON.stringify(model)}, via: 'already-visible' };
+    const trigger = [...document.querySelectorAll('button')].find((b) =>
+      /MiniMax|mimo|未配置|not configured|Model/i.test(b.textContent || ''),
+    );
+    if (!trigger) return { ok: false, reason: 'no-trigger' };
+    trigger.click();
+    await sleep(800);
+    const search = document.querySelector('input[placeholder*="Search"], input[placeholder*="搜索"]');
+    if (search) {
+      search.focus();
+      search.value = ${JSON.stringify(model)};
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+      await sleep(400);
+    }
+    const option = [...document.querySelectorAll('button, [role="option"], div[class*="cursor-pointer"]')].find(
+      (el) => (el.textContent || '').includes(${JSON.stringify(model)}),
+    );
+    if (!option) return { ok: false, reason: 'no-option' };
+    option.click();
+    await sleep(500);
+    return {
+      ok: [...document.querySelectorAll('button, span')].some((el) =>
+        (el.textContent || '').includes(${JSON.stringify(model)}),
+      ),
+      model: ${JSON.stringify(model)},
+      via: 'picker',
+    };
+  })()`);
+  return picked;
 }
 
 async function selectAgentMode(client) {
@@ -232,6 +347,8 @@ async function runAttempt(attempt) {
   ensureStack();
   ensureChrome();
   await ensureLoggedIn();
+  await seedLiteProviders();
+  await seedYoloSecurity();
   await createChat(chatId);
 
   const tab = await (await fetch(`${CDP}/json/new?about:blank`, { method: 'PUT' })).json();
@@ -245,7 +362,15 @@ async function runAttempt(attempt) {
 
   await client.send('Page.navigate', { url: `${FRONTEND}/${chatId}` });
   await waitForTextarea(client);
+  await client.send('Page.reload');
+  await waitForTextarea(client);
   await selectAgentMode(client);
+  const modelPick = await selectLiteModel(client);
+  console.log(`[attempt ${attempt}] MODEL`, modelPick);
+  if (!modelPick?.ok) {
+    client.ws.close();
+    return { ok: false, reason: 'model_not_configured', chatId, modelPick };
+  }
 
   await client.evalJs(`(() => {
     const later = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').includes('稍后再说'));

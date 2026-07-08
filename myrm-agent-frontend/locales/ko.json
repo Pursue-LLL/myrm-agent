@@ -4050,7 +4050,8 @@
         "answer_tool": "Answer Quality Audit",
         "render_ui": "대화형 UI",
         "planning": "다단계 진행",
-        "structured_clarify": "구조화 명확화"
+        "structured_clarify": "구조화 명확화",
+        "external_cli": "외부 CLI"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4068,8 +4069,13 @@
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작",
         "planning": "메인 Agent 다단계 todo — 채팅에서 진행 트리 업데이트 (Planner 서브 Agent 없음)",
-        "structured_clarify": "의도가 불명확할 때 구조화 양식으로 확인 — 응답할 때까지 Agent 일시 정지"
+        "structured_clarify": "의도가 불명확할 때 구조화 양식으로 확인 — 응답할 때까지 Agent 일시 정지",
+        "external_cli": "delegate_to_agent로 외부 CLI Agent(Claude Code, Codex, Gemini CLI 등)에 코딩 작업 위임"
       },
+      "externalCliSetupHint": "두 단계: (1) 설정 → 개발자 → 외부 Agent에서 CLI 백엔드 등록; (2) 런타임에 delegate_to_agent를 사용할 Agent는 이 스위치를 켜 두세요.",
+      "externalCliLocalOnlyHint": "외부 CLI 위임은 로컬 또는 데스크톱 모드가 필요합니다. 클라우드/샌드박스에서는 로컬 CLI 프로세스를 실행할 수 없습니다.",
+      "externalCliNoBackendHint": "설정에 활성화된 CLI 백엔드가 아직 없습니다 — 추가하기 전까지 delegate_to_agent가 마운트되지 않습니다.",
+      "externalCliOpenSettings": "설정에서 외부 Agent 구성",
       "jitTeam": "JIT 팀 구성",
       "jitTeamOff": "단일 Agent (팀 없음)",
       "jitTeamPlaceholder": "가상 팀 미사용",

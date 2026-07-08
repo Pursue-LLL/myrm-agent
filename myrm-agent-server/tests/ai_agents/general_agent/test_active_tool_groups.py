@@ -66,7 +66,26 @@ def test_derive_excludes_render_ui_when_disabled() -> None:
     assert "render_ui" not in groups
 
 
-def test_derive_includes_cron_when_eager_enabled() -> None:
+def test_derive_includes_external_cli_when_enabled() -> None:
+    groups = derive_active_tool_groups(
+        _agent(enable_external_cli=True),
+        enable_planning=False,
+    )
+    assert "external_cli" in groups
+
+
+def test_derive_active_tool_groups_from_params_includes_external_cli() -> None:
+    from app.ai_agents.general_agent.active_tool_groups import (
+        derive_active_tool_groups_from_params,
+    )
+
+    params = SimpleNamespace(
+        enable_web_search=False,
+        enable_external_cli=True,
+        enable_planning=False,
+    )
+    groups = derive_active_tool_groups_from_params(params)
+    assert "external_cli" in groups
     groups = derive_active_tool_groups(_agent(enable_cron_eager=True), enable_planning=False)
     assert "cron" in groups
 

@@ -5,6 +5,7 @@ import { type ArchiveRestoreAction, ModelSelection } from './types';
 import { AdaptiveScheduler } from './adaptiveScheduler';
 import { isRetryableHttpStatus, FatalNetworkError } from '@/lib/utils/networkResilience';
 import { decryptSseFrame, loadStoredE2EESession } from '@/lib/e2ee/client';
+import { createMultiplexReadableStream } from './multiplexChunkBridge';
 
 const RETRY_INITIAL_DELAY_MS = 2000;
 const RETRY_BACKOFF_FACTOR = 1.5;
@@ -92,6 +93,11 @@ export async function executeStreamWithRetry(
     }
 
     try {
+      const multiplexBridge =
+        typeof window !== 'undefined'
+          ? createMultiplexReadableStream(requestMessageId, abortController.signal)
+          : null;
+
       const res = await createMessageRequest(
         input,
         requestMessageId,
@@ -127,35 +133,13 @@ export async function executeStreamWithRetry(
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        // This is a multiplexed response. Create a fake stream.
-        const fakeStream = new ReadableStream<Uint8Array>({
-          start(controller) {
-            const listener = (e: Event) => {
-              const customEvent = e as CustomEvent<string>;
-              const chunk = customEvent.detail;
-              controller.enqueue(new TextEncoder().encode(chunk));
-              
-              if (chunk.includes('"type":"message_end"') || chunk.includes('"type": "message_end"')) {
-                setTimeout(() => {
-                  window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
-                  try { controller.close(); } catch { /* already closed */ }
-                }, 50);
-              }
-            };
-            
-            window.addEventListener(`multiplex_chunk_${requestMessageId}`, listener);
-            
-            abortController.signal.addEventListener('abort', () => {
-              window.removeEventListener(`multiplex_chunk_${requestMessageId}`, listener);
-              try { controller.error(new Error('AbortError')); } catch { /* already errored */ }
-            });
-          }
+        if (!multiplexBridge) {
+          throw new Error('Multiplexed agent-stream requires a browser environment');
+        }
+        const mockResponse = new Response(multiplexBridge, {
+          headers: { 'Content-Type': 'text/event-stream' },
         });
-        
-        const mockResponse = new Response(fakeStream, {
-          headers: { 'Content-Type': 'text/event-stream' }
-        });
-        
+
         await consumeStream(mockResponse, input, state, actions, abortController, added, recievedMessage);
       } else {
         await consumeStream(res, input, state, actions, abortController, added, recievedMessage);

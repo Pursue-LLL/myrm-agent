@@ -125,6 +125,68 @@ def test_should_mount_delegate_tool_matrix() -> None:
     assert should_mount_delegate_tool(agent_id="general", force_delegate_agent="claude") is False
 
 
+def test_needs_runtime_pool_matrix() -> None:
+    from app.ai_agents.general_agent.external_agents import (
+        BUILTIN_CLI_VISUAL_AGENT_ID,
+        needs_runtime_pool,
+    )
+
+    assert (
+        needs_runtime_pool(
+            enable_external_cli=False,
+            agent_id="builtin-writer",
+            force_delegate_agent=None,
+        )
+        is False
+    )
+    assert (
+        needs_runtime_pool(
+            enable_external_cli=True,
+            agent_id="builtin-developer",
+            force_delegate_agent=None,
+        )
+        is True
+    )
+    assert (
+        needs_runtime_pool(
+            enable_external_cli=False,
+            agent_id=BUILTIN_CLI_VISUAL_AGENT_ID,
+            force_delegate_agent=None,
+        )
+        is True
+    )
+    assert (
+        needs_runtime_pool(
+            enable_external_cli=False,
+            agent_id="builtin-writer",
+            force_delegate_agent="claude",
+        )
+        is True
+    )
+
+
+@pytest.mark.asyncio
+async def test_factory_gate_skips_setup_when_external_cli_off() -> None:
+    """Simulates factory.py needs_runtime_pool gate — no _setup_external_agents for writer agents."""
+    from app.ai_agents.general_agent.external_agents import (
+        ExternalAgentsMixin,
+        needs_runtime_pool,
+    )
+
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    setup_mock = AsyncMock()
+    mixin._setup_external_agents = setup_mock
+
+    if needs_runtime_pool(
+        enable_external_cli=False,
+        agent_id="builtin-writer",
+        force_delegate_agent=None,
+    ):
+        await mixin._setup_external_agents([], [], mount_delegate_tool=False)
+
+    setup_mock.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_delegate_skipped_when_external_cli_toggle_off() -> None:
     """Runtime pool may still init; delegate_to_agent must not mount without external_cli entitlement."""

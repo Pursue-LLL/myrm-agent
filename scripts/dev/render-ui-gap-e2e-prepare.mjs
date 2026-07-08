@@ -78,9 +78,12 @@ async function collectAgentStream(payload) {
 
 async function main() {
   await ensureLoggedIn();
-  const liteModel = requireEnv('LITE_MODEL');
-  const model = stripProviderPrefix(liteModel);
-  const providerId = inferProviderId(liteModel);
+  const modelEnv = process.env.BASIC_MODEL ?? process.env.LITE_MODEL;
+  if (!modelEnv) {
+    throw new Error('Missing BASIC_MODEL or LITE_MODEL (source myrm-agent-server/.env.test)');
+  }
+  const model = stripProviderPrefix(modelEnv);
+  const providerId = inferProviderId(modelEnv);
   const chatId = `e2e_render_ui_gap_${randomUUID().slice(0, 8)}`;
 
   await apiFetch('/api/v1/chats/', {

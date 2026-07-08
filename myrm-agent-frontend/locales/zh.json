@@ -4904,7 +4904,7 @@
         "structured_clarify": "意图不明确时弹出结构化澄清表单 — Agent 暂停直至你回复",
         "external_cli": "允许 Agent 通过 delegate_to_agent 将编码任务委派给外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）"
       },
-      "externalCliSetupHint": "两步配置：（1）在 设置 → 系统 → 外部 Agent 中登记 CLI 后端；（2）为需要运行时使用 delegate_to_agent 的 Agent 保持本开关开启。",
+      "externalCliSetupHint": "两步配置：（1）在 设置 → 开发者 → 外部 Agent 中登记 CLI 后端；（2）为需要运行时使用 delegate_to_agent 的 Agent 保持本开关开启。",
       "externalCliLocalOnlyHint": "外部 CLI 委派需要本地或桌面模式；云端/沙箱环境无法启动本地 CLI 进程。",
       "externalCliNoBackendHint": "Settings 中尚未配置已启用的 CLI 后端 — 添加前运行时不会挂载 delegate_to_agent。",
       "externalCliOpenSettings": "前往设置配置外部 Agent",
