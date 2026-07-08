@@ -5,7 +5,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from app.config.computer_use_deploy import (
+    clear_vnc_entitlement_cache,
     is_computer_use_deploy_supported,
+    is_computer_use_infrastructure_ready,
     is_visual_desktop_enabled,
 )
 
@@ -31,6 +33,61 @@ def test_computer_use_supported_in_local_mode() -> None:
         assert is_computer_use_deploy_supported() is True
 
 
+def test_infrastructure_ready_when_not_local_or_sandbox() -> None:
+    with (
+        patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
+        patch("app.config.computer_use_deploy.is_sandbox", return_value=False),
+    ):
+        assert is_computer_use_infrastructure_ready() is True
+
+
+def test_infrastructure_ready_in_sandbox_with_visual_desktop() -> None:
+    with (
+        patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
+        patch("app.config.computer_use_deploy.is_sandbox", return_value=True),
+        patch("app.config.computer_use_deploy.is_visual_desktop_enabled", return_value=True),
+    ):
+        assert is_computer_use_infrastructure_ready() is True
+
+
+def test_computer_use_supported_without_cp_entitlements_uses_visual_desktop_flag() -> None:
+    clear_vnc_entitlement_cache()
+
+    with (
+        patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
+        patch("app.config.computer_use_deploy.is_sandbox", return_value=True),
+        patch("app.config.computer_use_deploy.is_visual_desktop_enabled", return_value=True),
+        patch(_CAPS_FN, return_value=_make_caps(uses_cp=False)),
+    ):
+        assert is_computer_use_deploy_supported() is True
+
+
+def test_computer_use_unsupported_when_cp_entitlements_unreachable() -> None:
+    clear_vnc_entitlement_cache()
+
+    with (
+        patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
+        patch("app.config.computer_use_deploy.is_sandbox", return_value=True),
+        patch("app.config.computer_use_deploy.is_visual_desktop_enabled", return_value=True),
+        patch(_CAPS_FN, return_value=_make_caps(uses_cp=True)),
+        patch(_FETCH_FN, return_value=None),
+    ):
+        assert is_computer_use_deploy_supported() is False
+
+
+def test_computer_use_unsupported_when_cp_entitlements_fetch_raises() -> None:
+    clear_vnc_entitlement_cache()
+
+    with (
+        patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
+        patch("app.config.computer_use_deploy.is_sandbox", return_value=True),
+        patch("app.config.computer_use_deploy.is_visual_desktop_enabled", return_value=True),
+        patch(_CAPS_FN, return_value=_make_caps(uses_cp=True)),
+        patch(_FETCH_FN, side_effect=RuntimeError("cp down")),
+    ):
+        assert is_computer_use_deploy_supported() is False
+
+
 def test_computer_use_unsupported_in_sandbox_without_visual_desktop() -> None:
     with (
         patch("app.config.computer_use_deploy.is_local_mode", return_value=False),
@@ -41,6 +98,7 @@ def test_computer_use_unsupported_in_sandbox_without_visual_desktop() -> None:
 
 
 def test_computer_use_supported_in_sandbox_with_vnc_entitlement() -> None:
+    clear_vnc_entitlement_cache()
     mock_entitlement = MagicMock()
     mock_entitlement.enable_vnc = True
 
@@ -55,8 +113,6 @@ def test_computer_use_supported_in_sandbox_with_vnc_entitlement() -> None:
 
 
 def test_computer_use_unsupported_in_sandbox_without_vnc_entitlement() -> None:
-    from app.config.computer_use_deploy import clear_vnc_entitlement_cache
-
     clear_vnc_entitlement_cache()
     mock_entitlement = MagicMock()
     mock_entitlement.enable_vnc = False
@@ -72,8 +128,6 @@ def test_computer_use_unsupported_in_sandbox_without_vnc_entitlement() -> None:
 
 
 def test_vnc_entitlement_cache_avoids_repeat_fetch() -> None:
-    from app.config.computer_use_deploy import clear_vnc_entitlement_cache
-
     clear_vnc_entitlement_cache()
     mock_entitlement = MagicMock()
     mock_entitlement.enable_vnc = True

@@ -327,6 +327,17 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
 
   if (!status) return null;
 
+  const ready = status.readyForDelegation ?? (status.authenticated || status.installed);
+  const badgeTone = ready
+    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+    : 'bg-muted text-muted-foreground';
+  const dotTone = ready ? 'bg-green-500' : 'bg-muted-foreground/40';
+  const badgeLabel = status.authenticated
+    ? t('badgeLoggedIn')
+    : ready
+      ? t('badgeCliReady')
+      : t('badgeLoggedOut');
+
   if (!status.installed) {
     return (
       <>
@@ -347,16 +358,10 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
     <>
       <div className="flex items-center gap-1.5">
         <span
-          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            status.authenticated
-              ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-              : 'bg-muted text-muted-foreground'
-          }`}
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeTone}`}
         >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${status.authenticated ? 'bg-green-500' : 'bg-muted-foreground/40'}`}
-          />
-          {status.authenticated ? t('badgeLoggedIn') : t('badgeLoggedOut')}
+          <span className={`h-1.5 w-1.5 rounded-full ${dotTone}`} />
+          {badgeLabel}
         </span>
         {status.authenticated ? (
           <Button

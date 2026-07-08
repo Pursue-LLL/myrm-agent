@@ -78,9 +78,9 @@ async function collectAgentStream(payload) {
 
 async function main() {
   await ensureLoggedIn();
-  const modelEnv = process.env.BASIC_MODEL ?? process.env.LITE_MODEL;
+  const modelEnv = process.env.E2E_MODEL ?? process.env.LITE_MODEL ?? process.env.BASIC_MODEL;
   if (!modelEnv) {
-    throw new Error('Missing BASIC_MODEL or LITE_MODEL (source myrm-agent-server/.env.test)');
+    throw new Error('Missing E2E_MODEL, LITE_MODEL or BASIC_MODEL (source myrm-agent-server/.env.test)');
   }
   const model = stripProviderPrefix(modelEnv);
   const providerId = inferProviderId(modelEnv);

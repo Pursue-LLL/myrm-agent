@@ -92,14 +92,16 @@ async def external_agent_auth_status() -> dict[str, object]:
             continue
         found = detected.get(name)
         state = store.state(name)
+        cli_installed = found is not None
         backends.append(
             {
                 "backend": name,
-                "installed": found is not None,
+                "installed": cli_installed,
                 "path": found.path if found else None,
                 "version": found.version if found else None,
                 "authenticated": state.authenticated,
                 "authStatus": state.status.value,
+                "readyForDelegation": state.authenticated or cli_installed,
                 "loginStrategy": profile.login_strategy.value,
                 "scriptableLogin": profile.scriptable_login,
                 "needsCodeInput": profile.needs_code_input,

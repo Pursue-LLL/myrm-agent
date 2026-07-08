@@ -8,7 +8,7 @@ Agent profile editing UI: skills, MCP, built-in tools, browser options, security
 
 | File | Role | Description |
 |------|------|-------------|
-| `AgentConfigEditDialog.tsx` | Core | Full-screen/sheet editor; persists `enabled_builtin_tools` (incl. `render_ui`) to server metadata |
+| `AgentConfigEditDialog.tsx` | Core | Full-screen/sheet editor; persists `enabled_builtin_tools`; sandbox `@/lib/builtin-tool-entitlements` strips ghost cron/computer_use after CP entitlements load |
 | `AgentConfigPanel.tsx` | Core | Panel shell and preset shortcuts |
 | `AgentConfigCards.tsx` | Core | Summary cards for active agent |
 | `AgentBrickCard.tsx` | Core | Compact agent brick with tool badges |

@@ -21,6 +21,9 @@ import { SkillsSectionPanel } from './SkillsSectionPanel';
 import { BuiltinToolsPanel } from './BuiltinToolsPanel';
 import { SubagentsPanel } from './SubagentsPanel';
 import { InstructionPanel } from './InstructionPanel';
+import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
+import { isSandbox } from '@/lib/deploy-mode';
+import { stripEntitlementBlockedBuiltinTools } from '@/lib/builtin-tool-entitlements';
 import dynamic from 'next/dynamic';
 
 type EphemeralSubagentConfig = {
@@ -109,6 +112,17 @@ const AgentConfigEditDialog = ({
   const tAgent = useTranslations('agent');
   const tPanel = useTranslations('agent.configPanel');
   const tCommon = useTranslations('common');
+  const { canUseCron, canUseVnc, isLoading: entitlementsLoading } = useFeatureEntitlements();
+  const sandboxMode = isSandbox();
+
+  const entitlementBuiltinToolsOptions = useMemo(
+    () => ({
+      sandbox: sandboxMode,
+      canUseCron,
+      canUseVnc,
+    }),
+    [sandboxMode, canUseCron, canUseVnc],
+  );
 
   /* ─── local state ─── */
   const [localSkillIds, setLocalSkillIds] = useState<string[]>(initialSkillIds || []);
@@ -159,6 +173,13 @@ const AgentConfigEditDialog = ({
     initialMcpNames, initialPrompt, initialUseGlobalInstruction,
     initialAutoRestoreDomains, initialBuiltinTools, initialEphemeralSubagents,
   ]);
+
+  useEffect(() => {
+    if (!open || !sandboxMode || entitlementsLoading) {
+      return;
+    }
+    setLocalBuiltinTools((prev) => stripEntitlementBlockedBuiltinTools(prev, entitlementBuiltinToolsOptions));
+  }, [open, sandboxMode, entitlementsLoading, entitlementBuiltinToolsOptions]);
 
   /* ─── fetch history ─── */
   useEffect(() => {

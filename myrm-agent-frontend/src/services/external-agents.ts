@@ -22,6 +22,8 @@ export interface ExternalAgentAuthStatus {
   version: string | null;
   authenticated: boolean;
   authStatus: 'authenticated' | 'not_authenticated' | 'unknown';
+  /** True when subscription cred exists OR the CLI binary is on PATH (third-party model setups). */
+  readyForDelegation: boolean;
   loginStrategy: ExternalAgentLoginStrategy;
   scriptableLogin: boolean;
   needsCodeInput: boolean;

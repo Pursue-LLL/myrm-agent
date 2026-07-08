@@ -587,6 +587,7 @@
         "logoutSuccess": "已退出登录",
         "badgeLoggedIn": "已登录",
         "badgeLoggedOut": "未登录",
+        "badgeCliReady": "CLI 可用",
         "badgeInstalled": "已安装"
       },
       "showSystemMessages": "显示系统消息",

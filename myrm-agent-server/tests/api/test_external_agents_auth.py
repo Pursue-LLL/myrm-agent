@@ -70,6 +70,7 @@ class TestAuthStatus:
         codex = backends["codex"]
         assert codex["installed"] is False
         assert codex["authenticated"] is False
+        assert codex["readyForDelegation"] is False
         assert codex["loginStrategy"] == "device_code"
         assert codex["scriptableLogin"] is True
 
@@ -91,6 +92,24 @@ class TestAuthStatus:
         assert codex["installed"] is True
         assert codex["path"] == "/usr/bin/codex"
         assert codex["authenticated"] is True
+        assert codex["readyForDelegation"] is True
+
+    def test_status_cli_installed_without_credential_is_delegation_ready(self, client):
+        found = MagicMock()
+        found.name = "claude"
+        found.path = "/usr/bin/claude"
+        found.version = "2.0.0"
+        detector = MagicMock()
+        detector.detect = AsyncMock(return_value=[found])
+        with patch(
+            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            return_value=detector,
+        ):
+            resp = client.get("/api/v1/external-agents/auth/status")
+        claude = {b["backend"]: b for b in resp.json()["backends"]}["claude"]
+        assert claude["installed"] is True
+        assert claude["authenticated"] is False
+        assert claude["readyForDelegation"] is True
 
 
 class TestAuthLogin:

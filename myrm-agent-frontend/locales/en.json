@@ -587,6 +587,7 @@
         "logoutSuccess": "Logged out",
         "badgeLoggedIn": "Logged in",
         "badgeLoggedOut": "Not logged in",
+        "badgeCliReady": "CLI ready",
         "badgeInstalled": "Installed"
       },
       "showSystemMessages": "Show System Messages",

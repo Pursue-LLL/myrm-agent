@@ -1,8 +1,7 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import useChatStore from '@/store/useChatStore';
-import { getBackendUrl } from '@/lib/utils/apiConfig';
+import { getApiUrl, apiRequest } from '@/lib/api';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
-import { apiRequest } from '@/lib/api';
 
 interface ActiveSessionsResponse {
   activeSessions: Array<{ chatId: string; agentType: string }>;
@@ -27,16 +26,11 @@ class ConnectionManager {
     this.isConnected = true;
     this.abortController = new AbortController();
 
-    const API_BASE_URL = getBackendUrl();
-    const token = localStorage.getItem('token');
     const headers = getAuthHeaders();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
 
     let isFirstConnection = true;
 
-    fetchEventSource(`${API_BASE_URL}/workspace/stream`, {
+    fetchEventSource(getApiUrl('/workspace/stream'), {
       method: 'GET',
       headers,
       signal: this.abortController.signal,
