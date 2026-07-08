@@ -50,6 +50,23 @@ export async function getExternalAgentAuthStatus(): Promise<ExternalAgentAuthSta
   return res.backends ?? [];
 }
 
+/** Whether this backend can be delegated to (subscription cred OR CLI on PATH). */
+export function isExternalAgentDelegationReady(
+  status: Pick<ExternalAgentAuthStatus, 'authenticated' | 'installed' | 'readyForDelegation'>,
+): boolean {
+  return status.readyForDelegation ?? (status.authenticated || status.installed);
+}
+
+export type ExternalAgentBadgeKind = 'subscription' | 'cli_ready' | 'logged_out';
+
+export function resolveExternalAgentBadgeKind(
+  status: Pick<ExternalAgentAuthStatus, 'authenticated' | 'installed' | 'readyForDelegation'>,
+): ExternalAgentBadgeKind {
+  if (status.authenticated) return 'subscription';
+  if (isExternalAgentDelegationReady(status)) return 'cli_ready';
+  return 'logged_out';
+}
+
 export async function* streamExternalAgentInstall(
   backend: string
 ): AsyncGenerator<ExternalAgentAuthEvent, void, unknown> {

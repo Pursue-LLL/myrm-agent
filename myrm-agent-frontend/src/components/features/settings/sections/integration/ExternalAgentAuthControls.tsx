@@ -19,7 +19,9 @@ import { Textarea } from '@/components/primitives/textarea';
 import {
   feedExternalAgentLogin,
   importExternalAgentCredential,
+  isExternalAgentDelegationReady,
   logoutExternalAgent,
+  resolveExternalAgentBadgeKind,
   streamExternalAgentLogin,
   streamExternalAgentInstall,
   type ExternalAgentAuthEvent,
@@ -327,16 +329,18 @@ const ExternalAgentAuthControls = memo(({ command, status, onChanged }: AuthCont
 
   if (!status) return null;
 
-  const ready = status.readyForDelegation ?? (status.authenticated || status.installed);
+  const ready = isExternalAgentDelegationReady(status);
+  const badgeKind = resolveExternalAgentBadgeKind(status);
   const badgeTone = ready
     ? 'bg-green-500/10 text-green-600 dark:text-green-400'
     : 'bg-muted text-muted-foreground';
   const dotTone = ready ? 'bg-green-500' : 'bg-muted-foreground/40';
-  const badgeLabel = status.authenticated
-    ? t('badgeLoggedIn')
-    : ready
-      ? t('badgeCliReady')
-      : t('badgeLoggedOut');
+  const badgeLabel =
+    badgeKind === 'subscription'
+      ? t('badgeLoggedIn')
+      : badgeKind === 'cli_ready'
+        ? t('badgeCliReady')
+        : t('badgeLoggedOut');
 
   if (!status.installed) {
     return (

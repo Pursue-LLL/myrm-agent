@@ -111,6 +111,52 @@ class TestAuthStatus:
         assert claude["authenticated"] is False
         assert claude["readyForDelegation"] is True
 
+    def test_status_not_installed_is_not_delegation_ready(self, client):
+        detector = MagicMock()
+        detector.detect = AsyncMock(return_value=[])
+        with patch(
+            "myrm_agent_harness.toolkits.acp.backend_detector.BackendDetector",
+            return_value=detector,
+        ):
+            resp = client.get("/api/v1/external-agents/auth/status")
+        claude = {b["backend"]: b for b in resp.json()["backends"]}["claude"]
+        assert claude["installed"] is False
+        assert claude["readyForDelegation"] is False
+
+
+class TestAuthFeed:
+    """POST /external-agents/auth/login/{session_id}/feed."""
+
+    def test_feed_forwards_to_active_session(self, client):
+        from myrm_agent_harness.toolkits.acp.auth import CliLoginSession
+
+        from app.api.external_agents import router as external_agents_router
+
+        mock_session = MagicMock(spec=CliLoginSession)
+        mock_session.feed = AsyncMock()
+        external_agents_router._login_registry.add("sess-feed", mock_session)
+        try:
+            resp = client.post(
+                "/api/v1/external-agents/auth/login/sess-feed/feed",
+                json={"text": "auth-code"},
+            )
+            assert resp.status_code == 200
+            assert resp.json() == {"ok": True}
+            mock_session.feed.assert_awaited_once_with("auth-code")
+        finally:
+            external_agents_router._login_registry.remove("sess-feed")
+
+
+class TestAuthLogoutErrors:
+    """POST /external-agents/auth/logout error paths."""
+
+    def test_logout_unknown_backend_returns_400(self, client):
+        resp = client.post(
+            "/api/v1/external-agents/auth/logout",
+            json={"backend": "no-such-backend"},
+        )
+        assert resp.status_code == 400
+
 
 class TestAuthLogin:
     """POST /external-agents/auth/login (SSE)."""
