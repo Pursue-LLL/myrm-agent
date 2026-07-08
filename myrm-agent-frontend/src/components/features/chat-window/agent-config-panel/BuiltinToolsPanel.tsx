@@ -31,6 +31,7 @@ import { MediaCredentialInline } from './MediaCredentialInline';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { getConfigSyncManager } from '@/services/config';
+import { getExternalAgentAuthStatus, hasExternalCliBackendAvailable } from '@/services/external-agents';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];
@@ -172,13 +173,24 @@ function ExternalCliConfigSection({ tPanel }: { tPanel: (key: string) => string 
   const [hasEnabledBackend, setHasEnabledBackend] = useState<boolean | null>(null);
 
   useEffect(() => {
-    try {
-      const agents = getConfigSyncManager().get('externalAgents')?.agents ?? [];
-      setHasEnabledBackend(agents.some((agent) => agent.enabled !== false && Boolean(agent.command?.trim())));
-    } catch {
-      setHasEnabledBackend(false);
-    }
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const agents = getConfigSyncManager().get('externalAgents')?.agents ?? [];
+        const statuses = await getExternalAgentAuthStatus();
+        if (!cancelled) {
+          setHasEnabledBackend(hasExternalCliBackendAvailable(agents, statuses, localOnly));
+        }
+      } catch {
+        if (!cancelled) {
+          setHasEnabledBackend(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [localOnly]);
 
   return (
     <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border/50">

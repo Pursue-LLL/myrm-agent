@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   isExternalAgentDelegationReady,
   resolveExternalAgentBadgeKind,
+  hasExplicitExternalCliBackend,
+  hasAutoDetectedExternalCliBackend,
+  hasExternalCliBackendAvailable,
 } from '@/services/external-agents';
 
 describe('external agent delegation badge helpers', () => {
@@ -59,5 +62,21 @@ describe('external agent delegation badge helpers', () => {
         readyForDelegation: false,
       }),
     ).toBe('logged_out');
+  });
+
+  it('detects explicit config vs local auto-detect for backend availability', () => {
+    expect(hasExplicitExternalCliBackend([{ enabled: true, command: 'claude' }])).toBe(true);
+    expect(hasExplicitExternalCliBackend([])).toBe(false);
+    expect(
+      hasAutoDetectedExternalCliBackend([
+        { backend: 'claude', installed: true, readyForDelegation: true } as never,
+      ]),
+    ).toBe(true);
+    expect(
+      hasExternalCliBackendAvailable([], [{ backend: 'claude', installed: true, readyForDelegation: true } as never], true),
+    ).toBe(true);
+    expect(
+      hasExternalCliBackendAvailable([], [{ backend: 'claude', installed: true, readyForDelegation: true } as never], false),
+    ).toBe(false);
   });
 });

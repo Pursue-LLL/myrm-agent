@@ -67,6 +67,29 @@ export function resolveExternalAgentBadgeKind(
   return 'logged_out';
 }
 
+/** True when UserConfig lists an enabled CLI backend with a command. */
+export function hasExplicitExternalCliBackend(
+  agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
+): boolean {
+  return (agents ?? []).some((agent) => agent.enabled !== false && Boolean(agent.command?.trim()));
+}
+
+/** True when auth/status reports any backend ready for delegation (PATH auto-detect). */
+export function hasAutoDetectedExternalCliBackend(statuses: ReadonlyArray<ExternalAgentAuthStatus>): boolean {
+  return statuses.some((row) => isExternalAgentDelegationReady(row));
+}
+
+/** Whether runtime can resolve a CLI backend (explicit config or local auto-detect). */
+export function hasExternalCliBackendAvailable(
+  agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
+  statuses: ReadonlyArray<ExternalAgentAuthStatus>,
+  localMode: boolean,
+): boolean {
+  if (hasExplicitExternalCliBackend(agents)) return true;
+  if (localMode) return hasAutoDetectedExternalCliBackend(statuses);
+  return false;
+}
+
 export async function* streamExternalAgentInstall(
   backend: string
 ): AsyncGenerator<ExternalAgentAuthEvent, void, unknown> {
