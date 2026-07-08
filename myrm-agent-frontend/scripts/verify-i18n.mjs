@@ -281,6 +281,58 @@ for (const lang of LANGUAGES) {
   }
 }
 
+// 验证7: agent.configPanel builtinToolNames / builtinToolDescs（全语言，与 BuiltinToolsPanel 对齐）
+console.log('\n📋 验证 agent.configPanel builtin 工具文案（全语言）...');
+const enPanel = translations.en?.agent?.configPanel;
+const enBuiltinNames = enPanel?.builtinToolNames;
+const enBuiltinDescs = enPanel?.builtinToolDescs;
+if (!enBuiltinNames || typeof enBuiltinNames !== 'object') {
+  console.error('  ❌ en.json 缺少 agent.configPanel.builtinToolNames');
+  hasErrors = true;
+} else if (!enBuiltinDescs || typeof enBuiltinDescs !== 'object') {
+  console.error('  ❌ en.json 缺少 agent.configPanel.builtinToolDescs');
+  hasErrors = true;
+} else {
+  const requiredBuiltinKeys = Object.keys(enBuiltinNames).sort();
+  for (const lang of LANGUAGES) {
+    const data = translations[lang];
+    if (!data) continue;
+
+    const panel = data.agent?.configPanel;
+    const names = panel?.builtinToolNames;
+    const descs = panel?.builtinToolDescs;
+    const missingNames = [];
+    const missingDescs = [];
+
+    for (const key of requiredBuiltinKeys) {
+      const nameVal = names?.[key];
+      if (typeof nameVal !== 'string' || nameVal.length === 0) {
+        missingNames.push(key);
+      }
+      const descVal = descs?.[key];
+      if (typeof descVal !== 'string' || descVal.length === 0) {
+        missingDescs.push(key);
+      }
+    }
+
+    if (missingNames.length > 0 || missingDescs.length > 0) {
+      if (missingNames.length > 0) {
+        console.error(
+          `  ❌ ${lang}.json agent.configPanel.builtinToolNames 缺少或非空字符串: ${missingNames.join(', ')}`,
+        );
+      }
+      if (missingDescs.length > 0) {
+        console.error(
+          `  ❌ ${lang}.json agent.configPanel.builtinToolDescs 缺少或非空字符串: ${missingDescs.join(', ')}`,
+        );
+      }
+      hasErrors = true;
+    } else {
+      console.log(`  ✅ ${lang}.json agent.configPanel builtin 工具文案完整`);
+    }
+  }
+}
+
 // 最终结果
 console.log('\n' + '='.repeat(50));
 if (hasErrors) {

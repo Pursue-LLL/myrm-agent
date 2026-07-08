@@ -3,6 +3,7 @@
 [INPUT]
 app.database.models::Agent (POS: Agent 配置域模型)
 app.database.connection::get_session (POS: DB 会话工厂)
+app.services.agent.builtin_tool_ids::DEFAULT_ENABLED_BUILTIN_TOOLS (POS: enabled_builtin_tools SSOT)
 
 [OUTPUT]
 initialize_builtin_agents: 服务启动时自动创建预置智能体
@@ -22,6 +23,7 @@ from sqlalchemy import select
 
 from app.database.connection import get_session
 from app.database.models import Agent
+from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +33,22 @@ def _peripheral_skill_configs(skill_ids: tuple[str, ...]) -> dict[str, dict[str,
     return {skill_id: {"is_core": False} for skill_id in skill_ids}
 
 
-_TOOL_MINIMAL: tuple[str, ...] = ("web_search", "memory")
-_TOOL_DEFAULT: tuple[str, ...] = ("web_search", "memory")
+def _extend_default_tools(*extra: str) -> tuple[str, ...]:
+    """Append extra togglable tool IDs after DEFAULT_ENABLED_BUILTIN_TOOLS (deduped, stable order)."""
+    ordered = list(DEFAULT_ENABLED_BUILTIN_TOOLS)
+    seen = set(ordered)
+    for tool_id in extra:
+        if tool_id not in seen:
+            ordered.append(tool_id)
+            seen.add(tool_id)
+    return tuple(ordered)
+
+
+_TOOL_MINIMAL: tuple[str, ...] = DEFAULT_ENABLED_BUILTIN_TOOLS
+_TOOL_DEFAULT: tuple[str, ...] = DEFAULT_ENABLED_BUILTIN_TOOLS
 _TOOL_CODING: tuple[str, ...] = _TOOL_DEFAULT
-_TOOL_RESEARCH: tuple[str, ...] = ("web_search", "memory", "answer_tool")
-_TOOL_DESIGN: tuple[str, ...] = ("web_search", "memory", "image_generation")
+_TOOL_RESEARCH: tuple[str, ...] = _extend_default_tools("answer_tool")
+_TOOL_DESIGN: tuple[str, ...] = _extend_default_tools("image_generation")
 @dataclass(frozen=True)
 class _BuiltInAgentSpec:
     """Built-in agent specification (business layer definition)."""

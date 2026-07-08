@@ -21,6 +21,7 @@ from app.services.agent.builtin_initializer import (
     _BUILTIN_AGENTS,
     initialize_builtin_agents,
 )
+from app.services.agent.builtin_tool_ids import DEFAULT_ENABLED_BUILTIN_TOOLS
 
 
 @pytest.fixture
@@ -442,4 +443,4 @@ async def test_initialize_syncs_hr_screener_tools_without_baseline(test_db: sess
         result = await session.execute(select(Agent).where(Agent.id == "builtin-hr_screener"))
         agent = result.scalar_one()
 
-    assert agent.enabled_builtin_tools == ["web_search", "memory"]
+    assert agent.enabled_builtin_tools == list(DEFAULT_ENABLED_BUILTIN_TOOLS)
