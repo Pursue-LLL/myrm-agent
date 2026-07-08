@@ -359,6 +359,32 @@ class TestResolveBuiltinToolFlagsRenderUi:
         assert flags["enable_browser"] is False
 
 
+class TestResolveBuiltinToolFlagsStructuredClarify:
+    """Verify structured_clarify maps to enable_structured_clarify."""
+
+    def test_resolve_builtin_tool_flags_structured_clarify(self) -> None:
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["structured_clarify"])
+        assert flags["enable_structured_clarify"] is True
+        assert flags["enable_render_ui"] is False
+
+    def test_factory_passes_enable_structured_clarify_to_agent(self) -> None:
+        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+        from app.core.types import ModelConfig
+        from app.services.agent.profile_resolver import resolve_builtin_tool_flags
+
+        flags = resolve_builtin_tool_flags(["structured_clarify"])
+        agent = AgentFactory.create_general_agent(
+            GeneralAgentParams(
+                query="test",
+                model_cfg=ModelConfig(model="test/model", api_key="test-key"),
+                **flags,
+            )
+        )
+        assert agent.enable_structured_clarify is True
+
+
 class TestResolveBuiltinToolFlagsKanban:
     """Verify kanban in enabled_builtin_tools maps to enable_kanban + orchestrator default."""
 

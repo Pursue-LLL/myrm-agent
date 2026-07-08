@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ListTodo,
   Clock,
+  ClipboardList,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Label } from '@/components/primitives/label';
@@ -58,6 +59,7 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   answer_tool: <MessageSquareCheck size={14} />,
   render_ui: <LayoutTemplate size={14} />,
   planning: <ListTodo size={14} />,
+  structured_clarify: <ClipboardList size={14} />,
 };
 
 export const BuiltinToolsPanel = ({

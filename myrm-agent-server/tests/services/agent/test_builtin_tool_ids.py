@@ -59,6 +59,7 @@ def test_default_tools_match_frontend_contract() -> None:
     assert DEFAULT_ENABLED_BUILTIN_TOOLS == (
         "web_search",
         "memory",
+        "structured_clarify",
     )
     assert len(BUILTIN_TOOL_ID_SET) == 16
     assert len(BUILTIN_TOOL_IDS) == 14

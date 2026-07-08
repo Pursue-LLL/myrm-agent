@@ -4049,7 +4049,8 @@
         "cron": "スケジュールタスク（チャット）",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "対話型 UI",
-        "planning": "多段階進捗"
+        "planning": "多段階進捗",
+        "structured_clarify": "構造化クリアリフィケーション"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4066,7 +4067,8 @@
         "cron": "チャット内で直接スケジュールタスクを作成。オフの場合は Capability Discovery で必要時に読み込み",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作",
-        "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新（Planner サブ Agent なし）"
+        "planning": "メイン Agent の多段階 todo — チャット内で進捗ツリーを更新（Planner サブ Agent なし）",
+        "structured_clarify": "意図が不明確なときに構造化フォームで確認 — 返信まで Agent を一時停止"
       },
       "jitTeam": "JITチーム設定",
       "jitTeamOff": "単体Agent（チームなし）",

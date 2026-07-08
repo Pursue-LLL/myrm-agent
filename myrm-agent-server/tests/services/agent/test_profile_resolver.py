@@ -698,7 +698,7 @@ class TestResolveBuiltinToolFlags:
         assert baseline["enable_code_execute"] is True
         assert baseline["enable_browser"] is False
 
-    def test_default_tools_enable_web_and_memory_only(self):
+    def test_default_tools_enable_web_memory_and_structured_clarify(self):
         flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
         assert flags["enable_file_ops"] is False
         assert flags["enable_code_execute"] is False
@@ -706,6 +706,7 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_computer_use"] is False
         assert flags["enable_wiki"] is False
         assert flags["enable_render_ui"] is False
+        assert flags["enable_structured_clarify"] is True
 
     def test_all_tools_enabled(self):
         tools = (
@@ -719,6 +720,7 @@ class TestResolveBuiltinToolFlags:
             "answer_tool",
             "render_ui",
             "planning",
+            "structured_clarify",
         )
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
@@ -763,6 +765,15 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_planning"] is False
         assert flags["enable_answer_tool"] is False
 
+    def test_structured_clarify_maps_to_enable_structured_clarify(self):
+        flags = resolve_builtin_tool_flags(["structured_clarify"])
+        assert flags["enable_structured_clarify"] is True
+        assert flags["enable_render_ui"] is False
+
+    def test_default_tools_include_structured_clarify(self):
+        flags = resolve_builtin_tool_flags(DEFAULT_ENABLED_BUILTIN_TOOLS)
+        assert flags["enable_structured_clarify"] is True
+
     def test_returns_all_flag_keys(self):
         flags = resolve_builtin_tool_flags([])
         assert set(flags.keys()) == {
@@ -776,6 +787,7 @@ class TestResolveBuiltinToolFlags:
             "enable_answer_tool",
             "enable_render_ui",
             "enable_planning",
+            "enable_structured_clarify",
         }
 
     def test_legacy_llm_map_tool_id_is_ignored(self):

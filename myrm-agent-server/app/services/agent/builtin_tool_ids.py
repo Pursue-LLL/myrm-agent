@@ -24,6 +24,7 @@ from collections.abc import Sequence
 DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
     "web_search",
     "memory",
+    "structured_clarify",
 )
 """Default togglable tools when no explicit list is stored (UI-visible switches)."""
 
@@ -47,6 +48,7 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "answer_tool",
     "render_ui",
     "planning",
+    "structured_clarify",
 )
 """IDs shown in BuiltinToolsPanel; excludes AGENT_BASELINE_BUILTIN_TOOLS."""
 
@@ -86,6 +88,10 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
     {"id": "answer_tool", "desc": "Structured final-answer gate for search agents"},
     {"id": "render_ui", "desc": "Render interactive UI artifacts in chat"},
     {"id": "planning", "desc": "Multi-step task progress (main-agent todo_write)"},
+    {
+        "id": "structured_clarify",
+        "desc": "Structured clarification forms when user intent is ambiguous",
+    },
 )
 
 

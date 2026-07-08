@@ -35,6 +35,7 @@ def _make_mixin(**overrides: object) -> ToolSetupMixin:
         "unattended_mode": False,
         "channel_name": "web_chat",
         "prompt_mode": "full",
+        "enable_structured_clarify": True,
     }
     defaults.update(overrides)
     for key, value in defaults.items():
@@ -47,21 +48,31 @@ def test_should_mount_predicate_matrix() -> None:
         unattended_mode=False,
         channel_name="web_chat",
         prompt_mode="full",
+        enable_structured_clarify=True,
     )
     assert not _should_mount_ask_question_tool(
         unattended_mode=True,
         channel_name="web_chat",
         prompt_mode="full",
+        enable_structured_clarify=True,
     )
     assert not _should_mount_ask_question_tool(
         unattended_mode=False,
         channel_name="telegram_instance_1",
         prompt_mode="full",
+        enable_structured_clarify=True,
     )
     assert not _should_mount_ask_question_tool(
         unattended_mode=False,
         channel_name="web_chat",
         prompt_mode="search",
+        enable_structured_clarify=True,
+    )
+    assert not _should_mount_ask_question_tool(
+        unattended_mode=False,
+        channel_name="web_chat",
+        prompt_mode="full",
+        enable_structured_clarify=False,
     )
 
 
@@ -86,6 +97,15 @@ def test_ask_question_skipped_when_unattended() -> None:
 
 def test_ask_question_skipped_for_im_channel() -> None:
     mixin = _make_mixin(channel_name="telegram_abc123")
+    tools: list[object] = []
+    discoverable_tools: list[object] = []
+    mixin._setup_clarification_tools(tools, discoverable_tools)
+
+    assert "ask_question_tool" not in _tool_names(tools)
+
+
+def test_ask_question_skipped_when_structured_clarify_disabled() -> None:
+    mixin = _make_mixin(enable_structured_clarify=False)
     tools: list[object] = []
     discoverable_tools: list[object] = []
     mixin._setup_clarification_tools(tools, discoverable_tools)

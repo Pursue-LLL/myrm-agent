@@ -49,7 +49,7 @@ AI Agent 定义层。基于 myrm-agent-harness 的基础能力，配置和组装
 | `agent_middlewares/citation_rules_middleware.py` | 核心 | 引用规则中间件 | — |
 | `agent_middlewares/tool_selection_middleware.py` | 核心 | 工具约束中间件 — tool_choice 状态机 + 收敛保护 | — |
 | `tools/answer_user_tool.py` | 核心 | 回答用户工具 | — |
-| harness `agent/meta_tools/clarification/clarification_agent_tools.py` | 核心 | 结构化澄清工具（ask_question）；server `_setup_clarification_tools` 按 `web_chat`+`!unattended`+`prompt_mode!=search` 挂载并注入 LangGraph interrupt | — |
+| harness `agent/meta_tools/clarification/clarification_agent_tools.py` | 核心 | 结构化澄清工具（ask_question）；server `_setup_clarification_tools` 按 `structured_clarify` ON + `web_chat`+`!unattended`+`prompt_mode!=search` 挂载并注入 LangGraph interrupt | — |
 | harness `agent/meta_tools/interaction/render_ui_tool.py` | 核心 | UI 渲染工具（A2UI）；`enabled_builtin_tools` 含 `render_ui` 时加载 | — |
 
 ### prompts/fast_search_agent_prompt.py

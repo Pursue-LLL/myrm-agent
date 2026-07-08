@@ -4049,7 +4049,8 @@
         "cron": "Geplante Aufgaben (Chat)",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interaktive UI",
-        "planning": "Mehrschritt-Fortschritt"
+        "planning": "Mehrschritt-Fortschritt",
+        "structured_clarify": "Strukturierte Klärung"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4066,7 +4067,8 @@
         "cron": "Geplante Aufgaben direkt im Chat erstellen; wenn aus, wird das Tool bei Bedarf per Capability Discovery geladen",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen",
-        "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)"
+        "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)",
+        "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort"
       },
       "jitTeam": "JIT-Teamkonfiguration",
       "jitTeamOff": "Einzelner Agent (kein Team)",

@@ -31,6 +31,7 @@ class ActiveToolGroupSource(Protocol):
     enable_wiki: bool
     enable_answer_tool: bool
     enable_render_ui: bool
+    enable_structured_clarify: bool
     enable_cron_eager: bool
     image_generation_params: object | None
     video_generation_params: object | None
@@ -50,6 +51,7 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "planning",
     "answer_tool",
     "render_ui",
+    "structured_clarify",
     "cron",
     "image_generation",
     "video_generation",
@@ -81,6 +83,7 @@ def derive_active_tool_groups(
         ("planning", enable_planning),
         ("answer_tool", agent.enable_answer_tool),
         ("render_ui", agent.enable_render_ui),
+        ("structured_clarify", agent.enable_structured_clarify),
         ("cron", agent.enable_cron_eager),
         ("image_generation", agent.image_generation_params is not None),
         ("video_generation", agent.video_generation_params is not None),

@@ -110,6 +110,7 @@ class GeneralAgentParams(BaseAgentParams):
     embedding_config: EmbeddingConfig | None = None
     reranker_config: RerankerConfig | None = None
     enable_render_ui: bool = False
+    enable_structured_clarify: bool = False
     enable_browser: bool = False
     browser_source: str | None = None
     dialog_policy: str | None = None
@@ -254,6 +255,7 @@ class AgentFactory:
             embedding_config=params.embedding_config,
             reranker_config=params.reranker_config,
             enable_render_ui=params.enable_render_ui,
+            enable_structured_clarify=params.enable_structured_clarify,
             enable_web_search=params.enable_web_search,
             enable_browser=params.enable_browser,
             enable_computer_use=params.enable_computer_use,

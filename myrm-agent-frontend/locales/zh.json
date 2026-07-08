@@ -4879,7 +4879,8 @@
         "cron": "定时任务（对话）",
         "answer_tool": "回答质量自审",
         "render_ui": "交互式 UI",
-        "planning": "多步进度"
+        "planning": "多步进度",
+        "structured_clarify": "结构化澄清"
       },
       "builtinToolDescs": {
         "web_search": "搜索互联网获取实时信息",
@@ -4896,7 +4897,8 @@
         "cron": "在对话中直接创建定时任务；关闭时仍可通过能力发现按需加载",
         "answer_tool": "回答前自审质量 — 确保回答的完整性和准确性",
         "render_ui": "在对话里直接填写表单、查看表格与图表",
-        "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）"
+        "planning": "主 Agent 多步 todo 清单 — 在对话中更新进度树（无 Planner 子 Agent）",
+        "structured_clarify": "意图不明确时弹出结构化澄清表单 — Agent 暂停直至你回复"
       },
       "cuPermission": {
         "checking": "正在检查桌面权限…",

@@ -25,7 +25,8 @@ export type BuiltinToolId =
   | 'cron'
   | 'answer_tool'
   | 'render_ui'
-  | 'planning';
+  | 'planning'
+  | 'structured_clarify';
 
 export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'web_search',
@@ -41,11 +42,13 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'answer_tool',
   'render_ui',
   'planning',
+  'structured_clarify',
 ] as const;
 
 export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
   'web_search',
   'memory',
+  'structured_clarify',
 ];
 
 const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);
@@ -69,6 +72,7 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   answer_tool: { en: 'Answer Tool', zh: '答案工具' },
   render_ui: { en: 'Render UI', zh: 'UI 渲染' },
   planning: { en: 'Planning', zh: '任务规划' },
+  structured_clarify: { en: 'Structured Clarify', zh: '结构化澄清' },
 };
 
 export function getBuiltinToolDisplayLabel(

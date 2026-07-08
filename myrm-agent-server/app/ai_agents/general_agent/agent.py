@@ -83,6 +83,7 @@ class GeneralAgent(ToolSetupMixin):
         embedding_config: "EmbeddingConfig | None" = None,
         reranker_config: "RerankerConfig | None" = None,
         enable_render_ui: bool = False,
+        enable_structured_clarify: bool = False,
         enable_web_search: bool = True,
         enable_browser: bool = False,
         enable_computer_use: bool = False,
@@ -177,6 +178,7 @@ class GeneralAgent(ToolSetupMixin):
         self.embedding_config = embedding_config
         self.reranker_config = reranker_config
         self.enable_render_ui = enable_render_ui
+        self.enable_structured_clarify = enable_structured_clarify
         self.enable_web_search = enable_web_search
         self.enable_browser = enable_browser
         self.enable_computer_use = enable_computer_use

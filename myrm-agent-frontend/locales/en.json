@@ -4879,7 +4879,8 @@
         "cron": "Scheduled Tasks (Chat)",
         "answer_tool": "Answer Quality Audit",
         "render_ui": "Interactive UI",
-        "planning": "Multi-Step Progress"
+        "planning": "Multi-Step Progress",
+        "structured_clarify": "Structured Clarify"
       },
       "builtinToolDescs": {
         "web_search": "Search the internet for real-time information",
@@ -4896,7 +4897,8 @@
         "cron": "Create scheduled tasks directly in chat; when off, the tool loads on demand via capability discovery",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
         "render_ui": "Fill forms and view tables or charts directly in chat",
-        "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)"
+        "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)",
+        "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond"
       },
       "cuPermission": {
         "checking": "Checking desktop permissions…",

@@ -55,8 +55,11 @@ def _should_mount_ask_question_tool(
     unattended_mode: bool,
     channel_name: str,
     prompt_mode: str,
+    enable_structured_clarify: bool,
 ) -> bool:
     """Return True when structured HITL clarification is safe and product-appropriate."""
+    if not enable_structured_clarify:
+        return False
     if unattended_mode:
         return False
     if prompt_mode == "search":
@@ -117,6 +120,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         embedding_config: EmbeddingConfig | None
         fetch_raw_webpage: bool
         enable_render_ui: bool
+        enable_structured_clarify: bool
         image_generation_params: ImageGenerationParams | None
         video_generation_params: VideoGenerationParams | None
         tts_params: TTSParams | None
@@ -240,6 +244,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
             unattended_mode=getattr(self, "unattended_mode", False),
             channel_name=getattr(self, "channel_name", "web_chat"),
             prompt_mode=getattr(self, "prompt_mode", "full"),
+            enable_structured_clarify=getattr(self, "enable_structured_clarify", False),
         ):
             return
 
