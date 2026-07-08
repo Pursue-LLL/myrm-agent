@@ -227,3 +227,114 @@ def test_needs_runtime_pool_matrix() -> None:
         )
         is True
     )
+
+
+@pytest.mark.asyncio
+async def test_do_setup_ephemeral_pool_without_chat_scope() -> None:
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mixin.external_agents_config = [{"name": "test-cli", "command": "echo", "args": []}]
+    mixin.chat_id = None
+    mixin._runtime_pool_scope_id = None
+
+    mock_pool = MagicMock()
+    mock_pool.available_backends = ["test-cli"]
+    mock_pool.start_monitoring = AsyncMock()
+    mock_tool = MagicMock()
+    mock_tool.name = "delegate_to_agent_tool"
+
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.acp.runtime.pool.RuntimePool",
+            return_value=mock_pool,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.create_delegate_to_agent_tool",
+            return_value=mock_tool,
+        ),
+    ):
+        tools: list[object] = []
+        await mixin._do_setup_external_agents(tools, [], mount_delegate_tool=True)
+
+    assert mixin._runtime_pool_ephemeral is True
+    assert mixin._runtime_pool_from_registry is False
+    assert tools == [mock_tool]
+
+
+@pytest.mark.asyncio
+async def test_ensure_runtime_pool_swallows_errors() -> None:
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mixin._runtime_pool = None
+    mixin._do_setup_external_agents = AsyncMock(side_effect=RuntimeError("pool init failed"))  # type: ignore[method-assign]
+
+    await mixin._ensure_runtime_pool()
+    mixin._do_setup_external_agents.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_direct_delegate_stream_maps_runtime_events() -> None:
+    from myrm_agent_harness.api import AgentEventType
+    from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
+
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mock_pool = MagicMock()
+    mock_pool.get_config.return_value = SimpleNamespace(auth_mode="api_key")
+
+    async def _fake_run_turn(*_args: object, **_kwargs: object):
+        yield SimpleNamespace(type=RuntimeEventType.TEXT_DELTA, data={"content": "hello"})
+        yield SimpleNamespace(
+            type=RuntimeEventType.TOOL_START,
+            data={"tool_name": "bash"},
+        )
+        yield SimpleNamespace(
+            type=RuntimeEventType.TOOL_RESULT,
+            data={"is_error": False},
+        )
+        yield SimpleNamespace(
+            type=RuntimeEventType.USAGE_UPDATE,
+            data={"input_tokens": 3, "output_tokens": 4},
+        )
+
+    mock_pool.run_turn = _fake_run_turn
+    mock_pool.cancel = AsyncMock()
+    mixin._runtime_pool = mock_pool
+
+    events: list[dict[str, object]] = []
+    async for event in mixin._direct_delegate_stream("claude", "run task", chat_id="chat-1"):
+        events.append(event)
+
+    event_types = {str(event.get("type")) for event in events}
+    assert AgentEventType.MESSAGE.value in event_types
+    assert AgentEventType.TOKEN_USAGE.value in event_types
+    assert AgentEventType.MESSAGE_END.value in event_types
+
+
+@pytest.mark.asyncio
+async def test_direct_delegate_stream_cancels_when_token_set() -> None:
+    from myrm_agent_harness.api import AgentEventType
+    from myrm_agent_harness.toolkits.acp.types import RuntimeEventType
+    from myrm_agent_harness.utils import CancellationToken
+
+    mixin = ExternalAgentsMixin.__new__(ExternalAgentsMixin)
+    mock_pool = MagicMock()
+    mock_pool.get_config.return_value = SimpleNamespace(auth_mode="subscription")
+    cancel_token = CancellationToken()
+
+    async def _fake_run_turn(*_args: object, **_kwargs: object):
+        cancel_token.cancel()
+        yield SimpleNamespace(type=RuntimeEventType.TEXT_DELTA, data={"content": "partial"})
+
+    mock_pool.run_turn = _fake_run_turn
+    mock_pool.cancel = AsyncMock()
+    mixin._runtime_pool = mock_pool
+
+    events: list[dict[str, object]] = []
+    async for event in mixin._direct_delegate_stream(
+        "codex",
+        "task",
+        cancel_token=cancel_token,
+        chat_id="chat-2",
+    ):
+        events.append(event)
+
+    assert any(event.get("type") == AgentEventType.CANCELLED.value for event in events)
+    mock_pool.cancel.assert_awaited_once()
