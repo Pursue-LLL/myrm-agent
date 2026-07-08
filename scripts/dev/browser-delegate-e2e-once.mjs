@@ -190,8 +190,9 @@ async function main() {
   }
   try {
     await putConfig('securityConfig', {
-    yoloModeEnabled: true,
-    yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+      yoloModeEnabled: true,
+      yoloModeEnabledAt: Math.floor(Date.now() / 1000),
+    });
   } catch {
     /* optional */
   }
