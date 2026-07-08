@@ -692,6 +692,8 @@ export const sendMessage = async (
     return;
   }
 
+  useChatStore.getState().clearPendingGapRetry();
+
   const requestMessageId = messageId ?? getCurrentSessionMessageId();
 
   // 防重锁：检查该消息是否正在被处理（通过按钮审批或其他文本审批）

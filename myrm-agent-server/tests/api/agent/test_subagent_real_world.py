@@ -393,5 +393,76 @@ async def test_real_world_timeout_config():
     assert elapsed < search_timeout + 2, f"Should timeout within {search_timeout}s"
 
 
+_BROWSER_TOOL_NAMES: tuple[str, ...] = (
+    "browser_navigate_tool",
+    "browser_inspect_tool",
+    "browser_snapshot_tool",
+    "browser_interact_tool",
+    "browser_extract_tool",
+    "browser_manage_tool",
+    "browser_execute_script_tool",
+    "browser_ask_human_tool",
+)
+
+
+def _browser_toolkit() -> list[BaseTool]:
+    from langchain_core.tools import StructuredTool
+
+    return [
+        StructuredTool.from_function(
+            func=lambda _name=name: _name,
+            name=name,
+            description=f"Mock {name}",
+        )
+        for name in _BROWSER_TOOL_NAMES
+    ]
+
+
+class _RegistrySubagentCatalog:
+    async def resolve(self, type_id: str):
+        from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
+
+        return SUBAGENT_CONFIGS.get(type_id)
+
+
+@pytest.mark.asyncio
+async def test_delegate_browser_subagent_spawn_has_interact_tool() -> None:
+    """Smoke: registered browser preset + parent toolkit → live browser sub-agent."""
+    from myrm_agent_harness.agent.sub_agents.builder import filter_tools
+    from myrm_agent_harness.agent.sub_agents.registry import SUBAGENT_CONFIGS
+
+    browser_config = SUBAGENT_CONFIGS.get("browser")
+    assert browser_config is not None
+
+    parent_tools = _browser_toolkit()
+    filtered = filter_tools(browser_config, parent_tools)
+    filtered_names = {tool.name for tool in filtered}
+    assert "browser_interact_tool" in filtered_names
+    assert len(filtered) == len(_BROWSER_TOOL_NAMES)
+
+    llm = MockLLM("Browser task completed")
+    agent = BaseAgent(llm=llm)
+    spawn_tool = create_delegate_task_tool(
+        parent_agent=agent,
+        tool_registry_getter=lambda: parent_tools,
+        catalog=_RegistrySubagentCatalog(),
+    )
+
+    result = await spawn_tool.ainvoke(
+        {
+            "agent_type": "browser",
+            "objective": "Open example.com and capture a page snapshot",
+            "context": {
+                "session_id": "browser_delegate_smoke",
+                "workspace_path": "/tmp/test",
+                "workspaces_storage_root": "/tmp/test_workspaces",
+            },
+            "wait": True,
+        }
+    )
+
+    assert result["success"] is True
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -7370,6 +7370,7 @@
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",
+    "selectRowHeader": "Zeile auswählen",
     "selectPlaceholder": "Auswählen...",
     "actions": {
       "submit": "Submit",

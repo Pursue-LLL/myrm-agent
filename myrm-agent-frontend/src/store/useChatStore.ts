@@ -111,6 +111,7 @@ const useChatStore = create<ChatState>()(
       inputMessage: '',
       pendingArchiveRestoreAction: null,
       pendingArchiveRestoreActions: [],
+      pendingGapRetry: null,
       agentConfig: null,
       selectedModels: {
         base: null,
@@ -247,6 +248,8 @@ const useChatStore = create<ChatState>()(
           pendingArchiveRestoreActions: normalized,
         });
       },
+      setPendingGapRetry: (pending) => set({ pendingGapRetry: pending }),
+      clearPendingGapRetry: () => set({ pendingGapRetry: null }),
       setAgentConfig: (config) => {
         const builtinTools = [...(config?.enabledBuiltinTools ?? DEFAULT_ENABLED_BUILTIN_TOOLS)];
         const autoRestoreDomains = [...(config?.autoRestoreDomains ?? [])];
@@ -433,6 +436,7 @@ const useChatStore = create<ChatState>()(
           regenerateInstruction: undefined,
           pendingArchiveRestoreAction: null,
           pendingArchiveRestoreActions: [],
+          pendingGapRetry: null,
           currentSessionMessageId: null,
           subagentPromptVisible: false,
           subagentPromptMessageId: null,

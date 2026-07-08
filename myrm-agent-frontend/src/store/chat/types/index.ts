@@ -20,4 +20,5 @@ export * from './agentStream/part2';
 export * from './agentStream/part3';
 export * from './agentStream/union';
 export * from './messages';
+export * from './pendingGapRetry';
 export * from './chatState';

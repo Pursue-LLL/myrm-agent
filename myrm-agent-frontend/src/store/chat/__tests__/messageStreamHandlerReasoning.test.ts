@@ -17,6 +17,16 @@ vi.mock('@/services/chat', () => ({
   getChatDetail: vi.fn(async () => ({ chat: {} })),
 }));
 
+vi.mock('@/store/chat/pendingGapRetry', () => ({
+  scheduleFlushPendingGapRetry: vi.fn(),
+}));
+
+vi.mock('@/services/notification', () => ({
+  notificationService: {
+    notify: vi.fn(),
+  },
+}));
+
 vi.mock('@/store/useChatStore', () => ({
   default: {
     getState: () => ({

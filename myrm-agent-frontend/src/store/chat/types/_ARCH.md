@@ -24,6 +24,7 @@
 | `agentStream/part3.ts` | 核心 | SSE 事件（末段） | ✅ |
 | `agentStream/union.ts` | 核心 | `AgentStreamEvent` union | ✅ |
 | `messages.ts` | 核心 | `Message` / 历史 / @mention | ✅ |
+| `pendingGapRetry.ts` | 辅助 | `PendingGapRetry` 延迟重发契约类型 | ✅ |
 | `chatState.ts` | 核心 | `ChatState` + actions | ✅ |
 
 ## 依赖

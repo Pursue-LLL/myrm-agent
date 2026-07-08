@@ -106,6 +106,10 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
 
       actions.scheduleAutoSave();
 
+      void import('@/store/chat/pendingGapRetry').then(({ scheduleFlushPendingGapRetry }) => {
+        scheduleFlushPendingGapRetry();
+      });
+
       // Refresh per-chat workspace from API so Active Working Memory chips can open file
       // previews when FILE_DIFF is absent but the session workspace exists (silent=true).
       void import('@/services/chat').then(({ getChatDetail }) => {

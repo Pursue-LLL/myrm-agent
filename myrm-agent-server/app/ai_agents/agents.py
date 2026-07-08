@@ -204,6 +204,17 @@ class AgentFactory:
         from app.ai_agents.general_agent import GeneralAgent
         from app.config.settings import get_settings
 
+        if params.enable_browser and params.prompt_mode != "search":
+            from app.services.agent.browser_skill_binding import apply_browser_automation_skill_binding
+
+            skill_ids, skill_configs = apply_browser_automation_skill_binding(
+                list(params.agent_skill_ids),
+                params.agent_skill_configs,
+                enable_browser=True,
+            )
+            params.agent_skill_ids = skill_ids
+            params.agent_skill_configs = skill_configs
+
         event_log_backend = None
         if params.event_log_dir and params.chat_id:
             log_dir = Path(params.event_log_dir)

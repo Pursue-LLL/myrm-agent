@@ -7370,6 +7370,7 @@
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",
+    "selectRowHeader": "행 선택",
     "selectPlaceholder": "선택하세요...",
     "actions": {
       "submit": "Submit",

@@ -4863,6 +4863,7 @@
       "builtinTools": "内置工具",
       "autoRestoreDomains": "自动恢复浏览器免登凭证",
       "autoRestoreDomainsDesc": "请输入需要自动恢复持久化登录态的域名（逗号分隔，例如 github.com, twitter.com）",
+      "browserDelegateHint": "遇到耗时或并行的网页任务时，可让主 Agent 将浏览器操作委派给 browser 专家子 Agent，同时其他子 Agent 处理检索或分析。",
       "subagents": "子智能体",
       "builtinToolNames": {
         "web_search": "网络搜索",

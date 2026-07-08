@@ -9,10 +9,10 @@ name: my_custom_agent
 description: "Brief description of what this agent does"
 
 # REQUIRED: List of allowed tools (whitelist)
-# Tool names must match pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+# Names must match @tool() registration in tool_layers._TOOL_LAYERS
 tools:
-  - tool_name_1
-  - tool_name_2
+  - web_search_tool
+  - web_fetch_tool
 
 # OPTIONAL: List of forbidden tools (blacklist)
 disallowed_tools: []
@@ -51,7 +51,7 @@ config:
   max_result_tokens: null
 
 # Notes:
-# - Save this file in configs/subagents/custom/ directory
+# - Save this file in app/config/subagents/custom/ directory
 # - Restart application to load new configuration
 # - Custom configs override core configs with the same name
-# - See README.md for detailed documentation
+# - Invalid tool names fail at load time (see app/config/subagents/_ARCH.md)

@@ -7370,6 +7370,7 @@
     "submitted": "Submitted",
     "submitting": "Submitting...",
     "noData": "No data",
+    "selectRowHeader": "行を選択",
     "selectPlaceholder": "選択してください...",
     "actions": {
       "submit": "Submit",

@@ -1,9 +1,16 @@
 /**
+ * [INPUT]
+ * ../streamContext::StreamCtx (POS: per-SSE-event reducer context)
+ * ./handlerDeps::useChatStore (POS: chat session store access)
+ * @/store/chat/pendingGapRetry::flushPendingGapRetry (POS: deferred gap retry flush)
+ *
+ * [OUTPUT]
+ * gapEvents: CAPABILITY_GAP / SKILL_GAP SSE handler with toast enable-and-resend
+ *
  * [POS]
  * SSE handlers for capability/skill entitlement gaps from stream preflight and discover_capability_tool.
  */
 
-import type { Message } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
 import * as H from './handlerDeps';
@@ -13,39 +20,22 @@ import {
   type BuiltinToolId,
 } from '@/store/chat/types/builtinTools';
 import { toast } from '@/lib/utils/toast';
+import {
+  flushPendingGapRetry,
+  resolveLastPlainUserMessage,
+} from '@/store/chat/pendingGapRetry';
 
-function resolveLastPlainUserMessage(messages: Message[]): string | null {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message.role !== 'user') {
-      continue;
-    }
-    const content = message.content;
-    if (typeof content === 'string' && content.trim()) {
-      return content.trim();
-    }
-  }
-  return null;
-}
-
-function createRetryMessageId(): string {
-  if (typeof globalThis.crypto?.randomUUID === 'function') {
-    return globalThis.crypto.randomUUID();
-  }
-  return `gap-retry-${Date.now()}`;
-}
-
-async function retryLastUserMessageIfIdle(): Promise<boolean> {
+function storePendingGapRetry(
+  kind: 'capability' | 'skill',
+  text: string,
+  id: BuiltinToolId | string,
+): void {
   const store = H.useChatStore.getState();
-  if (store.loading) {
-    return false;
+  if (kind === 'capability') {
+    store.setPendingGapRetry({ kind: 'capability', text, toolId: id as BuiltinToolId });
+    return;
   }
-  const retryText = resolveLastPlainUserMessage(store.messages);
-  if (!retryText) {
-    return false;
-  }
-  await store.sendMessage(retryText, createRetryMessageId());
-  return true;
+  store.setPendingGapRetry({ kind: 'skill', text, skillId: id });
 }
 
 export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -60,6 +50,12 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       return null;
     }
 
+    const store = H.useChatStore.getState();
+    const retryText = resolveLastPlainUserMessage(store.messages);
+    if (retryText) {
+      storePendingGapRetry('capability', retryText, toolId);
+    }
+
     const label = isZh ? BUILTIN_TOOL_LABELS[toolId].zh : BUILTIN_TOOL_LABELS[toolId].en;
     const message = isZh
       ? `完成此任务需要开启「${label}」`
@@ -71,15 +67,23 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       action: {
         label: actionLabel,
         onClick: async () => {
-          const store = H.useChatStore.getState();
-          const prev = store.currentBuiltinTools;
+          const latestStore = H.useChatStore.getState();
+          const prev = latestStore.currentBuiltinTools;
           if (!prev.includes(toolId)) {
-            store.setCurrentBuiltinTools([...prev, toolId as BuiltinToolId]);
+            latestStore.setCurrentBuiltinTools([...prev, toolId as BuiltinToolId]);
           }
-          const resent = await retryLastUserMessageIfIdle();
+          const resent = await flushPendingGapRetry();
           if (resent) {
             toast.success(
               isZh ? '已开启并重新发送您的请求' : 'Enabled and resent your request.',
+            );
+            return;
+          }
+          if (latestStore.loading) {
+            toast.success(
+              isZh
+                ? '已开启，本轮结束后将自动重发'
+                : 'Enabled. Will resend after this turn finishes.',
             );
             return;
           }
@@ -99,6 +103,12 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       return null;
     }
 
+    const store = H.useChatStore.getState();
+    const retryText = resolveLastPlainUserMessage(store.messages);
+    if (retryText) {
+      storePendingGapRetry('skill', retryText, skillId);
+    }
+
     const message = isZh
       ? `完成此任务需要绑定技能「${skillId}」`
       : `Bind skill "${skillId}" to complete this task`;
@@ -109,15 +119,23 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
       action: {
         label: actionLabel,
         onClick: async () => {
-          const store = H.useChatStore.getState();
-          const prev = store.agentConfig?.selectedSkillIds ?? [];
+          const latestStore = H.useChatStore.getState();
+          const prev = latestStore.agentConfig?.selectedSkillIds ?? [];
           if (!prev.includes(skillId)) {
-            store.updateAgentConfig({ selectedSkillIds: [...prev, skillId] });
+            latestStore.updateAgentConfig({ selectedSkillIds: [...prev, skillId] });
           }
-          const resent = await retryLastUserMessageIfIdle();
+          const resent = await flushPendingGapRetry();
           if (resent) {
             toast.success(
               isZh ? '已绑定并重新发送您的请求' : 'Skill bound and resent your request.',
+            );
+            return;
+          }
+          if (latestStore.loading) {
+            toast.success(
+              isZh
+                ? '已绑定，本轮结束后将自动重发'
+                : 'Skill bound. Will resend after this turn finishes.',
             );
             return;
           }

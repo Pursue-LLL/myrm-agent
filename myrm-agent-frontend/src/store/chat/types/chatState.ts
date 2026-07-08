@@ -20,6 +20,7 @@ import type {
   Message,
   PaginationInfo,
 } from './messages';
+import type { PendingGapRetry } from './pendingGapRetry';
 
 export interface ChatState {
   // 聊天基本信息
@@ -79,6 +80,9 @@ export interface ChatState {
   inputMessage: string;
   pendingArchiveRestoreAction: ArchiveRestoreAction | null;
   pendingArchiveRestoreActions: ArchiveRestoreAction[];
+
+  // Deferred entitlement-gap resend (set on preflight gap, flushed after MESSAGE_END)
+  pendingGapRetry: PendingGapRetry | null;
 
   // 消息状态
   loading: boolean;
@@ -167,6 +171,8 @@ export interface ChatState {
   setInputMessage: (message: string) => void;
   setPendingArchiveRestoreAction: (action: ArchiveRestoreAction | null) => void;
   setPendingArchiveRestoreActions: (actions: ArchiveRestoreAction[]) => void;
+  setPendingGapRetry: (pending: PendingGapRetry | null) => void;
+  clearPendingGapRetry: () => void;
   setLoading: (loading: boolean) => void;
   setMessageAppeared: (appeared: boolean) => void;
   setIsMessagesLoaded: (loaded: boolean) => void;

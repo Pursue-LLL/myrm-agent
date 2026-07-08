@@ -51,6 +51,7 @@ Agent 业务域。提供 Agent CRUD 管理、流式执行（General / FastSearch
 | `context_compaction_telemetry.py` | ✅ 核心 | Context 压缩遥测分发器。配置来自 `settings.control_plane` + `settings.context_compaction_telemetry`（`ContextCompactionTelemetryConfig.from_settings()`）；读取 Harness `TaskMetrics` 快照，有界队列 + 批量 flush + 背压保护异步上报 Control Plane（`events` 契约，`X-Telemetry-Subject` 头）。 |
 | `search.py` | ✅ 辅助 | Web 搜索服务封装 |
 | `routing_advisor.py` | ✅ 核心 | 智能路由顾问 — 根据历史事件提供高危模型的降级建议 |
+| `browser_skill_binding.py` | ✅ 辅助 | `enable_browser` 时合并 peripheral prebuilt `browser-automation` skill（`is_core:false`）；由 `AgentFactory.create_general_agent` 调用，覆盖 Web/Cron/Channel/Kanban 全入口 | ✅ |
 | `goal_registry.py` | ✅ 核心 | 会话级 Goal 句柄全局注册表。`ServerGoalManager` 扩展 harness `GoalManager`，semantic judge 通过 `platform_config.build_platform_litellm_kwargs()` 读 WebUI 默认模型（无 env fallback）。 |
 | `platform_config.py` | ✅ 核心 | WebUI 平台级模型/检索配置；`build_platform_litellm_kwargs()`、`webui_model_preflight_warning()`、`resolve_xai_search_config()`；业务禁止读进程 env |
 | `session_credential_assembler.py` | ✅ 核心 | 统一会话凭证装配 + `session_credentials_scope` / `user_config_session_credentials_scope`；Web / Channel / Cron / Kanban / Wakeup / approval-timeout resume |

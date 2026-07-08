@@ -26,6 +26,8 @@ app/config/subagents/
 
 ## YAML Format
 
+Tool names in `tools` / `disallowed_tools` must match `@tool()` names registered in harness `tool_layers._TOOL_LAYERS` (validated at load time).
+
 ```yaml
 name: search   # 必须与文件名一致
 description: "..."
@@ -38,6 +40,11 @@ config:
   max_turns: 3
   max_retries: 1
 ```
+
+Core presets (SSOT tool names):
+- `browser.yaml` — eight `browser_*_tool` entries; pair with prebuilt `browser-automation` skill when browser is enabled
+- `analysis.yaml` — `memory_recall_tool`, `memory_save_tool`, `memory_manage_tool`
+- `search.yaml` — `web_search_tool`, `web_fetch_tool`
 
 ## Registration
 

@@ -72,6 +72,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
     }
 
     actions.setLoading(false);
+    void import('@/store/chat/pendingGapRetry').then(({ scheduleFlushPendingGapRetry }) => {
+      scheduleFlushPendingGapRetry();
+    });
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {
       usePlanStore.getState().clearActivePlan();
     });
@@ -101,6 +104,9 @@ export async function agentControlEvents(ctx: StreamCtx): Promise<StreamTurn | n
       }
     });
     actions.setLoading(false);
+    void import('@/store/chat/pendingGapRetry').then(({ scheduleFlushPendingGapRetry }) => {
+      scheduleFlushPendingGapRetry();
+    });
     // Release the processing lock on cancellation
     H.useToolApprovalStore.getState().unmarkProcessing(data.messageId);
     void import('@/store/chat/goals/usePlanStore').then(({ usePlanStore }) => {

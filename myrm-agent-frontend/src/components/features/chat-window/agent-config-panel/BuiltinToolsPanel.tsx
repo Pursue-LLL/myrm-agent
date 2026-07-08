@@ -166,6 +166,7 @@ function BrowserConfigSection({
 }: Omit<BuiltinToolsPanelProps, 'localBuiltinTools' | 'setLocalBuiltinTools'>) {
   return (
     <div className="space-y-4 p-3 rounded-xl bg-muted/30 border border-border/50">
+      <p className="text-xs text-muted-foreground leading-relaxed">{tPanel('browserDelegateHint')}</p>
       {/* Auto-restore domains */}
       <div className="space-y-2">
         <Label className="text-sm font-medium flex items-center gap-2">

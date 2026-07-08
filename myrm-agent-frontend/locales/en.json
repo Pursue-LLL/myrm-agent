@@ -4863,6 +4863,7 @@
       "builtinTools": "Built-in Tools",
       "autoRestoreDomains": "Auto Restore Browser Login Sessions",
       "autoRestoreDomainsDesc": "Enter domains to auto-restore persistent login sessions (comma separated, e.g. github.com, twitter.com)",
+      "browserDelegateHint": "For long or parallel web work, ask your agent to delegate browser tasks to the browser specialist while other sub-agents handle research or analysis.",
       "subagents": "Subagents",
       "builtinToolNames": {
         "web_search": "Web Search",

@@ -5,7 +5,7 @@
 
 ## 架构概述
 
-用户自定义子 Agent 类型的 **YAML 数据目录**。将 `example.yaml.template` 复制为 `*.yaml` 并按约定填写；加载路径与优先级见 [../_ARCH.md](../_ARCH.md) 与 `app/ai_agents/subagent_presets.py`。
+用户自定义子 Agent 类型的 **YAML 数据目录**。将 `example.yaml.template` 复制为 `*.yaml` 并按约定填写；`tools` 名必须在 `tool_layers._TOOL_LAYERS` 注册，否则加载失败。
 
 ## 文件清单
 
