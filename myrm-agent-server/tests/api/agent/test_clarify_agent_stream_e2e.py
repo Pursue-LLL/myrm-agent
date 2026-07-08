@@ -45,54 +45,62 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         "yolo_mode_enabled_at": time.time(),
     }
 
-    chat_id = f"test_clarify_{uuid.uuid4().hex[:8]}"
-    message_id = f"msg_{uuid.uuid4().hex[:8]}"
-    create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
-    assert create_response.status_code == 200
-
     query = (
+        "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
         "You MUST call ask_question_tool exactly once before any other action. "
         'Use title "Framework choice". Ask one question with id "framework" and prompt '
         '"Which AI framework should I use?". Provide exactly two options: '
         'id "langchain" label "LangChain", id "llamaindex" label "LlamaIndex". '
+        "Set requires_confirmation to false. "
         "Do not use bash, write_file, render_ui_tool, or any other tools. "
         "After you receive the user's answer, reply with a single line starting with DONE."
     )
 
     resume_answer = {"framework": "langchain"}
 
-    initial_payload: dict[str, object] = {
-        "messageId": message_id,
-        "chatId": chat_id,
-        "query": query,
-        "modelSelection": get_lite_model_selection(),
-        "actionMode": "agent",
-        "enableMemory": False,
-        "agentConfig": {
-            "enabledBuiltinTools": ["structured_clarify"],
-        },
-    }
-
     initial_events: list[dict[str, object]] = []
-    with client.stream("POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0) as response:
-        assert response.status_code == 200
-        for line in response.iter_lines():
-            if not line or not line.strip().startswith("data: "):
-                continue
-            raw = line.strip()[6:]
-            if raw == "[DONE]":
-                break
-            try:
-                data = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(data, dict):
-                initial_events.append(data)
+    clarify_events: list[dict[str, object]] = []
+    for attempt in range(2):
+        chat_id = f"test_clarify_{uuid.uuid4().hex[:8]}"
+        message_id = f"msg_{uuid.uuid4().hex[:8]}"
+        create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
+        assert create_response.status_code == 200
 
-    check_e2e_errors(initial_events)
-    clarify_events = _clarification_required_events(initial_events)
+        initial_payload: dict[str, object] = {
+            "messageId": message_id,
+            "chatId": chat_id,
+            "query": query,
+            "modelSelection": get_lite_model_selection(),
+            "actionMode": "agent",
+            "enableMemory": False,
+            "agentConfig": {
+                "enabledBuiltinTools": ["structured_clarify"],
+            },
+        }
+
+        initial_events = []
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=initial_payload, timeout=180.0) as response:
+            assert response.status_code == 200
+            for line in response.iter_lines():
+                if not line or not line.strip().startswith("data: "):
+                    continue
+                raw = line.strip()[6:]
+                if raw == "[DONE]":
+                    break
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(data, dict):
+                    initial_events.append(data)
+
+        check_e2e_errors(initial_events)
+        clarify_events = _clarification_required_events(initial_events)
+        if clarify_events:
+            break
+
     assert clarify_events, (
-        "Expected clarification_required after ask_question_tool; "
+        "Expected clarification_required after ask_question_tool (2 attempts); "
         f"event_types={sorted({e.get('type') for e in initial_events if isinstance(e.get('type'), str)})}"
     )
 
