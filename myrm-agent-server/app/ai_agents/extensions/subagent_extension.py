@@ -49,10 +49,14 @@ class SubagentManagementExtension(AgentExtension):
         )
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 
+        from myrm_agent_harness.agent.sub_agents.builder import (
+            build_parent_delegatable_toolkit,
+        )
+
         def _tool_registry_getter() -> list[object]:
-            if agent is None or agent._tool_registry is None:
+            if agent is None:
                 return []
-            return list(agent._tool_registry.resolve())
+            return build_parent_delegatable_toolkit(agent)
 
         jit_configs = materialize_jit_configs(self.jit_subagents)
         combined_ids = list(self.subagent_ids)
