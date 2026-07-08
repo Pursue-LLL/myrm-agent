@@ -49,9 +49,7 @@ class SubagentManagementExtension(AgentExtension):
         )
         from app.ai_agents.subagent_catalog import DatabaseSubagentCatalog
 
-        from myrm_agent_harness.agent.sub_agents.builder import (
-            build_parent_delegatable_toolkit,
-        )
+        from myrm_agent_harness.api import build_parent_delegatable_toolkit
 
         def _tool_registry_getter() -> list[object]:
             if agent is None:
