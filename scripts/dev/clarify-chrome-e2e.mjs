@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-/** Chrome CDP clarify E2E — real UI + MiniMax-M2.7 */
+/** DEPRECATED: spawns MyrmChromeMcp :9222 and breaks MCP --autoConnect. Use chrome-devtools MCP instead. */
+console.error('DEPRECATED: clarify-chrome-e2e.mjs disabled; use MCP chrome-devtools --autoConnect on main Chrome.');
+process.exit(1);
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { ensureLoggedIn, authCookieHeader, apiFetch } from './subagent-dashboard-e2e-auth.mjs';
@@ -40,17 +42,33 @@ function ensureStack() {
   shell('curl -sf -o /dev/null --max-time 120 http://127.0.0.1:3000/');
 }
 
-function restartChrome() {
-  shell('pkill -f "remote-debugging-port=9222" || true');
-  shell('sleep 1');
+function cdpJson(method, path, body) {
+  const cmd =
+    body === undefined
+      ? `curl -sf '${CDP}${path}' -X ${method}`
+      : `curl -sf '${CDP}${path}' -X ${method} -H 'Content-Type: application/json' -d '${body.replace(/'/g, "'\\''")}'`;
+  const out = shell(cmd);
+  if (out.status !== 0 || !out.stdout.trim()) {
+    throw new Error(`CDP ${method} ${path} failed`);
+  }
+  return JSON.parse(out.stdout);
+}
+
+async function ensureChromeAsync() {
+  if (shell(`curl -sf ${CDP}/json/version`).status === 0) return;
   shell(
     '"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/Library/Application Support/MyrmChromeMcp" about:blank >/dev/null 2>&1 &',
   );
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 20; i++) {
     if (shell(`curl -sf ${CDP}/json/version`).status === 0) return;
-    shell('sleep 1');
+    await Bun.sleep(1000);
   }
   throw new Error('Chrome CDP failed to start');
+}
+
+async function openCdpTab() {
+  await ensureChromeAsync();
+  return cdpJson('PUT', '/json/new?about:blank');
 }
 
 function connect(wsUrl) {
@@ -91,49 +109,46 @@ async function putConfig(key, value) {
 }
 
 async function seedEnv() {
-  const liteModel = requireEnv('LITE_MODEL');
-  const liteKey = requireEnv('LITE_API_KEY');
-  const liteUrl = process.env.LITE_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
-  const providerId = inferProviderId(liteModel);
-  const modelId = stripProviderPrefix(liteModel);
-  await putConfig('providers', {
-    providers: [
-      {
-        id: providerId,
-        name: 'MiniMax',
-        routingProfile: providerId,
-        isBuiltIn: true,
-        isEnabled: true,
-        apiUrl: liteUrl,
-        apiKeys: [{ key: liteKey, isActive: true }],
-        enabledModels: [modelId],
-        availableModels: [modelId],
-        providerType: 'minimax',
+  try {
+    const liteModel = requireEnv('LITE_MODEL');
+    const liteKey = requireEnv('LITE_API_KEY');
+    const liteUrl = process.env.LITE_BASE_URL?.trim() || 'https://api.minimaxi.com/v1';
+    const providerId = inferProviderId(liteModel);
+    const modelId = stripProviderPrefix(liteModel);
+    await putConfig('providers', {
+      providers: [
+        {
+          id: providerId,
+          name: 'MiniMax',
+          routingProfile: providerId,
+          isBuiltIn: true,
+          isEnabled: true,
+          apiUrl: liteUrl,
+          apiKeys: [{ key: liteKey, isActive: true }],
+          enabledModels: [modelId],
+          availableModels: [modelId],
+          providerType: 'minimax',
+        },
+      ],
+      defaultModelConfig: {
+        baseModel: { primary: { providerId, model: modelId }, fallback: null, temperature: 0.7, modelKwargs: {} },
+        liteModel: { primary: { providerId, model: modelId }, fallback: null },
+        fastModeModel: null,
+        routingConfig: null,
+        visionFallbackModel: null,
       },
-    ],
-    defaultModelConfig: {
-      baseModel: { primary: { providerId, model: modelId }, fallback: null, temperature: 0.7, modelKwargs: {} },
-      liteModel: { primary: { providerId, model: modelId }, fallback: null },
-      fastModeModel: null,
-      routingConfig: null,
-      visionFallbackModel: null,
-    },
-    customModelInfo: {},
-  });
-  await putConfig('securityConfig', { yoloModeEnabled: true, yoloModeEnabledAt: Math.floor(Date.now() / 1000) });
+      customModelInfo: {},
+    });
+    await putConfig('securityConfig', { yoloModeEnabled: true, yoloModeEnabledAt: Math.floor(Date.now() / 1000) });
+  } catch (err) {
+    log(`seedEnv skipped: ${err instanceof Error ? err.message : String(err)}`);
+  }
   try {
     const ob = await apiFetch('/api/v1/config/onboarding/complete', { method: 'POST', body: '{}' });
     if (!ob.ok) log(`onboarding: ${(await ob.text()).slice(0, 80)}`);
   } catch {
-    log('onboarding: skipped (API unavailable)');
+    log('onboarding: skipped');
   }
-}
-
-async function openCdpTab() {
-  restartChrome();
-  const res = await fetch(`${CDP}/json/new?${encodeURIComponent('about:blank')}`, { method: 'PUT' });
-  if (!res.ok) throw new Error(`CDP new tab ${res.status}`);
-  return res.json();
 }
 
 async function waitForTextarea(client) {
@@ -143,64 +158,21 @@ async function waitForTextarea(client) {
         [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === l)?.click();
       }
     })()`);
-    if (await client.evalJs(`Boolean(document.querySelector('textarea[data-chat-input], textarea'))`)) return;
+    if (await client.evalJs(`Boolean(document.querySelector('textarea[data-chat-input], textarea'))`)) {
+      log(`  textarea ready at ${i * 2}s`);
+      return;
+    }
+    if (i % 5 === 0) log(`  waiting textarea ${i * 2}s`);
     await Bun.sleep(2000);
   }
   throw new Error('textarea timeout');
 }
 
-async function fillReactTextarea(client, text) {
-  const ok = await client.evalJs(`(() => {
-    const el = document.querySelector('textarea[data-chat-input], textarea');
-    if (!el) return false;
-    el.focus();
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(el, ${JSON.stringify(text)});
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ${JSON.stringify(text)} }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  })()`);
-  if (!ok) throw new Error('textarea fill failed');
+async function sendChatViaDevHook(client, text) {
+  await client.evalJs(`window.dispatchEvent(new CustomEvent('myrm-e2e-set-input', { detail: { text: ${JSON.stringify(text)} } }))`);
   await Bun.sleep(400);
-}
-
-async function typeViaKeyboard(client, text) {
-  const { root } = await client.send('DOM.getDocument');
-  const { nodeId } = await client.send('DOM.querySelector', {
-    nodeId: root.nodeId,
-    selector: 'textarea[data-chat-input], textarea',
-  });
-  if (!nodeId) throw new Error('textarea node missing');
-  await client.send('DOM.focus', { nodeId });
-  const chunk = 20;
-  for (let i = 0; i < text.length; i += chunk) {
-    const part = text.slice(i, i + chunk);
-    for (const char of part) {
-      await client.send('Input.dispatchKeyEvent', { type: 'keyDown', text: char });
-      await client.send('Input.dispatchKeyEvent', { type: 'char', text: char });
-      await client.send('Input.dispatchKeyEvent', { type: 'keyUp', text: char });
-    }
-    log(`  typed ${Math.min(i + chunk, text.length)}/${text.length}`);
-  }
-  await Bun.sleep(500);
-}
-
-async function clickSendWhenReady(client) {
-  for (let i = 0; i < 50; i++) {
-    const state = await client.evalJs(`(() => ({
-      canSend: Boolean([...document.querySelectorAll('button')].find((b) => /发送|Send/.test(b.textContent || '') && !b.disabled)),
-      len: document.querySelector('textarea')?.value?.length || 0,
-    }))()`);
-    if (state?.canSend) {
-      return client.evalJs(`(() => {
-        const btn = [...document.querySelectorAll('button')].find((b) => /发送|Send/.test(b.textContent || '') && !b.disabled);
-        btn?.click();
-        return btn ? 'click' : 'fail';
-      })()`);
-    }
-    await Bun.sleep(200);
-  }
-  return 'fail';
+  await client.evalJs(`window.dispatchEvent(new Event('myrm-e2e-submit'))`);
+  return 'dev-hook-submit';
 }
 
 async function assertMessagePersisted(chatId) {
@@ -246,18 +218,9 @@ async function runAttempt(attempt) {
   const model = stripProviderPrefix(requireEnv('LITE_MODEL'));
   log(`[attempt ${attempt}] model ${model}`);
 
-  await fillReactTextarea(client, QUERY);
-  let sent = await clickSendWhenReady(client);
-  let msgCount = await assertMessagePersisted(chatId);
+  const sent = await sendChatViaDevHook(client, QUERY);
+  const msgCount = await assertMessagePersisted(chatId);
   log(`[attempt ${attempt}] sent=${sent} messages=${msgCount}`);
-
-  if (msgCount < 1) {
-    log(`[attempt ${attempt}] fallback keyboard typing`);
-    await typeViaKeyboard(client, QUERY);
-    sent = await clickSendWhenReady(client);
-    msgCount = await assertMessagePersisted(chatId);
-    log(`[attempt ${attempt}] after keyboard sent=${sent} messages=${msgCount}`);
-  }
 
   if (msgCount < 1) {
     client.ws.close();
@@ -305,11 +268,16 @@ async function runAttempt(attempt) {
 
 ensureStack();
 let result = null;
-for (let a = 1; a <= 2; a++) {
-  result = await runAttempt(a);
-  if (result.ok) break;
-  if (result.reason === 'message_not_sent') continue;
-  log(`[attempt ${a}] retry`);
+try {
+  for (let a = 1; a <= 2; a++) {
+    result = await runAttempt(a);
+    if (result.ok) break;
+    if (result.reason === 'message_not_sent') continue;
+    log(`[attempt ${a}] retry`);
+  }
+} catch (err) {
+  log('FATAL', err instanceof Error ? err.stack || err.message : String(err));
+  process.exit(1);
 }
 log(JSON.stringify(result, null, 2));
 process.exit(result?.ok ? 0 : 1);

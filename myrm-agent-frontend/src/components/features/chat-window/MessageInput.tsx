@@ -142,6 +142,25 @@ const MessageInput = ({ loading }: { loading: boolean }) => {
     removeMessage,
   } = useMessageInput();
 
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const onSetInput = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string }>).detail;
+      if (typeof detail?.text === 'string') {
+        setInputMessage(detail.text);
+      }
+    };
+    const onSubmit = () => {
+      void handleSubmit();
+    };
+    window.addEventListener('myrm-e2e-set-input', onSetInput);
+    window.addEventListener('myrm-e2e-submit', onSubmit);
+    return () => {
+      window.removeEventListener('myrm-e2e-set-input', onSetInput);
+      window.removeEventListener('myrm-e2e-submit', onSubmit);
+    };
+  }, [handleSubmit, setInputMessage]);
+
   const inputHistory = useInputHistory({
     agentId: agentConfig?.id,
     getInputValue: () => inputMessage,
