@@ -210,7 +210,7 @@ async def build_general_agent(
             tools, discoverable_tools, effective_chat_id, vision_llm=llm, memory_manager=memory_manager
         )
 
-    if agent_wrapper.enable_computer_use:
+    if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
         agent_wrapper._setup_computer_use_tools(tools)
 
     if agent_wrapper.enable_kanban:
@@ -472,7 +472,7 @@ async def build_general_agent(
             max_runtime_seconds=getattr(agent_wrapper, "kanban_max_runtime_seconds", None),
         )
 
-    if agent_wrapper.enable_computer_use:
+    if _should_setup_computer_use_tools(agent_wrapper.enable_computer_use):
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         system_prompt += DESKTOP_CONTROL_RULES
@@ -821,6 +821,16 @@ async def _try_inject_mcp_oauth(cfg: "MCPConfig") -> "MCPConfig":
     except Exception:
         logger.debug("MCP OAuth injection skipped for '%s'", cfg.name, exc_info=True)
         return cfg
+
+
+def _should_setup_computer_use_tools(enable_flag: bool) -> bool:
+    """Return False when deploy mode or sandbox entitlements cannot run desktop control."""
+    if not enable_flag:
+        return False
+
+    from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+    return is_computer_use_deploy_supported()
 
 
 def _should_enable_cron_tools() -> bool:

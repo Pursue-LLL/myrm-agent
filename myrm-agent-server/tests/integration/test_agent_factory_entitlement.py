@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from app.ai_agents.general_agent.factory import (
     _should_enable_cron_tools,
     _should_enable_subagent_tools,
+    _should_setup_computer_use_tools,
 )
 
 _CAPS_FN = "app.platform_utils.deployment_capabilities.get_deployment_capabilities"
@@ -76,3 +77,20 @@ def test_should_enable_cron_tools_sandbox_cp_down():
         patch(_FETCH_FN, return_value=None),
     ):
         assert _should_enable_cron_tools() is False
+
+
+def test_should_setup_computer_use_tools_respects_enable_flag():
+    with patch(
+        "app.config.computer_use_deploy.is_computer_use_deploy_supported",
+        return_value=True,
+    ):
+        assert _should_setup_computer_use_tools(False) is False
+        assert _should_setup_computer_use_tools(True) is True
+
+
+def test_should_setup_computer_use_tools_sandbox_without_support():
+    with patch(
+        "app.config.computer_use_deploy.is_computer_use_deploy_supported",
+        return_value=False,
+    ):
+        assert _should_setup_computer_use_tools(True) is False

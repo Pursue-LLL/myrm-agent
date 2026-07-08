@@ -183,11 +183,18 @@ async function runStream(chatId, messageId) {
 
 async function main() {
   await ensureLoggedIn();
-  await seedProviders();
-  await putConfig('securityConfig', {
+  try {
+    await seedProviders();
+  } catch {
+    /* WebUI DB providers already configured */
+  }
+  try {
+    await putConfig('securityConfig', {
     yoloModeEnabled: true,
     yoloModeEnabledAt: Math.floor(Date.now() / 1000),
-  });
+  } catch {
+    /* optional */
+  }
 
   const chatId = randomUUID();
   const messageId = randomUUID();

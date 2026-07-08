@@ -82,8 +82,10 @@ export const BuiltinToolsPanel = ({
   tPanel,
 }: BuiltinToolsPanelProps) => {
   const tBilling = useTranslations('billing.gates');
-  const { canUseCron, isLoading: entitlementsLoading } = useFeatureEntitlements();
+  const { canUseCron, canUseVnc, isLoading: entitlementsLoading } = useFeatureEntitlements();
   const cronEntitlementBlocked = isSandbox() && !entitlementsLoading && !canUseCron;
+  const localMode = isLocalMode();
+  const computerUseEntitlementBlocked = isSandbox() && !entitlementsLoading && !canUseVnc;
 
   const toggleBuiltinTool = (id: BuiltinToolId) => {
     setLocalBuiltinTools((prev) => {
@@ -100,8 +102,14 @@ export const BuiltinToolsPanel = ({
       <div className="space-y-2">
         {BUILTIN_TOOL_IDS.map((id) => {
           const isCron = id === 'cron';
-          const disabled = isCron && cronEntitlementBlocked;
-          const description = disabled ? tBilling('cronDescription') : tPanel(`builtinToolDescs.${id}`);
+          const isComputerUse = id === 'computer_use';
+          const disabled =
+            (isCron && cronEntitlementBlocked) || (isComputerUse && computerUseEntitlementBlocked);
+          const description = disabled
+            ? isComputerUse
+              ? tBilling('computerUseDescription')
+              : tBilling('cronDescription')
+            : tPanel(`builtinToolDescs.${id}`);
           const checked = localBuiltinTools.includes(id);
 
           return (
@@ -150,7 +158,7 @@ export const BuiltinToolsPanel = ({
         />
       )}
 
-      {localBuiltinTools.includes('computer_use') && <CuPermissionInline tPanel={tPanel} />}
+      {localMode && localBuiltinTools.includes('computer_use') && <CuPermissionInline tPanel={tPanel} />}
 
       {localBuiltinTools.includes('external_cli') && (
         <ExternalCliConfigSection tPanel={tPanel} />

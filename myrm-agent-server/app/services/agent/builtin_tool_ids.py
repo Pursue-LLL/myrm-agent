@@ -11,6 +11,7 @@ Must stay aligned with myrm-agent-frontend ``BUILTIN_TOOL_IDS`` in
 - BUILTIN_TOOL_IDS / BUILTIN_TOOL_ID_SET: canonical ID catalog
 - normalize_enabled_builtin_tools / coerce_enabled_builtin_tools: validation helpers
 - strip_legacy_builtin_tool_ids: silent read-path migration for retired tool IDs
+- strip_deploy_incompatible_builtin_tools: drop tools unsupported in current deploy mode
 - persist_enabled_builtin_tools: DB column write validation
 
 [POS]
@@ -111,6 +112,18 @@ def strip_legacy_builtin_tool_ids(tools: Sequence[str]) -> list[str]:
         for raw in tools
         if (tool_id := str(raw).strip()) and tool_id not in LEGACY_REJECTED_BUILTIN_TOOL_IDS
     ]
+
+
+def strip_deploy_incompatible_builtin_tools(tools: Sequence[str]) -> list[str]:
+    """Drop builtin tools that cannot run in the current deployment mode."""
+    if "computer_use" not in tools:
+        return list(tools)
+
+    from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+    if is_computer_use_deploy_supported():
+        return list(tools)
+    return [tool_id for tool_id in tools if tool_id != "computer_use"]
 
 
 def normalize_enabled_builtin_tools(tools: Sequence[str]) -> list[str]:

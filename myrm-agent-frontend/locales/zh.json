@@ -11664,6 +11664,7 @@
     "gates": {
       "cronTitle": "Cron 需要 Companion 及以上方案",
       "cronDescription": "升级后可使用云沙箱定时任务与自动化能力。",
+      "computerUseDescription": "升级至 Pro 后可使用云沙箱可视化桌面与桌面控制能力。",
       "ingressTitle": "公网访问需要 Companion 及以上方案",
       "ingressDescription": "升级后可配置公网 URL，用于 Webhook 与通道回调。",
       "subagentTitle": "Sub-agents 需要 Companion 及以上套餐",

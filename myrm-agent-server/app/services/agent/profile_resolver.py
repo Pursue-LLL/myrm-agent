@@ -65,19 +65,27 @@ def resolve_builtin_tool_flags(
     function to ensure parity. Adding a new tool flag requires only a single
     change here.
     """
+    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+
+    effective_tools = strip_deploy_incompatible_builtin_tools(tools)
+    from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+    deploy_supports_computer_use = is_computer_use_deploy_supported()
     return BuiltinToolFlags(
-        enable_browser="browser" in tools,
-        enable_computer_use="computer_use" in tools,
-        enable_file_ops="file_ops" in tools,
-        enable_code_execute="code_execute" in tools,
-        enable_wiki="wiki" in tools,
-        enable_kanban="kanban" in tools,
-        enable_cron_eager="cron" in tools,
-        enable_answer_tool="answer_tool" in tools,
-        enable_render_ui="render_ui" in tools,
-        enable_planning="planning" in tools,
-        enable_structured_clarify="structured_clarify" in tools,
-        enable_external_cli="external_cli" in tools,
+        enable_browser="browser" in effective_tools,
+        enable_computer_use=(
+            "computer_use" in effective_tools and deploy_supports_computer_use
+        ),
+        enable_file_ops="file_ops" in effective_tools,
+        enable_code_execute="code_execute" in effective_tools,
+        enable_wiki="wiki" in effective_tools,
+        enable_kanban="kanban" in effective_tools,
+        enable_cron_eager="cron" in effective_tools,
+        enable_answer_tool="answer_tool" in effective_tools,
+        enable_render_ui="render_ui" in effective_tools,
+        enable_planning="planning" in effective_tools,
+        enable_structured_clarify="structured_clarify" in effective_tools,
+        enable_external_cli="external_cli" in effective_tools,
     )
 
 
@@ -238,9 +246,14 @@ class AgentProfileResolver:
                     if raw_builtin_tools is not None
                     else DEFAULT_ENABLED_BUILTIN_TOOLS
                 )
-                from app.services.agent.builtin_tool_ids import strip_legacy_builtin_tool_ids
+                from app.services.agent.builtin_tool_ids import (
+                    strip_deploy_incompatible_builtin_tools,
+                    strip_legacy_builtin_tool_ids,
+                )
 
-                stripped_tools = strip_legacy_builtin_tool_ids(coerced_tools)
+                stripped_tools = strip_deploy_incompatible_builtin_tools(
+                    strip_legacy_builtin_tool_ids(coerced_tools)
+                )
                 tools_tuple = tuple(
                     normalize_enabled_builtin_tools(stripped_tools)
                 )

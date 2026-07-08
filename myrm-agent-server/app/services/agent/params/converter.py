@@ -449,12 +449,19 @@ async def convert_to_general_agent_params(
                 user_instructions = (
                     f"{user_instructions}\n\n{resolved.system_prompt}" if user_instructions else resolved.system_prompt
                 )
-            # Inject Hybrid Routing Rules if both browser and computer_use are enabled
+            # Inject Hybrid Routing Rules when browser + desktop control are both runtime-ready
             if (
                 resolved.enabled_builtin_tools
                 and "browser" in resolved.enabled_builtin_tools
                 and "computer_use" in resolved.enabled_builtin_tools
             ):
+                from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+                hybrid_ready = is_computer_use_deploy_supported()
+            else:
+                hybrid_ready = False
+
+            if hybrid_ready:
                 hybrid_routing_rule = (
                     "\n\n[HYBRID EXECUTION ROUTING RULES]\n"
                     "You have both 'browser' and 'computer_use' (desktop) tools available. You MUST follow these strict routing rules:\n"

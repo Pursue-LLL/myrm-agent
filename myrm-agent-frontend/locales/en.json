@@ -11693,6 +11693,7 @@
     "gates": {
       "cronTitle": "Cron requires Companion or above",
       "cronDescription": "Upgrade to enable scheduled tasks and automation on your cloud sandbox.",
+      "computerUseDescription": "Upgrade to Pro to enable live visual desktop and desktop control on your cloud sandbox.",
       "ingressTitle": "Public ingress requires Companion or above",
       "ingressDescription": "Upgrade to expose webhooks and channel callbacks on a public URL for your cloud sandbox.",
       "subagentTitle": "Sub-agents require Companion or above",

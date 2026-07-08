@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from unittest.mock import patch
 
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.builtin_tool_ids import (
@@ -85,6 +86,31 @@ def test_strip_legacy_task_tracking_on_read_path() -> None:
     assert normalize_enabled_builtin_tools(
         strip_legacy_builtin_tool_ids(["web_search", "task_tracking"])
     ) == ["web_search"]
+
+
+def test_strip_deploy_incompatible_removes_computer_use_when_unsupported() -> None:
+    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+
+    with patch(
+        "app.config.computer_use_deploy.is_computer_use_deploy_supported",
+        return_value=False,
+    ):
+        assert strip_deploy_incompatible_builtin_tools(["web_search", "computer_use"]) == [
+            "web_search"
+        ]
+
+
+def test_strip_deploy_incompatible_keeps_computer_use_when_supported() -> None:
+    from app.services.agent.builtin_tool_ids import strip_deploy_incompatible_builtin_tools
+
+    with patch(
+        "app.config.computer_use_deploy.is_computer_use_deploy_supported",
+        return_value=True,
+    ):
+        assert strip_deploy_incompatible_builtin_tools(["browser", "computer_use"]) == [
+            "browser",
+            "computer_use",
+        ]
 
 
 def test_normalize_rejects_legacy_task_tracking() -> None:

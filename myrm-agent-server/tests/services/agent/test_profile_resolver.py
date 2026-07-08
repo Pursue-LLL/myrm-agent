@@ -726,6 +726,15 @@ class TestResolveBuiltinToolFlags:
         flags = resolve_builtin_tool_flags(tools)
         assert all(flags.values())
 
+    def test_computer_use_flag_false_when_deploy_unsupported(self):
+        with patch(
+            "app.config.computer_use_deploy.is_computer_use_deploy_supported",
+            return_value=False,
+        ):
+            flags = resolve_builtin_tool_flags(["computer_use", "browser"])
+        assert flags["enable_computer_use"] is False
+        assert flags["enable_browser"] is True
+
     def test_cron_maps_to_enable_cron_eager(self):
         flags = resolve_builtin_tool_flags(["cron"])
         assert flags["enable_cron_eager"] is True

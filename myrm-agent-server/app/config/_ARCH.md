@@ -26,6 +26,7 @@
 | `migrator.py` | ✅ 核心 | 配置迁移工具（check_and_migrate_config，版本升级时自动迁移） | ✅ |
 | `browser.py` | ✅ 核心 | 浏览器池配置工厂：`get_browser_pool_config()`（Local→AUTO+CDP，Sandbox→LAUNCH，支持 cloud endpoint 注入）；`resolve_cloud_browser_endpoint()`（异步读取 DB 云浏览器配置）；`get_browser_launch_options()`（Local fallback→`headless=False`） | ✅ |
 | `deploy_mode.py` | ✅ 核心 | 部署模式检测（local/tauri/sandbox/webui），存储模式判断 | ✅ |
+| `computer_use_deploy.py` | ✅ 核心 | `computer_use` deploy 门控：LOCAL 始终可用；SANDBOX 需 `VISUAL_DESKTOP=1` + CP `enable_vnc`（30s 缓存）；供 profile strip、factory setup、hybrid routing | ✅ |
 | `deploy_identity.py` | ✅ 辅助 | 单租户部署身份哨兵（`get_deploy_identity`，供 FastAPI Depends 与 memory 依赖注入） | ✅ |
 | `env.py` | ✅ 核心 | `is_debug_mode()` — **DEBUG env 唯一读取点** | ✅ |
 | `logging.py` | ✅ 核心 | 日志配置（configure_logging，根据环境设置日志级别和格式） | ✅ |
