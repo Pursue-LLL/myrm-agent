@@ -6,11 +6,13 @@ app.server.lifespan::optimized_lifespan (POS: 生命周期函数)
 app.config.settings::settings (POS: 统一配置中心)
 
 [OUTPUT]
-FastAPI 应用实例：HTTP 服务入口，生命周期管理，中间件注册，Prometheus metrics暴露
+FastAPI 应用实例：HTTP 服务入口，生命周期管理，中间件注册，Prometheus metrics暴露，
+OpenAPI schema（含 bearerAuth security scheme 和 API 认证说明）
 
 [POS]
 应用入口。创建 FastAPI 实例，注册路由和中间件，管理启动/关闭生命周期。
 支持三种运行模式（Desktop/WebUI Local/WebUI Remote），根据环境变量动态配置监听地址和端口。
+通过 _custom_openapi() 注入 bearerAuth security scheme，使 Swagger UI Authorize 按钮可用。
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ from app.database.db_operational_handlers import register_database_operational_h
 from app.server.exceptions import general_exception_handler, not_found_handler
 from app.server.lifespan import optimized_lifespan
 from app.server.middlewares import register_middlewares
+from app.server.openapi_security import OPENAPI_API_DESCRIPTION, install_custom_openapi
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +52,11 @@ register_server_integration_write_patterns()
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="AI Agent后端服务",
+    description=OPENAPI_API_DESCRIPTION,
     lifespan=optimized_lifespan,
 )
+
+install_custom_openapi(app)
 
 register_middlewares(app)
 
