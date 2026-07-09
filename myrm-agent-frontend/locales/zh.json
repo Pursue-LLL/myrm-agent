@@ -3328,7 +3328,7 @@
         "launch": "始终新启",
         "launchDesc": "始终启动全新浏览器实例（不复用 Chrome 的登录状态）",
         "connect": "连接现有",
-        "connectDesc": "通过 CDP 连接你运行中的 Chrome（需 Chrome 以 --remote-debugging-port 启动）"
+        "connectDesc": "通过 CDP 连接主 Chrome（一次性在 chrome://inspect/#remote-debugging 开启远程调试即可）"
       },
       "status": {
         "connected": "已连接系统 Chrome",

@@ -407,19 +407,19 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                   {browserSource === 'extension' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSourceExtensionWarning', { fallback: 'Requires Browser Extension to be connected. The agent will operate in your real browser.' })}
+                      {t('form.browserSource.extensionWarning')}
                     </p>
                   )}
                   {browserSource === 'connect' && (
                     <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSourceConnectInfo', { fallback: 'Requires Chrome launched with --remote-debugging-port=9222.' })}
+                      {t('form.browserSource.connectInfo')}
                     </p>
                   )}
                   {browserSource === 'remote' && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                       <AlertCircle size={12} />
-                      {t('form.browserSourceRemoteWarning', { fallback: 'Requires cloud browser credentials configured in Settings.' })}
+                      {t('form.browserSource.remoteWarning')}
                     </p>
                   )}
                 </div>

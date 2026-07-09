@@ -3294,7 +3294,7 @@
         "launch": "Always New",
         "launchDesc": "Always launch a new browser instance (no login sessions from your Chrome)",
         "connect": "Connect Existing",
-        "connectDesc": "Connect to your running Chrome via CDP (requires Chrome started with --remote-debugging-port)"
+        "connectDesc": "Connect to your main Chrome via CDP (enable remote debugging once at chrome://inspect/#remote-debugging)"
       },
       "status": {
         "connected": "Connected to system Chrome",

@@ -139,8 +139,8 @@ class ExtensionBridgeService:
         if not cdp_endpoint:
             raise ExtensionBridgeNotAvailable(
                 "Extension bridge does not expose a direct CDP endpoint. "
-                "For full browser control, launch Chrome with --remote-debugging-port "
-                "and use LaunchMode.CONNECT_OVER_CDP instead."
+                "Enable remote debugging on your main Chrome at chrome://inspect/#remote-debugging, "
+                "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
             )
 
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
@@ -168,8 +168,8 @@ class ExtensionBridgeService:
         if not cdp_endpoint:
             raise ExtensionBridgeNotAvailable(
                 f"Extension bridge does not expose a direct CDP endpoint for domain '{domain}'. "
-                "For full browser control, launch Chrome with --remote-debugging-port "
-                "and use LaunchMode.CONNECT_OVER_CDP instead."
+                "Enable remote debugging on your main Chrome at chrome://inspect/#remote-debugging, "
+                "then use LaunchMode.CONNECT_OVER_CDP or AUTO (do not launch a second isolated Chrome)."
             )
 
         browser = await pw.chromium.connect_over_cdp(cdp_endpoint, timeout=timeout * 1000)
