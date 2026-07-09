@@ -327,6 +327,7 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
           const needsInstall = pending.some(
             (issue) =>
               issue.kind === 'dependency' &&
+              issue.severity === 'error' &&
               typeof issue.fix === 'string' &&
               issue.fix.startsWith('uv sync'),
           );

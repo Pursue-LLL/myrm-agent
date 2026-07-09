@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -31,6 +31,8 @@ from app.channels.providers.wechat.ilink_channel import (
 )
 from app.channels.types import (
     ChannelStatus,
+    IssueKind,
+    IssueSeverity,
     MediaAttachment,
     MediaType,
     OutboundMessage,
@@ -520,6 +522,38 @@ class TestPollLoop:
         ch._client.get_updates = AsyncMock(side_effect=mock_get_updates)
         await ch._poll_loop()
         assert ch._get_updates_buf == "new_buf"
+
+
+# ── collect_issues (optional voice codec) ─────────────────────────────
+
+
+class TestCollectIssues:
+    def test_missing_pilk_emits_warning_dependency(self) -> None:
+        ch = _make_channel()
+        poll_task = MagicMock()
+        poll_task.done.return_value = False
+        ch._poll_task = poll_task
+        with patch(
+            "app.channels.providers.wechat.ilink_channel.feature_missing",
+            return_value=("pilk>=0.2.4",),
+        ):
+            issues = ch.collect_issues()
+        dep = [i for i in issues if i.kind == IssueKind.DEPENDENCY]
+        assert len(dep) == 1
+        assert dep[0].severity == IssueSeverity.WARNING
+        assert "wechat-silk" in dep[0].fix
+
+    def test_pilk_present_no_dependency_issue(self) -> None:
+        ch = _make_channel()
+        poll_task = MagicMock()
+        poll_task.done.return_value = False
+        ch._poll_task = poll_task
+        with patch(
+            "app.channels.providers.wechat.ilink_channel.feature_missing",
+            return_value=(),
+        ):
+            issues = ch.collect_issues()
+        assert not any(i.kind == IssueKind.DEPENDENCY for i in issues)
 
 
 # ── Temp Dir ───────────────────────────────────────────────────────────

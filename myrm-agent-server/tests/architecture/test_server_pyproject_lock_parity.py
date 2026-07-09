@@ -14,6 +14,11 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 _PYPROJECT = _SERVER_ROOT / "pyproject.toml"
 _LOCK_PATH = _SERVER_ROOT / "uv.lock"
 
+_FORBIDDEN_MAIN_DEPS = (
+    "camoufox",
+    "pilk",
+)
+
 _FORBIDDEN_REQUIRES_DIST = (
     "aiofiles",
     "advanced-tools",
@@ -62,6 +67,14 @@ def test_pyproject_main_deps_have_evidence_packages() -> None:
 
 
 @pytest.mark.architecture
+def test_pyproject_main_deps_exclude_moved_optional_packages() -> None:
+    """Regression: optional-only packages must not reappear in main dependencies."""
+    names = _main_dependency_names()
+    for forbidden in _FORBIDDEN_MAIN_DEPS:
+        assert forbidden not in names, f"{forbidden} must not be a main dependency"
+
+
+@pytest.mark.architecture
 def test_lock_forbids_removed_declarations() -> None:
     """Regression: dead deps and retired extras must not reappear in lock metadata."""
     block = _lock_requires_dist_block()
@@ -98,6 +111,14 @@ def test_lock_harness_editable_monorepo_path() -> None:
         pytest.skip("lock already pinned to registry; PyPI network check may have been unreachable")
     assert 'editable = "../../myrm-agent-harness"' in text
     assert 'editable = "../myrm-agent-harness"' not in text
+
+
+@pytest.mark.architecture
+def test_lock_includes_wechat_silk_extra_markers() -> None:
+    """WeChat SILK optional extra must be present in lock metadata."""
+    block = _lock_requires_dist_block()
+    assert "extra == 'wechat-silk'" in block or 'extra == "wechat-silk"' in block
+    assert "pilk" in block
 
 
 @pytest.mark.architecture

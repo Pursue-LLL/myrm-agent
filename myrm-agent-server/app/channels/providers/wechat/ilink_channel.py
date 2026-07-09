@@ -59,8 +59,12 @@ from app.channels.types import (
     RenderStyle,
     StartMode,
 )
+from myrm_agent_harness.runtime.lazy_deps import feature_missing
 
 logger = logging.getLogger(__name__)
+
+_WECHAT_SILK_FEATURE = "platform.wechat-silk"
+_WECHAT_SILK_INSTALL = "uv sync --extra wechat-silk"
 
 _MAX_TEXT_LENGTH = 4096
 _MAX_CONSECUTIVE_FAILURES = 5
@@ -337,6 +341,18 @@ class WeChatILinkChannel(BaseChannel):
                     kind=IssueKind.RUNTIME,
                     severity=IssueSeverity.ERROR,
                     message=self.health.last_error,
+                )
+            )
+        if feature_missing(_WECHAT_SILK_FEATURE):
+            issues.append(
+                ChannelIssue(
+                    kind=IssueKind.DEPENDENCY,
+                    severity=IssueSeverity.WARNING,
+                    message=(
+                        "Voice SILK decoder (pilk, GPLv3) is not installed. "
+                        "Voice messages without platform ASR text will be dropped."
+                    ),
+                    fix=_WECHAT_SILK_INSTALL,
                 )
             )
         return issues

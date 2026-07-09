@@ -5,11 +5,11 @@
 - app.channels.providers.registry::get_channel_spec, clear_cache (POS: Central channel provider registry)
 
 [OUTPUT]
-- install_channel_dependencies: pip-install optional SDK wheels for a channel
-- ensure_channel_dependencies_ready: Preflight before enable/toggle
+- install_channel_dependencies: pip-install optional SDK wheels and optional capability extras for a channel
+- ensure_channel_dependencies_ready: Preflight before enable/toggle (ERROR-level SDK deps only; WARNING optional extras are manual install)
 
 [POS]
-Server business layer for Settings one-click channel SDK installation.
+Server business layer for Settings one-click channel dependency installation (SDK-gated and optional capability extras).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from filelock import FileLock, Timeout
 from myrm_agent_harness.runtime.lazy_deps import FeatureUnavailable, ensure, feature_missing
 
 from app.channels.providers.registry import clear_cache
-from app.channels.types import ChannelIssue, IssueKind
+from app.channels.types import ChannelIssue, IssueKind, IssueSeverity
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -39,17 +39,37 @@ _CHANNEL_RELOAD_MODULES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Optional capability deps: channel runs without them; sub-features degrade (see collect_issues).
+_OPTIONAL_CAPABILITY_FEATURES: dict[str, tuple[str, ...]] = {
+    "wechat": ("platform.wechat-silk",),
+}
+
+
+def _optional_capability_features(channel_name: str, issues: list[ChannelIssue]) -> tuple[str, ...]:
+    """Resolve optional capability lazy features when diagnostics request install."""
+    configured = _OPTIONAL_CAPABILITY_FEATURES.get(channel_name, ())
+    if not configured:
+        return ()
+    for issue in issues:
+        if issue.kind != IssueKind.DEPENDENCY:
+            continue
+        fix = issue.fix or ""
+        if "wechat-silk" in fix:
+            return configured
+    return ()
+
 
 def _resolve_lazy_features(channel_name: str, issues: list[ChannelIssue]) -> tuple[str, ...]:
     """Map channel + diagnostic issues to harness lazy_deps feature keys."""
     from app.channels.providers.registry import get_channel_spec
 
+    features: list[str] = list(_optional_capability_features(channel_name, issues))
+
     spec = get_channel_spec(channel_name)
     if spec is None or not spec.sdk_package:
-        return ()
+        return tuple(features)
 
     pkg = spec.sdk_package.lower()
-    features: list[str] = []
     if pkg == "mautrix":
         features.append("platform.matrix")
         for issue in issues:
@@ -107,6 +127,11 @@ def install_channel_dependencies(channel_name: str, issues: list[ChannelIssue]) 
 
 def ensure_channel_dependencies_ready(channel_name: str, issues: list[ChannelIssue]) -> tuple[bool, str]:
     """Ensure optional deps are present before enabling a channel (no-op if already satisfied)."""
+    blocking = any(
+        issue.kind == IssueKind.DEPENDENCY and issue.severity == IssueSeverity.ERROR for issue in issues
+    )
+    if not blocking:
+        return True, ""
     features = _resolve_lazy_features(channel_name, issues)
     if not features or not _features_need_install(features):
         return True, ""

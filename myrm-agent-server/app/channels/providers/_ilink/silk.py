@@ -6,7 +6,7 @@ SILK → WAV for STT processing (Whisper/Groq/Deepgram).
 [INPUT]
 
 [OUTPUT]
-- silk_to_wav: Convert WeChat SILK file to WAV format
+- silk_to_wav: Convert WeChat SILK file to WAV format (requires optional `pilk` / extra `wechat-silk`)
 
 [POS]
 WeChat voice format converter. Converts SILK-encoded voice files to WAV format.
@@ -37,7 +37,10 @@ def silk_to_wav(silk_path: Path, wav_path: Path, sample_rate: int = 24000) -> bo
         pilk.silk_to_wav(str(silk_path), str(wav_path), sample_rate)
         return wav_path.exists()
     except (ImportError, TypeError):
-        logger.warning("pilk not installed — SILK audio conversion unavailable")
+        logger.warning(
+            "pilk not installed — SILK audio conversion unavailable. "
+            "Install: uv sync --extra wechat-silk"
+        )
         return False
     except Exception as exc:
         logger.warning("SILK decode failed: %s", exc)

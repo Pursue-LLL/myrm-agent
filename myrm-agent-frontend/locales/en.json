@@ -9345,6 +9345,7 @@
       "msgUvSyncRequired": "A dependency is missing. Reinstall packages with uv.",
       "msgMautrixMissing": "Matrix SDK (mautrix) is not installed.",
       "msgLarkMissing": "Feishu WebSocket SDK (lark-oapi) is not installed.",
+      "msgWechatSilkMissing": "WeChat voice SILK decoder (pilk) is not installed. Voice without platform transcription will be dropped.",
       "installDependencies": "Install dependencies",
       "installingDependencies": "Installing…",
       "installDependenciesFailed": "Could not install dependencies. Try the terminal command below.",

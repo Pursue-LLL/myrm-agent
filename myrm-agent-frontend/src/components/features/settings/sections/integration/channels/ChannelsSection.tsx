@@ -115,6 +115,7 @@ const ISSUE_MESSAGE_PATTERNS: IssuePattern[] = [
   [/SDK.*not installed/i, 'sdkNotInstalled'],
   [/mautrix not installed/i, 'msgMautrixMissing'],
   [/lark-oapi not installed/i, 'msgLarkMissing'],
+  [/SILK decoder.*not installed/i, 'msgWechatSilkMissing'],
   [/Run: uv sync/i, 'msgUvSyncRequired'],
   [/token.*failed/i, 'tokenFailed'],
   [/connection failed/i, 'connectionFailed'],

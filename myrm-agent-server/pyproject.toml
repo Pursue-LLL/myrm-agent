@@ -25,7 +25,7 @@ dependencies = [
   "langchain>=1.3.11",      # Agent 工具/链定义 (70+ 文件)
   "langchain-core>=1.4.8", # 消息类型/BaseTool (70+ 文件)
   # --- Agent 框架 (PyPI wheel + compiled-core 平台包；见 docker/read_harness_pypi_spec.py) ---
-  "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc6",
+  "myrm-agent-harness[acp,browser,file-parsers,web,fastapi,retrieval,qdrant,image-processing,observability,compiled-core]==0.1.0rc5",
   # --- 渠道 HTTP（Matrix 另见 optional matrix extra）---
   "aiohttp>=3.14.1",           # Matrix channel + alert notifier HTTP client
   # --- 语音处理 ---
@@ -48,7 +48,6 @@ dependencies = [
   "edge-tts>=7.2.8",                    # TTS 文本转语音 (voice/tts.py)
   # --- 事件循环 ---
   "uvloop>=0.22.1; sys_platform != 'win32'", # 高性能事件循环 (uvicorn_runner.py)
-  "pilk>=0.2.4",                        # Silk 音频编解码 (_ilink/silk.py)
   "orjson>=3.11.9",                     # 高性能 JSON (sse_helpers + streaming + login)
   "wakepy>=1.0.0",                      # 阻止系统休眠 (power/manager.py)
   "psutil>=7.2.2",                      # 系统监控 (server_lock + health + power)
@@ -72,6 +71,10 @@ matrix = [
 matrix-e2ee = [
   "mautrix[encryption]>=0.21.0",
 ]
+# WeChat iLink SILK voice codec (GPLv3 — optional; app/channels/providers/_ilink/silk.py)
+wechat-silk = [
+  "pilk>=0.2.4",
+]
 # 沙箱执行运行时绘图栈：代码执行工具生成图表/数据分析所需，仅随镜像 (--all-extras) 安装；
 # 本地精简模式 (uv sync 不带 --all-extras) 不引入，保持零开销启动。配合 matplotlibrc 的 CJK 默认字体。
 data-viz = [
@@ -88,7 +91,6 @@ environments = ["python_full_version >= '3.13' and python_full_version < '3.14'"
 override-dependencies = [
   "click>=8.4.2",
   "patchright>=1.61.1",
-  "camoufox>=0.4.11",
   "openai>=2.44.0",
   "aiohttp>=3.13.5",
   "opentelemetry-semantic-conventions>=0.61b0",

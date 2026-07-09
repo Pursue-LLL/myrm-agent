@@ -23,13 +23,33 @@ async def test_discover_capability_e2e_real_model():
     class DummyInput(BaseModel):
         arg1: str = Field(description="A dummy argument")
 
-    class DummyDeferredTool(BaseTool):
-        name: str = "dummy_native_tool"
-        description: str = "A dummy native tool for testing. Use this tool if the user asks to test the dummy capability."
-        args_schema: type[BaseModel] = DummyInput
+    def _make_dummy_tool(tool_name: str, tool_desc: str) -> BaseTool:
+        class _DummyDeferredTool(BaseTool):
+            name: str = tool_name
+            description: str = tool_desc
+            args_schema: type[BaseModel] = DummyInput
 
-        def _run(self, arg1: str) -> str:
-            return f"Dummy tool executed with arg: {arg1}"
+            def _run(self, arg1: str) -> str:
+                return f"{tool_name} executed with arg: {arg1}"
+
+        return _DummyDeferredTool()
+
+    # DeferEconomics binds discover_capability_tool only when the defer pool is large
+    # (len > 2) or contains a large schema tool. Three small tools trigger the gateway.
+    dummy_tools = [
+        _make_dummy_tool(
+            "dummy_native_tool",
+            "A dummy native tool for testing deferred discovery.",
+        ),
+        _make_dummy_tool(
+            "dummy_native_tool_b",
+            "Second dummy deferred tool for economics threshold.",
+        ),
+        _make_dummy_tool(
+            "dummy_native_tool_c",
+            "Third dummy deferred tool for economics threshold.",
+        ),
+    ]
 
     import os
 
@@ -53,7 +73,7 @@ async def test_discover_capability_e2e_real_model():
 
     agent = BaseAgent(
         llm=llm,
-        discoverable_tools=[DummyDeferredTool()],
+        discoverable_tools=dummy_tools,
         system_prompt=(
             'You are a helpful assistant. Use discover_capability with query "*" to list '
             "all deferred tools, then summarize the tool names you found. Do not call any "

@@ -59,6 +59,7 @@ _CHANNEL_INSTALL_HINTS: dict[str, str] = {
     "matrix": "uv sync --extra matrix",
     "discord": "uv sync --extra channels-sdk",
     "feishu": "uv sync --extra channels-sdk",
+    "wechat": "uv sync --extra wechat-silk",
 }
 
 # Built-in channels with harness lazy-install mapping (see dependency_install.py).
@@ -71,11 +72,13 @@ def get_channel_spec(name: str) -> ChannelSpec | None:
 
 
 def channel_install_command(channel_name: str) -> str:
-    """Return the ``uv sync`` hint for optional SDK channels."""
+    """Return the ``uv sync`` hint for optional SDK or capability extras."""
+    if channel_name in _CHANNEL_INSTALL_HINTS:
+        return _CHANNEL_INSTALL_HINTS[channel_name]
     spec = get_channel_spec(channel_name)
     if spec is None or not spec.sdk_package:
         return ""
-    return _CHANNEL_INSTALL_HINTS.get(channel_name, "uv sync")
+    return "uv sync"
 
 
 def _channel_install_hint(channel_name: str, spec: ChannelSpec | None) -> str:
