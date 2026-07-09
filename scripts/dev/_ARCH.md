@@ -14,6 +14,7 @@
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（pytest）；UI 用 MCP chrome-devtools |
+| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：Chrome/CDP/服务健康检查 |
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — API prepare（delegate via agent-stream） |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
@@ -32,6 +33,15 @@
 | `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
+| `chrome-e2e-preflight.sh` | MCP chrome-devtools 前置检查（Chrome 进程、DevToolsActivePort 新鲜度、WS、:3000/:8080）→ `CHROME_E2E_READY` |
+
+**Chrome E2E 稳定性清单（MCP `--autoConnect`）**
+
+1. 仅使用**主 Chrome 登录态**；禁止 `MyrmChromeMcp` / 第二 `--user-data-dir` / `start-chrome-mcp-debug.sh`
+2. `chrome://inspect/#remote-debugging` → Allow；`DevToolsActivePort` mtime 须为本次会话（跑 `./myrm-agent/scripts/dev/chrome-e2e-preflight.sh`）
+3. **Cmd+Q 重启 Cursor** 后再跑 MCP（每对话一条 `chrome-devtools-mcp` 进程，陈旧进程会导致握手失败）
+4. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
+5. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `:3000`（避免 Next.js 冷启动 navigation timeout）
 
 **已废弃（仅打印错误并 exit 1）**：`clarify-chrome-e2e.mjs`、`browser-delegate-chrome-e2e.mjs` — 曾拉起第二 Chrome 实例，与 `--autoConnect` 冲突。
 
