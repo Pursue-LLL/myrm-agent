@@ -53,6 +53,7 @@ myrm_agent_harness.agent.meta_tools.file_ops.revert_service
 myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools
 myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec
 myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool
+myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool
 myrm_agent_harness.agent.meta_tools.progress.schemas
 myrm_agent_harness.agent.meta_tools.progress.storage
 myrm_agent_harness.agent.meta_tools.skills.search.hybrid_engine
