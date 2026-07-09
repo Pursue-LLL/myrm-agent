@@ -126,6 +126,18 @@ class ExtensionBridgeService:
                 return True
         return False
 
+    def _resolve_cdp_endpoint(self) -> str | None:
+        """Discover main Chrome CDP endpoint when extension bridge has no cached value."""
+        if self._cdp_endpoint:
+            return self._cdp_endpoint
+        from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import discover_chrome_cdp_endpoint
+
+        discovered = discover_chrome_cdp_endpoint()
+        if discovered:
+            self._cdp_endpoint = discovered
+            logger.info("Extension bridge: discovered main Chrome CDP at %s", discovered)
+        return self._cdp_endpoint
+
     async def connect(self, *, timeout: float = 10.0) -> BrowserInstance:
         if not self._connected or self._ws is None:
             raise ExtensionBridgeNotAvailable(
@@ -135,7 +147,7 @@ class ExtensionBridgeService:
         tab_id = await self._request_debugger_attach(timeout=timeout)
         pw = await self._ensure_playwright()
 
-        cdp_endpoint = self._cdp_endpoint
+        cdp_endpoint = self._resolve_cdp_endpoint()
         if not cdp_endpoint:
             raise ExtensionBridgeNotAvailable(
                 "Extension bridge does not expose a direct CDP endpoint. "
@@ -164,7 +176,7 @@ class ExtensionBridgeService:
         tab_id = await self._request_debugger_attach(domain=domain, timeout=timeout)
         pw = await self._ensure_playwright()
 
-        cdp_endpoint = self._cdp_endpoint
+        cdp_endpoint = self._resolve_cdp_endpoint()
         if not cdp_endpoint:
             raise ExtensionBridgeNotAvailable(
                 f"Extension bridge does not expose a direct CDP endpoint for domain '{domain}'. "
