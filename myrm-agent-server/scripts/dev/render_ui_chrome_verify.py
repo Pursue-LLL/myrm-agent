@@ -4,7 +4,7 @@
 Prerequisites:
 - Backend :8080 healthy (`./myrm dev` or `python run.py`)
 - Frontend :3000 running (`bun run dev` in myrm-agent-frontend)
-- Chrome with CDP on :9222 (same as browser toolkit / MCP config)
+- Chrome with remote debugging on your **main** profile (enable once at `chrome://inspect/#remote-debugging`, or harness `discover_chrome_cdp_endpoint()`)
 - LITE_API_KEY or BASIC_API_KEY in .env.test / environment
 
 Usage (from myrm-agent-server/):
@@ -45,7 +45,23 @@ class AgentStreamEvent(TypedDict, total=False):
 
 DEFAULT_BACKEND = "http://127.0.0.1:8080"
 DEFAULT_FRONTEND = "http://localhost:3000"
-DEFAULT_CDP = "http://127.0.0.1:9222"
+DEFAULT_CDP = "auto"
+
+
+def _resolve_cdp_endpoint(cli_cdp: str) -> str:
+    """Resolve CDP URL: explicit --cdp, else auto-discover main Chrome (never spawn isolated profile)."""
+    if cli_cdp != "auto":
+        return cli_cdp
+    from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import discover_chrome_cdp_endpoint
+
+    discovered = discover_chrome_cdp_endpoint()
+    if discovered:
+        return discovered
+    raise SystemExit(
+        "No main Chrome CDP endpoint found. Enable remote debugging once at "
+        "chrome://inspect/#remote-debugging (do not launch a second Chrome with --user-data-dir)."
+    )
+
 
 RENDER_UI_QUERY = (
     'Call render_ui_tool exactly once. Required arguments: '
@@ -61,7 +77,7 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify render_ui SSE + Chrome interactive UI DOM.")
     parser.add_argument("--backend", default=DEFAULT_BACKEND, help="Backend base URL")
     parser.add_argument("--frontend", default=DEFAULT_FRONTEND, help="Frontend base URL")
-    parser.add_argument("--cdp", default=DEFAULT_CDP, help="Chrome CDP endpoint")
+    parser.add_argument("--cdp", default=DEFAULT_CDP, help="Chrome CDP endpoint (default: auto-discover main Chrome)")
     parser.add_argument("--skip-chrome", action="store_true", help="Only verify agent-stream SSE")
     parser.add_argument("--ui-timeout-ms", type=int, default=90_000, help="Chrome UI wait timeout")
     return parser.parse_args()
@@ -193,7 +209,7 @@ def main() -> None:
         _verify_chrome_dom(
             frontend=args.frontend,
             chat_id=chat_id,
-            cdp_endpoint=args.cdp,
+            cdp_endpoint=_resolve_cdp_endpoint(args.cdp),
             ui_timeout_ms=args.ui_timeout_ms,
         )
     )

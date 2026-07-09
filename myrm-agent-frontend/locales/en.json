@@ -5067,7 +5067,7 @@
           "remoteDesc": "Connects to Browserbase or other cloud browser services (configure in Settings first)."
         },
         "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser.",
-        "connectInfo": "Requires Chrome launched with --remote-debugging-port=9222. The agent will connect to your running browser.",
+        "connectInfo": "Enable remote debugging once at chrome://inspect/#remote-debugging on your main Chrome. Myrm auto-discovers the CDP port — do not launch a second isolated Chrome profile.",
         "remoteWarning": "Requires cloud browser credentials configured in Settings. The agent will use a remote browser instance."
       },
       "mcpTools": {

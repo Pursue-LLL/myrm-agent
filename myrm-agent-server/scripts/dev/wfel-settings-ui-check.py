@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""WFEL settings UI full-path check: expand card, click Test Jina, assert API response."""
+"""WFEL settings UI full-path check: expand card, click Test Jina, assert API response.
+
+Requires remote debugging on your main Chrome (chrome://inspect/#remote-debugging).
+Never spawns an isolated Chrome profile.
+"""
 
 from __future__ import annotations
 
@@ -8,14 +12,26 @@ import sys
 
 from patchright.sync_api import sync_playwright
 
-CDP = "http://127.0.0.1:9222"
+from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import discover_chrome_cdp_endpoint
+
 URL = "http://127.0.0.1:3000/settings/search"
 TIMEOUT_MS = 8000
 
 
+def _resolve_cdp() -> str:
+    endpoint = discover_chrome_cdp_endpoint()
+    if endpoint:
+        return endpoint
+    raise SystemExit(
+        "No main Chrome CDP endpoint found. Enable remote debugging at "
+        "chrome://inspect/#remote-debugging (do not launch a second Chrome)."
+    )
+
+
 def main() -> int:
+    cdp = _resolve_cdp()
     with sync_playwright() as playwright:
-        browser = playwright.chromium.connect_over_cdp(CDP, timeout=TIMEOUT_MS)
+        browser = playwright.chromium.connect_over_cdp(cdp, timeout=TIMEOUT_MS)
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         page = next((pg for pg in context.pages if "settings/search" in pg.url), None)
         if page is None:

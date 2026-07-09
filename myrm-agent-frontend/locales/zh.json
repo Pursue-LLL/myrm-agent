@@ -5067,7 +5067,7 @@
           "remoteDesc": "连接 Browserbase 等云端浏览器服务（需先在设置中配置）。"
         },
         "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。",
-        "connectInfo": "需要 Chrome 以 --remote-debugging-port=9222 启动。Agent 将连接你正在运行的浏览器。",
+        "connectInfo": "在主 Chrome 打开 chrome://inspect/#remote-debugging 并开启远程调试（一次性）。Myrm 自动发现 CDP 端口——请勿再启动第二个隔离 Chrome 实例。",
         "remoteWarning": "需要先在设置中配置云端浏览器凭据。Agent 将使用远程浏览器实例。"
       },
       "dialogPolicy": {

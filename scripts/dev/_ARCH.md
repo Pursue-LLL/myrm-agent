@@ -24,7 +24,7 @@
 
 ## WebUI E2E（MCP chrome-devtools，禁止 @playwright/test）
 
-产品 WebUI 端到端 UI 验收使用 **MCP chrome-devtools**（真实 Chrome 登录态 `:3000`），禁止 `@playwright/test` 与 pytest 无头浏览器。
+产品 WebUI 端到端 UI 验收使用 **MCP chrome-devtools `--autoConnect`**（用户主 Chrome 登录态 `:3000`），禁止 `@playwright/test`、pytest 无头浏览器，**禁止**启动第二个隔离 Chrome（`MyrmChromeMcp` / 自定义 `--user-data-dir` / 固定 `:9222` 空 profile）。
 
 | 脚本 | 职责 |
 |------|------|
@@ -32,6 +32,8 @@
 | `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
+
+**已废弃（仅打印错误并 exit 1）**：`clarify-chrome-e2e.mjs`、`browser-delegate-chrome-e2e.mjs` — 曾拉起第二 Chrome 实例，与 `--autoConnect` 冲突。
 
 环境变量：`E2E_UI_BASE`（默认 `http://127.0.0.1:3000`）、`E2E_API_BASE`（默认 `http://127.0.0.1:8080`）、`E2E_ADMIN_PASSWORD`。
 
