@@ -101,7 +101,8 @@ def _collect_agent_stream(client: httpx.Client, payload: dict[str, object]) -> l
     collected: list[AgentStreamEvent] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=payload, timeout=180.0) as response:
         if response.status_code != 200:
-            raise SystemExit(f"agent-stream failed: {response.status_code} {response.text[:500]}")
+            body = response.read().decode("utf-8", errors="replace")
+            raise SystemExit(f"agent-stream failed: {response.status_code} {body[:500]}")
         for line in response.iter_lines():
             if not line or not line.startswith("data: "):
                 continue
