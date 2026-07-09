@@ -223,4 +223,49 @@ describe('messageStreamHandler handler slices', () => {
 
     expect(state.messages[0].uiArtifacts?.[0].data).toEqual({ name: 'Alice', age: 30 });
   });
+
+  it('UI_UPDATE data_update deep-merges nested object fields', async () => {
+    const assistant: Message = {
+      messageId: 'assistant-ui-nested',
+      chatId: 'chat-1',
+      createdAt: new Date('2026-06-04T00:00:00Z'),
+      content: '',
+      role: 'assistant',
+      uiArtifacts: [
+        {
+          surface_id: 'form_nested',
+          title: 'Form',
+          components: [],
+          root_ids: [],
+          data: { form: { note: '', env: 'staging' } },
+          actions: [],
+        },
+      ],
+    };
+    const state: StreamHandlerState = {
+      messages: [assistant],
+      messageAppeared: true,
+      loading: true,
+      scheduler: new AdaptiveScheduler(),
+    };
+
+    await handleMessageStream(
+      {
+        type: AgentEventType.UI_UPDATE,
+        subtype: 'data_update',
+        messageId: 'assistant-ui-nested',
+        data: { surface_id: 'form_nested', updates: { form: { note: 'done' } } },
+      },
+      '',
+      undefined,
+      false,
+      'partial',
+      state,
+      createStatefulActions(state),
+    );
+
+    expect(state.messages[0].uiArtifacts?.[0].data).toEqual({
+      form: { note: 'done', env: 'staging' },
+    });
+  });
 });

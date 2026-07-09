@@ -220,6 +220,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
                 render_ui_tool,
             )
+            from myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool import (
+                update_ui_data_tool,
+            )
 
             workspace_roots: tuple[str, ...] = getattr(self, "declared_allowed_roots", ())
             if workspace_roots:
@@ -229,7 +232,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     logger.warning("Failed to seed A2UI reference to workspace: %s", exc)
 
             tools.append(render_ui_tool)
-            logger.info("🎨 已加载 render_ui_tool（交互式 UI 渲染）[Turn1]")
+            tools.append(update_ui_data_tool)
+            logger.info("🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]")
 
         self._setup_image_generation_tools(
             tools,

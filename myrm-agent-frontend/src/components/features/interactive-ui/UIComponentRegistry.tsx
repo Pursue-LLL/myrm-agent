@@ -22,6 +22,7 @@ import { UICard } from './components/UICard';
 import { UIContainer } from './components/UIContainer';
 import { UIDivider } from './components/UIDivider';
 import { UITable } from './components/UITable';
+import { UIList } from './components/UIList';
 import { UIButtonGroup } from './components/UIButtonGroup';
 import { UIBadge } from './components/UIBadge';
 import { UIProgress } from './components/UIProgress';
@@ -82,7 +83,7 @@ const componentRegistry: Record<UIComponentType, UIComponentRenderer> = {
 
   // 数据展示组件
   table: UITable,
-  list: UIContainer,
+  list: UIList,
   image: UIImage,
   chart: UIChart,
   progress: UIProgress,

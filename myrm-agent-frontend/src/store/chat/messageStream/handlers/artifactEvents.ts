@@ -4,6 +4,7 @@
  */
 
 import type { StreamCtx, StreamTurn } from "../streamContext";
+import { mergeUiDataModel } from "../mergeUiDataModel";
 import * as H from "./handlerDeps";
 
 export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
@@ -140,7 +141,7 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
         const current = artifacts[artifactIndex];
         artifacts[artifactIndex] = {
           ...current,
-          data: { ...current.data, ...updates },
+          data: mergeUiDataModel(current.data, updates),
         };
       }
 

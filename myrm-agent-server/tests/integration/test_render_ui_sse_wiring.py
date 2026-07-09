@@ -18,6 +18,7 @@ from myrm_agent_harness.agent.artifacts.ui_registry import (
     pop_run_message_id,
 )
 from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import render_ui
+from myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool import update_ui_data
 from myrm_agent_harness.agent.streaming.artifact_events import collect_ui_artifacts
 from myrm_agent_harness.agent.streaming.types import AgentEventType
 from myrm_agent_harness.agent.types import AgentRunStatistics
@@ -459,6 +460,34 @@ async def test_collect_ui_artifacts_emits_data_update_after_registry_update() ->
     assert len(data_updates) == 1
     assert data_updates[0]["data"]["surface_id"] == artifact.surface_id
     assert data_updates[0]["data"]["updates"] == {"form": {"name": "Alice"}}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_collect_ui_artifacts_emits_data_update_after_update_ui_data_tool() -> None:
+    """update_ui_data_tool must stash UIDataUpdate and emit data_update SSE."""
+    message_id = "msg_update_ui_data_tool_collect"
+
+    with ArtifactContextManager(message_id=message_id):
+        render_ui(
+            title="Live List",
+            components=[{"id": "l1", "type": "list", "bindings": {"data": "$.items"}}],
+            root_ids=["l1"],
+            data={"items": [{"title": "A"}]},
+        )
+        pending = pop_pending_ui_events_for_message(message_id)
+        artifact = pending[0]
+        assert isinstance(artifact, UIArtifact)
+        register_ui_artifact(artifact)
+
+        update_ui_data(artifact.surface_id, {"items": [{"title": "A"}, {"title": "B"}]})
+
+        events = [event async for event in collect_ui_artifacts(message_id)]
+
+    data_updates = [event for event in events if event.get("subtype") == "data_update"]
+    assert len(data_updates) == 1
+    assert data_updates[0]["data"]["surface_id"] == artifact.surface_id
+    assert data_updates[0]["data"]["updates"] == {"items": [{"title": "A"}, {"title": "B"}]}
 
 
 @pytest.mark.integration

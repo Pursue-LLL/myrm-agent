@@ -3837,6 +3837,7 @@
             "archiveRestoreSizeProbeFailed": "Archive size check failed / 归档大小检查失败",
             "unknown": "Archive restore blocked / 归档恢复被阻断"
           },
+          "signal": "Signal / 信号",
           "signals": {
             "inactive": "Not active / 未激活",
             "restoreBlocked": "Restore needs a smaller range / 恢复需要更小范围",
@@ -3871,6 +3872,15 @@
           "policy": "Retention Policy / 保留策略",
           "observation": "Retention Signal / 保留信号",
           "sample": "Observation Sample / 观测样本",
+          "strategy": "Strategy / 策略",
+          "strategies": {
+            "inactive": "Inactive / 未激活",
+            "hotProtected": "Hot cache protected / 热缓存保护",
+            "insufficientData": "Insufficient data / 数据不足",
+            "coldEligible": "Cold cache eligible / 冷缓存可剪枝",
+            "coldWatch": "Cold cache watch / 冷缓存观察",
+            "stable": "Stable reuse / 稳定复用"
+          },
           "observationStates": {
             "observed": "Observed / 已观测",
             "estimated": "Estimated / 静态估算",
@@ -6429,6 +6439,8 @@
     "video_tool_tool_error": "Video generation failed",
     "render_ui_tool_tool": "Generating interactive UI",
     "render_ui_tool_tool_error": "Generate UI failed",
+    "update_ui_data_tool_tool": "Updating interactive UI data",
+    "update_ui_data_tool_tool_error": "Update UI data failed",
     "bash_code_execute_tool_tool": "Executing code",
     "bash_code_execute_tool_tool_error": "Code execution failed",
     "text_editor_tool_tool": "Editing file",
@@ -6500,6 +6512,7 @@
       "mcp_tool": "Tool execution",
       "skill_select_tool": "Selecting skill",
       "render_ui_tool": "Rendering UI",
+      "update_ui_data_tool": "Updating UI data",
       "answer_user_tool": "Generating answer",
       "request_answer_user_tool": "Preparing response"
     },

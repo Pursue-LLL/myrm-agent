@@ -24,6 +24,21 @@ _PERSISTED_STATUS_STEP_KEYS = frozenset({"archive_restore_blocked", "archive_res
 ACTIVE_COLLECTORS: dict[str, "StreamContentCollector"] = {}
 
 
+def _deep_merge_ui_data(
+    existing: dict[str, object],
+    updates: dict[str, object],
+) -> dict[str, object]:
+    """Recursively merge plain dict updates; arrays and scalars replace by key."""
+    merged = dict(existing)
+    for key, value in updates.items():
+        existing_value = merged.get(key)
+        if isinstance(existing_value, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge_ui_data(existing_value, value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _is_memory_recall_tool(tool_name: object) -> bool:
     return isinstance(tool_name, str) and tool_name in _MEMORY_RECALL_TOOL_NAMES
 
@@ -232,7 +247,7 @@ class StreamContentCollector:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
-                                existing_data.update(updates)
+                                artifact["data"] = _deep_merge_ui_data(existing_data, updates)
                             break
         elif event_type == "status":
             step_key = event.get("step_key")

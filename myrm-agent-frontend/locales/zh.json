@@ -3876,6 +3876,7 @@
             "archiveRestoreSizeProbeFailed": "归档大小检查失败 / Archive size check failed",
             "unknown": "归档恢复被阻断 / Archive restore blocked"
           },
+          "signal": "信号 / Signal",
           "signals": {
             "inactive": "未激活 / Not active",
             "restoreBlocked": "恢复需要更小范围 / Restore needs a smaller range",
@@ -3910,6 +3911,15 @@
           "policy": "保留策略 / Retention Policy",
           "observation": "保留信号 / Retention Signal",
           "sample": "观测样本 / Observation Sample",
+          "strategy": "策略 / Strategy",
+          "strategies": {
+            "inactive": "未激活 / Inactive",
+            "hotProtected": "热缓存保护 / Hot cache protected",
+            "insufficientData": "数据不足 / Insufficient data",
+            "coldEligible": "冷缓存可剪枝 / Cold cache eligible",
+            "coldWatch": "冷缓存观察 / Cold cache watch",
+            "stable": "稳定复用 / Stable reuse"
+          },
           "observationStates": {
             "observed": "已观测 / Observed",
             "estimated": "静态估算 / Estimated",
@@ -6429,6 +6439,8 @@
     "video_tool_tool_error": "视频生成失败",
     "render_ui_tool_tool": "生成交互界面",
     "render_ui_tool_tool_error": "生成界面失败",
+    "update_ui_data_tool_tool": "更新交互界面数据",
+    "update_ui_data_tool_tool_error": "更新界面数据失败",
     "bash_code_execute_tool_tool": "执行代码",
     "bash_code_execute_tool_tool_error": "代码执行失败",
     "text_editor_tool_tool": "编辑文件",
@@ -6500,6 +6512,7 @@
       "mcp_tool": "正在执行工具",
       "skill_select_tool": "正在选择技能",
       "render_ui_tool": "正在渲染界面",
+      "update_ui_data_tool": "正在更新界面数据",
       "answer_user_tool": "正在生成回答",
       "request_answer_user_tool": "正在准备回复"
     },

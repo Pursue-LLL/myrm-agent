@@ -57,10 +57,13 @@ def test_render_ui_eager_when_enabled() -> None:
     mixin._setup_search_and_basic_tools(tools, discoverable_tools)
 
     assert any(getattr(t, "name", None) == "render_ui_tool" for t in tools)
+    assert any(getattr(t, "name", None) == "update_ui_data_tool" for t in tools)
     assert not any(getattr(t, "name", None) == "render_ui_tool" for t in discoverable_tools)
+    assert not any(getattr(t, "name", None) == "update_ui_data_tool" for t in discoverable_tools)
 
     registry = _register_eager_tools(tools)
     _assert_turn1_eager(registry, "render_ui_tool")
+    _assert_turn1_eager(registry, "update_ui_data_tool")
 
 
 def test_render_ui_seeds_a2ui_reference_when_workspace_present(tmp_path: Path) -> None:

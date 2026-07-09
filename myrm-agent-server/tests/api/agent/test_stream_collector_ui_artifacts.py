@@ -68,6 +68,38 @@ class TestUIArtifactCollection:
         assert artifact["data"]["name"] == "Alice"
         assert artifact["data"]["age"] == 30
 
+    def test_deep_merges_nested_data_update_without_wiping_sibling_fields(
+        self, collector: StreamContentCollector
+    ) -> None:
+        collector.feed_event({
+            "type": "ui_update",
+            "subtype": "ui_artifact",
+            "data": [
+                {
+                    "surface_id": "form_nested",
+                    "title": "Form",
+                    "components": [],
+                    "root_ids": [],
+                    "data": {"form": {"note": "", "env": "staging"}},
+                    "actions": [],
+                },
+            ],
+            "messageId": "msg_nested",
+        })
+
+        collector.feed_event({
+            "type": "ui_update",
+            "subtype": "data_update",
+            "data": {"surface_id": "form_nested", "updates": {"form": {"note": "done"}}},
+            "messageId": "msg_nested",
+        })
+
+        extra = collector.extra_data
+        assert extra is not None
+        assert extra["uiArtifacts"][0]["data"] == {
+            "form": {"note": "done", "env": "staging"},
+        }
+
     def test_data_update_for_unknown_surface_id_is_ignored(
         self, collector: StreamContentCollector
     ) -> None:

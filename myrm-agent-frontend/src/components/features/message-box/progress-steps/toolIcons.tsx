@@ -208,6 +208,7 @@ export const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   // 思考分析类
   skill_select_tool: 'thinking',
   render_ui_tool: 'thinking',
+  update_ui_data_tool: 'thinking',
   answer_user_tool: 'thinking',
   request_answer_user_tool: 'thinking',
 
