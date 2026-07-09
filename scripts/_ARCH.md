@@ -22,6 +22,7 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
 | `dev/test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox E2E：向运行中后端 POST seed-mock（或 `--direct` 直写 DB） |
 | `dev/test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API pytest + seed-mock；UI 用 MCP chrome-devtools |
+| `dev/_ARCH.md` | — | WebUI E2E 政策：MCP `--autoConnect` 主 Chrome；禁止第二隔离 Chrome；废弃 `clarify-chrome-e2e.mjs` / `browser-delegate-chrome-e2e.mjs` |
 | `ci/install-pre-push-hook.sh` | Unix | 安装 pre-push 架构守门钩子 |
 
 ## Harness 代码生成（无 OSS 目录）
