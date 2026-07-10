@@ -49,13 +49,13 @@ def test_resolve_kanban_tool_mode_invalid_falls_back_to_orchestrator() -> None:
     )
 
 
-def test_orchestrator_mode_binds_eight_tools() -> None:
+def test_orchestrator_mode_binds_seven_tools() -> None:
     from myrm_agent_harness.toolkits.kanban import create_kanban_tools
     from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 
     mode = resolve_kanban_tool_mode(kanban_tool_mode=None, kanban_current_task_id=None)
     tools = create_kanban_tools(InMemoryKanbanStore(), mode=mode)
-    assert len(tools) == 8
+    assert len(tools) == 7
     assert {t.name for t in tools} == {
         "kanban_add_task",
         "kanban_list_tasks",
@@ -63,6 +63,5 @@ def test_orchestrator_mode_binds_eight_tools() -> None:
         "kanban_move_task",
         "kanban_delete_task",
         "kanban_board_summary",
-        "kanban_add_dependency",
-        "kanban_remove_dependency",
+        "kanban_link",
     }

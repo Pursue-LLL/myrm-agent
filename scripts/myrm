@@ -76,6 +76,7 @@ case "$COMMAND" in
             kill "${fe_pid}" 2>/dev/null || true
             rm -f "${FRONTEND_DIR}/.myrm-dev-frontend.pid"
         fi
+        rm -f "${FRONTEND_DIR}/.next/dev-server.lock"
         port="${PORT:-8080}"
         if [[ -f "${SERVER_DIR}/.myrm-dev-backend.pid" ]]; then
             dev_pid="$(cat "${SERVER_DIR}/.myrm-dev-backend.pid")"

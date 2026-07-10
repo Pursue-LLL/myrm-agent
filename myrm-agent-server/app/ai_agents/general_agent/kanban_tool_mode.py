@@ -24,7 +24,7 @@ def resolve_kanban_tool_mode(
     """Resolve harness KanbanToolMode for LLM tool binding.
 
     Task-bound runs (Kanban TaskRunner) always use worker tools. Chat agents with
-    kanban enabled default to orchestrator (8 tools). Full (16) remains opt-in.
+    kanban enabled default to orchestrator (7 tools). Full (12) = worker + orchestrator.
     """
     if kanban_current_task_id:
         return "worker"

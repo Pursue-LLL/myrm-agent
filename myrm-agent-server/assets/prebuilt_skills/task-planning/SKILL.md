@@ -10,7 +10,7 @@ tags:
   - project-management
   - task-decomposition
   - prioritization
-allowed-tools: file_write_tool file_read_tool kanban_add_task kanban_list_tasks kanban_board_summary kanban_add_dependency bash_code_execute_tool
+allowed-tools: file_write_tool file_read_tool kanban_add_task kanban_list_tasks kanban_board_summary kanban_link bash_code_execute_tool
 contract:
   steps:
     - "Phase 1: Goal Clarification — understand the objective, constraints, and success criteria"

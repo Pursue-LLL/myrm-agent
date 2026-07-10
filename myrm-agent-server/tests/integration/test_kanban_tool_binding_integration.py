@@ -24,8 +24,7 @@ ORCHESTRATOR_TOOL_NAMES = frozenset(
         "kanban_move_task",
         "kanban_delete_task",
         "kanban_board_summary",
-        "kanban_add_dependency",
-        "kanban_remove_dependency",
+        "kanban_link",
     }
 )
 
@@ -63,7 +62,7 @@ def _minimal_model_cfg() -> ModelConfig:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_real_service_chat_binds_eight_orchestrator_tools() -> None:
+async def test_real_service_chat_binds_seven_orchestrator_tools() -> None:
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 
     svc = KanbanService.get_instance()
@@ -78,7 +77,7 @@ async def test_real_service_chat_binds_eight_orchestrator_tools() -> None:
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 8
+    assert len(tools) == 7
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 
@@ -132,7 +131,7 @@ async def test_task_id_overrides_orchestrator_mode_on_real_store() -> None:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_full_mode_opt_in_binds_sixteen_tools_on_real_store() -> None:
+async def test_full_mode_opt_in_binds_twelve_tools_on_real_store() -> None:
     from app.ai_agents.general_agent.factory import _setup_kanban_tools
 
     svc = KanbanService.get_instance()
@@ -147,7 +146,7 @@ async def test_full_mode_opt_in_binds_sixteen_tools_on_real_store() -> None:
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 16
+    assert len(tools) == 12
     assert ORCHESTRATOR_TOOL_NAMES.issubset(bound_names)
     assert WORKER_TOOL_NAMES.issubset(bound_names)
 
@@ -210,7 +209,7 @@ async def test_invalid_whitespace_mode_falls_back_to_orchestrator_tools() -> Non
     await _setup_kanban_tools(agent_wrapper, tools)
 
     bound_names = {getattr(tool, "name", None) for tool in tools}
-    assert len(tools) == 8
+    assert len(tools) == 7
     assert bound_names == set(ORCHESTRATOR_TOOL_NAMES)
 
 

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { killListenersOnPort } from './port-cleanup';
+import { killListenersOnPort, listPidsOnPort } from './port-cleanup';
 
 const LOCK_DIR = path.join(process.cwd(), '.next');
 const LOCK_FILE = path.join(LOCK_DIR, 'dev-server.lock');
@@ -41,12 +41,29 @@ function removeDevLockIfOwned(): void {
   }
 }
 
+function isPortListening(port: number): boolean {
+  return listPidsOnPort(port).length > 0;
+}
+
 /** Refuse when another dev-server.lock owner is alive; MYRM_DEV_FORCE=1 takes over. */
 export function assertDevLockAvailable(port: number): void {
   const existing = readDevLock();
   if (!existing || existing.pid === process.pid) return;
 
   if (isProcessAlive(existing.pid)) {
+    if (!isPortListening(existing.port)) {
+      console.warn(
+        `⚠️  Stale dev lock: PID ${existing.pid} alive but :${existing.port} not listening — reclaiming`,
+      );
+      try {
+        process.kill(existing.pid, 'SIGTERM');
+      } catch {
+        // already gone
+      }
+      killListenersOnPort(port, true);
+      fs.unlinkSync(LOCK_FILE);
+      return;
+    }
     const force = process.env.MYRM_DEV_FORCE === '1' || process.env.MYRM_DEV_FORCE === 'true';
     if (!force) {
       console.error(`❌ Dev server already running (PID ${existing.pid}, port ${existing.port})`);

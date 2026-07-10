@@ -15,9 +15,13 @@ vi.mock('@/hooks/useFeatureEntitlements', () => ({
   useFeatureEntitlements: () => ({ canUseCron: true, isLoading: false }),
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
-  isSandbox: () => false,
-}));
+vi.mock('@/lib/deploy-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+  return {
+    ...actual,
+    isSandbox: () => false,
+  };
+});
 
 vi.mock('../agent-config-panel/MediaCredentialInline', () => ({
   MediaCredentialInline: () => null,

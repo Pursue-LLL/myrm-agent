@@ -10,7 +10,7 @@
 |------|------|------|
 | `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
-| `start.sh` / `start.ps1` | 双平台 | 后端 :8080 + 前端 `bun run dev` :3000 |
+| `start.sh` / `start.ps1` | 双平台 | 后端 :8080 + 前端 `bun run dev` :3000；**以 HTTP :3000 可达为准**判断前端是否运行，不可达则 `MYRM_DEV_FORCE=1` 清锁重启 |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（pytest）；UI 用 MCP chrome-devtools |
@@ -43,7 +43,7 @@
 3. **浏览器任务只开 1 个 Agent 对话**；多条对话 = 多条 `chrome-devtools-mcp` 进程，易死锁。卡死时 Cmd+Q Cursor
 4. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000，`isolatedContext` 为字符串名）起手
 5. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
-6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `:3000`（避免 Next.js 冷启动 navigation timeout）
+6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `http://127.0.0.1:3000/...`（避免 Next.js 冷启动 navigation timeout）；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试；MCP 配置见 `open-perplexity/scripts/dev/mcp-chrome-devtools.server.json`（含 `--no-usage-statistics`）
 
 **已废弃（exit 1）**：`browser-delegate-chrome-e2e.mjs`（本目录）、`/tmp/clarify-chrome-e2e.mjs`（若存在）— 曾拉起第二 Chrome，与 `--autoConnect` 冲突。
 
