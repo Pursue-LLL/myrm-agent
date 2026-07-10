@@ -58,8 +58,10 @@ fi
 ok "DevToolsActivePort fresh (${port_age}s)"
 
 # 5. WebSocket endpoint (M144+ permission-proxy: HTTP /json/version may 404; WS is the truth)
-if command -v python3 >/dev/null 2>&1; then
-  python3 - <<PY || fail "CDP WebSocket unreachable on port $raw_port — re-toggle remote debugging Allow"
+if ! command -v python3 >/dev/null 2>&1; then
+  fail "python3 required for CDP WebSocket check — install Python 3"
+fi
+python3 - <<PY || fail "CDP WebSocket unreachable on port $raw_port — re-toggle remote debugging Allow"
 import asyncio
 import sys
 try:
@@ -73,8 +75,7 @@ async def main() -> None:
         pass
 asyncio.run(main())
 PY
-  ok "CDP WebSocket ws://127.0.0.1:${raw_port}${ws_path}"
-fi
+ok "CDP WebSocket ws://127.0.0.1:${raw_port}${ws_path}"
 
 # 6. Stale chrome-devtools-mcp from old Cursor sessions
 if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then

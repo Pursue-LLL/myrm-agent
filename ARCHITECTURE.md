@@ -29,7 +29,7 @@
 
 | 模式 | 用户如何接入 | server 运行位置 | 是否需要 CP |
 |------|--------------|-----------------|-------------|
-| **本地 WebUI** | `curl\|bash` / `irm\|iex` → `myrm start` 或 monorepo `myrm setup` + `myrm start` + `bun run dev` | 本机 :8080 | 否 |
+| **本地 WebUI** | `curl\|bash` / `irm\|iex` → `myrm start` 或 monorepo `myrm setup` + `./myrm ready`（`./myrm test` / `./myrm restart`） | 本机 :8080 | 否 |
 | **Tauri 桌面** | GitHub Releases 安装包 | 内嵌 Python sidecar（默认 :8080） | 否 |
 | **SaaS 云托管** | `app.myrmagent.ai` | CP 分配的**独立沙箱**内 server | 是（调度/Volume/ingress） |
 

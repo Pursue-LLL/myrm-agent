@@ -45,11 +45,21 @@ function isPortListening(port: number): boolean {
   return listPidsOnPort(port).length > 0;
 }
 
+/** Pure health check: lock owner must be alive and hold the LISTEN socket on `port`. */
+export function evaluateDevServerHealth(
+  lock: DevLockRecord | null,
+  port: number,
+  listenerPids: readonly string[],
+  pidAlive: (pid: number) => boolean,
+): boolean {
+  if (!lock || lock.port !== port) return false;
+  if (!pidAlive(lock.pid)) return false;
+  return listenerPids.includes(String(lock.pid));
+}
+
 export function isDevServerHealthy(port: number): boolean {
   const lock = readDevLock();
-  if (!lock || lock.port !== port) return false;
-  if (!isProcessAlive(lock.pid)) return false;
-  return isPortListening(port);
+  return evaluateDevServerHealth(lock, port, listPidsOnPort(port), isProcessAlive);
 }
 
 /** Refuse when another dev-server.lock owner is alive; MYRM_DEV_FORCE=1 takes over. */

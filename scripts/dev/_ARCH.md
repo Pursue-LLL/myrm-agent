@@ -21,6 +21,7 @@
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | 双平台 | P2c verify：authenticated REST cancel 探测 subagent 已停止 |
 | `subagent-dashboard-e2e-poll.mjs` | 双平台 | 诊断：prepare 后 list 持久性轮询 + cancel |
+| `kanban-chrome-e2e-prepare.mjs` | 双平台 | Kanban LLM API prepare（provider seed + stream add_task + GET task 断言） |
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
@@ -34,6 +35,7 @@
 | `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
+| `kanban-chrome-e2e-prepare.mjs` | Kanban API prepare（LLM add_task + REST 断言）；UI 走 chrome-devtools |
 | `chrome-e2e-preflight.sh` | MCP chrome-devtools 前置检查（服务健康、DevToolsActivePort、CDP WS、MCP 条数≤1、无 MyrmChromeMcp）→ `CHROME_E2E_READY` |
 
 **Chrome E2E 稳定性清单（MCP `--autoConnect`）**
