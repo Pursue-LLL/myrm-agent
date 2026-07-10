@@ -137,7 +137,7 @@ Produce one of:
 
 ### Option B: Kanban Board
 
-Use `kanban_manage` to create tasks on the board:
+Use `kanban_add_task` and `kanban_link` to create tasks and dependencies on the board:
 - **Ready:** Tasks with no pending dependencies
 - **Blocked:** Tasks waiting for dependencies
 - Include priority labels and time estimates

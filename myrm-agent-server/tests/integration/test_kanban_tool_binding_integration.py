@@ -229,3 +229,35 @@ def test_kanban_in_enabled_builtin_tools_maps_enable_kanban() -> None:
     )
     assert agent.enable_kanban is True
     assert agent.kanban_tool_mode == "orchestrator"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_orchestrator_list_tasks_by_task_id_on_real_store() -> None:
+    """End-to-end: real SQLite store → _setup_kanban_tools → list_tasks(task_id=)."""
+    import json
+
+    from app.ai_agents.general_agent.factory import _setup_kanban_tools
+
+    svc = KanbanService.get_instance()
+    board = await svc.create_board("List By Id Board")
+    parent = await svc.add_task(board.board_id, "Parent task")
+    child = await svc.add_task(board.board_id, "Child task")
+    await svc.store.add_edge(parent.task_id, child.task_id)
+
+    agent_wrapper = SimpleNamespace(
+        kanban_tool_mode="orchestrator",
+        kanban_current_task_id=None,
+        agent_id="agent-integ-list-id",
+    )
+    tools: list[object] = []
+    await _setup_kanban_tools(agent_wrapper, tools)
+
+    list_tool = next(t for t in tools if getattr(t, "name", None) == "kanban_list_tasks")
+    raw = await list_tool.ainvoke({"task_id": child.task_id})
+    data = json.loads(raw)
+
+    assert data["count"] == 1
+    assert data["tasks"][0]["task_id"] == child.task_id
+    assert data["parents"] == [parent.task_id]
+    assert data["dependencies_met"] is False
