@@ -1,7 +1,7 @@
-"""Background hook: archive SessionNotes into the wiki vault after persistence.
+"""Background hook: archive SessionNotes into the wiki vault after context compression.
 
 [INPUT]
-- app.services.chat.chat_crud::ChatService (POS: chat CRUD operations)
+- app.services.chat.chat_service::ChatService (POS: chat business facade)
 - app.services.wiki.vault_service::get_wiki_archiver (POS: shared wiki archiver accessor)
 - app.services.wiki.memory_to_wiki::MemoryToWikiArchiver (POS: Memory→Wiki automatic archiving service)
 
@@ -9,7 +9,7 @@
 - archive_session_notes_to_wiki(): persist SessionNotes into canonical wiki vault
 
 [POS]
-Server-side bridge from context compression SessionNotes persistence to wiki raw ingestion.
+Server-side bridge from on_summary_persist (post-compaction) to wiki raw ingestion.
 """
 
 from __future__ import annotations

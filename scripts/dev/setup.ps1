@@ -39,6 +39,12 @@ Write-Host "Frontend: bun install..."
 Set-Location $FrontendDir
 bun install
 
+$EnsureSwc = Join-Path $RepoRoot "scripts\dev\ensure-next-native-swc.sh"
+if ((Test-Path $EnsureSwc) -and (Get-Command bash -ErrorAction SilentlyContinue)) {
+    bash $EnsureSwc
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 Write-Host ""
 Write-Host "Setup complete."
 Write-Host "  Backend:  myrm start"

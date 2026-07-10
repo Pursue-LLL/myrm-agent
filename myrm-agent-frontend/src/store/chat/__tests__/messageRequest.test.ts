@@ -133,8 +133,21 @@ describe('messageRequest - agent id fallback', () => {
     expect(resolveEffectiveAgentId('fast', baseAgentConfig)).toBe('builtin-fast-search');
   });
 
-  it('should not inject an agent id in non-agent non-fast mode', () => {
-    expect(resolveEffectiveAgentId('deep_research', baseAgentConfig)).toBeUndefined();
+  it('should default to builtin-researcher in deep_research mode', () => {
+    expect(resolveEffectiveAgentId('deep_research', baseAgentConfig)).toBe('builtin-researcher');
+  });
+
+  it('should preserve explicit agent id in deep_research mode', () => {
+    expect(
+      resolveEffectiveAgentId('deep_research', {
+        ...baseAgentConfig,
+        agentId: 'custom-agent',
+      }),
+    ).toBe('custom-agent');
+  });
+
+  it('should return undefined for consensus mode', () => {
+    expect(resolveEffectiveAgentId('consensus', baseAgentConfig)).toBeUndefined();
   });
 });
 

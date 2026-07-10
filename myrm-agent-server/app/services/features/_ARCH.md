@@ -10,7 +10,7 @@ Feature Flags 服务层。提供功能开关注册、状态查询和用户覆盖
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 | — |
-| `registration.py` | 核心 | Feature Flag 注册（定义所有可用功能开关：8 stable + 6 experimental） | ✅ |
+| `registration.py` | 核心 | Feature Flag 注册（定义所有可用功能开关：8 stable + 7 experimental） | ✅ |
 | `feature_config_service.py` | 核心 | 用户级功能配置持久化服务 | ✅ |
 
 ## 门控执行点

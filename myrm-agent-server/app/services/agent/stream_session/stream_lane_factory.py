@@ -180,6 +180,7 @@ async def create_deep_research_stream(
         cancel_token=cancel_token,
         context={
             "session_id": params.chat_id or "",
+            "agent_id": params.agent_id or "",
         },
         research_agent_llm=research_agent_llm,
         on_report_ready=on_report_ready,

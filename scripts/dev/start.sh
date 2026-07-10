@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Backend :8080 + frontend dev server :3000 (both background).
-# Usage: myrm start  →  dev-stack ensure (idempotent, flock-serialized)
+# Usage: myrm start  →  dev-stack ensure (idempotent, mkdir lock serialized)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

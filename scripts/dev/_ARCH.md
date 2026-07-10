@@ -8,14 +8,15 @@
 
 | 文件 | 平台 | 职责 |
 |------|------|------|
-| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` |
+| `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` + `ensure-next-native-swc.sh` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
 | `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent）；`chrome-devtools-mcp` 进程 >1 时 stderr WARN |
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（`open-perplexity/scripts/dev/test.sh`）；UI 用 MCP chrome-devtools |
-| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；state `~/.local/state/myrm-dev/` |
+| `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；state `~/.local/state/myrm-dev/`；spawn 前 `ensure-next-native-swc.sh` |
+| `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
 | `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：Chrome/CDP/服务健康检查；frontend/backend 不可达时自动 `dev-stack ensure` |
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — API prepare（delegate via agent-stream）；**本地 monorepo** 须 editable harness（`./myrm ready` 自愈），禁止 cp site-packages；**非 CI 发布链路** |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
@@ -46,8 +47,8 @@
 3. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
 4. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000，`isolatedContext` 为字符串名）起手
 5. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
-6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），再 `navigate_page` → `http://127.0.0.1:3000/...`（避免 Next.js 冷启动 navigation timeout）；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试
-7. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈启动 **`dev-stack ensure`**（mkdir 原子锁单例）；仅 server/harness Python 变更后 **`./myrm restart`**；**禁止** Agent shell `bun run dev &`
+6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），取 **pageId**，再 `navigate_page(pageId=…)` → `http://127.0.0.1:3000/...`；`take_snapshot` / `click` / `wait_for` **须同一 pageId**；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试
+7. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈启动 **`dev-stack ensure`**（mkdir 原子锁单例，frontend 等待最长 120s）；仅 server/harness Python 变更后 **`./myrm restart`**；**禁止** Agent shell `bun run dev &`
 
 **已删除（勿引用）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh` — 曾拉起第二 Chrome，与 `--autoConnect` 冲突。
 

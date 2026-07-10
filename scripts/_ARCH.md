@@ -14,15 +14,15 @@ OSS 安装与生命周期 CLI。`myrmagent.ai/install.sh` 与 `install.ps1` 经 
 | `install-remote.ps1` | Windows | `irm \| iex` 入口：clone → `install.ps1` |
 | `myrm` | Unix | `setup` / `dev` / `start` / `stop` / `status`（curl `/api/v1/health` JSON）/ `update` / `doctor` / `searxng`；monorepo 下 `setup` 自动 editable harness，否则 PyPI |
 | `dev/dev.sh` | Unix | `myrm dev`：仅后端 :8080 |
-| `dev/start.sh` | Unix | `myrm start`：后端 :8080 + 前端 `bun run dev` :3000；LISTEN+冷编译 poll 30s；MCP>1 WARN |
+| `dev/start.sh` | Unix | `myrm start`：委托 `dev-stack ensure`（:8080 + :3000 idempotent；mkdir 锁；frontend 冷编译最长 120s）；MCP>1 WARN |
 | `myrm.ps1` | Windows | 同上；`start` 优先 `.venv\Scripts\python.exe` |
-| `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：monorepo 自动 editable harness，否则 PyPI `uv sync`；`patchright install chromium` + `bun install` |
+| `dev/setup.sh` / `setup.ps1` | 双平台 | clone 后首次：monorepo 自动 editable harness，否则 PyPI `uv sync`；`patchright install chromium` + `bun install` + `ensure-next-native-swc.sh` |
 | `dev/run_server.sh` / `run_server.ps1` | 双平台 | 开发启动后端（与 `myrm start` 同策略） |
 | `lib/resolve_agent_root.sh` | Unix | 嵌套目录与独立 clone 的根路径解析 |
 | `lib/start_server.sh` | Unix | `run_server.sh` 用手动启动；日常用 `myrm dev` / `myrm start` |
 | `dev/test-instinct-inbox-seed.py` | 双平台 | Instinct Inbox E2E：向运行中后端 POST seed-mock（或 `--direct` 直写 DB） |
 | `dev/test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API pytest + seed-mock；UI 用 MCP chrome-devtools |
-| `dev/_ARCH.md` | — | WebUI E2E 政策：MCP `--autoConnect` 主 Chrome；单 Agent tab；禁 `list_pages` 探活；`chrome-e2e-preflight.sh`；已删 `browser-delegate-chrome-e2e.mjs` 等 |
+| `dev/_ARCH.md` | — | WebUI E2E 政策：MCP mux 多 Agent 并行 tab + pageId；禁 `list_pages` 探活；`chrome-e2e-preflight.sh`；`ensure-next-native-swc.sh` |
 | `ci/install-pre-push-hook.sh` | Unix | 安装 pre-push 架构守门钩子 |
 
 ## Harness 代码生成（无 OSS 目录）

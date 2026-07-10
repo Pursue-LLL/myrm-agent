@@ -24,7 +24,7 @@
 | `ImageLightbox.tsx` | 组件/模块 | — | — |
 | `IncognitoModeToggle.tsx` | 组件/模块 | — | — |
 | `SandboxModeToggle.tsx` | 组件/模块 | 沙箱模式切换：Agent 模式下可见，一键隔离 workspace 到 git worktree | — |
-| `SearchModeSelector.tsx` | 组件/模块 | — | — |
+| `SearchModeSelector.tsx` | 组件/模块 | 分段式模式选择器：Fast / Agent / Deep Research / Consensus，含 feature gate 门控和搜索服务校验 | ✅ |
 | `SpeechInputButton.tsx` | 组件/模块 | — | — |
 | `ThinkingIntensityButton.tsx` | 组件/模块 | — | — |
 | `ToolsPanel.tsx` | 组件/模块 | — | — |

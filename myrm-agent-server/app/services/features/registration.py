@@ -108,9 +108,17 @@ _ALL_FEATURES: list[FeatureSpec] = [
     FeatureSpec(
         id="deep_research",
         key="deep_research",
-        stage=FeatureStage.UNDER_DEVELOPMENT,
+        stage=FeatureStage.EXPERIMENTAL,
         default_enabled=False,
-        description="Multi-step deep research (temporarily hidden; code retained for future release)",
+        description="Multi-step deep research with plan review, clarification, and wiki archiving",
+        experimental_info=ExperimentalInfo(
+            name="Deep Research",
+            description=(
+                "Execute structured multi-step research with automatic plan generation, "
+                "HITL review gates, and wiki archiving. Requires search service configured."
+            ),
+            announcement="NEW: Deep Research is now available as an experimental feature.",
+        ),
     ),
     FeatureSpec(
         id="companion_mode",

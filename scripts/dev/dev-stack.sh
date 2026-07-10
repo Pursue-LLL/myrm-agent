@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dev stack supervisor — single lifecycle SSOT for local :8080/:3000.
 # Usage: dev-stack.sh ensure|attach|reset|status
-#   ensure  — flock + start stack if unhealthy (idempotent)
+#   ensure  — mkdir atomic lock + start stack if unhealthy (idempotent)
 #   attach  — wait for healthy stack, zero start/kill side effects
 #   reset   — stop backend + frontend (only legal kill entry)
 #   status  — JSON-ish health snapshot
@@ -182,6 +182,7 @@ _start_frontend_supervisor() {
   fi
 
   cd "${FRONTEND_DIR}"
+  bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
   nohup bun run dev >>"${FRONTEND_LOG}" 2>&1 &
   echo $! >"${FRONTEND_PID}"
   echo "STACK_START: frontend supervisor pid $(cat "${FRONTEND_PID}")"

@@ -65,12 +65,12 @@ class TestFeatureRegistration:
         _init_with_overrides({})
         spec = registry.get("deep_research")
         assert spec is not None
-        assert spec.stage == FeatureStage.UNDER_DEVELOPMENT
+        assert spec.stage == FeatureStage.EXPERIMENTAL
         assert spec.default_enabled is False
 
-    def test_deep_research_override_cannot_enable(self):
+    def test_deep_research_override_can_enable(self):
         fs = _init_with_overrides({"deep_research": True})
-        assert not fs.enabled("deep_research")
+        assert fs.enabled("deep_research")
 
     def test_voice_interaction_registered(self):
         _init_with_overrides({})
@@ -101,7 +101,7 @@ class TestFeatureRegistration:
                 "voice_interaction": True,
             }
         )
-        assert not fs.enabled("deep_research")
+        assert fs.enabled("deep_research")
         assert fs.enabled("consensus")
         assert fs.enabled("voice_interaction")
 

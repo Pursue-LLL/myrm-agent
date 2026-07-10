@@ -370,6 +370,9 @@ export const resolveEffectiveAgentId = (
   if (actionMode === 'fast') {
     return searchDepth === 'deep' ? 'builtin-deep-search' : 'builtin-fast-search';
   }
+  if (actionMode === 'deep_research') {
+    return agentConfig?.agentId?.trim() || 'builtin-researcher';
+  }
   if (actionMode !== 'agent') {
     return undefined;
   }

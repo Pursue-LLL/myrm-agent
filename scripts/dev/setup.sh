@@ -53,6 +53,7 @@ uv run patchright install chromium || echo "⚠️  Browser install failed (non-
 echo "📦 Frontend: bun install..."
 cd "${FRONTEND_DIR}"
 bun install
+bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
 
 echo ""
 echo "✅ Setup complete."

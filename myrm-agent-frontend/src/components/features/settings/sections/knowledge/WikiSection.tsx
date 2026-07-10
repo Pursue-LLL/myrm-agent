@@ -159,7 +159,8 @@ export function WikiSection() {
   };
 
   useEffect(() => {
-    loadPurpose();
+    void loadPurpose();
+    void loadStats();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPurpose = async () => {

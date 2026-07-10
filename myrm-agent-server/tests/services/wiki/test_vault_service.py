@@ -5,7 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from app.services.wiki.vault_service import get_wiki_archiver, reset_wiki_archiver_cache_for_tests
+import pytest
+
+from app.services.wiki.vault_service import (
+    get_wiki_archiver,
+    init_wiki_vault_at_startup,
+    reset_wiki_archiver_cache_for_tests,
+)
 
 
 class TestGetWikiArchiver:
@@ -33,3 +39,27 @@ class TestGetWikiArchiver:
             first = get_wiki_archiver(MagicMock())
             second = get_wiki_archiver(MagicMock())
         assert first is not second
+
+
+@pytest.mark.asyncio
+async def test_init_wiki_vault_at_startup_runs_migration(tmp_path: Path) -> None:
+    harness = tmp_path / "harness"
+    mock_structure = MagicMock()
+
+    with (
+        patch("app.config.settings.settings") as mock_settings,
+        patch(
+            "app.services.wiki.vault_service.migrate_legacy_wiki_vaults",
+            return_value=MagicMock(skipped=False, files_copied=2),
+        ) as mock_migrate,
+        patch(
+            "app.services.wiki.vault_service.WikiStructure",
+            return_value=mock_structure,
+        ) as mock_ws,
+    ):
+        mock_settings.database.harness_dir = str(harness)
+        await init_wiki_vault_at_startup()
+
+    mock_migrate.assert_called_once()
+    mock_ws.assert_called_once()
+    mock_structure.ensure_structure.assert_called_once()

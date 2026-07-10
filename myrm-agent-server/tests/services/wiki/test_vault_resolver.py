@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.services.wiki.vault_resolver import (
+    is_legacy_migration_complete,
+    is_vault_ready,
     list_legacy_wiki_vault_paths,
     migrate_legacy_wiki_vaults,
     resolve_wiki_vault_path,
@@ -69,3 +71,32 @@ class TestLegacyPaths:
             mock_settings.database.state_dir = str(tmp_path / "state")
             paths = list_legacy_wiki_vault_paths()
         assert paths[0] == (tmp_path / "state" / "wiki").resolve()
+
+
+class TestVaultHealthHelpers:
+    def test_is_vault_ready_when_raw_exists(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        raw = harness / "wiki" / "raw"
+        raw.mkdir(parents=True)
+
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            assert is_vault_ready() is True
+
+    def test_is_vault_ready_false_without_raw(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        (harness / "wiki").mkdir(parents=True)
+
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            assert is_vault_ready() is False
+
+    def test_is_legacy_migration_complete_with_marker(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        wiki = harness / "wiki"
+        wiki.mkdir(parents=True)
+        (wiki / ".wiki_legacy_merged").write_text("", encoding="utf-8")
+
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            assert is_legacy_migration_complete() is True
