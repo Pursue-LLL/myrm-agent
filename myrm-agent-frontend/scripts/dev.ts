@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - dev-lock::acquireDevLock / assertDevLockAvailable / isDevServerHealthy (POS: dev-server lock gate)
+ * - port-cleanup::APP_DEV_PORT / killListenersOnPort (POS: LISTEN-only port cleanup)
+ *
+ * [OUTPUT]
+ * - Next.js dev server on :3000 via `bunx next dev` (webpack default)
+ * - Early exit when lock+HTTP prove an existing healthy dev server
+ *
+ * [POS]
+ * Frontend dev entry (`bun run dev`). Supervises Next.js child; writes dev-server.lock before spawn.
+ */
 import { type ChildProcess, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';

@@ -1,5 +1,14 @@
 /**
- * Kill only processes listening on a specific dev port (avoids killing other Next apps e.g. myrm-website :3002).
+ * [INPUT]
+ * - child_process::execSync (POS: lsof/kill for LISTEN sockets)
+ *
+ * [OUTPUT]
+ * - listPidsOnPort: LISTEN PIDs on a port
+ * - killListenersOnPort: terminate LISTEN holders only (not Chrome ESTABLISHED clients)
+ * - APP_DEV_PORT constant (3000)
+ *
+ * [POS]
+ * Scoped port cleanup for myrm-agent-frontend dev (:3000). Avoids killing unrelated apps on other ports.
  */
 import { execSync } from 'child_process';
 

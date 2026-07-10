@@ -1,3 +1,18 @@
+/**
+ * [INPUT]
+ * - port-cleanup::listPidsOnPort (POS: :3000 LISTEN PID discovery)
+ * - port-cleanup::killListenersOnPort (POS: LISTEN-only port cleanup)
+ *
+ * [OUTPUT]
+ * - DevLockRecord persistence in `.next/dev-server.lock`
+ * - evaluateDevServerHealth / isDevServerHealthy: dev-server ownership checks
+ * - assertDevLockAvailable / acquireDevLock / releaseDevLock
+ *
+ * [POS]
+ * Frontend dev-server lock and health gate. Prevents parallel `bun run dev` from
+ * killing a healthy Next.js listener; lock.pid is the dev.ts supervisor (child may LISTEN).
+ */
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -22,6 +37,31 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+function readParentPid(pid: number): number | null {
+  try {
+    const out = execSync(`ps -p ${pid} -o ppid=`, { encoding: 'utf-8' }).trim();
+    const ppid = Number.parseInt(out, 10);
+    return Number.isFinite(ppid) ? ppid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Lock supervisor owns LISTEN when it is the listener or the listener's parent (spawned Next). */
+export function lockOwnsPortListeners(
+  lockPid: number,
+  listenerPids: readonly string[],
+  getParentPid: (pid: number) => number | null = readParentPid,
+): boolean {
+  if (listenerPids.length === 0) return false;
+  const lockStr = String(lockPid);
+  if (listenerPids.includes(lockStr)) return true;
+  return listenerPids.some((listenerPid) => {
+    const n = Number.parseInt(listenerPid, 10);
+    return Number.isFinite(n) && getParentPid(n) === lockPid;
+  });
+}
+
 export function readDevLock(): DevLockRecord | null {
   if (!fs.existsSync(LOCK_FILE)) return null;
   try {
@@ -41,20 +81,17 @@ function removeDevLockIfOwned(): void {
   }
 }
 
-function isPortListening(port: number): boolean {
-  return listPidsOnPort(port).length > 0;
-}
-
-/** Pure health check: lock owner must be alive and hold the LISTEN socket on `port`. */
+/** Pure health check: lock supervisor alive and owns :port LISTEN (directly or via child). */
 export function evaluateDevServerHealth(
   lock: DevLockRecord | null,
   port: number,
   listenerPids: readonly string[],
   pidAlive: (pid: number) => boolean,
+  getParentPid: (pid: number) => number | null = readParentPid,
 ): boolean {
   if (!lock || lock.port !== port) return false;
   if (!pidAlive(lock.pid)) return false;
-  return listenerPids.includes(String(lock.pid));
+  return lockOwnsPortListeners(lock.pid, listenerPids, getParentPid);
 }
 
 export function isDevServerHealthy(port: number): boolean {
@@ -62,25 +99,29 @@ export function isDevServerHealthy(port: number): boolean {
   return evaluateDevServerHealth(lock, port, listPidsOnPort(port), isProcessAlive);
 }
 
+function reclaimStaleDevLock(existing: DevLockRecord, port: number, reason: string): void {
+  console.warn(`⚠️  Stale dev lock: ${reason} — reclaiming`);
+  try {
+    process.kill(existing.pid, 'SIGTERM');
+  } catch {
+    // already gone
+  }
+  killListenersOnPort(port, true);
+  fs.unlinkSync(LOCK_FILE);
+}
+
 /** Refuse when another dev-server.lock owner is alive; MYRM_DEV_FORCE=1 takes over. */
 export function assertDevLockAvailable(port: number): void {
   const existing = readDevLock();
   if (!existing || existing.pid === process.pid) return;
 
-  if (isProcessAlive(existing.pid)) {
-    if (!isPortListening(existing.port)) {
-      console.warn(
-        `⚠️  Stale dev lock: PID ${existing.pid} alive but :${existing.port} not listening — reclaiming`,
-      );
-      try {
-        process.kill(existing.pid, 'SIGTERM');
-      } catch {
-        // already gone
-      }
-      killListenersOnPort(port, true);
-      fs.unlinkSync(LOCK_FILE);
-      return;
-    }
+  if (!isProcessAlive(existing.pid)) {
+    fs.unlinkSync(LOCK_FILE);
+    return;
+  }
+
+  const listeners = listPidsOnPort(existing.port);
+  if (evaluateDevServerHealth(existing, port, listeners, isProcessAlive)) {
     const force = process.env.MYRM_DEV_FORCE === '1' || process.env.MYRM_DEV_FORCE === 'true';
     if (!force) {
       console.error(`❌ Dev server already running (PID ${existing.pid}, port ${existing.port})`);
@@ -99,7 +140,11 @@ export function assertDevLockAvailable(port: number): void {
     return;
   }
 
-  fs.unlinkSync(LOCK_FILE);
+  const reason =
+    listeners.length === 0
+      ? `PID ${existing.pid} alive but :${existing.port} not listening`
+      : `PID ${existing.pid} alive but does not own LISTEN on :${existing.port}`;
+  reclaimStaleDevLock(existing, port, reason);
 }
 
 /** Write lock after port is free and before spawning Next.js. */
