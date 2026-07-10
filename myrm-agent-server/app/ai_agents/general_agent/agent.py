@@ -96,6 +96,7 @@ class GeneralAgent(ToolSetupMixin):
         enable_planning: bool = False,
         enable_external_cli: bool = False,
         kanban_tool_mode: str = "orchestrator",
+        kanban_default_board_id: str | None = None,
         kanban_current_task_id: str | None = None,
         kanban_max_runtime_seconds: int | None = None,
         kanban_zombie_timeout_seconds: int = 120,
@@ -192,6 +193,7 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_planning = enable_planning
         self.enable_external_cli = enable_external_cli
         self.kanban_tool_mode = kanban_tool_mode
+        self.kanban_default_board_id = kanban_default_board_id
         self.kanban_current_task_id = kanban_current_task_id
         self.kanban_max_runtime_seconds = kanban_max_runtime_seconds
         self.kanban_zombie_timeout_seconds = kanban_zombie_timeout_seconds

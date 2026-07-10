@@ -438,6 +438,7 @@ async def convert_to_general_agent_params(
     browser_source: str | None = None
     dialog_policy: str | None = None
     session_recording: str | None = None
+    kanban_default_board_id: str | None = None
     resolved = None
 
     if request.agent_id:
@@ -576,6 +577,11 @@ async def convert_to_general_agent_params(
         browser_source = cfg.browser_source if hasattr(cfg, "browser_source") else (resolved.browser_source if resolved else None)
         dialog_policy = cfg.dialog_policy if hasattr(cfg, "dialog_policy") else (resolved.dialog_policy if resolved else None)
         session_recording = cfg.session_recording if hasattr(cfg, "session_recording") else (resolved.session_recording if resolved else None)
+        kanban_default_board_id = (
+            cfg.kanban_default_board_id
+            if hasattr(cfg, "kanban_default_board_id")
+            else None
+        )
         if getattr(cfg, "tool_gateway_config", None) is not None:
             tool_gateway_config = cfg.tool_gateway_config.model_dump(mode="json")
         else:
@@ -884,6 +890,7 @@ async def convert_to_general_agent_params(
         browser_source=browser_source,
         dialog_policy=dialog_policy,
         session_recording=session_recording,
+        kanban_default_board_id=kanban_default_board_id,
         enable_memory=request.enable_memory,
         memory_require_confirmation=request.memory_require_confirmation,
         enable_memory_auto_extraction=False

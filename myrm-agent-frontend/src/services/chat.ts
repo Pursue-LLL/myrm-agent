@@ -403,6 +403,7 @@ interface AgentConfigPayload {
   skill_ids: string[];
   enabled_builtin_tools: string[];
   browser_source?: string;
+  kanban_default_board_id?: string;
 }
 
 export interface StreamRequestBody {

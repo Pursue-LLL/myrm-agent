@@ -31,7 +31,17 @@ const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de'];
  * `agent.configPanel` 下必须在所有语言中存在的字符串键（与 `useTranslations('agent.configPanel')` 对齐）。
  * 各 locale 该对象的子键集合可与 en 不完全一致（如 ja 另有 jit 文案），但下列键不得缺失，以免运行时 MISSING_MESSAGE。
  */
-const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = ['autoRestoreDomains', 'autoRestoreDomainsDesc'];
+const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = [
+  'autoRestoreDomains',
+  'autoRestoreDomainsDesc',
+  'kanbanBoardHint',
+  'kanbanBoardLoading',
+  'kanbanNoBoardsHint',
+  'kanbanOpenSettings',
+  'kanbanTargetBoard',
+  'kanbanSelectBoardPlaceholder',
+  'kanbanActiveBoard',
+];
 
 /** `useTranslations('artifacts')` keys used by ArtifactsCenter — must exist in all locales. */
 const ARTIFACTS_CENTER_REQUIRED_STRING_KEYS = [

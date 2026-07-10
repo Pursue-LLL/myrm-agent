@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
-# Chrome MCP E2E preflight — run before chrome-devtools new_page on :3000.
+# Chrome MCP E2E preflight — dedicated Myrm E2E Chrome (:9333, zero Allow).
 # Exit 0 prints CHROME_E2E_READY; exit 1 prints actionable failures.
 set -euo pipefail
 
 UI_BASE="${E2E_UI_BASE:-http://127.0.0.1:3000}"
 API_BASE="${E2E_API_BASE:-http://127.0.0.1:8080}"
-CHROME_DATA_DIR="${CHROME_DATA_DIR:-$HOME/Library/Application Support/Google/Chrome}"
-ACTIVE_PORT_FILE="$CHROME_DATA_DIR/DevToolsActivePort"
-MAX_PORT_AGE_SEC="${CHROME_E2E_MAX_PORT_AGE_SEC:-300}"
-STALE_MCP_AGE_SEC="${CHROME_E2E_STALE_MCP_AGE_SEC:-3600}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=myrm-chrome-e2e-lib.sh
+source "${SCRIPT_DIR}/myrm-chrome-e2e-lib.sh"
+
 AGENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 MONOREPO_ROOT="$(cd "${AGENT_ROOT}/.." && pwd)"
 MUX_BIN="${MONOREPO_ROOT}/scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs"
+ENSURE_CHROME="${SCRIPT_DIR}/ensure-myrm-chrome-e2e.sh"
 SERVER_DIR="${AGENT_ROOT}/myrm-agent-server"
 PREFLIGHT_PY="${SERVER_DIR}/.venv/bin/python"
 if [[ ! -x "${PREFLIGHT_PY}" ]]; then
   PREFLIGHT_PY="python3"
 fi
+
+export MYRM_CHROME_E2E_DATA_DIR
+export MYRM_CHROME_E2E_PORT
+export CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}"
 
 fail() {
   echo "CHROME_E2E_FAIL: $*" >&2
@@ -46,16 +50,28 @@ if ! curl -sf --max-time 10 "$API_BASE/api/v1/health" >/dev/null; then
 fi
 ok "dev servers :3000/:8080"
 
-# 2. Main Chrome process (not helper-only)
-if ! pgrep -f "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" >/dev/null 2>&1; then
-  fail "Main Google Chrome is not running — open your signed-in profile"
-fi
-ok "main Chrome process"
-
-# 3. Structural blockers before CDP freshness (surface all actionable errors early)
+# 2. Legacy second Chrome / debug launchers
 if pgrep -lf 'MyrmChromeMcp' >/dev/null 2>&1; then
-  fail "MyrmChromeMcp Chrome detected — quit it; use mux shim on main Chrome only"
+  fail "MyrmChromeMcp Chrome detected — quit it; use ./myrm ready --chrome (Myrm E2E profile on :9333)"
 fi
+
+# 3. Ensure dedicated E2E Chrome (no Allow — launched with --remote-debugging-port)
+[[ -f "${ENSURE_CHROME}" ]] || fail "Missing ${ENSURE_CHROME}"
+ensure_out=""
+if ! ensure_out="$(bash "${ENSURE_CHROME}" 2>&1)"; then
+  echo "${ensure_out}" >&2
+  fail "Myrm E2E Chrome failed to start — see MYRM_CHROME_E2E_FAIL above"
+fi
+echo "${ensure_out}"
+chrome_just_started=0
+if [[ "${ensure_out}" == *"MYRM_CHROME_E2E_START:"* ]]; then
+  chrome_just_started=1
+fi
+ok "Myrm E2E Chrome port=${MYRM_CHROME_E2E_PORT}"
+
+ACTIVE_PORT_FILE="${MYRM_CHROME_E2E_ACTIVE_PORT_FILE}"
+
+# 4. mux daemon (parallel Agent tabs)
 MUX_STATE_DIR="${CDMCP_MUX_STATE_DIR:-$HOME/.local/state/cdmcp-mux}"
 MUX_PID_FILE="${MUX_STATE_DIR}/daemon.pid"
 MUX_USING=0
@@ -65,6 +81,17 @@ if grep -q 'cdmcp-mux-autoconnect' "${HOME}/.cursor/mcp.json" 2>/dev/null \
   || [[ -f "${MUX_PID_FILE}" ]]; then
   MUX_USING=1
 fi
+
+_stop_mux_daemon() {
+  [[ -f "${MUX_PID_FILE}" ]] || return 0
+  local pid
+  pid="$(tr -d '[:space:]' < "${MUX_PID_FILE}")"
+  if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
+    kill "${pid}" 2>/dev/null || true
+    sleep 0.5
+  fi
+}
+
 _ensure_mux_daemon() {
   [[ "${MUX_USING}" -eq 1 ]] || return 0
   [[ -f "${MUX_BIN}" ]] || fail "Missing mux bin ${MUX_BIN} — run: bash scripts/dev/install-cdmcp-mux-autoconnect.sh"
@@ -76,7 +103,10 @@ _ensure_mux_daemon() {
     fi
   fi
   echo "CHROME_E2E_WARN: starting cdmcp-mux daemon for preflight" >&2
-  node "${MUX_BIN}" daemon >/dev/null 2>&1 &
+  CHROME_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+  MYRM_CHROME_E2E_DATA_DIR="${MYRM_CHROME_E2E_DATA_DIR}" \
+  MYRM_CHROME_E2E_PORT="${MYRM_CHROME_E2E_PORT}" \
+    node "${MUX_BIN}" daemon >/dev/null 2>&1 &
   local i
   for i in $(seq 1 15); do
     if [[ -f "${MUX_PID_FILE}" ]] && kill -0 "$(tr -d '[:space:]' < "${MUX_PID_FILE}")" 2>/dev/null; then
@@ -87,7 +117,13 @@ _ensure_mux_daemon() {
   done
   fail "cdmcp-mux daemon failed to start — run: node scripts/dev/cdmcp-mux-autoconnect/bin/cdmcp-mux-autoconnect.mjs daemon"
 }
+
+if [[ "${MUX_USING}" -eq 1 && "${chrome_just_started}" -eq 1 ]]; then
+  echo "CHROME_E2E_WARN: E2E Chrome freshly started — restarting mux daemon for new CDP endpoint" >&2
+  _stop_mux_daemon
+fi
 _ensure_mux_daemon
+
 VANILLA_MCP_COUNT=0
 if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
   VANILLA_MCP_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
@@ -112,32 +148,42 @@ else
     echo "CHROME_E2E_WARN: vanilla chrome-devtools-mcp detected — parallel Agent tabs will collide; run scripts/dev/enable-chrome-devtools-mcp.sh" >&2
   fi
 fi
-if lsof -iTCP:9333 -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "CHROME_E2E_WARN: port 9333 listening (MyrmChromeE2E?) — quit non-main Chrome to avoid conflicts" >&2
-fi
 
-# 4. DevToolsActivePort freshness
-if [[ ! -f "$ACTIVE_PORT_FILE" ]]; then
-  fail "DevToolsActivePort missing — enable chrome://inspect/#remote-debugging → Allow"
-fi
-port_age=$(( $(date +%s) - $(stat -f %m "$ACTIVE_PORT_FILE" 2>/dev/null || stat -c %Y "$ACTIVE_PORT_FILE") ))
-if (( port_age > MAX_PORT_AGE_SEC )); then
-  echo "CHROME_E2E_WARN: DevToolsActivePort mtime is ${port_age}s old — verifying CDP WebSocket" >&2
+# 5. CDP WebSocket (Chrome 150+ may omit DevToolsActivePort — use /json/version fallback)
+raw_port="${MYRM_CHROME_E2E_PORT}"
+ws_path=""
+if [[ -f "$ACTIVE_PORT_FILE" ]]; then
+  raw_port=$(sed -n '1p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
+  ws_path=$(sed -n '2p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
+  if [[ -z "$raw_port" || -z "$ws_path" ]]; then
+    fail "Invalid DevToolsActivePort content"
+  fi
+  ok "DevToolsActivePort port=${raw_port}"
 else
-  ok "DevToolsActivePort fresh (${port_age}s)"
-fi
-raw_port=$(sed -n '1p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
-ws_path=$(sed -n '2p' "$ACTIVE_PORT_FILE" | tr -d '[:space:]')
-if [[ -z "$raw_port" || -z "$ws_path" ]]; then
-  fail "Invalid DevToolsActivePort content"
+  if ! myrm_chrome_e2e_cdp_healthy; then
+    fail "CDP not reachable on port ${MYRM_CHROME_E2E_PORT} — run: ./myrm ready --chrome"
+  fi
+  ok "CDP /json/version port=${MYRM_CHROME_E2E_PORT} (no DevToolsActivePort file)"
 fi
 
-# 5. WebSocket endpoint (M144+ permission-proxy: HTTP /json/version may 404; WS is the truth)
 if ! command -v "${PREFLIGHT_PY}" >/dev/null 2>&1; then
   fail "python3 required for CDP WebSocket check — install Python 3 or run: cd myrm-agent-server && uv sync"
 fi
-"${PREFLIGHT_PY}" - <<PY || fail "CDP WebSocket unreachable on port $raw_port — re-toggle remote debugging Allow"
+if [[ -n "${ws_path}" ]]; then
+  ws_uri="ws://127.0.0.1:${raw_port}${ws_path}"
+else
+  ws_uri="$("${PREFLIGHT_PY}" - <<PY
+import json
+import urllib.request
+data = json.load(urllib.request.urlopen("http://127.0.0.1:${MYRM_CHROME_E2E_PORT}/json/version", timeout=5))
+print(data["webSocketDebuggerUrl"])
+PY
+)"
+fi
+export WS_URI="${ws_uri}"
+"${PREFLIGHT_PY}" - <<'PY' || fail "CDP WebSocket unreachable — run: ./myrm ready --chrome"
 import asyncio
+import os
 import sys
 try:
     import websockets
@@ -145,12 +191,12 @@ except ImportError:
     print("websockets package required in server venv — run: cd myrm-agent-server && uv sync", file=sys.stderr)
     sys.exit(1)
 async def main() -> None:
-    uri = f"ws://127.0.0.1:${raw_port}${ws_path}"
+    uri = os.environ["WS_URI"]
     async with websockets.connect(uri, open_timeout=10):
         pass
 asyncio.run(main())
 PY
-ok "CDP WebSocket ws://127.0.0.1:${raw_port}${ws_path}"
+ok "CDP WebSocket ${ws_uri}"
 
 # 6. Stale chrome-devtools-mcp from old Cursor sessions
 if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
@@ -165,5 +211,5 @@ if pgrep -fl "chrome-devtools-mcp" >/dev/null 2>&1; then
   done < <(pgrep -lf "chrome-devtools-mcp" 2>/dev/null || true)
 fi
 
-echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port"
+echo "CHROME_E2E_READY ui=$UI_BASE api=$API_BASE port=$raw_port profile=${MYRM_CHROME_E2E_DATA_DIR}"
 exit 0

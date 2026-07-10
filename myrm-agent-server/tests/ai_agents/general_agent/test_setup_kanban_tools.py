@@ -82,6 +82,24 @@ async def test_setup_kanban_tools_chat_binds_seven_orchestrator_tools(
 
 
 @pytest.mark.asyncio
+async def test_resolve_kanban_default_board_id_prefers_valid_preferred() -> None:
+    from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
+    from myrm_agent_harness.toolkits.kanban.types import KanbanBoard
+
+    from app.ai_agents.general_agent.factory import _resolve_kanban_default_board_id
+
+    store = InMemoryKanbanStore()
+    await store.save_board(KanbanBoard(board_id="board-a", name="A"))
+    await store.save_board(KanbanBoard(board_id="board-b", name="B"))
+
+    assert await _resolve_kanban_default_board_id(store, preferred_board_id="board-a") == "board-a"
+    assert await _resolve_kanban_default_board_id(store, preferred_board_id="stale") in {
+        "board-a",
+        "board-b",
+    }
+
+
+@pytest.mark.asyncio
 async def test_setup_kanban_tools_task_bound_binds_five_worker_tools(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

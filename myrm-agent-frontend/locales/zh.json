@@ -4925,6 +4925,13 @@
       "externalCliLocalOnlyHint": "外部 CLI 委派需要本地或桌面模式；云端/沙箱环境无法启动本地 CLI 进程。",
       "externalCliNoBackendHint": "Settings 中尚未配置已启用的 CLI 后端 — 添加前运行时不会挂载 delegate_to_agent。",
       "externalCliOpenSettings": "前往设置配置外部 Agent",
+      "kanbanBoardHint": "聊天中的任务会写入下方所选看板。",
+      "kanbanBoardLoading": "正在加载看板…",
+      "kanbanNoBoardsHint": "请先在设置中创建看板，Agent 才能添加任务。",
+      "kanbanOpenSettings": "前往设置打开看板",
+      "kanbanTargetBoard": "目标看板",
+      "kanbanSelectBoardPlaceholder": "选择看板",
+      "kanbanActiveBoard": "当前看板",
       "cuPermission": {
         "checking": "正在检查桌面权限…",
         "allGranted": "桌面权限正常",
@@ -5555,7 +5562,9 @@
     "sendBlocked": {
       "title": "无法发送",
       "processingDescription": "上一条消息仍在处理中，请稍候。",
-      "noChatDescription": "会话尚未就绪，请刷新页面或新建对话。"
+      "noChatDescription": "会话尚未就绪，请刷新页面或新建对话。",
+      "kanbanNoBoardDescription": "已启用看板工具，请先在设置中创建看板后再发送。",
+      "kanbanNeedBoardDescription": "请在工具面板中选择目标看板后再发送。"
     },
     "searchNotConfigured": {
       "title": "搜索服务未配置",

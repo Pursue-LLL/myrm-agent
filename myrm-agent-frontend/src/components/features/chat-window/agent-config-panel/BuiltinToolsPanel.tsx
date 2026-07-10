@@ -28,6 +28,7 @@ import { BUILTIN_TOOL_IDS, type BuiltinToolId } from '@/store/chat/types';
 import { SelectableCard } from './AgentConfigSelectableCard';
 import { CuPermissionInline } from './CuPermissionInline';
 import { MediaCredentialInline } from './MediaCredentialInline';
+import { KanbanConfigSection } from './KanbanConfigSection';
 import { useFeatureEntitlements } from '@/hooks/useFeatureEntitlements';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { getConfigSyncManager } from '@/services/config';
@@ -160,6 +161,8 @@ export const BuiltinToolsPanel = ({
       )}
 
       {localMode && localBuiltinTools.includes('computer_use') && <CuPermissionInline tPanel={tPanel} />}
+
+      {localBuiltinTools.includes('kanban') && <KanbanConfigSection tPanel={tPanel} />}
 
       {localBuiltinTools.includes('external_cli') && (
         <ExternalCliConfigSection tPanel={tPanel} />

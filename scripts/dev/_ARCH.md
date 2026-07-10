@@ -4,6 +4,8 @@
 
 本地开发启动脚本。由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm dev` / `myrm start`）。
 
+**职责边界**：本目录只放 **栈启动/守门** 与 **MCP Chrome UI E2E 胶水**（`_ARCH.md` 文件表内条目）。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm test` / `./myrm test -m e2e`），禁止在此新增「半 pytest」一次性联调脚本。
+
 ## 文件清单
 
 | 文件 | 平台 | 职责 |
@@ -17,7 +19,9 @@
 | `test-instinct-inbox-e2e.sh` | Unix | Instinct Inbox API E2E（`open-perplexity/scripts/dev/test.sh`）；UI 用 MCP chrome-devtools |
 | `dev-stack.sh` | Unix | 本地 dev 栈 SSOT：`ensure` / `attach` / `reset` / `status`；state `~/.local/state/myrm-dev/`；spawn 前 `ensure-next-native-swc.sh` |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
-| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：Chrome/CDP/服务健康检查；frontend/backend 不可达时自动 `dev-stack ensure` |
+| `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；Profile `~/Library/Application Support/Myrm/ChromeE2E` |
+| `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 路径/port 常量与 CDP 健康探测 |
+| `chrome-e2e-preflight.sh` | Unix | MCP E2E 前置：`ensure-myrm-chrome-e2e` + mux + CDP WS；frontend/backend 不可达时 `dev-stack ensure` |
 | `test-subagent-dashboard-e2e.sh` | Unix | Subagent Dashboard E2E — API prepare（delegate via agent-stream）；**本地 monorepo** 须 editable harness（`./myrm ready` 自愈），禁止 cp site-packages；**非 CI 发布链路** |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed provider/YOLO、创建 chat、SSE delegate、GET `/subagents` 断言、`E2E_HOLD_MS` 保活 → JSON |
@@ -27,32 +31,31 @@
 | `lib/backend_bg.sh` | Unix | 后台启动 server（`dev.sh` / `start.sh` source）；monorepo 下检测 harness 非 editable 时 **exit 1**（`MYRM_SKIP_HARNESS_EDITABLE_CHECK=1` 跳过） |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
-## WebUI E2E（MCP chrome-devtools，禁止 @playwright/test）
+## WebUI E2E（MCP chrome-devtools + Myrm E2E Chrome :9333）
 
-产品 WebUI 端到端 UI 验收使用 **MCP chrome-devtools `--autoConnect`**（用户主 Chrome 登录态 `:3000`），禁止 `@playwright/test`、pytest 无头浏览器，**禁止**启动第二个隔离 Chrome（`MyrmChromeMcp` / 自定义 `--user-data-dir` / 固定 `:9222` 空 profile）。
+产品 WebUI 端到端 UI 验收使用 **MCP chrome-devtools** + **Myrm 专用 E2E Profile**（`./myrm ready --chrome` 自动拉起，**零 Allow**），禁止 `@playwright/test`、pytest 无头浏览器，禁止 autoConnect 主 Chrome / `MyrmChromeMcp`。
 
 | 脚本 | 职责 |
 |------|------|
+| `ensure-myrm-chrome-e2e.sh` | 专用 Chrome `--remote-debugging-port=9333`；首次人工登录一次后持久化 |
 | `subagent-dashboard-e2e-prepare.mjs` | 登录 API、seed provider/YOLO、创建 chat、agent-stream delegate → JSON |
 | `subagent-dashboard-e2e-verify.mjs` | UI cancel 后 REST 验证 subagent 已停止 |
 | `test-subagent-dashboard-e2e.sh` | 确保 backend :8080 + 运行 prepare |
 | `test-instinct-inbox-e2e.sh` | Instinct Inbox API pytest + seed-mock；UI 走 chrome-devtools |
 | `kanban-chrome-e2e-prepare.mjs` | Kanban API prepare（LLM add_task + REST 断言）；UI 走 chrome-devtools |
-| `chrome-e2e-preflight.sh` | MCP chrome-devtools 前置检查（服务健康、DevToolsActivePort、CDP WS、MCP 条数≤1、无 MyrmChromeMcp）→ `CHROME_E2E_READY` |
+| `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + mux daemon + CDP WS → `CHROME_E2E_READY` |
 
-**Chrome E2E 稳定性清单（MCP `--autoConnect`）**
+**Chrome E2E 稳定性清单**
 
-1. 仅使用**主 Chrome 登录态**；禁止 `MyrmChromeMcp` / 第二 `--user-data-dir` / 曾用的 `start-chrome-mcp-debug.sh`（**已删除**）
-2. `chrome://inspect/#remote-debugging` → Allow；`DevToolsActivePort` mtime 须为本次会话（跑 `chrome-e2e-preflight.sh` 或 monorepo 根 `scripts/dev/chrome-mcp-preflight.sh`）
-3. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
-4. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000，`isolatedContext` 为字符串名）起手
-5. MCP 握手期间**勿点击 Chrome 窗口**（Chrome 150 远程调试下有 SIGSEGV 报告）；盯 Allow 弹窗即可
-6. MCP 技巧：先 `new_page` → `about:blank`（timeout≤5000），取 **pageId**，再 `navigate_page(pageId=…)` → `http://127.0.0.1:3000/...`；`take_snapshot` / `click` / `wait_for` **须同一 pageId**；`navigate` 超时时用 `take_snapshot` 验证，勿盲重试
-7. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈启动 **`dev-stack ensure`**（mkdir 原子锁单例，frontend 等待最长 120s）；仅 server/harness Python 变更后 **`./myrm restart`**；**禁止** Agent shell `bun run dev &`
+1. **`./myrm ready --chrome`** 为 SSOT；禁止手连主 Chrome autoConnect（会弹 Allow）
+2. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
+3. **禁止 `list_pages` 探活**（无 timeout，曾挂起 30min+）；用 `new_page`（`timeout`≤5000）起手 + **pageId**
+4. MCP 技巧：先 `new_page` → `about:blank`，取 **pageId**，再 `navigate_page(pageId=…)` → `http://127.0.0.1:3000/...`；`take_snapshot` / `click` / `wait_for` **须同一 pageId**
+5. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`
 
-**已删除（勿引用）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh` — 曾拉起第二 Chrome，与 `--autoConnect` 冲突。
+**勿引用（已移除）**：`browser-delegate-chrome-e2e.mjs`、`clarify-chrome-e2e.mjs`、`start-chrome-mcp-debug.sh`（第二 Chrome / Allow 冲突）；`browser-delegate-e2e-once.mjs`、`render-ui-gap-e2e-prepare.mjs`、`notify-channel-e2e-prepare.mjs`、`cron-gap-e2e-prepare.mjs`、`test-cron-gap-e2e.sh`（API 重复 → `myrm-agent-server/tests/api/agent/`）；`ui_pong_chrome_verify.py`、`render_ui_chrome_verify.py`、`wfel-settings-ui-check.py`（主 Chrome CDP → 用 `:9333` + `tests/` 或 MCP）。
 
-**MCP 配置片段（Cursor）**：`open-perplexity/scripts/dev/mcp-chrome-devtools.server.json`；`enable-chrome-devtools-mcp.sh` / `disable-chrome-devtools-mcp.sh` 按需开关（日常可常开，见 `ifm/profile.yaml` 浏览器 §12）。
+**MCP 配置片段（Cursor）**：`open-perplexity/scripts/dev/mcp-chrome-devtools.server.json`；维护者操作见 [CHROME_MCP_E2E.md](../../../scripts/dev/CHROME_MCP_E2E.md)；`enable-chrome-devtools-mcp.sh` / `disable-chrome-devtools-mcp.sh`。
 
 环境变量：`E2E_UI_BASE`（默认 `http://127.0.0.1:3000`）、`E2E_API_BASE`（默认 `http://127.0.0.1:8080`）、`E2E_ADMIN_PASSWORD`。
 

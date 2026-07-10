@@ -125,6 +125,7 @@ class GeneralAgentParams(BaseAgentParams):
     enable_planning: bool = False
     enable_external_cli: bool = False
     kanban_tool_mode: str = "orchestrator"
+    kanban_default_board_id: str | None = None
     kanban_current_task_id: str | None = None
     kanban_max_runtime_seconds: int | None = None
     kanban_zombie_timeout_seconds: int = 120
@@ -280,6 +281,7 @@ class AgentFactory:
             enable_planning=params.enable_planning,
             enable_external_cli=params.enable_external_cli,
             kanban_tool_mode=params.kanban_tool_mode,
+            kanban_default_board_id=params.kanban_default_board_id,
             kanban_current_task_id=params.kanban_current_task_id,
             kanban_max_runtime_seconds=params.kanban_max_runtime_seconds,
             kanban_zombie_timeout_seconds=params.kanban_zombie_timeout_seconds,

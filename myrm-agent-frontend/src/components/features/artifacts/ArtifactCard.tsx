@@ -15,7 +15,8 @@ import useChatStore from '@/store/useChatStore';
 import { wikiService } from '@/services/wikiService';
 import { PublishModal, type PublishedArtifactUpdate } from './PublishModal';
 import { type ArtifactPublication } from '@/services/hosting';
-import { HtmlPreview } from './renderers/MediaPreview';
+import { HtmlPreview, SvgPreview } from './renderers/MediaPreview';
+import MermaidPreview from './renderers/MermaidPreview';
 import {
   deploymentHostname,
   formatBytes,
@@ -70,7 +71,7 @@ function isCopyable(type: ArtifactType): boolean {
 }
 
 function supportsInlinePreview(type: ArtifactType): boolean {
-  return type === 'html';
+  return ['html', 'svg', 'mermaid'].includes(type);
 }
 
 function isIngestableToWiki(type: ArtifactType): boolean {
@@ -86,7 +87,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   const canInlinePreview = supportsInlinePreview(artifact.type as ArtifactType);
   const [copied, setCopied] = useState(false);
   const [pathCopied, setPathCopied] = useState(false);
-  const [inlineExpanded, setInlineExpanded] = useState(false);
+  const [inlineExpanded, setInlineExpanded] = useState(canInlinePreview);
   const [inlineContent, setInlineContent] = useState<string | null>(null);
   const [inlineLoading, setInlineLoading] = useState(false);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
@@ -218,9 +219,10 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
   );
 
   const preloadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inlineFetchAttempted = useRef(false);
   const { getCachedContent, setCachedContent } = useArtifactPortalStore();
 
-  const fetchHtmlContent = useCallback(async (): Promise<string | null> => {
+  const fetchInlineContent = useCallback(async (): Promise<string | null> => {
     const cached = getCachedContent(artifact.id);
     if (cached) return cached;
 
@@ -251,14 +253,29 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         return;
       }
 
+      inlineFetchAttempted.current = true;
       setInlineLoading(true);
       setInlineExpanded(true);
-      const content = await fetchHtmlContent();
+      const content = await fetchInlineContent();
       setInlineContent(content);
       setInlineLoading(false);
     },
-    [inlineExpanded, inlineContent, fetchHtmlContent],
+    [inlineExpanded, inlineContent, fetchInlineContent],
   );
+
+  useEffect(() => {
+    if (!canInlinePreview || !inlineExpanded || inlineContent || inlineLoading || inlineFetchAttempted.current) return;
+    inlineFetchAttempted.current = true;
+    let cancelled = false;
+    setInlineLoading(true);
+    fetchInlineContent().then((content) => {
+      if (!cancelled) {
+        setInlineContent(content);
+        setInlineLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [canInlinePreview, inlineExpanded, inlineContent, inlineLoading, fetchInlineContent]);
 
   const preloadContent = useCallback(async () => {
     if (!['code', 'document', 'svg', 'mermaid', 'html'].includes(artifact.type)) {
@@ -716,7 +733,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
         </div>
       ))}
 
-      {/* Inline HTML preview */}
+      {/* Inline visual preview */}
       {canInlinePreview && inlineExpanded && (
         <div className="border-t border-gray-200/60 dark:border-gray-700/60">
           {inlineLoading && !inlineContent ? (
@@ -725,7 +742,13 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, onPreview, onDown
             </div>
           ) : inlineContent ? (
             <div className="min-h-[100px]">
-              <HtmlPreview content={inlineContent} autoHeight injectTheme />
+              {artifact.type === 'svg' ? (
+                <SvgPreview content={inlineContent} />
+              ) : artifact.type === 'mermaid' ? (
+                <MermaidPreview content={inlineContent} />
+              ) : (
+                <HtmlPreview content={inlineContent} autoHeight injectTheme />
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">

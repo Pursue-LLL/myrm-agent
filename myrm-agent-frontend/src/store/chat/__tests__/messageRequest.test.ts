@@ -15,6 +15,7 @@ import useConfigStore from '@/store/useConfigStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
 const showI18nToastMock = vi.hoisted(() => vi.fn());
+const resolveKanbanSendBlockReasonMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/i18nToastService', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/i18nToastService')>();
@@ -27,6 +28,14 @@ vi.mock('@/services/i18nToastService', async (importOriginal) => {
 vi.mock('@/services/chat', () => ({
   createAISearchStream: vi.fn(async () => new Response('', { status: 200 })),
 }));
+
+vi.mock('@/lib/kanban/kanbanChatBoard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/kanban/kanbanChatBoard')>();
+  return {
+    ...actual,
+    resolveKanbanSendBlockReason: (...args: unknown[]) => resolveKanbanSendBlockReasonMock(...args),
+  };
+});
 
 /**
  * Test locale priority logic from messageRequest.ts
@@ -598,6 +607,8 @@ describe('messageRequest - send preconditions', () => {
 
   beforeEach(() => {
     showI18nToastMock.mockClear();
+    resolveKanbanSendBlockReasonMock.mockReset();
+    resolveKanbanSendBlockReasonMock.mockResolvedValue(null);
     useToolApprovalStore.getState().clearAll();
   });
 
@@ -626,6 +637,25 @@ describe('messageRequest - send preconditions', () => {
       'chat.sendBlocked.title',
       undefined,
       expect.objectContaining({ descriptionKey: 'chat.sendBlocked.processingDescription' }),
+    );
+  });
+
+  it('shows toast when kanban enabled but no target board selected', async () => {
+    resolveKanbanSendBlockReasonMock.mockResolvedValue('need_board');
+
+    await sendMessage(
+      'hello',
+      'req-kanban',
+      { ...baseState, currentBuiltinTools: ['kanban'] },
+      baseActions,
+      () => 'req-kanban',
+    );
+
+    expect(resolveKanbanSendBlockReasonMock).toHaveBeenCalledWith(['kanban']);
+    expect(showI18nToastMock).toHaveBeenCalledWith(
+      'chat.sendBlocked.title',
+      undefined,
+      expect.objectContaining({ descriptionKey: 'chat.sendBlocked.kanbanNeedBoardDescription' }),
     );
   });
 });

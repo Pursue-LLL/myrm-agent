@@ -9,7 +9,7 @@
  * validateChatModelConfig: Block send when default model / provider is incomplete.
  * resolveEffectiveAgentId: Resolve the agent identity used for chat memory bindings.
  * createMessageRequest: Assemble the agent chat request payload and stream it.
- * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat / processing lock).
+ * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for missing chat, kanban board guard, processing lock).
  * createSmartUpdater: Route state updates to active store or background snapshot.
  * attachToChat: Re-attach to an existing multiplexed SSE stream.
  *
@@ -45,6 +45,7 @@ import {
 } from './streamConsumer';
 import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
+import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream } from '@/services/chat';
 import { isCLIAgentMode, sendCLIAgentMessage } from './cliAgentMessageHandler';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
@@ -458,6 +459,8 @@ export const createMessageRequest = async (
   const cookieLocale = getClientLocale();
   const userLocale = normalizeLocaleForBackend(savedLocale || cookieLocale);
 
+  const kanbanDefaultBoardId = resolveKanbanDefaultBoardIdForRequest(currentBuiltinTools);
+
   const requestBody = {
     query,
     message_id: messageId,
@@ -527,6 +530,7 @@ export const createMessageRequest = async (
         dialog_policy: agentConfig?.dialogPolicy,
         session_recording: agentConfig?.sessionRecording,
         auto_restore_domains: agentConfig?.autoRestoreDomains ?? [],
+        ...(kanbanDefaultBoardId && { kanban_default_board_id: kanbanDefaultBoardId }),
       },
     }),
     ...(isAgentMode &&
@@ -693,6 +697,21 @@ export const sendMessage = async (
       duration: 5000,
     });
     return;
+  }
+
+  if (state.actionMode === 'agent' && state.currentBuiltinTools.includes('kanban')) {
+    const kanbanBlockReason = await resolveKanbanSendBlockReason(state.currentBuiltinTools);
+    if (kanbanBlockReason) {
+      showI18nToast('chat.sendBlocked.title', undefined, {
+        descriptionKey:
+          kanbanBlockReason === 'no_boards'
+            ? 'chat.sendBlocked.kanbanNoBoardDescription'
+            : 'chat.sendBlocked.kanbanNeedBoardDescription',
+        type: 'warning',
+        duration: 5000,
+      });
+      return;
+    }
   }
 
   useChatStore.getState().clearPendingGapRetry();

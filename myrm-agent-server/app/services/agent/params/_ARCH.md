@@ -8,7 +8,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams：模型与密钥、JIT `workspace_dir`、`tool_gateway_config` 组装（无 auth_token 时禁用 gateway）、记忆开关、通过 `resolve_builtin_tool_flags()` 将 `enabled_builtin_tools` 统一映射为布尔 flag（含 deploy 门控后的 `enable_computer_use`）；browser+computer_use 均 ON 且 `is_computer_use_deploy_supported()` 时注入 hybrid routing 规则；`action_mode='fast'` 时覆盖 `enabled_builtin_tools` 为 `["answer_tool"]`… | — |
-| `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, MentionReferenceRequest, ArchiveRestoreActionRequest, AgentConfigRequest 等），声明前端记忆开关、`search_depth`、GUI @ 结构化引用、typed archive restore action 契约以及 `tool_gateway_config`。 | — |
+| `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, MentionReferenceRequest, ArchiveRestoreActionRequest, AgentConfigRequest 等），声明前端记忆开关、`search_depth`、GUI @ 结构化引用、typed archive restore action 契约、`kanban_default_board_id`（chat 会话目标看板）以及 `tool_gateway_config`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |
 | `providers.py` | 辅助 | 规范化 providerId、行匹配解析密钥；**仅** WebUI providers，无 env 回退；显式加载 `shared/config/provider_legacy_remap.json`（monorepo / Docker `/shared` / PyInstaller bundle / `MYRM_SHARED_CONFIG_ROOT`）；normalize 算法见 [shared/config/_ARCH.md](../../../../../shared/config/_ARCH.md) | ✅ |
 | `mcp_selection.py` | 核心 | Per-agent MCP server+tool 过滤。`apply_agent_mcp_selection()` 按 `mcp_ids` 过滤服务器、按 `mcp_tool_selections` 注入 `tool_include`；`coerce_tool_selections()` 规范化原始元数据。被 converter/executor/agent_bridge/eval/custom_agent_factory 五个入口统一调用 | ✅ |

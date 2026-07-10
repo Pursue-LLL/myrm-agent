@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import type { KanbanBoard, BoardSummary } from '@/services/kanban';
 import { listBoards, createBoard, deleteBoard, updateBoard, getBoardSummary } from '@/services/kanban';
+import { writeKanbanLastBoardId, KANBAN_LAST_BOARD_ID_KEY } from '@/lib/kanban/kanbanChatBoard';
 import KanbanBoardView from '@/components/features/kanban/KanbanBoardView';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { registerSettingsSubviewBack } from '@/components/features/settings/settingsSubviewBack';
@@ -17,8 +18,8 @@ export default function KanbanSection() {
   const selectBoard = useCallback((board: KanbanBoard | null) => {
     setSelectedBoard(board);
     try {
-      if (board) localStorage.setItem('kanban_last_board_id', board.board_id);
-      else localStorage.removeItem('kanban_last_board_id');
+      if (board) localStorage.setItem(KANBAN_LAST_BOARD_ID_KEY, board.board_id);
+      else localStorage.removeItem(KANBAN_LAST_BOARD_ID_KEY);
     } catch { /* ignore */ }
   }, []);
   const [showCreate, setShowCreate] = useState(false);
@@ -51,11 +52,11 @@ export default function KanbanSection() {
   useEffect(() => {
     if (loading || selectedBoard || boards.length === 0) return;
     try {
-      const lastId = localStorage.getItem('kanban_last_board_id');
+      const lastId = localStorage.getItem(KANBAN_LAST_BOARD_ID_KEY);
       if (!lastId) return;
       const match = boards.find((b) => b.board_id === lastId);
       if (match) setSelectedBoard(match);
-      else localStorage.removeItem('kanban_last_board_id');
+      else localStorage.removeItem(KANBAN_LAST_BOARD_ID_KEY);
     } catch { /* ignore */ }
   }, [loading, boards, selectedBoard]);
 
@@ -73,9 +74,10 @@ export default function KanbanSection() {
 
   const handleCreate = useCallback(async () => {
     if (!newBoardName.trim()) return;
+    const createdName = newBoardName.trim();
     try {
       await createBoard({
-        name: newBoardName.trim(),
+        name: createdName,
         description: newBoardDesc.trim(),
         ...(newBoardWorkdir.trim() ? { default_workdir: newBoardWorkdir.trim() } : {}),
       });
@@ -83,6 +85,11 @@ export default function KanbanSection() {
       setNewBoardDesc('');
       setNewBoardWorkdir('');
       setShowCreate(false);
+      const refreshed = await listBoards();
+      const createdBoard = refreshed.items.find((b) => b.name === createdName);
+      if (createdBoard) {
+        writeKanbanLastBoardId(createdBoard.board_id);
+      }
       await fetchBoards();
       toast.success(t('boardCreated'));
     } catch {
@@ -278,7 +285,16 @@ export default function KanbanSection() {
           )}
 
           {boards.length === 0 && !showCreate && (
-            <p className="text-sm text-muted-foreground text-center py-6">{t('noBoards')}</p>
+            <div className="flex flex-col items-center text-center py-6 gap-3">
+              <p className="text-sm text-muted-foreground">{t('noBoards')}</p>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="text-sm px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                + {t('createBoard')}
+              </button>
+            </div>
           )}
         </div>
       )}

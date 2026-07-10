@@ -4925,6 +4925,13 @@
       "externalCliLocalOnlyHint": "External CLI delegation requires local or desktop mode. Cloud/sandbox hosts cannot spawn local CLI processes.",
       "externalCliNoBackendHint": "No enabled CLI backend found in Settings yet — delegate_to_agent will not mount until you add one.",
       "externalCliOpenSettings": "Configure External Agents in Settings",
+      "kanbanBoardHint": "Tasks from chat go to the selected board below.",
+      "kanbanBoardLoading": "Loading boards…",
+      "kanbanNoBoardsHint": "Create a task board in Settings before the agent can add tasks.",
+      "kanbanOpenSettings": "Open Task Boards in Settings",
+      "kanbanTargetBoard": "Target board",
+      "kanbanSelectBoardPlaceholder": "Choose a board",
+      "kanbanActiveBoard": "Active board",
       "cuPermission": {
         "checking": "Checking desktop permissions…",
         "allGranted": "Desktop permissions OK",
@@ -5556,7 +5563,9 @@
     "sendBlocked": {
       "title": "Unable to Send",
       "processingDescription": "This message is still being processed. Please wait a moment.",
-      "noChatDescription": "Chat session is not ready. Refresh the page or start a new chat."
+      "noChatDescription": "Chat session is not ready. Refresh the page or start a new chat.",
+      "kanbanNoBoardDescription": "Create a Kanban board in Settings before sending with Kanban tools enabled.",
+      "kanbanNeedBoardDescription": "Select a target Kanban board in the tool panel before sending."
     },
     "searchNotConfigured": {
       "title": "Search Service Not Configured",

@@ -878,6 +878,22 @@ def _should_enable_subagent_tools() -> bool:
         return False
 
 
+async def _resolve_kanban_default_board_id(
+    store: object,
+    *,
+    preferred_board_id: str | None,
+) -> str | None:
+    """Pick default board for kanban tools: preferred id when valid, else newest board."""
+    boards = await store.list_boards()  # type: ignore[attr-defined]
+    if not boards:
+        return None
+
+    board_ids = {b.board_id for b in boards}
+    if preferred_board_id and preferred_board_id in board_ids:
+        return preferred_board_id
+    return boards[0].board_id
+
+
 async def _setup_kanban_tools(
     agent_wrapper: "GeneralAgent",
     tools: list,
@@ -907,10 +923,13 @@ async def _setup_kanban_tools(
             default_board_id = task.board_id
             dispatcher = kanban_svc._dispatchers.get(task.board_id)
     else:
-        boards = await store.list_boards()
-        if boards:
-            default_board_id = boards[0].board_id
-            dispatcher = kanban_svc._dispatchers.get(boards[0].board_id)
+        preferred = getattr(agent_wrapper, "kanban_default_board_id", None)
+        default_board_id = await _resolve_kanban_default_board_id(
+            store,
+            preferred_board_id=preferred,
+        )
+        if default_board_id:
+            dispatcher = kanban_svc._dispatchers.get(default_board_id)
 
     kanban_tools = create_kanban_tools(
         store,

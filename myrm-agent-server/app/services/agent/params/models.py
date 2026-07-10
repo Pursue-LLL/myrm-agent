@@ -64,7 +64,23 @@ class AgentConfigRequest(BaseModel):
         default=None, description="Browser session recording mode (off/on_failure/always)"
     )
     auto_restore_domains: list[str] = []
+    kanban_default_board_id: str | None = Field(
+        default=None,
+        description="Chat session target kanban board for LLM tool default_board_id",
+    )
     tool_gateway_config: ToolGatewayConfig | None = None
+
+    @field_validator("kanban_default_board_id")
+    @classmethod
+    def validate_kanban_default_board_id(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        trimmed = v.strip()
+        if not trimmed:
+            return None
+        if len(trimmed) > 32:
+            raise ValueError("kanban_default_board_id must be at most 32 characters")
+        return trimmed
 
     @field_validator("browser_source")
     @classmethod
