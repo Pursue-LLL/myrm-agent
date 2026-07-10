@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Subagent Dashboard E2E — local monorepo lane only.
+#
+# Local dev: requires editable harness (./myrm harness install from open-perplexity root).
+# Release/CI: uses PyPI harness from uv.lock — do not run this script in CI; use API-only tests.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -13,17 +17,14 @@ fi
 
 # shellcheck source=lib/backend_bg.sh
 source "$ROOT/scripts/dev/lib/backend_bg.sh"
+
+# Monorepo: live :8080 must import editable harness source (never hand-copy into site-packages).
+_require_harness_editable_for_monorepo "${SERVER}"
+
 if ! curl -sf --max-time 2 http://127.0.0.1:8080/api/v1/health >/dev/null; then
   echo "==> Starting backend on :8080"
   _start_backend_bg "$SERVER"
 fi
-
-echo "==> Sync harness sub_agents into server venv (session_tree + registry map)"
-/bin/cp -f \
-  "$ROOT/../myrm-agent-harness/src/myrm_agent_harness/agent/sub_agents/session_tree.py" \
-  "$ROOT/../myrm-agent-harness/src/myrm_agent_harness/agent/sub_agents/manager.py" \
-  "$ROOT/../myrm-agent-harness/src/myrm_agent_harness/agent/sub_agents/_manager_spawn.py" \
-  "$SERVER/.venv/lib/python3.13/site-packages/myrm_agent_harness/agent/sub_agents/"
 
 echo "==> API prepare (delegate subagent; keep process alive for UI window)"
 echo "==> UI phase: MCP chrome-devtools on real Chrome at :3000"
