@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/** Kanban LLM Chrome E2E — API prepare (provider + per-chat kanban + stream). */
+/** Kanban LLM live E2E — API prepare (auth + per-chat kanban + agent-stream). Pair with Chrome MCP on /settings/kanban for UI verification. */
 
 import { randomUUID } from 'node:crypto';
 import { ensureLoggedIn, apiFetch, apiBase } from './subagent-dashboard-e2e-auth.mjs';
