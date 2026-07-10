@@ -1,4 +1,17 @@
-"""OpenAPI security scheme injection for Swagger UI Authorize button."""
+"""OpenAPI security scheme injection for Swagger UI Authorize button.
+
+[INPUT]
+- fastapi.FastAPI (POS: app instance to attach custom openapi generator)
+
+[OUTPUT]
+- enrich_openapi_schema(): inject bearerAuth into an OpenAPI dict
+- install_custom_openapi(): attach cached generator to a FastAPI app
+- OPENAPI_API_DESCRIPTION: shared API docs body for main + tests
+
+[POS]
+Server-layer OpenAPI customization. Keeps app.main slim; tests import this module
+without pulling the full dependency stack.
+"""
 
 from __future__ import annotations
 

@@ -20,6 +20,7 @@ import {
 } from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
+import { toast } from '@/lib/utils/toast';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -488,101 +489,112 @@ export const retryLastRequest = async (): Promise<unknown> => {
   return Promise.reject(new Error('没有可重试的请求'));
 };
 
+interface ErrorDedupGate {
+  shouldShow(error: ApiError): boolean;
+}
+
+const ALWAYS_SHOW_ERROR: ErrorDedupGate = {
+  shouldShow: () => true,
+};
+
+function displayApiErrorToast(
+  error: unknown,
+  duration: number | undefined,
+  dedupGate: ErrorDedupGate,
+): void {
+  if (error instanceof ApiError) {
+    if (!dedupGate.shouldShow(error)) {
+      return;
+    }
+
+    const message = error.message;
+    let description = message;
+
+    if (error.details.length > 0) {
+      const details = error.details
+        .map((detail) => (detail.field ? `${detail.field}: ${detail.issue}` : detail.issue))
+        .join('; ');
+      description = `${message}\n详情: ${details}`;
+    }
+
+    if (error.traceId) {
+      description += `\n追踪ID: ${error.traceId}`;
+    }
+
+    const severity = error.severity || 'medium';
+    let finalDuration = duration;
+
+    if (!finalDuration) {
+      switch (severity) {
+        case 'critical':
+          finalDuration = Infinity;
+          break;
+        case 'high':
+          finalDuration = 10000;
+          break;
+        case 'medium':
+          finalDuration = 5000;
+          break;
+        case 'low':
+          return;
+      }
+    }
+
+    const toastAction = error.retriable
+      ? {
+          label: '重试',
+          onClick: () => {
+            retryLastRequest().catch((retryError) => {
+              console.warn('重试失败:', retryError);
+            });
+          },
+        }
+      : undefined;
+
+    if (severity === 'critical' || severity === 'high') {
+      toast.error(description, {
+        duration: finalDuration,
+        action: toastAction,
+      });
+    } else if (severity === 'medium') {
+      toast.warning(description, {
+        duration: finalDuration,
+        action: toastAction,
+      });
+    }
+    return;
+  }
+
+  if (error instanceof Error) {
+    toast({
+      title: '错误',
+      description: error.message,
+      duration: duration || 5000,
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  toast({
+    title: '错误',
+    description: '未知错误',
+    duration: duration || 5000,
+    variant: 'destructive',
+  });
+}
+
 /**
  * 显示API错误提示
  * @param error - 错误对象
  * @param duration - 显示时长（毫秒），默认根据severity自动判断
  */
 export const showApiError = (error: unknown, duration?: number): void => {
-  // 动态导入
-  import('@/hooks/useToast').then(({ toast }) => {
-    import('./utils/errorManager').then(({ errorManager }) => {
-      if (error instanceof ApiError) {
-        // 去重检查
-        if (!errorManager.shouldShow(error)) {
-          return; // 跳过重复错误
-        }
-
-        const message = error.message;
-        let description = message;
-
-        // 添加详情
-        if (error.details.length > 0) {
-          const details = error.details
-            .map((detail) => (detail.field ? `${detail.field}: ${detail.issue}` : detail.issue))
-            .join('; ');
-          description = `${message}\n详情: ${details}`;
-        }
-
-        // 添加trace ID
-        if (error.traceId) {
-          description += `\n追踪ID: ${error.traceId}`;
-        }
-
-        // 根据severity决定显示方式和时长
-        const severity = error.severity || 'medium';
-        let finalDuration = duration;
-
-        if (!finalDuration) {
-          switch (severity) {
-            case 'critical':
-              finalDuration = Infinity; // 永久显示
-              break;
-            case 'high':
-              finalDuration = 10000; // 10秒
-              break;
-            case 'medium':
-              finalDuration = 5000; // 5秒
-              break;
-            case 'low':
-              return; // 低优先级错误不显示
-          }
-        }
-
-        // 根据severity选择toast类型和选项
-        const toastAction = error.retriable
-          ? {
-              label: '重试',
-              onClick: () => {
-                retryLastRequest().catch((retryError) => {
-                  console.warn('重试失败:', retryError);
-                });
-              },
-            }
-          : undefined;
-
-        // 根据severity选择不同的toast类型
-        if (severity === 'critical' || severity === 'high') {
-          // Critical和High用error（红色）
-          toast.error(description, {
-            duration: finalDuration,
-            action: toastAction,
-          });
-        } else if (severity === 'medium') {
-          // Medium用warning（黄色）
-          toast.warning(description, {
-            duration: finalDuration,
-            action: toastAction,
-          });
-        }
-        // Low不显示（已在前面return）
-      } else if (error instanceof Error) {
-        // 非ApiError，使用默认显示
-        toast({
-          title: '错误',
-          description: error.message,
-          duration: duration || 5000,
-          variant: 'destructive',
-        });
-      } else {
-        // 未知错误
-        toast({
-          title: '错误',
-          description: '未知错误',
-          duration: duration || 5000,
-          variant: 'destructive',
-        });
-      }
+  void import('./utils/errorManager')
+    .then(({ errorManager }) => {
+      displayApiErrorToast(error, duration, errorManager);
+    })
+    .catch((importError) => {
+      console.warn('Failed to load errorManager, showing error without dedup:', importError);
+      displayApiErrorToast(error, duration, ALWAYS_SHOW_ERROR);
     });
-  });
 };
