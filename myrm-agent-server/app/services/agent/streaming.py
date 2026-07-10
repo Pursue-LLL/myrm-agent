@@ -307,6 +307,7 @@ async def ai_deep_research_service_stream(
     context: dict[str, object] | None = None,
     research_agent_llm: "BaseChatModel | None" = None,
     on_report_ready: "Callable[[DeepResearchResult], Awaitable[None]] | None" = None,
+    on_explore: "Callable[[str], Awaitable[str | None]] | None" = None,
 ) -> AsyncIterable[dict[str, object]]:
     """Execute Deep Research Orchestrator with gateway lifecycle management.
 
@@ -438,6 +439,7 @@ async def ai_deep_research_service_stream(
         research_agent_llm=research_agent_llm,
         on_clarify=_on_clarify,
         on_plan_ready=_on_plan_ready,
+        on_explore=on_explore,
         on_report_ready=on_report_ready,
     )
 

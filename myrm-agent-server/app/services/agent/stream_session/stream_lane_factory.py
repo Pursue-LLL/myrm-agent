@@ -170,6 +170,7 @@ async def create_deep_research_stream(
     chat_history = await convert_chat_history(params.chat_history) if params.chat_history else None
 
     on_report_ready = _build_wiki_vault_callback(params) if params.enable_wiki else None
+    on_explore = _build_explore_callback(params) if params.enable_wiki else None
 
     async for chunk in ai_deep_research_service_stream(
         llm=llm,
@@ -184,8 +185,66 @@ async def create_deep_research_stream(
         },
         research_agent_llm=research_agent_llm,
         on_report_ready=on_report_ready,
+        on_explore=on_explore,
     ):
         yield chunk
+
+
+_EXPLORE_MAX_ARTICLES = 8
+_EXPLORE_CHAR_BUDGET = 6000
+
+
+def _build_explore_callback(params: GeneralAgentParams):
+    """Build an on_explore callback that searches the local Wiki for relevant knowledge.
+
+    Uses FTS5 full-text search only (zero LLM calls, zero cost).
+    Returns a formatted summary of local articles related to the research plan,
+    so the orchestrator can skip redundant web searches.
+    """
+
+    async def _explore_local_knowledge(research_plan: str) -> str | None:
+        from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+        from myrm_agent_harness.toolkits.wiki.retrieval.indexer import WikiIndexer
+
+        from app.services.wiki.vault_resolver import resolve_wiki_vault_path
+
+        wiki_base_dir = resolve_wiki_vault_path()
+        if not wiki_base_dir.exists():
+            return None
+
+        structure = WikiStructure(wiki_base_dir)
+        indexer = WikiIndexer(structure)
+
+        results = await indexer.search(research_plan, limit=_EXPLORE_MAX_ARTICLES)
+        if not results:
+            return None
+
+        sections: list[str] = []
+        total_chars = 0
+        for concept_name, score in results:
+            if total_chars >= _EXPLORE_CHAR_BUDGET:
+                break
+            concept_path = structure.get_concept_file_path(concept_name)
+            if not concept_path.exists():
+                continue
+            content = concept_path.read_text(encoding="utf-8")
+            remaining = _EXPLORE_CHAR_BUDGET - total_chars
+            if len(content) > remaining:
+                content = content[:remaining] + "\n[truncated]"
+            sections.append(f"### {concept_name} (relevance: {score:.2f})\n\n{content}")
+            total_chars += len(content)
+
+        if not sections:
+            return None
+
+        logger.info(
+            "[deep-research-explore] Found %d local articles (%d chars)",
+            len(sections),
+            total_chars,
+        )
+        return "\n\n---\n\n".join(sections)
+
+    return _explore_local_knowledge
 
 
 def _build_wiki_vault_callback(params: GeneralAgentParams):

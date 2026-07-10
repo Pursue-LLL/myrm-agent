@@ -302,6 +302,20 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
         });
       }
 
+      if (sd.phase === 'explore' && sd.status === 'complete' && sd.has_context) {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1) {
+            const steps = state.messages[idx].progressSteps;
+            if (steps && steps.length > 0) {
+              const lastStep = steps[steps.length - 1];
+              const chars = typeof sd.context_chars === 'number' ? sd.context_chars : 0;
+              lastStep.items = [{ text: `Found ${Math.round(chars / 1000)}k chars of relevant local knowledge` }];
+            }
+          }
+        });
+      }
+
       if (sd.phase === 'plan' && typeof sd.plan === 'string') {
         const planText = (sd.plan as string).trim();
         if (planText) {
@@ -355,6 +369,52 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
             }
           });
         }
+      }
+
+      if (sd.phase === 'research' && typeof sd.cycle === 'number') {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1) {
+            const steps = state.messages[idx].progressSteps;
+            if (steps && steps.length > 0) {
+              const lastStep = steps[steps.length - 1];
+              const cycle = sd.cycle as number;
+              const maxCycles = typeof sd.max_cycles === 'number' ? (sd.max_cycles as number) : 0;
+              const costUsd = typeof sd.current_cost_usd === 'number' ? (sd.current_cost_usd as number) : 0;
+              const cycleLabel = maxCycles > 0 ? `Cycle ${cycle}/${maxCycles}` : `Cycle ${cycle}`;
+              if (costUsd > 0) {
+                lastStep.items = [{ text: `${cycleLabel} — $${costUsd.toFixed(2)}` }];
+              } else {
+                lastStep.items = [{ text: cycleLabel }];
+              }
+            }
+          }
+        });
+      }
+
+      if (sd.phase === 'research' && typeof sd.budget_event === 'string') {
+        actions.setMessages((state) => {
+          const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+          if (idx !== -1) {
+            const steps = state.messages[idx].progressSteps;
+            if (steps && steps.length > 0) {
+              const lastStep = steps[steps.length - 1];
+              const costUsd = typeof sd.current_cost_usd === 'number' ? (sd.current_cost_usd as number) : 0;
+              const budgetUsd = typeof sd.budget_usd === 'number' ? (sd.budget_usd as number) : 0;
+              const percentUsed = typeof sd.percent_used === 'number' ? (sd.percent_used as number) : 0;
+              const isExceeded = sd.budget_event === 'exceeded';
+              const costText = budgetUsd > 0 ? ` ($${costUsd.toFixed(2)}/$${budgetUsd.toFixed(2)})` : '';
+              const warningText = isExceeded
+                ? `Budget exceeded${costText}`
+                : `Budget ${Math.round(percentUsed)}% used${costText}`;
+              if (!lastStep.items || !Array.isArray(lastStep.items)) {
+                lastStep.items = [];
+              }
+              (lastStep.items as { text: string }[]).push({ text: warningText });
+              lastStep.status = isExceeded ? 'warning' : undefined;
+            }
+          }
+        });
       }
     }
 
